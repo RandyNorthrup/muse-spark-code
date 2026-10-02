@@ -85,37 +85,17 @@ happened, not what was planned; superseded entries are kept.
 
 - A skill file over its 64 KB cap is now refused before it is read whole, so
   its log line says "is over the 65536 byte limit" without the file's size.
-- The Node bundles share their English fallback as `dist/uiText.js`, while
-  installed-language state stays local to each bundle. The VSIX and ACP
-  tarball include it, and CI checks both package member lists. Existing
-  bundle caps remain unchanged; runtime smoke checks cover the extension,
-  Model API bundle and the agent installed from its tarball.
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
 
 ### Fixed
 
-- **Windows hooks no longer wait on PowerShell's module scan.** The
-  PowerShell wrapper that puts each Windows command and hook in its job
-  object (M27) loaded the job helper with `Add-Type` and switched output to
-  UTF-8 with `New-Object`. PowerShell finds both cmdlets by module
-  auto-loading, which, without its module analysis cache, first analyses
-  every installed module. A hook's narrow environment does not carry
-  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner a hook waited
-  roughly 18 to 30 s before it started, and past the hook test's 60 s on a
-  fresh runner (the M51 hook test's intermittent timeout). The wrapper now
-  makes .NET calls only, so a hook or command starts without any module
-  discovery; the helper's self-test and a stopped command's job kill load
-  it the same way.
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
-- **A crafted long line no longer stalls the log.** Every line the
-  extension logs passes through its secret redactor, whose JSON Web Token
-  pattern read a long word again from every `eyJ` after a dash in it: a
-  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
-  run of dotted words once. A token glued after `_` or a letter
-  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
-  the old pattern redacted is left.
 - **A spawn that starts no child asks nothing** (Model API backend). One past
   the 64 children of a conversation, one asking for worktree isolation, or
   one reusing an earlier spawn's command id for a different task is refused
@@ -151,6 +131,11 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
 
 ## [0.10.1] - 2026-10-02
 

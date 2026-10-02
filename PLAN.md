@@ -157,7 +157,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `rimraf`                                                                                             | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `axe-core`                                                                                           | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `parse5`                                                                                             | 8.0.1                             | M69 (D49): web fetch parses a page with the HTML standard's own parsing algorithm (the implementation jsdom uses), after four review rounds found a hand-written tokenizer short of it. MIT; one dependency, `entities` ^8 (BSD-2-Clause, 8.1.0 locked, formerly our direct dependency); no peers; published 2026-04-19; already in the lockfile through jsdom and @vscode/vsce; `npm audit` clean. Quadratic on hostile nesting (40,000 nested lists in 73 s), so it runs only in `dist/pageWorker.js`, a worker per page (at most two at once) stopped at 10 s or 512 MiB (D6). `entities` 8 says Node ≥ 20.19 for `require(esm)`; bundled, the worker ran on Node 20.18.3. |
-| `html-encoding-sniffer`                                                                              | 6.0.0                             | M69: the HTML standard's encoding sniffing (byte order mark, the Content-Type charset, the 1,024-byte `<meta>` prescan) for web fetch's HTML, as jsdom uses it. MIT; one dependency, `@exodus/bytes` ^1.6 (MIT; 1.15.2 locked through jsdom, published 2026-09-21, inside the 7-day window: the lockfile pins it, as for `@muse-code/sdk`; its optional `@noble/hashes` peer is not used by the `encoding-lite` entry the sniffer imports); published 2025-12-26; `npm audit` clean. Says Node ≥ 20.19 (ESM); bundled into `dist/pageWorker.js` only and run on Node 20.18.3. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                                      |
+| `html-encoding-sniffer`                                                                              | 7.0.0                             | PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                     |
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
 
@@ -8748,6 +8748,15 @@ evaluation is authorized by these repairs.
   after. All production build subgates pass without changing a cap. The
   conflict resolutions, rig setup and receipts are in
   `docs/certification/m76.md`.
+  **Updated main:** first join committed as `0621fda9` with normal hooks;
+  then join `555f764a` (PR #64, encoding compatibility), preserving both
+  changelog/plan additions and removing four exact Unreleased duplicates
+  already released on main. A fresh private rig install takes sniffer 7.0.0.
+  All eight lane commands pass again; 1,634 tests in 37 files pass with no
+  skips. The encoding source/tests remain byte-identical to main and the
+  host API record is regenerated again on Kubuntu. Final extension size
+  is 544.1/600 KiB, Model API 359.9/400 and page worker 203.2/300; all
+  production build subgates pass. The record above binds this final join.
 
 - **Independent-review corrections, 2026-10-01 (M76b).** Reproduce RV76's
   three findings on `eb606fcb` with fake HTTP, then commit each smallest fix:
@@ -10011,6 +10020,35 @@ release gates to the lead. `M76b.md` also excludes the candidate merge this
 round. Finding commits use normal lint/format/secret hooks; the required
 focused tests and eight local lane checks pass. These results do not close
 the lead's remaining certification gates or change any gate configuration.
+
+**PR #60 compatibility repair (2026-09-30; proven on the floor, release remains first).**
+The owner explicitly included the Dependabot branches in the merge goal.
+Prepare the exact `html-encoding-sniffer` 7.0.0 delta from original bot head
+`f829f28f8ef81265722a9c862f8150e134fa3423` on main `32709441`; root retains
+commit, push and normal-merge ownership. Preserve the original bot head.
+Reuse `bomEncodingOf` and the sniffer's header-label normalization in the canonical HTML charset adapter:
+only a BOM or valid transport header may make HTML decoding certain. The v7
+XML-declaration/signature paths must not freeze an HTML page before its meta
+declaration can take effect. Keep the bounded prescan and existing later-meta
+reparse; write real byte-to-Markdown golden controls before accepting the delta.
+
+Acceptance PR60-A covers BOM/header priority, invalid labels, XML prologues,
+HTML meta priority and later tentative reparse. PR60-B covers UTF-16 signatures
+and malformed/truncated meta through the real sniffer and converter. PR60-C
+requires original-bot/source preservation, fresh peer/audit metadata, scoped
+types/lint/format and assertion red/restored proofs, then the actual packaged
+page worker on Node 20.18.3. Reuse existing worker-floor transport; no model,
+paid call, dependency engine waiver, threshold change or full quality in this
+source lane. Kubuntu bounded work yields to final M72/release gates. Merged
+with main 2a30b1a0 (0.10.0, #66, #67) on 2026-10-02; the full quality gate
+passed on the Mac mini at that head, and hosted CI is the merge gate. Result: sniffer 7 declares Node
+22.13, but bundled into `dist/pageWorker.js` it loads and converts in VS Code
+1.99.0's Node 20.18.3 (the floor), and the integration run's `minimum` label
+now carries the goldens through the shipped bundle. The proof also found one
+defect older than this PR: Node 20.18's `TextDecoder` reads windows-1252 as
+ISO-8859-1 (the euro sign and curly quotes come out as controls), so
+`textDecoding.ts` decodes that table itself on every Node. Receipts, red
+drills and sizes are in `docs/certification/pr60-sniffer7.md`.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,
