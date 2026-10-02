@@ -74,6 +74,19 @@ function admit(isAccepted = true) {
   deliver({ type: 'handoffCommandResult', requestId: REQUEST_ID, accepted: isAccepted })
 }
 
+/** Every modal dialog on screen: the panel shows one at a time. */
+function modalRoots() {
+  return [...document.querySelectorAll('[aria-modal="true"]')]
+}
+
+/** Opens `/usage` or `/agents` through the palette, as a user does. */
+function openFromPalette(command: string) {
+  fireEvent.click(screen.getByLabelText('Commands'))
+  const filter = screen.getByRole('combobox')
+  fireEvent.change(filter, { target: { value: command } })
+  fireEvent.keyDown(filter, { key: 'Enter' })
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -176,10 +189,12 @@ describe('/handoff (M74)', () => {
     admit(false)
     expect(dialogText().value).toBe('Edited brief.')
     expect(screen.getByRole('button', { name: UI_TEXT.handoffConfirm })).toBeEnabled()
-    // Accepted: the new conversation clears the dialog with the transcript.
+    // Accepted: the new conversation clears the dialog with the transcript,
+    // and the focus goes back to the prompt.
     admit()
     deliver({ type: 'conversationCleared' })
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
   })
 
   it('cancels the handoff without starting anything', () => {
@@ -188,12 +203,46 @@ describe('/handoff (M74)', () => {
     admit()
     deliver(READY)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'cancelHandoff', requestId: REQUEST_ID })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'cancelHandoff', requestId: REQUEST_ID })
     expect(screen.queryByRole('dialog')).toBeNull()
+    // Closed, the dialog hands the focus back to the prompt (which says so
+    // to the host after the cancel).
+    expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'confirmHandoff' }),
     )
   })
+
+  it.each([
+    { command: '/usage', title: UI_TEXT.usageLabel },
+    { command: '/agents', title: UI_TEXT.agentMapTitle },
+  ])(
+    'keeps a brief that arrives while $command is open waiting until it closes, one modal at a time',
+    ({ command, title }) => {
+      const postMessage = renderPanel()
+      submitCommand('/handoff')
+      admit()
+      openFromPalette(command)
+      const open = screen.getByRole('dialog', { name: title })
+      deliver(READY)
+      // The open dialog keeps the screen and the focus; the brief's dialog,
+      // and its Start, are not there to reach under it.
+      expect(modalRoots()).toEqual([open])
+      expect(open.contains(document.activeElement)).toBe(true)
+      expect(screen.queryByRole('dialog', { name: UI_TEXT.handoffDialogTitle })).toBeNull()
+      expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
+      // Closed: the brief's dialog opens in its place, with the focus.
+      fireEvent.keyDown(open, { key: 'Escape' })
+      const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
+      expect(modalRoots()).toEqual([dialog])
+      expect(dialog.contains(document.activeElement)).toBe(true)
+      expect(dialogText().value).toBe(BRIEF)
+      expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+      expect(postMessage).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'confirmHandoff' }),
+      )
+    },
+  )
 
   it('ignores a result for another request', () => {
     const postMessage = renderPanel()

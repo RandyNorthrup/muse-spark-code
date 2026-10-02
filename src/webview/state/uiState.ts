@@ -1729,6 +1729,9 @@ function clearedConversation(state: UiState): UiState {
     goalEdit: undefined,
     pendingHandoffCommand: undefined,
     handoff: undefined,
+    // A handoff dialog that goes with the conversation (its Start took)
+    // hands the focus back to the prompt (M74).
+    focusRequests: state.handoff === undefined ? state.focusRequests : state.focusRequests + 1,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
@@ -2413,7 +2416,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         : { ...state, handoff: { ...pending, isConfirming: true } }
     }
     case 'handoffDismissed': {
-      return state.handoff === undefined ? state : { ...state, handoff: undefined }
+      // Closed, the dialog hands the focus back to the prompt, as Usage
+      // and the Agent map do.
+      return state.handoff === undefined
+        ? state
+        : { ...state, handoff: undefined, focusRequests: state.focusRequests + 1 }
     }
     case 'insertRequested': {
       return withInsert(state, action.text)

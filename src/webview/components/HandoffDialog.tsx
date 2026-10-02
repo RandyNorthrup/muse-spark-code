@@ -16,8 +16,6 @@ export interface HandoffDialogProps {
   /** The brief as edited. */
   readonly draft: string
   readonly isConfirming: boolean
-  /** Behind a modal (M25). */
-  readonly isInert?: boolean
   readonly onChange: (draft: string) => void
   readonly onConfirm: (brief: string) => void
   readonly onCancel: () => void
@@ -30,7 +28,6 @@ export function HandoffDialog({
   todos,
   draft,
   isConfirming,
-  isInert = false,
   onChange,
   onConfirm,
   onCancel,
@@ -41,7 +38,7 @@ export function HandoffDialog({
   const isEmpty = draft.trim() === ''
   return (
     <Modal title={UI_TEXT.handoffDialogTitle} titleId="handoff-title" isWide onClose={onCancel}>
-      <div inert={isInert}>
+      <div>
         <label className="handoff-label" htmlFor="handoff-brief">
           {UI_TEXT.handoffDialogBody}
         </label>

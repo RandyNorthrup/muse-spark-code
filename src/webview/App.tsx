@@ -842,8 +842,12 @@ export function App({
   )
   const closeOverlay = useCallback(() => {
     setOverlay(undefined)
-    dispatch({ type: 'focusRequested' })
-  }, [dispatch])
+    // A brief that waited behind the closed modal opens now and takes the
+    // focus itself (M74); the prompt behind it is inert.
+    if (store.getState().handoff === undefined) {
+      dispatch({ type: 'focusRequested' })
+    }
+  }, [store, dispatch])
   // Every composer button toggles what it opens: a second click closes.
   const toggleOverlay = useCallback(
     (view: Overlay) => {
@@ -1687,8 +1691,12 @@ export function App({
         onClose={closeOverlay}
       />
     ) : null
+  // One modal at a time (M74): a brief that arrives while Usage, the Agent
+  // map or the install confirmation is open waits for it to close, then
+  // opens, so its Start is never reachable under a dialog that hides it.
+  const isOtherModalOpen = overlay === 'usage' || overlay === 'agents' || isInstallConfirmOpen
   const handoffDialog =
-    state.handoff === undefined ? null : (
+    isOtherModalOpen || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -1701,11 +1709,7 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen =
-    overlay === 'usage' ||
-    overlay === 'agents' ||
-    isInstallConfirmOpen ||
-    state.handoff !== undefined
+  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
 
   return (
     <div className="app">
