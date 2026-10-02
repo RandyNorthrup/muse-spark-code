@@ -801,6 +801,9 @@ export class ConversationController {
    * A `/review` on its way (git, the pickers, the session): one at a time.
    * A message sent meanwhile waits for it (`sessionForAction`), so it cannot
    * start a turn the review's own turn would then queue or steer behind.
+   * It belongs to the conversation that started it: a dropped conversation
+   * lets it go (`dropSession`), so its outstanding command never holds up
+   * or refuses the next conversation.
    */
   private reviewStart: Promise<void> | undefined
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
@@ -1030,6 +1033,9 @@ export class ConversationController {
     }
     if (!isOwnedRecovery) {
       this.sendInvalidationEpoch += 1
+      // A review starting in the old conversation answers its own card; the
+      // next conversation neither waits for it nor is refused because of it.
+      this.reviewStart = undefined
     }
     const { session } = this
     if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
@@ -3844,7 +3850,10 @@ export class ConversationController {
     try {
       await running
     } finally {
-      this.reviewStart = undefined
+      // A newer conversation's review may hold the barrier by now.
+      if (this.reviewStart === running) {
+        this.reviewStart = undefined
+      }
     }
   }
 

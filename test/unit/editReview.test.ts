@@ -1,25 +1,31 @@
 import path from 'node:path'
 import os from 'node:os'
-import { readFileSync, realpathSync, symlinkSync, unlinkSync } from 'node:fs'
-import { runInNewContext } from 'node:vm'
-import { mkdir, mkdtemp, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
-import { executeTool } from '../../src/core/backends/modelapi/tools'
+import { existsSync, realpathSync, renameSync, symlinkSync, unlinkSync } from 'node:fs'
+import { appendFile, mkdir, mkdtemp, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
+import { executeTool, type ToolIo } from '../../src/core/backends/modelapi/tools'
 import { memoryToolIo } from './helpers/fakeToolIo'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   EditReview,
   type EditReviewDeps,
   originalUriPath,
   stripExtendedLengthPrefix,
 } from '../../src/host/editor/editReview'
-import { UI_TEXT } from '../../src/shared/constants'
+import { createRevertIo } from '../../src/host/editor/revertIo'
+import { canonicalPath } from '../../src/host/canonicalPath'
+import { fingerprint } from '../../src/core/verify/fingerprint'
+import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import {
-  asUserEdit,
-  createCheckpointPort,
-  withCheckpointEdit,
-} from '../../src/host/checkpoints/checkpointHost'
+import type { CheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import {
+  admissionPort,
+  admitted,
+  DELETION_ONLY_PATCH,
+  failsRelease,
+  nativeToolIo,
+  wiredRevert,
+} from './helpers/activationReview'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -30,35 +36,132 @@ const CREATED =
   '{"files":[{"path":"new.txt","hunks":[{"oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":["+hi"]}]}]}'
 const ESCAPING = '{"files":[{"path":"../outside.txt","hunks":[]}]}'
 
-type ReviewWrites = Pick<EditReviewDeps, 'writeFile' | 'deleteFile'>
+/** One hunk of `file`: `before` edited into `after` (write), or `after` in a new file (delete). */
+function oneHunk(file: string, action: 'write' | 'delete'): string {
+  return JSON.stringify({
+    files: [
+      {
+        path: file,
+        hunks: [
+          {
+            oldStart: action === 'write' ? 1 : 0,
+            oldLines: action === 'write' ? 1 : 0,
+            newStart: 1,
+            newLines: 1,
+            lines: action === 'write' ? ['-before', '+after'] : ['+after'],
+          },
+        ],
+      },
+    ],
+  })
+}
 
-/** Function signatures belong to this tree's activation adapters, not external input. */
-function isReviewWrites(value: unknown): value is ReviewWrites {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'writeFile' in value &&
-    typeof value.writeFile === 'function' &&
-    'deleteFile' in value &&
-    typeof value.deleteFile === 'function'
+const LINK_TYPE = process.platform === 'win32' ? 'junction' : 'dir'
+const nativeFolders: string[] = []
+
+afterEach(async () => {
+  await Promise.all(nativeFolders.splice(0).map((folder) => removeFolder(folder)))
+})
+
+/** A fresh workspace folder on this machine, removed after the test. */
+async function nativeFolder(): Promise<string> {
+  const folder = realpathSync.native(await mkdtemp(path.join(os.tmpdir(), 'm70-revert-')))
+  nativeFolders.push(folder)
+  return folder
+}
+
+/**
+ * `relative` (default `notes.md`) holding `content` (null: absent) in a fresh folder,
+ * reverted through activation's adapters over the tools' real writes. The
+ * hooks run while admission is awaited, right after the read, and right
+ * before publication.
+ */
+async function nativeRevert(
+  options: {
+    readonly relative?: string
+    readonly content?: string | null
+    readonly mark?: (isRunning: boolean, file: string) => Promise<void>
+    readonly afterRead?: (file: string) => Promise<void>
+    readonly beforePublish?: (file: string, unsaved: string[]) => void
+  } = {},
+) {
+  const folder = await nativeFolder()
+  const file = path.join(folder, options.relative ?? 'notes.md')
+  await mkdir(path.dirname(file), { recursive: true })
+  if (options.content !== null) {
+    await writeFile(file, options.content ?? 'after\n')
+  }
+  const { checkpoints, marks } = admissionPort(
+    async (isRunning) => await options.mark?.(isRunning, file),
   )
+  const unsaved: string[] = []
+  const trash = vi.fn((fsPath: string) => unlink(fsPath))
+  const complete = vi.fn<(wasWritten: boolean) => void>()
+  const log = new FakeLogOutputChannel()
+  const review = new EditReview({
+    platform: process.platform,
+    workspaceRoot: folder,
+    readFile: async (fsPath) => {
+      const text = existsSync(fsPath) ? await readFile(fsPath, 'utf8') : undefined
+      await options.afterRead?.(fsPath)
+      return text
+    },
+    realPath: canonicalPath,
+    hasUnsavedChanges: (fsPath) => unsaved.includes(fsPath),
+    ...wiredRevert({
+      checkpoints,
+      guard: () => admitted,
+      toolIo: nativeToolIo(() => unsaved),
+      trash,
+    }),
+    beginEdit: () => {
+      options.beforePublish?.(file, unsaved)
+      return complete
+    },
+    openDiff: vi.fn(),
+    log,
+  })
+  return { file, review, trash, complete, log, marks }
 }
 
-/** Execute the actual activation callbacks, over fake VS Code I/O and the real lease. */
-function activationReviewWrites(bindings: Readonly<Record<string, unknown>>): ReviewWrites {
-  const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
-  const review = source.indexOf('const review = lazyReview(')
-  const start = source.indexOf('writeFile: async', review)
-  const end = source.indexOf('openDiff: async', start)
-  if (review === -1 || start < review || end <= start) {
-    throw new Error('activation review adapters were not found')
-  }
-  const value: unknown = runInNewContext(`({${source.slice(start, end)}})`, bindings)
-  if (!isReviewWrites(value)) {
-    throw new Error('activation review adapters are not callable')
-  }
-  return value
+/** `after\n` under `/ws`, reverted through activation's adapters whose writes are spied, never made. */
+function fakeRevert(options: {
+  readonly checkpoints: CheckpointPort
+  readonly realPath: (file: string) => Promise<string>
+  readonly hasUnsavedChanges?: (file: string) => boolean
+  readonly check?: () => void
+  readonly beginEdit?: EditReviewDeps['beginEdit']
+}) {
+  const hasUnsavedChanges = options.hasUnsavedChanges ?? (() => false)
+  const write = vi.fn<ToolIo['writeFileIfUnchanged']>(() => Promise.resolve('written'))
+  const remove = vi.fn(() => Promise.resolve())
+  const review = new EditReview({
+    platform: 'linux',
+    workspaceRoot: '/ws',
+    readFile: () => Promise.resolve('after\n'),
+    realPath: options.realPath,
+    hasUnsavedChanges,
+    ...wiredRevert({
+      checkpoints: options.checkpoints,
+      guard: () => options.check ?? admitted,
+      toolIo: { hasUnsavedChanges, writeFileIfUnchanged: write },
+      trash: remove,
+    }),
+    ...(options.beginEdit !== undefined && { beginEdit: options.beginEdit }),
+    openDiff: () => Promise.resolve(),
+    log: new FakeLogOutputChannel(),
+  })
+  return { review, write, remove }
 }
+
+const revertedResult = (relative: string) => ({
+  isReverted: true,
+  notices: [{ level: 'info', text: fill(UI_TEXT.editRevertedPath, { path: relative }) }],
+})
+const refusedResult = (text: string) => ({
+  isReverted: false,
+  notices: [{ level: 'warning', text }],
+})
 
 describe('activation review checkpoint admission (RV70 finding 3)', () => {
   it.each([
@@ -72,90 +175,206 @@ describe('activation review checkpoint admission (RV70 finding 3)', () => {
       let isDirty = false
       const entered = Promise.withResolvers<undefined>()
       const released = Promise.withResolvers<undefined>()
-      const checkpoints = createCheckpointPort({
-        isNamespaceKnown: () => true,
-        store: undefined,
-        isWorkspaceTrusted: () => true,
-        isEnabled: () => false,
-        hasGit: () => false,
-      })
-      const marks: boolean[] = []
-      vi.spyOn(checkpoints, 'markTurn').mockImplementation(async (_key, isRunning) => {
-        marks.push(isRunning)
+      const { checkpoints, marks } = admissionPort(async (isRunning) => {
         if (!isRunning) {
           return
         }
-
         entered.resolve(undefined)
         await released.promise
       })
-      const write = vi.fn(() => Promise.resolve())
-      const remove = vi.fn(() => Promise.resolve())
       const complete = vi.fn()
       const check = vi.fn<() => void>()
       const name = isAlias ? 'link.md' : 'notes.md'
-      const hasUnsavedChanges = (file: string) => isDirty && file === `/ws/${name}`
-      const adapters = activationReviewWrites({
+      const t = fakeRevert({
         checkpoints,
-        withCheckpointEdit,
-        asUserEdit,
-        UI_TEXT,
-        fill,
-        TextEncoder,
-        backend: { workspaceActionGuard: () => check },
-        nativeStarts: { signal: new AbortController().signal },
-        toolIo: { hasUnsavedChanges },
-        vscode: {
-          Uri: { file: (file: string) => file },
-          workspace: { fs: { writeFile: write, delete: remove } },
-        },
-      })
-      const review = new EditReview({
-        platform: 'linux',
-        workspaceRoot: '/ws',
-        readFile: () => Promise.resolve('after\n'),
         realPath: (file) => Promise.resolve(file === `/ws/${name}` ? '/ws/notes.md' : file),
-        hasUnsavedChanges,
-        ...adapters,
+        hasUnsavedChanges: (file) => isDirty && file === `/ws/${name}`,
+        check,
         beginEdit: () => complete,
-        openDiff: () => Promise.resolve(),
-        log: new FakeLogOutputChannel(),
       })
-      const patch = JSON.stringify({
-        files: [
-          {
-            path: name,
-            hunks: [
-              {
-                oldStart: action === 'write' ? 1 : 0,
-                oldLines: action === 'write' ? 1 : 0,
-                newStart: 1,
-                newLines: 1,
-                lines: action === 'write' ? ['-before', '+after'] : ['+after'],
-              },
-            ],
-          },
-        ],
-      })
-      const reverting = Promise.allSettled([review.revertHunk('edit', patch, 0, 0)])
+      const reverting = t.review.revertHunk('edit', oneHunk(name, action), 0, 0)
       await entered.promise
       isDirty = true
       released.resolve(undefined)
-      expect(await reverting).toEqual([
-        {
-          status: 'rejected',
-          reason: expect.objectContaining({
-            message: fill(UI_TEXT.editUnsavedChanges, { path: name }),
-          }),
-        },
-      ])
-      expect(write).not.toHaveBeenCalled()
-      expect(remove).not.toHaveBeenCalled()
-      expect(complete).toHaveBeenCalledWith(false)
+      // Read, rebuilt and checked under that admission: refused, nothing published.
+      expect(await reverting).toEqual(
+        refusedResult(fill(UI_TEXT.editUnsavedChanges, { path: name })),
+      )
+      expect(t.write).not.toHaveBeenCalled()
+      expect(t.remove).not.toHaveBeenCalled()
+      expect(complete).not.toHaveBeenCalled()
       expect(marks).toEqual([true, false])
       expect(check).toHaveBeenCalledTimes(2)
     },
   )
+
+  it.each(['write', 'delete'] as const)(
+    'refuses a %s when an editor turns dirty right before publication, by the writer’s last word',
+    async (action) => {
+      const t = await nativeRevert({
+        beforePublish: (file, unsaved) => {
+          unsaved.push(file)
+        },
+      })
+      expect(await t.review.revertHunk('edit', oneHunk('notes.md', action), 0, 0)).toEqual(
+        refusedResult(fill(UI_TEXT.editUnsavedChanges, { path: 'notes.md' })),
+      )
+      expect(await readFile(t.file, 'utf8')).toBe('after\n')
+      expect(t.trash).not.toHaveBeenCalled()
+      expect(t.complete).toHaveBeenCalledExactlyOnceWith(false)
+    },
+  )
+})
+
+// RV69 finding 1: a Revert is read, rebuilt, checked and published as one
+// operation under checkpoint admission, its publication held to the bytes read.
+describe('Revert under one checkpoint admission (RV69 finding 1)', () => {
+  const USER_LINE = 'USER SAVED NEW LINE\n'
+
+  it.each(['write', 'delete'] as const)(
+    'rebuilds a %s Revert from a save made while its admission was awaited',
+    async (action) => {
+      const t = await nativeRevert({
+        mark: async (isRunning, file) => {
+          if (isRunning) {
+            await appendFile(file, USER_LINE)
+          }
+        },
+      })
+      expect(await t.review.revertHunk('edit', oneHunk('notes.md', action), 0, 0)).toEqual(
+        revertedResult('notes.md'),
+      )
+      // The hunk is out and the saved line stays; a created file the user added to is kept.
+      expect(await readFile(t.file, 'utf8')).toBe(
+        action === 'write' ? `before\n${USER_LINE}` : USER_LINE,
+      )
+      expect(t.trash).not.toHaveBeenCalled()
+      expect(t.marks).toEqual([true, false])
+    },
+  )
+
+  it.each(['write', 'delete'] as const)(
+    'refuses a %s Revert whose file is saved after it was read, keeping the save',
+    async (action) => {
+      const t = await nativeRevert({
+        afterRead: async (file) => {
+          await appendFile(file, USER_LINE)
+        },
+      })
+      expect(await t.review.revertHunk('edit', oneHunk('notes.md', action), 0, 0)).toEqual(
+        refusedResult(fill(UI_TEXT.editNotRebuildable, { path: 'notes.md' })),
+      )
+      expect(await readFile(t.file, 'utf8')).toBe(`after\n${USER_LINE}`)
+      expect(t.trash).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([false, true])(
+    'writes back a file the edit removed only while nothing is there, created meanwhile=%s',
+    async (isCreatedMeanwhile) => {
+      const removed = JSON.stringify({
+        files: [
+          {
+            path: 'notes.md',
+            hunks: [{ oldStart: 1, oldLines: 1, newStart: 0, newLines: 0, lines: ['-gone'] }],
+          },
+        ],
+      })
+      const t = await nativeRevert({
+        content: null,
+        afterRead: async (file) => {
+          if (isCreatedMeanwhile) {
+            await writeFile(file, USER_LINE)
+          }
+        },
+      })
+      expect(await t.review.revertHunk('edit', removed, 0, 0)).toEqual(
+        isCreatedMeanwhile
+          ? refusedResult(fill(UI_TEXT.editNotRebuildable, { path: 'notes.md' }))
+          : revertedResult('notes.md'),
+      )
+      expect(await readFile(t.file, 'utf8')).toBe(isCreatedMeanwhile ? USER_LINE : 'gone')
+    },
+  )
+})
+
+// RV69 finding 2: the canonical target is resolved again under admission, and
+// the publication itself refuses a link or junction on the way.
+describe('Revert confinement under checkpoint admission (RV69 finding 2)', () => {
+  it.each(['write', 'delete'] as const)(
+    'refuses a %s whose folder became a link outside the workspace while admission was awaited',
+    async (action) => {
+      const realPaths = new Map<string, string>()
+      const { checkpoints } = admissionPort((isRunning) => {
+        if (isRunning) {
+          // `/ws/sub` is now a link to `/outside`.
+          realPaths.set('/ws/sub/notes.md', '/outside/notes.md')
+        }
+        return Promise.resolve()
+      })
+      const t = fakeRevert({
+        checkpoints,
+        realPath: (file) => Promise.resolve(realPaths.get(file) ?? file),
+      })
+      expect(await t.review.revertHunk('edit', oneHunk('sub/notes.md', action), 0, 0)).toEqual(
+        refusedResult(fill(UI_TEXT.editPathRefused, { path: 'sub/notes.md' })),
+      )
+      expect(t.write).not.toHaveBeenCalled()
+      expect(t.remove).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['write', 'delete'] as const)(
+    'refuses a %s whose folder becomes a junction after the recheck, writing nothing behind it',
+    async (action) => {
+      const outside = await nativeFolder()
+      await writeFile(path.join(outside, 'notes.md'), 'after\n')
+      const t = await nativeRevert({
+        relative: 'sub/notes.md',
+        beforePublish: (file) => {
+          const sub = path.dirname(file)
+          renameSync(sub, `${sub}-moved`)
+          symlinkSync(outside, sub, LINK_TYPE)
+        },
+      })
+      await expect(
+        t.review.revertHunk('edit', oneHunk('sub/notes.md', action), 0, 0),
+      ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+      expect(t.complete).toHaveBeenCalledExactlyOnceWith(false)
+      expect(t.trash).not.toHaveBeenCalled()
+      expect(await readFile(path.join(outside, 'notes.md'), 'utf8')).toBe('after\n')
+      const moved = path.join(`${path.dirname(t.file)}-moved`, 'notes.md')
+      expect(await readFile(moved, 'utf8')).toBe('after\n')
+    },
+  )
+})
+
+// RV69 finding 4: a Revert that changed the file stands when letting its
+// admission go fails afterwards; the failure is logged, not reported as unwritten.
+describe('a committed Revert whose admission release fails (RV69 finding 4)', () => {
+  it.each(['file', 'hunk'] as const)(
+    'reports the %s Revert done and logs the release failure',
+    async (action) => {
+      const t = await nativeRevert({ content: 'tail\n', mark: failsRelease })
+      const result =
+        action === 'file'
+          ? { isReverted: true, notices: await t.review.revert('edit', DELETION_ONLY_PATCH) }
+          : await t.review.revertHunk('edit', DELETION_ONLY_PATCH, 0, 0)
+      expect(result).toEqual(revertedResult('notes.md'))
+      expect(await readFile(t.file, 'utf8')).toBe('removed\ntail\n')
+      expect(t.log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('its checkpoint admission was not released'),
+      )
+    },
+  )
+
+  it('still fails a Revert that changed nothing when the release fails', async () => {
+    const t = await nativeRevert({ content: 'unrelated\n', mark: failsRelease })
+    await expect(t.review.revertHunk('edit', DELETION_ONLY_PATCH, 0, 0)).rejects.toThrow(
+      'presence not written',
+    )
+    expect(await readFile(t.file, 'utf8')).toBe('unrelated\n')
+  })
 })
 
 function setup(
@@ -178,6 +397,31 @@ function setup(
   const deleted: string[] = []
   const diffs: [string, string, string][] = []
   const log = new FakeLogOutputChannel()
+  const isDirty = options.hasUnsavedChanges ?? (() => false)
+  /** The conditional publication over the fake disk: the file as read (undefined: absent), no editor dirty. */
+  const isAsRead = (fsPath: string, expected: string | undefined, unsavedAt: readonly string[]) => {
+    const text = disk.get(fsPath)
+    const isSame =
+      expected === undefined
+        ? text === undefined
+        : text !== undefined && fingerprint(text) === expected
+    return isSame && unsavedAt.every((open) => !isDirty(open))
+  }
+  const put = async (
+    fsPath: string,
+    expected: string | undefined,
+    content: string,
+    { unsavedAt, assertCanWrite }: { unsavedAt: readonly string[]; assertCanWrite: () => void },
+  ) => {
+    await options.beforeWrite?.(fsPath)
+    if (!isAsRead(fsPath, expected, unsavedAt)) {
+      return 'changed' as const
+    }
+    assertCanWrite()
+    writes.push([fsPath, content])
+    disk.set(fsPath, content)
+    return 'written' as const
+  }
   const review = new EditReview({
     platform: options.platform ?? 'linux',
     workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : '/ws',
@@ -186,19 +430,23 @@ function setup(
       return disk.get(fsPath)
     },
     realPath: (fsPath) => Promise.resolve(options.realPaths?.[fsPath] ?? fsPath),
-    hasUnsavedChanges: options.hasUnsavedChanges ?? (() => false),
+    hasUnsavedChanges: isDirty,
     ...(options.beginEdit !== undefined && { beginEdit: options.beginEdit }),
-    writeFile: async (fsPath, content, assertCanWrite) => {
-      await options.beforeWrite?.(fsPath)
-      assertCanWrite()
-      writes.push([fsPath, content])
-      disk.set(fsPath, content)
-    },
-    deleteFile: async (fsPath, assertCanWrite) => {
-      await options.beforeDelete?.(fsPath)
-      assertCanWrite()
-      deleted.push(fsPath)
-      disk.delete(fsPath)
+    withAdmission: async (work) => await work(() => undefined),
+    io: {
+      writeFileIfUnchanged: put,
+      createFileIfAbsent: async (fsPath, content, writeOptions) =>
+        await put(fsPath, undefined, content, writeOptions),
+      trashFileIfUnchanged: async (fsPath, expected, { unsavedAt, assertCanWrite }) => {
+        await options.beforeDelete?.(fsPath)
+        if (!isAsRead(fsPath, expected, unsavedAt)) {
+          return 'changed'
+        }
+        assertCanWrite()
+        deleted.push(fsPath)
+        disk.delete(fsPath)
+        return 'written'
+      },
     },
     openDiff: vi.fn((beforeUri: string, fsPath: string, title: string) => {
       diffs.push([beforeUri, fsPath, title])
@@ -333,14 +581,13 @@ describe('manual revert verification notices', () => {
           readFile: (file) => readFile(file, 'utf8'),
           hasUnsavedChanges: () => false,
           beginEdit: admitted,
-          writeFile: async (file, content, assertCanWrite) => {
-            assertCanWrite()
-            await writeFile(file, content)
-          },
-          deleteFile: async (file, assertCanWrite) => {
-            assertCanWrite()
-            await unlink(file)
-          },
+          withAdmission: async (work) => await work(() => undefined),
+          io: createRevertIo({
+            io: nativeToolIo(),
+            checkpoints: { noteUserSave: () => undefined },
+            platform: process.platform,
+            trash: (file) => unlink(file),
+          }),
           openDiff: vi.fn(),
           log: new FakeLogOutputChannel(),
         })

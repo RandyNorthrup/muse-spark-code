@@ -35,12 +35,14 @@ happened, not what was planned; superseded entries are kept.
     the lines around it into the running turn or as your next message.
   - A review is a turn: it is marked running and takes its turn checkpoint
     like a message, and a message you send while a review is starting waits
-    for it and then goes into the review turn.
+    for it and then goes into the review turn. Clearing the conversation
+    while a review is still starting lets the new conversation's review or
+    message start at once.
   - 70 new strings in the 14 tables (the word for review in Simplified
     Chinese is the table's existing 审阅).
   - **It loads on first use** (M70, PLAN.md D6). Git's material, the
     review turn's text, the Plan-mode hold and edit review (Open diff and
-    Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
+    Revert) are the new `dist/review.js` (42.0 KiB, budget 50), required the
     first time one is used; a module that cannot be loaded refuses the review
     with `reviewUnavailable` and the log has the cause.
 
@@ -58,14 +60,20 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
-- **Revert on an edit no longer overwrites unsaved editor changes**.
-  Edit review's Revert and the pane's hunk Revert refuse a file whose editor
-  is dirty (the file itself or a link to it), recheck that and the
-  workspace confinement after the saved text is read, serialize writes to
-  one file so overlapping reverts rebuild from each other's bytes, and
-  write the checked canonical target; a failed write frees the next one.
-  They tell live verification about the write without creating an edit
-  round of the agent's own.
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
 
 ## [0.10.0] - 2026-10-01
 

@@ -60,6 +60,7 @@ import {
   withTerminalOverrides,
 } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
+import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
@@ -1178,32 +1179,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       realPath: canonicalPath,
       hasUnsavedChanges: (fsPath) => toolIo.hasUnsavedChanges(fsPath),
       beginEdit: (file) => modelApi.beginExternalEdit(undefined, [file]),
-      // A Revert the user pressed, a write or a delete: the file is theirs from then on.
-      writeFile: async (fsPath, content, assertCanWrite) => {
+      // A Revert the user pressed is one operation under the restore lease
+      // (M72): read, rebuilt, checked and published there, by the guarded
+      // conditional writes, so a save or a swap meanwhile refuses it. A
+      // change that lands makes the file the user's.
+      withAdmission: async (work) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal)
-        await withCheckpointEdit(
-          checkpoints,
-          check,
-          asUserEdit(checkpoints, fsPath, async () => {
-            assertCanWrite()
-            await vscode.workspace.fs.writeFile(
-              vscode.Uri.file(fsPath),
-              new TextEncoder().encode(content),
-            )
-          }),
-        )
+        return await withCheckpointEdit(checkpoints, check, async () => await work(check))
       },
-      deleteFile: async (fsPath, assertCanWrite) => {
-        const check = backend.workspaceActionGuard(nativeStarts.signal)
-        await withCheckpointEdit(
-          checkpoints,
-          check,
-          asUserEdit(checkpoints, fsPath, async () => {
-            assertCanWrite()
-            await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-          }),
-        )
-      },
+      io: createRevertIo({
+        io: toolIo,
+        checkpoints,
+        platform: process.platform,
+        trash: async (fsPath) => {
+          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+        },
+      }),
       openDiff: async (beforeUri, fsPath, title) => {
         await vscode.commands.executeCommand(
           VSCODE_COMMANDS.diff,

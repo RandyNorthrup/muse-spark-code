@@ -6,13 +6,51 @@
 // confined to the workspace.
 
 import path from 'node:path'
+import type { ConditionalWrite } from '../../core/backends/modelapi/tools'
 import { revertHunks } from '../../core/patchApply'
 import { isSamePath } from '../../core/paths'
+import { fingerprint } from '../../core/verify/fingerprint'
 import { MUSE_EDIT_SCHEME, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type PatchFile, parsePatchFiles } from '../../shared/patchDocument'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import type { Logger } from '../logger'
+
+/** How a Revert's change is held to what it read (`ToolIo.writeFileIfUnchanged`'s options). */
+export interface RevertWriteOptions {
+  /** The checked canonical target: a link or junction on the way now refuses the change. */
+  readonly expectedCanonicalPath: string
+  /** An editor holding unsaved text at any of them refuses it, asked just before the change. */
+  readonly unsavedAt: readonly string[]
+  /** The checkpoint admission's final word, asked just before the change. */
+  readonly assertCanWrite: () => void
+}
+
+/**
+ * A Revert's conditional publication (M72's guarded file I/O): `changed`, and
+ * nothing done, when the file is no longer what the Revert read.
+ */
+export interface RevertIo {
+  /** Replaces the file while it holds the text read (`ToolIo.writeFileIfUnchanged`). */
+  writeFileIfUnchanged(
+    absolutePath: string,
+    expectedFingerprint: string,
+    content: string,
+    options: RevertWriteOptions,
+  ): Promise<ConditionalWrite>
+  /** Moves the file to the trash while it holds the text read. */
+  trashFileIfUnchanged(
+    absolutePath: string,
+    expectedFingerprint: string,
+    options: RevertWriteOptions,
+  ): Promise<ConditionalWrite>
+  /** Writes the file while nothing is there: it was absent when read. */
+  createFileIfAbsent(
+    absolutePath: string,
+    content: string,
+    options: RevertWriteOptions,
+  ): Promise<ConditionalWrite>
+}
 
 export interface EditReviewDeps {
   /** Selects Windows or POSIX path rules, so both are unit-tested anywhere. */
@@ -27,10 +65,14 @@ export interface EditReviewDeps {
   readonly hasUnsavedChanges: (fsPath: string) => boolean
   /** Manual writes invalidate all live verification without creating an own edit round. */
   readonly beginEdit?: (file: EditedFile) => (wasWritten: boolean) => void
-  /** Invoke the original/canonical editor guard immediately before I/O, after admission. */
-  readonly writeFile: (fsPath: string, content: string, assertCanWrite: () => void) => Promise<void>
-  /** Move to the trash after invoking the same final editor guard. */
-  readonly deleteFile: (fsPath: string, assertCanWrite: () => void) => Promise<void>
+  /**
+   * Holds checkpoint admission (M72's restore lease) around one whole Revert:
+   * its read, rebuild, checks and publication. `assertAdmitted` is the
+   * admission's final word. A failure to let it go after the file changed
+   * rejects, which the Revert reports as a cleanup failure, not as unwritten.
+   */
+  readonly withAdmission: <T>(work: (assertAdmitted: () => void) => Promise<T>) => Promise<T>
+  readonly io: RevertIo
   /** `vscode.diff(before, after, title)`; `beforeUri` is a `muse-edit:` URI string. */
   readonly openDiff: (beforeUri: string, fsPath: string, title: string) => Promise<void>
   readonly log: Logger
@@ -63,9 +105,23 @@ type Rebuilt =
   | { readonly ok: true; readonly content: string; readonly isCreatedFile: boolean }
   | { readonly ok: false; readonly notice: ReviewNotice }
 
+/** What one Revert of one file did: true once the file was changed, else the notices say why. */
+interface RevertResult {
+  readonly isReverted: boolean
+  readonly notices: readonly ReviewNotice[]
+}
+
 /** The document the `muse-edit:` provider serves for `uriPath`. */
 export function originalUriPath(itemId: string, relativePath: string): string {
   return `/${itemId}/${relativePath}`
+}
+
+/** The file no longer carries the edit as it was made, or no longer holds what was read. */
+function changedNotice(resolved: ResolvedFile): ReviewNotice {
+  return {
+    level: 'warning',
+    text: fill(UI_TEXT.editNotRebuildable, { path: resolved.relativePath }),
+  }
 }
 
 function patchFilesOf(patchJson: string): readonly PatchFile[] | undefined {
@@ -163,12 +219,11 @@ export class EditReview implements EditReviewActions {
   }
 
   /**
-   * Rebuilds the pre-edit text; a notice explains why when it cannot. A
-   * UTF-8 BOM is not part of any hunk: it is set aside for the match and
-   * kept on the text written back (PLAN.md D27).
+   * Rebuilds the pre-edit text from `raw`, the file's text as read; a notice
+   * explains why when it cannot. A UTF-8 BOM is not part of any hunk: it is
+   * set aside for the match and kept on the text written back (PLAN.md D27).
    */
-  private async rebuild(resolved: ResolvedFile): Promise<Rebuilt> {
-    const raw = (await this.deps.readFile(resolved.fsPath)) ?? ''
+  private rebuild(resolved: ResolvedFile, raw: string): Rebuilt {
     const hasBom = raw.startsWith(BOM)
     const current = hasBom ? raw.slice(BOM.length) : raw
     const result = revertHunks(current, resolved.file.hunks, resolved.file.created)
@@ -176,13 +231,7 @@ export class EditReview implements EditReviewActions {
       return { ...result, content: hasBom ? `${BOM}${result.content}` : result.content }
     }
     this.deps.log.warn(`Edit review of ${resolved.relativePath}: ${result.reason}`)
-    return {
-      ok: false,
-      notice: {
-        level: 'warning',
-        text: fill(UI_TEXT.editNotRebuildable, { path: resolved.relativePath }),
-      },
-    }
+    return { ok: false, notice: changedNotice(resolved) }
   }
 
   /** Resolves each file once, collecting folder, patch and confinement refusals. */
@@ -222,7 +271,7 @@ export class EditReview implements EditReviewActions {
     const { resolved, notices } = await this.resolvePatch(patchJson)
     const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
     for (const file of resolved) {
-      const rebuilt = await this.rebuild(file)
+      const rebuilt = this.rebuild(file, (await this.deps.readFile(file.fsPath)) ?? '')
       if (rebuilt.ok) {
         ready.push({ resolved: file, rebuilt })
       } else {
@@ -243,7 +292,11 @@ export class EditReview implements EditReviewActions {
       : undefined
   }
 
-  /** Queued writes and the final write both recheck the path and editor buffer. */
+  /**
+   * Under admission, after the read: the path still leads to the checked
+   * canonical target inside the workspace, and no editor holds unsaved text
+   * for it.
+   */
   private async writeRefusal(resolved: ResolvedFile): Promise<ReviewNotice | undefined> {
     const { workspaceRoot } = this.deps
     const checked =
@@ -260,12 +313,18 @@ export class EditReview implements EditReviewActions {
     return this.unsavedNotice(resolved)
   }
 
-  /** Rebuild from the bytes left by the preceding revert, then write once; failures free the lane. */
+  /**
+   * One Revert of one file as one operation under checkpoint admission (M72):
+   * the saved text is read, the pre-edit text rebuilt from it, the path and
+   * the editor checked again, and the result published only while the file
+   * still holds what was read, so a save or a swap meanwhile refuses it.
+   * Reverts of one file queue behind each other; a failure frees the lane.
+   */
   private async writeRevert(
     itemId: string,
     resolved: ResolvedFile,
     hunkIndex?: number,
-  ): Promise<{ readonly isReverted: boolean; readonly notices: readonly ReviewNotice[] }> {
+  ): Promise<RevertResult> {
     const canonical = this.paths.normalize(resolved.canonicalPath)
     const key = this.deps.platform === 'win32' ? canonical.toLowerCase() : canonical
     const previous = this.pendingWrites.get(key)
@@ -281,62 +340,110 @@ export class EditReview implements EditReviewActions {
       )
     })
     this.pendingWrites.set(key, finished)
+    // A Revert that changed the file stands even when letting its admission
+    // go fails afterwards: reported as unwritten, it could be retried and
+    // take the same hunk out twice.
+    const outcome: { committed?: RevertResult } = {}
     try {
       await previous
-      const refusal = await this.writeRefusal(resolved)
-      if (refusal !== undefined) {
-        return { isReverted: false, notices: [refusal] }
-      }
-      const rebuilt = await this.rebuild(resolved)
-      if (!rebuilt.ok) {
-        return { isReverted: false, notices: [rebuilt.notice] }
-      }
-      const nowRefusal = await this.writeRefusal(resolved)
-      if (nowRefusal !== undefined) {
-        return { isReverted: false, notices: [nowRefusal] }
-      }
-      const assertCanWrite = () => {
-        const unsaved = this.unsavedNotice(resolved)
-        if (unsaved !== undefined) {
-          throw new Error(unsaved.text)
+      return await this.deps.withAdmission(async (assertAdmitted) => {
+        const result = await this.revertAdmitted(itemId, resolved, assertAdmitted, hunkIndex)
+        if (result.isReverted) {
+          outcome.committed = result
         }
-      }
-      const complete = this.deps.beginEdit?.({
-        relative: resolved.canonicalRelativePath,
-        absolute: resolved.canonicalPath,
+        return result
       })
-      let wasWritten = false
-      try {
-        if (rebuilt.isCreatedFile) {
-          await this.deps.deleteFile(resolved.canonicalPath, assertCanWrite)
-        } else {
-          await this.deps.writeFile(resolved.canonicalPath, rebuilt.content, assertCanWrite)
-        }
-        wasWritten = true
-      } finally {
-        complete?.(wasWritten)
+    } catch (error: unknown) {
+      if (outcome.committed === undefined) {
+        throw error
       }
-      this.originals.delete(originalUriPath(itemId, resolved.relativePath))
-      const hunk = hunkIndex === undefined ? '' : `hunk ${String(hunkIndex + 1)} of `
-      this.deps.log.info(`Reverted ${hunk}Muse edit ${itemId} on ${resolved.relativePath}`)
-      return {
-        isReverted: true,
-        notices: [
-          {
-            level: 'info',
-            text: fill(
-              rebuilt.isCreatedFile ? UI_TEXT.editCreatedRemovedPath : UI_TEXT.editRevertedPath,
-              { path: resolved.relativePath },
-            ),
-          },
-        ],
-      }
+      this.deps.log.warn(
+        `Reverted ${resolved.relativePath}, but its checkpoint admission was not released: ${String(error)}`,
+      )
+      return outcome.committed
     } finally {
       ending.abort()
       if (this.pendingWrites.get(key) === finished) {
         this.pendingWrites.delete(key)
       }
     }
+  }
+
+  /** The Revert itself, under admission: read, rebuild, recheck, then the conditional change. */
+  private async revertAdmitted(
+    itemId: string,
+    resolved: ResolvedFile,
+    assertAdmitted: () => void,
+    hunkIndex: number | undefined,
+  ): Promise<RevertResult> {
+    const raw = await this.deps.readFile(resolved.canonicalPath)
+    const rebuilt = this.rebuild(resolved, raw ?? '')
+    if (!rebuilt.ok) {
+      return { isReverted: false, notices: [rebuilt.notice] }
+    }
+    const refusal = await this.writeRefusal(resolved)
+    if (refusal !== undefined) {
+      return { isReverted: false, notices: [refusal] }
+    }
+    const complete = this.deps.beginEdit?.({
+      relative: resolved.canonicalRelativePath,
+      absolute: resolved.canonicalPath,
+    })
+    let published: ConditionalWrite = 'changed'
+    try {
+      published = await this.publish(resolved, raw, rebuilt, assertAdmitted)
+    } finally {
+      complete?.(published === 'written')
+    }
+    if (published === 'changed') {
+      return {
+        isReverted: false,
+        notices: [this.unsavedNotice(resolved) ?? changedNotice(resolved)],
+      }
+    }
+    this.originals.delete(originalUriPath(itemId, resolved.relativePath))
+    const hunk = hunkIndex === undefined ? '' : `hunk ${String(hunkIndex + 1)} of `
+    this.deps.log.info(`Reverted ${hunk}Muse edit ${itemId} on ${resolved.relativePath}`)
+    return {
+      isReverted: true,
+      notices: [
+        {
+          level: 'info',
+          text: fill(
+            rebuilt.isCreatedFile ? UI_TEXT.editCreatedRemovedPath : UI_TEXT.editRevertedPath,
+            { path: resolved.relativePath },
+          ),
+        },
+      ],
+    }
+  }
+
+  /**
+   * The change, held to the text read (`raw`, undefined: no file): a created
+   * file emptied goes to the trash, other text replaces the file, and a file
+   * that was absent is written only while nothing is there.
+   */
+  private async publish(
+    resolved: ResolvedFile,
+    raw: string | undefined,
+    rebuilt: Rebuilt & { ok: true },
+    assertAdmitted: () => void,
+  ): Promise<ConditionalWrite> {
+    const target = resolved.canonicalPath
+    const options = {
+      expectedCanonicalPath: target,
+      unsavedAt: [resolved.fsPath, target],
+      assertCanWrite: assertAdmitted,
+    }
+    if (raw === undefined) {
+      // Nothing is there to take out.
+      return rebuilt.isCreatedFile
+        ? 'changed'
+        : await this.deps.io.createFileIfAbsent(target, rebuilt.content, options)
+    }
+    return rebuilt.isCreatedFile
+      ? await this.deps.io.trashFileIfUnchanged(target, fingerprint(raw), options)
+      : await this.deps.io.writeFileIfUnchanged(target, fingerprint(raw), rebuilt.content, options)
   }
 
   /** Content for a `muse-edit:` URI path; undefined when nothing was staged. */

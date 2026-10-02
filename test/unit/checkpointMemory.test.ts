@@ -15,7 +15,6 @@ import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import type { MemoryStore } from '../../src/core/memory/memoryStore'
 import { createCheckpointedMemory } from '../../src/host/backend/checkpointedMemory'
 import { systemPath } from '../../src/host/backend/memoryIo'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import {
   asUserEdit,
   createCheckpointPort,
@@ -35,6 +34,7 @@ import {
   turn,
   write,
 } from './helpers/checkpointHarness'
+import { nativeToolIo } from './helpers/activationReview'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { confirmModal, pickOne, resetMemoryViewMocks } from './helpers/vscodeViews'
 
@@ -71,15 +71,7 @@ async function setup(options: SetupOptions = {}) {
     isWorkspaceTrusted: () => options.isRestricted !== true,
     hasGit: () => true,
   })
-  const native = createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    env: () => ({}),
-    listFiles: () => Promise.resolve([]),
-    searchWorkerPath: 'unused',
-    log: () => undefined,
-    unsavedFiles: () => [],
-  })
+  const native = nativeToolIo()
   const lookup = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
   let isHolding = options.holdLookupOf !== undefined
@@ -635,22 +627,29 @@ describe('activation builds the memory through the checkpointed composition (M72
       /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*asUserEdit\(checkpoints, fsPath, work\),\s*\)/,
     )
     // What else the extension writes in the user's name is noted as theirs
-    // once written (M72): Create AGENTS.md and Revert's write, Revert's
-    // delete, and a plan's publication or stale-stage removal.
+    // once written (M72): Create AGENTS.md, and a plan's publication or
+    // stale-stage removal.
     expect(source).toMatch(
       /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(\s*checkpoints,\s*check,\s*asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
-    )
-    // The review bundle's Revert (M70) rechecks the dirty buffer inside the
-    // same lease and is noted as the user's.
-    expect(source).toMatch(
-      /writeFile: async \(fsPath, content, assertCanWrite\) => \{\s*const check = backend\.workspaceActionGuard\(nativeStarts\.signal\)\s*await withCheckpointEdit\(\s*checkpoints,\s*check,\s*asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*assertCanWrite\(\)\s*await vscode\.workspace\.fs\.writeFile\(/,
     )
     expect(source).toMatch(
       /writeFile: \(fsPath, content\) => writeUserFile\(check, fsPath, content\),/,
     )
+    // The review bundle's Revert (M70) is one operation under the window's
+    // lease and guard, published by the tools' own conditional writes (not
+    // their checkpoint copies), the user's once it lands (`createRevertIo`).
     expect(source).toMatch(
-      /asUserEdit\(checkpoints, fsPath, async \(\) => \{\s*assertCanWrite\(\)\s*await vscode\.workspace\.fs\.delete\(/,
+      /withAdmission: async \(work\) => \{\s*const check = backend\.workspaceActionGuard\(nativeStarts\.signal\)\s*return await withCheckpointEdit\(checkpoints, check, async \(\) => await work\(check\)\)/,
     )
+    expect(source).toMatch(
+      /io: createRevertIo\(\{\s*io: toolIo,\s*checkpoints,\s*platform: process\.platform,\s*trash: async \(fsPath\) => \{\s*await vscode\.workspace\.fs\.delete\(vscode\.Uri\.file\(fsPath\), \{ useTrash: true \}\)/,
+    )
+    const review = source.slice(
+      source.indexOf('const review = lazyReview('),
+      source.indexOf('const mentions = new MentionIndex('),
+    )
+    expect(review).toContain('withAdmission:')
+    expect(review).not.toContain('workspace.fs.writeFile')
     expect(source).toMatch(/noteUserWrite: \(fsPath\) => \{\s*checkpoints\.noteUserSave\(fsPath\)/)
     // Sessions, the CLI's working directory and memory are keyed by the folder as
     // VS Code spells it, as they always were: opening a workspace through a link,

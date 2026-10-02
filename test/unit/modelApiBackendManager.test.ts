@@ -70,11 +70,16 @@ describe('ModelApiBackendManager', () => {
       readFile: () => Promise.resolve('after\n'),
       hasUnsavedChanges: () => false,
       beginEdit: (file) => m.manager.beginExternalEdit(undefined, [file]),
-      writeFile: () => {
-        entered.resolve(undefined)
-        return writing.promise
+      withAdmission: async (work) => await work(() => undefined),
+      io: {
+        writeFileIfUnchanged: async () => {
+          entered.resolve(undefined)
+          await writing.promise
+          return 'written'
+        },
+        trashFileIfUnchanged: vi.fn(),
+        createFileIfAbsent: vi.fn(),
       },
-      deleteFile: vi.fn(),
       openDiff: vi.fn(),
       log: m.log,
     })

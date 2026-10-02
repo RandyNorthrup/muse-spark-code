@@ -815,14 +815,19 @@ Review what the agent did before it lands, on both backends.
   included, change by change. **Accept** marks a change; **Revert** takes
   that one change out of the file as it is now, or says why it cannot (the
   file changed since, or its editor has unsaved changes). Save or discard
-  unsaved changes before trying Revert again. This is checked again before the
-  write or deletion, including when you edit a linked buffer while Revert waits.
-  If the backend restarts while a Revert or the pane's list waits, the pane
-  says so, and a Revert that wrote nothing can be pressed again. A revert is an edit of the
-  workspace like any other: it writes through turn checkpoints (another
-  window on the folder refuses a file restore while it writes). Overlapping
-  reverts of the same file run in order and rebuild from its latest saved
-  bytes. The pane lists at most 200 edits and 20,000 diff lines, counting
+  unsaved changes before trying Revert again. A Revert is one step under
+  turn checkpoints' file-edit lease (another window on the folder refuses a
+  file restore meanwhile): it reads the saved file, rebuilds it, checks the
+  path and the editor again, and writes the file (or moves a file Muse
+  created to the trash) only while it still holds what was read, at the
+  same path with no link or junction on the way. A save, an editor turning
+  dirty (a linked buffer included) or a swapped folder meanwhile makes it
+  refuse rather than overwrite. If the backend restarts while a Revert or
+  the pane's list waits, the pane says so, and a Revert that wrote nothing
+  can be pressed again; one that wrote stays done, even when releasing the
+  lease fails afterwards (the log says so). Overlapping reverts of the same
+  file run in order and rebuild from its latest saved bytes. The pane lists
+  at most 200 edits and 20,000 diff lines, counting
   omitted edits even when the first patch exceeds the limit. Unreadable stored
   patches count toward that omission notice. **Comment on a
   line** sends your comment to the agent with that line and the lines
@@ -831,6 +836,8 @@ Review what the agent did before it lands, on both backends.
   checkpoint like a message, so another window refuses a file restore while
   it runs. A message you send while a review is starting waits for it and
   then goes into the review turn, and only one review starts at a time.
+  Clearing the conversation while a review is starting lets the new
+  conversation's review or message start at once.
   A pending permission-mode request settles before review admission; a refused
   request refuses that review instead of trusting the panel's optimistic label.
   A review reply arriving after you clear or switch conversations cannot mark

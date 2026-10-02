@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
-import { mkdir, rename, symlink, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -69,6 +69,13 @@ import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { EditReview } from '../../src/host/editor/editReview'
+import {
+  admissionPort,
+  admitted,
+  DELETION_ONLY_PATCH,
+  failsRelease,
+  wiredRevert,
+} from './helpers/activationReview'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import { fakePlanFiles } from './helpers/fakePlanFiles'
 import {
@@ -7625,16 +7632,22 @@ describe('ConversationController: review (M70)', () => {
   it.each([false, true])(
     'counts an unreadable patch as omitted, valid sibling=%s (RV70 finding 5)',
     async (hasValidEdit) => {
-      const writes = vi.fn(() => Promise.resolve())
-      const deletions = vi.fn(() => Promise.resolve())
+      const admissions = vi.fn()
       const reader = new EditReview({
         platform: 'linux',
         workspaceRoot: '/ws',
         readFile: () => Promise.resolve(undefined),
         realPath: (file) => Promise.resolve(file),
         hasUnsavedChanges: () => false,
-        writeFile: writes,
-        deleteFile: deletions,
+        withAdmission: () => {
+          admissions()
+          return Promise.reject(new Error('a read must not revert'))
+        },
+        io: {
+          writeFileIfUnchanged: () => Promise.reject(new Error('a read must not write')),
+          trashFileIfUnchanged: () => Promise.reject(new Error('a read must not delete')),
+          createFileIfAbsent: () => Promise.reject(new Error('a read must not write')),
+        },
         openDiff: () => Promise.resolve(),
         log: new FakeLogOutputChannel(),
       })
@@ -7672,8 +7685,7 @@ describe('ConversationController: review (M70)', () => {
         throw new Error('review pane did not answer')
       }
       expect(answer.files.map((file) => file.path)).toEqual(hasValidEdit ? ['notes.md'] : [])
-      expect(writes).not.toHaveBeenCalled()
-      expect(deletions).not.toHaveBeenCalled()
+      expect(admissions).not.toHaveBeenCalled()
       t.controller.dispose()
     },
   )
@@ -7707,33 +7719,35 @@ describe('ConversationController: review (M70)', () => {
     },
   )
 
+  /** A custom review whose `turn/start` the fake host holds unanswered. */
+  async function heldReviewStart() {
+    const t = reviewSetup({ initialPermissionMode: 'plan', checkpointAvailability: 'on' })
+    t.server.silence('turn/start')
+    const reviewing = startReview(t, '/review the cache')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    })
+    return { t, reviewing }
+  }
+
+  /** The held `turn/start` at `index` is accepted as `turnId`. */
+  function acceptTurnStart(t: ReturnType<typeof reviewSetup>, index: number, turnId: string) {
+    const request = t.server.requestsFor('turn/start')[index]
+    const result = { turnId, status: 'accepted', commandId: request?.params?.['commandId'] }
+    t.server.incoming.push(`${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result })}\n`)
+  }
+
   /** A dropped session's command may resolve without owning the current conversation. */
   it.each(['clearConversation', 'backendStopping'] as const)(
     'refuses a late review acknowledgement after %s (RV70 finding 2)',
     async (action) => {
-      const t = reviewSetup({ initialPermissionMode: 'plan', checkpointAvailability: 'on' })
-      t.server.silence('turn/start')
-      const reviewing = startReview(t, '/review the cache')
-      await vi.waitFor(() => {
-        expect(t.server.requestsFor('turn/start')).toHaveLength(1)
-      })
-      const request = t.server.requestsFor('turn/start')[0]
+      const { t, reviewing } = await heldReviewStart()
       if (action === 'clearConversation') {
         await t.controller.handle({ type: action })
       } else {
         await t.controller.backendStopping(false)
       }
-      t.server.incoming.push(
-        `${JSON.stringify({
-          jsonrpc: '2.0',
-          id: request?.id,
-          result: {
-            turnId: 'old-review-turn',
-            status: 'accepted',
-            commandId: request?.params?.['commandId'],
-          },
-        })}\n`,
-      )
+      acceptTurnStart(t, 0, 'old-review-turn')
       await reviewing
       await settle()
       expect(t.surface.posted).not.toContainEqual(
@@ -7749,21 +7763,53 @@ describe('ConversationController: review (M70)', () => {
       await vi.waitFor(() => {
         expect(t.server.requestsFor('turn/start')).toHaveLength(2)
       })
-      const currentRequest = t.server.requestsFor('turn/start')[1]
-      t.server.incoming.push(
-        `${JSON.stringify({
-          jsonrpc: '2.0',
-          id: currentRequest?.id,
-          result: {
-            turnId: 't1',
-            status: 'accepted',
-            commandId: currentRequest?.params?.['commandId'],
-          },
-        })}\n`,
-      )
+      acceptTurnStart(t, 1, 't1')
       await currentReview
       expect(t.surface.posted).toContainEqual(
         expect.objectContaining({ type: 'turnAccepted', localId: 'r2' }),
+      )
+      t.controller.dispose()
+    },
+  )
+
+  it.each(['review', 'message'] as const)(
+    'starts a %s of the next conversation while a cleared review awaits its turn/start (RV69 finding 3)',
+    async (next) => {
+      const { t, reviewing } = await heldReviewStart()
+      await t.controller.handle({ type: 'clearConversation' })
+      const localId = next === 'review' ? 'r2' : 'm2'
+      const starting =
+        next === 'review'
+          ? startReview(t, '/review the current cache', localId)
+          : t.send(localId, 'a new question')
+      // Neither waits for the old command nor is refused because of it.
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+      })
+      expect(t.surface.posted).not.toContainEqual(
+        expect.objectContaining({ type: 'sendFailed', localId }),
+      )
+      // The old command answers late: its own card is refused, and its end
+      // leaves the new conversation's review barrier alone.
+      acceptTurnStart(t, 0, 'old-review-turn')
+      await reviewing
+      expect(t.surface.posted).toContainEqual({
+        type: 'sendFailed',
+        localId: 'r1',
+        reason: UI_TEXT.turnStoppedByRestart,
+      })
+      if (next === 'review') {
+        await startReview(t, '/review once more', 'r3')
+        expect(t.surface.posted).toContainEqual({
+          type: 'sendFailed',
+          localId: 'r3',
+          reason: UI_TEXT.reviewBusy,
+        })
+      }
+      acceptTurnStart(t, 1, 't1')
+      await starting
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId }),
       )
       t.controller.dispose()
     },
@@ -8331,6 +8377,47 @@ describe('ConversationController: review (M70)', () => {
     await press(1)
     await press(1)
     expect(revertHunk).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps the hold of a reverted deletion-only hunk whose admission release fails (RV69 finding 4)', async () => {
+    const folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'rv69-release-')))
+    try {
+      const file = path.join(folder, 'notes.md')
+      await writeFile(file, 'tail\n')
+      const { checkpoints } = admissionPort(failsRelease)
+      const editReview = new EditReview({
+        platform: process.platform,
+        workspaceRoot: folder,
+        readFile: (fsPath) => readFile(fsPath, 'utf8'),
+        realPath: canonicalPath,
+        hasUnsavedChanges: () => false,
+        ...wiredRevert({ checkpoints, guard: () => admitted }),
+        openDiff: () => Promise.resolve(),
+        log: new FakeLogOutputChannel(),
+      })
+      const t = paneSetup(() => Promise.resolve([]), editReview.revertHunk.bind(editReview))
+      await t.send('l1', 'edit it')
+      const patch = DELETION_ONLY_PATCH
+      t.server.handle('item/readOutput', () => ({
+        content: patch,
+        encoding: 'utf8',
+        mediaType: 'application/json',
+        offsetBytes: 0,
+        byteLen: new TextEncoder().encode(patch).length,
+        eof: true,
+      }))
+      await pressRevert(t)
+      await pressRevert(t)
+      // Written once and held: the retry is refused, not a second `removed` line.
+      expect(await readFile(file, 'utf8')).toBe('removed\ntail\n')
+      expect(t.surface.posted.filter((message) => message.type === 'reviewHunkResult')).toEqual([
+        hunkResult(true),
+        hunkResult(false, UI_TEXT.reviewAlreadyReverted),
+      ])
+      t.controller.dispose()
+    } finally {
+      await removeFolder(folder)
+    }
   })
 
   it('omits an oversized first edit from the review pane and reports every omitted edit', async () => {

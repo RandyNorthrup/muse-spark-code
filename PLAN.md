@@ -7780,6 +7780,27 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Revert restructured (M70e, RV69, 2026-10-02).** The fourth review round
+  on Revert ends the patching: the lead's decision is one operation under
+  checkpoint admission, in order: take the lease, read the saved bytes,
+  rebuild from those bytes, re-resolve the canonical target inside the
+  workspace, check no editor is dirty, then publish only while the file
+  still holds those bytes, through the guarded conditional writes the
+  model's tools use (`ToolIo.writeFileIfUnchanged`; a created file's trash
+  through `fsAtomic.deleteFileIfUnchanged`, which compares the bytes, the
+  canonical path and the file's identity just before the removal; a file
+  absent when read through the absence-conditional write a restore uses),
+  then let the lease go. No raw `workspace.fs` write or delete is left in
+  Revert; `createRevertIo` notes the file as the user's only once a change
+  lands. (1) A save during admission is now read and rebuilt from; one after
+  the read refuses the publication. (2) A folder swapped for a link during
+  admission is refused by the re-resolve, and after it by the writers'
+  bound-path checks. (3) A `/review` start barrier belongs to the
+  conversation generation that set it: `dropSession` drops it and an old
+  `finally` never clears a newer one. (4) A Revert that changed the file
+  stays reverted (and its once-only hold kept) when the lease release fails
+  afterwards; the failure is logged, as a turn's failed release is (no
+  user-visible notice exists for it). Proof in `docs/certification/m70.md`.
 - **Independent review follow-up (M70d, 2026-10-01).** Four code-reading
   findings, each confirmed before repair, after merging main's shared
   English table (PR #67). (1) The changed-file list carried git's
@@ -7971,7 +7992,10 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     the mark when its turn cannot be sent), as a message does, because a
     Plan-mode turn on Muse Code is not strictly read-only. One review starts
     at a time, and a message sent while one starts waits for it, then goes
-    into the review turn as a steer.
+    into the review turn as a steer. That wait belongs to the conversation
+    generation that started the review: a cleared or replaced conversation
+    drops it, so the old review's outstanding command neither holds up nor
+    refuses the next conversation, and its end never clears a newer one.
   - **Findings**: the review ends with a fenced `muse-review` JSON block
     (the extension's own format, parsed with zod); the reply shows it as a
     list with severity, title, detail and a `file:line` that opens the file
@@ -7986,14 +8010,20 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     or says why it could not. A comment on a line quotes the file, the line
     and three lines around it as a `chat_reference` from `diff`, and goes as
     a steer into the running turn or as the next message. Revert is an
-    explicit file edit of edit review: confined to the workspace by
-    canonical path (links and junctions), refused under an editor with
-    unsaved changes (checked after the saved text is read and again just
-    before the write), serialized per file so overlapping reverts rebuild
-    from each other's bytes, written to the checked canonical target through
-    the checkpointed edit guard (another window refuses a restore meanwhile),
-    and announced to live verification without an own edit round of the
-    agent's (`beginExternalEdit`). A press or a pane read that a restart, a
+    explicit file edit of edit review, serialized per file so overlapping
+    reverts rebuild from each other's bytes, and each one is one operation
+    under the checkpointed edit lease (another window refuses a restore
+    meanwhile): read the saved bytes, rebuild from them, re-resolve the
+    canonical target inside the workspace (links and junctions), refuse an
+    editor with unsaved changes, then publish only while the file still
+    holds those bytes at that path with no link on the way (the tools'
+    `writeFileIfUnchanged`; a created file emptied goes to the trash through
+    `deleteFileIfUnchanged`; a file absent when read is written only while
+    still absent). A refused publication says why (changed since, or
+    unsaved changes). It is announced to live verification without an own
+    edit round of the agent's (`beginExternalEdit`) and is the user's once
+    it lands. A Revert that changed the file stays reverted when the lease
+    release fails afterwards (logged). A press or a pane read that a restart, a
     crash, the host closing the session or a sign-in check overtakes is
     answered while the panel still shows that conversation (attached, or
     the one the next message resumes); a press that wrote nothing gives its
@@ -9946,7 +9976,11 @@ before a repaired one loads (2026-09-30).
   into a file that no longer has a name. On Windows the rename is refused
   while another program holds the file without sharing delete, and each
   retry compares again; a change saved and closed between the last
-  comparison and the rename is still replaced. The verify ledger knows a
+  comparison and the rename is still replaced. A Revert's removal of a
+  file Muse created (`fsAtomic.deleteFileIfUnchanged`, M70) has the same
+  kind of gap: the bytes, the canonical path and the file's identity are
+  checked last, then the file moves to the trash; a change saved between
+  that check and the move goes with it, into the trash. The verify ledger knows a
   file by its real path: two hard links to one file are two files there,
   so an edit through one does not make a run over the other stale.
 

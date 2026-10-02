@@ -167,7 +167,7 @@ export async function renameReplacing(
 async function assertBoundPath(
   actualPath: string,
   expectedPath: string,
-  options: AtomicWriteOptions,
+  options: Pick<AtomicWriteOptions, 'expectedCanonicalPath' | 'platform'>,
 ): Promise<void> {
   if (options.expectedCanonicalPath === undefined) {
     return
@@ -266,6 +266,67 @@ export async function writeFileIfUnchanged(
     }
     throw error
   }
+}
+
+interface ConditionalRemoveOptions {
+  /** The checked canonical target: a link or junction on the way now refuses the removal. */
+  readonly expectedCanonicalPath: string
+  readonly platform?: NodeJS.Platform
+  /** The owner's final word immediately before the removal. */
+  readonly assertCanWrite?: () => void
+  /** Asked once the bytes compare equal: false leaves the file alone (an editor's unsaved text). */
+  readonly isReplaceable?: () => boolean
+  /** Removes the file: a Revert's move to the trash. */
+  readonly remove: (target: string) => Promise<void>
+}
+
+/**
+ * Removes `target` only while it is a regular file, at its expected canonical
+ * path, that still holds the text whose fingerprint is `expectedFingerprint`:
+ * `changed`, and nothing removed, when not. The bytes are compared, then the
+ * path and the file's identity (device, inode, size and modification time)
+ * again immediately before the removal, so a save or a replacement since the
+ * comparison refuses it. As for the conditional write, no file system offers
+ * a conditional removal: a change saved between that last check and the
+ * removal goes with the file (to the trash, for a Revert).
+ */
+export async function deleteFileIfUnchanged(
+  target: string,
+  expectedFingerprint: string,
+  options: ConditionalRemoveOptions,
+): Promise<ConditionalWrite> {
+  await assertBoundPath(target, options.expectedCanonicalPath, options)
+  let held: Stats
+  try {
+    held = await lstat(target)
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ENOENT') {
+      return 'changed'
+    }
+    throw error
+  }
+  if (!held.isFile()) {
+    return 'changed'
+  }
+  try {
+    await assertUnchanged(target, expectedFingerprint)
+  } catch (error: unknown) {
+    if (error instanceof ChangedBeforeWriteError) {
+      return 'changed'
+    }
+    throw error
+  }
+  await assertBoundPath(target, options.expectedCanonicalPath, options)
+  if (options.isReplaceable?.() === false) {
+    return 'changed'
+  }
+  // Last, so only the owner's word and the removal itself follow it.
+  if (!(await isOwnedFile(target, held))) {
+    return 'changed'
+  }
+  options.assertCanWrite?.()
+  await options.remove(target)
+  return 'written'
 }
 
 async function writeAtomically(
