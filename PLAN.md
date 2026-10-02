@@ -2850,80 +2850,58 @@ only the extension-side uses reach it.
   a documented weak spot, so at most a warning signal.
 - Any use as the coding model.
 
-### D51 — Turn checkpoints live in a shadow repository (M72, 2026-09-28)
+### D51 — Turn checkpoints live in a shadow repository (M72, amended by M86)
 
-M72 captures the workspace's files at turn boundaries on both backends, in
-a git repository or not. Destructive stored restoration currently requires
-a connected Model API session and confirmed process safety; native captures
-remain read-only until pre-edit/full shutdown exclusion is proved. The plan
-review of PR #50 and the security review added three
-constraints: nothing may land in the workspace's `.git` (a `push --mirror`
-would carry an untracked or ignored secret such as `.env`); the git that
-takes checkpoints runs with hooks and fsmonitor off and none of the user's
-configuration or the workspace's filters; and ignored files are covered
-only as far as the extension saw the change coming.
+M72 introduced whole-workspace captures in the extension's own storage.
+M86 narrows restoration to the model's own file-tool writes, with the
+rules in [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md). A file is
+restored only along an unbroken chain of recorded before/after bytes ending
+in exactly what is on disk now, or is counted unchanged when it is already
+at the earlier state. Commands, hooks, MCP tools, the user's edits and
+other windows' writes are never undone. Personal memory outside the
+workspace is never restored. A commands note records that processes or
+MCP tools ran; their changed files are not listed or restored.
 
-**Considered: hidden refs in the workspace repository.** Trees built with
-`write-tree` on a temporary index (`GIT_INDEX_FILE`) and kept by refs under
-`refs/muse-spark/checkpoints/…`. It shares the user's objects and stat
-cache, but it writes objects and refs into the user's `.git`, where
-`push --mirror`, `for-each-ref` and `log --all` see them, and it runs under
-the user's repository config and attributes (autocrlf, LFS and other clean
-and smudge filters). Refused on both counts.
+**Considered: hidden refs in the workspace repository.** Refused because
+objects and refs in the user's `.git` could be carried by `push --mirror`,
+and repository configuration and attributes could run hooks or filters.
 
-**Taken: a shadow repository in the extension's own storage.** The resumed
-M72 implementation uses `<global storage>/checkpoints/<canonical-root-key>/shadow.git`
-for current-version windows, preserving prior workspace-specific stores as
-read-only history. It is a bare repository whose work
-tree is the workspace (or the repository top when the workspace is a folder
-of one, so its `.gitignore` files apply, with every path kept to the
-workspace's prefix).
+**Taken: a shadow repository in the extension's own storage.**
+`<global storage>/checkpoints/<canonical-root-key>/shadow.git` remains the
+object and compare-and-swap ref store shared by windows using the same
+canonical physical root and storage namespace. M86 removes captures,
+shadow indices, exclude refresh and ignored-file scans. Existing M72
+records remain read-only; ranges containing them cannot restore files,
+and their restore records cannot be redone.
 
-- **Isolation.** Every command runs with an environment stripped of the
-  host's `GIT_*` variables, `GIT_CONFIG_NOSYSTEM`, an empty
-  `GIT_CONFIG_GLOBAL`, a `HOME` in storage, `GIT_ATTR_NOSYSTEM`,
-  `GIT_OPTIONAL_LOCKS=0`, `core.hooksPath` at an empty folder,
-  `core.fsmonitor=false` and `core.untrackedCache=false`. The shadow's
-  `info/attributes`, which outranks every `.gitattributes`, unsets `text`,
-  `eol`, `filter`, `ident` and `working-tree-encoding`, so no filter runs
-  and bytes are copied as they are (CRLF files, LFS files, `text=auto`).
-  git is found by absolute path (D24). Only the workspace's
-  `info/exclude` and the user's global excludes file are read, as ignore
-  patterns.
-- **Objects.** No alternates: the shadow keeps its own copies, so the
-  user's `gc` can never break a checkpoint and nothing of ours is written
-  or freshened in `.git`. A private index keeps stat data, so a capture
-  hashes only what changed since the last one; the first capture of a
-  workspace hashes everything outside its ignore rules, within the caps.
-- **Records.** Checkpoint and redo JSON is parsed with zod and stored in
-  a tree with its captured trees and blobs under `refs/muse-spark/record/<id>`.
-  Creation, updates and deletion use Git compare-and-swap. Each window has
-  its own index and pending-capture refs. Trees, not commits: no author
-  identity is needed.
-- **Ignored files.** A bounded scan of sizes and times at each turn's start
-  and end finds what the turn created, changed or deleted; the Model API's
-  write tools, the image tools and the memory tools (with the Memory view's
-  delete) copy a file just before they write it (`withCheckpointCopies`,
-  `createCheckpointedMemory`). A restore deletes created ignored files,
-  restores copied ones and lists the rest as not restorable; what it
-  overwrites or deletes is copied for its Redo.
-- **Links.** Git for Windows walks into junctions (checked with git
-  2.52.0.windows.1), so git's own listing cannot be trusted there: a
-  capture leaves out every path under a folder link or junction and names
-  the link, and a restore refuses any path whose canonical form is not the
-  canonical root plus the path.
-- **Restricted Mode.** No checkpoints: the extension runs no git in an
-  untrusted workspace (D24), and a copy store without git would still read
-  and duplicate an untrusted tree's files for no gain the user asked for.
-  The menu says so. Archiving there drops the conversation's records at
-  once (no git); the next trusted window deletes their refs and copies.
-- **Windows.** Independent records use CAS refs, with an index, pins,
-  tool copies and presence per window. File restores reserve one shared
-  CAS ref. Recent objects receive a prune grace period; an archive is
-  durable before returning (M72 Built, "Windows sharing a store"). Git's
-  path limits are met in the store itself: the repository is made in a short
-  folder and published by one rename, a long path is named relative, and a
-  path git cannot open is refused with a message (M72, "Long storage paths").
+- **Isolation.** Git runs by absolute path with hooks and fsmonitor off,
+  the host's `GIT_*` variables stripped and isolated configuration and
+  attributes. The shadow keeps its own objects, with no alternates.
+  Nothing is written or refreshed in the workspace's `.git`.
+- **Writes and records.** Each model file-tool publication records its
+  owner, path, earlier and intended bytes in a fsynced per-instance journal
+  under `<storage>/m86/<instance>/`, before conditional publication. Blobs
+  are copied from a confined opened handle. Unit records fold by write id
+  into CAS refs under `refs/muse-spark/m86/`; their trees keep required
+  blobs reachable. Reload recovery uses the same records and never writes
+  into another instance's journal. A range with missing or incomplete
+  records is refused as specified in sections 3 and 6.
+- **Coverage.** File, image, workspace memory and rename tool writes are
+  recorded, including ignored files they write. Format on edit is
+  recorded; a formatter hook or `then_run` changes bytes outside that
+  chain. The Memory view and writes made for the user are not recorded.
+  Per-unit copy and intent budgets can make a path not restorable or a
+  range incomplete. No command change is inferred from a capture.
+- **Windows and safety.** Per-conversation sequences are allocated by CAS.
+  One shared restore reservation, presence and native process fences
+  remain. File restoration requires an attached Model API session and
+  confirmed process safety, and is refused while any turn runs. M86 uses
+  `fenced-window-v2` and refuses restoration and record deletion while a
+  legacy v1 window is live. Links and junctions are refused. In Restricted
+  Mode the extension runs no checkpoint git and records no new writes.
+- **Limits.** Bytes cannot reveal an identical foreign write (ABA),
+  foreign writes across windows are judged by bytes rather than order,
+  and the final compare-to-rename gap remains (SPEC section 12).
 
 ### D60 — Muse Spark Code beyond VS Code: the IDE compatibility program (2026-09-26)
 
@@ -3192,30 +3170,28 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   (M66). `docs/ide-compatibility/hosts.md` tracks each editor's route and
   status.
 
-### D63 — Turn checkpoints ship as a Preview, and the restore is rebuilt on the tools' own writes (2026-10-01)
+### D63 — Turn checkpoints restore the tools' own writes (2026-10-01)
 
 - **What happened.** PR #55 went through seven Codex review rounds. From
-  the third on, every round found new P1 races of one family: the restore
-  undoes the difference between whole-workspace captures, so it must decide
-  which changes were the turn's and which were the user's, another window's,
-  a subagent's, a dead window's, or the clock's. Each fix closed one case and
-  opened ground for the next (4, 6, 5 and 6 new findings in rounds 4 to 7).
-  The owner's rule from 2026-09-28 (a third round means redesign, not
-  patching) applied from round three and was not raised; the owner raised it.
-- **Decision (owner, 2026-10-01).** 0.10.0 ships with `museSpark.turnCheckpoints`
-  off by default and marked Preview: a user who turns it on gets M72 as
-  certified, with its limits recorded in `docs/certification/m72.md`. The
-  restore is rebuilt in M86 on the model's own tool writes, and the setting
-  goes back on by default only with M86.
-- **The new design (M86).** Each write a model tool makes records the file's
-  bytes before and after (the tools already copy a file before writing it).
-  A restore puts a file back only when it still holds exactly the bytes the
-  tool left; any other content (a user's save in any window, another
-  window's turn, a shell command, a later tool write it does not undo) is
-  refused and named. Ownership is never inferred from captures, so the
-  multi-window, overlap, tie and clock races cannot arise. A shell command's
-  changes are listed, not undone, as Claude Code's own rewind does; this
-  narrows D51, which promised to undo them.
+  the third on, each round found new races in attributing whole-workspace
+  differences to the model rather than the user, another window or a
+  process. The owner's redesign rule applied from round three.
+- **Decision (owner, 2026-10-01).** 0.10.0 shipped with
+  `museSpark.turnCheckpoints` off by default and marked Preview. M86 turns
+  it on again with restoration rebuilt on the model's own file-tool
+  writes. [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and the
+  [build contract](docs/design/m86-build-contract.md) govern the work.
+- **The new design (M86).** Every model file-tool write records its bytes
+  before and after in a durable owner-bound journal. A restore follows
+  an unbroken chain for each file, restoring only while its current bytes
+  equal the last recorded after; a file already at the earlier state is
+  unchanged. Captures and ignored-file scans are removed. Commands,
+  hooks and MCP tools are noted when they run; their changed files are
+  neither listed nor undone. The user's edits, other windows' writes and
+  personal memory are never undone. This narrows D51's restore promise.
+  Missing records refuse the whole range; per-file refusals name the
+  reason. Mixed-version fences, native process safety and the ABA and
+  final compare-to-rename limits remain explicit in the spec.
 
 ## 3. Open questions (need the owner)
 
@@ -9068,27 +9044,37 @@ independent review and the full candidate gates remain required.**
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **Status.** In progress, lanes L1–L4. No completed certification is
+  claimed; [m86.md](docs/certification/m86.md) tracks pending evidence.
 - **Goal.** Restore files without guessing who changed them.
-- **Scope.**
-  - Every model tool write (`write_file`, `edit_file`, the image tools, the
-    memory tools, `rename_symbol`) records, per turn, each file's bytes
-    before (or absent) and after, keyed by the turn; the records live in the
-    existing checkpoint storage (CAS refs) and survive a reload.
-  - "Restore files to here" undoes, newest first, the recorded writes of the
-    chosen turn onward: a file is written back only when its current bytes
-    (and execute bit) equal the last recorded "after"; anything else is
-    refused and named, as is every file a shell command changed (found by the
-    existing captures, listed, never undone).
-  - Redo keeps its current meaning on the same records.
-  - The whole-tree attribution in `changedOutside` (gaps, stretches, peer
-    windows, saves files, unseen ends) is removed; captures remain only to
-    list what shell commands changed.
-- **Acceptance.** No restore writes a file whose bytes differ from what a
-  tool of the restored turns left there; every M72 Codex finding from rounds
-  3 to 7 is covered by a test of the new design or is moot by construction.
-- **Tests.** The M72 restore tests that still apply, rewritten on the new
-  records; the round 3 to 7 scenarios (user saves in any window, peer turns,
-  dead windows, ties, clock moves) each as a refusal test.
+- **Design.** [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and
+  [the build contract](docs/design/m86-build-contract.md).
+- **L1 — Recorder.** Owner-bound file, image, workspace memory, rename and
+  format-on-edit publications; confined copies, durable intents before
+  conditional writes, outcomes and seals. User-facing extension writes
+  and personal memory are outside recording.
+- **L2 — Engine.** Pure range decisions from complete unit records,
+  per-path byte chains and per-instance write order; unchanged-first,
+  cross-window merge, not-kept poisoning and Redo bound to its conversation.
+- **L3 — Store.** CAS sequence allocation, journal folding and recovery,
+  restore/Redo execution, retention by sequence, archive re-keying,
+  legacy read-only records and fenced-window-v2. Remove captures, ignored
+  scans and attribution; report when commands, hooks or MCP tools ran
+  without listing or undoing their changes.
+- **L4 — Text and docs.** English and all 14 translations, checkpoint
+  default and manifest descriptions, README, PRIVACY, CHANGELOG and this
+  plan; certification skeleton for every lane and matrix row.
+- **Acceptance.** Only the model's own file-tool writes are undone along
+  an unbroken byte chain ending in the current file. Existing files keep
+  their current mode; recreated files use the earlier recorded mode.
+  Missing or incomplete records refuse the range. Personal memory is
+  never restored. SPEC section 12's limits are stated in the README and
+  certification.
+- **Tests and gates.** SPEC matrix A–Y and O2; each still-valid M72 test
+  ported, each moot deletion explained. Guard red drills, capped builds,
+  localization, host API and the remaining section 14 gates; checkpoint
+  suites on Kubuntu, Mac mini and Windows VM, followed by the lead's full
+  quality matrix on the integrated tree.
 - **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
 - **Size.** L.
 

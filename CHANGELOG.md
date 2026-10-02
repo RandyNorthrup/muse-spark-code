@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- **Turn checkpoints (M86).** On by default again, with restore rebuilt on
+  the model's own file-tool writes while each file still holds exactly
+  what the model left. Commands, hooks and MCP tools are noted when they
+  run; their file changes are never undone. Workspace captures and
+  ignored-file scans are removed.
+
 ## [0.10.0] - 2026-10-01
 
 ### Highlights
