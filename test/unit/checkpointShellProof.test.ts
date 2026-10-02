@@ -71,7 +71,10 @@ describe('the checkpoint wrapper over a shell that never started (M72)', () => {
       const real = nativeIo({
         platform: process.platform,
         systemRoot: process.env['SystemRoot'],
-        env: () => ({ PATH: process.env['PATH'] }),
+        // The host's whole environment, as the shell tool gets it: PATH alone
+        // hid PSModuleAnalysisCachePath on GitHub's runner and made
+        // `Write-Output` analyse every installed module first (23 to 39 s).
+        env: () => process.env,
       })
       const io = withCheckpointCopies(real, checkpointPort(h))
       const command = process.platform === 'win32' ? 'Write-Output launched' : 'printf launched'
