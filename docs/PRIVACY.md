@@ -240,7 +240,8 @@ Code VS Code's `http.proxy` and `http.noProxy` (loopback always bypassed),
 so Muse Code's requests use the same proxy; Diagnostics reports only
 whether a proxy is set, never its address. **Muse Spark: Diagnostics** runs
 `muse config status` to read Muse Code's managed configuration on this
-machine; only the recognised source and generation fields enter the report.
+machine. The public-issue report includes only recognized source and
+generation fields, never raw configuration or failed-command output.
 
 ## Credentials
 
