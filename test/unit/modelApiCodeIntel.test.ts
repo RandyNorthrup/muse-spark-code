@@ -21,6 +21,7 @@ import {
   fakeLanguageService,
   KIND,
   loc,
+  renamed,
   sym,
 } from './helpers/fakeLanguageService'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -60,18 +61,6 @@ const RENAME: ScriptedCall = {
 /** A rename of `greet` at the start of a file's first line. */
 function renamedFile(path: string) {
   return renamed(path, 0, 0)
-}
-
-function renamed(path: string, line: number, character: number) {
-  return {
-    path,
-    edits: [
-      {
-        range: { start: { line, character }, end: { line, character: character + 5 } },
-        newText: 'welcome',
-      },
-    ],
-  }
 }
 
 interface StartOptions {

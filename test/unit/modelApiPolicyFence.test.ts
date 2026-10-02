@@ -23,7 +23,7 @@ import type { PermissionSettings } from '../../src/core/permissionSettings'
 import type { WebFetcher } from '../../src/core/web/webFetch'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeLanguageService, KIND, loc, sym } from './helpers/fakeLanguageService'
+import { fakeLanguageService, KIND, loc, renamed, sym } from './helpers/fakeLanguageService'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
 import {
@@ -157,6 +157,22 @@ const isChildUpdated = (event: AgentEvent) =>
   event.type === 'itemUpdated' && event.item.kind === 'subagent'
 const isGoalChanged = (event: AgentEvent) => event.type === 'goalChanged'
 const at = (path: string) => ({ path })
+
+/**
+ * A call that controls a finished child: it emits the child's row update
+ * and has no await of its own after admission, so the change lands there.
+ */
+function childControl(tool: string, args: unknown): FenceCase {
+  return {
+    tool,
+    args,
+    before: [spawn, waitForChild],
+    replies: [{ text: 'child done' }],
+    hold: { at: 'event', when: isChildUpdated },
+    change: { kind: 'trust' },
+    leak: null,
+  }
+}
 
 const CASES: readonly FenceCase[] = [
   {
@@ -346,33 +362,9 @@ const CASES: readonly FenceCase[] = [
     change: { kind: 'trust' },
     leak: null,
   },
-  {
-    tool: 'subagent_read_result',
-    args: { subagent_id: CHILD },
-    before: [spawn, waitForChild],
-    replies: [{ text: 'child done' }],
-    hold: { at: 'event', when: isChildUpdated },
-    change: { kind: 'trust' },
-    leak: null,
-  },
-  {
-    tool: 'subagent_send_message',
-    args: { subagent_id: CHILD, message: 'one more thing' },
-    before: [spawn, waitForChild],
-    replies: [{ text: 'child done' }],
-    hold: { at: 'event', when: isChildUpdated },
-    change: { kind: 'trust' },
-    leak: null,
-  },
-  {
-    tool: 'subagent_cancel',
-    args: { subagent_id: CHILD },
-    before: [spawn, waitForChild],
-    replies: [{ text: 'child done' }],
-    hold: { at: 'event', when: isChildUpdated },
-    change: { kind: 'trust' },
-    leak: null,
-  },
+  childControl('subagent_read_result', { subagent_id: CHILD }),
+  childControl('subagent_send_message', { subagent_id: CHILD, message: 'one more thing' }),
+  childControl('subagent_cancel', { subagent_id: CHILD }),
   {
     tool: 'web_fetch',
     args: { url: 'https://docs.example.com/guide' },
@@ -452,19 +444,6 @@ const CASES: readonly FenceCase[] = [
 
 function label(c: FenceCase): string {
   return c.variant === undefined ? c.tool : `${c.tool} (${c.variant})`
-}
-
-/** `greet` renamed where it is: its definition in a.ts, its import and call in b.ts. */
-function renamedAt(path: string, line: number, character: number) {
-  return {
-    path,
-    edits: [
-      {
-        range: { start: { line, character }, end: { line, character: character + 5 } },
-        newText: 'welcome',
-      },
-    ],
-  }
 }
 
 /** The language services, each answer held at the case's gate when it holds there. */
@@ -581,7 +560,7 @@ function fixture(c: FenceCase) {
     }),
     rename: () =>
       Promise.resolve({
-        files: [renamedAt(A, 0, 16), renamedAt(B, 0, 9), renamedAt(B, 1, 0)],
+        files: [renamed(A, 0, 16), renamed(B, 0, 9), renamed(B, 1, 0)],
         fileOperations: 'none' as const,
       }),
   })
@@ -617,13 +596,15 @@ function fixture(c: FenceCase) {
       time += 1000
       return time
     },
-    personalSkillsRoot: undefined,
+    // The live state each case changes.
     isWorkspaceTrusted: () => state.isTrusted,
-    describeEnvironment: () => Promise.resolve({ git: undefined }),
-    promptCacheRetention: () => 'in_memory',
+    permissionSettings: () => state.settings,
+    getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     sessionBudgetUsd: () => 0,
     showReplyUsage: () => false,
-    getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+    promptCacheRetention: () => 'in_memory',
+    describeEnvironment: () => Promise.resolve({ git: undefined }),
+    personalSkillsRoot: undefined,
     memory,
     mcpServers: mcp,
     ideTools: [ide],
@@ -631,7 +612,6 @@ function fixture(c: FenceCase) {
     codeIntel: heldService(service, point === 'service', held),
     // The checks would run after every edit: only the case that runs them has them.
     ...(c.tool === 'run_checks' && { verify }),
-    permissionSettings: () => state.settings,
     loadHooks: () => Promise.resolve([]),
   })
   return { api, io, host, state, held, clock, mcp }
