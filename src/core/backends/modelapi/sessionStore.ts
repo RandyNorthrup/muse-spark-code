@@ -5,6 +5,7 @@
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import { catch as catchInvalid } from 'zod/mini'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -229,8 +230,8 @@ const storedSessionFields = {
     cachedTokens: z.number(),
     reasoningTokens: z.number(),
   }),
-  // Optional, so a session saved before M73 kept its ledger still reads.
-  packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
+  // Missing or corrupt estimates restart at zero without losing the conversation.
+  packedTokensAvoided: catchInvalid(z.optional(z.int().check(z.nonnegative())), undefined),
 } as const
 
 export const storedSessionSchema = z.object({

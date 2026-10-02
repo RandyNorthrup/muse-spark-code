@@ -160,7 +160,7 @@ function pageOf(text: string): string {
 }
 
 /** The session's stored form as a window's file brings it back: through its schema. */
-function reloaded(stored: StoredSession): StoredSession {
+function reloaded(stored: unknown): StoredSession {
   const parsed = parseStoredSession(structuredClone(stored))
   if (!parsed.ok) {
     throw new Error(parsed.reason)
@@ -402,7 +402,7 @@ describe('observation packing on the host', () => {
     await resumed.host.close()
   })
 
-  it('keeps a stored ledger through a window that does not pack, and refuses a bad one', async () => {
+  it('keeps a stored ledger through a window that does not pack', async () => {
     const first = await setup(true)
     await readThenAsk(first)
     const stored = first.session.snapshot()
@@ -414,10 +414,32 @@ describe('observation packing on the host', () => {
     expect(ledgerOf(plain.events).every((value) => value === undefined)).toBe(true)
     expect(plain.session.snapshot().packedTokensAvoided).toBe(stored.packedTokensAvoided)
     await plain.host.close()
-    for (const bad of [-1, 1.5]) {
-      expect(parseStoredSession({ ...stored, packedTokensAvoided: bad }).ok).toBe(false)
-    }
   })
+
+  it.each([-1, 1.5, '12'])(
+    'loads a session with a bad ledger (%j), restarting at zero',
+    async (bad) => {
+      const first = await setup(true)
+      await readThenAsk(first)
+      const stored = first.session.snapshot()
+      expect(stored.packedTokensAvoided).toBeGreaterThan(0)
+      await first.host.close()
+
+      const loaded = reloaded({ ...stored, packedTokensAvoided: bad })
+      expect(loaded).not.toHaveProperty('packedTokensAvoided')
+      expect(loaded.replay).toEqual(stored.replay)
+      expect(loaded.transcript).toEqual(stored.transcript)
+      expect(loaded.outputs).toEqual(stored.outputs)
+      const resumed = await setup(true)
+      resumed.session.adopt(loaded)
+      expect(resumed.session.snapshot().packedTokensAvoided).toBe(0)
+      resumed.api.script({ text: 'back' })
+      await sendText(resumed, 'still there?')
+      expect(ledgerOf(resumed.events).at(-1)).toBe(0)
+      expect(responseOutputsByCall(resumed.api, 0).get('c1')).toContain('line 399')
+      await resumed.host.close()
+    },
+  )
 
   it('tells a model that calls recall_output uninvited that it is unknown', async () => {
     const harness = await setup(false)
