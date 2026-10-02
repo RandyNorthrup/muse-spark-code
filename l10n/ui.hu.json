@@ -548,6 +548,7 @@
   "usageOutput": "Kimenet",
   "usageCached": "Gyorsítótárazott",
   "usageContext": "Kontextus",
+  "usagePackedAvoided": "Csomagolással megtakarítva (becslés)",
   "usageNoSession": "Ebben a beszélgetésben még nincs megszámolt token.",
   "usageLoading": "Használat beolvasása…",
   "usageUnavailable": "A használatot nem sikerült beolvasni",

@@ -560,6 +560,7 @@
   "usageOutput": "Token in uscita",
   "usageCached": "Nella cache",
   "usageContext": "Contesto",
+  "usagePackedAvoided": "Risparmiato con l'impacchettamento (stima)",
   "usageNoSession": "Nessun token ancora conteggiato in questa conversazione.",
   "usageLoading": "Lettura dell’utilizzo…",
   "usageUnavailable": "Non è stato possibile leggere l’utilizzo",

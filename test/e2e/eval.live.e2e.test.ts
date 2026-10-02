@@ -3,8 +3,10 @@
 // against Meta's real API, each task in a fresh temporary workspace holding
 // only its fixture files, every model call on the contributor model. The
 // trace counts each request sent; the verifier judges the files the turn
-// left. The arms here are the baseline alone: M73 and M74 add their own arm
-// with their runs (D49's "Measured first").
+// left. The arms are the baseline and observation packing (M73); M74 adds
+// its own with its run (D49's "Measured first"). A packing run must also
+// have packed on every long-output task it ran, or it proves nothing about
+// packing.
 //
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
 // when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
@@ -37,6 +39,7 @@ import {
   formatEvalReportMarkdown,
   type EvalReport,
 } from '../../src/core/eval/report'
+import { OBSERVATION_PACKING_ARM } from '../../src/core/eval/mechanisms'
 import { runPairedEval, type EvalArm } from '../../src/core/eval/runner'
 import { EVAL_TASKS } from '../../src/core/eval/tasks'
 import { fileContextIo } from '../../src/host/backend/contextIo'
@@ -54,6 +57,7 @@ import {
   liveEvalSelection,
   liveToolIo,
   loadEvalLiveCredentials,
+  unengagedLongOutputTasks,
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
@@ -76,7 +80,7 @@ async function writeReport(result: EvalReport, target: string): Promise<void> {
 }
 
 describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', () => {
-  const arms: readonly [EvalArm, ...EvalArm[]] = [{ name: 'baseline' }]
+  const arms: readonly [EvalArm, ...EvalArm[]] = [{ name: 'baseline' }, OBSERVATION_PACKING_ARM]
 
   it(
     'runs the task set on the contributor model and records the report',
@@ -155,6 +159,7 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
         await writeReport(result, path.resolve(reportPath))
       }
       expect(result.verdict).not.toBe('fail')
+      expect(unengagedLongOutputTasks(result, OBSERVATION_PACKING_ARM.name, tasks)).toEqual([])
     },
     // The selection is read inside the test, so the deadline allows the
     // whole task set: a run of fewer tasks ends sooner.

@@ -572,6 +572,7 @@
   "usageOutput": "Výstup",
   "usageCached": "V mezipaměti",
   "usageContext": "Kontext",
+  "usagePackedAvoided": "Ušetřeno sbalením (odhad)",
   "usageNoSession": "V této konverzaci zatím nebyly započítány žádné tokeny.",
   "usageLoading": "Načítání využití…",
   "usageUnavailable": "Využití se nepodařilo načíst",

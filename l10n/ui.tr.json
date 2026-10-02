@@ -548,6 +548,7 @@
   "usageOutput": "Çıkış",
   "usageCached": "Önbellekte",
   "usageContext": "Bağlam",
+  "usagePackedAvoided": "Paketlemeyle tasarruf (tahmini)",
   "usageNoSession": "Bu konuşmada henüz belirteç sayılmadı.",
   "usageLoading": "Kullanım okunuyor…",
   "usageUnavailable": "Kullanım okunamadı",

@@ -722,6 +722,7 @@ export const EN = {
   usageOutput: 'Output',
   usageCached: 'Cached',
   usageContext: 'Context',
+  usagePackedAvoided: 'Packing saved (estimate)',
   usageNoSession: 'No tokens counted yet in this conversation.',
   usageLoading: 'Reading usage…',
   usageUnavailable: 'Usage could not be read',

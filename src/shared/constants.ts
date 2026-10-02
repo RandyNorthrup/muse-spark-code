@@ -1112,6 +1112,9 @@ export const MODEL_API_TOOLS = {
   readMemory: 'read_memory',
   addMemory: 'add_memory',
   editMemory: 'edit_memory',
+  // M73 (PLAN.md D49): pages a packed tool output back. Offered only while
+  // the session packs observations.
+  recallOutput: 'recall_output',
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
 } as const
@@ -1440,6 +1443,20 @@ export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
 export const MUSE_MEMORY_DOCS_URL = 'https://dev.meta.ai/docs/muse-code/configuration#local-memory'
 export const TOOL_OUTPUT_MAX_CHARS = 64_000
 export const TOOL_OUTPUT_CLIP_MARKER = '\n[output clipped]'
+// Observation packing (M73, PLAN.md D49): SoL-Pi's ObservationPack design.
+// A tool result over the threshold rides whole for its first requests, then
+// as a placeholder naming its id, size and first and last lines; the swap
+// is sticky, once per output.
+export const OBS_PACK_THRESHOLD_CHARS = 8000
+export const OBS_PACK_WHOLE_SENDS = 2
+export const OBS_PACK_HEAD_LINES = 4
+export const OBS_PACK_TAIL_LINES = 4
+// A recalled page stays under the threshold, so paging an output back never
+// packs the page itself.
+export const OBS_PACK_PAGE_CHARS = 4000
+// The ledger's tokens-avoided estimate (the ~4-characters-per-token rule of
+// thumb): an estimate, never a bill.
+export const OBS_PACK_CHARS_PER_TOKEN = 4
 // PLAN.md D27: a clipped shell stream keeps its beginning and its end, with
 // this between them; the exit line is never clipped.
 export const TOOL_OUTPUT_ELIDED_MARKER = '\n[… output elided …]\n'
@@ -2710,6 +2727,19 @@ export const MODEL_TEXT = {
   // M75 (PLAN.md D49): the paired evaluation's answer to a question the
   // model asks mid-task; nobody is there to choose.
   evalClarification: 'Proceed without asking; take the simplest reading of the request.',
+  // M73 (PLAN.md D49): observation packing. The placeholder names the
+  // packed output's id, size and first and last lines; recall_output pages
+  // the original back. Placeholders never reach the transcript: only the
+  // requests the model sees.
+  packPlaceholder:
+    'Packed output "{id}" ({chars} characters, {lines} lines, about {tokens} tokens): sent whole before, packed to save context. Its first {headCount} and last {tailCount} lines:\n{head}\n[…]\n{tail}\nCall recall_output with id "{id}" and an offset to page the original back.',
+  packPage:
+    'Packed output "{id}" (characters {start} to {end} of {total}); call recall_output again with offset {next} for the rest:\n{page}',
+  packPageLast:
+    'Packed output "{id}" (characters {start} to {end} of {total}, end of output):\n{page}',
+  packUnknownId: 'unknown packed output id "{id}" (packed outputs in this session: {known})',
+  packBadOffset:
+    'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
   // M68 (PLAN.md D49): the verify loop. What follows an edit is data from the
   // language servers and the user's commands, never an instruction.
   verifyLead:
@@ -2891,6 +2921,15 @@ export const EVAL_BUDGET_USD = 0.5
 // held-out tasks must pass: losing more than one task per split fails.
 export const EVAL_FLOOR_ACCEPT_PASS_RATE = 0.75
 export const EVAL_FLOOR_HELDOUT_PASS_RATE = 0.75
+// M73's long-output tasks: a numbered evidence file of this many records,
+// each padded to one width, the needed one in the middle, past every line a
+// packed placeholder keeps. read_file numbers its lines (`256|`), so that
+// record starts near character 17,500 of the output: inside the page that
+// recall_output returns from the offset the task names.
+export const EVAL_LONG_EVIDENCE_LINES = 512
+export const EVAL_LONG_EVIDENCE_MIDDLE_LINE = 256
+export const EVAL_LONG_EVIDENCE_LINE_CHARS = 64
+export const EVAL_LONG_EVIDENCE_RECALL_OFFSET = 16_000
 // The shape of the report the live run writes.
 export const EVAL_REPORT_VERSION = 2
 // Decimals for the report's dollar amounts: a task costs a few

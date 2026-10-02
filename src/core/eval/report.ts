@@ -45,6 +45,10 @@ export const evalTaskResultSchema = z.object({
   paidRefusals: z.number(),
   /** Where this arm's run of the task fell among the arms: 1 when it went first. */
   order: z.number(),
+  /** The packing ledger's estimate (M73); absent where nothing packed. */
+  packedTokensAvoided: z.optional(z.number()),
+  /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
+  recalls: z.optional(z.number()),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -54,6 +58,8 @@ const legacyTaskResultSchema = z.object({
   questions: z.optional(z.never()),
   paidRefusals: z.optional(z.never()),
   order: z.optional(z.never()),
+  packedTokensAvoided: z.optional(z.never()),
+  recalls: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -171,6 +177,18 @@ function armLines(arm: ReportArm): string[] {
     )
   }
   lines.push(``)
+  const packed = arm.results.filter((result) => result.packedTokensAvoided !== undefined)
+  if (packed.length > 0) {
+    lines.push(
+      `| Task | Packing saved (estimated tokens) | Recalls |`,
+      `| --- | --- | --- |`,
+      ...packed.map(
+        (result) =>
+          `| ${result.taskId} | ${recordedCount(result.packedTokensAvoided)} | ${recordedCount(result.recalls)} |`,
+      ),
+      ``,
+    )
+  }
   for (const summary of arm.summaries) {
     lines.push(
       summary.tasks === 0

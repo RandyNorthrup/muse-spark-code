@@ -572,6 +572,7 @@
   "usageOutput": "Wyjście",
   "usageCached": "Z pamięci podręcznej",
   "usageContext": "Kontekst",
+  "usagePackedAvoided": "Zaoszczędzone pakowaniem (szacunek)",
   "usageNoSession": "W tej rozmowie nie zliczono jeszcze żadnych tokenów.",
   "usageLoading": "Odczytywanie użycia…",
   "usageUnavailable": "Nie można odczytać użycia",

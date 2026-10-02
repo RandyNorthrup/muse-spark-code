@@ -536,6 +536,7 @@
   "usageOutput": "出力",
   "usageCached": "キャッシュ済み",
   "usageContext": "コンテキスト",
+  "usagePackedAvoided": "パッキングで節約（推定）",
   "usageNoSession": "この会話ではまだトークンが集計されていません。",
   "usageLoading": "使用量を読み取っています…",
   "usageUnavailable": "使用量を読み取れませんでした",

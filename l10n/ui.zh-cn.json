@@ -536,6 +536,7 @@
   "usageOutput": "输出",
   "usageCached": "缓存",
   "usageContext": "上下文",
+  "usagePackedAvoided": "打包节省（估算）",
   "usageNoSession": "此对话尚未统计任何 token。",
   "usageLoading": "正在读取用量…",
   "usageUnavailable": "无法读取用量",

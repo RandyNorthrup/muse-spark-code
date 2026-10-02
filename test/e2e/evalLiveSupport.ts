@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { EvalReport } from '../../src/core/eval/report'
 import { EVAL_TASKS, type EvalTask } from '../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import {
@@ -161,6 +162,27 @@ export function liveEvalSelection(env: NodeJS.ProcessEnv, isEnabled: boolean): L
     tasks: wanted.length === 0 ? EVAL_TASKS : EVAL_TASKS.filter((task) => wanted.includes(task.id)),
     reportPath: selection.MUSE_EVAL_REPORT,
   }
+}
+
+/**
+ * The long-output tasks on which an arm never sent a packed placeholder
+ * (M73): a packing run that passes its floors without packing proves
+ * nothing about packing, so its acceptance needs every one of them to have
+ * packed. The arm missing from the report counts as never engaged.
+ */
+export function unengagedLongOutputTasks(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): string[] {
+  const results = report.arms.find((arm) => arm.name === armName)?.results ?? []
+  return tasks
+    .filter((task) => task.isLongOutput === true)
+    .filter((task) => {
+      const saved = results.find((result) => result.taskId === task.id)?.packedTokensAvoided
+      return saved === undefined || saved <= 0
+    })
+    .map((task) => task.id)
 }
 
 /** Outer deadline covers every task/arm run; each turn and verifier keeps its own limit. */

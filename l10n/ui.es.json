@@ -560,6 +560,7 @@
   "usageOutput": "Salida",
   "usageCached": "En caché",
   "usageContext": "Contexto",
+  "usagePackedAvoided": "Ahorrado por empaquetado (estimación)",
   "usageNoSession": "Todavía no se han contado tokens en esta conversación.",
   "usageLoading": "Leyendo el uso…",
   "usageUnavailable": "No se pudo leer el uso",

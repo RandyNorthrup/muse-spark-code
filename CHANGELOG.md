@@ -35,6 +35,20 @@ happened, not what was planned; superseded entries are kept.
     the two counts it never recorded shown as not recorded. A workspace
     that cannot be created reports only an error code, never a path.
 
+- **Observation packing, built and held for its evaluation** (M73,
+  PLAN.md D49). It reaches no user yet: there is no setting until its M75
+  run shows the capability floors held, and that run has not happened.
+  On the Model API backend, a tool output over 8,000 characters would ride
+  whole for two requests, then as a short placeholder (its id, size, and
+  first and last lines) that stays the same on every later request, so the
+  prompt cache breaks once per output; `recall_output(id, offset)` pages
+  the original back, and the conversation itself always keeps the whole
+  output. Account & usage would show the estimated tokens saved. The
+  evaluation gains the `packing` arm and two long-output tasks (twelve
+  tasks: seven accept, five held-out), and a packing run passes only if
+  it packed on each long-output task. The Evidence-Preserving Reducer is
+  not built (PLAN.md §3).
+
 ### Changed
 
 - The Node bundles share their English fallback as `dist/uiText.js`, while

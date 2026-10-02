@@ -572,6 +572,7 @@
   "usageOutput": "Выход",
   "usageCached": "Из кэша",
   "usageContext": "Контекст",
+  "usagePackedAvoided": "Сэкономлено упаковкой (оценка)",
   "usageNoSession": "В этой беседе еще не учтено ни одного токена.",
   "usageLoading": "Чтение данных об использовании…",
   "usageUnavailable": "Не удалось прочитать данные об использовании",

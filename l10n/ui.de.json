@@ -548,6 +548,7 @@
   "usageOutput": "Ausgabe",
   "usageCached": "Zwischengespeichert",
   "usageContext": "Kontext",
+  "usagePackedAvoided": "Durch Packen gespart (Schätzung)",
   "usageNoSession": "In dieser Unterhaltung wurden noch keine Token gezählt.",
   "usageLoading": "Nutzung wird gelesen…",
   "usageUnavailable": "Die Nutzung konnte nicht gelesen werden",

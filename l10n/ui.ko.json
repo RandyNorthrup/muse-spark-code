@@ -536,6 +536,7 @@
   "usageOutput": "출력",
   "usageCached": "캐시됨",
   "usageContext": "컨텍스트",
+  "usagePackedAvoided": "패킹으로 절약(추정)",
   "usageNoSession": "이 대화에서 아직 집계된 토큰이 없습니다.",
   "usageLoading": "사용량을 읽는 중…",
   "usageUnavailable": "사용량을 읽을 수 없습니다",

@@ -560,6 +560,7 @@
   "usageOutput": "Sortie",
   "usageCached": "En cache",
   "usageContext": "Contexte",
+  "usagePackedAvoided": "Économisé par empaquetage (estimation)",
   "usageNoSession": "Aucun jeton comptabilisé pour l’instant dans cette conversation.",
   "usageLoading": "Lecture de l’utilisation…",
   "usageUnavailable": "L’utilisation n’a pas pu être lue",
