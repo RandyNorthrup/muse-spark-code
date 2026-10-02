@@ -28,11 +28,8 @@ import {
   createCheckpointPort,
   finishCheckpointTurn,
   prepareCheckpointTurn,
-  type TurnRecording,
   withCheckpointCopies,
 } from '../../src/host/checkpoints/checkpointHost'
-import { turnKey } from '../../src/host/checkpoints/checkpointStore'
-import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { fakeLanguageService, KIND, sym } from './helpers/fakeLanguageService'
@@ -73,9 +70,7 @@ async function setup(hasMemory = false) {
     isEnabled: () => true,
     isWorkspaceTrusted: () => settings.isTrusted,
     hasGit: () => true,
-    log: new FakeLogOutputChannel(),
   })
-  const recordings = new Map<string, TurnRecording>()
   let atomicBoundary: (() => void) | undefined
   let assembly: (() => Promise<string | undefined>) | undefined
   const native = createToolIo({
@@ -194,16 +189,12 @@ async function setup(hasMemory = false) {
       isWorkspaceTrusted: () => settings.isTrusted,
       codeIntel,
       verify,
-      beforeTurnRuns: async (sessionId, turnId) => {
-        recordings.set(
-          turnKey(sessionId, turnId),
-          await prepareCheckpointTurn(port, sessionId, turnId, h.log),
-        )
-      },
-      afterTurnRuns: async (sessionId, turnId) => {
-        const recording = recordings.get(turnKey(sessionId, turnId)) ?? { kind: 'off' }
-        await finishCheckpointTurn(port, sessionId, turnId, recording, { ranProcesses: true })
-      },
+      // The owner guards of the window's io, which every tool write meets: no
+      // recorder here (the recorded path's guards: writeRecorder.test.ts).
+      beforeTurnRuns: (sessionId, turnId, top) =>
+        prepareCheckpointTurn(port, undefined, sessionId, turnId, h.log, top),
+      afterTurnRuns: (sessionId, turnId, end) =>
+        finishCheckpointTurn(port, undefined, sessionId, turnId, end),
       bundlePath: 'src/host/backend/modelApiEntry.ts',
       loadBundle: () => modelApiEntry,
     }),
@@ -357,8 +348,7 @@ async function enterHeld(
 
 /**
  * Holds the first tool write after the checkpoint wrapper admitted it and
- * before the native write starts: where M72 took its copy, and where the
- * recorder takes its own (M86).
+ * before the native write starts: where M72 took its copy.
  */
 function holdPreimage(t: Awaited<ReturnType<typeof setup>>) {
   const entered = Promise.withResolvers<undefined>()

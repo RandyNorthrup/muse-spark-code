@@ -1,10 +1,10 @@
-// Muse Code's memory as activation composes it (M72, M86; PLAN.md D51,
-// D63): real git and real native file I/O under a real checkpoint port, the
-// store and the view's lease from `createCheckpointedMemory` (the one factory
+// Muse Code's memory as activation composes it (M72, M86, PLAN.md D51/D63):
+// real git and real native file I/O under a real checkpoint port, the store
+// and the view's lease from `createCheckpointedMemory` (the one factory
 // activation calls), and a second window on the same folder. Only the editor
-// (quick picks, boxes, the trash) is the `vscode` mock, and its delete
-// removes the file for real. What the memory tools record is the recorder's
-// (writeRecorder.ts); here the view's lease and what it never records.
+// (quick picks, boxes, the trash) is the `vscode` mock, and its delete removes
+// the file for real. What the model's memory tools record for a restore is
+// tested with the recorder (writeRecorder.test.ts).
 
 import { readFileSync } from 'node:fs'
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
@@ -15,14 +15,12 @@ import { window, workspace } from 'vscode'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { createCheckpointedMemory } from '../../src/host/backend/checkpointedMemory'
 import { systemPath } from '../../src/host/backend/memoryIo'
-import { createToolIo } from '../../src/host/backend/toolIo'
 import {
   createCheckpointPort,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
 import { createMemoryFeatures } from '../../src/host/memoryFeatures'
 import { CHECKPOINT_ACTIVITY_PREFIX, type MemoryScope, UI_TEXT } from '../../src/shared/constants'
-import { FakeLogOutputChannel } from './helpers/fakes'
 import {
   changedFileTurn,
   harness,
@@ -35,6 +33,7 @@ import {
   turn,
   write,
 } from './helpers/checkpointHarness'
+import { nativeToolIo } from './helpers/fakeToolIo'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { confirmModal, pickOne, resetMemoryViewMocks } from './helpers/vscodeViews'
 
@@ -70,17 +69,8 @@ async function setup(options: SetupOptions = {}) {
     isEnabled: () => true,
     isWorkspaceTrusted: () => options.isRestricted !== true,
     hasGit: () => true,
-    log: new FakeLogOutputChannel(),
   })
-  const native = createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    env: () => ({}),
-    listFiles: () => Promise.resolve([]),
-    searchWorkerPath: 'unused',
-    log: () => undefined,
-    unsavedFiles: () => [],
-  })
+  const native = nativeToolIo()
   const lookup = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
   let isHolding = options.holdLookupOf !== undefined
@@ -249,16 +239,19 @@ describe('Muse Code memory as activation composes it (M72, M86)', () => {
   )
 
   it(
-    'leaves a note in place when the window closes after the confirmation, before the trash',
+    'leaves a note in place when the window closes once the lease is held, before the trash',
     async () => {
       const t = await setup()
       await ownedNote(t)
       await changedFileTurn(t.h)
-      trashFor()
-      vi.mocked(confirmModal).mockImplementation(() => {
-        t.lifetime.abort()
-        return Promise.resolve('Delete')
+      const mark = t.port.markTurn.bind(t.port)
+      vi.spyOn(t.port, 'markTurn').mockImplementation(async (key, isRunning) => {
+        await mark(key, isRunning)
+        if (isRunning && key.startsWith(CHECKPOINT_ACTIVITY_PREFIX)) {
+          t.lifetime.abort()
+        }
       })
+      trashFor()
       pickRows('owned.md', 'delete')
       await t.features.showMemory()
       expect(workspace.fs.delete).not.toHaveBeenCalled()
@@ -361,6 +354,7 @@ async function heldExport(t: Setup, file: string) {
   const release = Promise.withResolvers<undefined>()
   const editing = withCheckpointEditAt(
     t.port,
+    t.h.log,
     () => undefined,
     { root: t.h.root, platform: process.platform },
     file,
@@ -438,7 +432,7 @@ describe('an export the user places (M72, M86)', () => {
 })
 
 describe('activation builds the memory through the checkpointed composition (M72, M86)', () => {
-  it('has no raw memory store, and gives the view the composition’s lease', () => {
+  it('has no raw memory store, gives the view its lease, and the turns their own writes', () => {
     // src/extension.ts is excluded from the unit run (vitest.config.ts): what
     // a unit test can hold it to is the wiring itself.
     const source = readFileSync(
@@ -446,9 +440,25 @@ describe('activation builds the memory through the checkpointed composition (M72
       'utf8',
     )
     expect(source).toMatch(/createCheckpointedMemory\(\s*toolIo,\s*checkpoints,/)
-    // The view writes as the user, never recorded (M86); the model's memory tools as the turn.
+    // The view writes as the user, never recorded; the model's memory tools
+    // write through their turn's own writes (M86).
     expect(source).toMatch(/store:\s*memory\.viewStore,\s*log,\s*edit:\s*memory\.edit,\s*\}/)
     expect(source).toMatch(/memory:\s*memory\.store,/)
+    expect(source).toMatch(/memory:\s*memory\.turnWrites,/)
+    // Every turn, a child turn with its top turn's decision, through the window's one recorder.
+    expect(source).toMatch(
+      /beforeTurnRuns:\s*\(sessionId, turnId, top\) =>\s*prepareCheckpointTurn\(checkpoints, turnRecorder, sessionId, turnId, log, top\)/,
+    )
+    expect(source).toMatch(
+      /afterTurnRuns:\s*\(sessionId, turnId, end\) =>\s*finishCheckpointTurn\(checkpoints, turnRecorder, sessionId, turnId, end\)/,
+    )
+    // One window recording: the store's restores and the turns' recorder share its journal and lanes.
+    expect(source).toMatch(
+      /instance: writeRecording\.instance,\s*journal: writeRecording\.journal,\s*lanes: writeRecording\.lanes,/,
+    )
+    expect(source).toMatch(
+      /: writeRecording\.recorder\(\{\s*io: checkpointedIo,\s*memory: memory\.turnWrites,/,
+    )
     // The guard the memory captures for each mutation is the window's own
     // native-start guard, not a no-op.
     expect(source).toMatch(
@@ -457,13 +467,13 @@ describe('activation builds the memory through the checkpointed composition (M72
     // The exports the user places are written under the same lease, the same
     // guard, and the workspace root and platform the restore compares with.
     expect(source).toMatch(
-      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*work,\s*\)/,
+      /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*log,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*work,\s*\)/,
     )
-    // What else the extension writes in the user's name holds the lease and is
-    // never recorded (M86): Create AGENTS.md and Revert's write, Revert's
+    // What else the extension writes in the user's name is under the lease
+    // and never recorded (M86): Create AGENTS.md and Revert's write, Revert's
     // delete, and a plan's publication or stale-stage removal.
     expect(source).toMatch(
-      /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(checkpoints, check, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
+      /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(checkpoints, log, check, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
     )
     expect(source).toMatch(
       /writeFile: async \(fsPath, content\) => \{\s*await writeUserFile\(backend\.workspaceActionGuard\(nativeStarts\.signal\), fsPath, content\)/,
@@ -472,7 +482,7 @@ describe('activation builds the memory through the checkpointed composition (M72
       /writeFile: \(fsPath, content\) => writeUserFile\(check, fsPath, content\),/,
     )
     expect(source).toMatch(
-      /await withCheckpointEdit\(checkpoints, check, async \(\) => \{\s*await vscode\.workspace\.fs\.delete\(/,
+      /await withCheckpointEdit\(checkpoints, log, check, async \(\) => \{\s*await vscode\.workspace\.fs\.delete\(/,
     )
     expect(source).not.toContain('asUserEdit')
     expect(source).not.toContain('noteUserSave')

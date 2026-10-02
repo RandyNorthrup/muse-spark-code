@@ -12,12 +12,13 @@ function setup(initial: Record<string, string> = {}) {
   const log = new FakeLogOutputChannel()
   /** What the activation's checkpoint composition does, in the order it does it. */
   const order: string[] = []
-  const guard = { isRevoked: false }
+  const guard = { isRevoked: false, isRevokedInLease: false }
   const features = createMemoryFeatures({
     store: memoryStoreOver(files).store,
     log,
     edit: async (scope, work) => {
       order.push(`lease ${scope}`)
+      guard.isRevoked ||= guard.isRevokedInLease
       return await work(() => {
         order.push('guard')
         if (guard.isRevoked) {
@@ -91,20 +92,18 @@ describe('createMemoryFeatures (M49)', () => {
     pickIds('note:1', 'delete')
     vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
-    // The view's removal is the user's: never recorded (M86).
+    // The user's removal is never recorded (M86): no copy, no note of it.
     expect(t.order.slice(0, 3)).toEqual(['lease project', 'guard', 'delete'])
     // The index update, inside the same lease, carries the guard as well.
     expect(t.order.indexOf('guard', t.order.indexOf('delete'))).toBeGreaterThan(0)
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('')
   })
 
-  it('does not trash a note when the guard is revoked after the confirmation', async () => {
+  it('does not trash a note when the guard is revoked once the lease is held', async () => {
     const t = setup({ [`${PROJECT}/a.md`]: 'A', [`${PROJECT}/MEMORY.md`]: '- [a](a.md) | A\n' })
+    t.guard.isRevokedInLease = true
     pickIds('note:1', 'delete')
-    vi.mocked(confirmModal).mockImplementation(() => {
-      t.guard.isRevoked = true
-      return Promise.resolve('Delete')
-    })
+    vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
     expect(workspace.fs.delete).not.toHaveBeenCalled()
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('- [a](a.md) | A\n')

@@ -42,7 +42,7 @@ function templateAction(
       runInit: () => undefined,
       // As activation wires it: under the lease, and never recorded (M86).
       writeFile: async (file, content) => {
-        await withCheckpointEdit(port, check, async () => {
+        await withCheckpointEdit(port, h.log, check, async () => {
           await writeFile(file, content)
         })
       },
@@ -69,7 +69,7 @@ describe('Create AGENTS.md pure template admission (M72)', () => {
         await resume.promise
         await write(h.root, 'AGENTS.md', 'explicit edit\n')
       })
-      const editing = withCheckpointEdit(port, () => undefined, work)
+      const editing = withCheckpointEdit(port, h.log, () => undefined, work)
       try {
         await entered.promise
         expect(await restoreOutcome(h.reopen(), 't1')).toEqual({

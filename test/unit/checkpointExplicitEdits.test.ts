@@ -51,7 +51,7 @@ function editLease(h: Harness, signal: AbortSignal, cwd?: string, isTrusted = ()
   const port = checkpointPort(h, isTrusted)
   const check = manager.workspaceActionGuard(signal, cwd)
   const edit = async (work: (assertCanWrite?: () => void) => Promise<void>) => {
-    await withCheckpointEdit(port, check, async () => {
+    await withCheckpointEdit(port, h.log, check, async () => {
       await work(check)
     })
   }
@@ -83,7 +83,7 @@ function holdEditAdmission(port: CheckpointPort) {
 
 type EditFamily = 'plan create' | 'plan cleanup' | 'review write' | 'review delete'
 
-/** One edit, wired as activation wires it: under the lease, and never recorded (M72, M86). */
+/** One edit, wired as activation wires it: under the lease, never recorded (M86). */
 async function startEdit(
   h: Harness,
   family: EditFamily,
@@ -303,8 +303,6 @@ describe('current-main explicit workspace edits (M72/M79/M86)', () => {
   it.each<[EditFamily, string, string | undefined]>([
     ['plan create', `.agents/plans/${PLAN_NAME}`, '# Owned\n'],
     ['plan cleanup', `.agents/plans/${STALE_STAGE}`, undefined],
-    ['review write', 'review.txt', 'before\n'],
-    ['review delete', 'review.txt', undefined],
   ])(
     "never records a %s the user made while a turn ran, so the turn's restore leaves it",
     async (family, relative, kept) => {

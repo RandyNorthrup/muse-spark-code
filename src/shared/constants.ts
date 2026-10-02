@@ -739,6 +739,20 @@ export const GIT_SHA1_HEX_LENGTH = 40
 export const GIT_MODE_EXECUTABLE = '100755'
 // What git calls an object it does not have in a `cat-file --batch` answer.
 export const GIT_MISSING_OBJECT = 'missing'
+// --- Restore by the tools' own writes (M86, PLAN.md D63) ---
+// Under a namespace's checkpoint storage, one folder per extension-host
+// instance: its journal of the tools' writes, and the bytes they need.
+export const CHECKPOINT_WRITES_DIR = 'm86'
+export const CHECKPOINT_JOURNAL_FILE = 'journal.jsonl'
+export const CHECKPOINT_BLOBS_DIR = 'blobs'
+// The journal and the kept bytes are the user's alone, as the folder is.
+export const CHECKPOINT_JOURNAL_FILE_MODE = 0o600
+// What one unit (a turn, a restore) may record: past the intents, its writes
+// go on unrecorded and the unit can never be restored; past the kept bytes,
+// its writes are recorded without their bytes, and their files are not
+// restorable. Fixed: a turn that reaches either is far from a usual one.
+export const CHECKPOINT_UNIT_INTENTS_MAX = 1000
+export const CHECKPOINT_UNIT_BLOB_BYTES_MAX = 256 * 1024 * 1024
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Muse Code CLI / Muse Session Protocol (PLAN.md D1a, §5.4) ---
@@ -2723,6 +2737,16 @@ export const MODEL_TEXT = {
   checkSkipHookDenied: 'a hook denied it',
   checkSkipRefused: 'the permission mode refuses shell commands',
   checkpointStorageWrite: 'This path is in the extension checkpoint storage; tools cannot edit it.',
+  // M86 (PLAN.md D63): a recorded write that did not happen, after the path.
+  fileNotRegular:
+    'is not a regular file (a folder, a link, a pipe or a device); the file tools write only regular files',
+  fileChangedWhileWriting:
+    'changed while it was being written, so it was left as it is; read it again before writing it',
+  writeNotRecorded:
+    'was not written: the record a restore needs could not be saved (the disk may be full); nothing was changed',
+  turnWritesEnded: 'was not written: the turn that started this write has ended',
+  imageFileChanged:
+    'the reserved file was changed by something else while the image was made; it was left as it is',
   checkSkipRestricted: 'shell commands are disabled while the workspace is in Restricted Mode',
   checkSkipUnsafePath:
     'a path starts with "-" or "@", or holds a control character or a character the shell would read as syntax, so it cannot be passed safely',

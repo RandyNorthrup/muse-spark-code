@@ -979,7 +979,6 @@ function livePanel(rig: Rig): LivePanel {
       isWorkspaceTrusted: () => true,
       isEnabled: () => false,
       hasGit: () => false,
-      log: new FakeLogOutputChannel(),
     }),
     unsavedPaths: () => [],
     // This editor-free live harness offers no stored-checkpoint file action.

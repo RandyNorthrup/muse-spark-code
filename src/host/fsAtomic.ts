@@ -54,7 +54,7 @@ import {
   MODEL_TEXT,
 } from '../shared/constants'
 import { canonicalPath } from './canonicalPath'
-import type { ConditionalWrite } from '../core/backends/modelapi/tools'
+import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
   /** A checkpoint's live admission, checked after awaits and before file mutations. */
@@ -83,6 +83,12 @@ export interface AtomicWriteOptions {
    * whether an editor now holds unsaved text for the file; Grok's review).
    */
   readonly isReplaceable?: () => boolean
+  /**
+   * Runs once the content is staged and closed, with the staged file's mode
+   * from its handle and the folder the write created, before the first
+   * rename attempt (M86: the recorder's intent). A throw leaves the target alone.
+   */
+  readonly staged?: (file: StagedFile) => Promise<void>
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
@@ -198,6 +204,19 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
   return { path: real, mode: mode & PERMISSION_BITS }
 }
 
+/**
+ * How many folders, `folder` and up, a recursive `mkdir` of it made, from the
+ * outermost one it names (undefined: none). Windows names it in its long-path
+ * form (`\\?\C:\…`), so both are compared in that form.
+ */
+function foldersMade(folder: string, outermost: string | undefined): number {
+  if (outermost === undefined) {
+    return 0
+  }
+  const below = path.relative(path.toNamespacedPath(outermost), path.toNamespacedPath(folder))
+  return below === '' ? 1 : below.split(path.sep).length + 1
+}
+
 /** The target no longer holds what a conditional write expected: nothing was written. */
 class ChangedBeforeWriteError extends Error {}
 
@@ -275,13 +294,17 @@ async function writeAtomically(
   expectedFingerprint: string | (() => Promise<boolean>) | undefined,
 ): Promise<void> {
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
+  let createdFolders = 0
   if (expectedFingerprint === undefined || typeof expectedFingerprint === 'function') {
     if (expectedFingerprint !== undefined) {
       await assertUnchanged(target, expectedFingerprint)
     }
     options.beforeCommit?.()
     options.assertCanWrite?.()
-    await mkdir(path.dirname(target), { recursive: true })
+    createdFolders = foldersMade(
+      path.dirname(target),
+      await mkdir(path.dirname(target), { recursive: true }),
+    )
   } else {
     // A conditional write replaces only the expected text: a target that is
     // gone, with its folder or not, stays gone.
@@ -292,6 +315,7 @@ async function writeAtomically(
   await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
   const temporary = `${destination.path}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
   let temporaryIdentity: { readonly dev: number; readonly ino: number } | undefined
+  let stagedMode = 0
   try {
     await assertBoundPath(temporary, temporary, options)
     options.beforeCommit?.()
@@ -322,9 +346,14 @@ async function writeAtomically(
       } else if (destination.mode !== undefined) {
         await handle.chmod(destination.mode)
       }
+      if (options.staged !== undefined) {
+        const staged = await handle.stat()
+        stagedMode = staged.mode & PERMISSION_BITS
+      }
     } finally {
       await handle.close()
     }
+    await options.staged?.({ mode: stagedMode, createdFolders })
     await renameReplacing(temporary, destination.path, options, async () => {
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)

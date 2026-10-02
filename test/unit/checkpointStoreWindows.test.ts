@@ -8,7 +8,6 @@ import {
   withCheckpointCopies,
 } from '../../src/host/checkpoints/checkpointHost'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
-import { FakeLogOutputChannel } from './helpers/fakes'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { turnKey } from '../../src/host/checkpoints/checkpointStore'
@@ -115,7 +114,6 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         hasGit: () => true,
         isEnabled: () => isEnabled,
         isWorkspaceTrusted: () => true,
-        log: new FakeLogOutputChannel(),
       })
       const entered = gate()
       const resume = gate()
@@ -170,7 +168,6 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         hasGit: () => true,
         isEnabled: () => false,
         isWorkspaceTrusted: () => true,
-        log: new FakeLogOutputChannel(),
       })
       // This controlled I/O fixture creates no native process or descendant.
       const wrapped = withCheckpointCopies(
@@ -207,7 +204,6 @@ describe('CheckpointStore across independent windows (M72, M86)', () => {
         hasGit: () => false,
         isEnabled: () => false,
         isWorkspaceTrusted: () => false,
-        log: new FakeLogOutputChannel(),
       })
       const work = vi.fn(() => Promise.resolve(shellResult(true)))
       const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)

@@ -73,6 +73,7 @@ import {
   CHECKPOINT_PUBLISH_RETRY_MS,
   CHECKPOINT_SEQUENCE_ATTEMPTS,
   CHECKPOINT_STALE_LOCK_MS,
+  CHECKPOINT_WRITES_DIR,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
   UI_TEXT,
@@ -124,6 +125,7 @@ import {
 } from './shadowGit'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
+import type { WriteLanes } from './writeRecorder'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
 
@@ -207,11 +209,15 @@ export interface CheckpointStoreDeps {
   /** This extension host's process, and whether another window's still runs. */
   readonly pid: number
   readonly isProcessAlive: (pid: number) => boolean
+  /** This window's instance (`createTurnRecording`): the owner of every unit and write it records. */
+  readonly instance: string
   /**
-   * This window's journal, opened once for the store's instance: the model's
-   * tools record their writes in it, and so do the store's restores and Redos.
+   * This window's journal and write lanes, the turns' recorder's own: the
+   * store's restores and Redos journal their writes in it, take their places
+   * in the one order and hold each path's lock as the tools' writes do.
    */
-  readonly openJournal: (instance: string) => WriteJournal
+  readonly journal: WriteJournal
+  readonly lanes: WriteLanes
   /** How often the window's presence is written again; CHECKPOINT_HEARTBEAT_MS unless a test shortens it. */
   readonly heartbeatMs?: number
   /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
@@ -308,7 +314,6 @@ const LEGACY_FILES: ReadonlySet<string> = new Set([
   'work.index',
 ])
 const STAGING_DIR = 'staging'
-const JOURNALS_DIR = 'm86'
 const LOCK_SUFFIX = '.lock'
 const SEPARATOR = '/'
 const LINE_FEED = '\n'
@@ -478,16 +483,14 @@ export class CheckpointStore {
   private readonly ownInstance: string
   private readonly ownJournal: WriteJournal
   private readonly presence: WindowPresence
-  /** The instance's write counter: every write of this window, turns' and batches' alike, in order. */
-  private writeSeq = 0
   private heartbeat: ReturnType<typeof setInterval> | undefined
   private lastPruneAt = 0
   private isPruneDue = false
   private isPeerUnsafe = false
 
   public constructor(private readonly deps: CheckpointStoreDeps) {
-    this.ownInstance = deps.newId()
-    this.ownJournal = deps.openJournal(this.ownInstance)
+    this.ownInstance = deps.instance
+    this.ownJournal = deps.journal
     this.presence = new WindowPresence({
       storageDir: deps.storageDir,
       instance: this.ownInstance,
@@ -779,7 +782,7 @@ export class CheckpointStore {
    * restores (rule 3.2).
    */
   private async dropGoneJournals(shadow: ShadowGit): Promise<void> {
-    const journalsRoot = path.join(this.deps.storageDir, JOURNALS_DIR)
+    const journalsRoot = path.join(this.deps.storageDir, CHECKPOINT_WRITES_DIR)
     const journalFolders = await this.namesIn(journalsRoot)
     const journals = await WriteJournal.readAll(this.deps.storageDir)
     const units = await listUnits(shadow)
@@ -1588,7 +1591,11 @@ export class CheckpointStore {
     return { batchId: owner.unitId, changed, refused }
   }
 
-  /** One write of a batch: journaled, made through the kept writer, settled. */
+  /**
+   * One write of a batch: journaled, made through the kept writer, settled,
+   * alone on its path with the tools' writes (the window's lanes), so its
+   * place in the window's order is the order the path's writes landed in.
+   */
   private async runStep(
     owner: Owner,
     step: PathDecision & { readonly kind: 'restore' },
@@ -1600,47 +1607,53 @@ export class CheckpointStore {
     if (isUnsaved(step.path)) {
       return 'unsaved'
     }
-    const currentMode = states.get(step.path)?.content.mode
-    const before: ContentState = { ...step.expect, mode: currentMode }
-    // An existing file keeps its own mode; one recreated gets the mode it had.
-    const after: ContentState = step.expect.present
-      ? { ...step.target, mode: currentMode }
-      : step.target
-    const write: WriteRecord = {
-      id: this.deps.newId(),
-      instance: this.ownInstance,
-      seq: this.nextWriteSeq(),
-      owner,
-      path: step.path,
-      before,
-      after,
-      createdFolders:
-        step.target.present && !step.expect.present ? await this.missingFolders(step.path) : [],
-      isKept: true,
-    }
-    await this.ownJournal.appendIntent(write)
-    const fileStep: FileStep = {
-      path: step.path,
-      target:
-        step.target.present && step.target.oid !== undefined
-          ? { oid: step.target.oid, mode: step.target.mode ?? GIT_MODE_FILE }
-          : null,
-      expect:
-        step.expect.present && step.expect.oid !== undefined
-          ? { kind: 'blob', oid: step.expect.oid }
-          : { kind: 'absent' },
-      removeFolders: step.removeFolders,
-    }
-    const content = fileStep.target === null ? undefined : blobs.get(fileStep.target.oid)
-    const result = await applyFileStep({ ...this.target, isAllowed, isUnsaved }, fileStep, content)
-    if (result === 'done') {
-      await this.ownJournal.appendDone(write.id)
-    } else if (result !== 'failed') {
-      // Refused before anything changed: the file was not as expected, or held
-      // unsaved changes, or a link was on the way, or it is too large to compare.
-      await this.ownJournal.appendAborted(write.id)
-    }
-    return result
+    return await this.deps.lanes.exclusive(step.path, async () => {
+      const currentMode = states.get(step.path)?.content.mode
+      const before: ContentState = { ...step.expect, mode: currentMode }
+      // An existing file keeps its own mode; one recreated gets the mode it had.
+      const after: ContentState = step.expect.present
+        ? { ...step.target, mode: currentMode }
+        : step.target
+      const write: WriteRecord = {
+        id: this.deps.newId(),
+        instance: this.ownInstance,
+        seq: this.deps.lanes.nextSeq(),
+        owner,
+        path: step.path,
+        before,
+        after,
+        createdFolders:
+          step.target.present && !step.expect.present ? await this.missingFolders(step.path) : [],
+        isKept: true,
+      }
+      await this.ownJournal.appendIntent(write)
+      const fileStep: FileStep = {
+        path: step.path,
+        target:
+          step.target.present && step.target.oid !== undefined
+            ? { oid: step.target.oid, mode: step.target.mode ?? GIT_MODE_FILE }
+            : null,
+        expect:
+          step.expect.present && step.expect.oid !== undefined
+            ? { kind: 'blob', oid: step.expect.oid }
+            : { kind: 'absent' },
+        removeFolders: step.removeFolders,
+      }
+      const content = fileStep.target === null ? undefined : blobs.get(fileStep.target.oid)
+      const result = await applyFileStep(
+        { ...this.target, isAllowed, isUnsaved },
+        fileStep,
+        content,
+      )
+      if (result === 'done') {
+        await this.ownJournal.appendDone(write.id)
+      } else if (result !== 'failed') {
+        // Refused before anything changed: the file was not as expected, or held
+        // unsaved changes, or a link was on the way, or it is too large to compare.
+        await this.ownJournal.appendAborted(write.id)
+      }
+      return result
+    })
   }
 
   /** The journals of every window, and the setup again when folding a gone window's changed it. */
@@ -1769,7 +1782,7 @@ export class CheckpointStore {
     return this.ownInstance
   }
 
-  /** This window's journal, which the model's tools' recorder writes. */
+  /** This window's journal, which the model's tools' recorder writes as well. */
   public get journal(): WriteJournal {
     return this.ownJournal
   }
@@ -1777,12 +1790,6 @@ export class CheckpointStore {
   /** Native/process uncertainty in this window or a freshly observed peer. */
   public get isNativeUnsafe(): boolean {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
-  }
-
-  /** The next number of this window's write counter: the recorder's and the restores' writes share it. */
-  public nextWriteSeq(): number {
-    this.writeSeq += 1
-    return this.writeSeq
   }
 
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */

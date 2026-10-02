@@ -4,8 +4,10 @@
 //
 // The model's tool writes are recorded here by `toolWrite`, a test stand-in
 // for the recorder (writeRecorder.ts) that uses only the journal's own API:
-// the before and after copies kept, the intent appended, the file written,
-// the write settled. Its `settle` argument stops a write where a crash would.
+// the before and after copies kept, the intent appended in the window's one
+// order (its lanes, which the store's restores share), the file written, the
+// write settled. Its `settle` argument stops a write where a crash would.
+// `turnRecorder` gives the real recorder over the same window instead.
 
 import { Buffer } from 'node:buffer'
 import { execFileSync } from 'node:child_process'
@@ -32,16 +34,24 @@ import {
   type StoredUnit,
 } from '../../../src/host/checkpoints/checkpointRecords'
 import { CheckpointStore, type RestoreOutcome } from '../../../src/host/checkpoints/checkpointStore'
-import { WriteJournal } from '../../../src/host/checkpoints/writeJournal'
+import {
+  createTurnRecording,
+  type TurnRecorder,
+  type WindowRecording,
+} from '../../../src/host/checkpoints/writeRecorder'
+import { canonicalPath } from '../../../src/host/canonicalPath'
 import { type GitProcess, processGitProcess } from '../../../src/host/git'
 import { GIT_MODE_EXECUTABLE, GIT_MODE_FILE } from '../../../src/shared/constants'
 import { FakeLogOutputChannel } from './fakes'
+import { nativeToolIo } from './fakeToolIo'
 import { removeFolder } from './temporaryFolders'
 
 export const REAL_GIT_TIMEOUT_MS = 120_000
 const realGit = processGitProcess()
 const folders: string[] = []
 const stores: CheckpointStore[] = []
+/** Each store's window: its instance, journal and lanes, as activation makes them. */
+const recordings = new WeakMap<CheckpointStore, WindowRecording>()
 const EXECUTABLE_BITS = 0o111
 
 /** Closes every store and removes every folder the tests made (an `afterEach`). */
@@ -133,7 +143,6 @@ export function checkpointPort(
     isWorkspaceTrusted,
     isEnabled,
     hasGit: isWorkspaceTrusted,
-    log: new FakeLogOutputChannel(),
   })
 }
 
@@ -156,6 +165,11 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     gitPathMax?: number,
     storageRoot?: string,
   ) => {
+    const recording = createTurnRecording({
+      storageDir: storeDir,
+      instance: randomUUID(),
+      platform: process.platform,
+    })
     const store = new CheckpointStore({
       workspaceRoot: storeRoot,
       storageDir: storeDir,
@@ -172,13 +186,16 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
       newId: () => randomUUID(),
       pid,
       isProcessAlive: options.isProcessAlive ?? (() => true),
-      openJournal: (instance) => new WriteJournal({ storageDir: storeDir, instance }),
+      instance: recording.instance,
+      journal: recording.journal,
+      lanes: recording.lanes,
       ...(options.heartbeatMs !== undefined && { heartbeatMs: options.heartbeatMs }),
       ...(gitPathMax !== undefined && { gitPathMax }),
       ...(storageRoot !== undefined && { storageRoot }),
       log,
     })
     stores.push(store)
+    recordings.set(store, recording)
     return store
   }
   return {
@@ -233,6 +250,35 @@ export async function treeListing(folder: string): Promise<string> {
 export async function entryCount(folder: string): Promise<number> {
   const entries = await readdir(folder, { recursive: true })
   return entries.length
+}
+
+/** The window a harness store records in: its journal, and the lanes its restores share. */
+function recordingOf(store: CheckpointStore): WindowRecording {
+  const recording = recordings.get(store)
+  if (recording === undefined) {
+    throw new Error('not a harness store')
+  }
+  return recording
+}
+
+function unusedMemoryWrite(): Promise<void> {
+  return Promise.reject(new Error('no memory in this test'))
+}
+
+/**
+ * The real recorder of the turns of a store's window (writeRecorder.ts), over
+ * the real tool io, in the journal and lanes the store's restores share, as
+ * activation makes it.
+ */
+export function turnRecorder(h: Pick<Harness, 'store' | 'root' | 'log'>): TurnRecorder {
+  return recordingOf(h.store).recorder({
+    io: nativeToolIo(),
+    memory: () => ({ writeFile: unusedMemoryWrite, createFile: unusedMemoryWrite }),
+    workspaceRoot: h.root,
+    canonicalPath,
+    newId: () => randomUUID(),
+    log: h.log,
+  })
 }
 
 /** A unit of a conversation in a store's window. */
@@ -297,7 +343,7 @@ async function missingFolders(root: string, relative: string): Promise<readonly 
  * appended, the file written (or deleted), then settled as `settle` says.
  */
 export async function toolWrite(
-  store: Pick<CheckpointStore, 'instance' | 'journal' | 'nextWriteSeq'>,
+  store: CheckpointStore,
   unit: Owner,
   root: string,
   relative: string,
@@ -318,7 +364,7 @@ export async function toolWrite(
   const record: WriteRecord = {
     id: randomUUID(),
     instance: store.instance,
-    seq: store.nextWriteSeq(),
+    seq: recordingOf(store).lanes.nextSeq(),
     owner: unit,
     path: relative,
     before,

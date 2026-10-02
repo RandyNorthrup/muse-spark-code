@@ -452,7 +452,6 @@ function setup(
       checkpointCalls.push(`mark ${name} ${String(isRunning)}`)
       return Promise.resolve()
     },
-    withdrawMark: () => Promise.resolve(),
     startTurnUnit: () => Promise.resolve(undefined),
     endUnit: () => Promise.resolve(),
     turns: () => Promise.resolve([...checkpointTurns]),

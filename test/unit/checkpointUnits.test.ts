@@ -34,6 +34,7 @@ import {
   storedUnit,
   toolWrite,
   turn,
+  turnRecorder,
   twoConversations,
   write,
   writeLegacyRecord,
@@ -392,12 +393,18 @@ describe('completeness (M86, spec 3.2)', () => {
         },
       })
       const port = checkpointPort(h, true, () => true)
+      const recorder = turnRecorder(h)
       const log = new FakeLogOutputChannel()
-      const first = await prepareCheckpointTurn(port, 's1', 't1', log)
+      const first = await prepareCheckpointTurn(port, recorder, 's1', 't1', log)
       expect(first).toMatchObject({ kind: 'recording' })
-      await finishCheckpointTurn(port, 's1', 't1', first, { ranProcesses: false })
+      await finishCheckpointTurn(port, recorder, 's1', 't1', {
+        checkpoint: first,
+        ranProcesses: false,
+      })
       isFailing = true
-      expect(await prepareCheckpointTurn(port, 's1', 't2', log)).toEqual({ kind: 'failed' })
+      expect(await prepareCheckpointTurn(port, recorder, 's1', 't2', log)).toEqual({
+        kind: 'failed',
+      })
       isFailing = false
       await port.markTurn(turnKey('s1', 't2'), false)
       expect(await restoreOutcome(h.store, 't1', 's1', ['t1', 't2'])).toEqual({
@@ -413,11 +420,22 @@ describe('completeness (M86, spec 3.2)', () => {
     async () => {
       const h = await harness()
       const port = checkpointPort(h, true, () => false)
+      const recorder = turnRecorder(h)
       const log = new FakeLogOutputChannel()
-      expect(await prepareCheckpointTurn(port, 's1', 'child:1', log)).toEqual({ kind: 'off' })
-      expect(await prepareCheckpointTurn(port, 's1', 'child:2', log, true)).toMatchObject({
+      // Its top turn ran in an earlier window: the setting (off) decides.
+      expect(
+        await prepareCheckpointTurn(port, recorder, 's1', 'child:1', log, {
+          checkpoint: undefined,
+        }),
+      ).toEqual({ kind: 'off' })
+      const top = {
+        checkpoint: { kind: 'failed' } as const,
+      }
+      expect(await prepareCheckpointTurn(port, recorder, 's1', 'child:2', log, top)).toMatchObject({
         kind: 'recording',
+        owner: { unitId: 'child:2' },
       })
+      expect(storedUnit(h.storage, 'child:2').owner.unitKind).toBe('turn')
     },
     REAL_GIT_TIMEOUT_MS,
   )

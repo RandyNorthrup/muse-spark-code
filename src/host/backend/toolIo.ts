@@ -8,7 +8,7 @@
 // terminal would give (D24).
 
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, type Stats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
@@ -20,6 +20,7 @@ import {
   windowsPowerShellModulePath,
 } from '../../core/backends/musecode/launch'
 import type {
+  ReservationStep,
   SearchHit,
   SearchJob,
   SearchOutcome,
@@ -568,6 +569,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         expectedCanonicalPath: options.expectedCanonicalPath,
         platform: deps.platform,
         isReplaceable: () => options.unsavedAt.every((path) => !hasUnsavedChanges(path)),
+        ...(options.staged !== undefined && { staged: options.staged }),
       })
     },
     async pathExists(absolutePath) {
@@ -604,14 +606,34 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         await handle.close()
         isClosed = true
       }
-      const release = async () => {
-        await close()
+      // The path still names the file reserved, with no link on the way, and
+      // it is still empty: only then is it ours to fill or remove (M86). Bytes
+      // the user wrote into it meanwhile are theirs and stay.
+      const isReserved = async (): Promise<boolean> => {
         await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
-        const current = await stat(absolutePath)
-        if (current.dev !== identity.dev || current.ino !== identity.ino) {
-          throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        let current: Stats
+        try {
+          current = await lstat(absolutePath)
+        } catch (error: unknown) {
+          if (isMissingFile(error)) {
+            return false
+          }
+          throw error
+        }
+        return (
+          current.isFile() &&
+          current.dev === identity.dev &&
+          current.ino === identity.ino &&
+          current.size === 0
+        )
+      }
+      const release = async (): Promise<ReservationStep> => {
+        await close()
+        if (!(await isReserved())) {
+          return 'changed'
         }
         await rm(absolutePath, { force: true })
+        return 'done'
       }
       try {
         await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
@@ -625,20 +647,18 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return {
         fill: async (bytes) => {
-          try {
-            await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
-            deps.assertWorkspaceCurrent?.()
-            await handle.writeFile(bytes)
-            await close()
-          } catch (error: unknown) {
-            // A write that failed (a full disk) leaves no half file behind.
-            try {
-              await release()
-            } catch {
-              // The write's own failure is the one reported.
-            }
-            throw error
+          await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
+          // Immediately before writing: the held file is still empty and the
+          // path still names it. A failure part way is left as it is, never
+          // cleaned up blindly: a release removes the file only while empty.
+          const held = await handle.stat()
+          if (held.size > 0 || !(await isReserved())) {
+            return 'changed'
           }
+          deps.assertWorkspaceCurrent?.()
+          await handle.writeFile(bytes)
+          await close()
+          return 'done'
         },
         release,
       }

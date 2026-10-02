@@ -46,7 +46,6 @@ function harness(options: HarnessOptions = {}) {
         ? Promise.reject(new Error('disk full'))
         : Promise.resolve()
     },
-    withdrawMark: () => Promise.resolve(),
     startTurnUnit: () => Promise.resolve(undefined),
     endUnit: () => Promise.resolve(),
     turns: options.turns ?? (() => Promise.resolve([])),

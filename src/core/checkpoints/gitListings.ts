@@ -3,7 +3,7 @@
 // formats are git's documented plumbing output. Pure: no git, no file system.
 
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
+import { createHash, type Hash } from 'node:crypto'
 import { GIT_MISSING_OBJECT } from '../../shared/constants'
 
 const NUL = '\0'
@@ -42,10 +42,12 @@ export function parseBatchCheck(output: string): ReadonlyMap<string, number> {
  * be compared with what a capture holds without running git.
  */
 export function gitBlobOid(bytes: Uint8Array): string {
-  return createHash(BLOB_HASH)
-    .update(`${BLOB_TYPE}${SPACE}${String(bytes.length)}${NUL}`)
-    .update(bytes)
-    .digest('hex')
+  return gitBlobHash(bytes.length).update(bytes).digest('hex')
+}
+
+/** `gitBlobOid` of `size` bytes fed in parts (M86: a file too large to hold), in order. */
+export function gitBlobHash(size: number): Hash {
+  return createHash(BLOB_HASH).update(`${BLOB_TYPE}${SPACE}${String(size)}${NUL}`)
 }
 
 /** One answer of `git cat-file --batch`: the name it gave and the bytes (undefined: missing). */

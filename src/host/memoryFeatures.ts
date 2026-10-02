@@ -52,6 +52,7 @@ export function createMemoryFeatures(deps: MemoryFeatureDeps): MemoryFeatures {
         },
         trash: async (fsPath, assertCanWrite) => {
           // VS Code's delete has no publication callback: the guard speaks last, right before it.
+          // The user's removal is never recorded (M86): a restore leaves it as it is.
           assertCanWrite()
           await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
           deps.log.info(`Memory note moved to the trash: ${fsPath}`)

@@ -54,19 +54,25 @@ import type {
 } from '../../src/shared/schedule'
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
-import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type {
+  ToolIo,
+  TopTurn,
+  TurnCheckpoint,
+  TurnEnd,
+  TurnWrites,
+} from '../../src/core/backends/modelapi/tools'
 import { ShellEntryError } from '../../src/core/shellResult'
 import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
   prepareCheckpointTurn,
-  type TurnRecording,
 } from '../../src/host/checkpoints/checkpointHost'
 import {
   harness as checkpointHarness,
   owner as checkpointOwner,
   toolWrite as checkpointToolWrite,
+  turnRecorder as checkpointRecorder,
   read as checkpointRead,
   removeCheckpointFolders,
   write as checkpointWrite,
@@ -1139,7 +1145,10 @@ describe('ModelApiHost: catalogue and sessions', () => {
   })
 })
 
-describe('Model API turn checkpoint admission (M72)', () => {
+/** A turn recorded nothing: what a hook returns that only marks the turn. */
+const UNRECORDED: TurnCheckpoint = { kind: 'off' }
+
+describe('Model API turn checkpoint admission (M72, M86)', () => {
   it(
     'keeps a retained Model API turn fenced after one of two surfaces closes',
     async () => {
@@ -1150,17 +1159,14 @@ describe('Model API turn checkpoint admission (M72)', () => {
         isWorkspaceTrusted: () => true,
         hasGit: () => true,
         isEnabled: () => true,
-        log: h.log,
       })
-      const recordings = new Map<string, TurnRecording>()
+      // As activation wires it, with the window's real recorder.
+      const recorder = checkpointRecorder(h)
       const t = setup({
-        beforeTurnRuns: async (sessionId, turnId) => {
-          recordings.set(turnId, await prepareCheckpointTurn(port, sessionId, turnId, h.log))
-        },
-        afterTurnRuns: async (sessionId, turnId) => {
-          const recording = recordings.get(turnId) ?? { kind: 'off' }
-          await finishCheckpointTurn(port, sessionId, turnId, recording, { ranProcesses: false })
-        },
+        beforeTurnRuns: (sessionId, turnId, top) =>
+          prepareCheckpointTurn(port, recorder, sessionId, turnId, h.log, top),
+        afterTurnRuns: (sessionId, turnId, end) =>
+          finishCheckpointTurn(port, recorder, sessionId, turnId, end),
       })
       const { session, turnDone } = await startSession(t)
       const { session: retained } = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
@@ -1238,6 +1244,7 @@ describe('Model API turn checkpoint admission (M72)', () => {
         if (turnId.includes(':subagent-')) {
           await child.promise
         }
+        return UNRECORDED
       },
       afterTurnRuns: (sessionId, turnId) => {
         expect(active.get(turnId)).toBe(sessionId)
@@ -1285,6 +1292,7 @@ describe('Model API turn checkpoint admission (M72)', () => {
         if (calls.length === 2) {
           await admission.promise
         }
+        return UNRECORDED
       },
       hooks: hooksFor('PreLLMCall', 'checked'),
       runHook: hook,
@@ -1316,7 +1324,10 @@ describe('Model API turn checkpoint admission (M72)', () => {
 
   it('awaits a scheduled turn’s mark before hooks or its model request', async () => {
     const admission = Promise.withResolvers<undefined>()
-    const marked = vi.fn(() => admission.promise)
+    const marked = vi.fn(async () => {
+      await admission.promise
+      return UNRECORDED
+    })
     const hook = vi.fn(() => permitHook())
     let now = 1_000_000
     const disk = createFileScheduleStore({
@@ -10615,5 +10626,242 @@ describe('web fetch on the Model API backend (M69)', () => {
     await turnDone()
     expect(signals[0]?.aborted).toBe(true)
     expect(fetchRows(events)[0]).toMatchObject({ status: 'cancelled' })
+  })
+})
+
+/**
+ * Each turn recorded, its writes saying whose they are: the conversation and
+ * turn they were made for.
+ */
+function ownedWrites(files: Map<string, string>, io: ToolIo, writes: string[]) {
+  return (sessionId: string, turnId: string): Promise<TurnCheckpoint> => {
+    const owner = `${sessionId} ${turnId}`
+    const record = (file: string, content: string) => {
+      writes.push(`${owner} ${file.slice(ROOT.length + 1)}`)
+      files.set(file, content)
+      return Promise.resolve()
+    }
+    const turnWrites: TurnWrites = {
+      io: {
+        ...io,
+        writeFile: async (file, content) => {
+          await record(file, content)
+        },
+      },
+      memory: {
+        writeFile: async (file, content) => {
+          await record(file, content)
+        },
+        createFile: async (file, content) => {
+          await record(file, content)
+        },
+      },
+    }
+    return Promise.resolve({
+      kind: 'recording',
+      owner: { instance: 'window', sessionId, unitKind: 'turn', unitId: turnId },
+      writes: turnWrites,
+    })
+  }
+}
+
+/** A subagent's spawn by the parent's first turn, then the child's write of `child.txt`. */
+function scriptChildWrite(t: ReturnType<typeof setup>): void {
+  t.api.script(
+    {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: '{"role":"worker","objective":"Write child.txt"}',
+          callId: 'spawn',
+        },
+      ],
+    },
+    { text: 'Parent finished' },
+    {
+      calls: [
+        { name: 'write_file', arguments: '{"path":"child.txt","content":"c"}', callId: 'cw' },
+      ],
+    },
+    { text: 'Child finished' },
+  )
+}
+
+describe("a Model API turn's own writes (M86, spec 5.1)", () => {
+  it("writes a turn's files and memory notes through that turn's own writes", async () => {
+    const writes: string[] = []
+    const io = memoryToolIo({}, ROOT)
+    const t = setup({ io, beforeTurnRuns: ownedWrites(io.files, io, writes) })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"notes.txt","content":"x"}', callId: 'w' },
+          ADD_DEPLOY,
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    const turn = session.history().items.find((item) => item.kind === 'userMessage')
+    const turnId = turn?.turnId ?? ''
+    expect(writes).toEqual([
+      `${session.sessionId} ${turnId} notes.txt`,
+      `${session.sessionId} ${turnId} .agents/memory/deploy.md`,
+      `${session.sessionId} ${turnId} .agents/memory/MEMORY.md`,
+    ])
+    expect(t.files.get(`${ROOT}/notes.txt`)).toBe('x')
+  })
+
+  it("gives a child turn writes of its own, under its top conversation's checkpoint session", async () => {
+    const writes: string[] = []
+    const child = Promise.withResolvers<undefined>()
+    const io = memoryToolIo({}, ROOT)
+    const owned = ownedWrites(io.files, io, writes)
+    const t = setupSubagents({
+      io,
+      beforeTurnRuns: async (sessionId, turnId) => {
+        if (turnId.includes(':subagent-')) {
+          await child.promise
+        }
+        return await owned(sessionId, turnId)
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    scriptChildWrite(t)
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(session.status).toBe('idle')
+    })
+    child.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.files.get(`${ROOT}/child.txt`)).toBe('c')
+    })
+    expect(writes).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          String.raw`^${session.sessionId} ${session.sessionId}:subagent-1:\S+ child\.txt$`,
+          'u',
+        ),
+      ),
+    ])
+    await t.host.close()
+  })
+
+  it('hands a child turn its top turn’s checkpoint, and a top turn none (spec 3.2)', async () => {
+    const io = memoryToolIo({}, ROOT)
+    const owned = ownedWrites(io.files, io, [])
+    const given = new Map<string, TurnCheckpoint>()
+    const tops = new Map<string, TopTurn | undefined>()
+    const turnIds: string[] = []
+    const t = setupSubagents({
+      io,
+      beforeTurnRuns: async (sessionId, turnId, top) => {
+        turnIds.push(turnId)
+        tops.set(turnId, top)
+        const checkpoint = await owned(sessionId, turnId)
+        given.set(turnId, checkpoint)
+        return checkpoint
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    scriptChildWrite(t)
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(t.files.get(`${ROOT}/child.txt`)).toBe('c')
+    })
+    const parent = turnIds.find((turnId) => !turnId.includes(':subagent-'))
+    const child = turnIds.find((turnId) => turnId.includes(':subagent-'))
+    expect(parent).toBeDefined()
+    expect(child).toBeDefined()
+    expect(tops.get(parent ?? '')).toBeUndefined()
+    // The very checkpoint the spawning turn was given: the child inherits its decision.
+    expect(tops.get(child ?? '')?.checkpoint).toBe(given.get(parent ?? ''))
+    await t.host.close()
+  })
+})
+
+/** The `ranProcesses` each turn ended with, in order. */
+function endsOf(): {
+  readonly ends: boolean[]
+  readonly afterTurnRuns: (sessionId: string, turnId: string, end: TurnEnd) => Promise<void>
+} {
+  const ends: boolean[] = []
+  return {
+    ends,
+    afterTurnRuns: (_sessionId, _turnId, end) => {
+      ends.push(end.ranProcesses)
+      return Promise.resolve()
+    },
+  }
+}
+
+describe('what a Model API turn ran, for its checkpoint (M86, spec 8)', () => {
+  it('says no process ran for a turn that only wrote files, and yes once it ran the shell tool', async () => {
+    const recorded = endsOf()
+    const t = setup({ afterTurnRuns: recorded.afterTurnRuns })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [{ name: 'write_file', arguments: '{"path":"notes.txt","content":"x"}' }] },
+      { text: 'wrote' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    t.api.script(
+      { calls: [{ name: 'bash', arguments: '{"command":"ls","description":"list"}' }] },
+      { text: 'listed' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'list' }])
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(1)
+    expect(recorded.ends).toEqual([false, true])
+  })
+
+  it('says a process ran when a hook ran a command, or an MCP tool was called', async () => {
+    const hooked = endsOf()
+    const hooks = setup({
+      afterTurnRuns: hooked.afterTurnRuns,
+      hooks: hooksFor('PreLLMCall', 'checked'),
+      runHook: vi.fn(() => permitHook()),
+    })
+    const first = await startSession(hooks)
+    hooks.api.script({ text: 'answered' })
+    await first.session.sendTurn([{ type: 'text', text: 'hello' }])
+    await first.turnDone()
+    expect(hooked.ends).toEqual([true])
+    const called = endsOf()
+    const mcp = fakeMcpSource([{ server: 'docs', tool: 'lookup', isReadOnly: true }])
+    const tools = setup({ afterTurnRuns: called.afterTurnRuns, mcpServers: mcp })
+    const second = await startSession(tools, 'allowAll')
+    tools.api.script({ calls: [{ name: 'mcp__docs__lookup', arguments: '{}' }] }, { text: 'done' })
+    await second.session.sendTurn([{ type: 'text', text: 'look it up' }])
+    await second.turnDone()
+    expect(mcp.calls).toHaveLength(1)
+    expect(called.ends).toEqual([true])
+  })
+
+  it('says a process ran while a command of the conversation runs in the background', async () => {
+    const recorded = endsOf()
+    const io = heldShellToolIo({}, ROOT)
+    const t = setup({ io, afterTurnRuns: recorded.afterTurnRuns })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [DEV_SERVER_CALL] }, { text: 'Started it.' }, { text: 'Noted.' })
+    await session.sendTurn([{ type: 'text', text: 'start the dev server' }])
+    await vi.waitFor(() => {
+      expect(io.runs).toHaveLength(1)
+    })
+    const call = events.find(
+      (event): event is Extract<AgentEvent, { type: 'itemStarted' }> =>
+        event.type === 'itemStarted' && event.item.tool === 'bash',
+    )
+    await session.moveToBackground(call?.item.itemId ?? '')
+    await turnDone()
+    // A turn that starts nothing itself, with the dev server still running.
+    t.api.script({ text: 'Still here.' })
+    await session.sendTurn([{ type: 'text', text: 'anything new?' }])
+    await turnDone()
+    expect(recorded.ends).toEqual([true, true])
+    io.runs[0]?.finish({ stdout: 'ready', exitCode: 0 })
   })
 })
