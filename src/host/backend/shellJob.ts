@@ -9,9 +9,9 @@
 // PowerShell reaches the Win32 job calls through a small C# type, compiled
 // once per machine into the extension's storage (named by the source's
 // digest) and loaded by each command. Where that is impossible (Constrained
-// Language Mode forbids `Add-Type`), the self-test fails, the log says so,
-// and commands run as before, their kill falling back to taskkill and the
-// orphan sweep (`processTree.ts`).
+// Language Mode forbids `Add-Type` and loading an assembly), the self-test
+// fails, the log says so, and commands run as before, their kill falling
+// back to taskkill and the orphan sweep (`processTree.ts`).
 
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
@@ -23,7 +23,13 @@ import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { powerShellQuoted } from '../../core/shellQuote'
-import { type RunProgram, runProgram, type ShellJob, windowsPowerShell } from '../processTree'
+import {
+  loadJobAssembly,
+  type RunProgram,
+  runProgram,
+  type ShellJob,
+  windowsPowerShell,
+} from '../processTree'
 import { compileJob, type JobBuild, jobFileName, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
 
@@ -75,14 +81,16 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
       await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, run)
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
-    // Joining a job, as a command does, proves the type loads and the
-    // system lets a process start a job of its own here.
+    // Loading the type and joining a job, as a command does, proves both
+    // work and the system lets a process start a job of its own here. A
+    // failing .NET call ends only its own statement in PowerShell, so the
+    // answer is inside `try`: a load or join that fails never says joined.
     const powershell = windowsPowerShell(deps.systemRoot)
     const answer = await run(
       powershell.file,
       [
         ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-        `Add-Type -Path ${powerShellQuoted(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}'`,
+        `try { ${loadJobAssembly(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}' } catch { exit 1 }`,
       ],
       powershell.env,
     )
@@ -113,7 +121,13 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * The statement a command starts with to join its job. A failure (the
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
+ *
+ * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
+ * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
+ * runner the module analysis an `Add-Type` here set off took 20 s or more
+ * and, on a fresh runner, ran past the hook test's 60 s budget before the
+ * hook began.
  */
 export function joinStatement(job: ShellJob): string {
-  return `try { Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
 }
