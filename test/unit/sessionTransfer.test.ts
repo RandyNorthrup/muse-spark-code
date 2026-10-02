@@ -9,14 +9,17 @@ import { describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { fill, formatBytes } from '../../src/shared/l10n/text'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import {
   buildSessionExport,
+  importRefusal,
   messageCount,
   parseSessionExport,
   sanitizeImportedSession,
@@ -229,6 +232,52 @@ describe('buildSessionExport', () => {
     expect(JSON.stringify(built.doc)).not.toContain('Northrup')
   })
 
+  it('redacts a path outside the local roots whole, whatever its script (RV84c C2)', async () => {
+    const paths = [
+      '/srv/私密/report.txt',
+      '/Users/José/private.txt',
+      '/home/ana/📁 notes/plan.md',
+      '/opt/données/clé.pem',
+      '/data/👩‍💻/x',
+      String.raw`C:\Users\José\秘密\a.txt`,
+      String.raw`D:\プロジェクト\🔒\b.txt`,
+      String.raw`\\server\共有\c.txt`,
+    ]
+    const built = await buildSessionExport(
+      source(paths.map((path, index) => userItem(`u${String(index)}`, `see ${path} now`))),
+      { redact: true, localRoots: ['/ws/app', '/home/reviewer'] },
+    )
+    const texts = built.doc.transcript.map((item) => item.text)
+    // The emoji folder's space ends the path there: the rest is a word, as in
+    // any path the patterns read (only local roots cross a space).
+    expect(texts).toEqual([
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} notes/plan.md now`,
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} now`,
+      `see ${REDACTED_PATH} now`,
+    ])
+    expect(built.paths).toBe(paths.length)
+    for (const segment of ['私密', 'José', '📁', 'données', '👩‍💻', '秘密', 'プロジェクト', '共有']) {
+      expect(JSON.stringify(built.doc)).not.toContain(segment)
+    }
+  })
+
+  it('keeps a path glued to CJK text redacted, the text after it too', async () => {
+    const built = await buildSessionExport(
+      source([userItem('u1', 'パスは/srv/私密/a.txtです。')]),
+      {
+        redact: true,
+        ...NO_ROOTS,
+      },
+    )
+    // Over-redaction is the safe direction: the sentence's tail goes with the path.
+    expect(built.doc.transcript[0]?.text).toBe(`パスは${REDACTED_PATH}`)
+  })
+
   it('leaves commands, relative paths and web URLs, and redacts file URIs and UNC paths', async () => {
     const built = await buildSessionExport(
       source([
@@ -317,6 +366,57 @@ describe('buildSessionExport', () => {
     order.push('built')
     // Scrubbed in one go, the timer could only run after the export.
     expect(order).toEqual(['timer', 'built'])
+  })
+
+  it('lets the event loop run inside one long message too, cut only between lines (RV84 #9)', async () => {
+    // How many times the event loop came round while the export was built.
+    let turns = 0
+    let isBuilding = true
+    const tick = () => {
+      if (!isBuilding) {
+        return
+      }
+      turns += 1
+      setImmediate(tick)
+    }
+    setImmediate(tick)
+    // One message eight slices long, in ordinary lines.
+    const line = `${'word '.repeat(15)}\n`
+    const message = line.repeat(Math.ceil((8 * SESSION_EXPORT_SCRUB_SLICE_CHARS) / line.length))
+    const built = await buildSessionExport(source([userItem('u1', message)]), {
+      redact: true,
+      ...NO_ROOTS,
+    })
+    isBuilding = false
+    // Once per slice; scrubbed whole, the loop came round once, after it.
+    expect(turns).toBeGreaterThanOrEqual(6)
+    expect(built.doc.transcript[0]?.text).toBe(message)
+  })
+
+  it('redacts a credential where a long message is cut as it would whole (RV84 #9)', async () => {
+    // Synthetic values, built here so the secret scanner never sees a whole token.
+    const pem = [
+      ['-----', 'BEGIN', ' RSA PRIVATE', ' KEY-----'].join(''),
+      ...Array.from({ length: 40 }, () => 'QUJDRA'.repeat(12)),
+      ['-----', 'END', ' RSA PRIVATE', ' KEY-----'].join(''),
+    ].join('\n')
+    const token = `tok${'9'.repeat(30)}`
+    // Filler that ends just short of a slice, so the first line break past it
+    // falls inside the bearer credential, then inside the PEM key.
+    const filler = `${'pad '.repeat(15)}\n`.repeat(
+      Math.floor((SESSION_EXPORT_SCRUB_SLICE_CHARS - 8) / 61),
+    )
+    const message = `${filler}Authorization: Bearer\n   ${token}\n${filler}${pem}\nend\n`
+    const built = await buildSessionExport(source([userItem('u1', message)]), {
+      redact: false,
+      ...NO_ROOTS,
+    })
+    const text = built.doc.transcript[0]?.text ?? ''
+    expect(text).not.toContain(token)
+    expect(text).not.toContain('QUJD')
+    // The scheme and the white space after it stay, as in the whole text.
+    expect(text).toContain('Authorization: Bearer\n   [redacted]\n')
+    expect(built.secrets).toBe(2)
   })
 
   it('counts the messages, the user’s and the agent’s', () => {
@@ -537,5 +637,24 @@ describe('sanitizeImportedSession', () => {
       ...NO_ROOTS,
     })
     expect(sanitize(named.doc).name).toBe('Moved over')
+  })
+
+  it('refuses turns the model cannot read in one window, naming both sizes (RV84 #10)', async () => {
+    const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 2))])
+    expect(importRefusal(fits)).toBeUndefined()
+    expect(sanitize(fits).replay).toHaveLength(1)
+    // Counted in UTF-8 bytes, as the model is handed them: a third as many
+    // characters as the limit, three bytes each, do not fit.
+    const wide = '語'.repeat(Math.ceil(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 3))
+    const tooLarge = await exported([userItem('u1', 'Hi'), agentItem('a1', wide)])
+    const reason = importRefusal(tooLarge) ?? ''
+    const [before = '', after = ''] = fill(UI_TEXT.importReplayTooLarge, {
+      size: '\u{0}',
+      limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+    }).split('\u{0}', 2)
+    expect(reason.startsWith(before)).toBe(true)
+    expect(reason.endsWith(after)).toBe(true)
+    expect(reason.length).toBeGreaterThan(before.length + after.length)
+    expect(() => sanitize(tooLarge)).toThrow(reason)
   })
 })

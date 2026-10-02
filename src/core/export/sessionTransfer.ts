@@ -27,6 +27,7 @@ import * as z from 'zod/mini'
 import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
@@ -37,10 +38,10 @@ import {
   STORED_SESSION_VERSION,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, formatBytes } from '../../shared/l10n/text'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { BACKEND_KINDS, type BackendKind } from '../../shared/protocol'
-import { redactSecrets } from '../redact'
+import { redactableSlices, redactSecrets } from '../redact'
 import type {
   StoredReplayItem,
   StoredSession,
@@ -222,13 +223,19 @@ const EMAIL_ADDRESS = /[\w.%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}/g
 const FILE_URI = /\bfile:\/\/(?!\/*\[)[^\s"'<>()[\]]+/gi
 // Absolute POSIX paths of two or more segments. The lookbehind keeps
 // relative paths (`a/b`, `./a/b`), URLs (`https://…`) and bare commands
-// (`/export`) intact; over-redaction stays the safe direction.
-const POSIX_PATH = /(?<![\w.:/\\])\/(?:[\w.~+%-]+\/)+[\w.~+%-]+/g
+// (`/export`) intact; over-redaction stays the safe direction. A segment
+// holds the ASCII characters a name commonly does, or any character outside
+// ASCII that is not white space, so `/srv/私密`, `/Users/José` and an emoji
+// folder go whole (RV84c C2); CJK punctuation glued after a path goes with
+// it. Each segment ends at a `/`, so the scan stays linear.
+const POSIX_PATH =
+  /(?<![\w.:/\\])\/(?:(?:[\w.~+%-]|[^\p{ASCII}\s])+\/)+(?:[\w.~+%-]|[^\p{ASCII}\s])+/gu
 // Drive-letter paths with either separator, and UNC paths.
 const WINDOWS_PATH = /(?<!\w)[A-Za-z]:[\\/][^\s"'<>|?*]+|\\\\[^\s"'<>|?*]+/g
 const PATH_PATTERNS: readonly RegExp[] = [FILE_URI, POSIX_PATH, WINDOWS_PATH]
 const PATH_SEPARATORS = /[\\/]+/
 const TRAILING_SEPARATORS = /[\\/]+$/
+const LINE_BREAK = '\n'
 // Where a path that starts at a local root ends.
 const PATH_END = /[\s"'<>|]/
 // A local root shorter than this many segments (`/`, `C:\`, `/root`) is left
@@ -392,15 +399,19 @@ function scrubText(
 /** How much text has been scrubbed since the event loop last ran. */
 interface ScrubPace {
   sinceYield: number
+  /** How long a piece of one string may be (`redactableSlices`). */
+  readonly sliceChars: number
 }
 
 /**
  * Lets the event loop run once a slice of text has been scrubbed: the scrub
  * runs on the extension host, and a long conversation scrubbed in one go held
- * every extension in the window for seconds (RV84 #9). One string is never
- * cut, so a pattern always sees all of it. `setImmediate`, not a timer: on
- * Windows a zero timer waits for the next ~15 ms clock tick, which made a
- * 4 MiB export spend a second waiting.
+ * every extension in the window for seconds (RV84 #9). A long string is cut
+ * only just after a line break that nothing redacted goes on past, so each
+ * pattern sees whole what it would see in the whole string; a single line
+ * longer than a slice is still scrubbed in one go. `setImmediate`, not a
+ * timer: on Windows a zero timer waits for the next ~15 ms clock tick, which
+ * made a 4 MiB export spend a second waiting.
  */
 async function pace(scrubbed: ScrubPace, length: number): Promise<void> {
   scrubbed.sinceYield += length
@@ -420,8 +431,11 @@ async function scrubValue(
   scrubbed: ScrubPace,
 ): Promise<unknown> {
   if (typeof value === 'string') {
-    const clean = scrub(value)
-    await pace(scrubbed, value.length)
+    let clean = ''
+    for (const slice of redactableSlices(value, scrubbed.sliceChars)) {
+      clean += scrub(slice)
+      await pace(scrubbed, slice.length)
+    }
     return clean
   }
   if (Array.isArray(value)) {
@@ -494,6 +508,11 @@ export async function buildSessionExport(
   }
   const scrubbed = await scrubValue(document, (text) => scrubText(text, redaction, roots, counts), {
     sinceYield: 0,
+    // Cut at a line break, a folder whose name holds one could be split:
+    // such a string is scrubbed whole.
+    sliceChars: roots.some((root) => root.includes(LINE_BREAK))
+      ? Infinity
+      : SESSION_EXPORT_SCRUB_SLICE_CHARS,
   })
   return { ...counts, doc: sessionExportSchema.parse(scrubbed) }
 }
@@ -578,6 +597,47 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
   }
 }
 
+function importedReplay(turns: readonly ImportedTurn[]): StoredReplayItem[] {
+  return turns.map((turn, index) => turnForTheModel(turn, index === 0))
+}
+
+/** The UTF-8 bytes of the text `replay` hands the model. */
+function replayBytes(replay: readonly StoredReplayItem[]): number {
+  let bytes = 0
+  for (const { item } of replay) {
+    if (item.type !== 'message') {
+      continue
+    }
+    for (const part of item.content) {
+      if (part.type === 'input_text') {
+        bytes += Buffer.byteLength(part.text)
+      }
+    }
+  }
+  return bytes
+}
+
+/** The refusal for a replay of `bytes`, naming both sizes; undefined when it fits. */
+function oversizeReason(bytes: number): string | undefined {
+  return bytes > MODEL_API_IMPORT_MAX_REPLAY_BYTES
+    ? fill(UI_TEXT.importReplayTooLarge, {
+        size: formatBytes(bytes),
+        limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+      })
+    : undefined
+}
+
+/**
+ * Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
+ * text it hands the model, counted high as one token per UTF-8 byte, must
+ * fit `MODEL_API_IMPORT_MAX_REPLAY_BYTES`. Accepted, a larger one would
+ * fail every later message past the model's window; it can still be read as
+ * a share file.
+ */
+export function importRefusal(doc: SessionExport): string | undefined {
+  return oversizeReason(replayBytes(importedReplay(importedTurns(doc.transcript))))
+}
+
 /**
  * A parsed export as a stored session that resumes safely. The transcript
  * keeps what the panel shows, under fresh ids. The model is handed each turn
@@ -586,13 +646,19 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
  * caller's; goals, todos, outputs, patches, children and usage start empty;
  * session rules live in a fresh session's own engine, so none carry over.
  * `imported` stays with the session, its forks and its restarts, so it
- * starts asking every time it is opened (PLAN.md D49).
+ * starts asking every time it is opened (PLAN.md D49). Throws, naming the
+ * sizes, when its turns do not fit the model (`importRefusal`).
  */
 export function sanitizeImportedSession(
   doc: SessionExport,
   options: SanitizeImportOptions,
 ): StoredSession {
   const turns = importedTurns(doc.transcript)
+  const replay = importedReplay(turns)
+  const refusal = oversizeReason(replayBytes(replay))
+  if (refusal !== undefined) {
+    throw new Error(refusal)
+  }
   const transcript: StoredTranscriptItem[] = turns.flatMap((turn) =>
     turn.items.map((item) => ({ turnId: turn.turnId, item })),
   )
@@ -611,7 +677,7 @@ export function sanitizeImportedSession(
     turnIds: turns.map((turn) => turn.turnId),
     ...(firstPrompt !== undefined && { firstPrompt }),
     todos: [],
-    replay: turns.map((turn, index) => turnForTheModel(turn, index === 0)),
+    replay,
     transcript,
     outputs: {},
     usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },

@@ -2396,6 +2396,18 @@ export const SESSION_EXPORT_MAX_ITEMS = 20_000
 // the loop at most 11 ms (Mac mini) and 14 ms (Windows 11 VM) per slice,
 // where scrubbing it in one go held it 1.4 s and 2.5 s.
 export const SESSION_EXPORT_SCRUB_SLICE_CHARS = 64 * 1024
+// The share view renders this many of a file's items at first, and this many
+// more each time Show more is pressed (RV84 #14): all 20,000 at once took
+// 18 s in jsdom (about 0.9 ms an item), and the panel cannot answer while it
+// renders.
+export const SHARE_VIEW_PAGE_ITEMS = 200
+// The most text an imported conversation may hand the model (RV84 #10),
+// counted high as named text attachments are: one token per UTF-8 byte, so
+// the same reserve stays for the instructions, the tools and the replies. A
+// file over it is refused at import, naming both sizes, rather than accepted
+// for every later message to fail.
+export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
+  MODEL_API_CONTEXT_WINDOW - MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS
 // A refused file's unknown field is named by its path, cut to this many
 // characters: the key is the file's own text and reaches the notice and the log.
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120

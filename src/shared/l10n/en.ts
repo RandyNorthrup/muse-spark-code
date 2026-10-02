@@ -264,6 +264,14 @@ export const EN = {
   // The file's own `redacted` flag, which anyone can set: reported, never vouched for.
   shareMarkedRedacted:
     'The file says its paths and account ids were redacted; that is not checked here.',
+  // In place of one item of a share file that could not be rendered.
+  shareSectionFailed: 'This part of the file could not be shown.',
+  // {shown}, {total}: counts of the file's items, as numbers.
+  shareShownCount: 'Shown: {shown} of {total}',
+  shareShowMore: 'Show more',
+  // After "could not be imported: ". {size}, {limit}: sizes such as 2.4 MB.
+  importReplayTooLarge:
+    'It holds {size} of text for the model, and a resumed conversation can start with at most {limit}. Open it as a share file to read it.',
   // Why a picked file was refused, after "could not be imported/opened: ".
   transferTooLarge: 'The file is larger than a session export can be.',
   transferFileMissing: 'The picked file no longer exists.',
