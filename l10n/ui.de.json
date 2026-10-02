@@ -1194,6 +1194,7 @@
   "usagePaidTotal": "Geschätzte Summe der kostenpflichtigen Funktionen",
   "usagePaidNote": "Schätzung anhand der von Meta veröffentlichten Preise, abgerufen am {date}, für dieses Fenster seit dem Öffnen; maßgeblich ist die Abrechnung im Dashboard von dev.meta.ai.",
   "agentToolNotOffered": "Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.",
+  "agentUnloaded": "Der Agent „{id}“ wurde nicht gestartet: {path} konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.",
   "subagentPaidOff": "Kostenpflichtige Unteragenten sind ausgeschaltet. Schalten Sie sie ein und akzeptieren Sie den Preis, bevor Sie eine Kindaufgabe starten.",
   "subagentConsentDeclined": "Die kostenpflichtige Kindaufgabe wurde nicht genehmigt.",
   "subagentContributorBlocked": "Der benutzerdefinierte Agent nennt ein Modell der Contributor-Stufe, das nicht ausgeführt werden kann, solange dieser Arbeitsbereich vertraulich ist (museSpark.confidentialWorkspace).",

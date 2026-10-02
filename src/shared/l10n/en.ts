@@ -1549,6 +1549,10 @@ export const EN = {
     'Paid subagents are off. Enable them and accept the price before starting a child task.',
   agentToolNotOffered:
     'This tool is not in this agent’s allowlist. Use only the tools offered in its instructions.',
+  // A custom agent refused because a folder or file of higher precedence did
+  // not load (M76 review); {path} is that folder or file.
+  agentUnloaded:
+    'The agent “{id}” did not start: {path} could not be loaded, and a definition there would take precedence. Fix or remove it, then start a new conversation.',
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',

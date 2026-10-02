@@ -347,7 +347,10 @@ const agentEventSchema = z.discriminatedUnion('type', [
     availableChoices: z.array(approvalChoiceSchema),
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
-    /** A custom child's UI policy; the receiving parent may only narrow it. */
+    /**
+     * A custom child's own `permission-mode`: the client answers it under
+     * the less automatic of this and its own mode (childPermissionMode).
+     */
     permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),

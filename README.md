@@ -529,7 +529,12 @@ Put it in `.agents/agents/<id>/AGENT.md` in the workspace (project scope) or
 `~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
 set), following the skill layout; the folder name is the agent's id, and a
 file agent shadows a built-in or personal one with the same id. Agents load
-once, when the conversation starts.
+once, when the conversation starts. Each folder loads on its own: one that
+cannot be read is named in the log and the others still load. An agent that
+folder might define, or that a file there defines but was skipped (unreadable,
+too large, refused), is refused by name with the folder or file it names,
+never replaced by a personal or built-in agent of the same id; fix or remove
+it and start a new conversation.
 
 - **Front matter.** `name` and `description` are required (at most 64 and 240
   characters). `tools` is a comma-separated allowlist of tool names,
@@ -550,9 +555,13 @@ once, when the conversation starts.
   `run_checks` or the platform shell in the list, and `then_run` (which
   runs any command line) needs the shell. A
   `permission-mode` wider than the session's gets the session's, and a mode
-  switch later keeps the ceiling. A child defined as `manual` still asks
-  before ordinary writes when its parent uses Edit automatically; a child
-  defined as `acceptEdits` cannot automate writes under a Manual parent.
+  switch later keeps the ceiling. A child's writes are answered under the
+  less automatic of your mode and its own (Plan, Manual, Edit automatically,
+  Auto, Bypass permissions, in that order): a child defined as `manual` still
+  asks before ordinary writes when its parent uses Edit automatically, a
+  child defined as `acceptEdits` cannot automate writes under a Manual
+  parent, and keeps its automation under an Auto or Bypass parent. A
+  protected, replayed or escalated write always asks.
   This policy survives saving, resuming and forking. Admission uses the tools
   the child can actually use: questions, todos/goals and subagent controls
   belong to the parent. A list with no usable child tool fails the spawn
@@ -564,7 +573,11 @@ once, when the conversation starts.
   own choice, and the popup names it: contributor models are blocked while
   `museSpark.confidentialWorkspace` is on and otherwise ask once for each
   spawn, and a model other than the session's asks in the popup even when
-  subagents are allowed always here.
+  subagents are allowed always here. Whatever a question's wait changes
+  (trust, a confidential workspace, the key, the model, the agent's tools)
+  is checked before the next question and again before the child starts, so
+  no popup follows a spawn that can no longer run. A retry under the same
+  `command_id` answers with its child before any of this.
 - **Whose words.** The model sees each agent's source (`project`,
   `personal` or `built-in`) in the catalogue, and a child's role below the
   workspace rules, labelled with its source and id, as text that cannot add

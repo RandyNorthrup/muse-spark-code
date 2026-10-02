@@ -11,11 +11,16 @@ import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
 import {
+  type AgentCatalogue,
   type AgentDefinition,
+  type AgentResolution,
   type AgentRoot,
-  builtinAgents,
+  agentHoles,
   loadAgents,
+  NO_AGENTS,
+  offeredAgents,
   projectAgentsRoot,
+  resolveAgent,
 } from './customAgents'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
@@ -45,7 +50,10 @@ export interface ContextSections {
   /** The rendered rules section with the preamble, or undefined without rules. */
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
-  /** The custom agents the model may run through `subagent_spawn` (M76). */
+  /**
+   * The custom agents the model may run through `subagent_spawn` (M76):
+   * only those a spawn of the name would run (RV70x).
+   */
   readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
@@ -65,7 +73,7 @@ export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
   private skills: readonly SkillDefinition[] = []
-  private agents: readonly AgentDefinition[] = []
+  private agents: AgentCatalogue = NO_AGENTS
   private memory: readonly MemoryScopeSnapshot[] = []
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
@@ -164,23 +172,37 @@ export class WorkspaceContext {
 
   /**
    * Agents load once per session with the rest of the context (M76): a
-   * repository's files only in a trusted workspace, like the skills.
+   * repository's files only in a trusted workspace, like the skills. Each
+   * root loads on its own; one that fails is a hole the others' precedence
+   * respects (RV70x).
    */
   private async loadAgentCatalogue(): Promise<void> {
     // Rules and skills awaited first; trust can change before agent loading.
     if (!this.isTrusted) return
-    const agents = await this.guarded(
+    const roots = this.agentRoots()
+    const { platform } = this.deps
+    const load = await this.guarded(
       'loading the agents',
-      () => loadAgents({ io: this.deps.io, platform: this.deps.platform }, this.agentRoots()),
-      // A root that cannot be read leaves the built-ins, which need no file.
-      { agents: builtinAgents(), warnings: [] },
+      () => loadAgents({ io: this.deps.io, platform }, roots),
+      // Anything else that fails leaves every root unknown: no name runs,
+      // a built-in included, rather than one a file may have narrowed.
+      {
+        agents: [],
+        holes: agentHoles(
+          platform,
+          roots.map((root) => ({ root, listingFailure: 'failed', refused: [] })),
+        ),
+        warnings: [],
+      },
     )
-    for (const warning of agents.warnings) {
+    for (const warning of load.warnings) {
       this.deps.warn(warning)
     }
     // An in-flight file read cannot be cancelled, but its catalogue must not
     // survive trust withdrawal while the filesystem was answering.
-    this.agents = this.deps.isWorkspaceTrusted() ? agents.agents : []
+    this.agents = this.deps.isWorkspaceTrusted()
+      ? { agents: load.agents, holes: load.holes }
+      : NO_AGENTS
   }
 
   /** The root rules, the skills, the agents and the memory index, loaded once. */
@@ -233,11 +255,17 @@ export class WorkspaceContext {
     return this.skills.find((skill) => skill.id === id)
   }
 
-  public agent(id: string): AgentDefinition | undefined {
-    return this.agents.find((agent) => agent.id === id)
+  /** What a spawn naming `id` runs: an agent, nothing, or a refusal for a root that did not load. */
+  public agent(id: string): AgentResolution {
+    return resolveAgent(this.agents, id)
   }
 
   public sections(): ContextSections {
-    return { rules: this.rulesText, skills: this.skills, agents: this.agents, memory: this.memory }
+    return {
+      rules: this.rulesText,
+      skills: this.skills,
+      agents: offeredAgents(this.agents),
+      memory: this.memory,
+    }
   }
 }

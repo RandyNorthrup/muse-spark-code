@@ -25,12 +25,19 @@ happened, not what was planned; superseded entries are kept.
 - **What a custom agent may do.** An agent can only narrow the session: its
   tool list binds every call (memory tools included), automatic check commands
   need `run_checks` or the shell in it and `then_run`, which runs any
-  command line, needs the shell, and a mode switch keeps its ceiling. A model it names
+  command line, needs the shell, and a mode switch keeps its ceiling. Its
+  `permission-mode` applies as far as your mode allows: under Manual every
+  child asks, a Manual agent always asks, and an Edit automatically agent
+  writes without a card under Edit automatically, Auto and Bypass
+  permissions (a protected write still asks). A model it names
   passes the checks of your own choice: contributor models are blocked in a
   confidential workspace and otherwise ask once for each spawn (and for a
   follow-up this session was never given the yes for), and a model other
   than the session's asks in the paid-use popup even when subagents are
-  allowed always in the workspace.
+  allowed always in the workspace. A spawn is checked again after each
+  question it asks, so no popup follows one that can no longer run (trust
+  withdrawn, the workspace turned confidential), and a retry under the same
+  `command_id` answers with its child even if a new one could not start now.
 - **Agent files are untrusted input.** A file is read only up to 64 KB and only
   when it is a regular file; a skill file gets the same cap. Front matter
   the reader cannot take whole (a YAML list, an indented value, a repeated
@@ -39,7 +46,11 @@ happened, not what was planned; superseded entries are kept.
   bounded and free of control and direction characters; at most 32 agent
   files load. A repository's files load only in a trusted workspace, no agent
   is offered once it stops being trusted, and a child's role is labelled with
-  its source and sits below the workspace rules that outrank it.
+  its source and sits below the workspace rules that outrank it. Each agent
+  folder loads on its own: one that cannot be read is logged by name and
+  the others still load, and an agent it, or a file in it that was skipped,
+  might define is refused by name rather than replaced by a broader personal
+  or built-in agent of the same id.
 
 ### Changed
 
@@ -90,6 +101,10 @@ happened, not what was planned; superseded entries are kept.
 - When your PreToolUse hook rewrites a `then_run` command into one that
   names no command, the line under the edit says so in your display
   language; it was English. The model is still told in English.
+
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
 
 - Project context files are read through the canonical path confinement.
   Replacing an agent/skill/rules alias with an outside link between check and

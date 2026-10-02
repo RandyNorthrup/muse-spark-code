@@ -2664,6 +2664,9 @@ export const MODEL_TEXT = {
     "There is no shell tool for this role: only the tools you are offered can be used, and a command cannot be run. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.",
   agentRestrictedMode:
     'custom agents are not available while the workspace is in Restricted Mode; trust the workspace to use them',
+  // A root of higher precedence did not load (M76 review, RV70x); {source} names it.
+  agentUnloaded:
+    'agent "{id}" cannot run: a {source} agent definition that would take precedence could not be loaded; the user must fix or remove it',
   agentToolNotOffered:
     "that tool is not in this agent's allowlist; use only the tools your instructions offer",
   exploreAgentDescription:

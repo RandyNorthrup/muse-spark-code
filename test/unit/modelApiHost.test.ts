@@ -19,6 +19,7 @@ import {
   SCHEDULE_LIFETIME_MS,
   SUBAGENT_MAX_PER_CONVERSATION,
   type PaidFeature,
+  type PermissionMode,
   type PromptCacheRetention,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -7046,6 +7047,64 @@ async function reopenResumedChild(
   return rig.resumed.api.responseBodies().filter((body) => isChildRequest(body))
 }
 
+/**
+ * A `writer` agent with `permission-mode: child`, spawned by a session in
+ * `approvalMode`, writes one file. Its card is answered by the clients'
+ * shared rule (the panel's and the ACP agent's) for a `parent` mode, or
+ * refused as a user would. Returns the card, the rule's choice and the file.
+ */
+async function childWriteUnder(
+  parent: PermissionMode,
+  approvalMode: string,
+  child: PermissionMode,
+) {
+  const t = setupSubagents({
+    files: {
+      '.agents/agents/writer/AGENT.md': agentFile(
+        'writer',
+        'Writes files',
+        `tools: write_file\npermission-mode: ${child}\n`,
+      ),
+    },
+  })
+  const { session, events } = await startSession(t, approvalMode)
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('writer', 'Write files', 'writer', 'spawn_policy'),
+    'Writer ready.',
+  )
+  scriptChildWrite(t, 'policy.txt', 'Written.', 'policy_write', 'Writer done.')
+  await session.messageSubagent('subagent-1', 'Write it', true)
+  const request = await approvalRequest(events, 0)
+  const automatic = editAutomaticallyChoice(request, parent)
+  await session.decideApproval({
+    approvalId: request.approvalId,
+    requirementId: request.requirementId,
+    choiceId: automatic?.choiceId ?? 'abort',
+  })
+  await waitForChildSummary(session, 'Writer done.')
+  return { request, automatic, text: t.files.get(`${ROOT}/policy.txt`) }
+}
+
+/** A `subagent_spawn` of the painter agent, always under command id `same`. */
+function painterCommandSpawn(callId: string): ScriptedReply {
+  return {
+    calls: [
+      {
+        name: 'subagent_spawn',
+        arguments: JSON.stringify({
+          role: 'painter',
+          objective: 'Paint',
+          agent: 'painter',
+          command_id: 'same',
+        }),
+        callId,
+      },
+    ],
+  }
+}
+
 /** A reply that calls `search`, a tool the reviewer's list leaves out. */
 function searchReply(callId: string): ScriptedReply {
   return { calls: [{ name: 'search', arguments: '{"pattern":"review"}', callId }] }
@@ -7260,36 +7319,11 @@ describe('ModelApiSession custom agents (M76)', () => {
   ] as const)(
     'requires a human write decision with parent $parent and child $child (RV76 P1)',
     async ({ parent, child }) => {
-      const t = setupSubagents({
-        files: {
-          '.agents/agents/writer/AGENT.md': agentFile(
-            'writer',
-            'Writes files',
-            `tools: write_file\npermission-mode: ${child}\n`,
-          ),
-        },
-      })
-      const { session, events } = await startSession(t, 'promptUnmatched')
-      await spawnAgentAndWait(
-        t,
-        session,
-        spawnCallReply('writer', 'Write files', 'writer', 'spawn_policy'),
-        'Writer ready.',
-      )
-      scriptChildWrite(t, 'policy.txt', 'Written.', 'policy_write', 'Writer done.')
-      await session.messageSubagent('subagent-1', 'Write it', true)
-      const request = await approvalRequest(events, 0)
-      // Use the controller's real routing rule; reproduce an automatic write
-      // if the event lost the child's Manual policy, otherwise deny as a user.
-      const automatic = editAutomaticallyChoice(request, parent)
-      await session.decideApproval({
-        approvalId: request.approvalId,
-        requirementId: request.requirementId,
-        choiceId: automatic?.choiceId ?? 'abort',
-      })
-      await waitForChildSummary(session, 'Writer done.')
-      expect(automatic).toBeUndefined()
-      expect(t.files.has(`${ROOT}/policy.txt`)).toBe(false)
+      // Reproduces an automatic write if the event lost the child's Manual
+      // policy, otherwise denies as a user.
+      const written = await childWriteUnder(parent, 'promptUnmatched', child)
+      expect(written.automatic).toBeUndefined()
+      expect(written.text).toBeUndefined()
     },
   )
 
@@ -8037,6 +8071,190 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(confirm).toHaveBeenCalledWith('muse-spark-1.3-contributor')
     expect(rig.resumed.paidRequests).toEqual([])
   })
+
+  // RV70x finding 1, as the review probed it: the personal root's EACCES
+  // discarded the read-only project agent, and the inheriting built-in of the
+  // same id wrote under an Auto parent without asking.
+  it('runs the read-only project agent when the personal agent root cannot be listed (RV70x)', async () => {
+    const personalAgentsRoot = `${ROOT}/.home/.config/muse/agents`
+    const t = setupSubagents({
+      personalAgentsRoot,
+      onListDirectory: (directory) => {
+        if (directory === personalAgentsRoot) throw new Error('EACCES: permission denied')
+      },
+      files: {
+        '.agents/agents/second-opinion/AGENT.md': agentFile(
+          'second-opinion',
+          'A read-only consult',
+          'tools: read_file\npermission-mode: manual\n',
+        ),
+      },
+    })
+    const { session } = await startSession(t, 'onRequest')
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('consult', 'Consult', 'second-opinion', 'spawn_consult'),
+      'Consulted.',
+    )
+    expect(offeredTools(childBodies(t)[0])).toEqual(['read_file'])
+    expect(String(childBodies(t)[0]?.['instructions'])).toContain('Prompt of second-opinion')
+    scriptChildWrite(t, 'consult.txt', 'x', 'consult_write', 'Consult done.')
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Consult done.')
+    expect(outputFor(childBodies(t).at(-1), 'consult_write')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+    expect(t.files.has(`${ROOT}/consult.txt`)).toBe(false)
+    expect(countLogged(t.log, 'loading the user agents failed: EACCES: permission denied')).toBe(1)
+  })
+
+  it('refuses a built-in by name, in the user’s language, when the project agent root cannot be listed (RV70x)', async () => {
+    const t = setupSubagents({
+      onListDirectory: (directory) => {
+        if (directory === `${ROOT}/.agents/agents`) throw new Error('EACCES: permission denied')
+      },
+    })
+    try {
+      expect(await installGerman(t.log)).toBe('de')
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('scout', 'Map files', 'explore', 'spawn_unloaded'),
+      )
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      // Nothing that would be refused is offered.
+      expect(String(t.api.responseBodies()[0]?.['instructions'])).not.toContain('# Agents')
+      expect(
+        session
+          .history()
+          .items.find((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
+      ).toMatchObject({
+        visibleOutput:
+          'Der Agent „explore“ wurde nicht gestartet: .agents/agents konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.',
+      })
+      expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unloaded')).toMatchObject({
+        output: `Error: ${fill(MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
+      })
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  // RV70x finding 2: a retry starts nothing, so it settles before the
+  // new-child admission that the agent's tools would now fail.
+  it('answers an exact retry with its child after the agent tools stop being offered (RV70x)', async () => {
+    const paid: PaidFeature[] = ['subagents', 'imageGeneration']
+    const t = setup({
+      paid,
+      files: {
+        '.agents/agents/painter/AGENT.md': agentFile(
+          'painter',
+          'Paints images',
+          `tools: ${MODEL_API_TOOLS.generateImage}\n`,
+        ),
+      },
+    })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      painterCommandSpawn('spawn_first'),
+      { text: 'Painted.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    paid.splice(paid.indexOf('imageGeneration'), 1)
+    t.api.script(painterCommandSpawn('spawn_retry'), { text: 'Parent continues.' })
+    await session.sendTurn([{ type: 'text', text: 'delegate again' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_retry')).toMatchObject({
+      output: expect.stringContaining('"subagent_id":"subagent-1"'),
+    })
+    expect(childBodies(t)).toHaveLength(1)
+    expect(t.paidRequests).toHaveLength(1)
+  })
+
+  // RV70x finding 4: what the contributor wait changed is rechecked before
+  // the paid-use popup, which is never shown for a spawn already refused.
+  it.each([
+    { name: 'trust withdrawn', revokesTrust: true, output: MODEL_TEXT.agentRestrictedMode },
+    {
+      name: 'confidential workspace',
+      revokesTrust: false,
+      output: MODEL_TEXT.subagentContributorBlocked,
+    },
+  ])(
+    'asks no paid-use popup once the contributor wait made a spawn invalid: $name (RV70x)',
+    async ({ revokesTrust, output }) => {
+      let isTrusted = true
+      let isConfidential = false
+      const t = setupSubagents({
+        files: bigAgentFiles(),
+        isTrusted: () => isTrusted,
+        isConfidentialWorkspace: () => isConfidential,
+        confirmContributorModel: () => {
+          if (revokesTrust) {
+            isTrusted = false
+          } else {
+            isConfidential = true
+          }
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('worker', 'Big task', 'big', 'spawn_big'),
+      )
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
+        output: `Error: ${output}`,
+      })
+    },
+  )
+
+  it('asks no paid-use popup for a follow-up the contributor wait made invalid (RV70x)', async () => {
+    let isConfidential = false
+    const rig = await resumeWithChild(bigAgentFiles(), spawnBigAndWait, {
+      first: { confirmContributorModel: () => Promise.resolve(true) },
+      resumed: {
+        isConfidentialWorkspace: () => isConfidential,
+        confirmContributorModel: () => {
+          isConfidential = true
+          return Promise.resolve(true)
+        },
+      },
+    })
+    await expect(rig.next.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentContributorBlocked,
+    )
+    expect(rig.resumed.paidRequests).toEqual([])
+  })
+
+  // RV70x finding 3: Auto and Bypass already run ordinary writes, so an Edit
+  // automatically child's write is answered automatically under them too.
+  it.each([
+    { parent: 'auto', approvalMode: 'onRequest' },
+    { parent: 'bypassPermissions', approvalMode: 'allowAll' },
+  ] as const)(
+    'answers an Edit automatically child write itself under a $parent parent (RV70x)',
+    async ({ parent, approvalMode }) => {
+      const written = await childWriteUnder(parent, approvalMode, 'acceptEdits')
+      expect(written.request).toMatchObject({
+        permissionMode: 'acceptEdits',
+        isProtectedWrite: false,
+        isJudgeEscalated: false,
+      })
+      expect(written.automatic).toBeDefined()
+      expect(written.text).toBe('Written.')
+    },
+  )
 })
 
 /** The `function_call_output` the replay holds for one call id, from a request body. */

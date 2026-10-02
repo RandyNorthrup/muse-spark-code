@@ -1227,6 +1227,7 @@
   "usagePaidTotal": "Totale stimato delle funzioni a pagamento",
   "usagePaidNote": "Stima basata sui prezzi pubblicati da Meta, rilevati il {date}, per questa finestra dalla sua apertura; per la fatturazione fa fede il dashboard di dev.meta.ai.",
   "agentToolNotOffered": "Questo strumento non è nell’elenco degli strumenti consentiti per questo agente. Usa solo gli strumenti indicati nelle sue istruzioni.",
+  "agentUnloaded": "L’agente «{id}» non è stato avviato: impossibile caricare {path}, e una definizione lì avrebbe la precedenza. Correggi il problema o rimuovi la definizione, poi avvia una nuova conversazione.",
   "subagentPaidOff": "I sottoagenti a pagamento sono disattivati. Attivali e accetta il prezzo prima di avviare un’attività secondaria.",
   "subagentConsentDeclined": "L’attività secondaria a pagamento non è stata approvata.",
   "subagentContributorBlocked": "L’agente personalizzato indica un modello di livello collaboratore, che non può essere eseguito mentre quest’area di lavoro è riservata (museSpark.confidentialWorkspace).",

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { builtinAgents } from '../../src/core/context/customAgents'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../src/core/memory/memoryStore'
 import { RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
@@ -82,8 +81,11 @@ describe('WorkspaceContext', () => {
     expect(sections.memory).toBe(MEMORY)
     expect(t.context.skill('tidy')?.body).toBe('Body of tidy')
     expect(t.context.skill('nope')).toBeUndefined()
-    expect(t.context.agent('scout')?.body).toBe('Prompt of scout')
-    expect(t.context.agent('nope')).toBeUndefined()
+    expect(t.context.agent('scout')).toMatchObject({
+      kind: 'found',
+      agent: { body: 'Prompt of scout' },
+    })
+    expect(t.context.agent('nope')).toEqual({ kind: 'unknown' })
     expect(t.warnings).toEqual([])
   })
 
@@ -113,7 +115,7 @@ describe('WorkspaceContext', () => {
     })
     await context.load()
     expect(context.sections().agents).toEqual([])
-    expect(context.agent('scout')).toBeUndefined()
+    expect(context.agent('scout')).toEqual({ kind: 'unknown' })
     // The skill roots are listed; neither agent root is.
     expect(touched.length).toBeGreaterThan(0)
     expect(touched.filter((directory) => directory.endsWith('/agents'))).toEqual([])
@@ -172,7 +174,7 @@ describe('WorkspaceContext', () => {
     await expect(t.context.touch('src/a.ts')).resolves.toBe(false)
     await expect(t.context.refreshSkills()).resolves.toBe(false)
     expect(t.context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
-    expect(t.context.agent('scout')).toBeUndefined()
+    expect(t.context.agent('scout')).toEqual({ kind: 'unknown' })
     expect(t.memoryLoads()).toBe(0)
   })
 
@@ -195,7 +197,7 @@ describe('WorkspaceContext', () => {
       await t.context.load()
       expect(reads).toContain(`${ROOT}/${revokedAt}`)
       expect(t.context.sections().agents).toEqual([])
-      expect(t.context.agent('scout')).toBeUndefined()
+      expect(t.context.agent('scout')).toEqual({ kind: 'unknown' })
       if (revokedAt === 'AGENTS.md') {
         expect(reads.some((file) => file.endsWith('/AGENT.md'))).toBe(false)
       }
@@ -227,19 +229,78 @@ describe('WorkspaceContext: failing reads', () => {
     })
     await context.load()
     await expect(context.touch('src/a.ts')).resolves.toBe(false)
-    // The built-in agents need no file, so a root that cannot be read leaves them.
-    expect(context.sections()).toEqual({
-      rules: undefined,
-      skills: [],
-      agents: builtinAgents(),
-      memory: [],
+    // The project root may hold an agent that narrows a built-in, so no
+    // built-in is offered or run in its place (RV70x); the log names the root.
+    expect(context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
+    expect(context.agent('explore')).toEqual({
+      kind: 'unloaded',
+      hole: { source: 'project', id: undefined, path: '.agents/agents' },
     })
     expect(warnings).toEqual([
       'loading the rules failed: EACCES: permission denied',
-      'loading the skills failed: EACCES: permission denied',
-      'loading the agents failed: EACCES: permission denied',
+      'loading the project skills failed: EACCES: permission denied',
+      'loading the project agents failed: EACCES: permission denied',
       'loading the memory failed: EACCES: permission denied',
       'loading the rules failed: EACCES: permission denied',
+    ])
+  })
+
+  // RV70x finding 1: one root's listing failure rejected the whole catalogue,
+  // and the fallback ran an inheriting built-in for a read-only project agent.
+  it('keeps the project skills and agents when a personal root cannot be listed', async () => {
+    const warnings: string[] = []
+    const files = memoryTree(
+      {
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
+        '.agents/agents/second-opinion/AGENT.md': agentFile(
+          'second-opinion',
+          'A read-only consult',
+          'tools: read_file\npermission-mode: manual\n',
+        ),
+      },
+      ROOT,
+    )
+    const inner = memoryContextIo(files)
+    const personal = new Set([USER_ROOT, USER_AGENTS_ROOT])
+    const context = new WorkspaceContext({
+      io: {
+        ...inner,
+        listDirectory: (directory) =>
+          personal.has(directory)
+            ? Promise.reject(new Error('EACCES: permission denied'))
+            : inner.listDirectory(directory),
+      },
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      personalSkillsRoot: USER_ROOT,
+      personalAgentsRoot: USER_AGENTS_ROOT,
+      hasAgents: true,
+      isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
+      warn: (message) => {
+        warnings.push(message)
+      },
+    })
+    await context.load()
+    expect(context.sections().skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'project:shout',
+    ])
+    expect(context.agent('second-opinion')).toMatchObject({
+      kind: 'found',
+      agent: { source: 'project', tools: ['read_file'], permissionMode: 'manual' },
+    })
+    // Below the unread personal root, a built-in is refused, never run.
+    expect(context.agent('explore')).toMatchObject({
+      kind: 'unloaded',
+      hole: { source: 'user', path: USER_AGENTS_ROOT },
+    })
+    expect(context.sections().agents.map((agent) => `${agent.source}:${agent.id}`)).toEqual([
+      'project:second-opinion',
+    ])
+    expect(warnings).toEqual([
+      'loading the user skills failed: EACCES: permission denied',
+      'loading the user agents failed: EACCES: permission denied',
+      'builtin agent second-opinion skipped: the project agent with the same id takes precedence',
     ])
   })
 

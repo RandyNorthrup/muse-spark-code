@@ -4,6 +4,12 @@
 // project root confined to the workspace and a personal root, ids sorted,
 // the project shadowing the personal one, each file size-capped and parsed;
 // every skip is a warning naming what is wrong, never a failed turn.
+//
+// Each root stands alone (M76 review, RV70x): a root that cannot be listed
+// is a warning naming it, and the other roots still load. What a root holds
+// but did not yield (a root unlisted, a file unreadable, over its cap or
+// refused) is reported with it, so a caller whose precedence narrows (the
+// agents) can refuse a name instead of letting a lower root stand in.
 
 import path from 'node:path'
 import { type ContextIo, type ContextText, readContextText } from './contextFiles'
@@ -44,8 +50,24 @@ export interface CatalogEntry<Entry, Source> {
   readonly entry: Entry
 }
 
-export interface CatalogLoad<Entry, Source> {
+/** A file a listed root holds but did not yield: unreadable, over its cap, refused, or past the limit. */
+export interface CatalogRefusal {
+  readonly id: string
+  readonly file: string
+}
+
+/** What one root yielded beyond its entries (M76 review, RV70x). */
+export interface CatalogRootLoad<Source extends string> {
+  readonly root: CatalogRoot<Source>
+  /** Why the root could not be listed; undefined when it was (a missing root lists as empty). */
+  readonly listingFailure: string | undefined
+  readonly refused: readonly CatalogRefusal[]
+}
+
+export interface CatalogLoad<Entry, Source extends string> {
   readonly entries: readonly CatalogEntry<Entry, Source>[]
+  /** One per root, in root order. */
+  readonly roots: readonly CatalogRootLoad<Source>[]
   readonly warnings: readonly string[]
 }
 
@@ -137,6 +159,19 @@ async function readCatalogFile(
   }
 }
 
+/** A root's ids, or why it could not be listed. */
+async function listRoot(
+  deps: CatalogLoaderDeps,
+  directory: string,
+): Promise<{ readonly ids: readonly string[] } | { readonly failure: string }> {
+  try {
+    const listed = await deps.io.listDirectory(directory)
+    return { ids: listed.toSorted((a, b) => a.localeCompare(b, 'en')) }
+  } catch (error: unknown) {
+    return { failure: describe(error) }
+  }
+}
+
 /** Every valid entry under the roots, in root order; ids sorted within a root. */
 export async function loadCatalogFiles<Entry, Source extends string>(
   deps: CatalogLoaderDeps,
@@ -147,11 +182,19 @@ export async function loadCatalogFiles<Entry, Source extends string>(
   const pathModule = deps.platform === 'win32' ? path.win32 : path.posix
   const seen = new Map<string, Source>()
   const entries: CatalogEntry<Entry, Source>[] = []
+  const rootLoads: CatalogRootLoad<Source>[] = []
   const warnings: string[] = []
   for (const root of roots) {
-    const listed = await deps.io.listDirectory(root.directory)
-    const ids = listed.toSorted((a, b) => a.localeCompare(b, 'en'))
-    for (const id of ids) {
+    const listed = await listRoot(deps, root.directory)
+    if ('failure' in listed) {
+      // This root alone is unknown; the others still load.
+      warnings.push(`loading the ${root.source} ${kind.kind}s failed: ${listed.failure}`)
+      rootLoads.push({ root, listingFailure: listed.failure, refused: [] })
+      continue
+    }
+    const refused: CatalogRefusal[] = []
+    rootLoads.push({ root, listingFailure: undefined, refused })
+    for (const id of listed.ids) {
       const label = `${root.source} ${kind.kind} ${id}`
       if (!kind.idPattern.test(id)) {
         warnings.push(`${label} skipped: the directory name is not a valid ${kind.kind} id`)
@@ -164,33 +207,36 @@ export async function loadCatalogFiles<Entry, Source extends string>(
         )
         continue
       }
+      const file = pathModule.join(root.directory, id, kind.fileName)
+      // What exists here but is not taken is reported with the root.
+      const refuse = (warning: string): void => {
+        warnings.push(`${label} skipped: ${warning}`)
+        refused.push({ id, file })
+      }
       if (kind.maxEntries !== undefined && entries.length >= kind.maxEntries) {
-        warnings.push(
-          `${label} skipped: only the first ${String(kind.maxEntries)} ${kind.kind}s are loaded`,
-        )
+        refuse(`only the first ${String(kind.maxEntries)} ${kind.kind}s are loaded`)
         continue
       }
-      const file = pathModule.join(root.directory, id, kind.fileName)
       const read = await readCatalogFile(deps, file, root.confineTo, kind.maxBytes)
       if (read === undefined) {
         warnings.push(`${label} skipped: ${kind.fileName} is missing`)
         continue
       }
       if (!read.ok) {
-        warnings.push(`${label} skipped: ${kind.fileName} ${read.reason}`)
+        refuse(`${kind.fileName} ${read.reason}`)
         continue
       }
       const { text } = read
       const bytes = Buffer.byteLength(text)
       if (bytes > kind.maxBytes) {
-        warnings.push(
-          `${label} skipped: ${kind.fileName} is ${String(bytes)} bytes, over the ${String(kind.maxBytes)} byte limit`,
+        refuse(
+          `${kind.fileName} is ${String(bytes)} bytes, over the ${String(kind.maxBytes)} byte limit`,
         )
         continue
       }
       const parsed = parse(text)
       if (!parsed.ok) {
-        warnings.push(`${label} skipped: ${parsed.reason}`)
+        refuse(parsed.reason)
         continue
       }
       if (parsed.name !== id) {
@@ -202,5 +248,5 @@ export async function loadCatalogFiles<Entry, Source extends string>(
       entries.push({ id, source: root.source, entry: parsed.entry })
     }
   }
-  return { entries, warnings }
+  return { entries, roots: rootLoads, warnings }
 }

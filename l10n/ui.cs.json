@@ -1260,6 +1260,7 @@
   "usagePaidTotal": "Odhadované placené náklady celkem",
   "usagePaidNote": "Odhad podle zveřejněných cen Meta pro toto okno od jeho otevření; skutečné vyúčtování je na řídicím panelu dev.meta.ai. Ceny načteny {date}.",
   "agentToolNotOffered": "Tento nástroj není na seznamu povolených nástrojů tohoto agenta. Používejte pouze nástroje nabízené v jeho pokynech.",
+  "agentUnloaded": "Agent „{id}“ se nespustil: {path} se nepodařilo načíst a definice v tomto umístění by měla přednost. Opravte problém nebo definici odstraňte a pak zahajte novou konverzaci.",
   "subagentPaidOff": "Placení podagenti jsou vypnutí. Před spuštěním úkolu podagenta je zapněte a přijměte cenu.",
   "subagentConsentDeclined": "Placený úkol podagenta nebyl schválen.",
   "subagentContributorBlocked": "Vlastní agent uvádí model přispěvatelské úrovně, který nemůže běžet, dokud je tento pracovní prostor důvěrný (museSpark.confidentialWorkspace).",

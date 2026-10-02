@@ -124,6 +124,7 @@ export const spawnArgs = z.object({
   worktree_isolation: z.optional(z.union([z.boolean(), z.record(z.string(), z.unknown())])),
   command_id: z.optional(z.string()),
 })
+export type SpawnArgs = z.infer<typeof spawnArgs>
 
 export const statusArgs = z.object({
   subagent_id: z.optional(z.string()),

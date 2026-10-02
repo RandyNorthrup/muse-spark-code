@@ -5,9 +5,11 @@ import {
   loadAgents,
   narrowApprovalMode,
   narrowTools,
+  offeredAgents,
   parseAgentFile,
   personalAgentsRoot,
   projectAgentsRoot,
+  resolveAgent,
   resolveAgentEffort,
   resolveAgentModel,
 } from '../../src/core/context/customAgents'
@@ -401,6 +403,141 @@ describe('loadAgents', () => {
     const load = await loadAgents({ io, platform: 'linux' }, roots)
     expect(load.agents.map((agent) => agent.id)).toEqual(['explore', 'second-opinion'])
     expect(load.warnings).toEqual(['project agent empty skipped: AGENT.md is missing'])
+    // A directory without a definition holds none: nothing is refused for it.
+    expect(load.holes).toEqual([])
+    expect(resolveAgent(load, 'explore')).toMatchObject({
+      kind: 'found',
+      agent: { source: 'builtin' },
+    })
+  })
+})
+
+const DENIED = 'EACCES: permission denied'
+
+/** The memory files, with one directory's listing or one file's read refused. */
+function deniedIo(
+  files: Record<string, string>,
+  denied: { readonly directory?: string; readonly file?: string },
+) {
+  const io = memoryIo(files)
+  return {
+    ...io,
+    listDirectory: (directory: string) =>
+      directory === denied.directory
+        ? Promise.reject(new Error(DENIED))
+        : io.listDirectory(directory),
+    readFile: (file: string, maxBytes?: number) =>
+      file === denied.file ? Promise.reject(new Error(DENIED)) : io.readFile(file, maxBytes),
+  }
+}
+
+describe('agent precedence over a root that did not load (M76 review, RV70x)', () => {
+  const roots = [
+    { directory: `${ROOT}/.agents/agents`, source: 'project' as const, confineTo: ROOT },
+    { directory: USER_ROOT, source: 'user' as const, confineTo: undefined },
+  ]
+  const readOnlyConsult = agentFile(
+    'second-opinion',
+    'A read-only consult',
+    'tools: read_file\npermission-mode: manual\n',
+  )
+
+  // RV70x finding 1: the personal root's EACCES used to discard the read
+  // project file and hand its id to the inheriting built-in.
+  it('keeps a loaded project agent when the personal root cannot be listed', async () => {
+    const io = deniedIo(
+      { '.agents/agents/second-opinion/AGENT.md': readOnlyConsult },
+      { directory: USER_ROOT },
+    )
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    expect(resolveAgent(load, 'second-opinion')).toMatchObject({
+      kind: 'found',
+      agent: { source: 'project', tools: ['read_file'], permissionMode: 'manual' },
+    })
+    expect(load.warnings).toEqual([
+      `loading the user agents failed: ${DENIED}`,
+      'builtin agent second-opinion skipped: the project agent with the same id takes precedence',
+    ])
+    // The personal root may hold an agent above a built-in: none runs instead.
+    expect(resolveAgent(load, 'explore')).toEqual({
+      kind: 'unloaded',
+      hole: { source: 'user', id: undefined, path: USER_ROOT },
+    })
+    expect(agentIds({ ...load, agents: offeredAgents(load) })).toEqual(['project:second-opinion'])
+  })
+
+  it('refuses every lower definition by name when the project root cannot be listed', async () => {
+    const io = deniedIo(
+      { '.home/.config/muse/agents/helper/AGENT.md': agentFile('helper', 'Helping') },
+      { directory: `${ROOT}/.agents/agents` },
+    )
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    const hole = { source: 'project', id: undefined, path: '.agents/agents' }
+    for (const id of ['helper', 'explore', 'nope']) {
+      expect(resolveAgent(load, id)).toEqual({ kind: 'unloaded', hole })
+    }
+    expect(offeredAgents(load)).toEqual([])
+    expect(load.warnings).toEqual([`loading the project agents failed: ${DENIED}`])
+  })
+
+  it.each([
+    {
+      name: 'unreadable',
+      files: { '.agents/agents/explore/AGENT.md': agentFile('explore', 'Mine') },
+      deniedFile: `${ROOT}/.agents/agents/explore/AGENT.md`,
+    },
+    {
+      name: 'refused front matter',
+      files: {
+        '.agents/agents/explore/AGENT.md': agentFile('explore', 'Mine', 'tools:\n  - read_file\n'),
+      },
+      deniedFile: undefined,
+    },
+    {
+      name: 'over the cap',
+      files: {
+        '.agents/agents/explore/AGENT.md': agentFile(
+          'explore',
+          'Mine',
+          '',
+          'x'.repeat(AGENT_FILE_MAX_BYTES),
+        ),
+      },
+      deniedFile: undefined,
+    },
+  ])(
+    'refuses a name whose project file did not load instead of running the built-in: $name',
+    async ({ files, deniedFile }) => {
+      const io = deniedIo(files, deniedFile === undefined ? {} : { file: deniedFile })
+      const load = await loadAgents({ io, platform: 'linux' }, roots)
+      expect(resolveAgent(load, 'explore')).toEqual({
+        kind: 'unloaded',
+        hole: { source: 'project', id: 'explore', path: '.agents/agents/explore/AGENT.md' },
+      })
+      // Other names are untouched by that one file.
+      expect(resolveAgent(load, 'second-opinion')).toMatchObject({
+        kind: 'found',
+        agent: { source: 'builtin' },
+      })
+      expect(offeredAgents(load).map((agent) => agent.id)).toEqual(['second-opinion'])
+    },
+  )
+
+  it('refuses a personal agent shadowed by a project file that did not load', async () => {
+    const io = memoryIo({
+      '.agents/agents/scout/AGENT.md': 'no front matter',
+      '.home/.config/muse/agents/scout/AGENT.md': agentFile('scout', 'Personal scout'),
+    })
+    const load = await loadAgents({ io, platform: 'linux' }, roots)
+    expect(resolveAgent(load, 'scout')).toMatchObject({
+      kind: 'unloaded',
+      hole: { source: 'project', id: 'scout' },
+    })
+  })
+
+  it('answers unknown only when every root was listed', async () => {
+    const load = await loadAgents({ io: memoryIo({}), platform: 'linux' }, roots)
+    expect(resolveAgent(load, 'nope')).toEqual({ kind: 'unknown' })
   })
 })
 

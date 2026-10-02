@@ -58,6 +58,7 @@ import {
   type CatalogKind,
   type CatalogParse,
   type CatalogRoot,
+  type CatalogRootLoad,
   loadCatalogFiles,
   splitFrontMatter,
 } from './catalogFiles'
@@ -83,12 +84,42 @@ export interface AgentDefinition {
   readonly permissionMode?: PermissionMode | undefined
 }
 
-export type AgentRoot = CatalogRoot<'project' | 'user'>
+export type AgentFileSource = 'project' | 'user'
+export type AgentRoot = CatalogRoot<AgentFileSource>
 
-export interface AgentsLoad {
+/**
+ * A definition a root may hold that did not load (M76 review, RV70x): the
+ * whole root when it could not be listed (`id` undefined), else one file
+ * that was unreadable, over its cap, refused or past the limit. `path` is
+ * workspace-relative for the project root, as the user would look for it.
+ */
+export interface AgentHole {
+  readonly source: AgentFileSource
+  readonly id: string | undefined
+  readonly path: string
+}
+
+/** The agents a session may run, and the holes their precedence must respect. */
+export interface AgentCatalogue {
+  /** Built-ins first, then the files in root order; each id once (its highest loaded source). */
   readonly agents: readonly AgentDefinition[]
+  readonly holes: readonly AgentHole[]
+}
+
+export interface AgentsLoad extends AgentCatalogue {
   readonly warnings: readonly string[]
 }
+
+/** What a name resolves to: an agent, nothing, or a hole of higher precedence than any match. */
+export type AgentResolution =
+  | { readonly kind: 'found'; readonly agent: AgentDefinition }
+  | { readonly kind: 'unknown' }
+  | { readonly kind: 'unloaded'; readonly hole: AgentHole }
+
+export const NO_AGENTS: AgentCatalogue = { agents: [], holes: [] }
+
+// Highest first: a project file shadows a personal one, which shadows a built-in.
+const AGENT_PRECEDENCE: readonly AgentSource[] = ['project', 'user', 'builtin']
 
 export interface ParsedAgentFile {
   readonly name: string
@@ -276,10 +307,34 @@ function parseCatalogFile(text: string): CatalogParse<Omit<AgentDefinition, 'id'
     : { ok: false, reason: parsed.reason }
 }
 
+/** How a hole names its folder or file: workspace-relative under the project root. */
+function holePath(platform: NodeJS.Platform, root: AgentRoot, absolute: string): string {
+  return root.confineTo === undefined
+    ? absolute
+    : pathModule(platform).relative(root.confineTo, absolute)
+}
+
+/** Every root's holes: an unlisted root whole, else each file it did not yield. */
+export function agentHoles(
+  platform: NodeJS.Platform,
+  roots: readonly CatalogRootLoad<AgentFileSource>[],
+): readonly AgentHole[] {
+  return roots.flatMap(({ root, listingFailure, refused }): AgentHole[] =>
+    listingFailure === undefined
+      ? refused.map((file) => ({
+          source: root.source,
+          id: file.id,
+          path: holePath(platform, root, file.file),
+        }))
+      : [{ source: root.source, id: undefined, path: holePath(platform, root, root.directory) }],
+  )
+}
+
 /**
  * Every valid agent: the built-ins first, then the files in root order with
  * ids sorted within a root. A file agent shadows a built-in or personal one
- * with the same id.
+ * with the same id. A root that cannot be listed leaves the others loaded
+ * and is a hole, as is each file a root holds but did not yield (RV70x).
  */
 export async function loadAgents(
   deps: AgentsLoaderDeps,
@@ -302,7 +357,44 @@ export async function loadAgents(
     )
     return false
   })
-  return { agents: [...keptBuiltins, ...files], warnings }
+  return {
+    agents: [...keptBuiltins, ...files],
+    holes: agentHoles(deps.platform, load.roots),
+    warnings,
+  }
+}
+
+/**
+ * The agent a name runs (M76 review, RV70x): walking the sources from the
+ * highest, a hole that may hold the name refuses it before any lower
+ * definition can stand in, so a project file that did not load never turns
+ * into a broader personal or built-in agent.
+ */
+export function resolveAgent(catalogue: AgentCatalogue, id: string): AgentResolution {
+  for (const source of AGENT_PRECEDENCE) {
+    const hole = catalogue.holes.find(
+      (candidate) =>
+        candidate.source === source && (candidate.id === undefined || candidate.id === id),
+    )
+    if (hole !== undefined) {
+      return { kind: 'unloaded', hole }
+    }
+    const agent = catalogue.agents.find(
+      (candidate) => candidate.source === source && candidate.id === id,
+    )
+    if (agent !== undefined) {
+      return { kind: 'found', agent }
+    }
+  }
+  return { kind: 'unknown' }
+}
+
+/** The agents the model is offered: those whose name resolves to them. */
+export function offeredAgents(catalogue: AgentCatalogue): readonly AgentDefinition[] {
+  return catalogue.agents.filter((agent) => {
+    const resolved = resolveAgent(catalogue, agent.id)
+    return resolved.kind === 'found' && resolved.agent === agent
+  })
 }
 
 /** The model a spawn with this agent runs on: the agent's, else the session's. */

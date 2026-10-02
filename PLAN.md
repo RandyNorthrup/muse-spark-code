@@ -8640,6 +8640,50 @@ extension's own storage, never the workspace's `.git`.
   cannot spawn. M68's `hookInputNoCommand` gets a `UI_TEXT` key in all 14
   tables for the `then_run` line; the model keeps `MODEL_TEXT`. Five drills
   restored byte-exact.
+- **Third independent review, 2026-10-02 (RV70x, structural round).** Four
+  findings (three P2, one P3). Owner rule at a third round: fix the shape,
+  not the instance; the lead set three shapes, built as specified after
+  joining origin/main `3614409e`.
+  - **S1, catalogue precedence fails closed** (finding 1: a personal root's
+    EACCES discarded a read project agent, and the inheriting built-in of
+    its id wrote under Auto). `loadCatalogFiles` lists each root on its own:
+    a listing failure is a warning naming that root (`loading the user
+agents failed: …`), and the other roots load. Each root also reports
+    what it holds but did not yield (a file unreadable, over its cap,
+    refused, past the limit). `loadAgents` turns both into holes, and
+    `resolveAgent` walks project, personal, built-in: a hole that may hold
+    the name refuses it, naming the folder or file, before any lower
+    definition can stand in. Only names that resolve are offered to the
+    model. The skills share the loader, so one skill root's failure no
+    longer hides the other's skills either.
+  - **S2, spawn admission is one ordered pipeline** (findings 2 and 4).
+    `decideAndRunSpawn` owns the order: the mode (Plan refuses a retry
+    too), then an existing `command_id` (`existingSpawn`: an exact retry
+    answers with its child before any new-child admission; another task is
+    refused), then `admitNewSpawn` (isolation, the limit, the agent, its
+    tools, the paid gates; nothing awaited), then `consentToChildTask`,
+    which takes the grant and each wait in turn (the contributor yes, the
+    PermissionRequest hooks, the paid-use popup) with `recheckAdmission`
+    after every one: trust for a custom agent, Plan, paid subagents, the
+    price, a contributor model in a confidential workspace, the model, the
+    key, the goal, and the tools the agent meets. The child starts on the
+    last recheck with nothing awaited between. Model follow-ups and the
+    user's own follow-ups and reopens take the same waits and rechecks.
+    This supersedes M76c's "no re-check follows the popups".
+  - **S3, the child's policy is one table** (finding 3: an Edit
+    automatically child prompted under Auto and Bypass).
+    `childPermissionMode(parent, child)` in `approvalRules.ts` is the less
+    automatic of the two in the order Plan, Manual, Edit automatically,
+    Auto, Bypass (the parent's when the agent names none);
+    `editAutomaticallyChoice`, which the panel and the ACP agent share,
+    answers under it. So a Manual parent caps every child, a Manual child
+    always asks, an Edit automatically child keeps its automation under
+    Auto and Bypass, and protected, replayed and escalated requests are
+    never automatic. A table test covers all 30 (parent × child) pairs and
+    holds the host's `narrowApprovalMode` to the same order.
+  - One regression per finding, each failing without its fix; five drills
+    restored byte-exact (`docs/certification/m76.md`). The refusal for a
+    root that did not load is a new `agentUnloaded` string in all 14 tables.
 
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.
