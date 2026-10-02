@@ -24,7 +24,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0100) ·
+**Contents:** [What's new](#whats-new-in-0101) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -38,7 +38,19 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.10.0
+## What's new in 0.10.1
+
+- **A slow Muse Code start is waited for.** On a busy machine Muse Code
+  gets up to two minutes to start while its process runs, and a failed
+  start shows one message instead of one per waiting action.
+- **The ACP agent publishes to npm.** The release now publishes
+  `muse-spark-code-acp` to npm as well as to the GitHub Release; 0.10.0's
+  did not reach npm.
+- **Faster Windows hooks and a sturdier log.** Hooks and commands on
+  Windows no longer wait on PowerShell's module scan, and a crafted long
+  line no longer stalls the log.
+
+### Earlier in 0.10.0
 
 - **More editors.** Install the extension in compatible VS Code editors,
   or use the ACP agent in editors that speak that protocol. Support levels
@@ -198,7 +210,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.10.0.vsix
+   code --install-extension muse-spark-code-0.10.1.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press

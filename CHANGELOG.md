@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-02
+
 ### Added
 
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
