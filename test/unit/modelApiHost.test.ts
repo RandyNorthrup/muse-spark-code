@@ -13,6 +13,7 @@ import {
   MODEL_API_MAX_TOOL_ROUNDS,
   GOAL_OBJECTIVE_MAX_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   SCHEDULE_LIFETIME_MS,
   type PaidFeature,
@@ -30,7 +31,7 @@ import {
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, formatBytes, setUiText } from '../../src/shared/l10n/text'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -213,6 +214,8 @@ function setup(
     getAccountId?: () => Promise<string | undefined>
     newId?: () => string
     hooks?: readonly HookDefinition[]
+    /** The hook loader itself, when a test holds it; else `hooks`, at once. */
+    loadHooks?: ModelApiHostDeps['loadHooks']
     runHook?: NonNullable<ToolIo['runHook']>
     isHooksEnabled?: () => boolean
     hookNotificationDelayMs?: number
@@ -312,7 +315,7 @@ function setup(
     noteSubagentUsage: (modelId, usage) => {
       subagentUsage.push({ modelId, ...usage })
     },
-    loadHooks: () => Promise.resolve(options.hooks ?? []),
+    loadHooks: options.loadHooks ?? (() => Promise.resolve(options.hooks ?? [])),
     isHooksEnabled: options.isHooksEnabled,
     hookNotificationDelayMs: options.hookNotificationDelayMs,
     memory,
@@ -10368,6 +10371,73 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
     expect(resumed.record.imported).toBe(true)
     const signedOut = setup({ getAccountId: () => Promise.resolve(undefined) })
     await expect(signedOut.host.importSession(await exportDoc(), OPTIONS)).rejects.toThrow()
+  })
+
+  it.each([
+    ['the user signs out', 'signOut'],
+    ['the host closes', 'close'],
+  ] as const)(
+    'makes no session and runs no SessionStart hook when %s while the hooks load (RV84c C1)',
+    async (_case, change) => {
+      const loading = Promise.withResolvers<readonly HookDefinition[]>()
+      const loadHooks = vi.fn(() => loading.promise)
+      const runHook = vi.fn(() => hookReply())
+      let accountId: string | undefined = FAKE_MODEL_API_ACCOUNT_ID
+      const t = setup({ loadHooks, runHook, getAccountId: () => Promise.resolve(accountId) })
+      const importing = t.host.importSession(await exportDoc(), OPTIONS)
+      await vi.waitFor(() => {
+        expect(loadHooks).toHaveBeenCalled()
+      })
+      let closing: Promise<void> | undefined
+      if (change === 'signOut') {
+        accountId = undefined
+      } else {
+        closing = t.host.close()
+      }
+      loading.resolve(hooksFor('SessionStart', 'on-resume'))
+      await expect(importing).rejects.toThrow()
+      await closing
+      expect(runHook).not.toHaveBeenCalled()
+      expect(t.host.sessionCount).toBe(0)
+    },
+  )
+
+  it('refuses a file the model cannot read in one window, before any session or hook (RV84 #10)', async () => {
+    const runHook = vi.fn(() => hookReply())
+    const t = setup({ hooks: hooksFor('SessionStart', 'on-resume'), runHook })
+    const doc = await exportDoc()
+    const huge: SessionExport = {
+      ...doc,
+      transcript: [
+        ...doc.transcript,
+        {
+          itemId: 'a2',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+        },
+      ],
+    }
+    await expect(t.host.importSession(huge, OPTIONS)).rejects.toThrow(
+      formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+    )
+    expect(t.host.sessionCount).toBe(0)
+    expect(runHook).not.toHaveBeenCalled()
+  })
+
+  it('rejects, keeping no session, when the host closes during the SessionStart hook (RV84c C1)', async () => {
+    const hookRun = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
+    const runHook = vi.fn(() => hookRun.promise)
+    const t = setup({ hooks: hooksFor('SessionStart', 'on-resume'), runHook })
+    const importing = t.host.importSession(await exportDoc(), OPTIONS)
+    await vi.waitFor(() => {
+      expect(runHook).toHaveBeenCalled()
+    })
+    const closing = t.host.close()
+    hookRun.resolve(await hookReply())
+    await expect(importing).rejects.toThrow()
+    await closing
+    expect(t.host.sessionCount).toBe(0)
   })
 })
 

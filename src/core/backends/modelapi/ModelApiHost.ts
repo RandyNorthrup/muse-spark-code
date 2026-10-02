@@ -7400,6 +7400,13 @@ export class ModelApiHost implements AgentHost {
     return current
   }
 
+  /** A closing host takes no new session: one made now would outlive `close`. */
+  private refuseWhileClosing(): void {
+    if (this.isClosing) {
+      throw new AbortedError()
+    }
+  }
+
   private ownedSnapshot(snapshot: StoredSession): StoredSession {
     const accountId = this.accountIdValue
     if (accountId === undefined) {
@@ -7621,11 +7628,17 @@ export class ModelApiHost implements AgentHost {
       modelId: options.modelId,
       now: new Date(this.deps.now()).toISOString(),
     })
+    const hooks = await this.sessionHooks()
+    // Loading the hooks may outlast a sign-out or the host closing: both are
+    // checked again before the session exists and its SessionStart hook runs
+    // (RV84c C1), as `startSession` checks the account.
+    await this.requireAccountId()
+    this.refuseWhileClosing()
     const session = this.create(
       stored.modelId,
       stored.approvalMode,
       stored.sessionId,
-      await this.sessionHooks(),
+      hooks,
       'resume',
       false,
     )
@@ -7633,6 +7646,7 @@ export class ModelApiHost implements AgentHost {
       session.adopt(stored)
       await session.startHooks()
       await this.requireAccountId()
+      this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
       throw error
