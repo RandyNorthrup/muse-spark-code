@@ -38,8 +38,24 @@ happened, not what was planned; superseded entries are kept.
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
 
+### Changed
+
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
+
 ### Fixed
 
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
   API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines

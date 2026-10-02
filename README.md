@@ -928,7 +928,9 @@ Meta's paid web search.
   parses it (parse5, the HTML standard's algorithm), in the encoding the
   page declares (one this computer has no decoder for refuses the page,
   never read as UTF-8), and comes back as Markdown, titled only from its
-  `<head>`, with links resolved against
+  `<head>`. Only a byte-order mark or valid HTTP charset makes the encoding
+  definite; HTML meta declarations outrank an XML declaration fallback and
+  can replace a tentative encoding found earlier. Links resolve against
   its `<base href>`. A `<picture>` keeps its fallback `<img>` when it has
   alt text and an HTTP(S) source, as any image does; `<source>` and
   `srcset` alternatives are not selected or fetched. Left out is only what
