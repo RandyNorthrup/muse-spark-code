@@ -232,6 +232,36 @@ const jobAssembly =
 
 afterAll(() => removeFolder(jobStorage))
 
+// A POSIX layout with no shell on any absolute PATH entry, on any host OS.
+const bareIo = () =>
+  createToolIo({
+    platform: 'linux',
+    listFiles: () => Promise.resolve([]),
+    systemRoot: undefined,
+    env: () => ({ PATH: '' }),
+    searchWorkerPath: 'unused-here',
+    log: () => undefined,
+    unsavedFiles: () => [],
+  })
+
+const localTree = () => ({
+  platform: process.platform,
+  systemRoot: process.env['SystemRoot'],
+  log: () => undefined,
+})
+
+/** A real Node process through the runner, for the launched negative controls. */
+const runNode = (cwd: string, script: string, timeoutMs: number) =>
+  runCommand({
+    file: process.execPath,
+    args: ['-e', script],
+    cwd,
+    env: process.env,
+    timeoutMs,
+    signal: undefined,
+    tree: localTree(),
+  })
+
 const io = () =>
   createToolIo({
     platform: process.platform,
@@ -618,6 +648,56 @@ describe('createToolIo (real file system and shell)', () => {
     expect(result.exitCode).toBeNull()
     expect(result.stderr).toMatch(/ENOENT/)
     expect(result.isTimedOut).toBe(false)
+    // The failure stays a failure; the start that never happened is proven.
+    expect(result.isCancelled).toBe(false)
+    expect(result.isEntryRefused).toBeUndefined()
+    expect(result.isWorkspaceShutdownProven).toBe(true)
+  })
+
+  it('proves nothing launched when no interpreter is on the absolute PATH', async () => {
+    const result = await bareIo().runShell('echo hi', root, SHELL_BUDGET_MS)
+    expect(result).toMatchObject({
+      exitCode: null,
+      isTimedOut: false,
+      isCancelled: false,
+      isWorkspaceShutdownProven: true,
+    })
+    expect(result.stderr).toContain('was not found')
+    expect(result.isEntryRefused).toBeUndefined()
+  })
+
+  it('proves the hook shell that is not there never launched either', async () => {
+    expect(await bareIo().runHook?.('echo hi', '{}', root, SHELL_BUDGET_MS)).toMatchObject({
+      exitCode: null,
+      isWorkspaceShutdownProven: true,
+    })
+  })
+
+  it('gives no proof to a process that actually launched, whatever its exit', async () => {
+    const exited = await runNode(root, 'process.exit(0)', SHELL_BUDGET_MS)
+    expect(exited).toMatchObject({ exitCode: 0, isCancelled: false })
+    expect(exited.isWorkspaceShutdownProven).toBeUndefined()
+    const failed = await runNode(root, 'process.exit(3)', SHELL_BUDGET_MS)
+    expect(failed).toMatchObject({ exitCode: 3 })
+    expect(failed.isWorkspaceShutdownProven).toBeUndefined()
+    const stopped = await runNode(root, 'setTimeout(() => {}, 30000)', 300)
+    expect(stopped.isTimedOut).toBe(true)
+    expect(stopped.isWorkspaceShutdownProven).toBeUndefined()
+  }, 60_000)
+
+  it('proves a program that could not be started at all was never launched', async () => {
+    const result = await runCommand({
+      file: path.join(root, 'no-such-program'),
+      args: [],
+      cwd: root,
+      env: process.env,
+      timeoutMs: SHELL_BUDGET_MS,
+      signal: undefined,
+      tree: localTree(),
+    })
+    expect(result.exitCode).toBeNull()
+    expect(result.stderr).toMatch(/ENOENT/)
+    expect(result.isWorkspaceShutdownProven).toBe(true)
   })
 
   it('delivers hook JSON on stdin without placing it in the command line (M51)', async () => {

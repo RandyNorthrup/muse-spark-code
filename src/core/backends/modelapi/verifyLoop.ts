@@ -29,6 +29,7 @@ export interface VerifyHooks {
   readonly diagnosticsAfterEdit: (
     files: readonly EditedFile[],
     signal: AbortSignal,
+    canReadFile?: (file: EditedFile) => boolean,
   ) => Promise<readonly FileDiagnostics[]>
   /** The text the file's formatter makes of what an edit wrote, or undefined. */
   readonly formatAfterEdit: (absolutePath: string, text: string) => Promise<string | undefined>

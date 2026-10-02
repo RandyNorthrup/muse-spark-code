@@ -261,6 +261,10 @@ const noticeEntrySchema = z.object({
   id: z.string(),
   level: z.enum(NOTICE_LEVELS),
   text: z.string(),
+  /** A file restore's Redo (M72): pressed and awaiting the host, or spent. */
+  redoRestoreId: z.optional(z.string()),
+  isRedoPending: z.optional(z.boolean()),
+  isRedoUsed: z.optional(z.boolean()),
 })
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [

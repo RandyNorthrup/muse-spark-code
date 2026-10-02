@@ -6,7 +6,7 @@ import type * as vscode from 'vscode'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { env, Uri, window, workspace } from 'vscode'
 import type { ProcessResult } from '../../src/host/backend/sandboxSetup'
-import { createCliFeatures } from '../../src/host/cliFeatures'
+import { type CliFeatureDeps, createCliFeatures } from '../../src/host/cliFeatures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { inform, pickMany, pickOne } from './helpers/vscodeViews'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -41,9 +41,16 @@ const REMOTE_URI: vscode.Uri = {
 
 function setup(
   cli?: (args: readonly string[], timeoutMs: number) => ProcessResult,
-  config: { readonly settingsPath?: string; readonly workspaceRoot?: string } = {},
+  config: {
+    readonly settingsPath?: string
+    readonly workspaceRoot?: string
+    /** Stands in for the activation's lease over a write inside the workspace. */
+    readonly editFile?: CliFeatureDeps['editFile']
+  } = {},
 ) {
   const runs: [readonly string[], number][] = []
+  /** The lease and the write, in the order they happened. */
+  const edits: string[] = []
   const terminals: [readonly string[], string][] = []
   let restarts = 0
   const features = createCliFeatures({
@@ -60,6 +67,16 @@ function setup(
     },
     museSettingsPath: () => config.settingsPath ?? '/nowhere/settings.json',
     workspaceRoot: config.workspaceRoot ?? '/ws',
+    editFile:
+      config.editFile ??
+      (async (fsPath, work) => {
+        edits.push(`open ${fsPath}`)
+        try {
+          return await work()
+        } finally {
+          edits.push('close')
+        }
+      }),
     restartBackend: () => {
       restarts += 1
       return Promise.resolve()
@@ -69,7 +86,7 @@ function setup(
     openLog: () => undefined,
     log: new FakeLogOutputChannel(),
   })
-  return { features, runs, terminals, restarts: () => restarts }
+  return { features, runs, terminals, edits, restarts: () => restarts }
 }
 
 const folder = mkdtempSync(path.join(tmpdir(), 'muse-cli-features-'))
@@ -201,7 +218,12 @@ describe('createCliFeatures', () => {
     const t = setup()
     const target = Uri.file('/ws/muse-x.md')
     vi.mocked(window.showSaveDialog).mockResolvedValueOnce(target)
+    vi.mocked(workspace.fs.writeFile).mockImplementation(() => {
+      t.edits.push('write')
+      return Promise.resolve()
+    })
     await t.features.exports.saveMarkdown('muse-x.md', '# X\n')
+    expect(t.edits).toEqual(['open /ws/muse-x.md', 'write', 'close'])
     expect(vi.mocked(window.showSaveDialog).mock.calls[0]?.[0]).toMatchObject({
       filters: { Markdown: ['md'] },
     })
@@ -213,6 +235,18 @@ describe('createCliFeatures', () => {
     vi.mocked(window.showSaveDialog).mockResolvedValueOnce(undefined)
     await t.features.exports.saveMarkdown('muse-y.md', 'y')
     expect(workspace.fs.writeFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('writes no export when the edit lease is refused, and opens nothing', async () => {
+    const t = setup(undefined, {
+      editFile: () => Promise.reject(new Error('the window closed')),
+    })
+    vi.mocked(window.showSaveDialog).mockResolvedValueOnce(Uri.file('/ws/muse-x.md'))
+    await expect(t.features.exports.saveMarkdown('muse-x.md', '# X\n')).rejects.toThrow(
+      'the window closed',
+    )
+    expect(workspace.fs.writeFile).not.toHaveBeenCalled()
+    expect(window.showTextDocument).not.toHaveBeenCalled()
   })
 
   it('has the CLI write the session log, and opens it on request', async () => {

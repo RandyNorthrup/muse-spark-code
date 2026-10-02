@@ -36,7 +36,7 @@ export interface MuseConfigDeps {
   readonly openFile: (fsPath: string) => Promise<void>
   readonly openDocs: () => void
   /** `muse mcp <action> <server>` in a terminal; false when the CLI is not installed. */
-  readonly runMcpCommand: (action: McpAction, server: string) => boolean
+  readonly runMcpCommand: (action: McpAction, server: string) => boolean | Promise<boolean>
   /** Stops the hosts so the next message starts Muse Code with the new settings. */
   readonly restart: () => Promise<void>
   readonly showInformation: (message: string) => void
@@ -241,7 +241,7 @@ async function serverActions(deps: MuseConfigDeps, server: McpServerView): Promi
     isRemote ? UI_TEXT.mcpRemotePlaceholder : UI_TEXT.mcpStdioPlaceholder,
   )
   if (choice === 'login' || choice === 'logout') {
-    if (!deps.runMcpCommand(choice, server.name)) {
+    if (!(await deps.runMcpCommand(choice, server.name))) {
       deps.showWarning(UI_TEXT.mcpCliMissing)
     }
     return

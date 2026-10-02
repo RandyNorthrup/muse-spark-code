@@ -10,6 +10,7 @@ import {
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
 import {
+  type CheckpointAvailability,
   type DictationAction,
   type EffortLevel,
   GOAL_SLASH_COMMAND,
@@ -83,6 +84,53 @@ export interface AppProps {
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
+}
+
+type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
+
+/**
+ * The conversation rewind for a user card (M53): a fork cut before its turn
+ * and its prompt back in the composer; undefined when the card cannot be
+ * rewound (no cut, a running or a file card, no session).
+ */
+function rewindRequest(current: UiState, entryId: string): RewindConversationRequest | undefined {
+  const entry = current.transcript.find((candidate) => candidate.id === entryId)
+  const cut = forkCutBefore(current.transcript, entryId)
+  if (
+    cut === undefined ||
+    current.sessionId === undefined ||
+    entry?.kind !== 'user' ||
+    entry.turnId === undefined ||
+    entry.turnId === current.activeTurnId ||
+    hasFileAttachment(entry.attachments)
+  ) {
+    return undefined
+  }
+  return {
+    type: 'rewindConversation',
+    sourceSessionId: current.sessionId,
+    itemId: entry.replayItemId ?? entry.id,
+    turnId: entry.turnId,
+    ...(cut.type === 'afterTurn' && { lastTurnId: cut.lastTurnId }),
+    text: entry.text,
+    imageCount: entry.attachments.length,
+  }
+}
+
+/** Why the user card's menu offers no file restore (M72), or undefined when it can. */
+function restoreNoteOf(state: UiState): string | undefined {
+  if (state.checkpoints.restoreBlocker === 'modelApiOnly') {
+    return UI_TEXT.checkpointsModelApiOnly
+  }
+  if (state.checkpoints.restoreBlocker === 'nativeUnsafe') {
+    return UI_TEXT.checkpointsNativeUnsafe
+  }
+  const notes: Readonly<Partial<Record<CheckpointAvailability, string>>> = {
+    restricted: UI_TEXT.checkpointsRestricted,
+    off: UI_TEXT.checkpointsOff,
+    noGit: UI_TEXT.checkpointsNoGit,
+  }
+  return notes[state.checkpoints.availability]
 }
 
 /** What floats above the composer: a palette view, a menu or the History dialog. */
@@ -871,6 +919,30 @@ export function App({
     },
     [store, onNewConversation, dispatch, postMessage],
   )
+  // "Fork conversation and rewind code" (M72): one host action, so the fork
+  // cannot overtake the rewind's confirmation; a fork before the first
+  // message is a new conversation.
+  const onForkRewind = useCallback(
+    (entryId: string) => {
+      const current = store.getState()
+      const cut = forkCutBefore(current.transcript, entryId)
+      if (cut === undefined) {
+        return
+      }
+      const edits = [...editsAfter(current, entryId)]
+      if (cut.type === 'fresh') {
+        postMessage({ type: 'rewindCode', edits, fork: {} })
+        return
+      }
+      dispatch({ type: 'sessionChangeRequested' })
+      postMessage({
+        type: 'rewindCode',
+        edits,
+        fork: { lastTurnId: cut.lastTurnId, attachmentEpoch: store.getState().attachmentEpoch },
+      })
+    },
+    [store, dispatch, postMessage],
+  )
   // "Rewind code to here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
@@ -881,32 +953,71 @@ export function App({
   )
   const onRewindConversation = useCallback(
     (entryId: string) => {
+      const request = rewindRequest(store.getState(), entryId)
+      if (request === undefined) {
+        return
+      }
+      dispatch({ type: 'sessionChangeRequested' })
+      // The epoch the session change just raised, so no older encode lands.
+      postMessage({ ...request, attachmentEpoch: store.getState().attachmentEpoch })
+    },
+    [store, dispatch, postMessage],
+  )
+  // "Restore files to here" (M72): the host confirms, restores and reports.
+  const onRestoreFiles = useCallback(
+    (entryId: string) => {
       const current = store.getState()
       const entry = current.transcript.find((candidate) => candidate.id === entryId)
-      const cut = forkCutBefore(current.transcript, entryId)
-      if (
-        cut === undefined ||
-        current.sessionId === undefined ||
-        entry?.kind !== 'user' ||
-        entry.turnId === undefined ||
-        entry.turnId === current.activeTurnId ||
-        hasFileAttachment(entry.attachments)
-      ) {
+      if (entry?.kind !== 'user' || entry.turnId === undefined || current.sessionId === undefined) {
+        return
+      }
+      postMessage({
+        type: 'restoreFiles',
+        sourceSessionId: current.sessionId,
+        turnId: entry.turnId,
+      })
+    },
+    [store, postMessage],
+  )
+  // "Rewind conversation and restore files" (M72): the files first, then M53's rewind.
+  const onRestoreBoth = useCallback(
+    (entryId: string) => {
+      const request = rewindRequest(store.getState(), entryId)
+      if (request === undefined) {
         return
       }
       dispatch({ type: 'sessionChangeRequested' })
       postMessage({
-        type: 'rewindConversation',
-        sourceSessionId: current.sessionId,
-        itemId: entry.replayItemId ?? entry.id,
-        turnId: entry.turnId,
-        ...(cut.type === 'afterTurn' && { lastTurnId: cut.lastTurnId }),
-        text: entry.text,
-        imageCount: entry.attachments.length,
-        attachmentEpoch: store.getState().attachmentEpoch,
+        type: 'restoreFiles',
+        sourceSessionId: request.sourceSessionId,
+        turnId: request.turnId,
+        rewind: { ...request, attachmentEpoch: store.getState().attachmentEpoch },
       })
     },
     [store, dispatch, postMessage],
+  )
+  const onRedo = useCallback(
+    (entryId: string, restoreId: string) => {
+      dispatch({ type: 'redoRequested', entryId })
+      postMessage({ type: 'redoRestore', restoreId })
+    },
+    [dispatch, postMessage],
+  )
+  const checkpointTurnIds = useMemo(
+    () =>
+      new Set(
+        state.checkpoints.canRestore && state.checkpoints.sessionId === state.sessionId
+          ? state.checkpoints.turnIds
+          : [],
+      ),
+    [state.checkpoints, state.sessionId],
+  )
+  const legacyCheckpointTurnIds = useMemo(
+    () =>
+      new Set(
+        state.checkpoints.sessionId === state.sessionId ? state.checkpoints.legacyTurnIds : [],
+      ),
+    [state.checkpoints, state.sessionId],
   )
   const onRemoveAttachment = useCallback(
     (id: string) => {
@@ -1336,11 +1447,27 @@ export function App({
           onOpenFile={onOpenFile}
           onRefuseLink={onRefuseLink}
           onFork={state.sessionId === undefined || !state.canEditSessions ? undefined : onFork}
+          onForkRewind={
+            state.sessionId === undefined || !state.canEditSessions ? undefined : onForkRewind
+          }
           onRewind={state.sessionId === undefined ? undefined : onRewind}
           onRewindConversation={
             state.sessionId === undefined || !state.canEditSessions
               ? undefined
               : onRewindConversation
+          }
+          checkpointTurnIds={checkpointTurnIds}
+          legacyCheckpointTurnIds={legacyCheckpointTurnIds}
+          onRestoreFiles={state.sessionId === undefined ? undefined : onRestoreFiles}
+          onRestoreBoth={
+            state.sessionId === undefined || !state.canEditSessions ? undefined : onRestoreBoth
+          }
+          onRedo={state.checkpoints.canRestore ? onRedo : undefined}
+          restoreNote={restoreNoteOf(state)}
+          conversationNote={
+            state.sessionId !== undefined && !state.canEditSessions
+              ? UI_TEXT.conversationRewindUnavailable
+              : undefined
           }
           onReply={onReply}
           planReplyId={planReplyIdOf(state)}

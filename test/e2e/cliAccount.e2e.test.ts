@@ -60,6 +60,8 @@ const managers: MuseCodeBackendManager[] = []
 function setup(fakeEnvironment: readonly { name: string; value: string }[] = []) {
   const log = new FakeLogOutputChannel()
   const backend = new MuseCodeBackendManager({
+    // Independent throwaway harness: no stored-checkpoint restore service is attached.
+    beforeWorkspaceHostStart: () => Promise.resolve(),
     log,
     extensionVersion: '0.0.0-e2e',
     getConfiguredBinaryPath: () => fake.binaryPath,

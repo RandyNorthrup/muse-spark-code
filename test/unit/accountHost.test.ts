@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as sdk from '@muse-code/sdk'
 import {
   AccountHosts,
   type AccountSession,
@@ -6,9 +7,27 @@ import {
   logOutAccount,
   probeAccount,
   readAccountState,
+  connectAccountSession,
 } from '../../src/host/auth/accountHost'
 import { CAPTURED_SIGNED_IN } from './helpers/accountLoginCapture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeMuseCodeManager } from './helpers/museCodeManager'
+import {
+  holdRestoreRef,
+  harness,
+  removeCheckpointFolders,
+  REAL_GIT_TIMEOUT_MS,
+} from './helpers/checkpointHarness'
+import { UI_TEXT } from '../../src/shared/constants'
+
+vi.mock('@muse-code/sdk', async (importOriginal) => ({
+  ...(await importOriginal<typeof sdk>()),
+}))
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  await removeCheckpointFolders()
+})
 
 // `account/read` and `account/logout` as captured (1.3.0 and 1.4.0-R4302.1,
 // isolated homes, 2026-09-27); the label was redacted there and is an
@@ -41,6 +60,70 @@ const OPEN = new AbortController().signal
 function allLogged(log: FakeLogOutputChannel): string {
   return [...log.info.mock.calls, ...log.warn.mock.calls].flat().join('\n')
 }
+
+describe('account serve checkpoint admission (M72)', () => {
+  it(
+    'awaits the workspace fence before account spawn and keeps uncertainty after a captured warm probe closes',
+    async () => {
+      const h = await harness()
+      const entered = Promise.withResolvers<undefined>()
+      const resume = Promise.withResolvers<undefined>()
+      const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
+        throw new Error('injected fake account spawn')
+      })
+      const manager = fakeMuseCodeManager({
+        workspaceRoot: h.root,
+        getConfiguredBinaryPath: () => process.execPath,
+        beforeWorkspaceHostStart: async () => {
+          entered.resolve(undefined)
+          await resume.promise
+          await h.store.markNativeBackend()
+        },
+      })
+      const connecting = connectAccountSession(manager, 'fixture', h.log, h.root, OPEN)
+      const settled = expect(connecting).rejects.toThrow('injected fake account spawn')
+      try {
+        await entered.promise
+        expect(spawn).not.toHaveBeenCalled()
+      } finally {
+        resume.resolve(undefined)
+      }
+      await settled
+      expect(spawn).toHaveBeenCalledOnce()
+      const capturedHost = host({ 'account/read': CAPTURED_SIGNED_IN })
+      const accounts = new AccountHosts(async () => {
+        await manager.admitWorkspaceHost()
+        return capturedHost.session
+      }, h.log)
+      expect(await accounts.probe()).toMatchObject({ state: 'accountLogin' })
+      expect(capturedHost.close).toHaveBeenCalledOnce()
+      accounts.close()
+      expect(h.store.isNativeUnsafe).toBe(true)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses account serve before spawning while a real shadow restore ref is held',
+    async () => {
+      const h = await harness()
+      await holdRestoreRef(h)
+      const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
+        throw new Error('must not spawn account process')
+      })
+      const manager = fakeMuseCodeManager({
+        workspaceRoot: h.root,
+        getConfiguredBinaryPath: () => process.execPath,
+        beforeWorkspaceHostStart: () => h.store.markNativeBackend(),
+      })
+      await expect(connectAccountSession(manager, 'fixture', h.log, h.root, OPEN)).rejects.toThrow(
+        UI_TEXT.restoreTurnElsewhere,
+      )
+      expect(spawn).not.toHaveBeenCalled()
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
 
 describe('readAccountState', () => {
   it('keeps the state and drops the label', async () => {

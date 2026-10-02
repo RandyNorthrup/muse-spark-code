@@ -76,6 +76,8 @@ function manager(
 ) {
   const log = new FakeLogOutputChannel()
   const created = new MuseCodeBackendManager({
+    // Fake CLI harness owns no stored-checkpoint restore service.
+    beforeWorkspaceHostStart: () => Promise.resolve(),
     log,
     extensionVersion: '0.0.0-e2e',
     getConfiguredBinaryPath: () => options.binaryPath ?? fake.binaryPath,

@@ -44,6 +44,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
+const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -115,6 +117,16 @@ const searchWorkerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const checkpointStoreOptions = {
+  ...common,
+  entryPoints: [CHECKPOINT_STORE_ENTRY],
+  outfile: CHECKPOINT_STORE_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
   entryPoints: [ACP_ENTRY],
@@ -175,6 +187,7 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(planMarkdownOptions),
+    esbuild.context(checkpointStoreOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
@@ -186,6 +199,7 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
+    checkpointStore: esbuild.build(checkpointStoreOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
@@ -210,6 +224,7 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
+  reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

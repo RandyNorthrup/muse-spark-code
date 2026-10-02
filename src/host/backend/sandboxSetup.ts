@@ -6,6 +6,7 @@
 // the flow is unit-tested on every platform.
 
 import type { LaunchResolution } from '../../core/backends/musecode/launch'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   type CliInvocation,
   elevatedInvocation,
@@ -36,7 +37,7 @@ export interface SandboxSetupDeps {
   /** `%SystemRoot%`; undefined off Windows. */
   readonly systemRoot: string | undefined
   readonly resolveLaunch: () => LaunchResolution
-  /** Runs a process to completion; resolves (never rejects) with its result. */
+  /** Runs a process to completion; startup admission may reject before launch. */
   readonly run: (invocation: CliInvocation, timeoutMs: number) => Promise<ProcessResult>
   /** A warning notification with buttons; resolves to the chosen label. */
   readonly showWarning: (
@@ -143,10 +144,16 @@ export class SandboxSetup {
       this.deps.log.warn(`Sandbox check skipped: ${resolution.reason}`)
       return undefined
     }
-    const result = await this.deps.run(
-      sandboxCheckInvocation(resolution.launch),
-      SANDBOX_CHECK_TIMEOUT_MS,
-    )
+    let result: ProcessResult
+    try {
+      result = await this.deps.run(
+        sandboxCheckInvocation(resolution.launch),
+        SANDBOX_CHECK_TIMEOUT_MS,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(`Sandbox check could not start: ${failureForLog(error)}`)
+      return parseSandboxCheck('')
+    }
     const report = parseSandboxCheck(`${result.stdout}\n${result.stderr}`)
     this.deps.log.info(
       `Sandbox check: status=${report.status} exit=${String(result.exitCode)}${report.reason === undefined ? '' : ` reason=${report.reason}`}`,

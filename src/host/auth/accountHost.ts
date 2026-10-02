@@ -208,6 +208,10 @@ export async function connectAccountSession(
   if (!resolution.ok) {
     throw new Error(resolution.reason)
   }
+  await backend.admitWorkspaceHost()
+  if (isAborted()) {
+    throw new Error('The Muse Code account host was cancelled')
+  }
   let isStderrReported = false
   const handshake = spawnMspConnection({
     command: resolution.launch.command,

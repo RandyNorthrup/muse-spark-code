@@ -7,15 +7,36 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
+
 ### Fixed
 
-- Plan actions recheck current workspace trust and disposal after lookup
-  and confirmation; a plan may still be saved after a conversation change,
-  while its stale implementation is refused. No-clobber writes check their
-  canonical directory before mkdir and their owned stage before publishing
-  or cleanup. Stale plan stages that were replaced, moved or refreshed are
-  retained. Preliminary types, focused tests, lint, duplication and failure
-  proofs pass; final current-main integration and aggregate gates remain.
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
+
+## [0.10.0] - 2026-10-01
+
+### Highlights
+
+- **Other editors.** The ACP agent (`muse-spark-code-acp`) brings Muse Spark to Zed, JetBrains IDEs, Neovim, Emacs and more (`docs/acp.md`).
+- **Code intelligence and rename.** The agent finds definitions, references and symbols through VS Code's language services, and renames a symbol everywhere it is used.
+- **The agent checks its own edits.** After edits, the language servers' errors and your check commands reach the next request (Model API backend).
+- **Web fetch.** The model reads one public HTTPS page on either backend, fetched from your machine and free.
+- **Plans as files.** Save a Plan-mode reply to `.agents/plans/` and implement it in a fresh conversation.
+- **Turn checkpoints (Preview, off by default).** Restore files, the conversation or both, then redo; the copies never touch your `.git` (stored restore needs a Model API session). Turn them on with `museSpark.turnCheckpoints`; their restore is being rebuilt on the tools' own writes (PLAN.md D63).
+- **Every paid use asks first.** A popup (Allow once, Allow always in this workspace, Deny) in every mode, Bypass included.
+- **A lighter start.** The Model API backend is a bundle of its own, loaded only when a conversation uses it.
+- **VS Code 1.99 or newer** (was 1.125), so editors built on VS Code 1.99 or later can install the extension.
+- **Open VSX and npm publishing.** A release tag also publishes the VSIX to Open VSX and the ACP agent to npm (each when its token is set).
 
 ### Added
 
@@ -312,12 +333,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- Take the compatible development updates from the grouped Dependabot pull
-  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
-  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
-  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
-  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
-  alone; no file of the extension changes.
 - **The diagnostics tool reads a file no editor shows.** VS Code's language
   servers report only on files an editor shows (TypeScript and JSON,
   measured in VS Code 1.139.1 and 1.125.0), so when the agent asks
@@ -347,6 +362,136 @@ happened, not what was planned; superseded entries are kept.
   Code as lead, up to four headless Muse Code builders on the contributor
   model, Grok Build and Codex as reviewers, and the gates on dedicated test
   machines and CI.
+
+- **Turn checkpoints: restore files, the conversation, or both, then redo**
+  (M72, PLAN.md D51). Each turn gets a checkpoint of the workspace's files at
+  its start and end, on both backends, untracked files included and
+  ignored files left out. A sent message's menu offers **Restore files to
+  here** and **Rewind conversation and restore files**. A restore undoes
+  what the conversation's turns changed from that message on, including
+  what shell commands changed. It names every file it left as it is:
+  changed since the turn (by you, a build, or another conversation's
+  overlapping turn), unsaved in an editor or notebook, not in the
+  checkpoint, or could not be changed. Each file is checked again just
+  before it changes, deletions come before writes (a case-only rename or a
+  file that became a folder comes back), and no file is written or deleted
+  through a link or junction. Its notice has **Redo**, which puts back what
+  the restore replaced; the redo record is saved before the first file
+  changes, so a restore that stops part way still reports what it changed
+  and keeps Redo, and a redo that could not do everything keeps its button.
+  **Rewind conversation and restore files** checks the conversation first
+  and rewinds it only when every file was restored. A folder that was there
+  before the turn, even an empty one, is never removed.
+- **Independent windows share checkpoint records without overwriting them.**
+  Current-version windows use a shared canonical-root namespace under extension
+  global storage, including different VS Code workspace identities/aliases.
+  Old per-workspace captures remain preserved, readable and labelled read-only.
+
+  Per-record Git compare-and-swap refs replace the shared lock and JSON file;
+  each window owns its index, pending captures, staged copies and presence.
+  A restore or Redo reserves one shared ref before file changes. Archives
+  are durable before returning, including in Restricted Mode, and cleanup
+  spares recent objects while another window creates its refs. Model API
+  turns await their running mark before hooks, edits or model calls, queued
+  and scheduled turns and children included; a failed mark prevents them
+  from running. A child outliving its parent keeps restores blocked.
+  Tool preimages remain until the end record persists; retry keeps the
+  original boundary rather than recapturing later user changes. Cancellation
+  stops before the next file and finalizes Redo for the files actually
+  changed. Errors shown in the panel are localized and storage paths are
+  excluded from failure logs. Stored destructive Restore/Redo is limited to
+  the actual attached Model API session with confirmed process safety. Every
+  extension-managed CLI skills/import/export or sandbox command, and
+  interactive/auth/MCP/installer terminal, awaits durable native admission
+  before process or terminal creation. Shutdown or backend disposal cancels
+  a held start. Terminal callbacks are awaited through command and auth
+  callers; terminal closure does not clear unproved descendant activity.
+  A workspace Muse Code serve (account probes included) publishes the same
+  unsafe marker before startup.
+  **Create AGENTS.md** applies this admission to `muse init`; refused startup
+  cannot choose the template fallback. The explicit pure template write holds
+  a file-edit lease until actual I/O settles, including in Restricted Mode
+  without Git, and checks shutdown/generation before writing.
+  Extension-managed Git worktree add/remove publish the same native marker
+  before normal repository hooks run, with fresh owned-cwd/lifetime checks.
+  Pure plan publication/stage cleanup and file-review Revert hold an activity
+  lease through actual I/O, preserving no-clobber and stage ownership checks.
+  Automatic prompt Git status/log now suppress configured fsmonitor,
+  signature and clean/process helpers through bounded names-only overrides,
+  with live trust/owner/cwd checks before actual spawn. Plain metadata leaves
+  file restore eligible; ordinary Git configuration remains unchanged.
+  The independent ACP runtime explicitly records its no-VS-Code-checkpoint
+  startup policy; it neither offers stored Restore nor claims the shared
+  window fence. Its external-editor scope is documented in the ACP guide.
+  After joined-main review, plans retain current trust/lifetime checks through
+  native staging/publication and stale-stage removal. Restore/Redo use the
+  existing conditional writer for final expected-file/dirty checks, including
+  binary/absent expectations, and recheck unlinked deletion destinations.
+  Executable modes and durable partial Redo are retained; the final
+  comparison-to-syscall residual is documented.
+  Shell/hook activity is tracked through its actual promise, including `!`,
+  background and child work; unproved descendant shutdown leaves sticky unsafe
+  presence rather than enabling restore. Native/old/unknown uncertainty
+  survives window close, PID death and age. Explicit confirmed recovery removes
+  only the exact stale presence marker, preserving checkpoints and history.
+- **Checkpoints never touch the workspace's `.git`.** They live in a shadow
+  repository under the extension profile's canonical-root global storage, run with hooks,
+  fsmonitor, your git configuration and the workspace's filters all off,
+  and copy bytes as they are. A folder that is not a repository, and a
+  repository with no commits, get checkpoints too.
+- **Ignored files the turn itself touched.** A file the Model API's edit
+  and write tools (or the image tools) are about to change is copied first,
+  so a restore brings it back. Ignored files a shell command created are
+  found by a bounded scan and deleted by a restore. Ones a command changed
+  are listed as not restorable; the restore never claims to have undone
+  them.
+- **Limits and cleanup.** A file over 16 MiB, a link, a folder link or
+  junction and a nested repository are left out and named, and a workspace
+  with more than 50,000 files outside its ignore rules gets no checkpoints;
+  the panel says why. Archiving a conversation deletes its checkpoints (in
+  Restricted Mode its records at once, its copies once the folder is
+  trusted), and retention keeps the 100
+  newest checkpoints and 20 redo records per conversation for 50
+  conversations, within `museSpark.cleanupPeriodDays`, applied each time the
+  window opens. The checkpoint folder is 0700 on macOS and Linux.
+- **`museSpark.turnCheckpoints`** (machine-scoped, a Preview, off by
+  default) turns them on. They are off in Restricted Mode, where the extension runs no git,
+  and without git on `PATH`; the menu says which. With Muse Code on
+  Windows, which cannot fork, the menu offers **Restore files to here** and
+  says why the conversation rewind is missing.
+- **A restore keeps more of what you did since** (the third Codex review of
+  PR #55). A restore or Redo leaves a file whose execute bit you changed
+  since the turn, even with the same bytes. A subagent's turn that outlives
+  its parent's no longer makes the parent's own edits read as changed
+  outside the turns. A conversation's turns are ordered by their own count,
+  not the clock, so two turns in one millisecond or a clock set back never
+  pull an earlier turn into a restore. A repository an ignore rule hides is
+  left out whole like any nested repository, and no tool write inside a
+  nested repository is restored. The repository's `info/exclude` and your
+  global excludes file are read again before every capture. Switching
+  `museSpark.turnCheckpoints` off during a turn still keeps the tools'
+  copies for that turn. On a case-sensitive macOS volume, a link that
+  differs from its target only in letter case is refused. A window's first
+  message is no longer sometimes refused ("could not tell other windows …")
+  when the checkpoint repository was still being set up. A file you save in
+  the editor while a turn runs is yours: restoring that turn leaves it as
+  you saved it. An ignored file a tool copied but never changed (its write
+  was refused) is left alone, not rewritten. Unarchiving a conversation
+  keeps its new checkpoints even if the clock was set back. Checkpoint
+  storage that a link or junction puts inside the workspace is refused.
+  What the extension writes for you while a turn runs (Create AGENTS.md, a
+  Markdown export, a saved plan, a Revert, a note the Memory view creates or
+  trashes) is yours too. A restore leaves alone what an earlier turn of the
+  same conversation, still running in another window, changed, and what a
+  turn of a window that closed mid-turn may have changed. A file you save in
+  any window on the folder while a turn runs, even one with no turn of its
+  own and even while the turn's first checkpoint is being taken, is yours
+  too.
+
+- **Rewind code to here asks first** (M72), in the same confirmation as a
+  file restore. **Fork conversation and rewind code** is now one action:
+  the confirmation, the reverts, then the fork; declining does neither.
+
 - **Every paid use asks first, in a popup** (M58, PLAN.md D48): **Allow
   once**, **Allow always in this workspace**, or **Deny**, in every
   permission mode, Bypass included. It covers each image (on either
@@ -380,8 +525,133 @@ happened, not what was planned; superseded entries are kept.
   M57 reached it); the budget is that plus about 15 %. The agent is
   installed once and never loaded by VS Code, so the size is a download,
   not a start-up cost. No other budget changed.
+- **Development: test infrastructure.** On macOS and Linux the integration
+  tests use a short user-data folder under the temporary folder only when the
+  default would not fit a Unix socket path (macOS caps it at 104 bytes;
+  `scripts/lib/vscodeTestProfile.mjs`), so a rig's long checkout path no longer
+  stops VS Code with `listen EINVAL`; a path that fits, CI's included, and
+  Windows are untouched. Vitest's macOS worker cap is typed so that
+  `npm run typecheck:host` passes (it failed on TS2769).
 
 ### Fixed
+
+- **A very long log line no longer stalls the extension.** Hiding
+  credentials in a log line took time that grew with the square of a long
+  run of dotted or dashed words with no URL in it (3.5 s for 40,000
+  characters); it is now linear.
+- **Memory notes keep restore copies, and the Memory view cannot overlap
+  another window's restore** (M72). The Model API's memory tools and the
+  Memory view now copy an ignored project note and its `MEMORY.md` before
+  they change them, a new note's creation takes the same copy first, and a
+  note is copied before the view moves it to the trash, so a checkpoint
+  restore brings them back. The view's new note, delete and index line hold
+  the restore lease until they finish (personal notes outside the workspace
+  take none), and so does a conversation export you save inside the
+  workspace, whichever way the folder is spelled (a link, a junction or a
+  mapped drive included): another window's Restore or Redo is refused while
+  one runs.
+
+- **A workspace opened through a link, a junction or a mapped drive keeps its
+  conversations** (M72). Sessions, the CLI’s working directory and memory are
+  keyed by the folder as VS Code spells it, as before; only the checkpoint store
+  uses the canonical path.
+
+- **A restore no longer reverts another window’s edit made at the same
+  instant** (M72). Turns in two windows that touch at one clock tick count as
+  overlapping, so the other window’s edit is protected.
+
+- **A file named `..something` is inside the workspace** (M72, and the ACP
+  agent’s mention links). It was treated as outside because its name begins with
+  two dots, so it got no restore copy.
+
+- **A completed restore keeps its Redo when its lease cannot be released**
+  (M72). The release is tried again and logged instead of replacing the result
+  with a failure; the window’s next restore takes over a lease it still holds.
+
+- **Restore and rewind stops when any file is left behind** (M72). A file with no
+  earlier copy, one that was never in the checkpoint, or ignored files that
+  could not all be put back now keep the conversation from being rewound, as the
+  confirmation says.
+
+- **The checkpoint storage is never the model’s to edit** (M72). Checkpoints
+  refuse a workspace that holds their storage (a profile folder opened as a
+  workspace), and the tools refuse every file inside the checkpoint storage, so
+  no file the model writes can change the repository a turn’s end runs git on.
+
+- **A checkpoint copy never takes a file from outside the workspace** (M72), even
+  when a folder was replaced by a link after the tool’s check.
+
+- **Fork conversation and rewind code stops when an edit cannot be reverted**
+  (M72), instead of forking away from the history the code still matches.
+
+- **A check that never started is reported as not run** (M68/M72), not as a
+  failed command with hooks around it.
+
+- **A native start that a restore refuses no longer blocks restores** (M72);
+  nothing started, so the window is not marked unsafe.
+
+- **A file a turn made visible to git is put back from the copy kept** (M72),
+  when a `.gitignore` change made an ignored file show up as new.
+
+- **The model picker lists the models again after a new, resumed or forked
+  conversation** (0.9.1 regression). Every conversation change threw away the
+  backend’s model list, so the picker showed nothing to choose (only the pill’s
+  current model) until the next message, and the context meter lost the model’s
+  window. The list now belongs to the backend: only a backend that stops or exits,
+  or a sign-in change, clears it.
+
+- **A `!` command is checked again at its real start** (M72). On the Model
+  API backend, a `!` command you typed could still start after the workspace
+  lost trust, after your Stop, or while the window was closing, when a
+  checkpoint safety step was waiting in between. It now checks again just
+  before it starts. A command refused there says "The command did not run",
+  and the agent is told nothing about a command that never ran (one that did
+  run is still told).
+
+- **A shell that could not start no longer blocks Restore.** A missing
+  PowerShell or bash, or a command the operating system refuses to start (a
+  NUL byte in it, a command line past the system's length limit), no longer
+  leaves checkpoint Restore and Redo closed as if a command had run: nothing
+  launched, so nothing can still be running. A command that did launch keeps
+  the existing safety rule.
+
+- **Turn checkpoints work with long Windows paths.** Git refuses a
+  repository path past its own limit however `core.longpaths` is set, so a
+  long extension storage path could stop the first checkpoint. The
+  repository is now made under a short name and moved into place in one
+  step, and long paths are given to git in the spelling it accepts. A path
+  git cannot use at all (the checkpoint folder over 240 characters, or a
+  workspace over 258, on Windows) now says so ("the path of the workspace
+  or of this extension's storage folder is too long for git", in all 14
+  translated languages, machine-made) instead of "the checkpoint failed".
+  A failed, cancelled or racing first start no longer leaves a half-made
+  repository in the storage folder.
+
+- **Checkpoint bundle budget** (M72). The checkpoint store and legacy reader
+  ship as `dist/checkpointStore.js`, loaded synchronously at the existing
+  activation construction point with the installed language. Startup safety,
+  maintenance, activity marks and disposal remain unchanged. A missing or
+  malformed store module refuses startup instead of offering unsafe work.
+
+- **Stop across checkpoint waits** (M68/M72). Ordinary writes, first rename
+  publication and late formatter writes retain captured owner admission
+  through preimage and atomic waits. Refused late formatting preserves the
+  completed edit and patch. Revoked diagnostic data is withheld, and check
+  commands recheck admission after checkpoint marks and native preparation;
+  a proven refusal starts no process and leaves no unknown activity mark.
+  Sequential and explicit checks retain their original admission and refusal
+  reasons; owned background commands preserve their separate Stop controls.
+  Memory reads and note/index writes retain the same original Stop,
+  permission-mode, trust and conversation lifetime through their waits.
+  Already published notes remain when a later index update is refused,
+  with the existing index warning.
+
+- Plan actions recheck current workspace trust and disposal after lookup
+  and confirmation; a plan may still be saved after a conversation change,
+  while its stale implementation is refused. No-clobber writes check their
+  canonical directory before mkdir and their owned stage before publishing
+  or cleanup. Stale plan stages that were replaced, moved or refreshed are
+  retained.
 
 - **Android/Termux regression coverage** (PR #51). Tests preserve PATH and
   home-directory Muse launcher discovery, XDG credential paths, and explicit

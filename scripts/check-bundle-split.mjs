@@ -189,6 +189,37 @@ const CONVERTER_ONLY = [
   'src/host/web/pageWorker.ts',
 ]
 const pageWorker = inputsOf(PAGE_WORKER)
+// M72: the store and legacy reader live in their synchronous factory bundle.
+// Only types, the activity port and the neutral turn key stay at activation.
+const CHECKPOINT_STORE = {
+  output: 'dist/checkpointStore.js',
+  metafile: 'dist/meta/checkpointStore.json',
+}
+const CHECKPOINT_ONLY = [
+  'src/host/checkpoints/checkpointStoreEntry.ts',
+  'src/host/checkpoints/checkpointStore.ts',
+  'src/host/checkpoints/legacyCheckpoints.ts',
+  'src/host/checkpoints/checkpointArchives.ts',
+  'src/host/checkpoints/checkpointFiles.ts',
+  'src/host/checkpoints/checkpointRecords.ts',
+  'src/host/checkpoints/checkpointRetention.ts',
+  'src/host/checkpoints/ignoredScan.ts',
+  'src/host/checkpoints/recordRefs.ts',
+  'src/host/checkpoints/shadowGit.ts',
+  'src/core/checkpoints/gitListings.ts',
+  'src/core/checkpoints/restorePlan.ts',
+]
+const checkpointStore = inputsOf(CHECKPOINT_STORE)
+for (const file of CHECKPOINT_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the checkpoint store bundle`)
+    }
+  }
+  if (!checkpointStore.has(file)) {
+    problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
+  }
+}
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -246,4 +277,7 @@ console.log(
 )
 console.log(
   `ok   ${PAGE_WORKER.output}: the page converter (parse5 and its parts) loads only there, never at activation`,
+)
+console.log(
+  `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
 )

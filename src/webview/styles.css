@@ -887,6 +887,27 @@ body {
   font-size: 0.9em;
 }
 
+/* A restore's Redo (M72), at the end of its notice. */
+.notice-action {
+  margin-inline-start: var(--ms-gap);
+  padding: 0 6px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius);
+  color: var(--vscode-textLink-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notice-action:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.notice-action:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
 .notice-warning {
   color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
   background: var(--vscode-inputValidation-warningBackground, transparent);
@@ -1797,7 +1818,8 @@ body {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  min-width: 220px;
+  min-width: min(220px, calc(100vw - 32px));
+  max-width: min(32rem, calc(100vw - 32px));
   padding: 4px;
   border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
   border-radius: var(--ms-radius);
@@ -1815,6 +1837,13 @@ body {
   text-align: left;
   background: transparent;
   cursor: pointer;
+}
+
+/* Why a row is missing (M72): read, never chosen. */
+.rewind-menu-note {
+  overflow-wrap: anywhere;
+  color: var(--vscode-descriptionForeground);
+  cursor: default;
 }
 
 .rewind-menu-item:hover,
