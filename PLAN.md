@@ -3223,6 +3223,31 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   (M66). `docs/ide-compatibility/hosts.md` tracks each editor's route and
   status.
 
+### D63 — Turn checkpoints ship as a Preview, and the restore is rebuilt on the tools' own writes (2026-10-01)
+
+- **What happened.** PR #55 went through seven Codex review rounds. From
+  the third on, every round found new P1 races of one family: the restore
+  undoes the difference between whole-workspace captures, so it must decide
+  which changes were the turn's and which were the user's, another window's,
+  a subagent's, a dead window's, or the clock's. Each fix closed one case and
+  opened ground for the next (4, 6, 5 and 6 new findings in rounds 4 to 7).
+  The owner's rule from 2026-09-28 (a third round means redesign, not
+  patching) applied from round three and was not raised; the owner raised it.
+- **Decision (owner, 2026-10-01).** 0.10.0 ships with `museSpark.turnCheckpoints`
+  off by default and marked Preview: a user who turns it on gets M72 as
+  certified, with its limits recorded in `docs/certification/m72.md`. The
+  restore is rebuilt in M86 on the model's own tool writes, and the setting
+  goes back on by default only with M86.
+- **The new design (M86).** Each write a model tool makes records the file's
+  bytes before and after (the tools already copy a file before writing it).
+  A restore puts a file back only when it still holds exactly the bytes the
+  tool left; any other content (a user's save in any window, another
+  window's turn, a shell command, a later tool write it does not undo) is
+  refused and named. Ownership is never inferred from captures, so the
+  multi-window, overlap, tie and clock races cannot arise. A shell command's
+  changes are listed, not undone, as Claude Code's own rewind does; this
+  narrows D51, which promised to undo them.
+
 ## 3. Open questions (need the owner)
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
@@ -9201,6 +9226,32 @@ independent review and the full candidate gates remain required.**
   for it.
 - **Size.** M.
 
+### M86 — Restore by the tools' own writes (D63)
+
+- **Goal.** Restore files without guessing who changed them.
+- **Scope.**
+  - Every model tool write (`write_file`, `edit_file`, the image tools, the
+    memory tools, `rename_symbol`) records, per turn, each file's bytes
+    before (or absent) and after, keyed by the turn; the records live in the
+    existing checkpoint storage (CAS refs) and survive a reload.
+  - "Restore files to here" undoes, newest first, the recorded writes of the
+    chosen turn onward: a file is written back only when its current bytes
+    (and execute bit) equal the last recorded "after"; anything else is
+    refused and named, as is every file a shell command changed (found by the
+    existing captures, listed, never undone).
+  - Redo keeps its current meaning on the same records.
+  - The whole-tree attribution in `changedOutside` (gaps, stretches, peer
+    windows, saves files, unseen ends) is removed; captures remain only to
+    list what shell commands changed.
+- **Acceptance.** No restore writes a file whose bytes differ from what a
+  tool of the restored turns left there; every M72 Codex finding from rounds
+  3 to 7 is covered by a test of the new design or is moot by construction.
+- **Tests.** The M72 restore tests that still apply, rewritten on the new
+  records; the round 3 to 7 scenarios (user saves in any window, peer turns,
+  dead windows, ties, clock moves) each as a refusal test.
+- **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
+- **Size.** L.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -10298,3 +10349,41 @@ Bound macOS file-worker concurrency to four in the existing Vitest config;
 keep every file, assertion, isolation setting, coverage threshold and timeout.
 The final full run must prove the complete suite with this resource bound.
 No unrelated machine process is stopped to make a gate pass.
+
+**Third Codex review of PR #55 (2026-10-01, owner: "fix all 7, then
+release").** Seven P2 threads on `669e8301`, all real, each fixed with a test
+that fails without it and a recorded drill (`docs/certification/m72.md`,
+"Codex review of `669e8301`"). One record format change: a checkpoint record
+gains optional `sequence` and `endSequence`, a per-conversation count that
+orders turns instead of the clock. Records a 0.10.0 candidate wrote have
+neither and are ordered first, by their clock; older builds ignore the
+fields. Known limits kept and recorded there: ignored-file steps compare
+size and time only (a chmod alone goes unseen), a repository deep in an
+ignored folder past the folder scan limit is not found, two windows on one
+conversation can take the same count, and the shadow `info/exclude` is
+shared by the folder's windows (the next capture corrects a stale copy).
+
+**Fourth Codex review of PR #55 (2026-10-01).** Four threads on `a5a4b1ac`
+(one P1, one security P2, two P2), all real, all fixed with tests and drills
+(`docs/certification/m72.md`, "Codex review of `a5a4b1ac`"). A checkpoint
+record gains one more optional field, `userSaves`: the files the user saved
+in the turn's window while it ran, which a restore refuses. Release rule set
+by the lead after this round: a later Codex finding that is neither a P1 nor
+a security finding is recorded as a known limit and fixed in 0.10.1, so the
+release does not wait on review rounds that only find edge cases.
+
+**0.10.0 released (2026-10-02, tag `v0.10.0` on main `bdfb651e`, release run 36947244221).**
+PR #55 merged after seven Codex rounds; turn checkpoints ship as a Preview, off by
+default (D63). The first run's Windows quality job hit a known intermittent
+60 s hang in a real-shell hook test (root cause under investigation for 0.10.1)
+and was rerun. Published: the GitHub Release (`muse-spark-code-0.10.0.vsix`,
+1,619,488 bytes, SHA-256 `666f89b3ca93519a5272c21cb6a9ff1971202db7d452af96eff4a103d5e64a5b`;
+`muse-spark-code-acp-0.10.0.tgz`, 805,211 bytes, `96c56cfa…f946`), the VS Code
+Marketplace and Open VSX (its first publish; namespace `RandyNorthrup`
+created, not yet verified), both serving the identical VSIX. npm failed: the
+workflow passed `release/…tgz`, which npm read as a GitHub owner/repo (fixed
+by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
+0.10.1). Install smoke: the released VSIX installs as 0.10.0 on the Windows
+host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
+machine has code-server for a panel check, which CI's Hosts run on the tag
+covered (run 36947211712).

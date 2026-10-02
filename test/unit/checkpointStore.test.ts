@@ -14,6 +14,8 @@ import {
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   runGit,
+  shadowGit,
+  storedRecords,
   treeListing,
   turn,
   write,
@@ -25,6 +27,13 @@ import {
 afterEach(async () => {
   await removeCheckpointFolders()
 })
+
+/** The files a captured tree holds, as the shadow repository lists them. */
+function filesIn(storage: string, tree: string): readonly string[] {
+  return shadowGit(storage, ['ls-tree', '-r', '--name-only', '-z', tree])
+    .split('\0')
+    .filter((name) => name !== '')
+}
 
 describe('CheckpointStore over a git repository (M72)', () => {
   it(
@@ -327,6 +336,30 @@ describe('CheckpointStore and ignored files (M72)', () => {
   )
 
   it(
+    'leaves alone an ignored file a tool copied but never changed, and restores one rewritten at its size',
+    async () => {
+      const h = await harness()
+      await write(h.root, '.gitignore', '.env\n.secret\n')
+      await write(h.root, '.env', 'KEY=before\n')
+      await write(h.root, '.secret', 'abc\n')
+      await turn(h, 't1', async () => {
+        // The write was refused after its copy: the file is as it was.
+        await h.store.beforeToolWrite(path.join(h.root, '.env'))
+        // The same size, other bytes: a change.
+        await h.store.beforeToolWrite(path.join(h.root, '.secret'))
+        await write(h.root, '.secret', 'xyz\n')
+      })
+      const before = await stat(path.join(h.root, '.env'))
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.changed).toEqual(['.secret'])
+      expect(await read(h.root, '.secret')).toBe('abc\n')
+      const after = await stat(path.join(h.root, '.env'))
+      expect([after.ino, after.mtimeMs]).toEqual([before.ino, before.mtimeMs])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'leaves unrelated ignored content alone, and a big ignored folder out of the scan',
     async () => {
       const h = await harness()
@@ -344,6 +377,77 @@ describe('CheckpointStore and ignored files (M72)', () => {
       expect(await isPresent(h.root, 'src.ts')).toBe(false)
       expect(await isPresent(h.root, 'node_modules/pkg/added-by-install.js')).toBe(true)
       expect(await read(h.root, 'cache/user.txt')).toBe('changed by the user after the turn\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    "applies the repository's info/exclude as it is at each capture, not as it was at the first",
+    async () => {
+      const h = await harness()
+      await write(h.root, 'a.txt', 'one\n')
+      await write(h.root, 'secret.log', 'ordinary until excluded\n')
+      const start = await captured(h.store)
+      expect(filesIn(h.storage, start.tree)).toEqual(['a.txt', 'secret.log'])
+      await h.store.record('s1', 't1', start)
+      // Excluded mid-turn: the turn's end capture already treats it as ignored.
+      await write(h.top, '.git/info/exclude', 'secret.log\n')
+      await h.store.endTurn('s1', 't1')
+      const ends = storedRecords(h.storage).flatMap((record) =>
+        record.kind === 'checkpoint' && record.end !== undefined ? [record.end.tree] : [],
+      )
+      expect(ends.map((tree) => filesIn(h.storage, tree))).toEqual([['a.txt']])
+      const excluded = await captured(h.store)
+      expect(filesIn(h.storage, excluded.tree)).toEqual(['a.txt'])
+      expect(excluded.inventory.files.size).toBe(1)
+      expect(excluded.inventory.files.has('secret.log')).toBe(true)
+      // The exclude file gone: the file is ordinary again.
+      await rm(path.join(h.top, '.git', 'info', 'exclude'))
+      const ordinary = await captured(h.store)
+      expect(filesIn(h.storage, ordinary.tree)).toEqual(['a.txt', 'secret.log'])
+      expect(ordinary.inventory.files.size).toBe(0)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'applies the global excludes file the user configuration names at each capture',
+    async () => {
+      // A home of the test's own: `git config --global` reads its .gitconfig, never the user's.
+      const homeOf = (top: string) => path.join(path.dirname(top), 'home')
+      const h = await harness({
+        env: (top) => ({
+          ...process.env,
+          HOME: homeOf(top),
+          USERPROFILE: homeOf(top),
+          XDG_CONFIG_HOME: path.join(homeOf(top), '.config'),
+        }),
+      })
+      const home = homeOf(h.top)
+      const userConfig = path.join(home, '.gitconfig')
+      const capturedFiles = async () => {
+        const snapshot = await captured(h.store)
+        return filesIn(h.storage, snapshot.tree)
+      }
+      await write(h.root, 'a.txt', 'one\n')
+      await write(h.root, 'notes.tmp', 'scratch\n')
+      await write(home, 'global-ignore', '*.tmp\n')
+      expect(await capturedFiles()).toEqual(['a.txt', 'notes.tmp'])
+      // Named after the first capture.
+      runGit(h.top, [
+        'config',
+        '--file',
+        userConfig,
+        'core.excludesFile',
+        path.join(home, 'global-ignore'),
+      ])
+      expect(await capturedFiles()).toEqual(['a.txt'])
+      // Its content as it is now.
+      await write(home, 'global-ignore', 'a.txt\n')
+      expect(await capturedFiles()).toEqual(['notes.tmp'])
+      // The setting dropped: no global rule applies any more.
+      runGit(h.top, ['config', '--file', userConfig, '--unset', 'core.excludesFile'])
+      expect(await capturedFiles()).toEqual(['a.txt', 'notes.tmp'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -412,6 +516,61 @@ describe('CheckpointStore beyond a plain repository (M72)', () => {
       expect(await isPresent(h.root, 'huge.bin')).toBe(true)
       expect(await read(h.root, 'vendor/lib.c')).toBe('int y;\n')
       expect(outcome.refused).toEqual([{ path: 'huge.bin', reason: 'notInCheckpoint' }])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.each([
+    { gitEntry: 'folder', isGitDirElsewhere: false },
+    { gitEntry: 'file', isGitDirElsewhere: true },
+  ])(
+    'leaves out whole a repository an ignore rule hides, its .git a $gitEntry, and restores no tool write in any repository',
+    async ({ isGitDirElsewhere }) => {
+      const h = await harness()
+      const repositoryAt = async (relative: string) => {
+        const folder = path.join(h.root, relative)
+        await mkdir(folder, { recursive: true })
+        if (!isGitDirElsewhere) {
+          runGit(folder, ['init', '-q'])
+          return
+        }
+        // A `.git` file names a repository kept elsewhere, as a worktree's or a submodule's does.
+        const gitDir = path.join(path.dirname(h.root), 'git-dirs', relative)
+        await mkdir(gitDir, { recursive: true })
+        runGit(folder, ['init', '-q', '--separate-git-dir', gitDir])
+      }
+      await write(h.root, '.gitignore', 'vendor/\ndeps/\n')
+      // An ignored folder that is a repository, one inside an ignored folder, and an untracked one.
+      const repositories = ['vendor', 'deps/pkg', 'tools']
+      for (const relative of repositories) {
+        await repositoryAt(relative)
+        await write(h.root, `${relative}/lib.c`, 'int x;\n')
+      }
+      await write(h.root, 'deps/plain.js', 'plain v1\n')
+      await turn(h, 't1', async () => {
+        for (const relative of [
+          ...repositories.map((folder) => `${folder}/lib.c`),
+          'deps/plain.js',
+        ]) {
+          await h.store.beforeToolWrite(path.join(h.root, relative))
+          await write(h.root, relative, 'written by a tool\n')
+        }
+        await write(h.root, 'deps/pkg/by-command.c', 'a shell command\n')
+      })
+      const after = await captured(h.store)
+      expect(after.coverage).toEqual({ skipped: [], repositories: ['deps/pkg', 'tools', 'vendor'] })
+      expect([...after.inventory.files].map(([relative]) => relative)).toEqual(['deps/plain.js'])
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(await read(h.root, 'deps/plain.js')).toBe('plain v1\n')
+      for (const relative of repositories) {
+        expect(await read(h.root, `${relative}/lib.c`)).toBe('written by a tool\n')
+      }
+      expect(await read(h.root, 'deps/pkg/by-command.c')).toBe('a shell command\n')
+      expect(outcome.refused).toEqual([
+        { path: 'deps/pkg/lib.c', reason: 'notInCheckpoint' },
+        { path: 'tools/lib.c', reason: 'notInCheckpoint' },
+        { path: 'vendor/lib.c', reason: 'notInCheckpoint' },
+      ])
     },
     REAL_GIT_TIMEOUT_MS,
   )

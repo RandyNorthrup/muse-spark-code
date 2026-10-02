@@ -27,6 +27,8 @@ function snapshot(tree: string, skipped: readonly string[] = []): Snapshot {
     coverage: { skipped, repositories: [] },
     inventory: { files: new Map(), skippedFolders: [], isPartial: false },
     createdAt: 0,
+    startedAt: 0,
+    startedWallAt: 0,
     pin: `refs/muse-spark/pin/${tree}`,
     folders: [],
   }
@@ -90,7 +92,9 @@ function harness(options: HarnessOptions = {}) {
     restore: options.restore ?? (() => Promise.resolve({ ok: false, reason: 'noCheckpoint' })),
     redo: options.redo ?? (() => Promise.resolve({ ok: false, reason: 'redoGone' })),
     forgetSession: () => Promise.resolve(),
+    unforgetSession: () => Promise.resolve(),
     maintain: () => Promise.resolve(),
+    noteUserSave: () => undefined,
     beforeToolWrite: () => Promise.resolve(),
   }
   const posted: HostToWebviewMessage[] = []

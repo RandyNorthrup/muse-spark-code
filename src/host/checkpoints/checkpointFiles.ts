@@ -163,7 +163,8 @@ export async function linkedFolders(
   return linked
 }
 
-async function hasGit(folder: string): Promise<boolean> {
+/** Whether the folder holds `.git`: the folder, or a file naming it (a worktree or a submodule). */
+export async function hasGit(folder: string): Promise<boolean> {
   return (await lstatOrUndefined(path.join(folder, GIT_FOLDER))) !== undefined
 }
 

@@ -208,7 +208,14 @@ function ignoredSteps(
     // What the file was before the first of these turns touched it.
     const before = first.kind === 'created' ? null : first.preImage
     const expect: Expectation = now === null ? { kind: 'absent' } : { kind: 'stat', stat: now }
+    // A tool's copy is taken wherever it writes; a repository of its own (or
+    // anything else a capture left out) is still not the checkpoint's to change.
     if (
+      !isCovered(input.coverage.checkpoint, ignoredPath) ||
+      !isCovered(input.coverage.current, ignoredPath)
+    ) {
+      refused.push({ path: ignoredPath, reason: 'notInCheckpoint' })
+    } else if (
       entry.isTouchedBetween ||
       !isSameStat(now, entry.endStat) ||
       input.changedOutsideTurns.has(ignoredPath)

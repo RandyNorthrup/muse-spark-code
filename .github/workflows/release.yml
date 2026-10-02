@@ -204,9 +204,10 @@ jobs:
       - name: skipped without NPM_TOKEN
         if: env.HAS_NPM_TOKEN != 'true'
         run: echo "NPM_TOKEN is not set; muse-spark-code-acp was not published to npm. The GitHub Release carries its package." >> "$GITHUB_STEP_SUMMARY"
-      # The packed tarball as it is: no install, no script of any package.
+      # The packed tarball as it is: no install, no script of any package. The
+      # leading ./ matters: npm reads `release/x.tgz` as a GitHub owner/repo.
       - name: publish muse-spark-code-acp to npm
         if: env.HAS_NPM_TOKEN == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish release/muse-spark-code-acp-*.tgz --access public --ignore-scripts
+        run: npm publish ./release/muse-spark-code-acp-*.tgz --access public --ignore-scripts

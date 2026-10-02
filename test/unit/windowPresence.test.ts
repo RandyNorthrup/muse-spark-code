@@ -4,11 +4,14 @@ import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import { WindowPresence } from '../../src/host/checkpoints/windowPresence'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_NATIVE_WINDOW,
+  CHECKPOINT_PEER_SAVE_KEEP_MS,
+  CHECKPOINT_PEER_SAVES_MAX,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -21,6 +24,11 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-window-presence-')))
 const GONE_PID = 424_242
 const OLD_PRESENCE_MS = 10 * 60 * 1000
+/** A saves file as the test reads it back. */
+const savesSchema = z.object({
+  saves: z.array(z.object({ path: z.string(), at: z.number() })),
+  droppedThrough: z.optional(z.number()),
+})
 afterAll(() => removeFolder(base))
 afterEach(() => {
   vi.restoreAllMocks()
@@ -200,5 +208,66 @@ describe('WindowPresence (M72)', () => {
     await writing
     await one.presence.beat()
     await expect(fs.stat(one.file)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+})
+
+describe('the user’s saves each window shares (M72)', () => {
+  it('keeps the newest save of each file, at most the count limit, and says what it let go of', async () => {
+    const one = windowIn()
+    const two = windowIn(one.storageDir, 'other')
+    one.presence.noteSave('first.txt', 1)
+    for (let index = 0; index < CHECKPOINT_PEER_SAVES_MAX; index += 1) {
+      one.presence.noteSave(`file-${String(index)}.txt`, 10 + index)
+    }
+    // Saved again: its newest save moves last, and nothing more goes.
+    one.presence.noteSave('file-0.txt', 5000)
+    // One past the limit: the oldest left goes too.
+    one.presence.noteSave('last.txt', 5001)
+    await one.presence.writeSaves()
+    const file = path.join(one.storageDir, 'windows', 'self.saves')
+    const written = savesSchema.parse(JSON.parse(await fs.readFile(file, 'utf8')))
+    expect(written.saves).toHaveLength(CHECKPOINT_PEER_SAVES_MAX)
+    expect(written.droppedThrough).toBe(11)
+    expect(written.saves.at(0)).toEqual({ path: 'file-2.txt', at: 12 })
+    expect(written.saves.slice(-2)).toEqual([
+      { path: 'file-0.txt', at: 5000 },
+      { path: 'last.txt', at: 5001 },
+    ])
+    // A turn that started before a save the limit let go of cannot know every save.
+    expect(await two.presence.peerSaves(11)).toMatchObject({ unknown: ['self.saves'] })
+    const after = await two.presence.peerSaves(5000)
+    expect(after.unknown).toEqual([])
+    expect([...after.saved]).toEqual(['file-0.txt', 'last.txt'])
+    // A save past the keep time leaves only itself.
+    one.presence.noteSave('later.txt', 5001 + CHECKPOINT_PEER_SAVE_KEEP_MS + 1)
+    await one.presence.writeSaves()
+    const later = savesSchema.parse(JSON.parse(await fs.readFile(file, 'utf8')))
+    expect(later.saves).toEqual([
+      { path: 'later.txt', at: 5001 + CHECKPOINT_PEER_SAVE_KEEP_MS + 1 },
+    ])
+  })
+
+  it('removes a gone window’s saves file only once its newest save is past the keep time', async () => {
+    const one = windowIn()
+    const folder = path.join(one.storageDir, 'windows')
+    await fs.mkdir(folder, { recursive: true })
+    const now = 2 * CHECKPOINT_PEER_SAVE_KEEP_MS
+    const savedAt = async (name: string, pid: number, at: number) => {
+      await fs.writeFile(
+        path.join(folder, name),
+        JSON.stringify({ pid, saves: [{ path: 'a.txt', at }] }),
+      )
+    }
+    await savedAt('gone-old.saves', GONE_PID, now - CHECKPOINT_PEER_SAVE_KEEP_MS - 1)
+    await savedAt('gone-recent.saves', GONE_PID, now - CHECKPOINT_PEER_SAVE_KEEP_MS)
+    await savedAt('live-old.saves', process.pid, 0)
+    await fs.writeFile(path.join(folder, 'unreadable.saves'), '{bad json')
+    await one.presence.dropGoneSaves(now)
+    const names = await fs.readdir(folder)
+    expect(names.toSorted((left, right) => left.localeCompare(right))).toEqual([
+      'gone-recent.saves',
+      'live-old.saves',
+      'unreadable.saves',
+    ])
   })
 })
