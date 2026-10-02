@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
