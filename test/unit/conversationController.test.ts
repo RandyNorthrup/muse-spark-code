@@ -6490,6 +6490,13 @@ function goal(verb: GoalCommandVerb, objective?: string) {
   }
 }
 
+/** Whether each goal command the panel was answered for was taken, in order (M45). */
+function goalAnswers(t: ReturnType<typeof setup>) {
+  return t.surface.posted.flatMap((message) =>
+    message.type === 'goalCommandResult' ? [message.accepted] : [],
+  )
+}
+
 /** The notices the panel was sent, in order. */
 function notices(t: ReturnType<typeof setup>) {
   return t.surface.posted.flatMap((message) => (message.type === 'notice' ? [message] : []))
@@ -6597,6 +6604,70 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       { type: 'goalCommandResult', requestId: 'g1', accepted: true },
     ])
   })
+
+  it('answers a /goal whose admission closes during the host lookup, sending nothing, and the same /goal goes through after', async () => {
+    const deferred = setupWithDeferredHost()
+    const { t } = deferred
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    t.server.handle('goal/set', accepted)
+    deferred.delay()
+    const held = t.controller.handle(goal('set', 'Ship the parser'))
+    await vi.waitFor(() => {
+      expect(deferred.isWaiting()).toBe(true)
+    })
+    // A key activation closes admission during the lookup; the panel still reads signed in.
+    t.auth.isAdmitted = false
+    deferred.release()
+    await held
+    expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    // Answered, so the prompt keeps the command and can send it again.
+    expect(goalAnswers(t)).toEqual([false])
+    t.auth.isAdmitted = true
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')).toHaveLength(1)
+    expect(goalAnswers(t)).toEqual([false, true])
+  })
+
+  it.each([
+    { stop: 'a sign-out', isConversationEnding: true, isLookupFailing: false },
+    { stop: 'a restart', isConversationEnding: false, isLookupFailing: true },
+  ])(
+    'answers a /goal the host never had when $stop interrupts its lookup, saying nothing about it',
+    async ({ isConversationEnding, isLookupFailing }) => {
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      let shouldHold = false
+      const t = setup({
+        beforeEnsureHost: async () => {
+          if (!shouldHold) {
+            return
+          }
+          shouldHold = false
+          entered.resolve(undefined)
+          await released.promise
+          if (isLookupFailing) {
+            throw new Error('the host did not start')
+          }
+        },
+      })
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      shouldHold = true
+      const held = t.controller.handle(goal('set', 'Ship the parser'))
+      await entered.promise
+      await t.controller.backendStopping(isConversationEnding)
+      t.surface.posted.length = 0
+      released.resolve(undefined)
+      await held
+      expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+      expect(goalAnswers(t)).toEqual([false])
+      expect(notices(t)).toEqual([])
+    },
+  )
 
   it('resumes the session and sends again when the host no longer holds it', async () => {
     const t = setup()

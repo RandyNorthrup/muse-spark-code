@@ -4175,6 +4175,9 @@ export class ConversationController {
       return
     }
     let targetSessionId: string | undefined
+    // Every exit before the host has the command answers it, so the panel
+    // never waits on a command nothing took.
+    let hasReachedHost = false
     try {
       const session = await this.sessionForAction()
       if (!this.isCurrentSessionAction(session, generation)) {
@@ -4183,13 +4186,19 @@ export class ConversationController {
       }
       targetSessionId = session.sessionId
       const host = await this.deps.ensureHost()
-      if (
-        this.accountStopEpoch > generation ||
-        this.accountStopsInFlight > 0 ||
-        this.deps.auth.backend === undefined
-      ) {
+      if (this.accountStopEpoch > generation || this.accountStopsInFlight > 0) {
+        // The conversation ended with the account: nothing to say in it.
+        result(false)
         return
       }
+      if (this.deps.auth.backend === undefined) {
+        // Admission closed during the lookup (a key activation, with the
+        // panel still signed in): refused as the sign-in guard refuses.
+        this.notice('warning', UI_TEXT.notSignedInReason)
+        result(false)
+        return
+      }
+      hasReachedHost = true
       const outcome = await this.runResuming(host, session, (current) =>
         current.controlGoal(command),
       )
@@ -4212,6 +4221,11 @@ export class ConversationController {
         this.accountStopsInFlight > 0 ||
         (targetSessionId !== undefined && this.session?.sessionId !== targetSessionId)
       ) {
+        // Nothing to say about a conversation that changed meanwhile; one
+        // the host never had is still answered.
+        if (!hasReachedHost) {
+          result(false)
+        }
         return
       }
       if (isGoalRefusedError(error)) {

@@ -8603,10 +8603,10 @@ with `main` at `2a30b1a0` with its shared-table fixes kept as `main` has
 them (certification `docs/certification/m74.md`). Automatic compaction,
 the hidden todo follow-up and the memory flush are not built (see "Not
 built" below), so M74 is not complete. On this tree the M74 test files
-(nine files, 780 tests with the M45 goal fix below) pass on the kubuntu
+(nine files, 783 tests with the M45 goal fixes below) pass on the kubuntu
 and Mac mini rigs; every M74 guard was broken on purpose, seen red and
-restored byte for byte
-(sha256), or is recorded as backed by another check (four are; O17, the
+restored byte for byte (sha256), or is recorded as backed by another
+check (four are; O17, the
 one that had neither, now has its test); and the typechecks (host, unit,
 webview), `eslint` and Prettier on the changed files, `check:l10n`,
 `check:host-api`, `deadcode`, `jscpd` and the `handoff`, `usage` and
@@ -8715,7 +8715,10 @@ integration tests, a production build with a real `node_modules` and
     again once admission returns. The same guard now answers M45's
     `goalCommand` too (released behaviour, the same defect; the lead's
     decision, 2026-10-02: its own commit and `[Unreleased] ### Fixed`
-    entry; certification `docs/certification/m45.md`, drill G55).
+    entry; certification `docs/certification/m45.md`, drill G55), and
+    so does every exit of the goal command before the host has it
+    (admission closing, the account ending or a restart during its host
+    lookup; drills G56–G58).
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so
