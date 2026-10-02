@@ -498,7 +498,11 @@ export const EN = {
   browserCheckTimedOut: 'The browser check did not finish within {duration}.',
   browserCheckNoElement: 'No element on the page matches {selector}, or it takes no text.',
   browserCheckLeaked:
-    'A connection beyond this computer got through, so the browser check was stopped and returned nothing.',
+    'The page reached, or tried to reach, beyond this computer in a way the check cannot block, so the browser check was stopped and returned nothing.',
+  browserCheckManagedPolicy:
+    'The browser check did not start: an administrator’s policy for Chrome or Edge ({where}) sets a proxy or cloud management, which would override its block on connections beyond this computer.',
+  browserCheckPolicyUnreadable:
+    'The browser check did not start: it could not read the browser policy at {where} ({detail}), so it cannot tell whether a policy would override its block on connections beyond this computer.',
   browserCheckRestrictedMode:
     'The browser check is off in Restricted Mode. Trust the workspace to use it.',
   textFileTooLarge: 'Text files must be 1 MB or smaller.',

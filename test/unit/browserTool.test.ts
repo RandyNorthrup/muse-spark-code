@@ -189,6 +189,16 @@ describe('the browser check tool (M81)', () => {
       ],
       [{ kind: 'leaked' }, MODEL_TEXT.browserCheckLeaked, UI_TEXT.browserCheckLeaked],
       [{ kind: 'cancelled' }, MODEL_TEXT.browserCheckCancelled, UI_TEXT.toolStopped],
+      [
+        { kind: 'managedPolicy', where: '/etc/opt/chrome/policies/managed/p.json (ProxyMode)' },
+        "the browser check did not start: an administrator's policy for Chrome or Edge (/etc/opt/chrome/policies/managed/p.json (ProxyMode)) sets a proxy or cloud management, which overrides the check's block on connections beyond loopback; it cannot run on this computer while that policy is in place",
+        'The browser check did not start: an administrator’s policy for Chrome or Edge (/etc/opt/chrome/policies/managed/p.json (ProxyMode)) sets a proxy or cloud management, which would override its block on connections beyond this computer.',
+      ],
+      [
+        { kind: 'policyUnreadable', where: '/etc/opt/edge/policies/managed', detail: 'EACCES' },
+        'the browser check did not start: the browser policy at /etc/opt/edge/policies/managed could not be read (EACCES), so it cannot tell whether a policy would override its block on connections beyond loopback',
+        'The browser check did not start: it could not read the browser policy at /etc/opt/edge/policies/managed (EACCES), so it cannot tell whether a policy would override its block on connections beyond this computer.',
+      ],
     ]
     for (const [failure, model, user] of failures) {
       expect(browserRefusal(failure), failure.kind).toEqual({ model, user })

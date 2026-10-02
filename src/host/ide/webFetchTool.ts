@@ -65,26 +65,30 @@ export function isIdeWebFetchOffered(
  * The modal, asked once per URL at a time: VS Code cannot close a modal a
  * caller stopped waiting for, so a retry of the same URL while it is still
  * open waits for that same answer instead of queueing a second modal. The
- * browser check (M81) asks its own modal through it too.
+ * browser check (M81) asks its own modal through it too, keyed by the URL
+ * and what the modal shows (`keyOf`), so only a call it equally covers
+ * shares an answer.
  */
 export function oneQuestionPerUrl<T>(
   isAllowedByUser: (url: string, about: T) => Promise<boolean>,
+  keyOf: (url: string, about: T) => string = (url) => url,
 ): (url: string, about: T) => Promise<boolean> {
   const open = new Map<string, Promise<boolean>>()
-  const isAllowedOnce = async (url: string, about: T): Promise<boolean> => {
+  const isAllowedOnce = async (key: string, url: string, about: T): Promise<boolean> => {
     try {
       return await isAllowedByUser(url, about)
     } finally {
-      open.delete(url)
+      open.delete(key)
     }
   }
   return async (url, about) => {
-    const pending = open.get(url)
+    const key = keyOf(url, about)
+    const pending = open.get(key)
     if (pending !== undefined) {
       return await pending
     }
-    const asked = isAllowedOnce(url, about)
-    open.set(url, asked)
+    const asked = isAllowedOnce(key, url, about)
+    open.set(key, asked)
     return await asked
   }
 }

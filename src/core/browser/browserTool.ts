@@ -122,6 +122,34 @@ export function allowedHostsFor(
   return [...hosts]
 }
 
+/**
+ * What one modal shows and its answer covers: the host it says the check
+ * widens to (none when the URL is local or in the setting), and every host
+ * beyond loopback the check would reach, sorted.
+ */
+export interface BrowserCheckScope {
+  readonly widenedHost: string | undefined
+  readonly allowedHosts: readonly string[]
+}
+
+export function browserCheckScope(
+  placement: Exclude<BrowserUrlPlacement, { readonly kind: 'refused' }>,
+  extraHosts: readonly string[],
+): BrowserCheckScope {
+  return {
+    widenedHost: placement.kind === 'needsWidening' ? placement.host : undefined,
+    allowedHosts: allowedHostsFor(placement, extraHosts).toSorted((a, b) => a.localeCompare(b)),
+  }
+}
+
+/**
+ * The key a modal is shared under: the URL and the scope it shows, so a call
+ * whose widening or hosts differ never takes another call's answer.
+ */
+export function browserScopeKey(url: string, scope: BrowserCheckScope): string {
+  return JSON.stringify([url, scope.widenedHost ?? null, scope.allowedHosts])
+}
+
 /** A call's arguments checked and its URL placed, before any card or modal: a refused one asks nothing. */
 export function placeBrowserCall(
   args: unknown,
@@ -179,6 +207,19 @@ export function browserRefusal(failure: BrowserFailure): BrowserRefusal {
     }
     case 'leaked': {
       return { model: MODEL_TEXT.browserCheckLeaked, user: UI_TEXT.browserCheckLeaked }
+    }
+    case 'managedPolicy': {
+      return {
+        model: fill(MODEL_TEXT.browserCheckManagedPolicy, { where: failure.where }),
+        user: fill(UI_TEXT.browserCheckManagedPolicy, { where: failure.where }),
+      }
+    }
+    case 'policyUnreadable': {
+      const values = { where: failure.where, detail: failure.detail }
+      return {
+        model: fill(MODEL_TEXT.browserCheckPolicyUnreadable, values),
+        user: fill(UI_TEXT.browserCheckPolicyUnreadable, values),
+      }
     }
     case 'cancelled': {
       return { model: MODEL_TEXT.browserCheckCancelled, user: UI_TEXT.toolStopped }

@@ -6,12 +6,13 @@
 // then widens this one check to that host. Closing it is Reject.
 
 import * as vscode from 'vscode'
+import type { BrowserCheckScope } from '../../core/browser/browserTool'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
 export async function isBrowserCheckAllowed(
   url: string,
-  widenedHost: string | undefined,
+  { widenedHost }: BrowserCheckScope,
 ): Promise<boolean> {
   const allow: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const reject: vscode.MessageItem = { title: UI_TEXT.reject, isCloseAffordance: true }

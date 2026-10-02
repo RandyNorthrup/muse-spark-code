@@ -15,7 +15,10 @@ async function ask(url: string, host: string | undefined, answer: number | undef
   vi.mocked(window.showWarningMessage).mockImplementationOnce((_message, _options, ...items) =>
     Promise.resolve(answer === undefined ? undefined : items[answer]),
   )
-  const isAllowed = await isBrowserCheckAllowed(url, host)
+  const isAllowed = await isBrowserCheckAllowed(url, {
+    widenedHost: host,
+    allowedHosts: host === undefined ? [] : [host],
+  })
   const [title, options, ...items] = vi.mocked(window.showWarningMessage).mock.calls.at(-1) ?? []
   return { isAllowed, title, options, items }
 }

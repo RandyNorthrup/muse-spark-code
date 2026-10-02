@@ -9,7 +9,10 @@
 // - asks in the extension's own modal before every call, whatever mode Muse
 //   Code runs in, naming the URL, and saying so when its host is beyond
 //   loopback and the user's setting: allowing then widens this one check to
-//   that host, and the model can widen nothing itself;
+//   that host, and the model can widen nothing itself; a modal still open
+//   is shared only with a call of the same URL, widening and hosts, and the
+//   setting is read again after the answer (a call whose hosts changed
+//   meanwhile opens nothing);
 // - stops when Muse Code stops waiting, the browser killed with it.
 //
 // It answers text only, the console errors and the failed requests, until a
@@ -19,11 +22,13 @@
 import { randomBytes } from 'node:crypto'
 import type { McpTool } from '../../core/mcp'
 import {
-  allowedHostsFor,
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
+  type BrowserCheckScope,
+  browserCheckScope,
   browserRefusal,
   browserReportText,
+  browserScopeKey,
   extraHostSet,
   IDE_BROWSER_CHECK_DESCRIPTION,
   placeBrowserCall,
@@ -45,11 +50,24 @@ export interface IdeBrowserCheckDeps {
   readonly extraHosts: () => readonly string[]
   /**
    * The modal before every check: true only when the user allowed this one.
-   * `widenedHost` is the URL's host when it is beyond loopback and the setting.
+   * `scope.widenedHost` is the URL's host when it is beyond loopback and the
+   * setting; a modal already open is shared only by a call of the same URL
+   * and scope (`browserScopeKey`).
    */
-  readonly confirm: (url: string, widenedHost: string | undefined) => Promise<boolean>
+  readonly confirm: (url: string, scope: BrowserCheckScope) => Promise<boolean>
   readonly check: BrowserChecker
   readonly log: Logger
+}
+
+/** The call placed against the setting as it stands now: its URL and scope as one key. */
+function placedKey(
+  args: Readonly<Record<string, unknown>>,
+  extraHosts: readonly string[],
+): string | undefined {
+  const placed = placeBrowserCall(args, extraHostSet(extraHosts))
+  return placed.ok
+    ? browserScopeKey(placed.placement.url, browserCheckScope(placed.placement, extraHosts))
+    : undefined
 }
 
 async function callBrowserCheck(
@@ -58,14 +76,15 @@ async function callBrowserCheck(
   deps: IdeBrowserCheckDeps,
 ): Promise<string> {
   // A call that would be refused anyway is refused before the modal.
-  const placed = placeBrowserCall(args, extraHostSet(deps.extraHosts()))
+  const extraHosts = deps.extraHosts()
+  const placed = placeBrowserCall(args, extraHostSet(extraHosts))
   if (!placed.ok) {
     throw new Error(placed.model)
   }
   const { placement, actions } = placed
-  const widenedHost = placement.kind === 'needsWidening' ? placement.host : undefined
+  const scope = browserCheckScope(placement, extraHosts)
   const isAllowed = await unlessCancelled(
-    async () => await deps.confirm(placement.url, widenedHost),
+    async () => await deps.confirm(placement.url, scope),
     signal,
     MODEL_TEXT.browserCheckCancelled,
   )
@@ -77,10 +96,14 @@ async function callBrowserCheck(
   if (!deps.isOffered()) {
     throw new Error(MODEL_TEXT.browserCheckNotOffered)
   }
+  // So may the setting: the answer covers only the scope the modal showed.
+  if (placedKey(args, deps.extraHosts()) !== browserScopeKey(placement.url, scope)) {
+    throw new Error(MODEL_TEXT.browserCheckScopeChanged)
+  }
   const result = await deps.check({
     url: placement.url,
     actions,
-    allowedHosts: allowedHostsFor(placement, deps.extraHosts()),
+    allowedHosts: scope.allowedHosts,
     includeScreenshot: false,
     signal,
   })

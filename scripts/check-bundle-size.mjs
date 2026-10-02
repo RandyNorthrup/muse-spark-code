@@ -25,7 +25,8 @@ const BUDGETS = [
   { path: 'dist/uiText.js', budgetKiB: 100 },
   // M81: the browser check's pipe, run and processes, required on the first
   // check: 37.8 KiB when split out (zod/mini 14.8 of it). Measured size
-  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6). 44.5 KiB after the RV81
+  // fixes (policy reads, target watch, bounds); the budget is unchanged.
   { path: 'dist/browserCheck.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:

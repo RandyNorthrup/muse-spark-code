@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest'
 import { handleMcpMessage } from '../../src/core/mcp'
 import type { BrowserCheckRequest, BrowserCheckResult } from '../../src/core/browser/browserRun'
-import { ideBrowserCheckTools } from '../../src/host/ide/browserCheckTool'
+import { type BrowserCheckScope, browserScopeKey } from '../../src/core/browser/browserTool'
+import { type IdeBrowserCheckDeps, ideBrowserCheckTools } from '../../src/host/ide/browserCheckTool'
+import { oneQuestionPerUrl } from '../../src/host/ide/webFetchTool'
 import { IDE_MCP_SERVER_INFO, MODEL_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -36,22 +38,30 @@ function setup(
     result?: BrowserCheckResult
     /** Runs while the page is checked, with the switch for the offer. */
     onCheck?: (offer: (isNowOffered: boolean) => void) => void
+    /** The modal as the extension shares it; asked directly otherwise. */
+    share?: (direct: IdeBrowserCheckDeps['confirm']) => IdeBrowserCheckDeps['confirm']
   } = {},
 ) {
   const asked: { url: string; widenedHost: string | undefined }[] = []
   const checked: BrowserCheckRequest[] = []
   let isOffered = options.isOffered ?? true
+  let extraHosts = options.extraHosts ?? []
   const offer = (isNowOffered: boolean) => {
     isOffered = isNowOffered
   }
+  const setExtraHosts = (hosts: readonly string[]) => {
+    extraHosts = hosts
+  }
+  const answerModal = (url: string, { widenedHost }: BrowserCheckScope) => {
+    asked.push({ url, widenedHost })
+    return options.held ?? Promise.resolve(options.answer ?? true)
+  }
+  const confirm = options.share?.(answerModal) ?? answerModal
   const tools = () =>
     ideBrowserCheckTools({
       isOffered: () => isOffered,
-      extraHosts: () => options.extraHosts ?? [],
-      confirm: (url, widenedHost) => {
-        asked.push({ url, widenedHost })
-        return options.held ?? Promise.resolve(options.answer ?? true)
-      },
+      extraHosts: () => extraHosts,
+      confirm,
       check: (request) => {
         checked.push(request)
         options.onCheck?.(offer)
@@ -71,6 +81,7 @@ function setup(
     tools,
     call,
     offer,
+    setExtraHosts,
   }
 }
 
@@ -175,6 +186,47 @@ describe('the ide server browser check (M81)', () => {
       MODEL_TEXT.browserCheckNotOffered,
     )
     expect(t.checked[0]?.signal).toBe(stop.signal)
+  })
+
+  it("never takes another call's answer for a different widening, and reads the setting again after it (RV81)", async () => {
+    // The review's case: the host is in the setting when the first call asks
+    // (no widening shown); that call is stopped, the host taken out of the
+    // setting, and the same URL called again while the first modal is open.
+    const held = Promise.withResolvers<boolean>()
+    const t = setup({
+      extraHosts: ['intranet.example'],
+      held: held.promise,
+      share: (answerModal) => oneQuestionPerUrl(answerModal, browserScopeKey),
+    })
+    const url = `${HTTP}//intranet.example/`
+    const stop = new AbortController()
+    const first = t.call({ url }, stop.signal)
+    stop.abort()
+    await expect(first).rejects.toThrow(MODEL_TEXT.browserCheckCancelled)
+    t.setExtraHosts([])
+    const retry = t.call({ url })
+    // The same URL and scope again shares the open modal.
+    const again = t.call({ url })
+    held.resolve(true)
+    await Promise.all([retry, again])
+    expect(t.asked).toEqual([
+      { url, widenedHost: undefined },
+      { url, widenedHost: 'intranet.example' },
+    ])
+    expect(t.checked.map((request) => request.allowedHosts)).toEqual([
+      ['intranet.example'],
+      ['intranet.example'],
+    ])
+
+    // The setting changed while the modal was open: its answer covers nothing.
+    const open = Promise.withResolvers<boolean>()
+    const changed = setup({ extraHosts: ['intranet.example'], held: open.promise })
+    const pending = changed.call({ url })
+    await Promise.resolve()
+    changed.setExtraHosts([])
+    open.resolve(true)
+    await expect(pending).rejects.toThrow(MODEL_TEXT.browserCheckScopeChanged)
+    expect(changed.checked).toEqual([])
   })
 
   it("throws the check's own reason when it did not finish", async () => {

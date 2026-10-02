@@ -86,7 +86,7 @@ import { createWebFetcher } from './host/web/webFetcher'
 import { BrowserChecks } from './host/browser/browserChecks'
 import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
 import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
-import type { BrowserCheckHost } from './core/browser/browserTool'
+import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
@@ -1057,7 +1057,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     check: browserChecks.check,
     extraHosts: () => currentSettings().browserCheckExtraHosts,
   }
-  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed)
+  const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
   // with a folder open, since every path is the workspace's.

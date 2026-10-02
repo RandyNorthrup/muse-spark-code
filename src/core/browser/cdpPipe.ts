@@ -80,10 +80,20 @@ export class CdpConnection {
     })
   }
 
+  /**
+   * A chunk off the pipe: each message it ends routed, the rest kept for the
+   * next. A message's whole length (what earlier chunks held and this one
+   * adds) is checked against the bound before it is joined or parsed,
+   * whether it ends in this chunk or not.
+   */
   private receive(chunk: Buffer): void {
     let rest = chunk
     let end = rest.indexOf(NUL)
     while (end !== -1 && this.closeReason === undefined) {
+      if (this.partBytes + end > this.maxMessageBytes) {
+        this.tooLarge()
+        return
+      }
       const frame = Buffer.concat([...this.parts, rest.subarray(0, end)])
       this.parts = []
       this.partBytes = 0
@@ -94,12 +104,18 @@ export class CdpConnection {
     if (rest.length === 0 || this.closeReason !== undefined) {
       return
     }
-    this.partBytes += rest.length
-    if (this.partBytes > this.maxMessageBytes) {
-      this.close(new CdpError('the browser sent a message larger than the check accepts'))
+    if (this.partBytes + rest.length > this.maxMessageBytes) {
+      this.tooLarge()
       return
     }
+    this.partBytes += rest.length
     this.parts.push(rest)
+  }
+
+  private tooLarge(): void {
+    this.parts = []
+    this.partBytes = 0
+    this.close(new CdpError('the browser sent a message larger than the check accepts'))
   }
 
   private route(frame: string): void {

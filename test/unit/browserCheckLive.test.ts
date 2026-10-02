@@ -3,7 +3,9 @@
 // request, the pipe and no TCP listener, the temporary profile removed, no
 // browser process left after a deadline or a stop, and every way out beyond
 // loopback blocked: a server on this machine's own network address counts
-// every connection a page tries (and the widened check shows it can count).
+// every connection a page tries (and the widened check shows it can count);
+// a worker's WebSocket out stops the check; and the machine's own browser
+// policy is read without error (the rigs have none).
 // Runs where a browser is found (or MUSE_TEST_BROWSER names one, as the Mac
 // mini rig's chrome-headless-shell); elsewhere the suite is skipped, and
 // says why in its name.
@@ -15,12 +17,14 @@ import { hostname, networkInterfaces, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { findBrowserExecutable } from '../../src/core/browser/browserLaunch'
+import { findManagedProxyPolicy } from '../../src/core/browser/browserManagedPolicy'
 import {
   type BrowserCheckRequest,
   type BrowserCheckResult,
   type BrowserRunDeps,
   runBrowserCheck,
 } from '../../src/core/browser/browserRun'
+import { hostPolicyReaders } from '../../src/host/browser/browserPolicyReaders'
 import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import { processesNaming, tcpListenersOf } from './helpers/browserProcesses'
 
@@ -78,7 +82,6 @@ fetch('http://${outside}/fetch').catch(() => {})
 fetch('/redirect').catch(() => {})
 fetch('${byName()}').catch(() => {})
 fetch('http://169.254.169.254/latest/meta-data/').catch(() => {})
-try { new WebSocket('ws://${outside}/ws') } catch {}
 new Worker('/worker.js')
 navigator.serviceWorker && navigator.serviceWorker.register('/sw.js').catch(() => {})
 </script>`
@@ -116,6 +119,15 @@ function serve(request: IncomingMessage, response: ServerResponse): void {
     }
     case '/worker.js': {
       script(response, `fetch('http://${outside}/fromworker').catch(() => {})`)
+      return
+    }
+    case '/socket': {
+      // The review's case: a worker the page starts opens a WebSocket out.
+      html(response, `<script>new Worker('/socket-worker.js')</script><img src="/slow">`)
+      return
+    }
+    case '/socket-worker.js': {
+      script(response, `try { new WebSocket('ws://${outside}/ws?data=secret') } catch {}`)
       return
     }
     case '/sw.js': {
@@ -342,7 +354,7 @@ describe.skipIf(EXECUTABLE === undefined)(SUITE, () => {
   )
 
   it.skipIf(OUTSIDE_ADDRESS === undefined)(
-    'lets nothing reach beyond loopback: subresources, redirects, frames, workers, sockets, names',
+    'lets nothing reach beyond loopback: subresources, redirects, frames, workers, names',
     async () => {
       const before = live.outsideConnections
       const result = await runBrowserCheck(
@@ -359,7 +371,6 @@ describe.skipIf(EXECUTABLE === undefined)(SUITE, () => {
           `http://${outside}/redirected`,
           `http://${outside}/fromframe`,
           `http://${outside}/fromworker`,
-          `ws://${outside}/ws`,
           byName(),
           'http://169.254.169.254/latest/meta-data/',
         ]),
@@ -367,6 +378,33 @@ describe.skipIf(EXECUTABLE === undefined)(SUITE, () => {
     },
     LIVE_TIMEOUT_MS,
   )
+
+  it.skipIf(OUTSIDE_ADDRESS === undefined)(
+    'stops the check when a worker of the page opens a WebSocket beyond loopback, and nothing reaches it (RV81)',
+    async () => {
+      const before = live.outsideConnections
+      const watched: Watched = {}
+      const result = await runBrowserCheck(
+        liveDeps(watched),
+        request(`http://${live.page}/socket`, { includeScreenshot: false }),
+      )
+      expect(result).toEqual({ ok: false, failure: { kind: 'leaked' } })
+      expect(live.outsideConnections - before).toBe(0)
+      await expectGone(watched)
+    },
+    LIVE_TIMEOUT_MS,
+  )
+
+  it("reads this machine's browser policy: none here, and nothing it could not read (RV81)", async () => {
+    const verdict = await findManagedProxyPolicy(
+      hostPolicyReaders({
+        platform: process.platform,
+        env: process.env,
+        systemRoot: process.env['SystemRoot'],
+      }),
+    )
+    expect(verdict).toEqual({ kind: 'none' })
+  })
 
   it(
     'kills the browser at its deadline and when stopped, leaving no process and no profile',

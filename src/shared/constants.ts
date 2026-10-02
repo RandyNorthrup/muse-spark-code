@@ -1382,6 +1382,54 @@ export const BROWSER_CHECK_MARKER_BYTES = 8
 // The hosts `museSpark.browserCheckExtraHosts` may name: how many, how long.
 export const BROWSER_CHECK_EXTRA_HOSTS_MAX = 32
 export const BROWSER_CHECK_HOST_MAX_CHARS = 253
+// The targets one check watches at once (the page, its frames and workers,
+// and those they start); one past the bound is never let run.
+export const BROWSER_CHECK_MAX_TARGETS = 64
+// The requests in flight whose URLs one check keeps (to name a request that
+// fails); past the bound the oldest is forgotten. Each URL is cut to
+// BROWSER_CHECK_ENTRY_MAX_CHARS.
+export const BROWSER_CHECK_MAX_TRACKED_REQUESTS = 512
+// Where an administrator's policy for Chrome or Edge can replace the
+// check's dead proxy (browserManagedPolicy.ts). Only mandatory policy outranks
+// the command line; recommended policy ranks below it and is not read.
+// Windows: the policy keys under each hive (HKLM, HKCU), read in both
+// registry views with reg.exe. Linux: every file in each managed folder is a
+// JSON policy file. macOS: the forced preferences a configuration profile
+// installs, for the machine and for the user, read with plutil.
+export const BROWSER_POLICY_WINDOWS_HIVES: readonly string[] = ['HKLM', 'HKCU']
+export const BROWSER_POLICY_WINDOWS_KEYS: readonly string[] = [
+  String.raw`SOFTWARE\Policies\Google\Chrome`,
+  String.raw`SOFTWARE\Policies\Microsoft\Edge`,
+]
+export const BROWSER_POLICY_WINDOWS_VIEWS: readonly string[] = ['/reg:64', '/reg:32']
+export const WINDOWS_REG_RELATIVE_PATH = String.raw`System32\reg.exe`
+export const BROWSER_POLICY_LINUX_FOLDERS: readonly string[] = [
+  '/etc/opt/chrome/policies/managed',
+  '/etc/opt/edge/policies/managed',
+  '/etc/chromium/policies/managed',
+  '/etc/chromium-browser/policies/managed',
+]
+export const BROWSER_POLICY_MACOS_FOLDER = '/Library/Managed Preferences'
+export const BROWSER_POLICY_MACOS_DOMAINS: readonly string[] = [
+  'com.google.Chrome',
+  'com.microsoft.Edge',
+]
+export const MACOS_PLUTIL_PATH = '/usr/bin/plutil'
+// A token file that enrolls Chrome in cloud management, whose policies
+// (a proxy among them) the check cannot read.
+export const BROWSER_POLICY_ENROLLMENT_FILES: Readonly<Record<string, string>> = {
+  linux: '/etc/opt/chrome/policies/enrollment/CloudManagementEnrollmentToken',
+  darwin: '/Library/Google/Chrome/CloudManagementEnrollmentToken',
+}
+// The policies that refuse a check: every proxy policy (ProxyMode,
+// ProxyServerMode, ProxyServer, ProxyPacUrl, ProxyPacMandatory,
+// ProxyBypassList, ProxySettings, and any later one named Proxy…), and the
+// cloud management enrollment token.
+export const BROWSER_POLICY_PROXY_PREFIX = 'proxy'
+export const BROWSER_POLICY_CLOUD_NAMES: readonly string[] = ['cloudmanagementenrollmenttoken']
+// How much of a policy folder is read: files, and bytes in each.
+export const BROWSER_POLICY_FILES_MAX = 64
+export const BROWSER_POLICY_FILE_MAX_BYTES = 4 * BYTES_PER_MIB
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -2969,7 +3017,13 @@ export const MODEL_TEXT = {
   browserCheckNoElement:
     'no element on the page matches the selector {selector}, or a type step named one that takes no text',
   browserCheckLeaked:
-    'a connection beyond loopback got through, so the check was stopped and nothing from the page is returned',
+    'the page reached, or tried to reach, beyond loopback in a way the check cannot block (a WebSocket, or an answer from beyond), so the check was stopped and nothing from the page is returned',
+  browserCheckManagedPolicy:
+    "the browser check did not start: an administrator's policy for Chrome or Edge ({where}) sets a proxy or cloud management, which overrides the check's block on connections beyond loopback; it cannot run on this computer while that policy is in place",
+  browserCheckPolicyUnreadable:
+    'the browser check did not start: the browser policy at {where} could not be read ({detail}), so it cannot tell whether a policy would override its block on connections beyond loopback',
+  browserCheckScopeChanged:
+    'the hosts the browser check may reach changed while the user was being asked (museSpark.browserCheckExtraHosts was edited), so that answer does not cover this check; nothing was opened. Call it again to ask anew',
   browserCheckRestrictedMode:
     'the browser check is off while the workspace is in Restricted Mode; trust the workspace to enable it',
   browserCheckDeclined: 'the user declined to open this page; nothing was opened',
