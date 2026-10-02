@@ -35,6 +35,14 @@ happened, not what was planned; superseded entries are kept.
     the two counts it never recorded shown as not recorded. A workspace
     that cannot be created reports only an error code, never a path.
 
+### Changed
+
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
+
 ### Fixed
 
 - **The ACP agent reaches npm.** The release workflow passed its package as
