@@ -1,5 +1,5 @@
 // The VS Code side of "Import from other agents" (M83, PLAN.md D49): the
-// pickers, the read-only preview, the modals, the clipboard and the editor.
+// pickers, the read-only preview, the modals, unsaved target edits.
 // Activation retains only `runAgentImport`, the loader shim. The UI entry
 // and the scan, plan and writes load together through `agentImportEntry.ts`
 // in the existing import bundle on the first import.
@@ -13,7 +13,7 @@ import type { WorkspaceEditRecorder } from '../core/verify/workspaceEdits'
 import { UI_TEXT } from '../shared/constants'
 import { uiLocale } from '../shared/l10n/text'
 import type { Logger } from './logger'
-import { loggedPopups } from './popups'
+import * as z from 'zod/mini'
 
 export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
@@ -55,6 +55,52 @@ function sourceChoices(): readonly SourceChoice[] {
   ]
 }
 
+const configSchema = z.looseObject({
+  mcpServers: z.optional(z.record(z.string(), z.unknown())),
+  hooks: z.optional(z.record(z.string(), z.array(z.unknown()))),
+})
+
+/** Merge only imported members into the live document; preserve existing servers and unrelated settings. */
+function mergedConfig(
+  current: string,
+  additions: string,
+): { readonly text: string } | { readonly reason: 'exists' | 'unreadable' } {
+  try {
+    const prior = configSchema.parse(current.trim() === '' ? {} : JSON.parse(current))
+    const added = configSchema.parse(JSON.parse(additions))
+    if (
+      Object.keys(added.mcpServers ?? {}).some((name) =>
+        Object.hasOwn(prior.mcpServers ?? {}, name),
+      )
+    )
+      return { reason: 'exists' }
+    const events = new Set([...Object.keys(prior.hooks ?? {}), ...Object.keys(added.hooks ?? {})])
+    return {
+      text: JSON.stringify(
+        {
+          ...added,
+          ...prior,
+          ...(added.mcpServers !== undefined && {
+            mcpServers: { ...added.mcpServers, ...prior.mcpServers },
+          }),
+          ...(added.hooks !== undefined && {
+            hooks: Object.fromEntries(
+              [...events].map((event) => [
+                event,
+                [...(prior.hooks?.[event] ?? []), ...(added.hooks?.[event] ?? [])],
+              ]),
+            ),
+          }),
+        },
+        undefined,
+        2,
+      ),
+    }
+  } catch {
+    return { reason: 'unreadable' }
+  }
+}
+
 export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
   // Only this shim is retained by activation; the existing UI implementation
   // is exported to the import bundle and is tree-shaken from the shim's caller.
@@ -73,6 +119,11 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
       homeDir: homedir(),
       environment: process.env,
       workspaceRoot: deps.workspaceRoot,
+      workspaceRoots: () =>
+        vscode.workspace.workspaceFolders
+          ?.filter((folder) => folder.uri.scheme === 'file')
+          .map((folder) => folder.uri.fsPath) ??
+        (deps.workspaceRoot === undefined ? [] : [deps.workspaceRoot]),
       currentRoot: deps.currentRoot,
       isWorkspaceTrusted: () => vscode.workspace.isTrusted,
       isActive: deps.isActive,
@@ -107,38 +158,52 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
       confirmImport: async (message) =>
         (await vscode.window.showInformationMessage(message, UI_TEXT.agentImportConfirmAction)) ===
         UI_TEXT.agentImportConfirmAction,
-      offerCopy: async (message) => {
+      offerEdit: async (message) => {
         const picked = await vscode.window.showInformationMessage(
           message,
-          UI_TEXT.agentImportCopyAction,
+          UI_TEXT.agentImportEditAction,
           UI_TEXT.agentImportOpenFile,
         )
-        if (picked === UI_TEXT.agentImportCopyAction) {
-          return 'copy'
+        if (picked === UI_TEXT.agentImportEditAction) {
+          return 'edit'
         }
         return picked === UI_TEXT.agentImportOpenFile ? 'open' : undefined
       },
-      copyText: async (text) => {
-        await vscode.env.clipboard.writeText(text)
-      },
-      openTarget: async (absolutePath, isExisting, isStillSafe) => {
-        if (!(await isStillSafe())) {
-          return
-        }
+      openTarget: async (absolutePath, isExisting, isStillSafe, canApply, text) => {
+        if (!(await isStillSafe()) || !canApply()) return false
         const file = vscode.Uri.file(absolutePath)
-        // A missing file opens unsaved at its path: the user saves it, the extension never writes it.
         const document = await vscode.workspace.openTextDocument(
           isExisting ? file : file.with({ scheme: UNTITLED_SCHEME }),
         )
-        // Loading the document awaited: the flow checks the destination again before it is shown.
-        if (await isStillSafe()) {
-          await vscode.window.showTextDocument(document, { preview: false })
+        if (!(await isStillSafe()) || !canApply()) return false
+        await vscode.window.showTextDocument(document, { preview: false })
+        if (text === undefined) return true
+        const content = mergedConfig(document.getText(), text)
+        if ('reason' in content) {
+          void vscode.window.showWarningMessage(
+            content.reason === 'exists'
+              ? UI_TEXT.agentImportSkippedExists
+              : UI_TEXT.agentImportSkippedUnreadable,
+          )
+          return false
         }
+        const version = document.version
+        if (!(await isStillSafe()) || !canApply() || document.version !== version) return false
+        const edit = new vscode.WorkspaceEdit()
+        edit.replace(
+          document.uri,
+          new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length)),
+          content.text,
+        )
+        // The edit stays dirty: the user reviews and saves it at this exact target.
+        return await vscode.workspace.applyEdit(edit)
       },
       showInformation: (message) => {
         void vscode.window.showInformationMessage(message)
       },
-      showWarning: loggedPopups(deps.log).showWarning,
+      showWarning: (message) => {
+        void vscode.window.showWarningMessage(message)
+      },
       log: deps.log,
     },
     UI_TEXT,

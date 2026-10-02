@@ -2,21 +2,10 @@
 // hooks, custom agents, slash commands and rules files from Claude Code,
 // Codex and Cursor, converted to Muse Code's shapes.
 //
-// The flow: pick the tools, scan (reads only), check the entries, then a
-// read-only preview document shows exactly what would be written and what
-// is to be copied by hand beside a notification that asks; nothing is
-// written before the user chooses Import there. Files are created, never
-// replaced; rules sections are appended to AGENTS.md. MCP servers and hooks
-// are never written (D17, D30): their converted entries are copied on
-// request and the file they go into is opened for the user to paste them
-// and fill in the masked `env` and header values. An entry that may hold a
-// credential is refused whole at the scan (`importCredentials.ts`) and
-// listed for the user to copy by hand, with the kind of cue it holds, never
-// the value. The log carries paths, counts, cue kinds and error codes,
-// never a file's content. Every VS Code and file interaction is injected.
-// No model call.
+// Preview metadata, then publish exposure-preserving files or offer unsaved
+// target edits. Logs carry counts and fixed reasons only (PLAN.md D64).
+// Every VS Code and filesystem interaction is injected. No model call.
 
-import { fenced } from '../../core/export/transcriptMarkdown'
 import { decodeContextText } from '../../core/context/contextFiles'
 import {
   applyImportWrites,
@@ -24,8 +13,10 @@ import {
   type ImportApplyResult,
   type ImportCandidate,
   type ImportCopy,
-  type ImportIo,
+  type ImportScanInput,
   importDisplayPath,
+  importExposure,
+  exposureRefusal,
   importErrorCode,
   type ImportPlan,
   type ImportPlanFile,
@@ -39,7 +30,6 @@ import {
   planImportApply,
   scanAgentImports,
 } from '../../core/import/agentImport'
-import type { CredentialCue } from '../../core/import/importCredentials'
 import { isSamePath } from '../../core/paths'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import { pathModule } from '../../core/workspaceRoot'
@@ -91,16 +81,7 @@ export interface AgentImportPickItem {
   readonly picked: boolean
 }
 
-export interface AgentImportDeps {
-  readonly platform: NodeJS.Platform
-  readonly homeDir: string
-  /** `CLAUDE_CONFIG_DIR` and `CODEX_HOME` as the extension host's environment gives them. */
-  readonly claudeConfigDir: string | undefined
-  readonly codexHome: string | undefined
-  readonly workspaceRoot: string | undefined
-  readonly isWorkspaceTrusted: () => boolean
-  /** False as soon as this activation begins shutting down. */
-  readonly isActive: () => boolean
+export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /** Muse Code's settings file where `muse serve` reads it; its folder holds the personal skills. */
   readonly museSettingsFile: string
   /**
@@ -109,7 +90,6 @@ export interface AgentImportDeps {
    * was made for.
    */
   readonly currentRoot: () => string | undefined
-  readonly io: ImportIo
   readonly writer: ImportWriter
   /** The session-owned workspace notice for a project write (M68); absent without a live session. */
   readonly beginProjectEdit?: ImportWriteNotice
@@ -139,9 +119,8 @@ export interface AgentImportDeps {
   readonly openPreview: (title: string, markdown: string) => Promise<void>
   /** Asks beside the open preview; true only when the user chose Import. */
   readonly confirmImport: (message: string) => Promise<boolean>
-  /** Asks about one copy text: 'copy' to copy it and open its file, 'open' to only open it. */
-  readonly offerCopy: (message: string) => Promise<'copy' | 'open' | undefined>
-  readonly copyText: (text: string) => Promise<void>
+  /** Offers an unsaved edit in the target, or opens it without changing it. */
+  readonly offerEdit: (message: string) => Promise<'edit' | 'open' | undefined>
   /**
    * Opens the file in an editor: loads the document, then asks `isStillSafe`
    * before it is shown (the load awaits); one that does not exist opens
@@ -151,7 +130,9 @@ export interface AgentImportDeps {
     absolutePath: string,
     isExisting: boolean,
     isStillSafe: () => Promise<boolean>,
-  ) => Promise<void>
+    canApply: () => boolean,
+    text: string | undefined,
+  ) => Promise<boolean>
   readonly showInformation: (message: string) => void
   readonly showWarning: (message: string) => void
   readonly log: Logger
@@ -169,8 +150,6 @@ export type AgentImportHost = Omit<
 const DETAIL_SEPARATOR = ' · '
 const LIST_SEPARATOR = ', '
 const SENTENCE_SEPARATOR = ' '
-const MARKDOWN_FENCE_LANGUAGE = 'markdown'
-const JSON_FENCE_LANGUAGE = 'json'
 const PREVIEW_EXTENSION = '.md'
 const LOG_PREFIX = 'Import from other agents:'
 
@@ -246,38 +225,27 @@ function reasonLabel(reason: ImportSkipReason): string {
     case 'failed': {
       return UI_TEXT.agentImportSkippedFailed
     }
-  }
-}
-
-/** What kind of credential cue an entry holds, in words; never the value. */
-function cueLabel(cue: CredentialCue): string {
-  switch (cue) {
-    case 'name': {
-      return UI_TEXT.agentImportCueName
+    case 'personalToProject': {
+      return UI_TEXT.agentImportPersonalToProject
     }
-    case 'url': {
-      return UI_TEXT.agentImportCueUrl
-    }
-    case 'token': {
-      return UI_TEXT.agentImportCueToken
-    }
-    case 'opaque': {
-      return UI_TEXT.agentImportCueOpaque
+    case 'ignoredToTracked': {
+      return UI_TEXT.agentImportIgnoredToTracked
     }
   }
-}
-
-function credentialRefusalLabel(cue: CredentialCue): string {
-  return fill(UI_TEXT.agentImportSkippedCredential, { cue: cueLabel(cue) })
 }
 
 function skipLabel(skip: ImportSkip): string {
-  return skip.reason === 'credential' ? credentialRefusalLabel(skip.cue) : reasonLabel(skip.reason)
+  return reasonLabel(skip.reason)
+}
+
+function sourceScope(candidate: ImportCandidate): string {
+  const scope =
+    candidate.sourceExposure ?? (candidate.origin === 'user' ? 'personal' : 'project-tracked')
+  return scope === 'personal' ? UI_TEXT.agentImportUserFiles : UI_TEXT.agentImportProjectFiles
 }
 
 function describeCandidate(candidate: ImportCandidate): string {
-  const scope =
-    candidate.origin === 'project' ? UI_TEXT.agentImportProjectFiles : UI_TEXT.agentImportUserFiles
+  const scope = sourceScope(candidate)
   return [kindLabel(candidate), sourceLabel(candidate.source), scope].join(DETAIL_SEPARATOR)
 }
 
@@ -285,19 +253,13 @@ function shownPath(deps: AgentImportDeps, absolutePath: string): string {
   return importDisplayPath(absolutePath, deps)
 }
 
-/**
- * One entry in the picker. What can be imported is checked, and so is what
- * may hold a credential: the preview then lists it for the user to copy by
- * hand. What cannot be imported for another reason is listed unchecked.
- */
-function pickItemOf(deps: AgentImportDeps, candidate: ImportCandidate): AgentImportPickItem {
-  const where = shownPath(deps, candidate.originPath)
+/** Picker details show source scope only. Names remain as the source tool names them. */
+function pickItemOf(candidate: ImportCandidate): AgentImportPickItem {
+  const where = sourceScope(candidate)
   const { target } = candidate
   let why: string | undefined
   if (target.kind === 'none') {
     why = reasonLabel(target.reason)
-  } else if (target.kind === 'credential') {
-    why = credentialRefusalLabel(target.cue)
   }
   return {
     id: candidate.id,
@@ -308,102 +270,42 @@ function pickItemOf(deps: AgentImportDeps, candidate: ImportCandidate): AgentImp
   }
 }
 
-function fromLine(deps: AgentImportDeps, candidate: ImportCandidate): string {
-  return fill(UI_TEXT.agentImportPreviewFrom, { path: shownPath(deps, candidate.originPath) })
-}
-
-function copyHeading(deps: AgentImportDeps, copy: ImportCopy): string {
-  return fill(
-    copy.file === 'settings' ? UI_TEXT.agentImportPreviewSettings : UI_TEXT.agentImportPreviewHooks,
-    { path: shownPath(deps, copy.absolutePath) },
-  )
-}
-
-function droppedLines(candidates: readonly ImportCandidate[]): readonly string[] {
-  return candidates.flatMap((candidate) =>
-    candidate.dropped.length === 0
-      ? []
-      : [
-          `- ${candidate.label}: ${fill(UI_TEXT.agentImportPreviewDropped, {
-            fields: candidate.dropped.join(LIST_SEPARATOR),
-          })}`,
-        ],
-  )
-}
-
-/**
- * The preview document: every write whole, every copy text, every entry
- * left out and why, what may hold a credential apart, and a word when some
- * source files could not be read.
- */
+/** Preview metadata only: imported content has exactly one allowed destination. */
 function previewMarkdown(
   deps: AgentImportDeps,
   plan: ImportPlan,
   selected: readonly ImportCandidate[],
   hasSkippedFiles: boolean,
 ): string {
-  const byId = new Map(selected.map((candidate) => [candidate.id, candidate] as const))
-  const candidatesOf = (ids: readonly string[]): readonly ImportCandidate[] =>
-    ids.flatMap((id) => byId.get(id) ?? [])
-  const writeBlock = (content: string, ids: readonly string[]): readonly string[] => [
-    ...candidatesOf(ids).map((candidate) => fromLine(deps, candidate)),
-    fenced(content.trimEnd(), MARKDOWN_FENCE_LANGUAGE),
-  ]
-  const creates = plan.writes.filter((write) => write.mode === 'create')
-  const appends = plan.writes.filter((write) => write.mode === 'append')
-  const blocks: string[] = [
+  const blocks = [
     `# ${UI_TEXT.agentImportPreviewTitle}`,
     UI_TEXT.agentImportPreviewIntro,
     ...(hasSkippedFiles ? [UI_TEXT.agentImportSkippedFiles] : []),
   ]
-  if (creates.length > 0) {
-    blocks.push(`## ${UI_TEXT.agentImportPreviewFiles}`)
+  const byId = new Map(selected.map((candidate) => [candidate.id, candidate] as const))
+  for (const destination of [...plan.writes, ...plan.copies]) {
+    blocks.push(`## ${shownPath(deps, destination.absolutePath)}`)
+    if (plan.hasLegacyMcpKey && destination.absolutePath === deps.museSettingsFile)
+      blocks.push(UI_TEXT.agentImportPreviewLegacyKey)
+    for (const id of destination.candidateIds) {
+      const candidate = byId.get(id)
+      if (candidate === undefined) continue
+      blocks.push(`- ${candidate.label} (${describeCandidate(candidate)})`)
+      if (candidate.dropped.length > 0)
+        blocks.push(
+          fill(UI_TEXT.agentImportPreviewDropped, {
+            fields: candidate.dropped.join(LIST_SEPARATOR),
+          }),
+        )
+    }
   }
-  for (const write of creates) {
-    blocks.push(
-      `### ${shownPath(deps, write.absolutePath)}`,
-      ...writeBlock(write.content, write.candidateIds),
-    )
-  }
-  for (const write of appends) {
-    blocks.push(
-      `## ${fill(UI_TEXT.agentImportPreviewRules, { path: shownPath(deps, write.absolutePath) })}`,
-      ...writeBlock(write.content, write.candidateIds),
-    )
-  }
-  for (const copy of plan.copies) {
-    const candidates = candidatesOf(copy.candidateIds)
-    blocks.push(
-      `## ${copyHeading(deps, copy)}`,
-      copy.isNewFile ? UI_TEXT.agentImportPreviewNewFile : UI_TEXT.agentImportPreviewMerge,
-      ...(copy.file === 'settings' && plan.hasLegacyMcpKey
-        ? [UI_TEXT.agentImportPreviewLegacyKey]
-        : []),
-      ...(candidates.some((candidate) => candidate.kind === 'hook')
-        ? [UI_TEXT.agentImportPreviewMatchers]
-        : []),
-      fenced(copy.text, JSON_FENCE_LANGUAGE),
-      ...droppedLines(candidates),
-    )
-  }
-  const skippedLine = (skip: ImportSkip, why: string): readonly string[] => {
-    const candidate = byId.get(skip.candidateId)
-    return candidate === undefined
-      ? []
-      : [`- ${candidate.label} (${describeCandidate(candidate)}): ${why}`]
-  }
-  const notImported = plan.skipped.flatMap((skip) =>
-    skip.reason === 'credential' ? [] : skippedLine(skip, reasonLabel(skip.reason)),
-  )
-  if (notImported.length > 0) {
-    blocks.push(`## ${UI_TEXT.agentImportPreviewNotImported}`, notImported.join('\n'))
-  }
-  // The kind of cue each holds, never the value.
-  const withCredentials = plan.skipped.flatMap((skip) =>
-    skip.reason === 'credential' ? skippedLine(skip, cueLabel(skip.cue)) : [],
-  )
-  if (withCredentials.length > 0) {
-    blocks.push(`## ${UI_TEXT.agentImportPreviewCredentials}`, withCredentials.join('\n'))
+  if (plan.skipped.length > 0) blocks.push(`## ${UI_TEXT.agentImportPreviewNotImported}`)
+  for (const skipped of plan.skipped) {
+    const candidate = byId.get(skipped.candidateId)
+    if (candidate !== undefined)
+      blocks.push(
+        `- ${candidate.label} (${describeCandidate(candidate)}): ${reasonLabel(skipped.reason)}`,
+      )
   }
   return `${blocks.join('\n\n')}\n`
 }
@@ -429,7 +331,7 @@ async function projectStanding(
     return 'inside'
   } catch (error: unknown) {
     const code = importErrorCode(error)
-    deps.log.warn(`${LOG_PREFIX} ${shownPath(deps, absolutePath)} could not be resolved (${code})`)
+    deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
     return code === AGENT_IMPORT_ROOT_CHANGED_CODE ? 'changed' : 'outside'
   }
 }
@@ -451,9 +353,7 @@ async function readPlanFile(
     return { status: 'outside' }
   }
   if (isProject && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
-    deps.log.warn(
-      `${LOG_PREFIX} ${shownPath(deps, absolutePath)} is unsafe or outside the workspace`,
-    )
+    deps.log.warn(`${LOG_PREFIX}  is unsafe or outside the workspace`)
     return { status: 'outside' }
   }
   if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
@@ -462,10 +362,8 @@ async function readPlanFile(
   let read: ImportRead
   try {
     read = await deps.io.readFile(absolutePath, maxBytes, isProject ? project?.path : undefined)
-  } catch (error: unknown) {
-    deps.log.warn(
-      `${LOG_PREFIX} ${shownPath(deps, absolutePath)} could not be read (${importErrorCode(error)})`,
-    )
+  } catch {
+    deps.log.warn(`${LOG_PREFIX}  could not be read (failed)`)
     return { status: 'unreadable' }
   }
   if (read.status === 'missing') {
@@ -473,9 +371,7 @@ async function readPlanFile(
   }
   const decoded = read.status === 'read' ? decodeContextText(read.bytes) : undefined
   if (decoded?.ok !== true) {
-    deps.log.warn(
-      `${LOG_PREFIX} ${shownPath(deps, absolutePath)} could not be read (${read.status})`,
-    )
+    deps.log.warn(`${LOG_PREFIX}  could not be read (unreadable)`)
     return { status: 'unreadable' }
   }
   return { status: 'read', text: decoded.text }
@@ -497,7 +393,7 @@ function countLines(plan: ImportPlan, refusedCopyEntries = 0): readonly string[]
   ]
 }
 
-/** Each copy text in turn: copied and its file opened, or only the file opened, or passed over. */
+/** Each config opens as an unsaved target edit; no clipboard or preview content. */
 async function offerCopies(
   deps: AgentImportDeps,
   plan: ImportPlan,
@@ -507,89 +403,52 @@ async function offerCopies(
 }> {
   const offered: ImportCopy[] = []
   const refused: ImportCopy[] = []
-  const outcomes = { offered, refused }
   for (const copy of plan.copies) {
-    if (!deps.isActive()) {
-      return outcomes
-    }
-    const choice = await deps.offerCopy(
-      fill(UI_TEXT.agentImportCopyPrompt, { path: shownPath(deps, copy.absolutePath) }),
+    if (!deps.isActive()) break
+    const choice = await deps.offerEdit(
+      fill(UI_TEXT.agentImportEditPrompt, { path: shownPath(deps, copy.absolutePath) }),
     )
     if (choice === undefined) {
-      // The accepted preview remains available for this manual task.
-      offered.push(copy)
-      continue
-    }
-    // Checked again now: a `.muse` linked out since the preview is neither copied for nor opened.
-    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
       refused.push(copy)
       continue
     }
-    const currentCopy = copyForCurrentFile(copy, !(await deps.isPresent(copy.absolutePath)))
-    // Existence awaited too: keep the clipboard behind the live path/trust checks.
-    if (!(await isCopyTargetSafe(deps, currentCopy, plan.projectRoot))) {
-      refused.push(copy)
-      continue
-    }
-    // The awaited path check returned to this continuation: keep the
-    // clipboard entry itself behind a fresh synchronous project guard, the
-    // window's folder included.
-    if (!deps.isActive()) {
-      return outcomes
-    }
-    if (copy.file === 'hooks' && !deps.isWorkspaceTrusted()) {
-      deps.showWarning(UI_TEXT.agentImportUntrusted)
-      refused.push(copy)
-      continue
-    }
-    if (
-      copy.file === 'hooks' &&
-      (plan.projectRoot === undefined || !isLiveRoot(deps, plan.projectRoot.path))
-    ) {
-      deps.showWarning(
-        `${shownPath(deps, copy.absolutePath)}: ${UI_TEXT.agentImportSkippedChanged}`,
-      )
-      refused.push(copy)
-      continue
-    }
-    if (choice === 'copy') {
-      // The clipboard holds the copy text; the masked `env` and header values are filled in by hand.
-      await deps.copyText(currentCopy.text)
-    }
-    // Clipboard access awaits: the destination may have changed meanwhile.
     if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
       refused.push(copy)
       continue
     }
     const isExisting = await deps.isPresent(copy.absolutePath)
-    if (!(await isCopyTargetSafe(deps, copy, plan.projectRoot))) {
+    const currentCopy = copyForCurrentFile(copy, !isExisting)
+    const target = { isStillSafe: true }
+    const isStillSafe = async (): Promise<boolean> => {
+      const isSafe = await isCopyTargetSafe(deps, currentCopy, plan.projectRoot)
+      target.isStillSafe &&= isSafe
+      return isSafe
+    }
+    const canApply = (): boolean => {
+      const isSafe =
+        deps.isActive() &&
+        (!copy.isProject ||
+          (deps.isWorkspaceTrusted() &&
+            plan.projectRoot !== undefined &&
+            isLiveRoot(deps, plan.projectRoot.path)))
+      target.isStillSafe &&= isSafe
+      return isSafe
+    }
+    if (!(await isStillSafe()) || !canApply()) {
       refused.push(copy)
       continue
     }
-    // The adapter checks again before/after loading; retain any refusal it observes.
-    const target = { isStillSafe: true }
-    await deps.openTarget(copy.absolutePath, isExisting, async () => {
-      const isSafe = await isCopyTargetSafe(deps, copy, plan.projectRoot)
-      target.isStillSafe &&= isSafe
-      return isSafe
-    })
-    if (target.isStillSafe) {
-      offered.push(currentCopy)
-      if (choice === 'copy' && deps.isActive()) {
-        deps.showInformation(
-          [
-            UI_TEXT.agentImportCopied,
-            currentCopy.isNewFile
-              ? UI_TEXT.agentImportPreviewNewFile
-              : UI_TEXT.agentImportPreviewMerge,
-          ].join(SENTENCE_SEPARATOR),
-        )
-      }
-    } else {
-      refused.push(copy)
-    }
+    const didOpen = await deps.openTarget(
+      copy.absolutePath,
+      isExisting,
+      isStillSafe,
+      canApply,
+      choice === 'edit' ? currentCopy.text : undefined,
+    )
+    if (choice === 'edit' && didOpen && target.isStillSafe) offered.push(currentCopy)
+    else refused.push(copy)
   }
-  return outcomes
+  return { offered, refused }
 }
 
 async function isCopyTargetSafe(
@@ -600,9 +459,24 @@ async function isCopyTargetSafe(
   if (!deps.isActive()) {
     return false
   }
-  if (copy.file !== 'hooks') {
+  const isExposureSafe = async (): Promise<boolean> => {
+    try {
+      const targetExposure = await importExposure(copy.absolutePath, { ...deps, io: deps.io })
+      const reason =
+        exposureRefusal(copy.sourceExposure, targetExposure) ??
+        (targetExposure !== 'personal' && !copy.isProject ? 'changed' : undefined)
+      if (reason !== undefined) {
+        deps.showWarning(reasonLabel(reason))
+        deps.log.warn(`${LOG_PREFIX} config edit refused (${reason})`)
+        return false
+      }
+    } catch {
+      deps.showWarning(UI_TEXT.agentImportSkippedUnreadable)
+      return false
+    }
     return true
   }
+  if (!copy.isProject) return deps.isActive() && (await isExposureSafe())
   if (!deps.isWorkspaceTrusted()) {
     deps.showWarning(UI_TEXT.agentImportUntrusted)
     return false
@@ -619,7 +493,7 @@ async function isCopyTargetSafe(
       deps.showWarning(UI_TEXT.agentImportUntrusted)
       return false
     }
-    return true
+    return await isExposureSafe()
   }
   deps.showWarning(
     `${shownPath(deps, copy.absolutePath)}: ${
@@ -648,10 +522,8 @@ async function isRootCurrent(deps: AgentImportDeps, project: ImportProjectRoot):
       isSamePath(now.canonical, project.identity.canonical, deps.platform) &&
       now.fileId === project.identity.fileId
     )
-  } catch (error: unknown) {
-    deps.log.warn(
-      `${LOG_PREFIX} the workspace folder could not be resolved (${importErrorCode(error)})`,
-    )
+  } catch {
+    deps.log.warn(`${LOG_PREFIX} the workspace folder could not be resolved (failed)`)
     return false
   }
 }
@@ -693,12 +565,15 @@ async function planFor(
     selected,
     {
       platform: deps.platform,
+      homeDir: deps.homeDir,
       workspaceRoot: root,
+      ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
       workspaceIdentity: project?.identity,
       personalRoot: p.dirname(deps.museSettingsFile),
       museSettingsFile: deps.museSettingsFile,
     },
     {
+      io: deps.io,
       isPresent: deps.isPresent,
       rulesFile:
         root === undefined
@@ -734,9 +609,12 @@ async function applyPlan(
     await applyImportWrites(plan.writes, deps.writer, deps.platform, {
       beforeWrite: (isProject) => {
         requireLive(deps, isProject)
-        if (isProject) {
-          check?.()
-        }
+        if (!isProject) return
+        if (plan.projectRoot === undefined || !isLiveRoot(deps, plan.projectRoot.path))
+          throw Object.assign(new Error('Import folder changed'), {
+            code: AGENT_IMPORT_ROOT_CHANGED_CODE,
+          })
+        check?.()
       },
       ...(deps.beginProjectEdit !== undefined && { beginProjectEdit: deps.beginProjectEdit }),
       beforeProjectWrite: deps.beforeProjectWrite,
@@ -753,8 +631,8 @@ async function applyPlan(
     } else {
       outcomes.push(await apply())
     }
-  } catch (error: unknown) {
-    deps.log.warn(`${LOG_PREFIX} the checkpoint lease failed (${importErrorCode(error)})`)
+  } catch {
+    deps.log.warn(`${LOG_PREFIX} the checkpoint lease failed (failed)`)
   }
   const [applied] = outcomes
   if (applied === undefined) {
@@ -767,16 +645,9 @@ async function applyPlan(
   if (!deps.isActive()) {
     return
   }
-  for (const failure of applied.failures) {
-    deps.log.warn(
-      `${LOG_PREFIX} ${shownPath(deps, failure.absolutePath)} could not be written (${failure.code})`,
-    )
-  }
-  for (const write of applied.written) {
-    deps.log.info(
-      `${LOG_PREFIX} ${write.mode === 'create' ? 'created' : 'appended to'} ${shownPath(deps, write.absolutePath)}`,
-    )
-  }
+  if (applied.failures.length > 0)
+    deps.log.warn(`${LOG_PREFIX} ${String(applied.failures.length)} writes failed`)
+
   const copies = await offerCopies(deps, plan)
   if (!deps.isActive()) {
     return
@@ -793,13 +664,13 @@ async function applyPlan(
   )
   const notImported = result.skipped.length + refusedCopyEntries
   deps.log.info(
-    `${LOG_PREFIX} finished with ${String(applied.written.length)} write(s), ${String(result.copies.length)} file(s) to paste into, ${String(notImported)} entr(ies) not imported`,
+    `${LOG_PREFIX} finished with ${String(applied.written.length)} write(s), ${String(result.copies.length)} file(s) offered in editor, ${String(notImported)} entr(ies) not imported`,
   )
   const refused = applied.skipped.flatMap((skip) => {
     const candidate = selected.find((entry) => entry.id === skip.candidateId)
     return candidate === undefined ? [] : [`${candidate.label}: ${skipLabel(skip)}`]
   })
-  // An import that wrote nothing and has nothing to paste says why, not that it finished.
+  // An import that wrote nothing and has no editor edit says why, not that it finished.
   const counts = countLines(result, refusedCopyEntries).join(DETAIL_SEPARATOR)
   if (
     applied.written.length === 0 &&
@@ -825,9 +696,9 @@ export async function importFromAgents(deps: AgentImportDeps): Promise<void> {
     isBusy = !(await deps.gate(async () => {
       await runImport(deps)
     }))
-  } catch (error: unknown) {
+  } catch {
     // Every file and folder failure is handled where it happens; this is what was not foreseen.
-    deps.log.warn(`${LOG_PREFIX} stopped on an unexpected error (${importErrorCode(error)})`)
+    deps.log.warn(`${LOG_PREFIX} stopped on an unexpected error (failed)`)
     if (deps.isActive()) {
       deps.showWarning(UI_TEXT.agentImportFailed)
     }
@@ -838,22 +709,7 @@ export async function importFromAgents(deps: AgentImportDeps): Promise<void> {
   }
 }
 
-/** For the log: how many entries may hold a credential, and the kinds of cue; never a name or a value. */
-function logCredentialRefusals(
-  deps: AgentImportDeps,
-  candidates: readonly ImportCandidate[],
-): void {
-  const cues = candidates.flatMap(({ target }) =>
-    target.kind === 'credential' ? [target.cue] : [],
-  )
-  if (cues.length > 0) {
-    deps.log.info(
-      `${LOG_PREFIX} ${String(cues.length)} entr(ies) may hold a credential and are not imported (${[...new Set(cues)].join(LIST_SEPARATOR)})`,
-    )
-  }
-}
-
-/** The whole flow: pickers, preview, confirmation, writes and clipboard/editor actions. */
+/** The whole flow: pickers, preview, confirmation, writes and target editor actions. */
 async function runImport(deps: AgentImportDeps): Promise<void> {
   if (!deps.isActive()) {
     return
@@ -865,10 +721,8 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   if (root !== undefined && deps.isWorkspaceTrusted()) {
     try {
       project = { path: root, identity: await deps.writer.identifyRoot(root) }
-    } catch (error: unknown) {
-      deps.log.warn(
-        `${LOG_PREFIX} the workspace folder could not be identified (${importErrorCode(error)})`,
-      )
+    } catch {
+      deps.log.warn(`${LOG_PREFIX} the workspace folder could not be identified (failed)`)
     }
   }
   if (!deps.isActive()) {
@@ -889,11 +743,10 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     claudeConfigDir: deps.claudeConfigDir,
     codexHome: deps.codexHome,
     workspaceRoot: deps.workspaceRoot,
+    ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     isActive: deps.isActive,
     sources: choice === 'all' ? AGENT_IMPORT_SOURCES : [choice],
-    mask: UI_TEXT.agentImportMasked,
-    hiddenName: UI_TEXT.agentImportHiddenName,
   })
   if (!deps.isActive()) {
     return
@@ -901,7 +754,6 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   for (const warning of scan.warnings) {
     deps.log.warn(`${LOG_PREFIX} ${warning}`)
   }
-  logCredentialRefusals(deps, scan.candidates)
   const hasSkippedFiles = scan.warnings.length > 0
   if (scan.candidates.length === 0) {
     deps.showInformation(
@@ -915,7 +767,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     return
   }
   const picked = await deps.pickCandidates(
-    scan.candidates.map((candidate) => pickItemOf(deps, candidate)),
+    scan.candidates.map((candidate) => pickItemOf(candidate)),
   )
   if (picked === undefined || picked.length === 0 || !deps.isActive()) {
     return
@@ -948,8 +800,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   }
   if (
     !deps.isWorkspaceTrusted() &&
-    (plan.writes.some((write) => write.isProject) ||
-      plan.copies.some((copy) => copy.file === 'hooks'))
+    (plan.writes.some((write) => write.isProject) || plan.copies.some((copy) => copy.isProject))
   ) {
     deps.showWarning(UI_TEXT.agentImportUntrusted)
     deps.log.info(`${LOG_PREFIX} workspace trust changed; the accepted import was not applied`)

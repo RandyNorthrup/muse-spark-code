@@ -22,10 +22,10 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import {
   applyImportWrites,
   type ImportApplyResult,
+  type ImportCandidate,
   type ImportProjectRoot,
   type ImportWrite,
   planImportApply,
-  scanAgentImports,
 } from '../../src/core/import/agentImport'
 import {
   assertImportTarget,
@@ -33,15 +33,13 @@ import {
   fileImportWriter,
   isPathPresent,
 } from '../../src/host/importIo'
-import {
-  AGENT_IMPORT_ROOT_CHANGED_CODE,
-  RULES_FILE_MAX_BYTES,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { AGENT_IMPORT_ROOT_CHANGED_CODE, RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { SYNTHETIC } from './helpers/syntheticTokens'
 import { readContextText } from '../../src/core/context/contextFiles'
 import { fileContextIo } from '../../src/host/backend/contextIo'
+import { processGitRunner } from '../../src/host/git'
+import { scanImportFixture } from './helpers/memoryImportIo'
 
 const folders = { root: '' }
 
@@ -88,6 +86,32 @@ function stagedBeside(target: string): (file: string) => boolean {
   return (file) => file.startsWith(`${target}.`) && file.endsWith('.tmp')
 }
 
+/** Shared real-filesystem rules plan, with target state known to be empty. */
+async function planRulesFixture(
+  candidates: readonly ImportCandidate[],
+  workspace: string,
+  home: string,
+) {
+  return await planImportApply(
+    candidates,
+    {
+      platform: process.platform,
+      homeDir: home,
+      workspaceRoot: workspace,
+      workspaceIdentity: await fileImportWriter.identifyRoot(workspace),
+      personalRoot: home,
+      museSettingsFile: path.join(home, 'settings.json'),
+    },
+    {
+      io: fileImportIo,
+      isPresent: isPathPresent,
+      rulesFile: { status: 'missing' },
+      museSettings: { status: 'missing' },
+      hooksFile: 'missing',
+    },
+  )
+}
+
 beforeAll(async () => {
   folders.root = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'muse-import-io-')))
   await mkdir(path.join(folders.root, 'commands', 'nested'), { recursive: true })
@@ -106,6 +130,72 @@ afterAll(async () => {
 })
 
 describe('fileImportIo', () => {
+  it('uses a nested target repository index rather than the parent workspace ignore rules', async () => {
+    const workspace = path.join(folders.root, 'nested-repository')
+    const home = path.join(folders.root, 'nested-home')
+    const nested = path.join(workspace, 'inner')
+    await mkdir(nested, { recursive: true })
+    await mkdir(home, { recursive: true })
+    const git = processGitRunner()
+    await git(['init', '--quiet'], workspace)
+    await git(['init', '--quiet'], nested)
+    await writeFile(path.join(workspace, '.gitignore'), 'CLAUDE.md\ninner/\n')
+    await writeFile(path.join(workspace, 'CLAUDE.md'), 'Private source.')
+    const target = path.join(nested, 'AGENTS.md')
+    await writeFile(target, 'Keep this tracked file.')
+    await git(['add', '--', 'AGENTS.md'], nested)
+    const scan = await scanImportFixture(fileImportIo, {
+      platform: process.platform,
+      homeDir: home,
+      workspaceRoot: workspace,
+    })
+    const candidate = scan.candidates[0]
+    if (candidate?.target.kind !== 'rules') throw new Error('Fixture must yield project rules')
+    const plan = await planRulesFixture(
+      [{ ...candidate, target: { ...candidate.target, file: target } }],
+      workspace,
+      home,
+    )
+    expect(plan.writes).toEqual([])
+    expect(plan.skipped.map((skip) => skip.reason)).toEqual(['ignoredToTracked'])
+    expect(await readFile(target, 'utf8')).toBe('Keep this tracked file.')
+  })
+
+  it('classifies real git ignores and refuses an ignored source copied to a tracked target', async () => {
+    const workspace = path.join(folders.root, 'git-ignore')
+    const home = path.join(folders.root, 'ignore-home')
+    await mkdir(workspace, { recursive: true })
+    await mkdir(home, { recursive: true })
+    const git = processGitRunner()
+    await git(['init', '--quiet'], workspace)
+    await writeFile(path.join(workspace, '.gitignore'), 'CLAUDE.md\n')
+    await writeFile(path.join(workspace, 'CLAUDE.md'), 'Private source bytes.\n')
+    const makePlan = async () => {
+      const scan = await scanImportFixture(fileImportIo, {
+        platform: process.platform,
+        homeDir: home,
+        workspaceRoot: workspace,
+      })
+      expect(scan.candidates[0]?.sourceExposure).toBe('project-local')
+      return await planRulesFixture(scan.candidates, workspace, home)
+    }
+    const refused = await makePlan()
+    expect(refused.writes).toEqual([])
+    expect(refused.skipped.map((skip) => skip.reason)).toEqual(['ignoredToTracked'])
+    await writeFile(path.join(workspace, '.gitignore'), 'CLAUDE.md\nAGENTS.md\n')
+    const allowed = await makePlan()
+    const written = await applyImportWrites(allowed.writes, fileImportWriter, process.platform)
+    expect(written.skipped).toEqual([])
+    expect(written.written).toHaveLength(1)
+    expect(await readFile(path.join(workspace, 'AGENTS.md'), 'utf8')).toContain(
+      'Private source bytes.',
+    )
+    // A tracked file stays tracked even when a later ignore pattern matches it.
+    await git(['add', '-f', '--', 'AGENTS.md'], workspace)
+    expect(await fileImportIo.isIgnored(path.join(workspace, 'AGENTS.md'), workspace)).toBe(false)
+    expect(await fileImportIo.isIgnored(path.join(home, 'none'), home)).toBe(false)
+  })
+
   it('reads a file under the limit, and neither one over it nor a folder', async () => {
     const small = await fileImportIo.readFile(path.join(folders.root, 'commands', 'small.md'), 10)
     expect(small.status === 'read' && Buffer.from(small.bytes).toString('utf8')).toBe('small')
@@ -132,7 +222,7 @@ describe('fileImportIo', () => {
 })
 
 describe('fileImportWriter', () => {
-  it('publishes ordinary rules on the real filesystem, refuses rules holding a credential, and loads only the published bytes as context', async () => {
+  it('publishes rules unchanged on the real filesystem and loads the published bytes as context', async () => {
     const workspace = path.join(folders.root, 'refused-context')
     const home = path.join(workspace, 'home')
     const ordinary = path.join(workspace, 'CLAUDE.md')
@@ -142,46 +232,20 @@ describe('fileImportWriter', () => {
     await mkdir(path.dirname(source), { recursive: true })
     await writeFile(ordinary, 'Keep each change small.\n')
     await writeFile(source, `Project credential: ${secret}.\n`)
-    const scan = await scanAgentImports({
-      io: fileImportIo,
+    const scan = await scanImportFixture(fileImportIo, {
       platform: process.platform,
       homeDir: home,
-      claudeConfigDir: undefined,
-      codexHome: undefined,
       workspaceRoot: workspace,
-      isWorkspaceTrusted: () => true,
-      isActive: () => true,
-      sources: ['claudeCode'],
-      mask: UI_TEXT.agentImportMasked,
-      hiddenName: UI_TEXT.agentImportHiddenName,
     })
-    expect(scan.candidates.map((candidate) => candidate.target.kind)).toEqual([
-      'rules',
-      'credential',
-    ])
-    const plan = await planImportApply(
-      scan.candidates,
-      {
-        platform: process.platform,
-        workspaceRoot: workspace,
-        workspaceIdentity: await fileImportWriter.identifyRoot(workspace),
-        personalRoot: home,
-        museSettingsFile: path.join(home, 'settings.json'),
-      },
-      {
-        isPresent: isPathPresent,
-        rulesFile: { status: 'missing' },
-        museSettings: { status: 'missing' },
-        hooksFile: 'missing',
-      },
-    )
+    expect(scan.candidates.map((candidate) => candidate.target.kind)).toEqual(['rules', 'rules'])
+    const plan = await planRulesFixture(scan.candidates, workspace, home)
     expect(plan.writes).toHaveLength(1)
     const result = await applyImportWrites(plan.writes, fileImportWriter, process.platform)
     expect(result.failures).toEqual([])
     const published = await readFile(target, 'utf8')
     expect(published).toBe(plan.writes[0]?.content)
-    expect(published).toBe('## Imported from Claude Code (CLAUDE.md)\n\nKeep each change small.\n')
-    expect(plan.skipped.map((skip) => skip.reason)).toEqual(['credential'])
+    expect(published).toContain(secret)
+    expect(plan.skipped).toEqual([])
     expect(await readFile(source, 'utf8')).toContain(secret)
     const context = await readContextText(
       { platform: process.platform, io: fileContextIo },
@@ -189,7 +253,7 @@ describe('fileImportWriter', () => {
       workspace,
     )
     expect(context).toEqual({ ok: true, text: published })
-    expect(JSON.stringify(context)).not.toContain(secret)
+    expect(JSON.stringify(context)).toContain(secret)
   })
 
   it.each(['create', 'append'])(
@@ -609,6 +673,9 @@ describe('isPathPresent', () => {
 /** One project write of the import, to a file under `workspace`. */
 async function projectWrite(workspace: string, absolutePath: string): Promise<ImportWrite> {
   return {
+    sourceExposure: 'project-tracked',
+    homeDir: workspace,
+    workspaceRoot: workspace,
     candidateIds: ['a'],
     absolutePath,
     content: 'x\n',

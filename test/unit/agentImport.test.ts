@@ -24,8 +24,6 @@ import { SYNTHETIC } from './helpers/syntheticTokens'
 
 const HOME = '/home/u'
 const WS = '/ws'
-const MASK = '[masked]'
-const HIDDEN = '(name not shown)'
 const SECRET = SYNTHETIC.githubToken
 
 function agentFile(name: string, body: string, fields = ''): string {
@@ -82,8 +80,6 @@ function input(
     isWorkspaceTrusted: () => true,
     isActive: () => true,
     sources: ALL_SOURCES,
-    mask: MASK,
-    hiddenName: HIDDEN,
     ...overrides,
     io: memoryImportIo(tree),
   }
@@ -94,9 +90,6 @@ function targetOf(candidate: ImportCandidate): string {
   switch (target.kind) {
     case 'none': {
       return `none:${target.reason}`
-    }
-    case 'credential': {
-      return `credential:${target.cue}`
     }
     case 'file': {
       return `${target.scope} ${target.root}/${target.relativePath}`
@@ -132,7 +125,8 @@ describe('scanAgentImports', () => {
       const realPath = vi.fn(setup.io.realPath)
       setup.io.realPath = realPath
       await scanAgentImports(setup)
-      expect(realPath).not.toHaveBeenCalled()
+      if (guard === 'activation') expect(realPath).not.toHaveBeenCalled()
+      else expect(setup.io.reads.every((file) => !file.startsWith(`${WS}/`))).toBe(true)
       if (guard === 'activation') expect(setup.io.reads).toEqual([])
     },
   )
@@ -142,9 +136,9 @@ describe('scanAgentImports', () => {
     expect(summary(scan.candidates)).toEqual([
       'mcpServer claudeCode user github -> server',
       'mcpServer claudeCode user local -> server',
-      'hook claudeCode user PreToolUse (Bash) -> hook:settings',
+      'hook claudeCode user PreToolUse -> hook:settings',
       'agent claudeCode user reviewer -> user agents/reviewer/AGENT.md',
-      'command claudeCode user frontend-component -> user skills/frontend-component/SKILL.md',
+      'command claudeCode user frontend/component -> user skills/frontend-component/SKILL.md',
       'command claudeCode user review -> user skills/review/SKILL.md',
       'rules claudeCode user CLAUDE.md -> none:userRules',
       'mcpServer claudeCode project shared -> none:projectServer',
@@ -158,7 +152,7 @@ describe('scanAgentImports', () => {
       'mcpServer cursor user web -> server',
       'command cursor user tidy -> user skills/tidy/SKILL.md',
       'agent cursor project helper -> project agents/helper/AGENT.md',
-      'rules cursor project .cursor/rules/ts.mdc -> rules',
+      'rules cursor project ts.mdc -> rules',
       'rules cursor project .cursorrules -> rules',
     ])
     expect(scan.warnings).toEqual([])
@@ -189,8 +183,7 @@ describe('scanAgentImports', () => {
         case 'rules': {
           return candidate.origin !== 'project'
         }
-        case 'none':
-        case 'credential': {
+        case 'none': {
           return false
         }
       }
@@ -212,8 +205,8 @@ describe('scanAgentImports', () => {
     expect(labels).not.toContain('.cursorrules')
     expect(setup.io.reads).not.toContain(`${WS}/.cursorrules`)
     expect(scan.warnings).toEqual([
-      '.claude/commands leads outside the workspace, skipped',
-      '.cursorrules leads outside the workspace, skipped',
+      'leads outside the workspace, skipped',
+      'leads outside the workspace, skipped',
     ])
   })
 
@@ -221,8 +214,8 @@ describe('scanAgentImports', () => {
     const scan = await scanAgentImports(
       input(
         {
-          files: { '/dotfiles/claude/commands/dot.md': 'Dot.\n' },
-          links: { [`${HOME}/.claude`]: '/dotfiles/claude' },
+          files: { [`${HOME}/dotfiles/claude/commands/dot.md`]: 'Dot.\n' },
+          links: { [`${HOME}/.claude`]: `${HOME}/dotfiles/claude` },
         },
         { sources: ['claudeCode'] },
       ),
@@ -280,26 +273,24 @@ describe('scanAgentImports', () => {
     )
     expect(scan.candidates).toEqual([])
     expect(scan.warnings).toEqual([
-      '~/.claude/settings.json is not a readable settings file, skipped',
-      '~/.codex/config.toml is not a readable Codex configuration, skipped',
-      '~/.cursor/mcp.json is not an MCP servers file, skipped',
-      '~/.cursor/agents could not be listed (EACCES)',
-      '~/.cursor/commands/big.md is over the 65536 byte limit, skipped',
-      '~/.cursor/commands/empty.md has no usable name or holds nothing, skipped',
+      'is not a readable settings file, skipped',
+      'is not a readable Codex configuration, skipped',
+      'is not an MCP servers file, skipped',
+      'could not be listed (failed)',
+      'is over the 65536 byte limit, skipped',
+      'has no usable name or holds nothing, skipped',
     ])
     expect(scan.warnings.join('\n')).not.toContain(SECRET)
   })
 
-  it('masks every server env value at conversion, keeping its name', async () => {
+  it('copies every active server env value unchanged at conversion, keeping its name', async () => {
     const scan = await scanAgentImports(input({ files: FIXTURES }))
     const servers = scan.candidates.filter((candidate) => candidate.kind === 'mcpServer')
-    expect(JSON.stringify(servers)).not.toContain('github.example.com')
-    expect(JSON.stringify(servers)).toContain(`"GH_HOST":"${MASK}"`)
+    expect(JSON.stringify(servers)).toContain('"GH_HOST":"github.example.com"')
   })
 })
 
-// The redesign after RV83d: an entry that may hold a credential is refused
-// whole at the scan, and no candidate keeps any of its text.
+// D64 preserves source content in permitted destinations.
 describe('scanAgentImports: entries that may hold a credential', () => {
   const credentialFiles: Record<string, string> = {
     [`${HOME}/.claude.json`]: JSON.stringify({
@@ -323,29 +314,15 @@ describe('scanAgentImports: entries that may hold a credential', () => {
     [`${WS}/CLAUDE.md`]: "Project rules.\nTOKEN='prefix\nopaque-demo-value'\n",
   }
 
-  it('refuses each one whole, names its cue and keeps none of its text', async () => {
+  it('keeps credential spellings unchanged in same-exposure targets', async () => {
     const setup = input({ files: credentialFiles }, { sources: ['claudeCode'] })
     const scan = await scanAgentImports(setup)
-    expect(summary(scan.candidates)).toEqual([
-      'mcpServer claudeCode user github -> credential:token',
-      `mcpServer claudeCode user ${HIDDEN} -> credential:token`,
-      'hook claudeCode user Stop -> credential:token',
-      `hook claudeCode user ${HIDDEN} -> credential:token`,
-      'agent claudeCode user scout -> credential:name',
-      'command claudeCode user keys -> credential:name',
-      'command claudeCode user review -> credential:token',
-      'rules claudeCode project CLAUDE.md -> credential:name',
-    ])
-    const kept = JSON.stringify(scan.candidates)
-    for (const secret of [SECRET, 'opaque-demo-value', 'opaque']) {
-      expect(kept).not.toContain(secret)
-    }
+    expect(scan.candidates.some((candidate) => candidate.target.kind === 'none')).toBe(false)
     const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
-    expect(plan.writes).toEqual([])
-    expect(plan.copies).toEqual([])
-    expect(plan.skipped.map((skip) => skip.reason)).toEqual(
-      Array.from({ length: 8 }, () => 'credential'),
-    )
+    expect(plan.skipped).toEqual([])
+    expect(JSON.stringify(plan)).toContain(SECRET)
+    expect(plan.writes).toHaveLength(4)
+    expect(plan.copies).toHaveLength(1)
   })
 })
 
@@ -362,6 +339,7 @@ const ROOT_IDENTITY = { canonical: WS, fileId: '' } as const
 
 const DESTINATIONS: ImportDestinations = {
   platform: 'linux',
+  homeDir: HOME,
   workspaceRoot: WS,
   workspaceIdentity: ROOT_IDENTITY,
   personalRoot: `${HOME}/.config/muse`,
@@ -371,6 +349,7 @@ const DESTINATIONS: ImportDestinations = {
 function planState(io: MemoryImportIo, overrides: Partial<ImportPlanState> = {}): ImportPlanState {
   const agentsFile = io.files.get(`${WS}/AGENTS.md`)
   return {
+    io,
     isPresent: io.isPresent,
     rulesFile:
       agentsFile === undefined ? { status: 'missing' } : { status: 'read', text: agentsFile },
@@ -410,7 +389,12 @@ describe('planImportApply', () => {
     expect(JSON.parse(settings?.text ?? '')).toEqual({
       schema_version: 1,
       mcpServers: {
-        github: { type: 'stdio', command: 'gh-mcp', env: { GH_HOST: MASK }, mode: 'optional' },
+        github: {
+          type: 'stdio',
+          command: 'gh-mcp',
+          env: { GH_HOST: 'github.example.com' },
+          mode: 'optional',
+        },
         local: { type: 'stdio', command: 'local-mcp', mode: 'optional' },
         docs: { type: 'stdio', command: 'docs-mcp', mode: 'optional' },
         web: { type: 'streamable-http', url: 'https://w/mcp', mode: 'optional' },
@@ -493,6 +477,9 @@ describe('applyImportWrites', () => {
   it('never replaces a file that appeared since the preview, and reports a failure by its code', async () => {
     const write = {
       candidateIds: ['a'],
+      sourceExposure: 'project-tracked',
+      homeDir: HOME,
+      workspaceRoot: WS,
       absolutePath: `${WS}/.agents/skills/a/SKILL.md`,
       content: 'new',
       mode: 'create',
@@ -541,6 +528,9 @@ describe('applyImportWrites', () => {
       [
         {
           candidateIds: ['x'],
+          sourceExposure: 'personal',
+          homeDir: HOME,
+          workspaceRoot: WS,
           absolutePath: `${HOME}/.ssh/authorized_keys`,
           content: 'x',
           mode: 'create',
@@ -662,9 +652,9 @@ describe('refusals', () => {
     )
     expect(summary(scan.candidates)).toEqual([
       'agent claudeCode user plain -> user agents/plain/AGENT.md',
-      'agent claudeCode user review-audit-deep -> user agents/review-audit-deep/AGENT.md',
-      'agent claudeCode user review-security-plain -> user agents/review-security-plain/AGENT.md',
-      'agent claudeCode user review-security-reviewer -> user agents/review-security-reviewer/AGENT.md',
+      'agent claudeCode user review/audit/deep -> user agents/review-audit-deep/AGENT.md',
+      'agent claudeCode user review/security-plain -> user agents/review-security-plain/AGENT.md',
+      'agent claudeCode user review/Security Reviewer -> user agents/review-security-reviewer/AGENT.md',
       'agent claudeCode user security -> user agents/security/AGENT.md',
     ])
   })
@@ -684,7 +674,7 @@ describe('refusals', () => {
     const reasons = reasonsOf(plan.skipped)
     expect(reasons['rules:claudeCode:project:CLAUDE.md']).toBe('outside')
     expect(reasons['mcpServer:claudeCode:user:github']).toBe('unreadable')
-    expect(reasons['hook:claudeCode:user:PreToolUse (Bash)']).toBe('unreadable')
+    expect(reasons['hook:claudeCode:user:PreToolUse']).toBe('unreadable')
     expect(reasons['hook:claudeCode:project:PostToolUse']).toBe('outside')
     expect(plan.copies).toEqual([])
     expect(plan.writes.every((write) => write.mode === 'create')).toBe(true)

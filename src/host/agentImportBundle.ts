@@ -49,6 +49,24 @@ export interface AgentImportLoaderDeps {
 export function agentImportLoader(deps: AgentImportLoaderDeps): () => AgentImportBundle {
   return lazyBundleLoader({
     ...deps,
+    log: {
+      trace: (message) => {
+        deps.log.trace(message)
+      },
+      info: (message) => {
+        deps.log.info(message)
+      },
+      warn: (message) => {
+        deps.log.warn(message)
+      },
+      error: (message) => {
+        deps.log.error(
+          message.includes('does not export')
+            ? 'The import bundle does not export the import'
+            : 'The import bundle could not be loaded',
+        )
+      },
+    },
     isBundle: isAgentImportBundle,
     label: 'import bundle',
     unavailable: () => UI_TEXT.agentImportUnavailable,

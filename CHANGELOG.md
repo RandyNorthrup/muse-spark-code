@@ -9,22 +9,47 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49):
-  **Muse Spark: Import from Other Agents** (palette Customize group, both
-  backends). Slash commands become skills (the project's or your own),
-  custom agents become Markdown for the planned custom agents (M76), a
-  project's `CLAUDE.md`, Cursor rules and `.cursorrules` become headed
-  sections of its `AGENTS.md`. Your MCP servers (`~/.claude.json`, Codex
-  `config.toml`, Cursor `mcp.json`) and Claude Code hooks are converted to
-  Muse Code's entries, `env` and header values masked, copied for you to
-  paste into Muse Code's `settings.json` or the project's
-  `.muse/hooks.json`, which the extension never writes. An entry that may
-  hold a credential is not imported at all: the preview lists it for you to
-  copy yourself. A read-only preview shows everything first; nothing is
-  written until you choose Import, and an existing file is never replaced.
-  A repository's entries are read only in a trusted workspace, confined to
-  it, and offered only for that project's files. Codex's `config.toml` is
-  read with `smol-toml` 1.8.0, now a runtime dependency.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
+
+- **Session export, import and share** (M84, PLAN.md D49): **Export
+  session as JSON…** writes a portable file on either backend. Credentials
+  of a known shape and the key digest are always scrubbed, from every
+  string including item ids and error labels (a secret in any other shape
+  is not recognised); paths (your own folders included, spaces and all,
+  and any other absolute path in any script) and account ids are redacted
+  by default, and the redacted file opens read-only in the editor before
+  anything is written. The scrub runs in slices of about 64 KiB, a long
+  message cut only between lines no credential runs across, and the window
+  keeps working between them; a single line longer than a slice is still
+  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
+  Session** resumes such a file as a new conversation on the Model API
+  backend, on your own model, in Manual (or Plan when that is the initial
+  mode) every time it is opened, forked or restored, with no session rules,
+  goals, schedules, todos or patches; the model reads each imported turn as
+  untrusted data, a plan written in such a conversation is implemented in
+  Manual (or Plan) as a plan file is, and its code blocks offer Copy only
+  (no Insert or Apply). A file whose turns are more text than a
+  conversation can start with (786.4 kB, counted as one token a byte) is
+  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
+  marked imported before it advertises a mode or replays history. **Muse
+  Spark: Open Share File** reads such a file read-only in the panel (Copy
+  and links only), 200 items at a time with Show more; an item that cannot
+  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  through one bounded descriptor of a local file (other file providers are
+  refused), the format and its version, and no unknown field; a refusal
+  never quotes the file. Nothing is uploaded: sharing is a file on your
+  disk.
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
   token-saving mechanism must pass before it ships (M73, M74). Ten small
   repository fixtures (six accept, four held-out), each judged by a
@@ -61,10 +86,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
 - **Windows hooks no longer wait on PowerShell's module scan.** The
   PowerShell wrapper that puts each Windows command and hook in its job
   object (M27) loaded the job helper with `Add-Type` and switched output to
@@ -77,6 +98,10 @@ happened, not what was planned; superseded entries are kept.
   makes .NET calls only, so a hook or command starts without any module
   discovery; the helper's self-test and a stopped command's job kill load
   it the same way.
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
 - **A crafted long line no longer stalls the log.** Every line the
   extension logs passes through its secret redactor, whose JSON Web Token
   pattern read a long word again from every `eyJ` after a dash in it: a
@@ -84,85 +109,37 @@ happened, not what was planned; superseded entries are kept.
   run of dotted words once. A token glued after `_` or a letter
   (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
   the old pattern redacted is left.
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
-
-- M83 review repairs are implemented, with scoped regression/drill evidence.
-  Their final round-2 build failed at 530.7/125 KiB for the importer (an
-  accidental full `zod` import); importing `zod/mini`, as the converter does,
-  brought it to 104.0 KiB, the second review's quoted-URL fix to 104.4 KiB,
-  and the third review's masking redesign to 104.1 KiB.
-  See `docs/certification/m83b.md` and `m83d.md`; these repairs are not
-  release certification.
-- Refused copy-only imports now count as not imported in notifications and logs.
-  A fully refused import reports its counts as a warning without a success
-  completion; native editor safety refusals also reach the result.
-- Copy-only imports recheck target existence before clipboard and editor actions.
-  Newly created targets open for merging; deleted targets open unsaved. Settings
-  copy text and instructions use the current whole-file or merge form.
-- Imports recheck live trust and activation at scan read/list boundaries.
-  Losing trust stops project-source reads while personal imports remain
-  available; deactivation stops scanning and every pending picker or prompt.
-- **Imported text is masked failing closed, line by line** (M83, third
-  review). In MCP arguments, hook commands, prompts and rules, everything from
-  a line's first credential cue to the end of the line is masked: a URL with
-  a query (from just after `?`) or user-info (from just after `://`), a
-  credential-like name (`GITHUB_TOKEN`, `--api-key`, `"client_secret"`,
-  `Authorization`) followed by `=`, `:` or whitespace, or a known token shape.
-  An argument is masked the same way, as one line. This replaces this cycle's
-  earlier attempts to find where a value ends: three reviews found credentials
-  shown through quote marks, a shell's word-joining, whitespace inside a
-  quoted value, and name and scheme length caps. Harmless text after a cue is
-  sometimes masked too (`keyboard shortcuts`); the preview shows it. Masking
-  takes linear time: each reported slow line of 64,000 characters takes
-  milliseconds (one took 13.8 s). Server `env`, header and URL fields are
-  still masked whole, their names, host and path kept. (Superseded by the
-  refusal below.)
-- **The import refuses an entry that may hold a credential instead of
-  masking it** (M83, fourth review). A fourth review round (RV83d) found
-  the masker still showing credentials through a value on the next line, a
-  shell line continuation, a credential name joined from quoted parts, a
-  JSON-escaped or Unicode-suffixed name, and a query after whitespace; four
-  rounds each found a new spelling. Now every entry (a rules file, a
-  command, an agent, a hook, an MCP server with its arguments, `env`,
-  headers and URL) is read whole, as written, as a shell or a JSON or URL
-  decoder would join it, and with punctuation removed. A credential-like
-  name with a value, URL user-info or a credential query parameter, a known
-  token shape, or a long random-looking value refuses the whole entry:
-  nothing of it is written or copied, and the preview lists it under **Not
-  imported: may hold a credential — copy it yourself** with the kind of cue,
-  never the value. Ordinary prose such as "count the tokens" passes; some
-  harmless text is refused too (25 of 200 open-source rule files, a third
-  of them for an example key). An MCP server's URL with user-info, a query
-  or a fragment is refused; `env` and header values are still masked whole.
-  The check takes linear time: its slowest adversarial input of 512,000
-  characters takes 0.22 s on the Kubuntu test machine.
-- **Imported files are yours, not a running turn's** (M83). A file the
-  import writes while a conversation turn runs is noted as your own edit,
-  as the other commands' writes are, so restoring that turn neither deletes
-  it nor puts the old `AGENTS.md` back.
-- The import rechecks the window's folder after its last awaited check and
-  just before the clipboard, so a folder change at that moment copies
-  nothing for the old project. A preview of an MCP argument with 128,000
-  backtick runs no longer stops on a stack overflow. A blank MCP server
-  command is listed as unsupported, as a blank hook command is. The preview,
-  and the message when nothing was found, say when some source files were
-  skipped; the log names each one and why.
-- Removed M83's temporary empty English-table stand-in and its build plugin.
-  The lead-approved shared `dist/uiText.js` contract replaces this approach;
-  the importer uses the same runtime fallback as the other Node bundles.
-- The import picker, clipboard and editor code now load with the existing
-  import bundle on first use, keeping activation within its 600 KiB budget.
-  The loader checks both entry points; the installed language and captured
-  workspace-edit owner stay intact across loading.
-- **Import root stays bound through every question and publication** (M83).
-  A workspace link changed during tool/candidate selection or rules staging
-  cannot redirect the accepted import. Hooks destinations are checked before
-  the editor loads their documents and after loading. Concurrent requests
-  report that an import is already open; a fully refused import reports its
-  reason instead of claiming completion.
+- **The log redacts more credential shapes.** The output channel's
+  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
+  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
+  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
+  upper-case variable, a header, a JSON field or a URL parameter.
+- **A long dotted line no longer stalls the log.** The redactor's URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. Text with none of the credential literals
+  (most log lines) now skips the patterns in one scan.
+- **A conversation no longer opens while the Model API backend closes or
+  after you sign out, and an overtaken side chat leaves no Plan mode.**
+  Starting, resuming or forking a conversation loaded the hooks, then made
+  the session and ran its SessionStart hook without checking again that
+  the backend was not closing (or, when resuming, that you were still
+  signed in). Both are checked now, before the session exists and again
+  after its SessionStart hook. And a side chat whose opening another
+  opening overtook (a second conversation opened before the first had
+  loaded) still switched the panel to Plan; only the opening that lands
+  sets the mode now.
+- **A slow Muse Code start is waited for, and a failed one is shown once.**
+  On a machine short of CPU, `muse serve` could miss its 30-second
+  handshake and was ended, and every action waiting on that start showed
+  its own "That did not work" card (six for one start). A start whose
+  process still runs at 30 seconds now gets up to 120 seconds in all (the
+  model pill keeps reading "Starting Muse Code…"); one whose process exits
+  fails at once. A failed start is shown once in the panel, by the first
+  action that needed it (a message on its own card); the panel's warm-up
+  says it only when nothing else did, and the skill listings of the
+  palette and the slash menu only log it. The next action starts Muse
+  Code afresh.
 
 ## [0.10.0] - 2026-10-01
 

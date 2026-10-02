@@ -13,18 +13,14 @@
 //   the same names. A server that is turned off is skipped, and so is one
 //   that needs what Muse Code lacks (`sse`, `ws` and `sdk` transports,
 //   OAuth, header helpers) or has a blank command. Every other field is
-//   named as not carried over. A server any of whose carried text holds a
-//   credential cue (`importCredentials.ts`) is refused whole, and so is a
-//   URL with user-info, a query or a fragment; otherwise its `env` and
-//   header values are still masked, their names kept, and the unmasked
-//   entry is never kept.
+//   named as not carried over. Only the active transport's fields are
+//   copied; values stay unchanged under the exposure rule (PLAN.md D64).
 // - Hooks: Claude Code's settings `hooks` block, whose shape Muse Code
 //   shares (M51). An event Muse Code also has converts with its matcher
 //   kept (Muse Code's matchers take Claude Code's tool names for its own
 //   tools), except where Claude Code ignores a matcher; a handler converts
 //   only as a plain `command` with `timeout`, `async` and `statusMessage`,
-//   so nothing it narrowed (`if`, `args`, `shell`) is widened. A hook any
-//   of whose text holds a credential cue is refused whole.
+//   so nothing it narrowed (`if`, `args`, `shell`) is widened.
 // - Commands become SKILL.md files, rules files AGENTS.md sections.
 // Pure; no `vscode` import.
 
@@ -39,7 +35,6 @@ import {
   MUSE_MCP_OPTIONAL_MODE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { credentialCue, type CredentialCue, maskValues } from './importCredentials'
 
 /** Why an entry that was found is not converted. */
 export type ConversionRefusal = 'disabled' | 'unsupported' | 'unmapped'
@@ -47,10 +42,8 @@ export type ConversionRefusal = 'disabled' | 'unsupported' | 'unmapped'
 export type Conversion<T> =
   | { readonly ok: true; readonly value: T; readonly dropped: readonly string[] }
   | { readonly ok: false; readonly reason: ConversionRefusal }
-  /** It may hold a credential: refused whole, its cue's kind named. */
-  | { readonly ok: false; readonly reason: 'credential'; readonly cue: CredentialCue }
 
-/** A Muse Code `mcpServers` entry, its `env` and header values masked. */
+/** A Muse Code `mcpServers` entry, its active values unchanged. */
 export type MuseMcpEntry = Readonly<Record<string, unknown>>
 
 /** A server as the file names it, before conversion. */
@@ -69,8 +62,6 @@ const LINE_BREAK = /\r?\n/
 const FENCE = '---'
 const FIELD_SEPARATOR = ':'
 const WHITESPACE_RUN = /\s+/g
-const ENV_ASSIGN = '='
-const HEADER_SEPARATOR = ': '
 
 function describeFields(raw: JsonObject, carried: ReadonlySet<string>): readonly string[] {
   return Object.keys(raw).filter((key) => !carried.has(key))
@@ -91,15 +82,8 @@ const jsonServerSchema = z.looseObject({
   headers: z.optional(stringTable),
   enabled: z.optional(z.boolean()),
 })
-const JSON_CARRIED: ReadonlySet<string> = new Set([
-  'type',
-  'command',
-  'args',
-  'env',
-  'url',
-  'headers',
-  'enabled',
-])
+const JSON_STDIO: ReadonlySet<string> = new Set(['type', 'command', 'args', 'env', 'enabled'])
+const JSON_HTTP: ReadonlySet<string> = new Set(['type', 'url', 'headers', 'enabled'])
 const JSON_UNSUPPORTED = ['oauth', 'headersHelper'] as const
 
 const codexServerSchema = z.looseObject({
@@ -122,83 +106,49 @@ const CODEX_COPIED = [
   'enabled_tools',
   'disabled_tools',
 ] as const
-const CODEX_CARRIED: ReadonlySet<string> = new Set([
-  'command',
-  'args',
-  'env',
-  'url',
-  'http_headers',
-  ...CODEX_COPIED,
-])
+const CODEX_STDIO: ReadonlySet<string> = new Set(['command', 'args', 'env', ...CODEX_COPIED])
+const CODEX_HTTP: ReadonlySet<string> = new Set(['url', 'http_headers', ...CODEX_COPIED])
 const CODEX_UNSUPPORTED = ['http_headers_helper'] as const
 
 type StringTable = Readonly<Record<string, string>>
 
-/** A table's entries as the credential check reads them: `NAME=value`, or `Name: value` for headers. */
-function tableLines(table: StringTable | undefined, separator: string): readonly string[] {
-  return Object.entries(table ?? {}).map(([name, value]) => `${name}${separator}${value}`)
-}
-
-function credentialRefusal(texts: readonly string[]): Conversion<never> | undefined {
-  const cue = credentialCue(texts)
-  return cue === undefined ? undefined : { ok: false, reason: 'credential', cue }
-}
-
-/** A stdio entry, or its refusal when any text it carries holds a credential cue. */
+/** Only the active transport's fields are copied, unchanged. */
 function stdioEntry(
   server: { readonly command: string; readonly args?: readonly string[] | undefined },
   env: StringTable | undefined,
-  carried: readonly string[],
-  mask: string,
 ): Conversion<Record<string, unknown>> {
-  const { command, args } = server
-  return (
-    credentialRefusal([command, ...(args ?? []), ...tableLines(env, ENV_ASSIGN), ...carried]) ?? {
-      ok: true,
-      value: {
-        type: MCP_TRANSPORTS.stdio,
-        command,
-        ...(args !== undefined && { args }),
-        ...(env !== undefined && { env: maskValues(env, mask) }),
-        mode: MUSE_MCP_OPTIONAL_MODE,
-      },
-      dropped: [],
-    }
-  )
+  return {
+    ok: true,
+    value: {
+      type: MCP_TRANSPORTS.stdio,
+      command: server.command,
+      ...(server.args !== undefined && { args: server.args }),
+      ...(env !== undefined && { env }),
+      mode: MUSE_MCP_OPTIONAL_MODE,
+    },
+    dropped: [],
+  }
 }
 
-/**
- * A streamable HTTP entry, or its refusal: a URL that does not parse is
- * unsupported, and one with user-info, a query or a fragment may carry a
- * credential, as may any text it carries.
- */
 function httpEntry(
   url: string,
   headers: StringTable | undefined,
-  carried: readonly string[],
-  mask: string,
 ): Conversion<Record<string, unknown>> {
-  let parsed: URL
   try {
-    parsed = new URL(url)
+    new URL(url)
   } catch {
     return { ok: false, reason: 'unsupported' }
   }
-  if ([parsed.username, parsed.password, parsed.search, parsed.hash].some((part) => part !== '')) {
-    return { ok: false, reason: 'credential', cue: 'url' }
+  return {
+    ok: true,
+    value: {
+      type: MCP_TRANSPORTS.streamableHttp,
+      url,
+      ...(headers !== undefined && { headers }),
+      mode: MUSE_MCP_OPTIONAL_MODE,
+    },
+    dropped: [],
   }
-  return (
-    credentialRefusal([url, ...tableLines(headers, HEADER_SEPARATOR), ...carried]) ?? {
-      ok: true,
-      value: {
-        type: MCP_TRANSPORTS.streamableHttp,
-        url,
-        ...(headers !== undefined && { headers: maskValues(headers, mask) }),
-        mode: MUSE_MCP_OPTIONAL_MODE,
-      },
-      dropped: [],
-    }
-  )
 }
 
 /** A converted entry with the source's fields that are not carried over, and anything it copies as it is. */
@@ -238,8 +188,8 @@ function admit<T extends { readonly enabled?: boolean | undefined }>(
     : { isAdmitted: true, server: parsed.data }
 }
 
-/** A Claude Code or Cursor server entry as Muse Code's, its env and header values masked. */
-export function convertJsonServer(raw: unknown, mask: string): Conversion<MuseMcpEntry> {
+/** A Claude Code or Cursor server entry as Muse Code's, its active values unchanged. */
+export function convertJsonServer(raw: unknown): Conversion<MuseMcpEntry> {
   const admission = admit(jsonServerSchema, raw, (entry) =>
     JSON_UNSUPPORTED.some((key) => Object.hasOwn(entry, key)),
   )
@@ -247,21 +197,23 @@ export function convertJsonServer(raw: unknown, mask: string): Conversion<MuseMc
     return admission.refusal
   }
   const { server } = admission
-  const dropped = describeFields(server, JSON_CARRIED)
   // Claude Code's rule: no type is stdio; Cursor's remote servers give a URL alone.
   const declared =
     server.type ?? (server.command === undefined && server.url !== undefined ? 'http' : 'stdio')
   const { command } = server
   if (declared === MCP_TRANSPORTS.stdio && hasCommand(command)) {
-    return withFields(stdioEntry({ ...server, command }, server.env, [], mask), dropped)
+    return withFields(
+      stdioEntry({ command, args: server.args }, server.env),
+      describeFields(server, JSON_STDIO),
+    )
   }
   return HTTP_TYPES.has(declared) && server.url !== undefined
-    ? withFields(httpEntry(server.url, server.headers, [], mask), dropped)
+    ? withFields(httpEntry(server.url, server.headers), describeFields(server, JSON_HTTP))
     : { ok: false, reason: 'unsupported' }
 }
 
-/** A Codex `[mcp_servers.<name>]` table as Muse Code's entry, its env and header values masked. */
-export function convertCodexServer(raw: unknown, mask: string): Conversion<MuseMcpEntry> {
+/** A Codex `[mcp_servers.<name>]` table as Muse Code's entry, its active values unchanged. */
+export function convertCodexServer(raw: unknown): Conversion<MuseMcpEntry> {
   const admission = admit(
     codexServerSchema,
     raw,
@@ -274,15 +226,20 @@ export function convertCodexServer(raw: unknown, mask: string): Conversion<MuseM
   const copied = Object.fromEntries(
     CODEX_COPIED.flatMap((key) => (server[key] === undefined ? [] : [[key, server[key]]])),
   )
-  const dropped = describeFields(server, CODEX_CARRIED)
-  // The copied tool names are published too, so they are checked with the rest.
-  const tools = [...(server.enabled_tools ?? []), ...(server.disabled_tools ?? [])]
   if (server.url !== undefined) {
-    return withFields(httpEntry(server.url, server.http_headers, tools, mask), dropped, copied)
+    return withFields(
+      httpEntry(server.url, server.http_headers),
+      describeFields(server, CODEX_HTTP),
+      copied,
+    )
   }
   const { command } = server
   return hasCommand(command)
-    ? withFields(stdioEntry({ ...server, command }, server.env, tools, mask), dropped, copied)
+    ? withFields(
+        stdioEntry({ command, args: server.args }, server.env),
+        describeFields(server, CODEX_STDIO),
+        copied,
+      )
     : { ok: false, reason: 'unsupported' }
 }
 
@@ -395,7 +352,7 @@ export interface FoundHook {
   readonly raw: unknown
 }
 
-/** A converted hook: the event and the group Muse Code's `hooks` block takes, checked for credentials. */
+/** A converted hook: the event and the group Muse Code's `hooks` block takes. */
 export interface MuseHook {
   readonly event: string
   readonly group: Readonly<Record<string, unknown>>
@@ -426,8 +383,7 @@ export function readClaudeHooks(text: string): readonly FoundHook[] | undefined 
 
 /**
  * One Claude Code hook handler as Muse Code's; refused when it would widen
- * or cannot run, and refused whole when any of its text holds a credential
- * cue (the command, the matcher, the status line).
+ * or cannot run. Values stay unchanged in the allowed target.
  */
 export function convertHook(hook: FoundHook): Conversion<MuseHook> {
   if (!AGENT_IMPORT_HOOK_EVENTS.includes(hook.event)) {
@@ -450,10 +406,6 @@ export function convertHook(hook: FoundHook): Conversion<MuseHook> {
       (!Number.isSafeInteger(timeout) || timeout < 0 || timeout > HOOK_MAX_TIMEOUT_SECONDS))
   ) {
     return { ok: false, reason: 'unsupported' }
-  }
-  const refusal = credentialRefusal([hook.event, hook.matcher ?? '', command, statusMessage ?? ''])
-  if (refusal !== undefined) {
-    return refusal
   }
   const isMatcherKept =
     hook.matcher !== undefined &&

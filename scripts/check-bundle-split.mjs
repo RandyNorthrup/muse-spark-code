@@ -256,7 +256,6 @@ const IMPORT_ONLY = [
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
   'src/core/import/importConvert.ts',
-  'src/core/import/importCredentials.ts',
   'node_modules/smol-toml/',
 ]
 const agentImport = inputsOf(AGENT_IMPORT)

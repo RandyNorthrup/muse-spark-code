@@ -13,23 +13,16 @@ import {
   type ImportGate,
   importFromAgents,
 } from '../../src/host/commands/agentImportCommands'
-import {
-  AGENT_IMPORT_ROOT_CHANGED_CODE,
-  HOOK_CONFIG_MAX_BYTES,
-  UI_TEXT,
-} from '../../src/shared/constants'
-import { fill } from '../../src/shared/l10n/text'
+import { HOOK_CONFIG_MAX_BYTES, UI_TEXT } from '../../src/shared/constants'
 import { CREDENTIAL_LEAKS, leakSecret, ORDINARY_LINES } from './helpers/credentialLeaks'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { type MemoryImportIo, memoryImportIo } from './helpers/memoryImportIo'
-import { SYNTHETIC } from './helpers/syntheticTokens'
 import { readContextText } from '../../src/core/context/contextFiles'
 import type { ImportWriteNotice } from '../../src/core/import/agentImport'
 
 const HOME = '/home/u'
 const WS = '/ws'
 const SETTINGS = `${HOME}/.config/muse/settings.json`
-const SECRET = SYNTHETIC.githubToken
 
 const FILES: Record<string, string> = {
   [`${HOME}/.claude.json`]: JSON.stringify({
@@ -48,22 +41,6 @@ const FILES: Record<string, string> = {
   [`${WS}/CLAUDE.md`]: 'Project rules.\n',
 }
 
-// The same entries, each holding a secret: every one of them is refused whole.
-const SECRET_FILES: Record<string, string> = {
-  ...FILES,
-  [`${HOME}/.claude.json`]: JSON.stringify({
-    mcpServers: { github: { command: 'gh-mcp', env: { GITHUB_TOKEN: SECRET } } },
-  }),
-  [`${HOME}/.claude/settings.json`]: JSON.stringify({
-    hooks: {
-      Stop: [
-        { hooks: [{ type: 'command', command: `curl -H "Authorization: Bearer ${SECRET}"` }] },
-      ],
-    },
-  }),
-  [`${HOME}/.claude/commands/review.md`]: `---\ndescription: Reviews\n---\n\nUse ${SECRET}.\n`,
-}
-
 interface Options {
   readonly files?: Record<string, string>
   readonly isTrusted?: boolean
@@ -74,8 +51,8 @@ interface Options {
   readonly pick?: (items: readonly AgentImportPickItem[]) => readonly string[] | undefined
   readonly isConfirmed?: boolean
   readonly confirmation?: Promise<boolean>
-  readonly copyChoice?: 'copy' | 'open' | undefined
-  readonly copyAnswer?: Promise<'copy' | 'open' | undefined>
+  readonly editChoice?: 'edit' | 'open' | undefined
+  readonly editAnswer?: Promise<'edit' | 'open' | undefined>
   readonly beforeWriting?: (path: string) => Promise<void>
   readonly beginProjectEdit?: ImportWriteNotice
   /** The window's first folder as the host names it now; the plan's folder by default. */
@@ -93,9 +70,9 @@ interface Options {
   /** Runs after the preview editor opens, before the next prompt. */
   readonly whilePreviewOpened?: () => void
   /** Runs when the user answers the copy prompt, before the file opens. */
-  readonly whileCopying?: (io: MemoryImportIo) => void
-  /** Runs during clipboard access, after the copy path's first check. */
-  readonly whileClipboardWritten?: (io: MemoryImportIo, text: string) => void
+  readonly whileOffering?: (io: MemoryImportIo) => void
+  /** Runs during edits access, after the copy path's first check. */
+  readonly whileEditorWritten?: (io: MemoryImportIo, text: string) => void
   /** Shared by two runs in one window; each run gets its own by default. */
   readonly io?: MemoryImportIo
   readonly gate?: ImportGate
@@ -110,7 +87,7 @@ function run(options: Options = {}) {
   const events: string[] = []
   const previews: string[] = []
   const questions: string[] = []
-  const clipboard: string[] = []
+  const edits: string[] = []
   const opened: [string, boolean][] = []
   const information: string[] = []
   const warnings: string[] = []
@@ -185,23 +162,23 @@ function run(options: Options = {}) {
       questions.push(message)
       return options.confirmation ?? Promise.resolve(options.isConfirmed ?? true)
     },
-    offerCopy: (message) => {
+    offerEdit: (message) => {
       events.push(`offer ${message}`)
-      options.whileCopying?.(io)
+      options.whileOffering?.(io)
       return (
-        options.copyAnswer ?? Promise.resolve('copyChoice' in options ? options.copyChoice : 'copy')
+        options.editAnswer ?? Promise.resolve('editChoice' in options ? options.editChoice : 'edit')
       )
     },
-    copyText: (text) => {
-      clipboard.push(text)
-      options.whileClipboardWritten?.(io, text)
-      return Promise.resolve()
-    },
-    openTarget: async (path, isExisting, isStillSafe) => {
+    openTarget: async (path, isExisting, isStillSafe, canApply, text) => {
       options.whileOpening?.(io, path)
-      if (await isStillSafe()) {
-        opened.push([path, isExisting])
+      if (!(await isStillSafe()) || !canApply()) return false
+      opened.push([path, isExisting])
+      if (text !== undefined) {
+        options.whileEditorWritten?.(io, text)
+        if (!(await isStillSafe()) || !canApply()) return false
+        edits.push(text)
       }
+      return true
     },
     showInformation: (message) => {
       information.push(message)
@@ -219,31 +196,13 @@ function run(options: Options = {}) {
     events,
     previews,
     questions,
-    clipboard,
+    edits,
     opened,
     information,
     warnings,
     items,
     logged,
   }
-}
-
-/** The entries the preview lists as possibly holding a credential, one line each. */
-function credentialLines(preview: string | undefined): readonly string[] {
-  const [, section = ''] = (preview ?? '').split(`## ${UI_TEXT.agentImportPreviewCredentials}\n\n`)
-  return section.split('\n').filter((line) => line.startsWith('- '))
-}
-
-/** Everything the user is shown or given, and the log. */
-function everythingShown(flow: ReturnType<typeof run>): string {
-  return [
-    ...flow.previews,
-    ...flow.clipboard,
-    ...flow.information,
-    ...flow.warnings,
-    ...flow.items.flatMap((item) => [item.label, item.description, item.detail]),
-    flow.logged(),
-  ].join('\n')
 }
 
 /** Only the project's command is checked: its writes are what the folder checks guard. */
@@ -268,32 +227,127 @@ function projectHooksOnly(items: readonly AgentImportPickItem[]): readonly strin
 }
 
 describe('importFromAgents', () => {
+  it('reports the physical project scope of a user-folder alias without source paths', async () => {
+    const io = memoryImportIo({
+      files: { [`${WS}/.claude/commands/ship.md`]: 'Ship.' },
+      links: { [`${HOME}/.claude`]: `${WS}/.claude` },
+    })
+    const flow = run({ io })
+    await flow.done
+    expect(flow.items.map((item) => item.detail)).toEqual([
+      UI_TEXT.agentImportProjectFiles,
+      UI_TEXT.agentImportProjectFiles,
+    ])
+    expect(flow.io.files.get(`${HOME}/.config/muse/skills/ship/SKILL.md`)).toContain('Ship.')
+  })
+
+  it.each(['open', undefined] as const)(
+    'counts config entries left unapplied by %s as not imported',
+    async (editChoice) => {
+      const flow = run({
+        pick: (items) => items.filter((item) => item.label === 'github').map((item) => item.id),
+        editChoice,
+      })
+      await flow.done
+      expect(flow.edits).toEqual([])
+      expect(flow.information.some((message) => message.includes(UI_TEXT.agentImportDone))).toBe(
+        false,
+      )
+      expect(flow.warnings.join('\n')).toContain('Not imported: 1')
+    },
+  )
+
+  it('keeps the leak corpus out of log, preview and picker while preserving allowed target content', async () => {
+    const leaks = CREDENTIAL_LEAKS.map((leak, index) => ({
+      id: `sample${String(index)}`,
+      secret: leakSecret(index),
+      text: leak.text(leakSecret(index)),
+    }))
+    const flow = run({
+      source: 'all',
+      files: {
+        [`${HOME}/.claude.json`]: JSON.stringify({
+          mcpServers: Object.fromEntries(
+            leaks.map((leak) => [leak.id, { command: 'sh', args: ['-c', leak.text] }]),
+          ),
+        }),
+        [`${HOME}/.claude/settings.json`]: JSON.stringify({
+          hooks: {
+            Stop: [{ hooks: leaks.map((leak) => ({ type: 'command', command: leak.text })) }],
+          },
+        }),
+        ...Object.fromEntries(
+          leaks.flatMap((leak) => [
+            [`${HOME}/.claude/commands/${leak.id}.md`, `Run this.\n${leak.text}\n`],
+            [`${WS}/.cursor/rules/${leak.id}.mdc`, `---\ndescription: d\n---\n\n${leak.text}\n`],
+          ]),
+        ),
+        [`${WS}/CLAUDE.md`]: `${ORDINARY_LINES.join('\n')}\n`,
+      },
+    })
+    await flow.done
+    expect(flow.edits).toHaveLength(1)
+    const publicText = [
+      ...flow.previews,
+      ...flow.items.flatMap((item) => [item.label, item.description, item.detail]),
+      flow.logged(),
+    ].join('\n')
+    for (const leak of leaks) {
+      expect(publicText, leak.id).not.toContain(leak.secret)
+      expect(publicText, leak.id).not.toContain(leak.text)
+      expect(JSON.parse(flow.edits[0] ?? '')).toHaveProperty(
+        `mcpServers.${leak.id}.args.1`,
+        leak.text,
+      )
+      expect(flow.io.files.get(`${HOME}/.config/muse/skills/${leak.id}/SKILL.md`)).toContain(
+        leak.secret,
+      )
+      expect(flow.io.files.get(`${WS}/AGENTS.md`)).toContain(leak.secret)
+      expect(flow.logged()).not.toContain(leak.id)
+    }
+    expect(flow.logged()).not.toContain(HOME)
+    expect(flow.logged()).not.toContain(WS)
+    expect(flow.items.every((item) => !item.detail.includes('/'))).toBe(true)
+  })
+
+  it('logs neither names nor paths from unusable source files', async () => {
+    const name = 'opaque-demo-value'
+    const flow = run({
+      files: {
+        [`${HOME}/.claude/commands/${name}.md`]: '',
+        [`${HOME}/.claude/commands/good.md`]: 'Ordinary.',
+      },
+    })
+    await flow.done
+    expect(flow.logged()).not.toContain(name)
+    expect(flow.logged()).not.toContain('good')
+    expect(flow.logged()).not.toContain(HOME)
+    expect(flow.items.map((item) => item.detail)).toEqual([UI_TEXT.agentImportUserFiles])
+  })
+
   it('counts a refused project copy separately from an offered personal copy', async () => {
     const flow = run({
       pick: (items) => [
         ...projectHooksOnly(items),
         ...items.filter((item) => item.label === 'github').map((item) => item.id),
       ],
-      whileCopying: (io) => {
+      whileOffering: (io) => {
         io.links.set(WS, '/other')
       },
     })
     await flow.done
     expect(flow.opened).toEqual([[SETTINGS, false]])
-    expect(flow.clipboard).toHaveLength(1)
+    expect(flow.edits).toHaveLength(1)
     expect(flow.information.at(-1)).toBe(
-      'Import finished. New files: 0 · Sections for AGENTS.md: 0 · Entries to copy by hand: 1 · Not imported: 1',
+      'Import finished. New files: 0 · Sections for AGENTS.md: 0 · Entries offered in the editor: 1 · Not imported: 1',
     )
-    expect(flow.logged()).toContain('1 file(s) to paste into, 1 entr(ies) not imported')
+    expect(flow.logged()).toContain('1 file(s) offered in editor, 1 entr(ies) not imported')
   })
 
   it.each([
     { at: 1, change: 'root' },
     { at: 1, change: 'trust' },
     { at: 1, change: 'activation' },
-    { at: 2, change: 'root' },
-    { at: 2, change: 'trust' },
-    { at: 2, change: 'activation' },
   ])(
     'refuses project copy actions after existence await $at loses $change',
     async ({ at, change }) => {
@@ -308,7 +362,7 @@ describe('importFromAgents', () => {
         pick: projectHooksOnly,
         trust: () => isTrusted,
         isActive: () => isActive,
-        whileCopying: () => {
+        whileOffering: () => {
           isCopying = true
         },
         whileOpening: opening,
@@ -324,7 +378,7 @@ describe('importFromAgents', () => {
       })
       await flow.done
       expect(reads).toBe(at)
-      expect(flow.clipboard).toHaveLength(at === 1 ? 0 : 1)
+      expect(flow.edits).toHaveLength(0)
       expect(opening).not.toHaveBeenCalled()
       expect(flow.opened).toEqual([])
       expect(flow.information.some((message) => message.includes(UI_TEXT.agentImportDone))).toBe(
@@ -338,8 +392,6 @@ describe('importFromAgents', () => {
     { phase: 'preview', startsExisting: true },
     { phase: 'copy prompt', startsExisting: false },
     { phase: 'copy prompt', startsExisting: true },
-    { phase: 'clipboard', startsExisting: false },
-    { phase: 'clipboard', startsExisting: true },
   ])(
     'uses current copy-target existence after $phase (initially $startsExisting)',
     async ({ phase, startsExisting }) => {
@@ -364,23 +416,20 @@ describe('importFromAgents', () => {
           ...items.filter((item) => item.label === 'github').map((item) => item.id),
         ],
         ...(phase === 'preview' && { whilePreviewed: changeTargets }),
-        ...(phase === 'copy prompt' && { whileCopying: changeTargets }),
-        ...(phase === 'clipboard' && { whileClipboardWritten: changeTargets }),
+        ...(phase === 'copy prompt' && { whileOffering: changeTargets }),
+        ...(phase === 'editor' && { whileEditorWritten: changeTargets }),
       })
       await flow.done
       expect(flow.opened).toEqual([
         [SETTINGS, !startsExisting],
         [`${WS}/.muse/hooks.json`, !startsExisting],
       ])
-      expect(JSON.parse(flow.clipboard[0] ?? '')).toHaveProperty('mcpServers.github')
-      const isCopyForNewFile = phase === 'clipboard' ? !startsExisting : startsExisting
-      expect(flow.information[0]).toBe(
-        `${UI_TEXT.agentImportCopied} ${isCopyForNewFile ? UI_TEXT.agentImportPreviewNewFile : UI_TEXT.agentImportPreviewMerge}`,
-      )
+      expect(JSON.parse(flow.edits[0] ?? '')).toHaveProperty('mcpServers.github')
+      const isCopyForNewFile = startsExisting
       if (isCopyForNewFile)
-        expect(JSON.parse(flow.clipboard[0] ?? '')).toHaveProperty('schema_version', 1)
-      else expect(JSON.parse(flow.clipboard[0] ?? '')).not.toHaveProperty('schema_version')
-      expect(JSON.parse(flow.clipboard[1] ?? '')).not.toHaveProperty('schema_version')
+        expect(JSON.parse(flow.edits[0] ?? '')).toHaveProperty('schema_version', 1)
+      else expect(JSON.parse(flow.edits[0] ?? '')).not.toHaveProperty('schema_version')
+      expect(JSON.parse(flow.edits[1] ?? '')).not.toHaveProperty('schema_version')
       expect(flow.io.files.get(SETTINGS)).toBe(startsExisting ? undefined : existingSettings)
       expect(flow.io.files.get(`${WS}/.muse/hooks.json`)).toBe(
         startsExisting ? undefined : existingHooks,
@@ -458,7 +507,7 @@ describe('importFromAgents', () => {
     await flow.done
     expect(didRevoke).toBe(true)
     expect(afterRevocation).toEqual([])
-    expect(flow.clipboard.length).toBe(1)
+    expect(flow.edits.length).toBe(1)
   })
 
   it('stops scanning and opens no candidate picker after deactivation during a personal read', async () => {
@@ -513,85 +562,10 @@ describe('importFromAgents', () => {
         expect(presence).not.toHaveBeenCalled()
       }
       expect(flow.questions).toEqual([])
-      expect(flow.clipboard).toEqual([])
+      expect(flow.edits).toEqual([])
       expect(flow.information).toEqual([])
     },
   )
-
-  it('refuses an MCP server and rules whose URL query holds a credential, copying and publishing none of it', async () => {
-    const secret = 'opaque-demo-value'
-    const url = `https://example.test/mcp?signature=${secret}&tenant=demo`
-    const flow = run({
-      files: {
-        [`${HOME}/.claude.json`]: JSON.stringify({
-          mcpServers: { remote: { command: 'npx', args: ['mcp-remote', url] } },
-        }),
-        [`${WS}/CLAUDE.md`]: `Read [service](${url}).\nThe next line stays.\n`,
-      },
-    })
-    await flow.done
-    const refusal = fill(UI_TEXT.agentImportSkippedCredential, {
-      cue: UI_TEXT.agentImportCueUrl,
-    })
-    expect(flow.items.map((item) => [item.label, item.detail, item.picked])).toEqual([
-      ['remote', `~/.claude.json · ${refusal}`, true],
-      ['CLAUDE.md', `CLAUDE.md · ${refusal}`, true],
-    ])
-    expect(credentialLines(flow.previews[0])).toEqual([
-      `- remote (${UI_TEXT.agentImportKindMcp} · ${UI_TEXT.importSourceClaude} · ${UI_TEXT.agentImportUserFiles}): ${UI_TEXT.agentImportCueUrl}`,
-      `- CLAUDE.md (${UI_TEXT.agentImportKindRules} · ${UI_TEXT.importSourceClaude} · ${UI_TEXT.agentImportProjectFiles}): ${UI_TEXT.agentImportCueUrl}`,
-    ])
-    expect(everythingShown(flow)).not.toContain(secret)
-    expect(flow.clipboard).toEqual([])
-    expect(flow.io.files.has(`${WS}/AGENTS.md`)).toBe(false)
-    expect(flow.information).toEqual([UI_TEXT.agentImportNoneImportable])
-    expect(flow.logged()).toContain('2 entr(ies) may hold a credential and are not imported (url)')
-  })
-
-  it('refuses every reported credential leak in MCP arguments, hooks, commands and rules', async () => {
-    const leaks = CREDENTIAL_LEAKS.map((leak, index) => ({
-      name: leak.name,
-      secret: leakSecret(index),
-      text: leak.text(leakSecret(index)),
-      file: `leak${String(index).padStart(2, '0')}`,
-    }))
-    const flow = run({
-      source: 'all',
-      files: {
-        [`${HOME}/.claude.json`]: JSON.stringify({
-          mcpServers: Object.fromEntries(
-            leaks.map((leak) => [leak.file, { command: 'sh', args: ['-c', leak.text] }]),
-          ),
-        }),
-        [`${HOME}/.claude/settings.json`]: JSON.stringify({
-          hooks: {
-            Stop: [{ hooks: leaks.map((leak) => ({ type: 'command', command: leak.text })) }],
-          },
-        }),
-        ...Object.fromEntries(
-          leaks.flatMap((leak) => [
-            [`${HOME}/.claude/commands/${leak.file}.md`, `Run this.\n${leak.text}\n`],
-            [`${WS}/.cursor/rules/${leak.file}.mdc`, `---\ndescription: d\n---\n\n${leak.text}\n`],
-          ]),
-        ),
-        [`${WS}/CLAUDE.md`]: `${ORDINARY_LINES.join('\n')}\n`,
-      },
-    })
-    await flow.done
-    // A server, a hook, a command and a rules file for each leak, all refused.
-    expect(credentialLines(flow.previews[0])).toHaveLength(4 * leaks.length)
-    expect(flow.clipboard).toEqual([])
-    expect(flow.io.pathsUnder(`${HOME}/.config`)).toEqual([])
-    const published = flow.io.files.get(`${WS}/AGENTS.md`)
-    // The ordinary rules file alone is published, whole.
-    expect(published).toBe(
-      `## Imported from Claude Code (CLAUDE.md)\n\n${ORDINARY_LINES.join('\n')}\n`,
-    )
-    const shown = everythingShown(flow)
-    for (const leak of leaks) {
-      expect(shown, leak.name).not.toContain(leak.secret)
-    }
-  })
 
   it('notifies only project skill publication and rules append through the production flow', async () => {
     const complete = vi.fn<(wasWritten: boolean) => void>()
@@ -624,8 +598,8 @@ describe('importFromAgents', () => {
       `append ${WS}/AGENTS.md`,
       `user ${WS}/AGENTS.md`,
       'release',
-      `offer Copy the converted entries for ~/.config/muse/settings.json? Masked values are filled in by hand.`,
-      `offer Copy the converted entries for .muse/hooks.json? Masked values are filled in by hand.`,
+      `offer Open converted entries in ~/.config/muse/settings.json as an unsaved edit for you to review and save?`,
+      `offer Open converted entries in .muse/hooks.json as an unsaved edit for you to review and save?`,
     ])
     // The extension never writes Muse Code's settings or the hooks file (D17, D30).
     expect(flow.io.files.has(SETTINGS)).toBe(false)
@@ -635,39 +609,14 @@ describe('importFromAgents', () => {
       [`${WS}/.muse/hooks.json`, false],
     ])
     expect(flow.questions).toEqual([
-      'Import what the preview shows? New files: 2 · Sections for AGENTS.md: 1 · Entries to copy by hand: 3 · Not imported: 0',
+      'Import what the preview shows? New files: 2 · Sections for AGENTS.md: 1 · Entries offered in the editor: 3 · Not imported: 0',
     ])
     expect(flow.information.at(-1)).toBe(
-      'Import finished. New files: 2 · Sections for AGENTS.md: 1 · Entries to copy by hand: 3 · Not imported: 0',
+      'Import finished. New files: 2 · Sections for AGENTS.md: 1 · Entries offered in the editor: 3 · Not imported: 0',
     )
     expect(flow.io.files.get(`${WS}/AGENTS.md`)).toBe(
       '## Imported from Claude Code (CLAUDE.md)\n\nProject rules.\n',
     )
-  })
-
-  it('refuses every entry holding a secret, and shows, copies, publishes and logs none of it', async () => {
-    const flow = run({ files: SECRET_FILES })
-    await flow.done
-    expect(everythingShown(flow)).not.toContain(SECRET)
-    const where = [UI_TEXT.importSourceClaude, UI_TEXT.agentImportUserFiles].join(' · ')
-    expect(credentialLines(flow.previews[0])).toEqual([
-      `- github (${UI_TEXT.agentImportKindMcp} · ${where}): ${UI_TEXT.agentImportCueToken}`,
-      `- Stop (${UI_TEXT.agentImportKindHook} · ${where}): ${UI_TEXT.agentImportCueToken}`,
-      `- review (${UI_TEXT.agentImportKindCommand} · ${where}): ${UI_TEXT.agentImportCueToken}`,
-    ])
-    expect(flow.io.files.has(`${HOME}/.config/muse/skills/review/SKILL.md`)).toBe(false)
-    // Only the project's own hook is left to copy; nothing of the refused entries is.
-    expect(flow.clipboard.map((text): unknown => JSON.parse(text))).toEqual([
-      { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'setup' }] }] } },
-    ])
-    expect(flow.logged()).toContain(
-      '3 entr(ies) may hold a credential and are not imported (token)',
-    )
-    expect(flow.information.at(-1)).toBe(
-      'Import finished. New files: 1 · Sections for AGENTS.md: 1 · Entries to copy by hand: 1 · Not imported: 3',
-    )
-    // The sources stay as they were.
-    expect(flow.io.files.get(`${HOME}/.claude/commands/review.md`)).toContain(SECRET)
   })
 
   it('writes nothing when the preview is not accepted', async () => {
@@ -675,7 +624,7 @@ describe('importFromAgents', () => {
     await flow.done
     expect(flow.events).toEqual([`preview ${UI_TEXT.agentImportPreviewTitle}.md`, 'confirm'])
     expect(new Set(flow.io.files.keys())).toEqual(new Set(Object.keys(FILES)))
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.logged()).toContain('the preview was not accepted; nothing was written')
   })
 
@@ -708,8 +657,13 @@ describe('importFromAgents', () => {
     await flow.done
     const shared = flow.items.find((item) => item.label === 'shared')
     expect(shared?.picked).toBe(false)
-    expect(shared?.detail).toBe(`.mcp.json · ${UI_TEXT.agentImportSkippedProjectServer}`)
-    const rules = flow.items.find((item) => item.detail.startsWith('~/.claude/CLAUDE.md'))
+    expect(shared?.detail).toBe(
+      `${UI_TEXT.agentImportProjectFiles} · ${UI_TEXT.agentImportSkippedProjectServer}`,
+    )
+    const rules = flow.items.find(
+      (item) =>
+        item.label === 'CLAUDE.md' && item.description.includes(UI_TEXT.agentImportUserFiles),
+    )
     expect(rules?.picked).toBe(false)
     expect(flow.items.filter((item) => item.picked).map((item) => item.label)).toEqual([
       'github',
@@ -737,9 +691,9 @@ describe('importFromAgents', () => {
   })
 
   it('opens the file without copying when the user only asks for the file', async () => {
-    const flow = run({ copyChoice: 'open' })
+    const flow = run({ editChoice: 'open' })
     await flow.done
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened.map(([path]) => path)).toEqual([SETTINGS, `${WS}/.muse/hooks.json`])
   })
 
@@ -782,7 +736,7 @@ describe('importFromAgents confinement and order', () => {
         held.resolve(undefined)
         await flow.done
         expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
-        expect(flow.clipboard).toEqual([])
+        expect(flow.edits).toEqual([])
         expect(flow.opened).toEqual([])
       } finally {
         held.resolve(undefined)
@@ -794,7 +748,7 @@ describe('importFromAgents confinement and order', () => {
   it.each(['trust', 'shutdown'])(
     'refuses a held project copy popup after %s changes',
     async (change) => {
-      const answer = Promise.withResolvers<'copy' | 'open' | undefined>()
+      const answer = Promise.withResolvers<'edit' | 'open' | undefined>()
       const started = Promise.withResolvers<undefined>()
       let isTrusted = true
       let isActive = true
@@ -802,8 +756,8 @@ describe('importFromAgents confinement and order', () => {
         trust: () => isTrusted,
         isActive: () => isActive,
         pick: projectHooksOnly,
-        copyAnswer: answer.promise,
-        whileCopying: () => {
+        editAnswer: answer.promise,
+        whileOffering: () => {
           started.resolve(undefined)
         },
       })
@@ -811,9 +765,9 @@ describe('importFromAgents confinement and order', () => {
         await started.promise
         if (change === 'trust') isTrusted = false
         else isActive = false
-        answer.resolve('copy')
+        answer.resolve('edit')
         await flow.done
-        expect(flow.clipboard).toEqual([])
+        expect(flow.edits).toEqual([])
         expect(flow.opened).toEqual([])
       } finally {
         answer.resolve(undefined)
@@ -822,21 +776,21 @@ describe('importFromAgents confinement and order', () => {
     },
   )
 
-  it('does not open project hooks after trust changes during clipboard access', async () => {
+  it('does not open project hooks after trust changes during edits access', async () => {
     let isTrusted = true
     const flow = run({
       trust: () => isTrusted,
-      whileClipboardWritten: (_io, text) => {
+      whileEditorWritten: (_io, text) => {
         if (text.includes('"SessionStart"')) isTrusted = false
       },
     })
     await flow.done
-    expect(flow.clipboard).toHaveLength(2)
-    expect(flow.opened.map(([path]) => path)).toEqual([SETTINGS])
+    expect(flow.edits).toHaveLength(1)
+    expect(flow.opened.map(([path]) => path)).toEqual([SETTINGS, `${WS}/.muse/hooks.json`])
     expect(flow.warnings).toContain(UI_TEXT.agentImportUntrusted)
   })
 
-  it('rechecks project trust in the clipboard continuation after the awaited path check', async () => {
+  it('rechecks project trust in the edits continuation after the awaited path check', async () => {
     let isTrusted = true
     let isCopying = false
     let copyTrustChecks = 0
@@ -850,17 +804,18 @@ describe('importFromAgents confinement and order', () => {
         return isTrusted
       },
       pick: projectHooksOnly,
-      whileCopying: () => {
+      whileOffering: () => {
         isCopying = true
       },
     })
     await flow.done
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toContain(UI_TEXT.agentImportUntrusted)
   })
 
-  it('refuses project rules holding a credential and loads only the published rules into context', async () => {
+  it('preserves rules in the target while previewing metadata only', async () => {
+    const SECRET = leakSecret(0)
     const cursorRules = `---\ndescription: Bearer ${SECRET}\nglobs: ${SECRET}\n---\n\nUse ${SECRET}.\n`
     const flow = run({
       source: 'all',
@@ -868,11 +823,8 @@ describe('importFromAgents confinement and order', () => {
     })
     await flow.done
     const published = flow.io.files.get(`${WS}/AGENTS.md`)
-    expect(published).toBe('## Imported from Claude Code (CLAUDE.md)\n\nProject rules.\n')
-    expect(credentialLines(flow.previews[0])).toEqual([
-      `- .cursor/rules/private.mdc (${UI_TEXT.agentImportKindRules} · ${UI_TEXT.agentImportSourceCursor} · ${UI_TEXT.agentImportProjectFiles}): ${UI_TEXT.agentImportCueToken}`,
-    ])
-    expect(everythingShown(flow)).not.toContain(SECRET)
+    expect(published).toContain(SECRET)
+    expect(flow.previews.join('\n')).not.toContain(SECRET)
     expect(flow.io.files.get(`${WS}/.cursor/rules/private.mdc`)).toBe(cursorRules)
     const context = await readContextText(
       {
@@ -887,7 +839,7 @@ describe('importFromAgents confinement and order', () => {
       WS,
     )
     expect(context).toEqual({ ok: true, text: published })
-    expect(JSON.stringify(context)).not.toContain(SECRET)
+    expect(JSON.stringify(context)).toContain(SECRET)
   })
 
   it('aborts project actions if trust was revoked while the preview waited', async () => {
@@ -901,7 +853,7 @@ describe('importFromAgents confinement and order', () => {
     await flow.done
     expect(flow.io.files.has(`${WS}/AGENTS.md`)).toBe(false)
     expect(flow.io.files.has(`${HOME}/.config/muse/skills/review/SKILL.md`)).toBe(false)
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toEqual([UI_TEXT.agentImportUntrusted])
     expect(flow.logged()).toContain('workspace trust changed')
@@ -948,7 +900,7 @@ describe('importFromAgents confinement and order', () => {
     })
     await failed.done
     expect(failed.warnings).toEqual([UI_TEXT.agentImportFailed])
-    expect(failed.logged()).toContain('stopped on an unexpected error (EIO)')
+    expect(failed.logged()).toContain('stopped on an unexpected error (failed)')
     expect(failed.logged()).not.toContain('.claude.json')
     const next = run({ gate })
     await next.done
@@ -962,7 +914,7 @@ describe('importFromAgents confinement and order', () => {
       await flow.done
       expect(flow.previews[0]).toContain(UI_TEXT.agentImportSkippedUnreadable)
       expect(flow.opened.map(([path]) => path)).toEqual([`${WS}/.muse/hooks.json`])
-      expect(flow.clipboard).toHaveLength(1)
+      expect(flow.edits).toHaveLength(1)
     },
   )
 
@@ -990,7 +942,7 @@ describe('importFromAgents confinement and order', () => {
     expect(flow.previews[0]).toContain(`github (${UI_TEXT.agentImportKindMcp}`)
     expect(flow.previews[0]).toContain(UI_TEXT.agentImportSkippedUnreadable)
     expect(flow.opened.map(([path]) => path)).toEqual([`${WS}/.muse/hooks.json`])
-    expect(flow.logged()).toContain('~/.config/muse/settings.json could not be read (tooLarge)')
+    expect(flow.logged()).toContain('could not be read (unreadable)')
   })
 
   it('reports undecodable settings instead of treating them as a missing file', async () => {
@@ -1004,23 +956,26 @@ describe('importFromAgents confinement and order', () => {
     await flow.done
     expect(flow.previews[0]).toContain(UI_TEXT.agentImportSkippedUnreadable)
     expect(flow.opened.map(([file]) => file)).toEqual([`${WS}/.muse/hooks.json`])
-    expect(flow.logged()).toContain('~/.config/muse/settings.json could not be read (read)')
+    expect(flow.logged()).toContain('could not be read (unreadable)')
   })
 
-  it.each(['while the copy prompt is open', 'during the clipboard write'])(
+  it.each(['while the copy prompt is open', 'during the edits write'])(
     'does not open a hooks file whose folder was linked out %s',
     async (moment) => {
       const flow = run(
-        moment === 'during the clipboard write'
+        moment === 'during the edits write'
           ? {
-              whileClipboardWritten: (io, text) => {
+              whileEditorWritten: (io, text) => {
                 if (text.includes('"SessionStart"')) linkHooksFolderOut(io)
               },
             }
-          : { whileCopying: linkHooksFolderOut },
+          : { whileOffering: linkHooksFolderOut },
       )
       await flow.done
-      expect(flow.opened.map(([path]) => path)).toEqual([SETTINGS])
+      expect(flow.opened.map(([path]) => path)).toEqual(
+        moment === 'during the edits write' ? [SETTINGS, `${WS}/.muse/hooks.json`] : [SETTINGS],
+      )
+      expect(flow.edits).toHaveLength(1)
       expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedOutside}`)
     },
   )
@@ -1086,9 +1041,7 @@ describe('importFromAgents: a folder that changes during the approval wait', () 
     })
     await flow.done
     expect(flow.io.pathsUnder('/other')).toEqual([])
-    expect(flow.logged()).toContain(
-      `.agents/skills/ship/SKILL.md could not be written (${AGENT_IMPORT_ROOT_CHANGED_CODE})`,
-    )
+    expect(flow.logged()).toContain('1 writes failed')
     expect(flow.warnings.join('\n')).toContain(`ship: ${UI_TEXT.agentImportSkippedChanged}`)
   })
 
@@ -1100,20 +1053,20 @@ describe('importFromAgents: a folder that changes during the approval wait', () 
       },
     })
     await flow.done
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedChanged}`)
     expect(flow.information).toEqual([])
     expect(flow.warnings.at(-1)).toBe(
-      'New files: 0 · Sections for AGENTS.md: 0 · Entries to copy by hand: 0 · Not imported: 1',
+      'New files: 0 · Sections for AGENTS.md: 0 · Entries offered in the editor: 0 · Not imported: 1',
     )
-    expect(flow.logged()).toContain('0 file(s) to paste into, 1 entr(ies) not imported')
+    expect(flow.logged()).toContain('0 file(s) offered in editor, 1 entr(ies) not imported')
   })
 
   it('does not show a hooks file whose folder changed while the editor loaded it', async () => {
     const flow = run({
       pick: projectHooksOnly,
-      copyChoice: 'open',
+      editChoice: 'open',
       whileOpening: (io) => {
         io.links.set(`${WS}/.muse`, `${HOME}/.config/muse`)
       },
@@ -1145,7 +1098,7 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
     expect(flow.io.files.has(`${HOME}/.config/muse/skills/review/SKILL.md`)).toBe(false)
     expect(flow.warnings).toEqual([UI_TEXT.agentImportNotApplied])
     expect(flow.opened).toEqual([])
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.logged()).toContain('the checkpoint lease failed')
   })
 
@@ -1174,7 +1127,7 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
     await flow.done
     expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(true)
     expect(flow.io.files.get(`${WS}/AGENTS.md`)).toBeUndefined()
-    expect(flow.logged()).toContain('AGENTS.md could not be written')
+    expect(flow.logged()).toContain('1 writes failed')
     expect(flow.warnings.join('\n')).toContain(UI_TEXT.agentImportSkippedFailed)
   })
 
@@ -1229,12 +1182,12 @@ function folderChangedAtLookup(at: number) {
 // awaited; what was identified is then only the folder it showed before.
 describe('importFromAgents: a folder that changes during the last root check', () => {
   it('copies no project hooks when the folder changes during the final identity lookup', async () => {
-    // The request's own lookup, then one per copy check: the third is the last before the clipboard.
+    // The request's own lookup, then one per copy check: the third is the last before the edits.
     const { io, state, currentRoot } = folderChangedAtLookup(3)
     const flow = run({ io, pick: projectHooksOnly, currentRoot })
     await flow.done
     expect(state.lookups).toBe(3)
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedChanged}`)
   })
@@ -1247,13 +1200,13 @@ describe('importFromAgents: a folder that changes during the last root check', (
     io.assertSafePath = async (...args) => {
       await assertSafePath(...args)
       // The plan's check, then one before and one after the existence read:
-      // the third returns straight to the clipboard's synchronous guard.
+      // the third returns straight to the edits's synchronous guard.
       if (args[0] === `${WS}/.muse/hooks.json` && ++checks === 3) live = '/other'
     }
     const flow = run({ io, pick: projectHooksOnly, currentRoot: () => live })
     await flow.done
     expect(checks).toBe(3)
-    expect(flow.clipboard).toEqual([])
+    expect(flow.edits).toEqual([])
     expect(flow.opened).toEqual([])
   })
 
@@ -1281,9 +1234,9 @@ describe('importFromAgents: what the preview and the log say', () => {
     })
     await flow.done
     expect(flow.previews).toHaveLength(1)
-    expect(flow.previews[0]).toContain('```json\n')
+    expect(flow.previews[0]).not.toContain(argument)
     expect(flow.warnings).not.toContain(UI_TEXT.agentImportFailed)
-    expect(JSON.parse(flow.clipboard[0] ?? '')).toHaveProperty('mcpServers.fence.args.0', argument)
+    expect(JSON.parse(flow.edits[0] ?? '')).toHaveProperty('mcpServers.fence.args.0', argument)
   })
 
   // mr83 P3: a source file that could not be read is mentioned, its reason logged.
@@ -1295,7 +1248,7 @@ describe('importFromAgents: what the preview and the log say', () => {
     expect(skipped.previews[0]).toContain(
       `${UI_TEXT.agentImportPreviewIntro}\n\n${UI_TEXT.agentImportSkippedFiles}`,
     )
-    expect(skipped.logged()).toContain('~/.claude.json is not a readable Claude Code state file')
+    expect(skipped.logged()).toContain('is not a readable Claude Code state file')
     const nothing = run({ files: { [`${HOME}/.claude.json`]: '{ not json' } })
     await nothing.done
     expect(nothing.information).toEqual([
@@ -1306,18 +1259,17 @@ describe('importFromAgents: what the preview and the log say', () => {
     expect(clean.previews[0]).not.toContain(UI_TEXT.agentImportSkippedFiles)
   })
 
-  it('hides a name that may itself hold a credential', async () => {
+  it('shows source names unchanged but never logs them', async () => {
+    const name = leakSecret(0)
     const flow = run({
       files: {
-        [`${HOME}/.claude.json`]: JSON.stringify({ mcpServers: { [SECRET]: { command: 'x' } } }),
+        [`${HOME}/.claude.json`]: JSON.stringify({ mcpServers: { [name]: { command: 'x' } } }),
       },
     })
     await flow.done
-    expect(flow.items.map((item) => item.label)).toEqual([UI_TEXT.agentImportHiddenName])
-    expect(credentialLines(flow.previews[0])).toEqual([
-      `- ${UI_TEXT.agentImportHiddenName} (${UI_TEXT.agentImportKindMcp} · ${UI_TEXT.importSourceClaude} · ${UI_TEXT.agentImportUserFiles}): ${UI_TEXT.agentImportCueToken}`,
-    ])
-    expect(everythingShown(flow)).not.toContain(SECRET)
+    expect(flow.items.map((item) => item.label)).toEqual([name])
+    expect(flow.previews.join('\n')).toContain(name)
+    expect(flow.logged()).not.toContain(name)
   })
 
   it('notes only a file the import actually wrote as the user’s', async () => {

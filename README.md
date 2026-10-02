@@ -559,82 +559,53 @@ them and converted to the formats their destination loads.
 | Slash commands (`.claude/commands`, `~/.codex/prompts`, `.cursor/commands`)       | Skills: the project's `.agents/skills/<id>/SKILL.md`, or your own `~/.config/muse/skills/<id>`                                                                          |
 | Custom agents (`.claude/agents`, `.cursor/agents`)                                | Compatible M76 agents in `.agents/agents/<id>/AGENT.md`, or your own `~/.config/muse/agents/<id>/AGENT.md`; the directory id is the Model API `subagent_spawn` selector |
 | A project's rules (`CLAUDE.md`, `.cursor/rules/*.mdc`, `.cursorrules`)            | Headed sections appended to the project's `AGENTS.md`                                                                                                                   |
-| Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Entries to paste into Muse Code's `settings.json`                                                                                                                       |
-| Claude Code hooks (your `settings.json`, or the project's)                        | Entries to paste into your `settings.json`, or the project's `.muse/hooks.json`                                                                                         |
+| Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Unsaved editor edits in Muse Code's `settings.json`                                                                                                                     |
+| Claude Code hooks (your `settings.json`, or the project's)                        | Unsaved editor edits in your `settings.json`, or the project's `.muse/hooks.json`                                                                                       |
 
-A read-only preview shows everything first, and nothing is written until
-you choose Import; an existing file is never replaced. The extension never
-writes Muse Code's `settings.json` or `.muse/hooks.json`.
+Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
 
-An entry that may hold a credential is not imported at all: nothing of it
-is written or copied, and the preview lists it under **Not imported: may
-hold a credential — copy it yourself** with the kind of thing it found,
-never the value. Each entry is read whole (a rules file, a command or agent
-and its file name, a hook's command and matcher, an MCP server's command,
-arguments, environment, headers and URL), as written and as a shell or a
-JSON or URL decoder would join it. The cues are a credential-like name with
-a value (`GITHUB_TOKEN=…`, `--api-key …`, `Authorization: …`, also with the
-value on the next line), a URL with a user name, a password or a credential
-parameter, a known token shape, and a long random-looking value. Some
-harmless text is refused too, such as a rule headed `**Secrets**: never
-commit them`; copy such an entry yourself. A server whose URL has a user
-name, a query or a fragment is refused; the servers that are imported keep
-their environment and header names, with the values masked for you to fill
-in.
-It copies the entries for you and opens the file. It rechecks whether
-the file exists before clipboard and editor actions. A file
-created while the preview waits opens for merging; a vanished file opens
-unsaved. The settings copy and its instructions use the current file state;
-you fill in the masked environment and header values. A repository's
-entries are read only in a trusted workspace and offered only for that
-project's files. Trust revocation
-stops further project reads during the scan. Closing the activation stops
-further scan reads and pending import prompts. A
-repository's own MCP servers are listed but not offered for your settings.
-Your personal `CLAUDE.md` and Codex `AGENTS.md` are Muse Code's own
-`/rules import`. Hooks keep their matchers; a hook that narrows with `if`,
-`args` or `shell`, uses an event Muse Code lacks, or is not a command is
-listed, not converted, as are servers that are turned off or need SSE,
-WebSockets or OAuth.
+The read-only preview lists kind, item name, source scope, target path and
+refusals with their reasons. It never shows bodies, commands, arguments,
+environment or header values, or URLs. Picker details show personal or
+project scope, never source paths. Names remain visible as the source tool
+shows them. Nothing is written until you choose Import; an existing file
+is never replaced. Config entries open as unsaved edits in their target
+editor for you to review and save; the importer never uses the clipboard
+or saves Muse Code's settings or hooks files. Values stay unchanged.
 
-Copies refused by the safety checks count as **Not imported**. If every entry
-is refused, the final notification is a warning with the counts. Mixed imports
-count only the writes made and the manual entries still offered.
+Personal means under your home and outside every open workspace. Project
+files are either git-ignored (project-local) or tracked/not ignored
+(project-tracked). A non-repository folder counts as tracked. Project-local
+may go to project-local or personal; project-tracked may go to any of the
+three. Target exposure is checked again at publication or editor edit time.
+An unreadable classification refuses the item. The native-path checks also
+refuse links and junctions below the project root, including dangling ones.
+An arbitrary native writer can still race the final filesystem operation;
+Node has no handle-relative publication API to close that window.
 
-Claude agents and commands include namespace folders up to three levels;
-an agent's directory prefixes stay in its selector. Agents need M76's
-`name` and `description`, and keep their supported prompt, tool allowlist,
-model, effort and permission ceiling. Unsupported foreign fields, tool
-names, empty or multiline tool lists, and model aliases such as `sonnet`
-are listed without writing a file. Running imported custom agents awaits
-M76 on the Model API backend; the captured Muse Code CLI names no native
-agent folder.
+Project sources require workspace trust. Losing trust stops project reads
+and effects; closing activation stops pending prompts. Personal imports
+remain available in Restricted Mode. A repository's MCP servers are listed
+but are not offered for personal settings; personal rules remain Muse Code's
+`/rules import`. Hooks keep supported matchers and restrictions. Unsupported
+events, non-command handlers, narrowing fields (`if`, `args`, `shell`),
+disabled servers, SSE, WebSockets, OAuth and header helpers are listed and
+not converted. MCP conversion copies only the active transport's fields;
+inactive and unknown fields are listed as dropped by name, never by value.
 
-One import runs at a time in this extension host; a second request reports
-that the first is still open. Project destinations
-refuse symbolic links and junctions, even dangling ones, before reading,
-writing or opening them. The request binds its root before the pickers
-open and refuses a retargeted or replaced root through publication,
-clipboard access and editor loading. Files publish whole without replacing anything;
-rules updates stop if the prior file changed or the result would exceed
-64 KiB, preserving the existing rules. If Muse Code's own settings file is
-unreadable, oversized or malformed, no server or hook is copied for it and
-the preview says why. A source file that cannot be used (unreadable, over
-its size limit, not text, or malformed) is skipped: the preview, or the
-message when nothing was found, says that files were skipped, and the log
-names each one and why. Generated command, agent and project rules files
-hold exactly the text their preview shows.
-Project publication, clipboard and editor actions recheck live workspace
-trust after file checks; closing the extension stops pending import effects.
-Your own imports remain available in Restricted Mode.
-Earlier checks no longer count as current while project files are being imported.
-Slash commands keep supported description and argument-hint metadata;
-unsupported fields such as `allowed-tools`, `model` or `context` are
-listed without creating a broader skill.
+Claude agents and commands retain namespaces up to three levels. Agents
+need M76's supported metadata; runtime admission awaits M76 integration.
+Commands keep supported descriptions and argument hints; unsupported
+restrictions are refused. One import runs at a time. Project publications
+hold the checkpoint lease and count as your own edits, so restoring a turn
+preserves them. Rules appends stop on changed prior text or a result over
+64 KiB. Skipped-file messages and logs contain counts and fixed reasons,
+never item names, paths or content. Only successful publications and config
+edits actually offered count as imported.
 
 **MCP servers and hooks.** Muse Code reads both from its own settings file
 (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`), and project
-hooks from `.muse/hooks.json`. The extension shows them and never edits them:
+hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuration without editing it:
 
 - **MCP servers…** lists each server:
   - Its transport, where it points (a URL is cut to its scheme and host),
@@ -1863,7 +1834,7 @@ What stays in English:
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
-| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, show servers and hooks to copy by hand, refuse what may be secret    |
+| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: MCP Servers                             | —                                                                                    | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                               |
 | Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                               |

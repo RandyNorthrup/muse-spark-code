@@ -92,6 +92,19 @@ describe('agentImportLoader', () => {
     runAgentImport: () => Promise.resolve(),
   }
 
+  it('logs fixed loader failures without paths or arbitrary error content', () => {
+    const log = new FakeLogOutputChannel()
+    const load = agentImportLoader({
+      bundlePath: '/home/private/import.js',
+      log,
+      loadBundle: () => {
+        throw new Error('opaque-demo-value in /home/private/import.js')
+      },
+    })
+    expect(() => load()).toThrow(UI_TEXT.agentImportUnavailable)
+    expect(log.error).toHaveBeenCalledExactlyOnceWith('The import bundle could not be loaded')
+  })
+
   it('loads the bundle once and keeps it', () => {
     const loadBundle = vi.fn(() => bundle)
     const load = agentImportLoader({
@@ -187,7 +200,7 @@ describe('the shipped import bundle', () => {
     })
   })
 
-  it('imports Codex’s MCP servers with smol-toml inside the bundle, refuses one holding a credential, and writes nothing to the settings', async () => {
+  it('imports Codex’s MCP servers with smol-toml inside the bundle, keeps credentials within the target, and writes nothing to the settings', async () => {
     const home = path.join(built.folder, 'home')
     const codex = path.join(home, '.codex')
     mkdirSync(codex, { recursive: true })
@@ -229,13 +242,12 @@ describe('the shipped import bundle', () => {
         return Promise.resolve()
       },
       confirmImport: () => Promise.resolve(true),
-      offerCopy: () => Promise.resolve('copy'),
-      copyText: (text) => {
-        copied.push(text)
-        return Promise.resolve()
-      },
-      openTarget: async (absolutePath, _isExisting, isStillSafe) => {
-        if (await isStillSafe()) opened.push(absolutePath)
+      offerEdit: () => Promise.resolve('edit'),
+      openTarget: async (absolutePath, _isExisting, isStillSafe, canApply, text) => {
+        if (!(await isStillSafe()) || !canApply()) return false
+        opened.push(absolutePath)
+        if (text !== undefined) copied.push(text)
+        return true
       },
       showInformation: (message) => {
         informed.push(message)
@@ -258,15 +270,19 @@ describe('the shipped import bundle', () => {
           type: 'stdio',
           command: 'docs-mcp',
           args: ['--port', '9'],
-          env: { NODE_ENV: UI_TEXT.agentImportMasked },
+          env: { NODE_ENV: 'production' },
+          mode: 'optional',
+        },
+        keyed: {
+          type: 'stdio',
+          command: 'keyed-mcp',
+          args: ['--token', SYNTHETIC.githubToken],
           mode: 'optional',
         },
       },
     })
-    expect(previews.join('\n')).toContain(
-      `## ${UI_TEXT.agentImportPreviewCredentials}\n\n- keyed (`,
-    )
-    expect([...previews, ...copied].join('\n')).not.toContain(SYNTHETIC.githubToken)
+    expect(previews.join('\n')).not.toContain(SYNTHETIC.githubToken)
+    expect(copied.join('\n')).toContain(SYNTHETIC.githubToken)
     expect(opened).toEqual([settings])
     // The extension never writes Muse Code's settings file (D17, D30).
     expect(() => realpathSync(settings)).toThrow()

@@ -29,10 +29,68 @@ import { resolveWorkspacePath } from '../core/workspacePath'
 import {
   AGENT_IMPORT_ROOT_CHANGED_CODE,
   ATOMIC_TEMPORARY_SUFFIX,
+  GIT_METADATA_OPTIONS,
+  AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT,
+  GIT_TIMEOUT_MS,
   RULES_FILE_MAX_BYTES,
 } from '../shared/constants'
 import { canonicalPath, isMissingPath } from './canonicalPath'
 import { writeFileAtomically } from './fsAtomic'
+import { isGitExitError, processGitProcess } from './git'
+import { withoutCredentials } from '../runtime/credentialVariables'
+
+const importGit = processGitProcess()
+
+/** Ignore metadata only: no workspace executable, inherited git override or configured monitor. */
+async function isImportIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean> {
+  // Git uses the file's nearest repository, including a nested repository.
+  // Missing target directories are walked up to their first existing parent.
+  let cwd = path.dirname(absolutePath)
+  for (;;) {
+    if (
+      !isSamePath(cwd, workspaceRoot, process.platform) &&
+      !resolveWorkspacePath(workspaceRoot, cwd, process.platform).ok
+    )
+      throw refused('EPERM')
+    try {
+      const info = await stat(cwd)
+      if (info.isDirectory()) break
+    } catch (error: unknown) {
+      if (!isMissingPath(error)) throw error
+    }
+    if (isSamePath(cwd, workspaceRoot, process.platform)) throw refused('ENOTDIR')
+    cwd = path.dirname(cwd)
+  }
+  const env = Object.fromEntries(
+    Object.entries(withoutCredentials(process.env)).filter(([name]) => !/^GIT_/i.test(name)),
+  )
+  const options = {
+    cwd,
+    env: { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
+    timeoutMs: GIT_TIMEOUT_MS,
+  }
+  try {
+    await importGit([...GIT_METADATA_OPTIONS, 'rev-parse', '--is-inside-work-tree'], options)
+  } catch (error: unknown) {
+    if (
+      isGitExitError(error) &&
+      error.exitCode === AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT &&
+      error.stderr.includes('not a git repository')
+    )
+      return false
+    throw error
+  }
+  try {
+    await importGit([...GIT_METADATA_OPTIONS, 'check-ignore', '--quiet', '-z', '--stdin'], {
+      ...options,
+      input: `${path.relative(cwd, absolutePath)}\0`,
+    })
+    return true
+  } catch (error: unknown) {
+    if (isGitExitError(error) && error.exitCode === 1) return false
+    throw error
+  }
+}
 
 const EXISTS = 'EEXIST'
 const LINK_REFUSED = 'ELOOP'
@@ -228,6 +286,7 @@ export const fileImportIo: ImportIo = {
     )
   },
   realPath: importRealPath,
+  isIgnored: isImportIgnored,
 }
 
 /** Whether anything is at the path: a file, a folder, or a link, even a broken one. */
@@ -248,17 +307,17 @@ async function createImportFile(
   absolutePath: string,
   content: string,
   project?: ImportProjectRoot,
-  beforePublish?: () => void,
+  beforePublish?: () => void | Promise<void>,
 ): Promise<'created' | 'exists'> {
   if (await isPathPresent(absolutePath)) {
     return 'exists'
   }
   await checkTarget(absolutePath, project)
-  beforePublish?.()
+  await beforePublish?.()
   await mkdir(path.dirname(absolutePath), { recursive: true })
   await checkTarget(absolutePath, project)
   const temporary = `${absolutePath}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
-  beforePublish?.()
+  await beforePublish?.()
   const handle = await open(temporary, EXCLUSIVE_CREATE)
   let identity: BigIntStats | undefined
   let createdPath: string | undefined
@@ -269,7 +328,7 @@ async function createImportFile(
     if (!isSameFile(identity, await lstat(temporary, { bigint: true }))) {
       throw refused(CHANGED)
     }
-    beforePublish?.()
+    await beforePublish?.()
     await handle.writeFile(content, 'utf8')
     await handle.close()
     await checkTarget(temporary, project)
@@ -277,7 +336,7 @@ async function createImportFile(
     if (!isSameFile(identity, await lstat(temporary, { bigint: true }))) {
       throw refused(CHANGED)
     }
-    beforePublish?.()
+    await beforePublish?.()
     await link(temporary, absolutePath)
     return 'created'
   } catch (error: unknown) {
@@ -343,10 +402,11 @@ export const fileImportWriter: ImportWriter = {
       project === undefined
         ? undefined
         : { path: project.identity.canonical, identity: project.identity }
-    options?.beforePublish?.()
+    await options?.beforePublish?.()
     await writeFileAtomically(absolutePath, after, {
       expectedCanonicalPath,
-      ...(options?.beforePublish !== undefined && { assertCanWrite: options.beforePublish }),
+      ...(options?.assertCanWrite !== undefined && { assertCanWrite: options.assertCanWrite }),
+
       sleep: async (ms) => {
         await new Promise((resolve) => setTimeout(resolve, ms))
       },
@@ -360,10 +420,11 @@ export const fileImportWriter: ImportWriter = {
         }
         await checkTarget(to, canonicalProject)
         await checkTarget(absolutePath, project)
-        options?.beforePublish?.()
+        await options?.beforePublish?.()
         await rename(from, to)
       },
     })
   },
   realPath: importRealPath,
+  isIgnored: isImportIgnored,
 }

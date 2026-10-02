@@ -1,9 +1,6 @@
-// Every credential leak the independent reviews of the import reported (M83:
-// RV83, RV83b, RV83c, RV83d and the Muse review mr83), as text around a
-// synthetic secret, a few further spellings of the same classes, and
-// ordinary lines that must come through. Each leak is now a refusal: the
-// whole entry holding it is not imported. Shared by the credential check's
-// tests and the production import flow's. No value is a real credential.
+// Historical leak spellings reused as content-only regression inputs for D64.
+// Allowed targets retain them; logs, preview and picker never show their
+// values. Every value is synthetic. No detector depends on this corpus.
 
 export interface CredentialLeak {
   readonly name: string
@@ -171,7 +168,7 @@ export function leakSecret(index: number): string {
   return `opaque-${String(index).padStart(2, '0')}-demo-value`
 }
 
-/** Prose, code and URLs without credentials, which the check lets through. */
+/** Ordinary rules content, also preserved whole in allowed targets. */
 export const ORDINARY_LINES: readonly string[] = [
   'Run the tests before you commit, and keep each change small.',
   'Prefer early returns; name things for what they hold.',

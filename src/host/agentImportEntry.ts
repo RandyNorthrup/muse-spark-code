@@ -1,9 +1,9 @@
 // The import's shipped CommonJS bundle (M83, PLAN.md D6): the scan, the
-// conversion, the credential check, the plan, the file access and the flow, with
+// conversion, the exposure checks, the plan, the file access and the flow, with
 // `smol-toml` for Codex's configuration. esbuild builds this file into
 // dist/agentImport.js, which `agentImportLoader` requires on the first
 // import, so none of it is in the bundle VS Code loads at activation. It
-// also carries the pickers, clipboard and editor adapter; `vscode` is the
+// also carries the pickers and unsaved target editor adapter; `vscode` is the
 // host's external module. Both entries receive the installed display table.
 
 import { AGENT_IMPORT_PATHS } from '../shared/constants'

@@ -3235,6 +3235,35 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   changes are listed, not undone, as Claude Code's own rewind does; this
   narrows D51, which promised to undo them.
 
+### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)
+
+Five independent review rounds found spellings that bypassed credential
+detection. M83 now controls destinations instead of inspecting content.
+Personal files stay personal; a git-ignored project source goes only to an
+ignored project target or a personal target; a tracked project source may
+go to any of those places. A non-repository folder counts as tracked.
+Canonical path checks and the safe metadata git runner classify sources;
+targets are classified again after final path checks at publication or
+editor edit time. Unknown classification refuses the item.
+
+The preview lists kind, source item name, scope and target path, never
+bodies, commands, arguments, environment/header values or URLs. Picker
+details give scope, never source paths. Logs contain counts, kinds and
+fixed refusal reasons only. Item names remain visible as the source tool
+shows them. Hooks and MCP servers open as unsaved WorkspaceEdits in their
+same-scope target, for the user to review and save; no clipboard operation.
+Only active MCP transport fields are copied unchanged; inactive and
+unknown fields are listed as dropped by name, never emitted by value.
+Candidate IDs use one Set across registration calls.
+
+Readiness: the lead's M83x brief and REDESIGN-EXPOSURE.md settle scope and
+all ten RV83e findings. Reuse the scanner, native editor, path guards,
+exclusive publication and safe git metadata options. No dependency,
+detector, heuristic, option or plan-format migration. The delivery ledger
+validator remains deferred because this canonical plan has no ledger;
+focused behavioral evidence and SHA-256-restored red drills go in
+`docs/certification/m83e.md`. Full quality and native UI remain lead-owned.
+
 ## 3. Open questions (need the owner)
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
@@ -9117,7 +9146,17 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
-**Status 2026-10-02 (round 4): refuses items that may hold a credential
+**Status 2026-10-02 (round 5): exposure-preserving import (D64) implemented;
+prescribed scoped rig verification complete, lead certification pending.** Five
+reviews found new credential spellings, so the detector and masking are
+removed. Preview/picker output is metadata only; no clipboard; unchanged
+config values open in unsaved target edits. Sources and targets follow the
+three-class exposure matrix, with target classification repeated after final
+path checks. Candidate registration reuses one Set. Latest main/M75 joined
+in `f08d2f26`. Current evidence: `docs/certification/m83e.md`.
+
+**Superseded history — round 4, replaced by D64 and m83e:**
+**Historical status 2026-10-02 (round 4): refuses items that may hold a credential
 instead of masking them; lead certification pending.** The fourth
 independent review (RV83d, on `527da984`) found the round-3 masker still
 publishing credentials: a value on the next line or after a shell line
@@ -9286,70 +9325,36 @@ history and describe their own source snapshots.
 The 2026-09-28 certification is historical (`docs/certification/m83.md`).
 
 - **Goal.** Switching to Muse Spark Code takes minutes.
-- **Scope.**
-  - Import from Claude Code, Codex and Cursor, beyond M30's skills and
-    sessions:
-    - MCP servers;
-    - hooks, where their events map;
-    - custom agents (M76);
-    - custom slash commands, which become project skills
-      (`.agents/skills/<id>/SKILL.md`);
-    - rules files, which become sections of `AGENTS.md`, shown in the
-      preview.
-  - Preview first, nothing overwritten. The preview shows each hook's and
-    server's full command. An item that may hold a credential is refused
-    whole and listed for the user to copy by hand (amended 2026-10-02: the
-    import refuses such items instead of masking them, after four review
-    rounds each found a value the masking missed).
-  - MCP servers and hooks live in Muse Code's `settings.json` and
-    `.muse/hooks.json`, which the extension never writes (D17, D30). Their
-    converted entries are shown, `env` and header values masked, for the
-    user to copy into the file the preview opens.
-  - Entries found in a repository's `.claude`, `.cursor` or `.codex`
-    folder are offered only for that project's files, and only in a
-    trusted workspace. Only the user's own folders are offered for user
-    files.
+- **Scope.** MCP servers, mapped hooks, compatible custom agents, commands
+  as skills, and project rules as `AGENTS.md` sections, from Claude Code,
+  Codex and Cursor. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+  Metadata preview first; no overwrite, clipboard, detector or masking.
+  Config entries open unsaved in the same-scope target for review/save.
+  Only active MCP transport fields are copied; inactive/unknown fields are
+  listed as dropped by name. Names remain visible as the source tool shows
+  them; no bodies, commands, arguments, environment/header values or URLs
+  in preview/picker output; no names, paths or content in logs.
 - **Backends.** Both.
-- **Acceptance.** Nothing is written before the preview is accepted; the
-  CLI's settings and hooks files are never written; a project's entries are
-  never offered for user files.
-  - **Filesystem review, 2026-09-29:** retain import serialization and
-    completed conversion fixes. Project destination reads, appends and
-    editor opens refuse every symbolic link or junction below the workspace
-    root, including dangling links. Bounded reads verify the opened file's
-    identity before reading bytes. New files publish whole and exclusively;
-    rules append through the existing atomic writer only while the file
-    still holds the text used to select fresh sections and its resulting
-    bytes stay within the rules limit. Recheck copy destinations after the
-    clipboard await and before opening. Verify with real temporary files,
-    Windows junctions, held concurrent imports and meaningful red drills.
-    The host-wide gate covers the complete flow, including clipboard/editor
-    actions; a second request is refused as busy. A trust revocation while the preview waits aborts a project
-    import before applying its accepted plan.
-    - **Independent review repair, 2026-09-29:** every project publication
-      rechecks live workspace trust after asynchronous file checks and
-      immediately before the hard link or atomic rename. Clipboard and
-      editor actions recheck the same trust and the activation lifetime;
-      shutdown prevents every later import side effect. User imports remain
-      available in Restricted Mode. Mask the complete project rules section
-      before planning, including heading and frontmatter-derived text, so
-      accepted preview bytes and published `AGENTS.md` bytes agree. Add held
-      real-file publication and clipboard tests; verification remains queued.
-    - Imported agents use M76's planned `<id>/AGENT.md` directory layout.
-      The bounded import validator checks supported metadata until M76's
-      canonical reader lands; M76 runtime admission remains a lead-owned dependency.
-      Folder prefixes namespace the selector, while compatible frontmatter
-      and prompt semantics stay intact. Missing required metadata, unknown
-      restrictions, empty or unsupported tool lists and foreign model
-      aliases are listed as unsupported and never written. No imported
-      field raises approval mode. These managed agents run on Model API;
-      D13's captured CLI still names no native agent folder. Generated
-      command and agent files are masked before planning, so the accepted
-      preview and applied bytes agree.
-      Commands carrying metadata the native skill does not support are
-      listed as unsupported rather than losing restrictions in conversion.
-- **Tests.** Fixture folders for each tool, and a drill for the scope
-  rule.
+- **Acceptance.** All nine exposure moves follow D64. Real git ignores
+  refuse ignored-to-tracked and admit ignored-to-ignored. Recheck target
+  classification after final path checks at publication/editor edit time.
+  Unknown classification refuses. Personal means under home and outside
+  every open workspace; non-repositories count as tracked.
+  Preserve bounded handle reads, exclusive complete-file publication,
+  changed-prior-text/rules-size refusal, project link/junction refusal,
+  request-root identity binding, live trust/activation, checkpoint leases
+  and successful-publication user ownership. Apply the synchronous current
+  folder guard after the last await before editor show and edit. Keep one
+  host-wide import gate through all questions and effects. Personal imports
+  remain available in Restricted Mode. Agents and command restrictions stay
+  intact; unsupported metadata remains refused. M76 runtime admission is
+  lead-owned until its canonical reader lands.
+- **Tests.** Production scan/plan/apply with memoryImportIo and a fake ignore
+  oracle; real git ignored source/targets and real junction cases; no
+  clipboard API in host adapter; old leak corpus as metadata/log isolation
+  input; final editor interleaving; Set construction work at 1k/2k/4k/8k.
+  Red drills: class check, ignore query, clipboard absence, log scrub,
+  current-folder guard and Set reuse; byte-exact SHA-256 restoration.
 - **Size.** S.
 - **As built (decisions).** A first draft by Muse Code (5094e6b4) was
   reviewed and largely rewritten; the certification record lists what
@@ -9386,8 +9391,8 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     `AGENTS.md`.
   - **Preview first, nothing replaced.** A read-only Markdown document
     (M15's read-only documents, now opened before the CLI features are
-    built) shows every file whole, every appended section, every copy text
-    and every entry left out with its reason, beside a non-modal
+    built) lists kind, item name, source scope, target path
+    and every entry left out with its reason; content is not shown, beside a non-modal
     notification that asks, so the preview stays readable; nothing is
     written until Import. Complete bytes are staged with `wx` and published
     by an exclusive hard link, each destination confined again at publication, a
@@ -9405,24 +9410,18 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     except where Claude Code ignores one (`UserPromptSubmit`,
     `PostToolBatch`, `Stop`); a handler converts only as a plain `command`
     with `timeout` (at most 600 s), `async` and `statusMessage`, so nothing
-    that narrowed (`if`, `args`, `shell`) is widened. The copy text is the
+    that narrowed (`if`, `args`, `shell`) is widened. Only active transport fields are copied unchanged; inactive and unknown
+    fields are dropped by name. The editor text is the
     whole file when it is missing (`schema_version: 1` for the settings),
     else the members to merge, with a warning for the legacy
-    `mcp_servers` key; it is copied and the file opened (unsaved at its
-    path when missing, so the user saves it).
-  - **Credentials (round 4, 2026-10-02): refused, not masked.** Each item is
-    checked whole when it is found (`importCredentials.ts`; the cue list and
-    its three spellings are in the status above and the module's header).
-    An item with a cue is a `credential` candidate: checked in the picker so
-    the preview lists it under "Not imported: may hold a credential — copy
-    it yourself" with its cue's kind, and never planned, written or copied.
-    A name that itself holds a cue is shown as "(name not shown)". An
-    admitted MCP server's `env` and header values are still masked whole,
-    their names kept; its URL is refused when it has user-info, a query or
-    a fragment. Round 3's line masking (RV83c) and the URL and argument
-    maskers it replaced are history (`docs/certification/m83b.md`). Parse
-    failures are logged in fixed words: `JSON.parse` and `smol-toml`
-    messages can quote the file.
+    `mcp_servers` key; it is applied as an unsaved WorkspaceEdit in the target,
+    so the user reviews and saves it.
+  - **Exposure (D64, round 5).** The detector, its three readings, NFKC
+    normalization and value masking are deleted. Canonical paths and safe
+    git metadata classify sources, with target exposure checked again at
+    publication or editor edit time. Logs contain counts and fixed reasons.
+    Historical masking/refusal claims and corpora describe their old trees
+    only (`m83.md`, `m83b.md`, `m83d.md`); m83e supersedes them.
   - **Custom agents before M76.** The agent files land in
     `.agents/agents/<id>/AGENT.md` and `<config>/muse/agents/<id>/AGENT.md`,
     M76's planned extension-owned layout. The directory id is the planned

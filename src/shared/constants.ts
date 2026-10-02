@@ -1377,10 +1377,9 @@ export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
 // land in Markdown beside the skills, in the folders M76 loads:
 // `.agents/agents/<id>.md` in the workspace (project scope) and
 // `<config>/muse/agents/<id>.md` (user scope), no name of Muse Code's own
-// (PLAN.md D13). MCP servers and hooks are never written: their converted
-// entries are shown, `env` and header values masked, for the user to copy
-// into Muse Code's settings.json and .muse/hooks.json (D17, D30). An entry
-// that may hold a credential is not imported at all (`importCredentials.ts`).
+// (PLAN.md D13). Config entries open as unsaved target editor edits
+// (D17, D30, D64), with values unchanged. An entry
+// whose target would be more exposed is refused (D64).
 export const AGENT_IMPORT_SOURCES = ['claudeCode', 'codex', 'cursor'] as const
 export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
 export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const
@@ -1426,18 +1425,14 @@ export const AGENT_IMPORT_MARKDOWN_EXTENSION = '.md'
 export const AGENT_IMPORT_CURSOR_RULE_EXTENSION = '.mdc'
 /** A foreign command, agent, settings, MCP or rules file over this is skipped unread. */
 export const AGENT_IMPORT_FILE_MAX_BYTES = 64 * 1024
+/** Git reports a non-repository with this exit code; other failures refuse classification. */
+export const AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT = 128
 /** Claude Code's `.claude.json` also holds its usage and project history, so it may be larger. */
 export const AGENT_IMPORT_CLAUDE_STATE_MAX_BYTES = 16 * 1024 * 1024
 /** How many directory entries of one foreign folder are read; the rest are skipped. */
 export const AGENT_IMPORT_DIR_MAX_ENTRIES = 200
 /** How deep Claude Code's agent folders and namespaced command folders (`frontend/component.md`) are followed. */
 export const AGENT_IMPORT_FOLDER_MAX_DEPTH = 3
-/**
- * A run of base64 or hex characters this long, mixing digits with letters,
- * reads as a key or token (`importCredentials.ts`): a random 32-character
- * key lacks a digit or a letter case less than once in 200 tries.
- */
-export const AGENT_IMPORT_OPAQUE_RUN_MIN_CHARS = 32
 /** A skill id or agent file name made from a foreign file name is cut here. */
 export const AGENT_IMPORT_ID_MAX_CHARS = 64
 /**

@@ -107,6 +107,9 @@ async function importFile(
 ): Promise<void> {
   const isAppend = family === 'import append'
   const write: ImportWrite = {
+    sourceExposure: 'project-tracked',
+    homeDir: h.root,
+    workspaceRoot: h.root,
     candidateIds: ['imported'],
     absolutePath: isAppend
       ? path.join(h.root, 'AGENTS.md')

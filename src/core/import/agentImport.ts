@@ -18,15 +18,11 @@
 // Preview first: the scan and the plan only read. `applyImportWrites`
 // creates files that do not exist (never replacing one, even one that
 // appears in between) and appends rules sections, each destination checked
-// against its root again. MCP servers and hooks are never written (D17,
-// D30): the plan gives their converted entries as text for the user to copy
-// into Muse Code's settings file and the project's hooks file.
+// against its root again. MCP servers and hooks are offered as unsaved
+// target editor edits (D17, D30, D64); the user reviews and saves them.
 //
-// Credentials: every entry is checked whole when it is found
-// (`importCredentials.ts`). One whose text holds a credential cue anywhere,
-// its name and its source file's name included, is refused whole: nothing of
-// it is written or copied, and the preview names it with the cue's kind for
-// the user to copy by hand. A name that holds a cue is not shown either.
+// Exposure: imported content goes only to a place no more exposed than
+// its source (D64). Content is never inspected for credentials.
 //
 // Pure: every file access is injected. No model call.
 
@@ -85,7 +81,6 @@ import {
   rulesSection,
   splitFrontMatter,
 } from './importConvert'
-import { credentialCue, type CredentialCue } from './importCredentials'
 
 export type ImportOrigin = 'user' | 'project'
 
@@ -104,6 +99,8 @@ export interface ImportDirEntry {
 export interface ImportIo extends RealPathIo {
   /** The file, unread when it is over `maxBytes`; throws on a failure other than "not there". */
   readFile(absolutePath: string, maxBytes: number, projectRoot?: string): Promise<ImportRead>
+  /** Safe git metadata query; false outside a repository, throws if classification fails. */
+  isIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean>
   /** The directory's entries; undefined when it is missing; throws on any other failure. */
   listDirectory(absolutePath: string): Promise<readonly ImportDirEntry[] | undefined>
 }
@@ -117,13 +114,11 @@ export interface ImportScanInput {
   /** `CODEX_HOME` as the environment gives it. */
   readonly codexHome: string | undefined
   readonly workspaceRoot: string | undefined
+  /** All folders open in the window, read live at each classification. */
+  readonly workspaceRoots?: () => readonly string[]
   readonly isWorkspaceTrusted: () => boolean
   readonly isActive: () => boolean
   readonly sources: readonly AgentImportSource[]
-  /** The word masked `env` and header values show as. */
-  readonly mask: string
-  /** Shown in place of an entry's name when the name itself may hold a credential. */
-  readonly hiddenName: string
 }
 
 export type ImportSkipReason =
@@ -143,6 +138,8 @@ export type ImportSkipReason =
   /** The workspace folder is not the one the preview was made for any more. */
   | 'changed'
   | 'failed'
+  | 'personalToProject'
+  | 'ignoredToTracked'
 
 export type ImportFileRoot = 'skills' | 'agents'
 
@@ -166,8 +163,6 @@ export type ImportTarget =
   | { readonly kind: 'server'; readonly name: string; readonly entry: MuseMcpEntry }
   | { readonly kind: 'hook'; readonly file: ImportCopyFile; readonly hook: MuseHook }
   | { readonly kind: 'none'; readonly reason: ImportSkipReason }
-  /** It may hold a credential: nothing of it is written or copied; the user copies it by hand. */
-  | { readonly kind: 'credential'; readonly cue: CredentialCue }
 
 export interface ImportCandidate {
   readonly id: string
@@ -177,6 +172,7 @@ export interface ImportCandidate {
   readonly label: string
   /** The file it was found in. */
   readonly originPath: string
+  readonly sourceExposure: ImportExposure | undefined
   readonly target: ImportTarget
   /** The source entry's fields that are not carried over. */
   readonly dropped: readonly string[]
@@ -184,7 +180,7 @@ export interface ImportCandidate {
 
 export interface ImportScan {
   readonly candidates: readonly ImportCandidate[]
-  /** For the log: fixed words and display paths, never a file's content. */
+  /** For the log: fixed reasons only, never names, paths or content. */
   readonly warnings: readonly string[]
 }
 
@@ -196,6 +192,7 @@ interface Scan {
   readonly p: ReturnType<typeof pathModule>
   readonly warnings: string[]
   readonly candidates: ImportCandidate[]
+  readonly taken: Set<string>
 }
 
 interface Found {
@@ -257,32 +254,76 @@ export function importErrorCode(error: unknown): string {
     : 'error'
 }
 
+/** Only fixed refusal words survive failure accounting. */
+function writeRefusal(code: string): ImportSkipReason {
+  switch (code) {
+    case AGENT_IMPORT_ROOT_CHANGED_CODE: {
+      return 'changed'
+    }
+    case 'personalToProject':
+    case 'ignoredToTracked':
+    case 'outside': {
+      return code
+    }
+    default: {
+      return 'failed'
+    }
+  }
+}
+
 function add(scan: Scan, found: Found): void {
   const base = [found.kind, found.source, found.origin, found.label].join(ID_SEPARATOR)
-  const taken = new Set(scan.candidates.map((candidate) => candidate.id))
+  const taken = scan.taken
   let id = base
   for (let index = 2; taken.has(id); index += 1) {
     id = `${base}${ID_SEPARATOR}${String(index)}`
   }
-  scan.candidates.push({ ...found, id, dropped: found.dropped ?? [] })
-}
-
-/** An entry's name as the picker, the preview and the ids show it: hidden when it may hold a credential itself. */
-function labelOf(scan: Scan, name: string): string {
-  return credentialCue([name]) === undefined ? name : scan.input.hiddenName
-}
-
-/** The entry's target, unless any of its text holds a credential cue: then it is refused whole. */
-function unlessCredential(texts: readonly string[], target: () => ImportTarget): ImportTarget {
-  const cue = credentialCue(texts)
-  return cue === undefined ? target() : { kind: 'credential', cue }
+  taken.add(id)
+  scan.candidates.push({ ...found, id, sourceExposure: undefined, dropped: found.dropped ?? [] })
 }
 
 /** A converter's refusal as the entry's target. */
 function refusalOf(refusal: Exclude<Conversion<unknown>, { readonly ok: true }>): ImportTarget {
-  return refusal.reason === 'credential'
-    ? { kind: 'credential', cue: refusal.cue }
-    : { kind: 'none', reason: refusal.reason }
+  return { kind: 'none', reason: refusal.reason }
+}
+
+export type ImportExposure = 'personal' | 'project-local' | 'project-tracked'
+
+interface ExposureContext {
+  readonly platform: NodeJS.Platform
+  readonly homeDir: string
+  readonly workspaceRoot: string | undefined
+  readonly workspaceRoots?: () => readonly string[]
+  readonly io: Pick<ImportIo, 'realPath' | 'isIgnored'>
+}
+
+/** Canonical containment decides scope; git decides ignored versus tracked. */
+export async function importExposure(
+  absolutePath: string,
+  context: ExposureContext,
+): Promise<ImportExposure | undefined> {
+  const { io, platform, workspaceRoot } = context
+  const file = await io.realPath(absolutePath)
+  const workspaces =
+    context.workspaceRoots?.() ?? (workspaceRoot === undefined ? [] : [workspaceRoot])
+  for (const workspace of workspaces) {
+    const root = await io.realPath(workspace)
+    if (resolveWorkspacePath(root, file, platform).ok) {
+      return (await io.isIgnored(file, root)) ? 'project-local' : 'project-tracked'
+    }
+  }
+  const home = await io.realPath(context.homeDir)
+  return resolveWorkspacePath(home, file, platform).ok ? 'personal' : undefined
+}
+
+/** No item may move to a more exposed class. No content inspection. */
+export function exposureRefusal(
+  source: ImportExposure | undefined,
+  target: ImportExposure | undefined,
+): ImportSkipReason | undefined {
+  if (source === undefined || target === undefined) return 'outside'
+  if (source === 'personal' && target !== 'personal') return 'personalToProject'
+  return source === 'project-local' && target === 'project-tracked' ? 'ignoredToTracked' : undefined
 }
 
 /** Live permission to read this source; personal sources remain available without trust. */
@@ -298,6 +339,16 @@ async function isConfined(
   if (!canReadOrigin(scan, origin)) {
     return false
   }
+  if (origin === 'user' && !scan.input.isWorkspaceTrusted()) {
+    const file = await scan.input.io.realPath(absolutePath)
+    const roots =
+      scan.input.workspaceRoots?.() ??
+      (scan.input.workspaceRoot === undefined ? [] : [scan.input.workspaceRoot])
+    for (const workspace of roots) {
+      const canonical = await scan.input.io.realPath(workspace)
+      if (resolveWorkspacePath(canonical, file, scan.input.platform).ok) return false
+    }
+  }
   const root = scan.input.workspaceRoot
   if (origin === 'user' || root === undefined) {
     return origin === 'user'
@@ -309,7 +360,7 @@ async function isConfined(
     scan.input.io,
   )
   if (!confined.ok) {
-    scan.warnings.push(`${shown(scan, absolutePath)} leads outside the workspace, skipped`)
+    scan.warnings.push(`leads outside the workspace, skipped`)
   }
   return confined.ok
 }
@@ -331,8 +382,8 @@ async function readText(
       maxBytes,
       origin === 'project' ? scan.input.workspaceRoot : undefined,
     )
-  } catch (error: unknown) {
-    scan.warnings.push(`${shown(scan, absolutePath)} could not be read (${importErrorCode(error)})`)
+  } catch {
+    scan.warnings.push(`could not be read (failed)`)
     return undefined
   }
   switch (read.status) {
@@ -340,19 +391,17 @@ async function readText(
       return undefined
     }
     case 'notFile': {
-      scan.warnings.push(`${shown(scan, absolutePath)} is not a file, skipped`)
+      scan.warnings.push(`is not a file, skipped`)
       return undefined
     }
     case 'tooLarge': {
-      scan.warnings.push(
-        `${shown(scan, absolutePath)} is over the ${String(maxBytes)} byte limit, skipped`,
-      )
+      scan.warnings.push(`is over the ${String(maxBytes)} byte limit, skipped`)
       return undefined
     }
     case 'read': {
       const decoded = decodeContextText(read.bytes)
       if (!decoded.ok) {
-        scan.warnings.push(`${shown(scan, absolutePath)} ${decoded.reason}, skipped`)
+        scan.warnings.push(`${decoded.reason}, skipped`)
         return undefined
       }
       return decoded.text
@@ -371,8 +420,8 @@ async function listEntries(
   let entries: readonly ImportDirEntry[] | undefined
   try {
     entries = await scan.input.io.listDirectory(directory)
-  } catch (error: unknown) {
-    scan.warnings.push(`${shown(scan, directory)} could not be listed (${importErrorCode(error)})`)
+  } catch {
+    scan.warnings.push(`could not be listed (failed)`)
     return []
   }
   if (entries === undefined) {
@@ -380,7 +429,7 @@ async function listEntries(
   }
   if (entries.length > AGENT_IMPORT_DIR_MAX_ENTRIES) {
     scan.warnings.push(
-      `${shown(scan, directory)} holds ${String(entries.length)} entries; the first ${String(AGENT_IMPORT_DIR_MAX_ENTRIES)} are read`,
+      `holds ${String(entries.length)} entries; the first ${String(AGENT_IMPORT_DIR_MAX_ENTRIES)} are read`,
     )
   }
   return entries
@@ -416,7 +465,7 @@ function addServers(
     readonly origin: ImportOrigin
     readonly originPath: string
     readonly servers: readonly FoundServer[]
-    readonly convert: (raw: unknown, mask: string) => Conversion<MuseMcpEntry>
+    readonly convert: (raw: unknown) => Conversion<MuseMcpEntry>
   },
 ): void {
   for (const server of options.servers) {
@@ -424,20 +473,15 @@ function addServers(
       source: options.source,
       origin: options.origin,
       kind: 'mcpServer',
-      label: labelOf(scan, server.name),
+      label: server.name,
       originPath: options.originPath,
     } as const
     if (options.origin === 'project') {
       add(scan, { ...found, target: PROJECT_SERVER_REFUSAL })
       continue
     }
-    const converted = options.convert(server.raw, scan.input.mask)
-    // The name keys the copied entry and the names of the fields left out are
-    // shown, so they are checked with the rest.
-    const nameCue = credentialCue([server.name, ...(converted.ok ? converted.dropped : [])])
-    if (nameCue !== undefined) {
-      add(scan, { ...found, target: { kind: 'credential', cue: nameCue } })
-    } else if (converted.ok) {
+    const converted = options.convert(server.raw)
+    if (converted.ok) {
       add(scan, {
         ...found,
         target: { kind: 'server', name: server.name, entry: converted.value },
@@ -461,7 +505,7 @@ async function collectMcpFile(
   }
   const servers = readMcpFile(text)
   if (servers === undefined) {
-    scan.warnings.push(`${shown(scan, file)} is not an MCP servers file, skipped`)
+    scan.warnings.push(`is not an MCP servers file, skipped`)
     return
   }
   addServers(scan, { source, origin, originPath: file, servers, convert: convertJsonServer })
@@ -474,7 +518,7 @@ async function collectCodexConfig(scan: Scan, origin: ImportOrigin, file: string
   }
   const servers = readCodexConfig(text)
   if (servers === undefined) {
-    scan.warnings.push(`${shown(scan, file)} is not a readable Codex configuration, skipped`)
+    scan.warnings.push(`is not a readable Codex configuration, skipped`)
     return
   }
   addServers(scan, {
@@ -493,7 +537,7 @@ async function collectClaudeState(scan: Scan, file: string): Promise<void> {
   }
   const state = readClaudeState(text, scan.input.workspaceRoot, scan.input.platform)
   if (state === undefined) {
-    scan.warnings.push(`${shown(scan, file)} is not a readable Claude Code state file, skipped`)
+    scan.warnings.push(`is not a readable Claude Code state file, skipped`)
     return
   }
   // A local-scope server is the user's own, for this project; Muse Code has user scope only.
@@ -515,7 +559,7 @@ async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Pro
   }
   const hooks = readClaudeHooks(text)
   if (hooks === undefined) {
-    scan.warnings.push(`${shown(scan, file)} is not a readable settings file, skipped`)
+    scan.warnings.push(`is not a readable settings file, skipped`)
     return
   }
   for (const hook of hooks) {
@@ -524,10 +568,7 @@ async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Pro
       source: 'claudeCode',
       origin,
       kind: 'hook',
-      label: labelOf(
-        scan,
-        hook.matcher === undefined ? hook.event : `${hook.event} (${hook.matcher})`,
-      ),
+      label: hook.event,
       originPath: file,
       target: converted.ok
         ? { kind: 'hook', file: origin === 'user' ? 'settings' : 'hooks', hook: converted.value }
@@ -672,34 +713,29 @@ async function collectMarkdownFile(
   const agentParts = agentName === '' ? nameParts : [...nameParts.slice(0, -1), agentName]
   const id = slugOf(spec.kind === 'agent' ? agentParts : nameParts)
   if (id === '' || body === '') {
-    scan.warnings.push(`${shown(scan, file)} has no usable name or holds nothing, skipped`)
+    scan.warnings.push(`has no usable name or holds nothing, skipped`)
     return
   }
   const found = {
     source: spec.source,
     origin: spec.origin,
     kind: spec.kind,
-    label: labelOf(scan, id),
+    label: (spec.kind === 'agent' ? agentParts : nameParts).join('/'),
     originPath: file,
   } as const
-  // The whole file and the names its id comes from; a command's generated
-  // skill is checked as written too.
-  const texts = [...nameParts, id, text]
   if (spec.kind === 'agent') {
     const content = `${text.trimEnd()}\n`
     add(scan, {
       ...found,
-      target: unlessCredential(texts, () =>
-        isImportableAgent(content)
-          ? {
-              kind: 'file',
-              root: 'agents',
-              scope: spec.origin,
-              relativePath: `${id}/${AGENT_FILE_NAME}`,
-              content,
-            }
-          : { kind: 'none', reason: 'unsupported' },
-      ),
+      target: isImportableAgent(content)
+        ? {
+            kind: 'file',
+            root: 'agents',
+            scope: spec.origin,
+            relativePath: `${id}/${AGENT_FILE_NAME}`,
+            content,
+          }
+        : { kind: 'none', reason: 'unsupported' },
     })
     return
   }
@@ -707,7 +743,7 @@ async function collectMarkdownFile(
   add(scan, {
     ...found,
     // Muse Code skips a SKILL.md over its size limit; one that would be is not offered.
-    target: unlessCredential([...texts, content], () =>
+    target:
       TEXT_ENCODER.encode(content).length > SKILL_FILE_MAX_BYTES ||
       hasUnsupportedHeader(text) ||
       Object.keys(fields).some((key) => !COMMAND_FIELDS.has(key)) ||
@@ -720,7 +756,6 @@ async function collectMarkdownFile(
             relativePath: `${id}/${SKILL_FILE_NAME}`,
             content,
           },
-    ),
   })
 }
 
@@ -782,7 +817,7 @@ async function collectProjectRules(
     ? splitFrontMatter(text)
     : { fields: {}, body: text.trim() }
   if (body === '') {
-    scan.warnings.push(`${shown(scan, file)} holds nothing, skipped`)
+    scan.warnings.push(`holds nothing, skipped`)
     return
   }
   const heading = rulesHeading(AGENT_IMPORT_SOURCE_NAMES[source], shown(scan, file))
@@ -792,15 +827,14 @@ async function collectProjectRules(
     source,
     origin: 'project',
     kind: 'rules',
-    label: labelOf(scan, shown(scan, file)),
+    label: scan.p.basename(file),
     originPath: file,
-    // The whole file and the section made of it, its heading's path included.
-    target: unlessCredential([text, section], () => ({
+    target: {
       kind: 'rules',
       file: scan.p.join(root, agentsFile),
       heading,
       section,
-    })),
+    },
   })
 }
 
@@ -970,8 +1004,8 @@ async function shouldReadProject(scan: Scan): Promise<boolean> {
       input.io.realPath(input.homeDir),
     ])
     return workspace !== home
-  } catch (error: unknown) {
-    scan.warnings.push(`the workspace folder could not be resolved (${importErrorCode(error)})`)
+  } catch {
+    scan.warnings.push(`the workspace folder could not be resolved (failed)`)
     return false
   }
 }
@@ -981,7 +1015,13 @@ async function shouldReadProject(scan: Scan): Promise<boolean> {
  * imported is a candidate too, with its reason, so the user sees it.
  */
 export async function scanAgentImports(input: ImportScanInput): Promise<ImportScan> {
-  const scan: Scan = { input, p: pathModule(input.platform), warnings: [], candidates: [] }
+  const scan: Scan = {
+    input,
+    p: pathModule(input.platform),
+    warnings: [],
+    candidates: [],
+    taken: new Set(),
+  }
   const isProjectRead = await shouldReadProject(scan)
   const scanners: Readonly<Record<AgentImportSource, typeof scanCodex>> = {
     claudeCode: scanClaudeCode,
@@ -991,7 +1031,26 @@ export async function scanAgentImports(input: ImportScanInput): Promise<ImportSc
   for (const source of input.sources) {
     await scanners[source](scan, isProjectRead)
   }
-  return { candidates: scan.candidates, warnings: scan.warnings }
+  const candidates: ImportCandidate[] = []
+  const exposures = new Map<string, Promise<ImportExposure | undefined>>()
+  for (const candidate of scan.candidates) {
+    if (!canReadOrigin(scan, candidate.origin)) continue
+    try {
+      if (!exposures.has(candidate.originPath))
+        exposures.set(candidate.originPath, importExposure(candidate.originPath, input))
+      const sourceExposure = await exposures.get(candidate.originPath)
+      candidates.push({
+        ...candidate,
+        sourceExposure,
+        ...(sourceExposure === undefined && {
+          target: { kind: 'none', reason: 'outside' } as const,
+        }),
+      })
+    } catch {
+      candidates.push({ ...candidate, target: { kind: 'none', reason: 'unreadable' } })
+    }
+  }
+  return { candidates, warnings: scan.warnings }
 }
 
 // --- Plan ---
@@ -1016,7 +1075,9 @@ export interface ImportProjectRoot {
 
 export interface ImportDestinations {
   readonly platform: NodeJS.Platform
+  readonly homeDir: string
   readonly workspaceRoot: string | undefined
+  readonly workspaceRoots?: () => readonly string[]
   /** Undefined when the folder could not be identified: no project file is planned then. */
   readonly workspaceIdentity: ImportRootIdentity | undefined
   /** `<config>/muse`: the personal skills and agents go beneath it. */
@@ -1034,6 +1095,7 @@ export type ImportPlanFile =
   | { readonly status: 'outside' }
 
 export interface ImportPlanState {
+  readonly io: ImportIo
   /** Whether anything (a file, a folder, a link) is at the path. */
   readonly isPresent: (absolutePath: string) => Promise<boolean>
   /** The workspace `AGENTS.md`. */
@@ -1045,6 +1107,10 @@ export interface ImportPlanState {
 }
 
 export interface ImportWrite {
+  readonly sourceExposure: ImportExposure
+  readonly homeDir: string
+  readonly workspaceRoot: string | undefined
+  readonly workspaceRoots?: () => readonly string[]
   readonly candidateIds: readonly string[]
   readonly absolutePath: string
   readonly content: string
@@ -1067,18 +1133,23 @@ export interface ImportSection {
 }
 
 export interface ImportCopy {
+  readonly isProject: boolean
+  readonly sourceExposure: ImportExposure
+  readonly homeDir: string
+  readonly workspaceRoot: string | undefined
+  readonly workspaceRoots?: () => readonly string[]
   readonly file: ImportCopyFile
   readonly absolutePath: string
-  /** JSON, `env` and header values masked: the whole file when it does not exist yet, else the members to merge in. */
+  /** JSON, values unchanged: the whole file when it does not exist yet, else the members to merge in. */
   readonly text: string
   readonly isNewFile: boolean
   readonly candidateIds: readonly string[]
 }
 
-export type ImportSkip =
-  | { readonly candidateId: string; readonly reason: ImportSkipReason }
-  /** Refused at the scan as it may hold a credential, with the kind of cue it holds. */
-  | { readonly candidateId: string; readonly reason: 'credential'; readonly cue: CredentialCue }
+export interface ImportSkip {
+  readonly candidateId: string
+  readonly reason: ImportSkipReason
+}
 
 export interface ImportPlan {
   readonly writes: readonly ImportWrite[]
@@ -1173,6 +1244,8 @@ interface PlanBuilder {
   readonly servers: Map<string, MuseMcpEntry>
   readonly hooks: Record<ImportCopyFile, HookBlock>
   readonly copyIds: Record<ImportCopyFile, string[]>
+  readonly exposures: Map<string, ImportExposure>
+  readonly targetExposures: Map<string, ImportExposure>
 }
 
 function skip(builder: PlanBuilder, candidate: ImportCandidate, reason: ImportSkipReason): void {
@@ -1186,14 +1259,7 @@ async function planFile(
 ): Promise<void> {
   const { destinations } = builder
   const root = fileRoot(destinations, target.scope, target.root)
-  // Confined to the workspace itself: a linked `.agents` folder that leads out is refused.
-  const confinedTo =
-    target.scope === 'project' ? destinations.workspaceRoot : destinations.personalRoot
-  if (
-    root === undefined ||
-    confinedTo === undefined ||
-    (target.scope === 'project' && destinations.workspaceIdentity === undefined)
-  ) {
+  if (root === undefined) {
     skip(builder, candidate, 'outside')
     return
   }
@@ -1201,6 +1267,14 @@ async function planFile(
     root,
     ...target.relativePath.split('/'),
   )
+  const isProject =
+    target.scope === 'project' || builder.targetExposures.get(absolutePath) !== 'personal'
+  // Confined to the workspace itself: a linked `.agents` folder that leads out is refused.
+  const confinedTo = isProject ? destinations.workspaceRoot : destinations.personalRoot
+  if (confinedTo === undefined || (isProject && destinations.workspaceIdentity === undefined)) {
+    skip(builder, candidate, 'outside')
+    return
+  }
   if (builder.claimed.has(absolutePath)) {
     skip(builder, candidate, 'duplicate')
     return
@@ -1212,13 +1286,19 @@ async function planFile(
   builder.claimed.add(absolutePath)
   builder.writes.push({
     candidateIds: [candidate.id],
+    sourceExposure: candidate.sourceExposure ?? 'personal',
+    homeDir: destinations.homeDir,
+    workspaceRoot: destinations.workspaceRoot,
+    ...(destinations.workspaceRoots !== undefined && {
+      workspaceRoots: destinations.workspaceRoots,
+    }),
     absolutePath,
     content: target.content,
     mode: 'create',
     sections: [],
     root: confinedTo,
-    isProject: target.scope === 'project',
-    rootIdentity: target.scope === 'project' ? destinations.workspaceIdentity : undefined,
+    isProject,
+    rootIdentity: isProject ? destinations.workspaceIdentity : undefined,
   })
 }
 
@@ -1269,13 +1349,53 @@ function planServer(
 
 async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): Promise<void> {
   const { target } = candidate
+  if (target.kind !== 'none') {
+    const { destinations } = builder
+    const p = pathModule(destinations.platform)
+    let file: string
+    switch (target.kind) {
+      case 'file': {
+        file = p.join(
+          fileRoot(destinations, target.scope, target.root) ?? '',
+          ...target.relativePath.split('/'),
+        )
+        break
+      }
+      case 'rules': {
+        file = target.file
+        break
+      }
+      case 'server': {
+        file = destinations.museSettingsFile
+        break
+      }
+      case 'hook': {
+        file =
+          target.file === 'settings'
+            ? destinations.museSettingsFile
+            : p.join(destinations.workspaceRoot ?? '', ...PROJECT_HOOKS_SEGMENTS)
+        break
+      }
+    }
+    let reason: ImportSkipReason | undefined
+    try {
+      const targetExposure = await importExposure(file, { ...destinations, io: builder.state.io })
+      reason = exposureRefusal(candidate.sourceExposure, targetExposure)
+      if (reason === undefined && targetExposure !== undefined)
+        builder.targetExposures.set(file, targetExposure)
+    } catch {
+      reason = 'unreadable'
+    }
+    if (reason !== undefined) {
+      skip(builder, candidate, reason)
+      return
+    }
+    if (candidate.sourceExposure !== undefined)
+      builder.exposures.set(candidate.id, candidate.sourceExposure)
+  }
   switch (target.kind) {
     case 'none': {
       skip(builder, candidate, target.reason)
-      return
-    }
-    case 'credential': {
-      builder.skipped.push({ candidateId: candidate.id, reason: 'credential', cue: target.cue })
       return
     }
     case 'file': {
@@ -1306,6 +1426,13 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
   }
 }
 
+/** The least exposed source bounds a grouped publication. */
+function sourceExposureOf(builder: PlanBuilder, ids: readonly string[]): ImportExposure {
+  const classes = new Set(ids.map((id) => builder.exposures.get(id)))
+  if (classes.has('personal')) return 'personal'
+  return classes.has('project-local') ? 'project-local' : 'project-tracked'
+}
+
 function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
   const { destinations, state, servers, hooks, copyIds } = builder
   const copies: ImportCopy[] = []
@@ -1313,6 +1440,13 @@ function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
     const isNewFile = state.museSettings.status === 'missing'
     copies.push({
       file: 'settings',
+      isProject: builder.targetExposures.get(destinations.museSettingsFile) !== 'personal',
+      sourceExposure: sourceExposureOf(builder, copyIds.settings),
+      homeDir: destinations.homeDir,
+      workspaceRoot: destinations.workspaceRoot,
+      ...(destinations.workspaceRoots !== undefined && {
+        workspaceRoots: destinations.workspaceRoots,
+      }),
       absolutePath: destinations.museSettingsFile,
       text: copyJson(
         {
@@ -1329,6 +1463,13 @@ function copiesOf(builder: PlanBuilder): readonly ImportCopy[] {
   if (root !== undefined && copyIds.hooks.length > 0) {
     copies.push({
       file: 'hooks',
+      isProject: true,
+      sourceExposure: sourceExposureOf(builder, copyIds.hooks),
+      homeDir: destinations.homeDir,
+      workspaceRoot: destinations.workspaceRoot,
+      ...(destinations.workspaceRoots !== undefined && {
+        workspaceRoots: destinations.workspaceRoots,
+      }),
       absolutePath: pathModule(destinations.platform).join(root, ...PROJECT_HOOKS_SEGMENTS),
       text: copyJson({ hooks: hooks.hooks }, {}),
       isNewFile: state.hooksFile === 'missing',
@@ -1368,6 +1509,8 @@ export async function planImportApply(
     servers: new Map(),
     hooks: { settings: {}, hooks: {} },
     copyIds: { settings: [], hooks: [] },
+    exposures: new Map(),
+    targetExposures: new Map(),
   }
   for (const candidate of selected) {
     await planCandidate(builder, candidate)
@@ -1379,6 +1522,15 @@ export async function planImportApply(
       ? []
       : Array.from(builder.sections, ([file, planned]) => ({
           candidateIds: planned.map((section) => section.candidateId),
+          sourceExposure: sourceExposureOf(
+            builder,
+            planned.map((section) => section.candidateId),
+          ),
+          homeDir: destinations.homeDir,
+          workspaceRoot: destinations.workspaceRoot,
+          ...(destinations.workspaceRoots !== undefined && {
+            workspaceRoots: destinations.workspaceRoots,
+          }),
           absolutePath: file,
           content: joinSections(planned),
           mode: 'append',
@@ -1401,6 +1553,7 @@ export async function planImportApply(
 // --- Apply ---
 
 export interface ImportWriter extends RealPathIo {
+  isIgnored(absolutePath: string, workspaceRoot: string): Promise<boolean>
   /** The folder's identity now: its canonical path and its file number. */
   identifyRoot(absolutePath: string): Promise<ImportRootIdentity>
   /**
@@ -1413,7 +1566,7 @@ export interface ImportWriter extends RealPathIo {
     absolutePath: string,
     content: string,
     project?: ImportProjectRoot,
-    beforePublish?: () => void,
+    beforePublish?: () => void | Promise<void>,
   ): Promise<'created' | 'exists'>
   /** The file's text; undefined when it does not exist. */
   readText(absolutePath: string, project?: ImportProjectRoot): Promise<string | undefined>
@@ -1423,7 +1576,8 @@ export interface ImportWriter extends RealPathIo {
     options?: {
       readonly project?: ImportProjectRoot
       readonly expectedText?: string
-      readonly beforePublish?: () => void
+      readonly beforePublish?: () => void | Promise<void>
+      readonly assertCanWrite?: () => void
     },
   ): Promise<void>
 }
@@ -1507,19 +1661,33 @@ async function wasPublished(
   write: ImportWrite,
   file: EditedFile,
   state: ApplyState,
-  didWrite: () => Promise<boolean>,
+  didWrite: (beforePublish: () => Promise<void>) => Promise<boolean>,
 ): Promise<boolean> {
   const { options } = state
-  const beforePublish = (): void => options.beforeWrite?.(write.isProject)
-  beforePublish()
+  const beforePublish = async (): Promise<void> => {
+    const targetExposure = await importExposure(write.absolutePath, {
+      ...write,
+      platform: state.platform,
+      io: state.writer,
+    })
+    const reason =
+      exposureRefusal(write.sourceExposure, targetExposure) ??
+      (targetExposure !== 'personal' && !write.isProject
+        ? AGENT_IMPORT_ROOT_CHANGED_CODE
+        : undefined)
+    if (reason !== undefined)
+      throw Object.assign(new Error('Import exposure refused'), { code: reason })
+    options.beforeWrite?.(write.isProject)
+  }
+  await beforePublish()
   if (write.isProject) {
     await options.beforeProjectWrite?.(write.absolutePath)
-    beforePublish()
+    await beforePublish()
   }
   const complete = write.isProject ? options.beginProjectEdit?.(file) : undefined
   let wasWritten = false
   try {
-    wasWritten = await didWrite()
+    wasWritten = await didWrite(beforePublish)
     if (wasWritten) {
       options.notePublished?.(write.absolutePath)
     }
@@ -1559,11 +1727,12 @@ async function appendSections(
     return
   }
   const content = joinSections(fresh)
-  await wasPublished(write, file, state, async () => {
+  await wasPublished(write, file, state, async (beforePublish) => {
     await writer.appendText(write.absolutePath, `${appendSeparator(current)}${content}`, {
       ...(project !== undefined && { project }),
       expectedText: current,
-      beforePublish: () => state.options.beforeWrite?.(write.isProject),
+      beforePublish,
+      assertCanWrite: () => state.options.beforeWrite?.(write.isProject),
     })
     return true
   })
@@ -1585,10 +1754,9 @@ async function createOne(
     write,
     file,
     state,
-    async () =>
-      (await state.writer.createFile(write.absolutePath, write.content, project, () =>
-        state.options.beforeWrite?.(write.isProject),
-      )) === 'created',
+    async (beforePublish) =>
+      (await state.writer.createFile(write.absolutePath, write.content, project, beforePublish)) ===
+      'created',
   )
   if (isCreated) {
     state.written.push(write)
@@ -1641,7 +1809,7 @@ export async function applyImportWrites(
       failures.push({ absolutePath: write.absolutePath, code })
       // A rules write that refused some of its sections already accounted for them.
       const accounted = new Set(state.skipped.map((skipped) => skipped.candidateId))
-      const reason = code === AGENT_IMPORT_ROOT_CHANGED_CODE ? 'changed' : 'failed'
+      const reason = writeRefusal(code)
       state.skipped.push(
         ...write.candidateIds
           .filter((candidateId) => !accounted.has(candidateId))

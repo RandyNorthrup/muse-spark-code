@@ -9,7 +9,7 @@ import path from 'node:path'
 import type * as NodeFsPromises from 'node:fs/promises'
 import type * as NodeOs from 'node:os'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { window, workspace } from 'vscode'
+import { env, Position, Uri, window, workspace, type TextDocument } from 'vscode'
 import { applyImportWrites, type ImportWrite } from '../../src/core/import/agentImport'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
@@ -28,6 +28,11 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { removeFolder } from './helpers/temporaryFolders'
 import { inform, pickMany, pickOne } from './helpers/vscodeViews'
+import { memoryImportIo } from './helpers/memoryImportIo'
+import {
+  createImportGate,
+  importFromAgents as runImportFlow,
+} from '../../src/host/commands/agentImportCommands'
 
 const folders = { root: '' }
 const gates = vi.hoisted(() => {
@@ -135,6 +140,9 @@ function hostDeps(
 
 async function projectWrite(root: string, mode: ImportWrite['mode']): Promise<ImportWrite> {
   return {
+    sourceExposure: 'project-tracked',
+    homeDir: root,
+    workspaceRoot: root,
     candidateIds: ['imported'],
     absolutePath: path.join(root, mode === 'create' ? 'eslint.config.js' : 'AGENTS.md'),
     content: 'Imported bytes.\n',
@@ -146,7 +154,191 @@ async function projectWrite(root: string, mode: ImportWrite['mode']): Promise<Im
   }
 }
 
+/** Complete editor document contract; saves are observable and never called by import. */
+function configDocument(file: string, text: string): TextDocument {
+  return {
+    uri: Uri.file(file),
+    fileName: file,
+    isUntitled: false,
+    languageId: 'json',
+    version: 1,
+    isDirty: false,
+    isClosed: false,
+    eol: 1,
+    lineCount: 1,
+    save: vi.fn(() => Promise.resolve(true)),
+    getText: () => text,
+    positionAt: (offset) => new Position(0, offset),
+    offsetAt: (position) => position.character,
+    validateRange: (range) => range,
+    validatePosition: (position) => position,
+    getWordRangeAtPosition: () => undefined,
+    lineAt: () => {
+      throw new Error('Import must not inspect document lines')
+    },
+  }
+}
+
 describe('import workspace write notices', () => {
+  it('refuses an MCP server that appeared after preview, preserving the live editor bytes', async () => {
+    const file = path.join(gates.home, 'settings.json')
+    const prior = '{"mcpServers":{"new":{"command":"keep"}}}'
+    const document = configDocument(file, prior)
+    const load = vi.spyOn(workspace, 'openTextDocument').mockResolvedValue(document)
+    const apply = vi.spyOn(workspace, 'applyEdit').mockResolvedValue(true)
+    const warn = vi.spyOn(window, 'showWarningMessage')
+    try {
+      await runAgentImport(
+        hostDeps(undefined, {
+          bundle: () => ({
+            runAgentImport: bundledAgentImport,
+            importFromAgents: async (host) => {
+              expect(
+                await host.openTarget(
+                  file,
+                  true,
+                  () => Promise.resolve(true),
+                  () => true,
+                  '{"mcpServers":{"new":{"command":"incoming"}}}',
+                ),
+              ).toBe(false)
+            },
+          }),
+        }),
+      )
+      expect(apply).not.toHaveBeenCalled()
+      expect(warn).toHaveBeenCalledWith(UI_TEXT.agentImportSkippedExists)
+      expect(document.getText()).toBe(prior)
+    } finally {
+      load.mockRestore()
+      apply.mockRestore()
+      warn.mockRestore()
+    }
+  })
+
+  it.each(['new', 'existing'])(
+    'offers %s config as a dirty WorkspaceEdit, never using the clipboard',
+    async (state) => {
+      const file = path.join(gates.home, 'settings.json')
+      const current =
+        state === 'new' ? '' : '{"mcpServers":{"keep":{"command":"keep"}},"other":true}'
+      const document = configDocument(file, current)
+      const load = vi.spyOn(workspace, 'openTextDocument').mockResolvedValue(document)
+      const show = vi.spyOn(window, 'showTextDocument')
+      const apply = vi.spyOn(workspace, 'applyEdit').mockResolvedValue(true)
+      const clipboard = vi.spyOn(env.clipboard, 'writeText')
+      try {
+        await runAgentImport(
+          hostDeps(undefined, {
+            bundle: () => ({
+              runAgentImport: bundledAgentImport,
+              importFromAgents: async (host) => {
+                expect(
+                  await host.openTarget(
+                    file,
+                    state === 'existing',
+                    () => Promise.resolve(true),
+                    () => true,
+                    '{"mcpServers":{"new":{"command":"server","env":{"TOKEN":"opaque-demo-value"}}}}',
+                  ),
+                ).toBe(true)
+              },
+            }),
+          }),
+        )
+        expect(load).toHaveBeenCalledOnce()
+        expect(show).toHaveBeenCalledOnce()
+        expect(apply).toHaveBeenCalledOnce()
+        const edit = apply.mock.calls[0]?.[0]
+        const content = edit?.get(document.uri)[0]?.newText
+        expect(JSON.parse(content ?? '')).toHaveProperty(
+          'mcpServers.new.env.TOKEN',
+          'opaque-demo-value',
+        )
+        if (state === 'existing')
+          expect(JSON.parse(content ?? '')).toHaveProperty('mcpServers.keep.command', 'keep')
+        expect(clipboard).not.toHaveBeenCalled()
+        expect(document.save).not.toHaveBeenCalled()
+        expect(workspace.fs.writeFile).not.toHaveBeenCalled()
+      } finally {
+        load.mockRestore()
+        show.mockRestore()
+        apply.mockRestore()
+        clipboard.mockRestore()
+      }
+    },
+  )
+
+  it.each([
+    { query: 4, shows: 0 },
+    { query: 5, shows: 1 },
+  ])(
+    'refuses a folder change after final awaited check $query before show/edit',
+    async ({ query, shows }) => {
+      const root = '/ws'
+      const target = `${root}/.muse/hooks.json`
+      const io = memoryImportIo({
+        files: {
+          [`${root}/.claude/settings.json`]:
+            '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"run-private"}]}]}}',
+        },
+      })
+      let live = root
+      let isEditing = false
+      let checks = 0
+      io.isIgnored = (file) => {
+        if (isEditing && file === target && ++checks === query)
+          queueMicrotask(() => {
+            live = '/other'
+          })
+        return Promise.resolve(false)
+      }
+      const load = vi
+        .spyOn(workspace, 'openTextDocument')
+        .mockResolvedValue(configDocument(target, ''))
+      const show = vi.spyOn(window, 'showTextDocument')
+      const apply = vi.spyOn(workspace, 'applyEdit').mockResolvedValue(true)
+      const choice = { label: 'Claude', choice: 'claudeCode' }
+      vi.mocked(pickOne).mockResolvedValueOnce(choice)
+      vi.mocked(pickMany).mockImplementationOnce((items) => Promise.resolve([...items]))
+      vi.mocked(inform)
+        .mockResolvedValueOnce(UI_TEXT.agentImportConfirmAction)
+        .mockImplementationOnce(() => {
+          isEditing = true
+          return Promise.resolve(UI_TEXT.agentImportEditAction)
+        })
+      try {
+        await runAgentImport(
+          hostDeps(root, {
+            currentRoot: () => live,
+            bundle: () => ({
+              runAgentImport: bundledAgentImport,
+              importFromAgents: async (host) => {
+                const { environment: _environment, ...rest } = host
+                await runImportFlow({
+                  ...rest,
+                  platform: 'linux',
+                  io,
+                  writer: io,
+                  isPresent: io.isPresent,
+                  claudeConfigDir: undefined,
+                  codexHome: undefined,
+                  gate: createImportGate(),
+                })
+              },
+            }),
+          }),
+        )
+        expect(checks).toBe(query)
+        expect(show).toHaveBeenCalledTimes(shows)
+        expect(apply).not.toHaveBeenCalled()
+      } finally {
+        load.mockRestore()
+        show.mockRestore()
+        apply.mockRestore()
+      }
+    },
+  )
   it.each([
     {
       title: 'refuses an unsafe copy target before the editor loads its document',
@@ -170,7 +362,13 @@ describe('import workspace write notices', () => {
           bundle: () => ({
             runAgentImport: bundledAgentImport,
             importFromAgents: async (host) => {
-              await host.openTarget(path.join(folders.root, 'hooks.json'), true, checkTarget)
+              await host.openTarget(
+                path.join(folders.root, 'hooks.json'),
+                true,
+                checkTarget,
+                () => true,
+                undefined,
+              )
             },
           }),
         }),
@@ -458,6 +656,9 @@ describe('import workspace write notices', () => {
     const begin = vi.spyOn(f.manager, 'beginExternalEdit')
     const write = {
       ...(await projectWrite(personal, 'create')),
+      sourceExposure: 'personal' as const,
+      homeDir: folders.root,
+      workspaceRoot: root,
       isProject: false,
       rootIdentity: undefined,
     }

@@ -13,8 +13,26 @@ import type {
   ImportWriter,
 } from '../../../src/core/import/agentImport'
 import { AGENT_IMPORT_ROOT_CHANGED_CODE } from '../../../src/shared/constants'
+import { scanAgentImports, type ImportScanInput } from '../../../src/core/import/agentImport'
+
+/** The same trusted Claude fixture scan over either memory or real filesystem IO. */
+export async function scanImportFixture(
+  io: ImportIo,
+  context: Pick<ImportScanInput, 'platform' | 'homeDir' | 'workspaceRoot' | 'workspaceRoots'>,
+) {
+  return await scanAgentImports({
+    ...context,
+    io,
+    claudeConfigDir: undefined,
+    codexHome: undefined,
+    isWorkspaceTrusted: () => true,
+    isActive: () => true,
+    sources: ['claudeCode'],
+  })
+}
 
 export interface MemoryImportTree {
+  readonly ignored?: readonly string[]
   readonly files?: Record<string, string>
   /** A link's path and where it leads. */
   readonly links?: Record<string, string>
@@ -23,6 +41,7 @@ export interface MemoryImportTree {
 }
 
 export interface MemoryImportIo extends ImportIo, ImportWriter {
+  readonly ignored: Set<string>
   readonly files: Map<string, string>
   /** A link's path and where it leads; a test may plant one later. */
   readonly links: Map<string, string>
@@ -37,6 +56,7 @@ function coded(code: string): Error {
 }
 
 export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
+  const ignored = new Set(tree.ignored)
   const files = new Map(Object.entries(tree.files ?? {}))
   const links = new Map(Object.entries(tree.links ?? {}))
   const failing = tree.failing ?? {}
@@ -72,6 +92,8 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
   }
   return {
     files,
+    ignored,
+    isIgnored: (file) => Promise.resolve(ignored.has(file)),
     links,
     reads,
     pathsUnder(folder) {
@@ -143,28 +165,28 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
       const real = resolve(absolutePath)
       return Promise.resolve(files.has(real) || isDirectory(real))
     },
-    createFile(absolutePath, content, project, beforePublish) {
+    async createFile(absolutePath, content, project, beforePublish) {
       failure(absolutePath)
       assertRoot(project)
       const real = resolve(absolutePath)
       if (files.has(real)) {
-        return Promise.resolve('exists')
+        return 'exists'
       }
-      beforePublish?.()
+      await beforePublish?.()
       files.set(real, content)
-      return Promise.resolve('created')
+      return 'created'
     },
     readText(absolutePath, project) {
       assertRoot(project)
       return Promise.resolve(files.get(resolve(absolutePath)))
     },
-    appendText(absolutePath, content, options) {
+    async appendText(absolutePath, content, options) {
       failure(absolutePath)
       assertRoot(options?.project)
-      options?.beforePublish?.()
+      await options?.beforePublish?.()
       const real = resolve(absolutePath)
       files.set(real, `${files.get(real) ?? ''}${content}`)
-      return Promise.resolve()
+      return
     },
   }
 }
