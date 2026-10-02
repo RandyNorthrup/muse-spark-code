@@ -152,6 +152,11 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
   await mkdir(top)
   if (options.git !== 'none') {
     runGit(top, ['init', '-q', '-b', 'main'])
+    // No automatic maintenance after the tests' own commits: git runs it in
+    // the background, and its `objects/maintenance.lock` came and went in a
+    // test's listing of this repository (macOS CI).
+    runGit(top, ['config', 'maintenance.auto', 'false'])
+    runGit(top, ['config', 'gc.auto', '0'])
   }
   const root = options.subfolder === undefined ? top : path.join(top, options.subfolder)
   await mkdir(root, { recursive: true })
