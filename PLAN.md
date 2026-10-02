@@ -10734,3 +10734,23 @@ by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
 host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
 machine has code-server for a panel check, which CI's Hosts run on the tag
 covered (run 36947211712).
+
+**0.10.1 released (2026-10-02, tag `v0.10.1` on release commit `68e6c1ab`, release run 37053034173).**
+The release contains PR #66 (the ACP agent's npm path), #68 (Windows hooks
+without PowerShell's module scan and the log redactor's linear JWT pattern),
+#73 (up to 120 s for a slow Muse Code start, a failed start shown once, the
+retained-turn flake fix and Theia failure evidence), and M75's paired
+evaluation (developer tooling, an opt-in script, shipping nothing in the
+VSIX). Published: the GitHub Release (`muse-spark-code-0.10.1.vsix`,
+1,578,856 bytes, SHA-256 starting `dbc969bb35f9db41`), Open VSX and the VS Code
+Marketplace, all serving byte-identical VSIX files. The Marketplace publish
+first failed with `write ECONNRESET` and succeeded on a rerun of that job.
+npm (`muse-spark-code-acp`) failed with `EOTP`: the `NPM_TOKEN` secret
+requires a one-time password. It awaits the owner: either a one-time manual
+publish with an OTP or a 2FA-bypass granular token, then trusted publishing.
+The ACP tarball (`muse-spark-code-acp-0.10.1.tgz`) is on the GitHub Release.
+Process note: PR #72 (M84) merged to main before the tag because a stopped
+merge queue's child process kept running. The tag therefore names the
+release commit, based on main `44b76f24` before M84 merged, rather than
+main's tip; the release workflow's ancestor check allows this. The release
+commit is an ancestor of main through PR #75 (merge `2a03a79b`).
