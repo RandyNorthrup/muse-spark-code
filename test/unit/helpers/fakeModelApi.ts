@@ -5,7 +5,7 @@
 // (dev.meta.ai/docs/protocols/responses), so the parser and the client run
 // exactly as they do against the service.
 
-import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import { ModelApiClient, type ModelApiClientDeps } from '../../../src/core/backends/modelapi/client'
 import { createHash } from 'node:crypto'
 import type { CoreLogger } from '../../../src/core/logging'
 
@@ -377,16 +377,22 @@ export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
   .update(FAKE_MODEL_API_KEY)
   .digest('hex')
 
-export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
-  return new ModelApiClient({
-    fetch: api.fetch,
-    baseUrl: 'https://api.example.test/v1',
+export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
+
+/** Everything a client on the fake API needs but its `fetch` (M75 wraps that in its trace). */
+export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClientDeps, 'fetch'> {
+  return {
+    baseUrl: FAKE_MODEL_API_BASE_URL,
     apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
     sleep: () => Promise.resolve(),
     now: () => 0,
     random: () => 0,
     log,
-  })
+  }
+}
+
+export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
+  return new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
 }
 
 export function fakeModelApi(): FakeModelApi {
@@ -413,6 +419,20 @@ export function fakeModelApi(): FakeModelApi {
     imageBodies: () => bodiesAt('/images/generations'),
     editBodies: () => bodiesAt('/images/edits'),
     fetch: (input, init) => {
+      if (input instanceof Request) {
+        // The eval wire sends its validated snapshot; read it as fetch does.
+        // Keep the legacy non-Request path synchronous for held-call tests.
+        const request = new Request(input, init)
+        return (async () => {
+          const text = await request.clone().text()
+          return await api.fetch(request.url, {
+            method: request.method,
+            headers: Object.fromEntries(request.headers),
+            ...(text !== '' && { body: text }),
+            signal: request.signal,
+          })
+        })()
+      }
       const url = urlOf(input)
       const method = init?.method ?? 'GET'
       const headers = Object.fromEntries(
@@ -420,7 +440,7 @@ export function fakeModelApi(): FakeModelApi {
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if (headers['Authorization'] !== 'Bearer LLM|1|secret') {
+      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
         return Promise.resolve(
           json(
             {
