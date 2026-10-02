@@ -64,6 +64,7 @@ function startFamily(
         museSettingsPath: () => '',
         workspaceRoot: h.root,
         editFile: async (_fsPath, work) => await work(),
+        openPreview: () => Promise.resolve(),
         restartBackend: () => Promise.resolve(),
         modelApiMcp: () => undefined,
         modelApiHooks: () => undefined,

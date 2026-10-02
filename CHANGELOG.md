@@ -9,32 +9,34 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
-  token-saving mechanism must pass before it ships (M73, M74). Ten small
-  repository fixtures (six accept, four held-out), each judged by a
-  verifier that runs the fixed code, so any correct fix passes however it
-  is spelled. Each task runs on the extension's own Model API harness in
-  an empty temporary workspace, on the contributor model only; attempts,
-  tokens and cost are counted from the requests actually sent, and each
-  arm is held against capability floors fixed in advance (0.75 per
-  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI.
-  The baseline passed all ten tasks in 39 model calls for $0.0041
-  (`docs/certification/m75-baseline.md`).
-  - **Its key stays out of every environment.** The live run reads the
-    Model API key from the ACP agent's OS credential entry inside the
-    enabled test, never from its own environment, an argument or a file,
-    and the shell commands the model runs get an environment without any
-    credential variable (`withoutCredentials`).
-  - **It stops when a sent call cannot be priced.** Missing, invalid or
-    unsafe usage counts, or an ambiguous request failure, close the run's
-    shared budget for every later task and arm.
-  - **Arms take turns going first.** Task by task the arm order rotates, so
-    the prompt cache one arm warms cannot be counted as another arm's
-    saving.
-  - **Reports are version 2;** the version-1 baseline still reads, with
-    the two counts it never recorded shown as not recorded. A workspace
-    that cannot be created reports only an error code, never a path.
-
+- **Session export, import and share** (M84, PLAN.md D49): **Export
+  session as JSON…** writes a portable file on either backend. Credentials
+  of a known shape and the key digest are always scrubbed, from every
+  string including item ids and error labels (a secret in any other shape
+  is not recognised); paths (your own folders included, spaces and all,
+  and any other absolute path in any script) and account ids are redacted
+  by default, and the redacted file opens read-only in the editor before
+  anything is written. The scrub runs in slices of about 64 KiB, a long
+  message cut only between lines no credential runs across, and the window
+  keeps working between them; a single line longer than a slice is still
+  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
+  Session** resumes such a file as a new conversation on the Model API
+  backend, on your own model, in Manual (or Plan when that is the initial
+  mode) every time it is opened, forked or restored, with no session rules,
+  goals, schedules, todos or patches; the model reads each imported turn as
+  untrusted data, a plan written in such a conversation is implemented in
+  Manual (or Plan) as a plan file is, and its code blocks offer Copy only
+  (no Insert or Apply). A file whose turns are more text than a
+  conversation can start with (786.4 kB, counted as one token a byte) is
+  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
+  marked imported before it advertises a mode or replays history. **Muse
+  Spark: Open Share File** reads such a file read-only in the panel (Copy
+  and links only), 200 items at a time with Show more; an item that cannot
+  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  through one bounded descriptor of a local file (other file providers are
+  refused), the format and its version, and no unknown field; a refusal
+  never quotes the file. Nothing is uploaded: sharing is a file on your
+  disk.
 - **Observation packing, off by default** (M73, PLAN.md D49;
   `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
   API backend, a tool output over 8,000 characters rides whole for two
@@ -66,6 +68,59 @@ happened, not what was planned; superseded entries are kept.
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
+
+### Fixed
+
+- **The log redacts more credential shapes.** The output channel's
+  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
+  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
+  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
+  upper-case variable, a header, a JSON field or a URL parameter.
+- **A long dotted line no longer stalls the log.** The redactor's URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. Text with none of the credential literals
+  (most log lines) now skips the patterns in one scan.
+- **A conversation no longer opens while the Model API backend closes or
+  after you sign out, and an overtaken side chat leaves no Plan mode.**
+  Starting, resuming or forking a conversation loaded the hooks, then made
+  the session and ran its SessionStart hook without checking again that
+  the backend was not closing (or, when resuming, that you were still
+  signed in). Both are checked now, before the session exists and again
+  after its SessionStart hook. And a side chat whose opening another
+  opening overtook (a second conversation opened before the first had
+  loaded) still switched the panel to Plan; only the opening that lands
+  sets the mode now.
+
+## [0.10.1] - 2026-10-02
+
+### Added
+
+- **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
+  token-saving mechanism must pass before it ships (M73, M74). Ten small
+  repository fixtures (six accept, four held-out), each judged by a
+  verifier that runs the fixed code, so any correct fix passes however it
+  is spelled. Each task runs on the extension's own Model API harness in
+  an empty temporary workspace, on the contributor model only; attempts,
+  tokens and cost are counted from the requests actually sent, and each
+  arm is held against capability floors fixed in advance (0.75 per
+  split). `npm run test:e2e:live:eval` runs it, opt-in and never in CI.
+  The baseline passed all ten tasks in 39 model calls for $0.0041
+  (`docs/certification/m75-baseline.md`).
+  - **Its key stays out of every environment.** The live run reads the
+    Model API key from the ACP agent's OS credential entry inside the
+    enabled test, never from its own environment, an argument or a file,
+    and the shell commands the model runs get an environment without any
+    credential variable (`withoutCredentials`).
+  - **It stops when a sent call cannot be priced.** Missing, invalid or
+    unsafe usage counts, or an ambiguous request failure, close the run's
+    shared budget for every later task and arm.
+  - **Arms take turns going first.** Task by task the arm order rotates, so
+    the prompt cache one arm warms cannot be counted as another arm's
+    saving.
+  - **Reports are version 2;** the version-1 baseline still reads, with
+    the two counts it never recorded shown as not recorded. A workspace
+    that cannot be created reports only an error code, never a path.
 
 ### Changed
 

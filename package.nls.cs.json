@@ -23,6 +23,8 @@
   "command.manageSkills.title": "Spravovat dovednosti",
   "command.importSkills.title": "Importovat dovednosti z Claude Code nebo Codex",
   "command.exportConversation.title": "Exportovat konverzaci",
+  "command.importSession.title": "Importovat relaci",
+  "command.openShareFile.title": "Otevřít sdílený soubor",
   "command.mcpServers.title": "Servery MCP",
   "command.hooks.title": "Hooky",
   "command.memory.title": "Paměť",

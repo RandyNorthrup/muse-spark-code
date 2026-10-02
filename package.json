@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -168,6 +168,16 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.importSession",
+        "title": "%command.importSession.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openShareFile",
+        "title": "%command.openShareFile.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.mcpServers",
         "title": "%command.mcpServers.title%",
         "category": "%command.category%"
@@ -268,6 +278,14 @@
         },
         {
           "command": "museSpark.exportConversation",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.importSession",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.openShareFile",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         },
         {
