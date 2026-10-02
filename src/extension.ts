@@ -94,6 +94,7 @@ import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
+  asUserEdit,
   createCheckpointPort,
   prepareCheckpointTurn,
   withCheckpointCopies,
@@ -612,6 +613,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
+  // The user's saves while a turn runs are theirs: a restore leaves them alone (M72).
+  // The extension's own writes save no document, so every save here is the user's.
+  const noteUserSave = (document: { readonly uri: vscode.Uri }) => {
+    if (document.uri.scheme === FILE_SCHEME) {
+      checkpoints.noteUserSave(document.uri.fsPath)
+    }
+  }
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(noteUserSave),
+    vscode.workspace.onDidSaveNotebookDocument(noteUserSave),
+  )
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {
@@ -751,7 +763,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           platform: process.platform,
         },
         fsPath,
-        work,
+        asUserEdit(checkpoints, fsPath, work),
       ),
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
@@ -1135,6 +1147,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
   }
 
+  /** A file the extension writes in the user's name, under the lease: theirs once written (M72). */
+  const writeUserFile = async (check: () => void, fsPath: string, content: string) => {
+    await withCheckpointEdit(
+      checkpoints,
+      check,
+      asUserEdit(checkpoints, fsPath, async () => {
+        await vscode.workspace.fs.writeFile(
+          vscode.Uri.file(fsPath),
+          new TextEncoder().encode(content),
+        )
+      }),
+    )
+  }
+
   // Edit review (M5) and `/review` (M70: git's changes in the workspace folder,
   // with the pickers for a base branch or a commit the request did not name,
   // the review turn's text and the pane's hunks) come from the review's own
@@ -1152,22 +1178,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       realPath: canonicalPath,
       hasUnsavedChanges: (fsPath) => toolIo.hasUnsavedChanges(fsPath),
       beginEdit: (file) => modelApi.beginExternalEdit(undefined, [file]),
+      // A Revert the user pressed, a write or a delete: the file is theirs from then on.
       writeFile: async (fsPath, content, assertCanWrite) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal)
-        await withCheckpointEdit(checkpoints, check, async () => {
-          assertCanWrite()
-          await vscode.workspace.fs.writeFile(
-            vscode.Uri.file(fsPath),
-            new TextEncoder().encode(content),
-          )
-        })
+        await withCheckpointEdit(
+          checkpoints,
+          check,
+          asUserEdit(checkpoints, fsPath, async () => {
+            assertCanWrite()
+            await vscode.workspace.fs.writeFile(
+              vscode.Uri.file(fsPath),
+              new TextEncoder().encode(content),
+            )
+          }),
+        )
       },
       deleteFile: async (fsPath, assertCanWrite) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal)
-        await withCheckpointEdit(checkpoints, check, async () => {
-          assertCanWrite()
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        })
+        await withCheckpointEdit(
+          checkpoints,
+          check,
+          asUserEdit(checkpoints, fsPath, async () => {
+            assertCanWrite()
+            await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+          }),
+        )
       },
       openDiff: async (beforeUri, fsPath, title) => {
         await vscode.commands.executeCommand(
@@ -1217,10 +1252,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
   })
   const memoryView = createMemoryFeatures({
-    store: memory.store,
+    store: memory.viewStore,
     log,
     edit: memory.edit,
     beforeDelete: memory.beforeDelete,
+    afterDelete: memory.afterDelete,
   })
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
@@ -1237,6 +1273,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
               await withCheckpointEdit(checkpoints, check, async () => {
                 await work(check)
               })
+            },
+            noteUserWrite: (fsPath) => {
+              checkpoints.noteUserSave(fsPath)
             },
           }),
           beginEdit: (file, ownerRecorder) => modelApi.beginExternalEdit(ownerRecorder, [file]),
@@ -1962,14 +2001,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         workspaceRoot,
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
         fileExists: isExistingPath,
-        writeFile: async (fsPath, content) => {
-          await withCheckpointEdit(checkpoints, check, async () => {
-            await vscode.workspace.fs.writeFile(
-              vscode.Uri.file(fsPath),
-              new TextEncoder().encode(content),
-            )
-          })
-        },
+        writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
           await vscode.window.showTextDocument(vscode.Uri.file(fsPath))
         },

@@ -3345,11 +3345,9 @@ export class ConversationController {
     const others = this.deps.sessions.archivedIds().filter((id) => id !== sessionId)
     await this.deps.sessions.setArchivedIds(isArchived ? [...others, sessionId] : others)
     this.postSessionList()
-    if (!isArchived) {
-      return
-    }
-    // An archived conversation's checkpoints go with it (M72).
-    await this.checkpoints.forget(sessionId)
+    // An archived conversation's checkpoints go with it (M72); an unarchived
+    // one's archives go, so its new checkpoints are kept.
+    await (isArchived ? this.checkpoints.forget(sessionId) : this.checkpoints.unforget(sessionId))
   }
 
   /**
@@ -3360,7 +3358,15 @@ export class ConversationController {
     message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
   ): Promise<void> {
     const { session } = this
-    if (session?.sessionId !== message.sourceSessionId) {
+    const { rewind } = message
+    // The panel sends one turn for both: a stale or forged message whose
+    // rewind names another card or conversation than the files is refused
+    // before anything is asked or changed, as one for another conversation is.
+    if (
+      session?.sessionId !== message.sourceSessionId ||
+      (rewind !== undefined &&
+        (rewind.sourceSessionId !== message.sourceSessionId || rewind.turnId !== message.turnId))
+    ) {
       return
     }
     if (this.sessionKind !== 'modelApi') {
@@ -3371,7 +3377,6 @@ export class ConversationController {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
-    const { rewind } = message
     if (!(await this.checkpoints.confirmRestore(rewind !== undefined))) {
       return
     }

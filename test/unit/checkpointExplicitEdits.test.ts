@@ -4,13 +4,18 @@ import { link, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
+import {
+  asUserEdit,
+  type CheckpointPort,
+  withCheckpointEdit,
+} from '../../src/host/checkpoints/checkpointHost'
 import { EditReview } from '../../src/host/editor/editReview'
 import { createPlanIo, type PlanIoOptions } from '../../src/host/planFeatures'
 import { ATOMIC_TEMPORARY_SUFFIX, PLAN_STAGE_STALE_MS, UI_TEXT } from '../../src/shared/constants'
 import {
   changedFileTurn,
   checkpointPort,
+  done,
   type Harness,
   harness,
   holdRestoreRef,
@@ -19,6 +24,7 @@ import {
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
+  turn,
   write,
 } from './helpers/checkpointHarness'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
@@ -26,6 +32,7 @@ import { fakeMuseCodeManager } from './helpers/museCodeManager'
 afterEach(removeCheckpointFolders)
 
 const PLAN_NAME = '2026-09-29-owned.md'
+const STALE_STAGE = `.${PLAN_NAME}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
 const EDIT_PATCH = JSON.stringify({
   files: [
     {
@@ -80,8 +87,17 @@ function holdEditAdmission(port: CheckpointPort) {
 
 type EditFamily = 'plan create' | 'plan cleanup' | 'review write' | 'review delete'
 
-async function startEdit(h: Harness, family: EditFamily, edit: NonNullable<PlanIoOptions['edit']>) {
-  const io = planIo(h, edit)
+/** One edit, wired as activation wires it: under the lease, and the user's once written (M72). */
+async function startEdit(
+  h: Harness,
+  family: EditFamily,
+  { port, edit }: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
+) {
+  const io = planIo(h, edit, {
+    noteUserWrite: (file) => {
+      port.noteUserSave(file)
+    },
+  })
   const folder = path.join(h.root, '.agents', 'plans')
   if (family === 'plan create') {
     return await io.createFile(path.join(folder, PLAN_NAME), '# Owned\n')
@@ -97,14 +113,18 @@ async function startEdit(h: Harness, family: EditFamily, edit: NonNullable<PlanI
     realPath: canonicalPath,
     hasUnsavedChanges: () => false,
     writeFile: async (file, content) => {
-      await edit(async () => {
-        await writeFile(file, content)
-      })
+      await edit(
+        asUserEdit(port, file, async () => {
+          await writeFile(file, content)
+        }),
+      )
     },
     deleteFile: async (file) => {
-      await edit(async () => {
-        await rm(file)
-      })
+      await edit(
+        asUserEdit(port, file, async () => {
+          await rm(file)
+        }),
+      )
     },
     openDiff: () => Promise.resolve(),
     log: h.log,
@@ -263,7 +283,7 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
       await write(h.root, 'review.txt', 'after\n')
       await holdRestoreRef(h)
       const lease = editLease(h, new AbortController().signal)
-      await expect(startEdit(h, family, lease.edit)).rejects.toThrow(UI_TEXT.restoreTurnElsewhere)
+      await expect(startEdit(h, family, lease)).rejects.toThrow(UI_TEXT.restoreTurnElsewhere)
       expect(await read(h.root, 'review.txt')).toBe('after\n')
       expect(await isPresent(h.root, `.agents/plans/${PLAN_NAME}`)).toBe(false)
     },
@@ -278,7 +298,7 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
       const lifetime = new AbortController()
       const lease = editLease(h, lifetime.signal)
       const { entered, resume } = holdEditAdmission(lease.port)
-      const writing = startEdit(h, family, lease.edit)
+      const writing = startEdit(h, family, lease)
       const refused = expect(writing).rejects.toThrow(UI_TEXT.questionCancelled)
       try {
         await entered.promise
@@ -289,6 +309,36 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
       await refused
       expect(await read(h.root, 'review.txt')).toBe('after\n')
       expect(await isPresent(h.root, `.agents/plans/${PLAN_NAME}`)).toBe(false)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.each<[EditFamily, string, string | undefined]>([
+    ['plan create', `.agents/plans/${PLAN_NAME}`, '# Owned\n'],
+    ['plan cleanup', `.agents/plans/${STALE_STAGE}`, undefined],
+    ['review write', 'review.txt', 'before\n'],
+    ['review delete', 'review.txt', undefined],
+  ])(
+    "leaves a %s the user made while a turn ran to them on that turn's restore",
+    async (family, relative, kept) => {
+      const h = await harness()
+      await write(h.root, 'a.txt', 'a0\n')
+      await write(h.root, 'review.txt', 'after\n')
+      // A save that failed long ago left its stage, which a plan action removes.
+      await write(h.root, `.agents/plans/${STALE_STAGE}`, 'stale stage')
+      const stale = new Date(Date.now() - PLAN_STAGE_STALE_MS - 1)
+      await utimes(path.join(h.root, '.agents', 'plans', STALE_STAGE), stale, stale)
+      const lease = editLease(h, new AbortController().signal)
+      await turn(h, 't1', async () => {
+        await write(h.root, 'a.txt', 'a1\n')
+        await startEdit(h, family, lease)
+      })
+      const outcome = done(await restoreOutcome(h.store, 't1'))
+      expect(outcome.refused).toEqual([{ path: relative, reason: 'changedAfter' }])
+      const content = (await isPresent(h.root, relative)) ? await read(h.root, relative) : undefined
+      expect(content).toBe(kept)
+      // The turn's own change still goes back.
+      expect(await read(h.root, 'a.txt')).toBe('a0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )

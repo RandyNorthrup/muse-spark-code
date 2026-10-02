@@ -1,3 +1,4 @@
+import { mkdir, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MODEL_TEXT } from '../../src/shared/constants'
@@ -35,6 +36,24 @@ describe('checkpoint storage that git cannot use or the workspace holds (M72)', 
       await store.markTurn('pending:first', true, true)
       expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
       expect(await isPresent(inside, 'shadow.git/HEAD')).toBe(false)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'refuses storage that a link on its way puts inside the workspace',
+    async () => {
+      const h = await harness()
+      // A junction (a folder link elsewhere) beside the storage, into the workspace:
+      // the path as written is outside it, the path as resolved inside.
+      const inner = path.join(h.root, 'inner')
+      await mkdir(inner, { recursive: true })
+      const alias = path.join(path.dirname(h.storage), 'alias')
+      await symlink(inner, alias, 'junction')
+      const store = h.reopenAt(path.join(alias, 'checkpoints', 'key'), h.root)
+      await store.markTurn('pending:first', true, true)
+      expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
+      expect(await isPresent(inner, 'checkpoints/key/shadow.git/HEAD')).toBe(false)
     },
     REAL_GIT_TIMEOUT_MS,
   )

@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import { applyFileStep } from '../../src/host/checkpoints/checkpointFiles'
-import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
+import { ATOMIC_TEMPORARY_SUFFIX, GIT_MODE_FILE } from '../../src/shared/constants'
 import {
   done,
   harness,
@@ -175,7 +175,11 @@ describe('checkpoint native publication boundary (M72/M68)', () => {
           {
             path: 'nested/a.txt',
             target: null,
-            expect: { kind: 'blob', oid: gitBlobOid(Buffer.from('original\n')) },
+            expect: {
+              kind: 'blob',
+              oid: gitBlobOid(Buffer.from('original\n')),
+              mode: GIT_MODE_FILE,
+            },
           },
           undefined,
           undefined,

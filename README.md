@@ -51,7 +51,8 @@ two.
   and run the configured checks, with permission, trust and Stop checked
   before work starts. Formatting and check commands remain opt in.
 - **Plans and turn checkpoints.** Save plans as files and implement them in
-  a fresh conversation. Turn checkpoints capture files on both backends;
+  a fresh conversation. Turn checkpoints (Preview, off by default:
+  `museSpark.turnCheckpoints`) capture files on both backends;
   stored file restore and Redo require an attached Model API session and
   confirmed process safety ([The panel](#the-panel)).
 
@@ -1223,7 +1224,10 @@ rewind button on any sent message (on hover):
 Both **Rewind code to here** and **Restore files to here** ask first, in the
 same confirmation.
 
-**Turn checkpoints.** Captures run on both backends. Stored **Restore files**
+**Turn checkpoints (Preview).** Off by default: turn them on with
+`museSpark.turnCheckpoints`. Their restore is being rebuilt on the tools'
+own writes, so that it never has to tell your changes from the model's
+(PLAN.md D63, M86). Captures run on both backends. Stored **Restore files**
 and **Redo** require the actual connected Model API session and confirmed
 workspace-process safety; Muse Code captures remain read-only. Account
 probes, shell commands and hooks can also close Model API restoration
@@ -1917,7 +1921,7 @@ Bypass at once.
 | `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                 |
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                             |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                       |
-| `turnCheckpoints`                 | `true`      | A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                    |
+| `turnCheckpoints`                 | `false`     | Preview. A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                           |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
