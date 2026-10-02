@@ -139,7 +139,7 @@ describe('shellJobAssembly (M27)', () => {
       const assembly = await shellJobAssembly({
         readJobSource,
         storageDir,
-        systemRoot: process.env.SystemRoot ?? String.raw`C:\Windows`,
+        systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
         log: (message) => {
           logged.push(message)
         },
