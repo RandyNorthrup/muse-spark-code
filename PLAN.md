@@ -7781,6 +7781,14 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Main reconciliation (M70m, 2026-10-02).** Finish the inherited merge of
+  `9f35526d` in `4debea77`, merge `origin/main` `2a03a79b` (0.10.1) in
+  `90c1a0c4`, then include the newer docs-audit head `2067d2f9` (PR #74).
+  Keep the review/Revert implementation and main's session transfer and
+  evaluation intact, including all tests and harness scenarios; regenerate
+  the host API record on Kubuntu. Focused rig proof and the browser capture
+  limitation are recorded in `docs/certification/m70m.md`. Full quality and
+  PR acceptance remain the lead's gates, as the lane brief requires.
 - **Revert restructured (M70e, RV69, 2026-10-02).** The fourth review round
   on Revert ends the patching: the lead's decision is one operation under
   checkpoint admission, in order: take the lease, read the saved bytes,
@@ -10048,6 +10056,21 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M70m merged-source proof (2026-10-02).** The lane brief requires focused
+rig checks and forbids this lane from running full quality. Kubuntu passed
+1,407 focused tests and the required static gates/build; Windows 11 passed
+425 Revert, atomic-file and controller tests. Real Chrome execution of the
+harness's axe checks passed 20 pages. The separate standard CLI accessibility
+attempt returned no DOM on all 20 pages (a one-page reproduction exited 0
+with empty stdout), so that invocation cannot certify accessibility. At an actual 320px viewport, review passes and neither dialog overflows once
+the harness's fixed 690px html/body widths are overridden in the driver;
+share has a `scrollable-region-focusable` violation in main's unchanged
+CodeBlock tool-output pre. Preserve that inherited behavior in this merge
+lane and hand it to the lead. No gate, rule or deadline is weakened; the
+standard capture, the narrow share keyboard-access fix and full four-machine,
+installed-editor and hosted acceptance remain the lead's work. See
+`docs/certification/m70m.md` for exact snapshots and conflict resolutions.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,

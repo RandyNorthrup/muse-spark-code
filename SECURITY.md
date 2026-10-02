@@ -380,7 +380,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   step, after an install that runs no package scripts; no checkout keeps a
   token; every job has a timeout.
 - **The macOS dictation helper** is ad-hoc signed, not notarised (owner
-  decision); VS Code's installer does not quarantine it, so Gatekeeper does
-  not assess it.
+  decision); it is not quarantined when VS Code installs the extension, so
+  Gatekeeper normally does not assess it; a copy that carries the quarantine
+  attribute is assessed and refused.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
