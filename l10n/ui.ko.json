@@ -827,6 +827,7 @@
     "edit_image": "이미지 편집",
     "mcp__ide__generateImage": "이미지 생성",
     "mcp__ide__editImage": "이미지 편집",
+    "mcp__ide__webFetch": "페이지 가져오기",
     "read_memory": "메모리 읽기",
     "add_memory": "메모리 저장",
     "edit_memory": "메모리 편집",
@@ -861,9 +862,6 @@
     "snooze_reminder": "알림 미루기",
     "submit_reminder_decision": "알림",
     "submit_result": "결과",
-    "run_checks": "검사 실행",
-    "verify_edits": "편집 검사",
-    "mcp__ide__webFetch": "페이지 가져오기",
     "find_definition": "정의",
     "find_references": "참조",
     "workspace_symbols": "기호",
@@ -879,7 +877,10 @@
     "mcp__ide__hover": "호버",
     "mcp__ide__callHierarchy": "호출",
     "mcp__ide__repoMap": "저장소 맵",
-    "mcp__ide__renameSymbol": "이름 바꾸기"
+    "mcp__ide__renameSymbol": "이름 바꾸기",
+    "auto_review": "자동 검토",
+    "run_checks": "검사 실행",
+    "verify_edits": "편집 검사"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1405,5 +1406,37 @@
     "other": "파일 {count}개 검사 안 됨"
   },
   "thenRunNoExitCode": "종료 코드 없이 실패함",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "approvalProfileNote": "권한 프로필이 활성화되어 있습니다. 파일 규칙 밖의 호출은 승인을 요청합니다.",
+  "codeIntelPolicyRefused": "파일 권한이 이 코드 분석 작업을 거부합니다.",
+  "permissionProfileInvalidData": "유효하지 않거나 지원되지 않는 프로필 데이터입니다.",
+  "approvalAskRuleNote": "명령 규칙에 따라 이 명령은 매번 확인합니다.",
+  "approvalAskRuleWhy": "명령 규칙에 따라 이 명령은 매번 확인합니다: {why}",
+  "autoReviewerResolver": "자동 검토자",
+  "commandRuleResolver": "명령 규칙",
+  "autoReviewAllowed": "허용됨: {reason}",
+  "autoReviewAsked": "확인 요청: {reason}",
+  "autoReviewerFailed": "자동 검토자가 응답하지 못했으므로 사용자가 결정합니다.",
+  "autoReviewerUnreadable": "자동 검토자의 응답을 읽을 수 없으므로 사용자가 결정합니다.",
+  "autoReviewerPaused": "거부나 실패가 반복되어 자동 검토자가 다음 메시지까지 일시 중지되었으므로 사용자가 결정합니다.",
+  "autoReviewerTripped": "거부나 실패가 반복되어 자동 검토자가 중지되었습니다. 다음 메시지를 보낼 때까지 위험한 작업은 모두 사용자에게 확인합니다.",
+  "paidAutoReviewerName": "자동 검토자",
+  "paidConfirmAutoReviewer": "Model API 백 엔드의 자동 모드에서는 별도의 모델 호출이 어떤 규칙으로도 결정되지 않은 위험한 작업을 판단하고, 안전해 보이면 묻지 않고 실행합니다. 금지된 명령, 규칙상 확인이 필요한 명령, 보호된 쓰기, 유료 호출은 절대 허용하지 않으며, 거부하거나 실패하면 사용자가 결정합니다. 각 검토는 대화 모델의 토큰 요금으로 Model API 키에 청구됩니다.\n{price}\n이 작업 영역에서 검토를 항상 허용하지 않는 한 각 검토 전에 먼저 확인합니다.",
+  "paidUseAutoReviewerTitle": "자동 검토자가 이 {tool} 호출을 판단하도록 할까요?",
+  "paidUseAutoReviewerDetail": "{action}\n\n{model}에 대한 별도 호출로 이 작업을 묻지 않고 실행해도 되는지 판단합니다. Model API 키로 청구: {price}. 총액은 사용한 토큰 수에 따라 달라집니다. 거부하면 대신 승인 카드가 표시됩니다.",
+  "usagePaidAutoReviews": {
+    "other": "검토 {count}회"
+  },
+  "commandRuleInvalid": "{setting}: 규칙 {index}은(는) 유효하지 않아 적용되지 않습니다({detail}).",
+  "commandRuleInvalidKept": "{setting}: 규칙 {index}({pattern})은(는) 유효하지 않습니다({detail}). 제한을 강화하기만 하므로 패턴에 따라 계속 확인하거나 금지합니다.",
+  "commandRuleExampleFailed": "{setting}: 허용 규칙 {index}({pattern})이(가) 예시 \"{detail}\"대로 동작하지 않으므로 적용되지 않습니다.",
+  "commandRuleExampleFailedKept": "{setting}: 규칙 {index}({pattern})이(가) 예시 \"{detail}\"대로 동작하지 않습니다. 제한을 강화하기만 하므로 계속 적용됩니다.",
+  "commandRuleAllowInRepository": "{setting}: 규칙 {index}({pattern})은(는) 허용 규칙이며 리포지토리 규칙은 제한을 강화하기만 할 수 있으므로 적용되지 않습니다.",
+  "commandRuleAllowsEvaluator": "{setting}: 허용 규칙 {index}({pattern})은(는) 텍스트를 코드로 실행하는 명령을 허용하게 되므로 적용되지 않습니다.",
+  "commandRulesTooMany": "{setting}: 규칙 {detail}개는 읽을 수 있는 수보다 많습니다. 규칙 {index} 이후는 적용되지 않습니다.",
+  "permissionProfileUnknown": "{setting}: 이름이 \"{name}\"인 권한 프로필이 없습니다. 생길 때까지 모든 셸 명령에서 확인합니다. 프로필 문제가 해결될 때까지 파일 도구는 모든 파일을 거부합니다.",
+  "permissionProfileInvalid": "{setting}: 프로필 \"{name}\"이(가) 유효하지 않습니다({detail}). 고칠 때까지 모든 셸 명령에서 확인하고 파일 도구는 모든 파일을 거부합니다.",
+  "permissionGlobInvalid": "읽기 금지 glob \"{glob}\"을(를) 읽을 수 없습니다({detail}). 고칠 때까지 파일 도구는 모든 파일을 거부합니다.",
+  "permissionRootInvalid": "{setting}: 추가 루트 \"{root}\"은(는) 절대 경로가 아니므로 추가되지 않습니다.",
+  "permissionRepositoryInvalid": "{setting}: 리포지토리 규칙이 유효하지 않아({detail}) 적용되지 않습니다."
 }

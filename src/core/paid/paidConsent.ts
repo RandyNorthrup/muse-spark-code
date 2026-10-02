@@ -19,6 +19,7 @@ import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants
 import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
+  autoReviewPrice,
   bestOfNPrice,
   type PaidUseRequest,
   scheduledRunPrice,
@@ -79,6 +80,18 @@ export function paidUseQuestion(request: PaidUseRequest): {
         detail: fill(UI_TEXT.paidSubagentTaskDetail, {
           objective: task.objective,
           price: subagentTaskPrice(task.modelId, task.attemptLimit),
+        }),
+      }
+    }
+    case 'autoReviewer': {
+      const price = autoReviewPrice(request.modelId)
+      if (price === undefined) throw new Error(UI_TEXT.autoReviewerFailed)
+      return {
+        title: fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: request.tool }),
+        detail: fill(UI_TEXT.paidUseAutoReviewerDetail, {
+          action: request.action,
+          model: request.modelId,
+          price,
         }),
       }
     }

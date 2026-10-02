@@ -358,6 +358,12 @@ const agentEventSchema = z.discriminatedUnion('type', [
     availableChoices: z.array(approvalChoiceSchema),
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
+    /**
+     * Why the card asks beyond the mode (M78): the user's ask rule, the
+     * permission profile, or the Auto reviewer's reason. The extension's
+     * own; Muse Code sends none.
+     */
+    note: z.optional(z.string()),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),
   }),

@@ -27,6 +27,7 @@ import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/
 import { AttachmentStore } from '../../src/core/attachments'
 import { ModelApiClient, ModelApiError } from '../../src/core/backends/modelapi/client'
 import type { PaidUseRequest } from '../../src/shared/paid'
+import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
@@ -89,6 +90,7 @@ import { countLogged, logLines } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 
 const ROOT = '/ws'
 
@@ -226,7 +228,7 @@ function setup(
     /** `museSpark.modelApiPromptCacheRetention` (M56); in memory unless a test says so. */
     retention?: PromptCacheRetention
     /** `museSpark.modelApiSessionBudgetUsd` (M82); no cap unless a test says so. */
-    sessionBudgetUsd?: number
+    sessionBudgetUsd?: number | (() => number)
     /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
     showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
@@ -244,12 +246,18 @@ function setup(
     hasMemory?: boolean
     /** Folders the memory fake reports as links to elsewhere (M49). */
     memoryLinks?: Record<string, string>
+    /** The command rules and permission profiles (M78), read at each call. */
+    permissionSettings?: () => PermissionSettings
     /** The window's web fetch (M69); none unless a test gives one. */
     webFetch?: ModelApiHostDeps['webFetch']
     beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
     afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
   } = {},
 ) {
+  const currentBudgetCap = (): number =>
+    typeof options.sessionBudgetUsd === 'function'
+      ? options.sessionBudgetUsd()
+      : (options.sessionBudgetUsd ?? 0)
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
   // What the paid-use popup was asked (M58), in order, and whether it had to ask.
   const paidRequests: { readonly request: PaidUseRequest; readonly requiresAsking: boolean }[] = []
@@ -261,6 +269,8 @@ function setup(
     readonly outputTokens: number
     readonly cachedTokens: number
   }[] = []
+  // What each Auto review reported (M78).
+  const reviewerUsage: typeof subagentUsage = []
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = options.io ?? memoryToolIo(options.files ?? {}, ROOT)
@@ -284,7 +294,7 @@ function setup(
           fetch: api.fetch,
           baseUrl: 'https://api.example.test/v1',
           apiKey: options.apiKey,
-          sleep: () => Promise.resolve(),
+          sleep: () => Promise.resolve(undefined),
           now: () => 0,
           random: () => 0,
           log,
@@ -313,11 +323,17 @@ function setup(
       options.hasNoStore === true
         ? undefined
         : (options.store ??
-          (options.sessionBudgetUsd !== undefined && options.sessionBudgetUsd > 0
+          (options.sessionBudgetUsd !== undefined && currentBudgetCap() > 0
             ? memorySessionStore()
             : undefined)),
     scheduleStore: options.scheduleStore,
-    getAccountId: options.getAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
+    getAccountId:
+      options.getAccountId ??
+      (async () => {
+        if (options.apiKey === undefined) return FAKE_MODEL_API_ACCOUNT_ID
+        const key = await options.apiKey()
+        return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+      }),
     ...(options.budgetScope !== undefined && { budgetScope: options.budgetScope }),
     ...(options.admitResponseAttempt !== undefined && {
       admitResponseAttempt: options.admitResponseAttempt,
@@ -328,7 +344,7 @@ function setup(
       paidUses.push({ feature, units })
     },
     promptCacheRetention: () => options.retention ?? 'in_memory',
-    sessionBudgetUsd: () => options.sessionBudgetUsd ?? 0,
+    sessionBudgetUsd: currentBudgetCap,
     showReplyUsage: () => options.showReplyUsage ?? false,
     ...(options.mediaBudgetMaxEncodedChars !== undefined && {
       mediaBudgetMaxEncodedChars: options.mediaBudgetMaxEncodedChars,
@@ -345,6 +361,12 @@ function setup(
     noteSubagentUsage: (modelId, usage) => {
       subagentUsage.push({ modelId, ...usage })
     },
+    noteReviewerUsage: (modelId, usage) => {
+      reviewerUsage.push({ modelId, ...usage })
+    },
+    ...(options.permissionSettings !== undefined && {
+      permissionSettings: options.permissionSettings,
+    }),
     loadHooks: () => Promise.resolve(options.hooks ?? []),
     isHooksEnabled: options.isHooksEnabled,
     hookNotificationDelayMs: options.hookNotificationDelayMs,
@@ -368,6 +390,7 @@ function setup(
       clock += ms
     },
     subagentUsage,
+    reviewerUsage,
   }
 }
 
@@ -1182,9 +1205,17 @@ describe('Model API turn checkpoint admission (M72)', () => {
         hasGit: () => true,
         isEnabled: () => true,
       })
+      const prepared = Promise.withResolvers<undefined>()
       const t = setup({
-        beforeTurnRuns: (sessionId, turnId) =>
-          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        beforeTurnRuns: async (sessionId, turnId) => {
+          try {
+            await prepareCheckpointTurn(port, sessionId, turnId, h.log)
+            prepared.resolve(undefined)
+          } catch (error: unknown) {
+            prepared.reject(error)
+            throw error
+          }
+        },
         afterTurnRuns: async (sessionId, turnId) => {
           await port.endTurn(sessionId, turnId)
           await port.markTurn(`${sessionId}\0${turnId}`, false)
@@ -1219,6 +1250,8 @@ describe('Model API turn checkpoint admission (M72)', () => {
         const pending = await closing.beforeTurn(session.sessionId)
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
+        // Native checkpoint preparation must finish before measuring response admission.
+        await prepared.promise
         await vi.waitFor(() => {
           expect(t.api.responseBodies()).toHaveLength(1)
         })
@@ -3037,6 +3070,8 @@ describe('ModelApiSession: session budget (M82)', () => {
     const options: NonNullable<Parameters<typeof setup>[0]> = {
       store: memorySessionStore(),
       sessionBudgetUsd: 0,
+      // Account discovery finishes before the deliberately held final credential read.
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       apiKey: () => {
         hasAskedForKey = true
         return held.promise
@@ -3197,6 +3232,8 @@ describe('ModelApiSession: session budget (M82)', () => {
     const t = setup({
       store,
       sessionBudgetUsd: 1,
+      // Bind the account before holding credentials at the actual request boundary.
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       hooks: hooksFor('SessionEnd', 'held-end'),
       runHook: async () => {
         hookStarted.resolve(undefined)
@@ -6762,7 +6799,10 @@ async function completePaidChild(
     { text: 'First child task done.' },
     { text: 'Parent done.' },
   )
+  const finished = watchTurns(session).turnDone()
   await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  // A ready child can precede its parent's durable settlement and terminal event.
+  await finished
   await waitForChildReady(t, session)
   return t.api.responseBodies().length
 }
@@ -6883,7 +6923,12 @@ describe('ModelApiSession subagents (M48)', () => {
     async (variant) => {
       const paid: PaidFeature[] = ['subagents']
       let key: string | undefined = 'LLM|1|secret'
-      const t = setup({ paid, apiKey: () => Promise.resolve(key) })
+      const t = setup({
+        paid,
+        apiKey: () => Promise.resolve(key),
+        // The parent owns this initial account; only the child's HTTP key changes here.
+        getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      })
       const { session } = await startApprovedSubagentSession(t)
       session.onEvent((event) => {
         if (event.type !== 'turnStarted' || !event.turnId.includes(':subagent-')) {
@@ -11729,6 +11774,7 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     let keyReads = 0
     const t = setup({
       mcpServers: mcp,
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       apiKey: async () => {
         keyReads += 1
         await release.promise
@@ -12227,5 +12273,858 @@ describe('web fetch on the Model API backend (M69)', () => {
     await turnDone()
     expect(signals[0]?.aborted).toBe(true)
     expect(fetchRows(events)[0]).toMatchObject({ status: 'cancelled' })
+  })
+})
+
+// --- M78 (PLAN.md D49): command rules, permission profiles, the Auto reviewer ---
+
+/** The user's rules and profiles of these tests, a profile chosen or not. */
+function m78Settings(profile = '', repositoryRules: unknown = {}): () => PermissionSettings {
+  return () => ({
+    commandRules: [
+      { pattern: ['git', 'status'], decision: 'allow', match: ['git status'] },
+      {
+        pattern: ['git', 'push'],
+        decision: 'ask',
+        justification: 'pushes are reviewed',
+        match: ['git push'],
+      },
+      {
+        pattern: ['rm', '-rf'],
+        decision: 'forbid',
+        justification: 'never delete trees',
+        match: ['rm -rf build'],
+      },
+    ],
+    profiles: {
+      locked: { denyRead: ['**/.env', 'secrets'], extraRoots: ['/docs'] },
+    },
+    profile,
+    repositoryRules,
+  })
+}
+
+function shellCall(command: string, callId = 'sh1') {
+  return { name: 'bash', arguments: JSON.stringify({ command }), callId }
+}
+
+type CardRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
+
+/** The user's answer to a card. */
+async function answer(
+  session: ModelApiSession,
+  request: CardRequest,
+  choiceId: 'allow_once' | 'abort',
+): Promise<void> {
+  await session.decideApproval({
+    approvalId: request.approvalId,
+    choiceId,
+    requirementId: request.requirementId,
+  })
+}
+
+/** One turn of shell calls under the options, up to its first card. */
+async function untilFirstCard(
+  options: Parameters<typeof setup>[0],
+  mode: string,
+  commands: readonly string[],
+  replies: readonly ScriptedReply[] = [{ text: 'ok' }],
+) {
+  const t = setup(options)
+  const started = await startSession(t, mode)
+  t.api.script(
+    { calls: commands.map((command, index) => shellCall(command, `sh${String(index + 1)}`)) },
+    ...replies,
+  )
+  await started.session.sendTurn([{ type: 'text', text: 'go' }])
+  const request = await approvalRequest(started.events, 0)
+  return { t, ...started, request }
+}
+
+/** The Auto reviewer's requests among everything sent (M78). */
+function reviewerBodies(t: ReturnType<typeof setup>): readonly Record<string, unknown>[] {
+  return t.api
+    .responseBodies()
+    .filter((body) => body['instructions'] === MODEL_TEXT.autoReviewerInstructions)
+}
+
+function resolutions(events: readonly AgentEvent[]) {
+  return events.filter(
+    (event): event is Extract<AgentEvent, { type: 'approvalResolved' }> =>
+      event.type === 'approvalResolved',
+  )
+}
+
+function reviewRows(events: readonly AgentEvent[]) {
+  return events
+    .filter(
+      (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+        event.type === 'itemCompleted' && event.item.tool === 'auto_review',
+    )
+    .map((event) => event.item)
+}
+
+function choiceIds(request: CardRequest): readonly string[] {
+  return request.availableChoices.map((choice) => choice.choiceId)
+}
+
+function commandsRun(t: ReturnType<typeof setup>): readonly string[] {
+  return t.shellCalls.map((call) => call.command)
+}
+
+describe('ModelApiSession: command rules (M78, PLAN.md D49)', () => {
+  it('refuses a forbidden command in Bypass, telling the model the rule’s reason', async () => {
+    const t = setup({ permissionSettings: m78Settings() })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [shellCall('sudo rm -rf build')] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'clean' }])
+    await turnDone()
+    expect(t.shellCalls).toEqual([])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'sh1')).toBe(
+      `Error: bash ${MODEL_TEXT.toolRefusedByRule}: never delete trees`,
+    )
+  })
+
+  it('runs a rule-allowed command in Manual with no card, the row naming the rule', async () => {
+    const t = setup({ permissionSettings: m78Settings() })
+    const { session, events, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script({ calls: [shellCall('git status')] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'status' }])
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git status'])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(resolutions(events)).toMatchObject([
+      { decision: 'approved', resolvedBy: UI_TEXT.commandRuleResolver },
+    ])
+  })
+
+  it('asks for a chained, substituted or redirected line though its first command is allowed', async () => {
+    for (const line of ['git status && curl x', 'git status $(curl x)', 'git status > x']) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        { permissionSettings: m78Settings() },
+        'promptUnmatched',
+        [line],
+      )
+      expect(choiceIds(request)).toContain('allow_session')
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+    }
+  })
+
+  it('asks for an ask rule even in Auto with the reviewer on, with no session choice, and no hook allow answers it', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      {
+        permissionSettings: m78Settings(),
+        paid: ['autoReviewer'],
+        hooks: hooksFor('PermissionRequest', 'allow-all'),
+        runHook: () => permitHook(),
+      },
+      'onRequest',
+      ['git push origin main'],
+    )
+    expect(choiceIds(request)).toEqual(['allow_once', 'abort'])
+    expect(request.note).toBe(fill(UI_TEXT.approvalAskRuleWhy, { why: 'pushes are reviewed' }))
+    expect(request.isJudgeEscalated).toBe(false)
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git push origin main'])
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidRequests).toEqual([])
+  })
+
+  it('applies a repository’s ask rule and refuses its allow rule, saying so once', async () => {
+    const { t, session, events, turnDone, request } = await untilFirstCard(
+      {
+        permissionSettings: m78Settings('', {
+          commandRules: [
+            { pattern: ['npm', 'publish'], decision: 'ask', match: ['npm publish'] },
+            { pattern: ['curl'], decision: 'allow', match: ['curl x'] },
+          ],
+        }),
+      },
+      'onRequest',
+      ['curl x', 'npm publish'],
+    )
+    await answer(session, request, 'abort')
+    await answer(session, await approvalRequest(events, 1), 'abort')
+    await turnDone()
+    expect(events.filter((event) => event.type === 'backendNotice')).toEqual([
+      {
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.commandRuleAllowInRepository, {
+          setting: 'museSpark.modelApiRepositoryRules',
+          index: 2,
+          pattern: 'curl',
+          detail: '',
+        }),
+      },
+    ])
+    expect(t.shellCalls).toEqual([])
+    expect(countLogged(t.log, 'Permission settings: rule')).toBe(1)
+  })
+})
+
+describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
+  it('asks for every shell command under a profile, even one a rule allows, and says why', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      { permissionSettings: m78Settings('locked') },
+      'onRequest',
+      ['git status'],
+    )
+    expect(request.note).toBe(UI_TEXT.approvalProfileNote)
+    expect(choiceIds(request)).toEqual(['allow_once', 'abort'])
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git status'])
+  })
+
+  it('binds the file tools: denied paths are neither read, written, listed nor searched', async () => {
+    const t = setup({
+      permissionSettings: m78Settings('locked'),
+      files: {
+        '.env': 'KEY=secret',
+        'app/.ENV': 'KEY=secret',
+        'secrets/key.txt': 'secret',
+        'src/a.ts': 'const secret = 1',
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":".env"}', callId: 'r1' },
+          { name: 'read_file', arguments: '{"path":"app/.ENV"}', callId: 'r2' },
+          {
+            name: 'write_file',
+            arguments: '{"path":"secrets/new.txt","content":"x"}',
+            callId: 'w1',
+          },
+          {
+            name: 'edit_file',
+            arguments: '{"path":".env","find":"KEY","replace":"K"}',
+            callId: 'e1',
+          },
+          { name: 'list_files', arguments: '{}', callId: 'l1' },
+          { name: 'search', arguments: '{"pattern":"secret"}', callId: 's1' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'look' }])
+    await turnDone()
+    expect(hasApprovalCard(events)).toBe(false)
+    for (const [callId, path] of [
+      ['r1', '.env'],
+      ['r2', 'app/.ENV'],
+      ['w1', 'secrets/new.txt'],
+      ['e1', '.env'],
+    ] as const) {
+      expect(toolOutput(t, callId)).toBe(`Error: ${path} ${MODEL_TEXT.pathDeniedByPolicy}`)
+    }
+    expect(t.files.has(`${ROOT}/secrets/new.txt`)).toBe(false)
+    expect(t.files.get(`${ROOT}/.env`)).toBe('KEY=secret')
+    expect(toolOutput(t, 'l1')).toBe('src/a.ts')
+    expect(toolOutput(t, 's1')).toBe('src/a.ts:1: const secret = 1')
+  })
+
+  it('reads a file under an extra root by its absolute path, and nothing outside it', async () => {
+    const t = setup({ permissionSettings: m78Settings('locked') })
+    t.files.set('/docs/guide.md', 'Guide text')
+    t.files.set('/docs/secrets/token', 'secret')
+    t.files.set('/elsewhere/x.md', 'no')
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":"/docs/guide.md"}', callId: 'r1' },
+          { name: 'read_file', arguments: '{"path":"/docs/secrets/token"}', callId: 'r2' },
+          { name: 'read_file', arguments: '{"path":"/elsewhere/x.md"}', callId: 'r3' },
+          { name: 'write_file', arguments: '{"path":"/docs/new.md","content":"x"}', callId: 'w1' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'read' }])
+    await turnDone()
+    expect(toolOutput(t, 'r1')).toBe('Read text file `/docs/guide.md`.\n1|Guide text')
+    expect(toolOutput(t, 'r2')).toBe(`Error: /docs/secrets/token ${MODEL_TEXT.pathDeniedByPolicy}`)
+    expect(toolOutput(t, 'r3')).toBe('Error: path /elsewhere/x.md is outside the workspace')
+    // An extra root is for reading: nothing is written there.
+    expect(toolOutput(t, 'w1')).toBe('Error: path /docs/new.md is outside the workspace')
+    expect(t.files.has('/docs/new.md')).toBe(false)
+  })
+
+  it('fails closed on a profile named but not defined: the shell asks, and it is said', async () => {
+    const { session, events, turnDone, request } = await untilFirstCard(
+      { permissionSettings: m78Settings('typo') },
+      'onRequest',
+      ['git status'],
+    )
+    expect(request.note).toBe(UI_TEXT.approvalProfileNote)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.permissionProfileUnknown, {
+        setting: 'museSpark.modelApiPermissionProfile',
+        name: 'typo',
+      }),
+    })
+    await answer(session, request, 'abort')
+    await turnDone()
+  })
+})
+
+/** Runs the calls, refuses each of the `cards` cards, and checks nothing was reviewed. */
+async function noReview(
+  options: Parameters<typeof setup>[0],
+  mode: string,
+  calls: readonly { name: string; arguments: string; callId: string }[],
+  cards: number,
+) {
+  const t = setup({ permissionSettings: m78Settings(), paid: ['autoReviewer'], ...options })
+  const { session, events, turnDone } = await startSession(t, mode)
+  t.api.script({ calls: [...calls] }, { text: 'done' })
+  await session.sendTurn([{ type: 'text', text: 'go' }])
+  for (let index = 0; index < cards; index += 1) {
+    await answer(session, await approvalRequest(events, index), 'abort')
+  }
+  await turnDone()
+  expect(events.filter((event) => event.type === 'approvalRequested')).toHaveLength(cards)
+  expect(reviewerBodies(t)).toEqual([])
+  expect(t.paidRequests.filter((asked) => asked.request.feature === 'autoReviewer')).toEqual([])
+  return { t, events }
+}
+
+function scriptAllowReview(t: ReturnType<typeof setup>) {
+  t.api.script(
+    { calls: [shellCall('npm test')] },
+    { text: 'ALLOW: runs the tests', usage: { input: 900, output: 20 } },
+    { text: 'done' },
+  )
+}
+
+const REVIEWER_ON = { permissionSettings: m78Settings(), paid: ['autoReviewer'] as PaidFeature[] }
+
+describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
+  it('sends no reviewer while host close awaits SessionEnd after a held consent', async () => {
+    const consent = Promise.withResolvers<boolean>()
+    const asked = Promise.withResolvers<undefined>()
+    const ending = Promise.withResolvers<undefined>()
+    const hook = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
+    const store = createFileSessionStore({
+      directory: path.join(scheduleRoot, 'review-close-start'),
+      log: new FakeLogOutputChannel(),
+      retentionDays: () => 0,
+      now: () => 0,
+      sleep: () => Promise.resolve(undefined),
+    })
+    const t = setup({
+      ...REVIEWER_ON,
+      store,
+      hooks: hooksFor('SessionEnd', 'hold-end'),
+      runHook: () => {
+        ending.resolve(undefined)
+        return hook.promise
+      },
+      allowsPaidUse: (request) => {
+        if (request.feature === 'autoReviewer') {
+          asked.resolve(undefined)
+          return consent.promise
+        }
+        return Promise.resolve(true)
+      },
+    })
+    const { session, events } = await startSession(t, 'onRequest')
+    t.api.script(
+      { calls: [shellCall('npm test')] },
+      { text: 'ASK: requires confirmation' },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'run tests' }])
+    await asked.promise
+    const closing = t.host.close()
+    try {
+      await ending.promise
+      consent.resolve(true)
+      await approvalRequest(events, 0)
+      expect(reviewerBodies(t)).toEqual([])
+      expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+      expect(commandsRun(t)).toEqual([])
+      await session.cancel()
+    } finally {
+      consent.resolve(false)
+      hook.resolve(await hookReply())
+      await closing
+    }
+  })
+
+  it('admits a finite-cap reviewer after a settled ordinary request through its own real journal claim', async () => {
+    const store = budgetStoreIn(path.join(scheduleRoot, 'review-budget-positive'))
+    const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    scriptAllowReview(t)
+    const finished = turnDone()
+    try {
+      await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+      await vi.waitFor(() => {
+        expect(reviewerBodies(t)).toHaveLength(1)
+        expect(commandsRun(t)).toEqual(['npm test'])
+      })
+      await finished
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
+        { feature: 'autoReviewer', units: 1 },
+      ])
+      expect(t.reviewerUsage).toEqual([
+        { modelId: 'muse-spark-1.3', inputTokens: 900, outputTokens: 20, cachedTokens: 0 },
+      ])
+      const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+      expect(total?.hasUnknownHistoricalFees).toBe(false)
+      expect(total?.spentUsd).toBeGreaterThan(0)
+      expect(total?.spentUsd).toBeLessThan(1)
+    } finally {
+      await session.cancel()
+      await t.host.close()
+    }
+  })
+
+  it.each([
+    { input: -1, output: 1 },
+    { input: 1, output: 1, cached: 2 },
+    { input: 0.5, output: 1 },
+    { input: Number.MAX_SAFE_INTEGER + 1, output: 1 },
+  ])(
+    'retains conservative unknown liability and asks after invalid reviewer usage %j',
+    async (usage) => {
+      const store = budgetStoreIn(
+        path.join(
+          scheduleRoot,
+          `review-invalid-${String(usage.input)}-${String(usage.cached ?? 0)}`,
+        ),
+      )
+      const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        { calls: [shellCall('npm test')] },
+        { text: 'ALLOW: runs the tests', usage },
+        { text: 'done' },
+      )
+      const reviewed = Promise.withResolvers<undefined>()
+      const stopWatching = session.onEvent((event) => {
+        if (event.type === 'itemCompleted' && event.item.tool === 'auto_review')
+          reviewed.resolve(undefined)
+      })
+      try {
+        await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+        // Assert the actual completed review, after its durable journal settlement.
+        await reviewed.promise
+        expect(reviewerBodies(t)).toHaveLength(1)
+        expect(reviewRows(events)).toMatchObject([{ status: 'failed' }])
+        const request = await approvalRequest(events, 0)
+        expect(commandsRun(t)).toEqual([])
+        expect(t.reviewerUsage).toEqual([])
+        expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
+          { feature: 'autoReviewer', units: 1 },
+        ])
+        const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+        expect(total?.hasUnknownHistoricalFees).toBe(true)
+        expect(total?.spentUsd).toBeGreaterThan(0)
+        await answer(session, request, 'abort')
+        await turnDone()
+      } finally {
+        stopWatching()
+        await session.cancel()
+        await t.host.close()
+      }
+    },
+  )
+
+  it('never bills a reviewer to a key changed while its popup waits', async () => {
+    // The offline transport accepts this initial synthetic key; the replacement stays valid-shaped.
+    let key = 'LLM|1|secret'
+    const entered = Promise.withResolvers<undefined>()
+    const consent = Promise.withResolvers<boolean>()
+    const t = setup({
+      ...REVIEWER_ON,
+      apiKey: () => Promise.resolve(key),
+      allowsPaidUse: (request) => {
+        if (request.feature === 'autoReviewer') {
+          entered.resolve(undefined)
+          return consent.promise
+        }
+        return Promise.resolve(true)
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    const finished = turnDone()
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'run tests' }])
+    await entered.promise
+    key = CURRENT_SHAPE_KEYS[1]
+    consent.resolve(true)
+    const request = await approvalRequest(events, 0)
+    await answer(session, request, 'abort')
+    await finished
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+    expect(commandsRun(t)).toEqual([])
+  })
+
+  it('does not run a finite-cap direct review before an owned budget journal is bound', async () => {
+    let capUsd = 0
+    const { t, session, turnDone, request } = await untilFirstCard(
+      {
+        ...REVIEWER_ON,
+        sessionBudgetUsd: () => capUsd,
+        allowsPaidUse: (request) => {
+          if (request.feature === 'autoReviewer') capUsd = 1
+          return Promise.resolve(true)
+        },
+      },
+      'onRequest',
+      ['npm test'],
+      [{ text: 'done' }],
+    )
+    await answer(session, request, 'abort')
+    await turnDone()
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+  })
+
+  it.each(['forbid', 'ask'] as const)(
+    'rejudges a new %s rule after a held reviewer response',
+    async (decision) => {
+      let policy = m78Settings()()
+      const reviewHeld = Promise.withResolvers<undefined>()
+      const t = setup({ ...REVIEWER_ON, permissionSettings: () => policy })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        { calls: [shellCall('npm test')] },
+        { hold: reviewHeld.promise, text: 'ALLOW: runs tests', usage: { input: 900, output: 20 } },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await vi.waitFor(() => {
+        expect(reviewerBodies(t)).toHaveLength(1)
+      })
+      policy = {
+        ...policy,
+        commandRules: [{ pattern: ['npm', 'test'], decision, match: ['npm test'] }],
+      }
+      reviewHeld.resolve(undefined)
+      if (decision === 'ask') {
+        const request = await approvalRequest(events, 0)
+        expect(request.note).toBe(UI_TEXT.approvalAskRuleNote)
+        await answer(session, request, 'abort')
+      }
+      await turnDone()
+      expect(commandsRun(t)).toEqual([])
+      expect(
+        resolutions(events).some((event) => event.resolvedBy === UI_TEXT.autoReviewerResolver),
+      ).toBe(false)
+      expect(t.paidUses).toContainEqual({ feature: 'autoReviewer', units: 1 })
+      expect(t.reviewerUsage).toContainEqual({
+        modelId: 'muse-spark-1.3',
+        inputTokens: 900,
+        outputTokens: 20,
+        cachedTokens: 0,
+      })
+    },
+  )
+
+  it('refuses a new missing-profile file denial after an existing card is approved', async () => {
+    let policy = m78Settings()()
+    const t = setup({ permissionSettings: () => policy })
+    const { session, events, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: 'new.txt', content: 'must stay absent' }),
+            callId: 'new-write',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    const request = await approvalRequest(events, 0)
+    policy = { ...policy, profile: 'missing' }
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(t.io.files.has(`${ROOT}/new.txt`)).toBe(false)
+  })
+
+  it('refuses project add_memory when its possible index write is denied', async () => {
+    const policy: PermissionSettings = {
+      ...m78Settings()(),
+      profile: 'locked',
+      profiles: { locked: { denyRead: ['**/MEMORY.md'] } },
+    }
+    const t = setup({ permissionSettings: () => policy })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'add_memory',
+            arguments: JSON.stringify({
+              path: 'new.md',
+              scope: 'project',
+              content: 'must stay absent',
+            }),
+            callId: 'add-note',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await turnDone()
+    expect(t.io.files.has(`${ROOT}/.agents/memory/new.md`)).toBe(false)
+    expect(t.io.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'add-note')).toContain(MODEL_TEXT.pathDeniedByPolicy)
+  })
+
+  it('keeps complex/chained/evaluator commands away from paid or hook automation', async () => {
+    for (const command of [
+      'git status && git status',
+      'git status > out.txt',
+      'eval "git status"',
+    ]) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        {
+          ...REVIEWER_ON,
+          hooks: hooksFor('PermissionRequest', 'allow'),
+          runHook: permitHook,
+        },
+        'onRequest',
+        [command],
+        [{ text: 'done' }],
+      )
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(reviewerBodies(t)).toEqual([])
+      expect(commandsRun(t)).toEqual([])
+      expect(t.paidRequests).toEqual([])
+    }
+  })
+  it('asks the paid-use popup, reviews once with no tools, and runs an allowed command with no card', async () => {
+    const t = setup(REVIEWER_ON)
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    scriptAllowReview(t)
+    await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['npm test'])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(t.paidRequests).toEqual([
+      {
+        request: {
+          feature: 'autoReviewer',
+          modelId: 'muse-spark-1.3',
+          tool: 'bash',
+          action: 'npm test',
+        },
+        requiresAsking: false,
+      },
+    ])
+    const [review] = reviewerBodies(t)
+    expect(reviewerBodies(t)).toHaveLength(1)
+    expect(review).toMatchObject({ model: 'muse-spark-1.3', tools: [], store: false })
+    expect(JSON.stringify(review?.['input'])).toContain('run the tests')
+    expect(JSON.stringify(review?.['input'])).toContain('action: npm test')
+    expect(t.paidUses).toContainEqual({ feature: 'autoReviewer', units: 1 })
+    expect(t.reviewerUsage).toEqual([
+      { modelId: 'muse-spark-1.3', inputTokens: 900, outputTokens: 20, cachedTokens: 0 },
+    ])
+    expect(resolutions(events)).toMatchObject([
+      { decision: 'approved', resolvedBy: UI_TEXT.autoReviewerResolver },
+    ])
+    expect(reviewRows(events)).toMatchObject([
+      {
+        status: 'completed',
+        paid: 'autoReviewer',
+        visibleOutput: fill(UI_TEXT.autoReviewAllowed, { reason: 'runs the tests' }),
+      },
+    ])
+    // The review is the transcript's, never the conversation's.
+    const last = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
+    expect(last).not.toContain('runs the tests')
+    expect(last).not.toContain(MODEL_TEXT.autoReviewerInstructions)
+  })
+
+  it('shows the card with the reviewer’s reason when it asks, and the user decides', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      REVIEWER_ON,
+      'onRequest',
+      ['rm -r dist'],
+      [{ text: 'ASK: deletes the build output' }, { text: 'done' }],
+    )
+    expect(request).toMatchObject({
+      isJudgeEscalated: true,
+      note: fill(UI_TEXT.autoReviewAsked, { reason: 'deletes the build output' }),
+    })
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['rm -r dist'])
+  })
+
+  it('falls back to the card when the review fails, trying it once, or cannot be read', async () => {
+    for (const [reply, note] of [
+      [{ httpError: { status: 500 } }, UI_TEXT.autoReviewerFailed],
+      [{ text: 'Looks fine to me.' }, UI_TEXT.autoReviewerUnreadable],
+    ] as const) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        REVIEWER_ON,
+        'onRequest',
+        ['npm test'],
+        [reply, { text: 'done' }],
+      )
+      expect(request.note).toBe(note)
+      expect(t.api.requests.filter((sent) => sent.path.endsWith('/responses'))).toHaveLength(2)
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+    }
+  })
+
+  it('shows the plain card and bills nothing when the popup is denied', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      { ...REVIEWER_ON, allowsPaidUse: () => Promise.resolve(false) },
+      'onRequest',
+      ['npm test'],
+    )
+    expect(request.isJudgeEscalated).toBe(false)
+    expect(request.note).toBeUndefined()
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses).toEqual([])
+    await answer(session, request, 'abort')
+    await turnDone()
+  })
+
+  it('trips its breaker after three declines in a row, and reviews again after the next message', async () => {
+    const decline = { text: 'ASK: network' }
+    const { t, session, events, turnDone, request } = await untilFirstCard(
+      REVIEWER_ON,
+      'onRequest',
+      ['curl a', 'curl b', 'curl c', 'curl d'],
+      [decline, decline, decline, { text: 'done' }],
+    )
+    await answer(session, request, 'abort')
+    for (const index of [1, 2, 3]) {
+      const next = await approvalRequest(events, index)
+      if (index === 3) {
+        expect(next.note).toBe(UI_TEXT.autoReviewerPaused)
+      }
+      await answer(session, next, 'abort')
+    }
+    await turnDone()
+    expect(reviewerBodies(t)).toHaveLength(3)
+    expect(
+      events.filter(
+        (event) => event.type === 'backendNotice' && event.text === UI_TEXT.autoReviewerTripped,
+      ),
+    ).toHaveLength(1)
+    t.api.script({ calls: [shellCall('npm test', 'e')] }, { text: 'ALLOW: tests' }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'now the tests' }])
+    await turnDone()
+    expect(reviewerBodies(t)).toHaveLength(4)
+    expect(commandsRun(t)).toEqual(['npm test'])
+  })
+
+  it('stops with the turn: Stop during a review cancels the turn, not into a card', async () => {
+    const t = setup(REVIEWER_ON)
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ calls: [shellCall('npm test')] }, { hold: held.promise, text: 'ALLOW: late' })
+    await session.sendTurn([{ type: 'text', text: 'test' }])
+    await vi.waitFor(() => {
+      expect(reviewerBodies(t)).toHaveLength(1)
+    })
+    await session.cancel()
+    held.resolve(undefined)
+    await turnDone()
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(t.shellCalls).toEqual([])
+    expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
+    expect(reviewRows(events)).toMatchObject([{ status: 'cancelled' }])
+  })
+
+  describe('never answers what a rule, the profile, D24 or a paid call settled', () => {
+    it('a forbid', async () => {
+      const { t } = await noReview({}, 'onRequest', [shellCall('rm -rf build')], 0)
+      expect(t.shellCalls).toEqual([])
+    })
+
+    it('an ask rule', async () => {
+      await noReview({}, 'onRequest', [shellCall('git push')], 1)
+    })
+
+    it('the profile’s ask', async () => {
+      await noReview(
+        { permissionSettings: m78Settings('locked') },
+        'onRequest',
+        [shellCall('npm test')],
+        1,
+      )
+    })
+
+    it('a protected write', async () => {
+      const { events } = await noReview(
+        {},
+        'onRequest',
+        [
+          {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: '.git/hooks/pre-commit', content: 'x' }),
+            callId: 'w',
+          },
+        ],
+        1,
+      )
+      expect(events.find((event) => event.type === 'approvalRequested')).toMatchObject({
+        isProtectedWrite: true,
+      })
+    })
+
+    it('a paid call', async () => {
+      const { t } = await noReview(
+        { paid: ['autoReviewer', 'imageGeneration'] },
+        'onRequest',
+        [imageCall({ prompt: 'a cat', path: 'cat.png' })],
+        0,
+      )
+      expect(t.paidRequests.map((asked) => asked.request.feature)).toEqual(['imageGeneration'])
+    })
+
+    it('a question a hook demanded', async () => {
+      await noReview(
+        {
+          hooks: hooksFor('PreToolUse', 'ask'),
+          runHook: () =>
+            hookReply(
+              JSON.stringify({
+                hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask' },
+              }),
+            ),
+        },
+        'onRequest',
+        [shellCall('npm test')],
+        1,
+      )
+    })
+
+    it('anything in Manual', async () => {
+      await noReview({}, 'promptUnmatched', [shellCall('npm test')], 1)
+    })
+
+    it('anything while the reviewer is off', async () => {
+      await noReview({ paid: [] }, 'onRequest', [shellCall('npm test')], 1)
+    })
   })
 })

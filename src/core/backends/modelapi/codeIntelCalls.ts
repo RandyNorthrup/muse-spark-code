@@ -12,7 +12,11 @@
 import { MODEL_TEXT, RENAME_CARD_FILES_SHOWN, UI_TEXT } from '../../../shared/constants'
 import { fill, plural } from '../../../shared/l10n/text'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
-import { type CodeIntelDeps, unsavedDocumentPath } from '../../codeIntel/codeIntelQuery'
+import {
+  type CodeIntelDeps,
+  CodeIntelRefusal,
+  unsavedDocumentPath,
+} from '../../codeIntel/codeIntelQuery'
 import { answerCodeIntel, type CodeIntelReadTool } from '../../codeIntel/codeIntelTools'
 import {
   planRename,
@@ -105,14 +109,20 @@ export interface RenameWriteContext {
   readonly seen: Map<string, string>
   /** The turn's: a Stop before the first write writes nothing. */
   readonly signal: AbortSignal
-  readonly beforeAccess?: (file: RenameFile) => void
+  /** The Model API's live file policy, before each disk read and write. */
+  readonly beforeAccess?: ((file: RenameFile) => void) | undefined
   /** Synchronous bookkeeping for each actual write, including a partial outcome. */
   readonly onWritten?: (file: RenameFile) => void
 }
 
 type Recheck =
   | { readonly ok: true; readonly key: string }
-  | { readonly ok: false; readonly outcome: ToolOutcome; readonly changedPath?: string }
+  | {
+      readonly ok: false
+      readonly outcome: ToolOutcome
+      readonly changedPath?: string
+      readonly refusalReason?: string
+    }
 
 /**
  * Whether the file is still exactly as the plan read it: confined to the
@@ -134,9 +144,21 @@ async function recheck(file: RenameFile, context: RenameWriteContext): Promise<R
   if ((await unsavedDocumentPath(io, file, context.platform)) !== undefined) {
     return { ok: false, outcome: failed(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`) }
   }
-  context.beforeAccess?.(file)
-  const current = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
-  context.beforeAccess?.(file)
+  let current: string | undefined
+  try {
+    context.beforeAccess?.(file)
+    current = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+    context.beforeAccess?.(file)
+  } catch (error: unknown) {
+    if (error instanceof CodeIntelRefusal) {
+      return {
+        ok: false,
+        outcome: failed(error.message, error.visibleReason),
+        refusalReason: error.message,
+      }
+    }
+    throw error
+  }
   return current === file.before
     ? { ok: true, key: resolved.absolute }
     : {
@@ -205,11 +227,17 @@ export async function applyRename(
   for (const file of plan.files) {
     const result = await recheck(file, context)
     if (!result.ok) {
-      return written.length === 0
-        ? result.outcome
-        : partial(
+      if (written.length === 0) return result.outcome
+      return result.refusalReason === undefined
+        ? partial(
             MODEL_TEXT.renameChangedPartway,
             { path: result.changedPath ?? file.relative },
+            plan,
+            written,
+          )
+        : partial(
+            MODEL_TEXT.renamePartial,
+            { path: file.relative, reason: result.refusalReason },
             plan,
             written,
           )

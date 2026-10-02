@@ -1127,10 +1127,13 @@ export const EN = {
     snooze_reminder: 'Snooze reminder',
     submit_reminder_decision: 'Reminder',
     submit_result: 'Result',
+    // The Auto reviewer's own row (M78): one review, marked paid.
+    auto_review: 'Auto review',
     // M68 (PLAN.md D49): the verify loop on the Model API backend: the
     // model's own call, and the automatic check after a round of edits.
     run_checks: 'Run checks',
     verify_edits: 'Check edits',
+
     // M67: code intelligence, native on the Model API and on the ide server.
     find_definition: 'Definition',
     find_references: 'References',
@@ -1715,6 +1718,61 @@ export const EN = {
   // Muse Code refused a permission mode above the ceiling its configuration sets.
   approvalModeCeiling:
     'Muse Code’s configuration (its default permission profile, or a policy your administrator manages) does not allow this permission mode. Choose a stricter one, such as Manual, and send again.',
+  // M78 (PLAN.md D49): command rules, permission profiles and the Auto
+  // reviewer on the Model API backend. Why a card asks beyond the mode:
+  approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
+  codeIntelPolicyRefused: 'File permissions refuse this code intelligence operation.',
+  approvalAskRuleNote: 'Your command rule asks about this command every time.',
+  // {why}: the rule's own justification, as the user wrote it.
+  approvalAskRuleWhy: 'Your command rule asks about this command every time: {why}',
+  // Who answered a call no card was shown for (the row's "Decided" line).
+  autoReviewerResolver: 'Auto reviewer',
+  commandRuleResolver: 'Command rule',
+  // The Auto reviewer's row and the card it leaves; {reason}: the reviewer's own words.
+  autoReviewAllowed: 'Allowed: {reason}',
+  autoReviewAsked: 'Asks you: {reason}',
+  autoReviewerFailed: 'The Auto reviewer could not answer, so you decide.',
+  autoReviewerUnreadable: 'The Auto reviewer’s answer could not be read, so you decide.',
+  autoReviewerPaused:
+    'The Auto reviewer is paused for this turn after repeated declines or failures, so you decide.',
+  autoReviewerTripped:
+    'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
+  // The paid feature (D48): its name, confirmation, popup and tally.
+  paidAutoReviewerName: 'Auto reviewer',
+  paidConfirmAutoReviewer:
+    'In Auto mode on the Model API backend, a separate model call judges each risky action that no rule settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
+  // {tool}: the tool the reviewed call is for; {action}: its command line or arguments.
+  paidUseAutoReviewerTitle: 'Let the Auto reviewer judge this {tool} call?',
+  paidUseAutoReviewerDetail:
+    '{action}\n\nA separate call to {model} judges whether it may run without asking you. Billed to your Model API key: {price}. Total varies with tokens used. Deny shows you the approval card instead.',
+  usagePaidAutoReviews: forms({ one: '{count} review', other: '{count} reviews' }),
+  // Problems in the permission settings, each said once in the conversation.
+  // {setting}: the setting's name; {index}: the rule's place in it, from 1;
+  // {pattern}: the rule's words; {detail}: the error, or the failing example.
+  commandRuleInvalid: '{setting}: rule {index} is not valid and is not applied ({detail}).',
+  commandRuleInvalidKept:
+    '{setting}: rule {index} ({pattern}) is not valid ({detail}). It still asks or forbids by its pattern, since that can only tighten.',
+  commandRuleExampleFailed:
+    '{setting}: allow rule {index} ({pattern}) does not do what its example “{detail}” says, so it is not applied.',
+  commandRuleExampleFailedKept:
+    '{setting}: rule {index} ({pattern}) does not do what its example “{detail}” says. It still applies, since it can only tighten.',
+  commandRuleAllowInRepository:
+    '{setting}: rule {index} ({pattern}) is an allow rule, and a repository’s rules can only tighten, so it is not applied.',
+  commandRuleAllowsEvaluator:
+    '{setting}: allow rule {index} ({pattern}) would allow a command that runs text as code, so it is not applied.',
+  commandRulesTooMany:
+    '{setting}: {detail} rules is more than are read; rule {index} and those after it are not applied.',
+  permissionProfileUnknown:
+    '{setting}: no permission profile is named “{name}”. Until one is, every shell command asks and file tools refuse every file.',
+  permissionProfileInvalid:
+    '{setting}: the profile “{name}” is not valid ({detail}). Until it is fixed, every shell command asks and the file tools refuse every file.',
+  permissionProfileInvalidData: 'Invalid or unsupported profile data.',
+  permissionGlobInvalid:
+    'The deny-read glob “{glob}” cannot be read ({detail}). Until it is fixed, the file tools refuse every file.',
+  permissionRootInvalid:
+    '{setting}: the extra root “{root}” is not an absolute path, so it is not added.',
+  permissionRepositoryInvalid:
+    '{setting}: the repository’s rules are not valid ({detail}) and are not applied.',
   // M68 (PLAN.md D49): the verify loop's rows. {count}: the edited files'
   // errors or warnings.
   verifyErrors: forms({ one: '{count} error', other: '{count} errors' }),

@@ -54,7 +54,9 @@ import { isPdf, pdfPageCount } from '../../pdf'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
 import { confineWorkspacePath } from '../../workspacePath'
-import { compileGlob } from './glob'
+import { compileGlob, GLOB_LIMITS } from './globLimits'
+import type { GlobLimits } from './glob'
+import type { FileRules } from './permissionPolicy'
 import {
   EDIT_IMAGE_DESCRIPTION,
   EDIT_IMAGE_PARAMETERS,
@@ -106,6 +108,13 @@ export interface SearchJob {
   /** The canonical limits travel with the job so the worker stays small. */
   readonly maxFileBytes: number
   readonly maxHits: number
+  /**
+   * The deny-read globs of the permission settings (M78), lower case: a
+   * file whose canonical path one covers is skipped, as a link to it is.
+   */
+  readonly denyRead: readonly string[]
+  /** The glob limits, so the worker's bundle carries no constants table. */
+  readonly globLimits: GlobLimits
 }
 
 export interface SearchHit {
@@ -167,6 +176,7 @@ export interface ToolIo {
       readonly expectedCanonicalPath: string
       /** Refused when an editor holds unsaved text at any of them, checked just before the rename. */
       readonly unsavedAt: readonly string[]
+      /** The caller's live admission, checked synchronously beside final native publication. */
       readonly assertCanWrite?: () => void
     },
   ): Promise<ConditionalWrite>
@@ -238,6 +248,11 @@ export interface ToolContext {
   }
   /** The turn's: aborting it stops a running command (PLAN.md D25). */
   readonly signal?: AbortSignal
+  /**
+   * The permission settings' file rules (M78): paths the tools refuse, and
+   * folders outside the workspace `read_file` may read. None when absent.
+   */
+  readonly files?: FileRules
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
@@ -266,6 +281,7 @@ export interface FormatTarget {
 
 /** Format on edit (M68): the formatter over a written file, and where its failures go. */
 export interface EditFormatter {
+  /** Captured turn ownership and live file policy, rechecked at conditional publication. */
   readonly assertCanWrite?: (target: FormatTarget) => void
   /** The text the file's formatter makes of what the edit wrote, or undefined for none. */
   readonly format: (target: FormatTarget, text: string) => Promise<string | undefined>
@@ -935,18 +951,54 @@ async function readVisual(
   return kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
 }
 
+/** Whether the permission settings deny the tools this confined path (M78). */
+function isDenied(
+  resolved: { readonly relative: string; readonly canonical: string },
+  context: ToolContext,
+): boolean {
+  return context.files?.isDenied([resolved.relative, resolved.canonical]) === true
+}
+
+/**
+ * The path `read_file` reads: in the workspace, or given absolute under an
+ * extra root of the permission profile (M78), confined to that root as the
+ * workspace confines its own (links resolved). Such a file is named by its
+ * absolute path, forward slashes.
+ */
+async function readablePath(
+  given: string,
+  context: ToolContext,
+): Promise<Awaited<ReturnType<typeof confineWorkspacePath>>> {
+  const inWorkspace = await confineWorkspacePath(
+    context.workspaceRoot,
+    given,
+    context.platform,
+    context.io,
+  )
+  const p = context.platform === 'win32' ? path.win32 : path.posix
+  if (inWorkspace.ok || !p.isAbsolute(given)) {
+    return inWorkspace
+  }
+  const roots = context.files?.extraRoots ?? []
+  for (const root of roots) {
+    const underRoot = await confineWorkspacePath(root, given, context.platform, context.io)
+    if (underRoot.ok) {
+      return { ...underRoot, relative: underRoot.absolute.replaceAll(p.sep, '/') }
+    }
+  }
+  return inWorkspace
+}
+
 async function readFile(
   args: z.infer<typeof readFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
-  const resolved = await confineWorkspacePath(
-    context.workspaceRoot,
-    args.path,
-    context.platform,
-    context.io,
-  )
+  const resolved = await readablePath(args.path, context)
   if (!resolved.ok) {
     return failure(resolved.reason)
+  }
+  if (isDenied(resolved, context)) {
+    return failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`)
   }
   const visual = visualKindOf(resolved.relative)
   if (visual !== undefined) {
@@ -995,6 +1047,12 @@ async function located(
   )
   if (!resolved.ok) {
     return { ok: false, outcome: failure(resolved.reason) }
+  }
+  if (isDenied(resolved, context)) {
+    return {
+      ok: false,
+      outcome: failure(`${resolved.relative} ${MODEL_TEXT.pathDeniedByPolicy}`),
+    }
   }
   if (
     context.approvedTarget !== undefined &&
@@ -1150,13 +1208,13 @@ async function listMatching(
   context: ToolContext,
   glob: string | undefined,
 ): Promise<readonly string[]> {
-  if (glob === undefined) {
-    return await context.io.listFiles()
-  }
   // Compiled before the listing, so a refused glob costs no file walk.
-  const matches = compileGlob(glob)
+  const matches = glob === undefined ? undefined : compileGlob(glob)
   const files = await context.io.listFiles()
-  return files.filter((file) => matches(file))
+  // What the permission settings deny is neither listed nor searched (M78).
+  return files.filter(
+    (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
+  )
 }
 
 /** The lines a search reports for its mode, capped at `limit`. */
@@ -1201,6 +1259,8 @@ async function search(
     root: context.workspaceRoot,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    denyRead: context.files?.denyGlobs ?? [],
+    globLimits: GLOB_LIMITS,
     files: searched.map((relative) => ({
       relative,
       absolute: p.join(context.workspaceRoot, ...relative.split('/')),

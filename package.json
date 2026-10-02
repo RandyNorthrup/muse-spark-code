@@ -619,6 +619,190 @@
           "default": true,
           "description": "%config.turnCheckpoints.description%",
           "scope": "machine"
+        },
+        "museSpark.modelApiCommandRules": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "%config.modelApiCommandRules.markdownDescription%",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "required": [
+              "pattern",
+              "decision",
+              "match"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pattern": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "minItems": 1,
+                "maxItems": 32
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "ask",
+                  "forbid"
+                ]
+              },
+              "shell": {
+                "type": "string",
+                "enum": [
+                  "bash",
+                  "powershell"
+                ]
+              },
+              "justification": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "match": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "notMatch": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "maxItems": 20
+              }
+            }
+          },
+          "scope": "machine"
+        },
+        "museSpark.modelApiPermissionProfiles": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "%config.modelApiPermissionProfiles.markdownDescription%",
+          "maxProperties": 50,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "denyRead": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 200
+              },
+              "extraRoots": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            }
+          },
+          "scope": "machine"
+        },
+        "museSpark.modelApiPermissionProfile": {
+          "type": "string",
+          "default": "",
+          "maxLength": 64,
+          "markdownDescription": "%config.modelApiPermissionProfile.markdownDescription%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiRepositoryRules": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "%config.modelApiRepositoryRules.markdownDescription%",
+          "additionalProperties": false,
+          "properties": {
+            "commandRules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "pattern",
+                  "decision",
+                  "match"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "pattern": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "minItems": 1,
+                    "maxItems": 32
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "allow",
+                      "ask",
+                      "forbid"
+                    ]
+                  },
+                  "shell": {
+                    "type": "string",
+                    "enum": [
+                      "bash",
+                      "powershell"
+                    ]
+                  },
+                  "justification": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "match": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "notMatch": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "maxItems": 20
+                  }
+                }
+              },
+              "maxItems": 500
+            },
+            "denyRead": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 200
+            }
+          }
+        },
+        "museSpark.modelApiAutoReviewer": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiAutoReviewer.description%",
+          "scope": "machine"
         }
       }
     },

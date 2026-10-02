@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readSettings, toSettingsSnapshot } from '../../src/host/settings'
+import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
 
@@ -29,9 +29,22 @@ describe('readSettings', () => {
         sandboxNetwork: 'restricted',
         modelApiPromptCacheRetention: '24h',
         modelApiHooks: true,
+        modelApiCommandRules: [{ pattern: ['ls'], decision: 'allow', match: ['ls'] }],
+        modelApiPermissionProfiles: { locked: { denyRead: ['**/.env'] } },
+        modelApiPermissionProfile: 'locked',
+        modelApiRepositoryRules: { denyRead: ['x'] },
+        modelApiAutoReviewer: true,
       }),
       new FakeLogOutputChannel(),
     )
+    // M78: kept whole here; the Model API bundle parses each rule.
+    expect(permissionSettingsOf(settings)).toEqual({
+      commandRules: [{ pattern: ['ls'], decision: 'allow', match: ['ls'] }],
+      profiles: { locked: { denyRead: ['**/.env'] } },
+      profile: 'locked',
+      repositoryRules: { denyRead: ['x'] },
+    })
+    expect(settings.modelApiAutoReviewer).toBe(true)
     // M56 (PLAN.md D43).
     expect(settings.sandboxNetwork).toBe('restricted')
     expect(settings.modelApiPromptCacheRetention).toBe('24h')

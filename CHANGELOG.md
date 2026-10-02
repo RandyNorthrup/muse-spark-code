@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Auto rules, permission profiles and an optional paid reviewer (M78).**
+  Standing command rules include executable examples; repository rules only
+  tighten them. Complex commands ask, native language-service reads obey file
+  denials, and malformed profiles deny access. Reviewer consent binds account,
+  model, turn and policy, uses its own M82 claim, and falls back to asking on
+  failure or its circuit breaker. It cannot allow a forbid, an ask rule,
+  a protected write or another paid call. Attempt editors stay rooted in their
+  worktree; applying a selected snapshot invalidates the original check ledger.
+
 - **Awareness and budgets** (M82, PLAN.md D49).
   - While the VS Code window is unfocused, a VS Code notification says when
     a turn of a minute or more ends, or a turn waits for your approval or
@@ -79,6 +88,10 @@ happened, not what was planned; superseded entries are kept.
   helper that builds the bundle now runs `scripts/lib/buildModelApiBundle.mjs`.
 
 ### Fixed
+
+- **Automatic checks respect revoked file access.** A verification round keeps
+  the original edited-file policy fence even after denied files are filtered
+  out of lookup. It withholds diagnostics and refuses checks after revocation.
 
 - **Voice Stop remains available after a cap or paid setting changes.** It
   reaches the recording's existing driver instead of applying new-recording

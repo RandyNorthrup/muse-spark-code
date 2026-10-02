@@ -827,6 +827,7 @@
     "edit_image": "編輯圖片",
     "mcp__ide__generateImage": "圖片",
     "mcp__ide__editImage": "編輯圖片",
+    "mcp__ide__webFetch": "擷取網頁",
     "read_memory": "讀取記憶",
     "add_memory": "儲存記憶",
     "edit_memory": "編輯記憶",
@@ -861,9 +862,6 @@
     "snooze_reminder": "延後提醒",
     "submit_reminder_decision": "提醒",
     "submit_result": "結果",
-    "run_checks": "執行檢查",
-    "verify_edits": "檢查編輯",
-    "mcp__ide__webFetch": "擷取網頁",
     "find_definition": "定義",
     "find_references": "參考",
     "workspace_symbols": "符號",
@@ -879,7 +877,10 @@
     "mcp__ide__hover": "暫留",
     "mcp__ide__callHierarchy": "呼叫",
     "mcp__ide__repoMap": "儲存庫地圖",
-    "mcp__ide__renameSymbol": "重新命名"
+    "mcp__ide__renameSymbol": "重新命名",
+    "auto_review": "自動審查",
+    "run_checks": "執行檢查",
+    "verify_edits": "檢查編輯"
   },
   "mcpToolLabel": "{tool}（{server}）",
   "memoryScopes": {
@@ -1405,5 +1406,37 @@
     "other": "{count} 個檔案未檢查"
   },
   "thenRunNoExitCode": "失敗，沒有結束代碼",
-  "exportThenRunSkipped": "then_run `{command}`：{outcome}"
+  "exportThenRunSkipped": "then_run `{command}`：{outcome}",
+  "approvalProfileNote": "權限設定檔已啟用。超出其檔案規則的呼叫會要求核准。",
+  "codeIntelPolicyRefused": "檔案權限拒絕此程式碼分析操作。",
+  "permissionProfileInvalidData": "設定檔資料無效或不受支援。",
+  "approvalAskRuleNote": "您的命令規則每次都會就此命令詢問。",
+  "approvalAskRuleWhy": "您的命令規則每次都會就此命令詢問：{why}",
+  "autoReviewerResolver": "自動審查器",
+  "commandRuleResolver": "命令規則",
+  "autoReviewAllowed": "已允許：{reason}",
+  "autoReviewAsked": "請您決定：{reason}",
+  "autoReviewerFailed": "自動審查器無法回答，因此由您決定。",
+  "autoReviewerUnreadable": "無法讀取自動審查器的回答，因此由您決定。",
+  "autoReviewerPaused": "由於多次拒絕或失敗，自動審查器已暫停至您的下一則訊息，因此由您決定。",
+  "autoReviewerTripped": "由於多次拒絕或失敗，自動審查器已停止。在您傳送下一則訊息之前，每個有風險的操作都會詢問您。",
+  "paidAutoReviewerName": "自動審查器",
+  "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
+  "paidUseAutoReviewerTitle": "要讓自動審查器評判此 {tool} 呼叫嗎？",
+  "paidUseAutoReviewerDetail": "{action}\n\n對 {model} 的一次單獨呼叫會評判此操作能否不經詢問直接執行。費用計入您的 Model API 金鑰：{price}。總額依使用的權杖數而變動。選擇不允許則改為顯示核准卡片。",
+  "usagePaidAutoReviews": {
+    "other": "審查 {count} 次"
+  },
+  "commandRuleInvalid": "{setting}：規則 {index} 無效，未套用（{detail}）。",
+  "commandRuleInvalidKept": "{setting}：規則 {index}（{pattern}）無效（{detail}）。它仍依其模式詢問或禁止，因為這只會收緊。",
+  "commandRuleExampleFailed": "{setting}：允許規則 {index}（{pattern}）的行為與其範例「{detail}」不符，因此未套用。",
+  "commandRuleExampleFailedKept": "{setting}：規則 {index}（{pattern}）的行為與其範例「{detail}」不符。它仍然生效，因為它只會收緊。",
+  "commandRuleAllowInRepository": "{setting}：規則 {index}（{pattern}）是允許規則，而存放庫的規則只能收緊，因此未套用。",
+  "commandRuleAllowsEvaluator": "{setting}：允許規則 {index}（{pattern}）會允許將文字當作程式碼執行的命令，因此未套用。",
+  "commandRulesTooMany": "{setting}：{detail} 條規則超過可讀取的數量；規則 {index} 及之後的規則未套用。",
+  "permissionProfileUnknown": "{setting}：沒有名為「{name}」的權限設定檔。在有此設定檔之前，每個 shell 命令都會詢問。 在設定檔問題解決之前，檔案工具會拒絕所有檔案。",
+  "permissionProfileInvalid": "{setting}：設定檔「{name}」無效（{detail}）。修正之前，每個 shell 命令都會詢問，檔案工具會拒絕所有檔案。",
+  "permissionGlobInvalid": "無法讀取禁止讀取的 glob「{glob}」（{detail}）。修正之前，檔案工具會拒絕所有檔案。",
+  "permissionRootInvalid": "{setting}：額外根目錄「{root}」不是絕對路徑，因此未新增。",
+  "permissionRepositoryInvalid": "{setting}：存放庫的規則無效（{detail}），未套用。"
 }

@@ -168,6 +168,7 @@ function setup(options: SetupOptions = {}) {
     allowsPaidUse: () => Promise.resolve(options.hasSubagents === true),
     isPaidUseRemembered: () => false,
     noteSubagentUsage: () => undefined,
+    noteReviewerUsage: () => undefined,
     memory: options.memory,
     ...(options.hasVerify !== false && { verify }),
     ...(hooks !== undefined && { loadHooks: () => Promise.resolve(hooks) }),

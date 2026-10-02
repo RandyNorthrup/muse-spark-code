@@ -8598,6 +8598,39 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M78 — Auto, made safe (D49)
 
+**Resumed scoped proof, 2026-10-01.** The release-candidate port passed all
+five Windows type projects and 46 owning Kubuntu suites (1,889 passed,
+three Windows-only skips). Windows VM native coverage passed seven suites
+(278 passed, 22 platform/capability skips); the Windows host independently
+passed all 159 shell cases, including real Bash and PowerShell 5.1.
+Ten intended red/restored drills cover rules, missing profiles, reviewer
+claims/usage, native file/verification policy and both new UI presentations;
+every restoration matches SHA-256. Localization, dead code and the refreshed
+host API record passed. Five lane test clones and two invalid `void` types
+were corrected without changing assertions, ignores or thresholds. The one
+older-base checkpoint clone is already fixed on the release-candidate branch
+to be merged. Build sharing follows the lead's `build/shared-ui-text` only;
+full quality, independent review and final platform/installed proof remain
+the lead's gates. Receipts are in `docs/certification/m78.md`.
+
+**Lane readiness review, 2026-09-30.** Resume from the preserved cohort tree
+`23bd93a3647f9029c2c79f5a0f95e3350666efa6`, taking its net feature delta
+against main `32709441`. Keep M82's durable spend and M72's current turn,
+publication and shutdown fences. Reuse the existing command lexer, policy
+compiler, permission engine, paid popup and direct reviewer; no new package,
+wire shape, bundle split or setting beyond the planned milestone. Integrate
+the held policy/read/format boundaries and M77's rooted attempt editor and
+shared edit recorder. Acceptance includes native Bash/PowerShell comparisons,
+complex-command fallback, repository tightening, malformed-profile denial,
+post-await owner/policy checks, paid consent and finite-cap direct claims.
+The resumed native tests also require the automatic verify round to retain
+its original edited-file policy fence after a lookup filters denied files out;
+an empty allowed-file list cannot authorize a check over a revoked edit.
+Focused gates and exact-restoration red drills bind this port. Full quality,
+rig and installed/visual gates remain the lead's responsibility under common.md.
+The skill's JSON-ledger validator remains deferred for this older canonical
+plan; no competing plan or invented certification is created.
+
 - **Goal.** Auto on the Model API earns its name.
 - **Scope.**
   - **Command rules**: prefix rules for allow, ask or forbid, with tests

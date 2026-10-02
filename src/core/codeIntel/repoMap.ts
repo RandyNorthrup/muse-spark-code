@@ -177,8 +177,9 @@ async function readUses(
     let text: string | undefined
     try {
       const file = await query.confine(relative)
-      text = await query.deps.io.readFile(file.checkedAbsolute, file.checkedAbsolute)
-    } catch {
+      text = await query.readDisk(file)
+    } catch (error: unknown) {
+      if (error instanceof CodeIntelRefusal) throw error
       // A file that is not confined UTF-8 text is left out of the counts, as
       // the search tool leaves it out.
       return { relative, names: NO_NAMES }
@@ -336,7 +337,12 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     return { ranked: [], notes: [MODEL_TEXT.repoMapNoFiles] }
   }
   const listed = found.toSorted((a, b) => compareText(a, b))
-  const files = listed.slice(0, REPO_MAP_MAX_FILES)
+  const placed = await inBatches(listed.slice(0, REPO_MAP_MAX_FILES), limits, async (path) => ({
+    path,
+    file: await query.place(path),
+  }))
+  const files = placed.flatMap((entry) => (entry.file === undefined ? [] : [entry.path]))
+  if (files.length === 0 && query.hasDeniedResults) throw query.policyRefusal()
   const { uses, read } = await readUses(query, files, limits)
   const names = candidates(uses)
   const lookups = await inBatches(names, limits, async (name) => {
@@ -370,10 +376,10 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     ...(looked < names.length
       ? [fill(MODEL_TEXT.repoMapPartial, { done: String(looked), total: String(names.length) })]
       : []),
-    ...(files.length < listed.length
+    ...(listed.length > REPO_MAP_MAX_FILES
       ? [
           fill(MODEL_TEXT.repoMapFilesCapped, {
-            count: String(files.length),
+            count: String(REPO_MAP_MAX_FILES),
             total: String(listed.length),
           }),
         ]
@@ -388,15 +394,17 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
  */
 export async function repoMap(query: CodeIntelQuery, options: RepoMapOptions): Promise<string> {
   const { ranked, notes } = await buildMap(query, options)
+  query.checkReadable()
+  const visibleNotes = [...notes, ...query.policyNotes()]
   const budget = options.maxTokens * REPO_MAP_CHARS_PER_TOKEN
   if (ranked.length === 0) {
-    const empty = [MODEL_TEXT.repoMapEmpty, ...notes]
+    const empty = [MODEL_TEXT.repoMapEmpty, ...visibleNotes]
     if (joinedLength(empty) > budget) {
       throw tooSmall(options.maxTokens, empty)
     }
     return joinLines(empty)
   }
-  const { lines, fits } = renderLines(ranked, budget, notes)
+  const { lines, fits } = renderLines(ranked, budget, visibleNotes)
   if (!fits) {
     throw tooSmall(options.maxTokens, lines)
   }
@@ -418,12 +426,14 @@ export async function repoMapSection(
     timeBudgetMs: REPO_MAP_PROMPT_TIME_BUDGET_MS,
     signal,
   }
-  const { ranked, notes } = await buildMap(new CodeIntelQuery(deps), options)
+  const query = new CodeIntelQuery(deps)
+  const { ranked, notes } = await buildMap(query, options)
+  query.checkReadable()
   const heading = `${MODEL_TEXT.repoMapSection}${SECTION_BREAK}${MODEL_TEXT.repoMapSectionLead}${SECTION_BREAK}`
   const { lines, fits } = renderLines(
     ranked,
     options.maxTokens * REPO_MAP_CHARS_PER_TOKEN - heading.length,
-    notes,
+    [...notes, ...query.policyNotes()],
   )
   return !fits || ranked.length === 0 ? undefined : `${heading}${joinLines(lines)}`
 }

@@ -6,10 +6,12 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import type { PermissionSettings } from '../../src/core/permissionSettings'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import type { EditedFile } from '../../src/core/verify/diagnosticsReport'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
+
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { type HookDefinition, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
@@ -78,6 +80,7 @@ interface StartOptions {
   /** The language services' answers; null runs the host without them. */
   readonly service?: Omit<FakeServiceOptions, 'files'> | null
   readonly isRepoMapOn?: () => boolean
+  readonly permissionSettings?: () => PermissionSettings
   /** Paid child tasks on, their popup allowing each (M48), for the child's prompt. */
   readonly hasSubagents?: boolean
   /** Hooks from Muse Code's settings (M51), and what each one received on its stdin. */
@@ -147,6 +150,7 @@ async function start(options: StartOptions = {}) {
     memory: undefined,
     codeIntel: service,
     isRepoMapInPrompt: options.isRepoMapOn,
+    permissionSettings: options.permissionSettings,
     loadHooks: () => Promise.resolve(options.hooks ?? []),
     workspaceEdits: options.workspaceEdits,
     verify: options.verify,
@@ -270,6 +274,81 @@ const EDIT_HOOK = parseHookConfig(
 ).hooks
 
 describe('code intelligence on the Model API backend', () => {
+  it('applies current file rules to returned references without disabling allowed read tools', async () => {
+    const t = await start({
+      permissionSettings: () => ({
+        commandRules: [],
+        profile: 'limited',
+        profiles: { limited: { denyRead: ['src/b.ts'] } },
+        repositoryRules: undefined,
+      }),
+      service: { references: () => [loc(A, 0, 16), loc(B, 1, 0)] },
+    })
+    try {
+      await t.turn([
+        { name: 'find_references', arguments: '{"path":"src/a.ts","line":1,"column":17}' },
+      ])
+      expect(outputs(t.api)[0]).toContain('src/a.ts:1:17')
+      expect(outputs(t.api)[0]).not.toContain('src/b.ts')
+      expect(outputs(t.api)[0]).toContain('withheld by file permission rules')
+      expect(finished(t.events)[0]?.status).toBe('completed')
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('drops an already cached prompt map when newly denied files cannot enter another request', async () => {
+    let denyRead: string[] = []
+    const t = await start({
+      isRepoMapOn: () => true,
+      permissionSettings: () => ({
+        commandRules: [],
+        profile: 'limited',
+        profiles: { limited: { denyRead } },
+        repositoryRules: undefined,
+      }),
+      service: { workspace: [sym('greet', KIND.function, A, 0, 16)] },
+    })
+    try {
+      await t.turn([])
+      expect(String(t.api.responseBodies()[0]?.['instructions'])).toContain(
+        'src/a.ts\n  1: function greet',
+      )
+      denyRead = ['src/**']
+      await t.turn([])
+      expect(String(t.api.responseBodies().at(-1)?.['instructions'])).not.toContain(
+        'src/a.ts\n  1: function greet',
+      )
+    } finally {
+      await t.host.close()
+    }
+  })
+
+  it('refuses a rename whose file becomes denied while its user card awaits', async () => {
+    let denyRead: string[] = []
+    const t = await start({
+      service: GREET_EVERYWHERE,
+      permissionSettings: () => ({
+        commandRules: [],
+        profile: 'limited',
+        profiles: { limited: { denyRead } },
+        repositoryRules: undefined,
+      }),
+    })
+    try {
+      await t.turn([RENAME], true)
+      const card = await cardFor(t.events)
+      denyRead = ['src/b.ts']
+      await allowAndFinish(t, card)
+      expect(t.io.files.get(A)).toBe(FILES['src/a.ts'])
+      expect(t.io.files.get(B)).toBe(FILES['src/b.ts'])
+      expect(finished(t.events)[0]?.status).toBe('failed')
+      expect(outputs(t.api)[0]).toContain(MODEL_TEXT.codeIntelPolicyRefused)
+    } finally {
+      await t.host.close()
+    }
+  })
+
   it('offers the tools with their guidance only while language services are there', async () => {
     const t = await start()
     await t.turn([])

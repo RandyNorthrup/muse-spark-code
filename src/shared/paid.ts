@@ -36,6 +36,11 @@ export const paidTallySchema = z.object({
   subagentUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   subagentTokens: z.optional(z.int().check(z.nonnegative())),
   subagentCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Optional for panels saved before M78; absent means no review made.
+  autoReviews: z.optional(z.int().check(z.nonnegative())),
+  autoReviewUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  autoReviewTokens: z.optional(z.int().check(z.nonnegative())),
+  autoReviewCostUsd: z.optional(z.number().check(z.nonnegative())),
   // Best-of-N runs started this window (M77); absent means none.
   bestOfNAttempts: z.optional(z.int().check(z.nonnegative())),
   bestOfNRequests: z.optional(z.int().check(z.nonnegative())),
@@ -124,6 +129,14 @@ export type PaidUseRequest =
   | { readonly feature: 'scheduledPrompts'; readonly prompt: string; readonly modelId: string }
   | { readonly feature: 'subagents'; readonly task: SubagentTaskConfirmation }
   | {
+      readonly feature: 'autoReviewer'
+      /** The conversation's model, which the review runs on (M78). */
+      readonly modelId: string
+      /** The tool the reviewed call is for, and its command line or arguments. */
+      readonly tool: string
+      readonly action: string
+    }
+  | {
       readonly feature: 'bestOfN'
       readonly modelId: string
       readonly prompt: string
@@ -166,6 +179,10 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
     case 'subagents': {
       return tally.subagentCostUsd ?? 0
     }
+    case 'autoReviewer': {
+      // Billed apart from the conversation, so counted here alone.
+      return tally.autoReviewCostUsd ?? 0
+    }
     case 'bestOfN': {
       // Separate worktree hosts do not contribute to the parent's token
       // estimate. Count only reported costs here, not unknown HTTP tries.
@@ -189,6 +206,7 @@ export function listedPaidFeatures(
       paidCostUsd(feature, tally) > 0 ||
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
+      (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
   )
 }
@@ -216,12 +234,13 @@ export function paidFeatureName(feature: PaidFeature): string {
     voice: UI_TEXT.paidVoiceName,
     scheduledPrompts: UI_TEXT.paidScheduledName,
     subagents: UI_TEXT.paidSubagentsName,
+    autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
   }
   return names[feature]
 }
 
-function scheduledRatePrice(tier: keyof typeof MODEL_API_PRICES_PER_MILLION): string {
+function tokenRatePrice(tier: keyof typeof MODEL_API_PRICES_PER_MILLION): string {
   const rates = MODEL_API_PRICES_PER_MILLION[tier]
   return fill(UI_TEXT.paidScheduledPrice, {
     input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
@@ -236,7 +255,21 @@ export function scheduledRunPrice(modelId: string): string {
   if (tier === undefined) {
     throw new Error(UI_TEXT.subagentTariffUnknown)
   }
-  return scheduledRatePrice(tier)
+  return tokenRatePrice(tier)
+}
+
+/** One Auto review's tariff on the conversation's model (M78); undefined without a verified price. */
+export function autoReviewPrice(modelId: string): string | undefined {
+  const tier = modelApiPaidTier(modelId)
+  return tier === undefined ? undefined : tokenRatePrice(tier)
+}
+
+/** Every priced model's token rates, one tier a line: a feature billed by tokens. */
+function tokenRatesByTier(): string {
+  return [
+    `${MODEL_API_PRICED_MODELS.standard.join(', ')}: ${tokenRatePrice('standard')}`,
+    `${MODEL_API_PRICED_MODELS.contributor.join(', ')}: ${tokenRatePrice('contributor')}`,
+  ].join('\n')
 }
 
 /**
@@ -278,11 +311,9 @@ export function paidFeaturePrice(feature: PaidFeature): string {
     case 'voice': {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
-    case 'scheduledPrompts': {
-      return [
-        `${MODEL_API_PRICED_MODELS.standard.join(', ')}: ${scheduledRatePrice('standard')}`,
-        `${MODEL_API_PRICED_MODELS.contributor.join(', ')}: ${scheduledRatePrice('contributor')}`,
-      ].join('\n')
+    case 'scheduledPrompts':
+    case 'autoReviewer': {
+      return tokenRatesByTier()
     }
     case 'subagents': {
       return [

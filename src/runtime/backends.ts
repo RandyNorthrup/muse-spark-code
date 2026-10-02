@@ -266,6 +266,9 @@ function modelApiManager(
     noteSubagentUsage: (modelId) => {
       log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
     },
+    noteReviewerUsage: () => {
+      log.warn('An Auto reviewer reported usage, but the ACP agent runs no Auto reviewer')
+    },
     memory,
     bundlePath: path.join(deps.distDir, MODEL_API_BUNDLE_FILE),
     // VS Code's settings do not reach the agent: a failed request names its

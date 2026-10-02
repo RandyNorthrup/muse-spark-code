@@ -369,6 +369,10 @@ export interface ConversationDeps {
   readonly boardSessions?: () => readonly BoardSession[]
   readonly focusBoardSession?: (sessionId: string, backend: BackendKind) => boolean
   readonly bestOfNCoordinator: BestOfNCoordinator
+  /** Capture the originating session before Take awaits path and account checks. */
+  readonly bestOfNWorkspaceEdits?: (
+    session: AgentSession | undefined,
+  ) => Parameters<BestOfNManager['take']>[2]
   readonly modelApiAccountId: () => Promise<string | undefined>
   readonly openBestOfNWorktree: (absolutePath: string) => Promise<void>
   readonly noteBestOfNRequest: () => void
@@ -2608,7 +2612,10 @@ export class ConversationController {
   private async takeBestOfNAttempt(attemptId: string, runId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const run = await this.bestOfN().take(attemptId, runId)
+      const beginWorkspaceEdits = this.deps.bestOfNWorkspaceEdits?.(
+        this.sessionKind === 'modelApi' ? this.session : undefined,
+      )
+      const run = await this.bestOfN().take(attemptId, runId, beginWorkspaceEdits)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }

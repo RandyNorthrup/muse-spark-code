@@ -138,6 +138,7 @@ function harness(
           allowsPaidUse: () => Promise.resolve(false),
           isPaidUseRemembered: () => false,
           noteSubagentUsage: () => undefined,
+          noteReviewerUsage: () => undefined,
           loadHooks: () => Promise.resolve([]),
           isHooksEnabled: () => false,
           memory: undefined,

@@ -796,6 +796,9 @@ async function openRig(options: RigOptions): Promise<Rig> {
       noteSubagentUsage: (modelId, childUsage) => {
         usage.addSubagentUsage(modelId, childUsage)
       },
+      noteReviewerUsage: (modelId, reviewUsage) => {
+        usage.addReviewerUsage(modelId, reviewUsage)
+      },
       createMcpServers: (workspaceRoot, newPool) =>
         newPool(
           modelApiMcpPoolDeps({

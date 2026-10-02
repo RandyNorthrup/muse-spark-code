@@ -501,6 +501,31 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0000')
   })
 
+  it('counts the Auto reviewer’s reviews and adds their cost to the extra total (M78)', () => {
+    renderDialog({
+      report: modelApiReport,
+      paid: {
+        features: ['autoReviewer'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          autoReviews: 3,
+          autoReviewTokens: 3000,
+          autoReviewCostUsd: 0.0042,
+        },
+        isKeyStored: true,
+        alwaysAllowed: ['autoReviewer'],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(
+      'Auto reviewer (on, allowed always in this workspace)3 reviews · Reported token estimate: $0.0042 · 3,000 tokens',
+    )
+    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0042')
+  })
+
   it('has no paid section on the Muse Code backend without a stored key', () => {
     renderDialog()
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Paid features')

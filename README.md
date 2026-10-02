@@ -950,6 +950,59 @@ even if they failed. They are not claimed as included in the parent estimate.
 **Cancel run** stops unfinished attempts, including
 setup waiting on consent, without deleting their work.
 
+## Auto rules and permission profiles (Model API)
+
+`museSpark.modelApiCommandRules` holds user or machine prefix rules with
+`pattern`, `decision` (`allow`, `ask`, `forbid`), `match` examples and optional
+`notMatch`, `shell` and `justification`. Examples are checked when the rules
+are read. Standing allow rules cover one plain command only. Chains,
+pipelines, substitutions, redirections, evaluators and unrecognized syntax
+require a user decision; an automated hook or reviewer cannot approve them.
+Forbid matches anywhere and refuses even in Bypass. Bypass skips ordinary
+nonpaid questions; Plan stays read-only. An existing user-granted exact-line
+session rule still covers only that exact line.
+
+`museSpark.modelApiPermissionProfiles` names file policies with `denyRead`
+globs and optional absolute `extraRoots`; only `read_file` can use those
+extra roots, with canonical confinement. Select one with
+`museSpark.modelApiPermissionProfile`. Denied paths are neither read, listed,
+searched nor written by the file tools. A missing or malformed selected
+profile refuses every file until resolved. The shell is not confined by
+these profiles: outside Bypass, each shell command asks while a profile is
+active. External MCP tools also ask while a profile is active, including
+tools a server marks read-only: that hint cannot enforce these file rules.
+Project `add_memory` must be permitted to write both its note and `MEMORY.md`
+index; `edit_memory` checks only its note. An add is refused if the index is
+denied even when appending might not update it, preventing an existence race.
+Code intelligence uses these same denials for primary documents, native
+reads, returned paths, repo-map inputs and every rename file. Allowed
+results remain available; withheld paths are counted. A hover that may
+include a denied declaration is refused. Changed rules also discard a
+cached prompt map. VS Code's language providers maintain their own indexes;
+these rules govern the extension's reads and returned information.
+`museSpark.modelApiRepositoryRules` can add only ask/forbid command
+rules and file denials; it cannot add an allow, choose a wider profile or
+grant an extra root. These controls apply to the Model API; Muse Code uses
+its own captured native policy contract.
+
+`museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Every
+eligible review uses the paid-use popup at the current model's token rates,
+in every mode, with only the popup's workspace permission able to remember
+consent. The reviewer has no tools and returns ALLOW or ASK with a nonempty
+reason. It can answer only an unsettled plain-command or MCP ask in Auto;
+forbids, ask rules, profiles, complex commands, protected edits, paid tools
+and child tasks are never delegated to it. Its key, model, turn, mode, trust
+and current policy are captured before consent and checked again before
+HTTP. A changed context, failed or unreadable answer, or tripped circuit
+breaker falls back to the user's card. Reviewer usage is reported separately
+and shares the originating M82 journal by owned reservation, final key/cap
+checks and actual response settlement. Missing usage retains an unknown
+conservative liability. A finite-cap direct review refuses without that
+owned scope. The review owns its own claim after the ordinary request
+settles. Invalid token counts refuse ALLOW and retain unknown liability;
+host close stops admission before its end hooks finish. No guessed native fields or new
+shell parser are involved.
+
 ## Web fetch
 
 The model can read one public web page it found or you
@@ -1971,6 +2024,11 @@ Bypass at once.
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
 | `modelApiBestOfN`                 | `false`     | [Paid](#paid-features): best-of-N on the Model API backend: the same prompt in 2 to 5 worktrees at once, one paid popup per run with the attempt count and per-attempt request ceiling, then take one                                                                                                                                                                                                                                                                                                               |
+| `modelApiCommandRules`            | `[]`        | Machine-scoped standing allow/ask/forbid prefix rules, each with matching and nonmatching examples.                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `modelApiPermissionProfiles`      | `{}`        | Machine-scoped named file-denial globs and explicit additional read roots.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `modelApiPermissionProfile`       | `""`        | Machine-scoped selected profile; unknown or malformed selections deny file access.                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `modelApiRepositoryRules`         | `{}`        | Repository rules may add ask/forbid commands and file denials, never standing allows or extra roots.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `modelApiAutoReviewer`            | `false`     | Machine-scoped paid Auto reviewer; price acceptance and per-use consent required.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                    |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover token requests, child requests and image fees; working storage is required. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified. Input estimates and published prices may differ from actual billing. Machine-scoped                                                      |

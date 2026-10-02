@@ -6578,14 +6578,17 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
     },
   )
 
-  it('stops a pending no-journal recording before socket authentication when the cap is enabled during key retrieval', async () => {
+  it.each([
+    { change: 'cap is enabled during key retrieval', key: 'LLM|1|secret', enablesCap: true },
+    { change: 'actual sending account changes', key: 'LLM|1|replacement-key', enablesCap: false },
+  ])('stops a pending no-journal recording before authentication when $change', async (variant) => {
     const key = Promise.withResolvers<string | undefined>()
     const voice = noFolderVoice({ apiKey: () => key.promise })
     try {
       await voice.controller.handle({ type: 'dictation', action: 'start' })
       expect(voice.calls).toEqual(['create', 'start'])
-      voice.state.capUsd = 1
-      key.resolve('LLM|1|secret')
+      if (variant.enablesCap) voice.state.capUsd = 1
+      key.resolve(variant.key)
       await vi.waitFor(() => {
         expect(voice.calls).toContain('stop')
       })
@@ -6623,22 +6626,6 @@ describe('ConversationController: paid voice without a journal (M82)', () => {
       }
     },
   )
-
-  it('checks the actual sending account even with no folder, journal or local auth revision change', async () => {
-    const key = Promise.withResolvers<string | undefined>()
-    const voice = noFolderVoice({ apiKey: () => key.promise })
-    try {
-      await voice.controller.handle({ type: 'dictation', action: 'start' })
-      key.resolve('LLM|1|replacement-key')
-      await vi.waitFor(() => {
-        expect(voice.calls).toContain('stop')
-      })
-      expect(voice.sockets).toEqual([])
-    } finally {
-      key.resolve(undefined)
-      voice.controller.dispose()
-    }
-  })
 })
 
 describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {
@@ -7525,6 +7512,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       allowsPaidUse: () => Promise.resolve(false),
       isPaidUseRemembered: () => false,
       noteSubagentUsage: () => undefined,
+      noteReviewerUsage: () => undefined,
       memory: undefined,
       store: memorySessionStore(),
       scheduleStore,

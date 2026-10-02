@@ -10,6 +10,8 @@ import * as z from 'zod/mini'
 import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
+import { isProtectedPath } from './core/protectedPaths'
+import type { EditedFile } from './core/verify/diagnosticsReport'
 import { readBackendChoice } from './core/backendSelection'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
@@ -117,7 +119,7 @@ import {
 import { OutputDocumentStore } from './host/outputDocuments'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
-import { readSettings, toSettingsSnapshot } from './host/settings'
+import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
@@ -1391,14 +1393,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
+    noteReviewerUsage: (modelId, usage) => {
+      paid.usage.addReviewerUsage(modelId, usage)
+    },
+    // The command rules and permission profiles (M78), read at each call.
+    permissionSettings: () => permissionSettingsOf(currentSettings()),
     memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
       checkCommands: () => currentSettings().checkCommands,
       isFormatOnEdit: () => currentSettings().formatOnEdit,
-      diagnosticsAfterEdit: (files, signal) => verifyEditor.diagnosticsAfterEdit(files, signal),
+      diagnosticsAfterEdit: (files, signal, canReadFile) =>
+        verifyEditor.diagnosticsAfterEdit(files, signal, canReadFile),
       formatAfterEdit: (absolutePath, text) => verifyEditor.formatAfterEdit(absolutePath, text),
+    },
+    createAttemptVerify: (attemptRoot) => {
+      const editor = createVerifyEditor({
+        platform: process.platform,
+        log,
+        workspaceRoot: attemptRoot,
+        realPath: canonicalPath,
+      })
+      return {
+        isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
+        checkCommands: () => currentSettings().checkCommands,
+        isFormatOnEdit: () => currentSettings().formatOnEdit,
+        diagnosticsAfterEdit: (files, signal, canReadFile) =>
+          editor.diagnosticsAfterEdit(files, signal, canReadFile),
+        formatAfterEdit: (absolutePath, text) => editor.formatAfterEdit(absolutePath, text),
+        dispose: () => {
+          editor.dispose()
+        },
+      }
     },
     // Its own bundle, loaded when this backend first starts (M57, PLAN.md D6).
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
@@ -1798,6 +1825,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           return false
         },
         bestOfNCoordinator,
+        bestOfNWorkspaceEdits: (session) => {
+          const owner =
+            session === undefined ? undefined : modelApi.captureExternalEditOwner(session)
+          return async (root, paths) => {
+            const files: EditedFile[] = []
+            for (const file of paths) {
+              const checked = await confineWorkspacePath(root, file, process.platform, {
+                realPath: canonicalPath,
+              })
+              if (
+                !checked.ok ||
+                isProtectedPath(checked.relative) ||
+                isProtectedPath(checked.canonical) ||
+                checked.relative !== checked.canonical
+              ) {
+                throw new Error(UI_TEXT.bestOfNTargetChanged)
+              }
+              files.push({ relative: checked.canonical, absolute: checked.checkedAbsolute })
+            }
+            return modelApi.beginExternalEdit(owner, files)
+          }
+        },
         modelApiAccountId: () => modelApi.accountId(),
         noteBestOfNRequest: () => {
           paid.usage.addBestOfNRequest()

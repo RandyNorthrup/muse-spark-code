@@ -25,12 +25,13 @@ import type { ContextIo } from '../../core/context/contextFiles'
 import type { LanguageServiceHost } from '../../core/codeIntel/languageService'
 import type { McpTool } from '../../core/mcp'
 import type { MemoryStore } from '../../core/memory/memoryStore'
+import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
+import type { SubagentUsage } from '../../shared/paid'
+import { BestOfNError } from '../../core/bestOfN/bestOfNRunner'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
-import type { SubagentUsage } from '../../shared/paid'
-import { BestOfNError } from '../../core/bestOfN/bestOfNRunner'
 import { MODEL_API_BASE_URL, type PromptCacheRetention, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
@@ -91,13 +92,18 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
+  /** The command rules and permission profiles (M78, PLAN.md D49), read at each call. */
+  readonly permissionSettings?: (() => PermissionSettings) | undefined
   /** The verify loop's settings and the editor's diagnostics and formatter (M68, PLAN.md D49). */
   readonly verify?: VerifyHooks | undefined
+  /** Desktop trials use their own worktree-rooted editor and dispose it with the attempt host. */
+  readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
+
   /** The Model API bundle, dist/modelApi.js beside the running bundle (M57, PLAN.md D6). */
   readonly bundlePath: string
   /** How the bundle is loaded: Node's `require` unless a test hands in the source module. */
@@ -114,6 +120,10 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly verify: ModelApiBackendManagerDeps['verify']
+  readonly workspaceEdits: WorkspaceEdits
+  readonly sessionWorkspaceRoot: string | undefined
+  readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
   readonly webFetch: ModelApiBackendManagerDeps['webFetch']
   readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
   readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
@@ -134,11 +144,6 @@ interface HostVariant {
   /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
   readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
-  /** The verify loop's editor side (M68) reads the window's files, never an attempt's worktree. */
-  readonly verify: ModelApiBackendManagerDeps['verify']
-  /** Edit notices are keyed by workspace-relative path: an attempt gets a registry of its own. */
-  readonly workspaceEdits: WorkspaceEdits | undefined
-  readonly sessionWorkspaceRoot: string | undefined
   readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
   readonly readyMessage: string
 }
@@ -261,6 +266,8 @@ export class ModelApiBackendManager {
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,
+        noteReviewerUsage: this.deps.noteReviewerUsage,
+        permissionSettings: variant.permissionSettings,
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
         sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
@@ -279,6 +286,10 @@ export class ModelApiBackendManager {
     }
     return await this.createHost({
       workspaceRoot,
+      verify: this.deps.verify,
+      workspaceEdits: this.workspaceEdits,
+      sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
+      permissionSettings: this.deps.permissionSettings,
       webFetch: this.deps.webFetch,
       codeIntel: this.deps.codeIntel,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
@@ -294,9 +305,6 @@ export class ModelApiBackendManager {
       memory: this.deps.memory,
       beforeTurnRuns: this.deps.beforeTurnRuns,
       afterTurnRuns: this.deps.afterTurnRuns,
-      verify: this.deps.verify,
-      workspaceEdits: this.workspaceEdits,
-      sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
       createMcpServers:
         createMcpServers === undefined
           ? undefined
@@ -318,56 +326,63 @@ export class ModelApiBackendManager {
     noteUsage?: (modelId: string, usage: SubagentUsage) => void,
     budgetScope?: OwnedSessionBudgetScope,
   ): Promise<ModelApiHost> {
-    // This base has no external parent-budget port. Never silently create a
-    // fresh allowance in a separate host when M82's machine cap is finite.
+    // A finite cap requires the parent's owned journal; a temporary host
+    // cannot create another allowance or save its transcript under the parent ID.
     if (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) {
       throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
     }
     const generation = this.generation
-    return await this.createHost({
-      budgetScope,
-      webFetch: undefined,
-      codeIntel: undefined,
-      isRepoMapInPrompt: undefined,
-      io: { ...this.deps.io, listFiles: () => this.deps.listAttemptFiles(worktreeRoot) },
-      noteResponseUsage: (modelId, usage) => {
-        if (generation === this.generation) noteUsage?.(modelId, usage)
-      },
-      admitResponseAttempt: Object.assign(
-        (keyDigest: string | undefined) => {
-          if (
-            generation !== this.generation ||
-            (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
-            budgetScope?.isStillAllowed(keyDigest) === false
-          ) {
-            throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
-          }
-          admitRequest(keyDigest)
+    const verify = this.deps.createAttemptVerify?.(worktreeRoot)
+    try {
+      return await this.createHost({
+        verify,
+        workspaceEdits: new WorkspaceEdits(),
+        sessionWorkspaceRoot: undefined,
+        budgetScope,
+        permissionSettings: this.deps.permissionSettings,
+        webFetch: undefined,
+        codeIntel: undefined,
+        isRepoMapInPrompt: undefined,
+        io: { ...this.deps.io, listFiles: () => this.deps.listAttemptFiles(worktreeRoot) },
+        noteResponseUsage: (modelId, usage) => {
+          if (generation === this.generation) noteUsage?.(modelId, usage)
         },
-        {
-          onRequestStarted: () => {
-            admitRequest.onRequestStarted?.()
+        admitResponseAttempt: Object.assign(
+          (keyDigest: string | undefined) => {
+            if (
+              generation !== this.generation ||
+              (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+              budgetScope?.isStillAllowed(keyDigest) === false
+            ) {
+              throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
+            }
+            admitRequest(keyDigest)
           },
-        },
-      ),
-      workspaceRoot: worktreeRoot,
-      store: undefined,
-      scheduleStore: undefined,
-      describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
-      isPaidFeatureOn: () => false,
-      ideTools: undefined,
-      allowsPaidUse: () => Promise.resolve(false),
-      isPaidUseRemembered: () => false,
-      isHooksEnabled: () => false,
-      memory: undefined,
-      beforeTurnRuns: undefined,
-      afterTurnRuns: undefined,
-      verify: undefined,
-      workspaceEdits: undefined,
-      sessionWorkspaceRoot: undefined,
-      createMcpServers: undefined,
-      readyMessage: 'Model API attempt host ready in its worktree',
-    })
+          {
+            onRequestStarted: () => {
+              admitRequest.onRequestStarted?.()
+            },
+          },
+        ),
+        workspaceRoot: worktreeRoot,
+        store: undefined,
+        scheduleStore: undefined,
+        describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
+        isPaidFeatureOn: () => false,
+        ideTools: undefined,
+        allowsPaidUse: () => Promise.resolve(false),
+        isPaidUseRemembered: () => false,
+        isHooksEnabled: () => false,
+        memory: undefined,
+        beforeTurnRuns: undefined,
+        afterTurnRuns: undefined,
+        createMcpServers: undefined,
+        readyMessage: 'Model API attempt host ready in its worktree',
+      })
+    } catch (error: unknown) {
+      verify?.dispose?.()
+      throw error
+    }
   }
 
   public async bestOfNBudgetScope(

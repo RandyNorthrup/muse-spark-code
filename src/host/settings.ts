@@ -19,6 +19,7 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
 } from '../shared/constants'
+import type { PermissionSettings } from '../core/permissionSettings'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
 import type { Logger } from './logger'
 
@@ -48,10 +49,21 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiBestOfN: boolean
   /** Explicit machine opt-in for external hook commands (M51). */
   readonly modelApiHooks: boolean
+  /**
+   * M78 (PLAN.md D49): each kept whole here; the Model API bundle parses
+   * every rule and profile and reports what it refuses (permissionPolicy.ts).
+   */
+  readonly modelApiCommandRules: readonly unknown[]
+  readonly modelApiPermissionProfiles: Readonly<Record<string, unknown>>
+  readonly modelApiPermissionProfile: unknown
+  readonly modelApiRepositoryRules: unknown
+  /** The paid Auto reviewer (M78): on only with its price accepted too. */
+  readonly modelApiAutoReviewer: boolean
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
   readonly formatOnEdit: boolean
+
   /** The repo map in the Model API's system prompt (M67). */
   readonly modelApiRepoMap: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
@@ -94,9 +106,15 @@ const settingSchemas = {
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiHooks: z.boolean(),
+  modelApiCommandRules: z.array(z.unknown()),
+  modelApiPermissionProfiles: z.record(z.string(), z.unknown()),
+  modelApiPermissionProfile: z.unknown(),
+  modelApiRepositoryRules: z.unknown(),
+  modelApiAutoReviewer: z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
+
   modelApiRepoMap: z.boolean(),
   turnCheckpoints: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
@@ -178,6 +196,21 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
+    modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),
+    modelApiPermissionProfiles: readSetting(config, 'modelApiPermissionProfiles', log),
+    modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
+    modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
+    modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
+  }
+}
+
+/** The permission settings as the Model API backend reads them at each call (M78). */
+export function permissionSettingsOf(settings: ExtensionSettings): PermissionSettings {
+  return {
+    commandRules: settings.modelApiCommandRules,
+    profiles: settings.modelApiPermissionProfiles,
+    profile: settings.modelApiPermissionProfile,
+    repositoryRules: settings.modelApiRepositoryRules,
   }
 }
 

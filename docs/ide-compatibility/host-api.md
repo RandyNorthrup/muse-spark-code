@@ -344,7 +344,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ---------------------- | ----- |
 | `node:buffer`          | 25    |
 | `node:child_process`   | 8     |
-| `node:crypto`          | 24    |
+| `node:crypto`          | 25    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
 | `node:fs`              | 18    |
@@ -361,7 +361,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises` | 1     |
 | `node:tls`             | 1     |
 | `node:url`             | 2     |
-| `node:util`            | 5     |
+| `node:util`            | 4     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 1     |
@@ -372,6 +372,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | --------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts` |
 
-Theme variables the styles read (57), from `src/webview/styles.css`:
+Theme variables the styles read (58), from `src/webview/styles.css`:
 
-`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-menu-background`, `--vscode-menu-border`, `--vscode-menu-foreground`, `--vscode-menu-selectionBackground`, `--vscode-menu-selectionForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textCodeBlock-background`, `--vscode-textLink-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`
+`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-menu-background`, `--vscode-menu-border`, `--vscode-menu-foreground`, `--vscode-menu-selectionBackground`, `--vscode-menu-selectionForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textCodeBlock-background`, `--vscode-textLink-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

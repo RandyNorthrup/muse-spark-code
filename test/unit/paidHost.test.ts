@@ -8,6 +8,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { confirmModal } from './helpers/vscodeViews'
 import { window } from './mocks/vscode'
@@ -91,6 +92,29 @@ describe('the paid-use popup (M58)', () => {
     await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
     answerWith(undefined)
     await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('deny')
+  })
+
+  it('refuses an Auto review on a model without verified rates before any popup (M78)', async () => {
+    await expect(
+      askPaidUse(
+        { feature: 'autoReviewer', modelId: 'muse-spark-future', tool: 'bash', action: 'ls' },
+        true,
+      ),
+    ).resolves.toBe('deny')
+    expect(confirmModal).not.toHaveBeenCalled()
+  })
+
+  it('names the reviewed action, the model and its token rates (M78)', async () => {
+    const review = await details({
+      feature: 'autoReviewer',
+      modelId: 'muse-spark-1.3-contributor',
+      tool: 'bash',
+      action: 'npm test',
+    })
+    expect(review.title).toBe(fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: 'bash' }))
+    expect(review.detail).toContain('npm test')
+    expect(review.detail).toContain('muse-spark-1.3-contributor')
+    expect(review.detail).toContain('$0.100/1M input')
   })
 
   it('refuses a child task on a model without verified rates before any popup', async () => {

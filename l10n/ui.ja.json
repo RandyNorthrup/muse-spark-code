@@ -827,6 +827,7 @@
     "edit_image": "画像編集",
     "mcp__ide__generateImage": "画像生成",
     "mcp__ide__editImage": "画像編集",
+    "mcp__ide__webFetch": "ページを取得",
     "read_memory": "メモリを読み取り",
     "add_memory": "メモリに保存",
     "edit_memory": "メモリを編集",
@@ -861,9 +862,6 @@
     "snooze_reminder": "リマインダーをスヌーズ",
     "submit_reminder_decision": "リマインダー",
     "submit_result": "結果",
-    "run_checks": "チェックを実行",
-    "verify_edits": "編集をチェック",
-    "mcp__ide__webFetch": "ページを取得",
     "find_definition": "定義",
     "find_references": "参照",
     "workspace_symbols": "シンボル",
@@ -879,7 +877,10 @@
     "mcp__ide__hover": "ホバー",
     "mcp__ide__callHierarchy": "呼び出し",
     "mcp__ide__repoMap": "リポジトリマップ",
-    "mcp__ide__renameSymbol": "名前の変更"
+    "mcp__ide__renameSymbol": "名前の変更",
+    "auto_review": "自動レビュー",
+    "run_checks": "チェックを実行",
+    "verify_edits": "編集をチェック"
   },
   "mcpToolLabel": "{tool} ({server})",
   "memoryScopes": {
@@ -1405,5 +1406,37 @@
     "other": "{count} 個のファイルは未チェック"
   },
   "thenRunNoExitCode": "終了コードなしで失敗しました",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "approvalProfileNote": "権限プロファイルが有効です。ファイルルールの対象外の呼び出しは承認を求めます。",
+  "codeIntelPolicyRefused": "ファイル権限により、このコード解析操作は拒否されました。",
+  "permissionProfileInvalidData": "無効または未対応のプロファイルデータです。",
+  "approvalAskRuleNote": "コマンド ルールにより、このコマンドは毎回確認します。",
+  "approvalAskRuleWhy": "コマンド ルールにより、このコマンドは毎回確認します: {why}",
+  "autoReviewerResolver": "自動レビュー担当",
+  "commandRuleResolver": "コマンド ルール",
+  "autoReviewAllowed": "許可: {reason}",
+  "autoReviewAsked": "確認を求めています: {reason}",
+  "autoReviewerFailed": "自動レビュー担当が応答できなかったため、あなたが判断します。",
+  "autoReviewerUnreadable": "自動レビュー担当の応答を読み取れなかったため、あなたが判断します。",
+  "autoReviewerPaused": "拒否や失敗が続いたため、自動レビュー担当は次のメッセージまで一時停止しています。あなたが判断します。",
+  "autoReviewerTripped": "拒否や失敗が続いたため、自動レビュー担当は停止しました。次のメッセージを送信するまで、リスクのある操作はすべてあなたに確認します。",
+  "paidAutoReviewerName": "自動レビュー担当",
+  "paidConfirmAutoReviewer": "Model API バックエンドの自動モードでは、どのルールでも決まらないリスクのある操作を別のモデル呼び出しが判定し、安全と見なせる場合は確認なしで実行します。禁止されたコマンド、ルールで確認が必要なコマンド、保護された書き込み、有料の呼び出しは決して許可せず、拒否または失敗した場合はあなたが判断します。各レビューは会話のモデルのトークン料金で Model API キーに請求されます:\n{price}\nこのワークスペースでレビューを常に許可しない限り、各レビューの前に確認します。",
+  "paidUseAutoReviewerTitle": "この {tool} 呼び出しを自動レビュー担当に判定させますか?",
+  "paidUseAutoReviewerDetail": "{action}\n\n{model} への別の呼び出しで、確認なしで実行してよいかを判定します。Model API キーに請求されます: {price}。合計額は使用トークン数によって変わります。許可しない場合は、代わりに承認カードが表示されます。",
+  "usagePaidAutoReviews": {
+    "other": "レビュー {count} 回"
+  },
+  "commandRuleInvalid": "{setting}: ルール {index} は無効なため適用されません ({detail})。",
+  "commandRuleInvalidKept": "{setting}: ルール {index} ({pattern}) は無効です ({detail})。制限を強めることしかできないため、パターンに従って引き続き確認または禁止します。",
+  "commandRuleExampleFailed": "{setting}: 許可ルール {index} ({pattern}) は例「{detail}」のとおりに動作しないため、適用されません。",
+  "commandRuleExampleFailedKept": "{setting}: ルール {index} ({pattern}) は例「{detail}」のとおりに動作しません。制限を強めることしかできないため、引き続き適用されます。",
+  "commandRuleAllowInRepository": "{setting}: ルール {index} ({pattern}) は許可ルールですが、リポジトリのルールは制限を強めることしかできないため、適用されません。",
+  "commandRuleAllowsEvaluator": "{setting}: 許可ルール {index} ({pattern}) はテキストをコードとして実行するコマンドを許可してしまうため、適用されません。",
+  "commandRulesTooMany": "{setting}: ルール {detail} 件は読み込める数を超えています。ルール {index} 以降は適用されません。",
+  "permissionProfileUnknown": "{setting}: 「{name}」という名前の権限プロファイルはありません。存在するまで、すべてのシェル コマンドで確認します。 プロファイルが解決するまで、ファイルツールはすべてのファイルを拒否します。",
+  "permissionProfileInvalid": "{setting}: プロファイル「{name}」は無効です ({detail})。修正されるまで、すべてのシェル コマンドで確認し、ファイル ツールはすべてのファイルを拒否します。",
+  "permissionGlobInvalid": "読み取り禁止の glob「{glob}」を読み取れません ({detail})。修正されるまで、ファイル ツールはすべてのファイルを拒否します。",
+  "permissionRootInvalid": "{setting}: 追加ルート「{root}」は絶対パスではないため、追加されません。",
+  "permissionRepositoryInvalid": "{setting}: リポジトリのルールは無効なため ({detail})、適用されません。"
 }

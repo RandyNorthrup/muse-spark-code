@@ -216,3 +216,23 @@ describe('ApprovalCard tool subjects (M18)', () => {
     expect(screen.getByText('Map the tree')).toHaveClass('approval-prompt')
   })
 })
+
+describe('ApprovalCard reviewer and rule reasons (M78)', () => {
+  it('says why it asks beyond the mode: the Auto reviewer’s reason, or the user’s rule (M78)', () => {
+    const onDecide = vi.fn()
+    render(
+      <ApprovalCard
+        approval={{
+          ...approval,
+          isJudgeEscalated: true,
+          note: 'Asks you: deletes the build output',
+        }}
+        toolName="bash"
+        onDecide={onDecide}
+      />,
+    )
+    expect(screen.getByText('Asks you: deletes the build output')).toHaveClass('approval-note')
+    render(<ApprovalCard approval={approval} toolName="bash" onDecide={onDecide} />)
+    expect(screen.getAllByText(/^Asks you:/)).toHaveLength(1)
+  })
+})

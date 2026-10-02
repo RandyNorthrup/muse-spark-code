@@ -314,3 +314,52 @@ describe('PaidUsage and the prices (M33)', () => {
     })
   })
 })
+
+describe('PaidUsage: the Auto reviewer (M78)', () => {
+  it('retains unreported actual requests as unknown and accepts a reported delta only once', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('autoReviewer', 2)
+    expect(usage.current).toMatchObject({ autoReviews: 2, autoReviewUnknownRequests: 2 })
+    usage.addReviewerUsage('muse-spark-1.3', { inputTokens: 10, outputTokens: 5, cachedTokens: 0 })
+    expect(usage.current).toMatchObject({ autoReviewUnknownRequests: 1, autoReviewTokens: 15 })
+    usage.addReviewerUsage('muse-spark-1.3', { inputTokens: 20, outputTokens: 10, cachedTokens: 0 })
+    const cost = usage.current.autoReviewCostUsd
+    usage.addReviewerUsage('muse-spark-1.3', { inputTokens: 20, outputTokens: 10, cachedTokens: 0 })
+    expect(usage.current).toMatchObject({
+      autoReviewUnknownRequests: 0,
+      autoReviewTokens: 45,
+      autoReviewCostUsd: cost,
+    })
+  })
+  it('counts each review and prices its tokens apart from the conversation', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('autoReviewer', 1)
+    usage.addReviewerUsage('muse-spark-1.3', {
+      inputTokens: 1_000_000,
+      outputTokens: 100_000,
+      cachedTokens: 0,
+    })
+    expect(usage.current).toMatchObject({
+      autoReviews: 1,
+      autoReviewTokens: 1_100_000,
+    })
+    expect(paidCostUsd('autoReviewer', usage.current)).toBeCloseTo(1.675)
+    expect(paidTotalUsd(usage.current)).toBeCloseTo(1.675)
+    expect(listedPaidFeatures([], usage.current)).toEqual(['autoReviewer'])
+  })
+
+  it('refuses usage it cannot price', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    expect(() => {
+      usage.addReviewerUsage('unknown', { inputTokens: 1, outputTokens: 1, cachedTokens: 0 })
+    }).toThrow('unpriced model')
+    expect(() => {
+      usage.addReviewerUsage('muse-spark-1.3', {
+        inputTokens: NaN,
+        outputTokens: 1,
+        cachedTokens: 0,
+      })
+    }).toThrow('nonnegative')
+    expect(usage.current.autoReviewCostUsd).toBeUndefined()
+  })
+})

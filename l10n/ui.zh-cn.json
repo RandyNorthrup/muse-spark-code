@@ -827,6 +827,7 @@
     "edit_image": "编辑图片",
     "mcp__ide__generateImage": "图片",
     "mcp__ide__editImage": "编辑图片",
+    "mcp__ide__webFetch": "获取网页",
     "read_memory": "读取记忆",
     "add_memory": "保存记忆",
     "edit_memory": "编辑记忆",
@@ -861,9 +862,6 @@
     "snooze_reminder": "推迟提醒",
     "submit_reminder_decision": "提醒",
     "submit_result": "结果",
-    "run_checks": "运行检查",
-    "verify_edits": "检查编辑",
-    "mcp__ide__webFetch": "获取网页",
     "find_definition": "定义",
     "find_references": "引用",
     "workspace_symbols": "符号",
@@ -879,7 +877,10 @@
     "mcp__ide__hover": "悬停",
     "mcp__ide__callHierarchy": "调用",
     "mcp__ide__repoMap": "仓库地图",
-    "mcp__ide__renameSymbol": "重命名"
+    "mcp__ide__renameSymbol": "重命名",
+    "auto_review": "自动审查",
+    "run_checks": "运行检查",
+    "verify_edits": "检查编辑"
   },
   "mcpToolLabel": "{tool}（{server}）",
   "memoryScopes": {
@@ -1405,5 +1406,37 @@
     "other": "{count} 个文件未检查"
   },
   "thenRunNoExitCode": "失败，没有退出代码",
-  "exportThenRunSkipped": "then_run `{command}`：{outcome}"
+  "exportThenRunSkipped": "then_run `{command}`：{outcome}",
+  "approvalProfileNote": "权限配置方案已启用。超出其文件规则的调用会请求批准。",
+  "codeIntelPolicyRefused": "文件权限拒绝此代码分析操作。",
+  "permissionProfileInvalidData": "配置方案数据无效或不受支持。",
+  "approvalAskRuleNote": "您的命令规则每次都会就此命令询问。",
+  "approvalAskRuleWhy": "您的命令规则每次都会就此命令询问：{why}",
+  "autoReviewerResolver": "自动审查器",
+  "commandRuleResolver": "命令规则",
+  "autoReviewAllowed": "已允许：{reason}",
+  "autoReviewAsked": "请您决定：{reason}",
+  "autoReviewerFailed": "自动审查器无法回答，因此由您决定。",
+  "autoReviewerUnreadable": "无法读取自动审查器的回答，因此由您决定。",
+  "autoReviewerPaused": "由于多次拒绝或失败，自动审查器已暂停至您的下一条消息，因此由您决定。",
+  "autoReviewerTripped": "由于多次拒绝或失败，自动审查器已停止。在您发送下一条消息之前，每个有风险的操作都会询问您。",
+  "paidAutoReviewerName": "自动审查器",
+  "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
+  "paidUseAutoReviewerTitle": "让自动审查器评判此 {tool} 调用吗？",
+  "paidUseAutoReviewerDetail": "{action}\n\n对 {model} 的一次单独调用会评判此操作能否不经询问直接运行。费用计入您的 Model API 密钥：{price}。总额随使用的令牌数变化。选择不允许则改为显示审批卡片。",
+  "usagePaidAutoReviews": {
+    "other": "审查 {count} 次"
+  },
+  "commandRuleInvalid": "{setting}：规则 {index} 无效，未应用（{detail}）。",
+  "commandRuleInvalidKept": "{setting}：规则 {index}（{pattern}）无效（{detail}）。它仍按其模式询问或禁止，因为这只会收紧。",
+  "commandRuleExampleFailed": "{setting}：允许规则 {index}（{pattern}）的行为与其示例“{detail}”不符，因此未应用。",
+  "commandRuleExampleFailedKept": "{setting}：规则 {index}（{pattern}）的行为与其示例“{detail}”不符。它仍然生效，因为它只会收紧。",
+  "commandRuleAllowInRepository": "{setting}：规则 {index}（{pattern}）是允许规则，而存储库的规则只能收紧，因此未应用。",
+  "commandRuleAllowsEvaluator": "{setting}：允许规则 {index}（{pattern}）会允许将文本作为代码运行的命令，因此未应用。",
+  "commandRulesTooMany": "{setting}：{detail} 条规则超过了可读取的数量；规则 {index} 及之后的规则未应用。",
+  "permissionProfileUnknown": "{setting}：没有名为“{name}”的权限配置文件。在有此配置文件之前，每条 shell 命令都会询问。 在配置方案问题解决之前，文件工具会拒绝所有文件。",
+  "permissionProfileInvalid": "{setting}：配置文件“{name}”无效（{detail}）。修复之前，每条 shell 命令都会询问，文件工具会拒绝所有文件。",
+  "permissionGlobInvalid": "无法读取禁止读取的 glob“{glob}”（{detail}）。修复之前，文件工具会拒绝所有文件。",
+  "permissionRootInvalid": "{setting}：额外根目录“{root}”不是绝对路径，因此未添加。",
+  "permissionRepositoryInvalid": "{setting}：存储库的规则无效（{detail}），未应用。"
 }

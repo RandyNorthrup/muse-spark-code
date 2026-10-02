@@ -4,6 +4,7 @@
 
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
+import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
@@ -15,6 +16,18 @@ import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
 
 function acceptMessage(_message: unknown): Thenable<boolean> {
   return Promise.resolve(true)
+}
+
+/** Deterministic editor providers shared by the native checkpoint and trial fixtures. */
+export function fakeEditProviders() {
+  return {
+    format: vi.fn<VerifyHooks['formatAfterEdit']>((_file, text) =>
+      Promise.resolve(text.replace('2', '3')),
+    ),
+    diagnostics: vi.fn<VerifyHooks['diagnosticsAfterEdit']>((files) =>
+      Promise.resolve(files.map((file) => ({ file, entries: [] }))),
+    ),
+  }
 }
 
 export class FakeWebview implements vscode.Webview {

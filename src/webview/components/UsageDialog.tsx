@@ -270,6 +270,9 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'subagents': {
       return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
     }
+    case 'autoReviewer': {
+      return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
+    }
     case 'bestOfN': {
       return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
     }
@@ -331,33 +334,40 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
   return paid.alwaysAllowed.includes(feature) ? UI_TEXT.usagePaidOnAlways : UI_TEXT.usagePaidOn
 }
 
+function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'autoReviewer') {
+    return [
+      paid.tally.autoReviews,
+      paid.tally.autoReviewUnknownRequests,
+      paid.tally.autoReviewTokens,
+    ]
+  }
+  if (feature === 'bestOfN') {
+    return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
+  }
+  return [
+    paid.tally.subagentRequests,
+    paid.tally.subagentUnknownRequests,
+    paid.tally.subagentTokens,
+  ]
+}
+
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
   const state = paidRowState(feature, paid)
+  const isReview = feature === 'autoReviewer'
   const isAttempt = feature === 'bestOfN'
-  const requests = (isAttempt ? paid.tally.bestOfNRequests : paid.tally.subagentRequests) ?? 0
-  const unknown =
-    (isAttempt ? paid.tally.bestOfNUnknownRequests : paid.tally.subagentUnknownRequests) ?? 0
-  const isTokenFeature = feature === 'subagents' || isAttempt
+  const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
+  const isTokenFeature = feature === 'subagents' || isReview || isAttempt
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
-  const tokens = (isAttempt ? paid.tally.bestOfNTokens : paid.tally.subagentTokens) ?? 0
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
-  switch (feature) {
-    case 'scheduledPrompts': {
-      costDetail = UI_TEXT.usageScheduledIncluded
-      break
-    }
-    case 'subagents': {
-      costDetail = fill(UI_TEXT.usagePaidSubagentReported, { cost })
-      break
-    }
-    case 'bestOfN': {
-      costDetail = fill(UI_TEXT.usagePaidBestOfNIncluded, { cost })
-      break
-    }
-    default: {
-      break
-    }
+  if (feature === 'scheduledPrompts') {
+    costDetail = UI_TEXT.usageScheduledIncluded
+  } else if (isTokenFeature) {
+    costDetail = fill(
+      isAttempt ? UI_TEXT.usagePaidBestOfNIncluded : UI_TEXT.usagePaidSubagentReported,
+      { cost },
+    )
   }
   return (
     <>

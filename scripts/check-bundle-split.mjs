@@ -52,6 +52,12 @@ const ACTIVATION_ALLOWED = new Map([
 // goals, subagents, memory tools, permission engine and MCP client.
 const LAZY_ONLY = [
   'ModelApiHost.ts',
+  // M78: command policy and the paid, read-only Auto reviewer load with the backend.
+  'autoReviewer.ts',
+  'commandRules.ts',
+  'globLimits.ts',
+  'permissionPolicy.ts',
+  'shellSyntax.ts',
   // M67: the code intelligence tools' Model API side (reads and the rename's write).
   'codeIntelCalls.ts',
   'glob.ts',
