@@ -23,6 +23,8 @@
   "command.manageSkills.title": "スキルの管理",
   "command.importSkills.title": "Claude Code または Codex からスキルをインポート",
   "command.exportConversation.title": "会話のエクスポート",
+  "command.importSession.title": "セッションをインポート",
+  "command.openShareFile.title": "共有ファイルを開く",
   "command.mcpServers.title": "MCP サーバー",
   "command.hooks.title": "フック",
   "command.memory.title": "メモリ",

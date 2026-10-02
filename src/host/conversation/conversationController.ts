@@ -101,10 +101,11 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
-import { approvalModeFor } from '../../shared/permissionModes'
+import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type {
   ChatReference,
   HostAction,
@@ -130,6 +131,12 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
+import {
+  type PickedTransferFile,
+  readTransferDocument,
+  type SessionTransferFiles,
+} from './sessionImport'
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -316,6 +323,8 @@ export interface ConversationDeps {
   readonly museVoice: () => DictationSetup | undefined
   /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
   readonly exports: ConversationExports
+  /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
+  readonly transferFiles: SessionTransferFiles
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
@@ -423,6 +432,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'renameSession',
   'readUsage',
   'setPaidFeature',
+  'importSession',
   'savePlan',
   'implementPlan',
 ])
@@ -503,12 +513,16 @@ interface ExportNotice {
   readonly text: string
 }
 
-/** What an export that wrote nothing tells the user (M30); `exported` says nothing. */
+/**
+ * What an export that wrote nothing tells the user (M30, M84); `exported`
+ * and a closed preview (`dismissed`) say nothing.
+ */
 function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
   const notices: Readonly<Partial<Record<ExportOutcome, ExportNotice>>> = {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
     historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
     empty: { level: 'info', text: UI_TEXT.exportNothing },
+    tooLarge: { level: 'warning', text: UI_TEXT.exportTooLarge },
   }
   return notices[outcome]
 }
@@ -525,7 +539,7 @@ interface PreparedRewind {
 }
 
 /** How a session came to this surface, for the log (M39). */
-type SessionOrigin = 'started' | 'resumed' | 'forked' | 'continued after a restart'
+type SessionOrigin = 'started' | 'resumed' | 'forked' | 'imported' | 'continued after a restart'
 
 /** When a turn started and first streamed output, for its end line (M39). */
 interface TurnClock {
@@ -577,9 +591,10 @@ export interface ConversationBrief {
   readonly todos: readonly TodoItem[]
   /**
    * Whether the user approved this content here: a Plan-mode reply of this
-   * panel's conversation. Anything else (a file from the workspace) is
-   * untrusted content (PLAN.md D49): the conversation starts in a mode that
-   * asks, whatever `museSpark.initialPermissionMode` says.
+   * panel's conversation. Anything else (a file from the workspace, or a
+   * reply in a conversation that holds imported history, M84) is untrusted
+   * content (PLAN.md D49): the conversation starts in a mode that asks,
+   * whatever `museSpark.initialPermissionMode` says.
    */
   readonly isApproved: boolean
 }
@@ -690,6 +705,13 @@ export class ConversationController {
   private isSideChat: boolean
   /** Muse Code does not persist a side marker: this panel may resume only its own fork. */
   private readonly sideSessionIds = new Set<string>()
+  /**
+   * Sessions this panel opened that hold imported history (M84, PLAN.md
+   * D49), forks included: a plan written in one is untrusted content. Every
+   * such session passes through `adopt`; a resume after a restart only
+   * reopens a session this panel already had.
+   */
+  private readonly importedSessionIds = new Set<string>()
   private effort: EffortLevel = DEFAULT_EFFORT
   private isThinkingEnabled = true
   private activeTurnId: string | undefined
@@ -733,6 +755,12 @@ export class ConversationController {
   private hasConfirmedRemoteBypass = false
   /** Said once the surface is ready: why the conversation did not start as configured. */
   private startupNotice: string | undefined
+  /**
+   * Failures already shown in the panel. Everything waiting on one host
+   * start gets the same failure when it fails: it is shown once, and the
+   * other waiters only log it (0.10.0 showed one slow start six times).
+   */
+  private readonly shownFailures = new WeakSet<object>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
   /** Stops listening for the host closing this session. */
@@ -892,6 +920,25 @@ export class ConversationController {
     })
   }
 
+  /**
+   * Whether this panel is yet to show `error`, which it now counts as shown:
+   * the first of the actions sharing a failed start shows it, the rest log it.
+   */
+  private isFirstShowing(error: unknown): boolean {
+    if (typeof error === 'object' && error !== null && this.shownFailures.has(error)) {
+      return false
+    }
+    this.noteShown(error)
+    return true
+  }
+
+  /** `error` is shown in the panel (a failed message's own card says it). */
+  private noteShown(error: unknown): void {
+    if (typeof error === 'object' && error !== null) {
+      this.shownFailures.add(error)
+    }
+  }
+
   private contextLimitFor(modelId: string): number | undefined {
     return this.models?.find((model) => model.modelId === modelId)?.contextLimit
   }
@@ -1002,6 +1049,9 @@ export class ConversationController {
       if (surfaces?.size === 0) {
         sessionSurfaces.delete(session)
       }
+      // The imported mark (M84) goes with the session: an opening reads it
+      // again from the session's record (`adopt`, `resumeAfterRestart`).
+      this.importedSessionIds.delete(session.sessionId)
     }
     session?.dispose()
     this.session = undefined
@@ -2207,6 +2257,12 @@ export class ConversationController {
       loaded.session.dispose()
       this.requireCurrentOpening(generation)
     }
+    // The same conversation continues, imported history and all (M84): its
+    // mark comes back from the record, while the panel keeps the mode its
+    // user chose.
+    if (loaded.record.imported === true) {
+      this.importedSessionIds.add(loaded.session.sessionId)
+    }
     this.activeTurnId = loaded.activeTurnId
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
@@ -2388,6 +2444,8 @@ export class ConversationController {
       // A turn still running keeps its Stop and its steering (D26).
       ...(activeTurnId !== undefined && { activeTurnId }),
       ...(planTurns.size > 0 && { planTurnIds: [...planTurns] }),
+      // Someone else's file (M84): the panel offers no Insert or Apply on it.
+      ...(this.importedSessionIds.has(sessionId) && { imported: true }),
     })
   }
 
@@ -2427,11 +2485,6 @@ export class ConversationController {
     }
     this.dropSession()
     const generation = this.sendInvalidationEpoch
-    this.isSideChat = loaded.record.sideChat === true || this.deps.surface.isSideChat === true
-    if (this.isSideChat) {
-      this.permissionMode = 'plan'
-      this.postComposerState()
-    }
     const models = await host.listModels(loaded.session.sessionId)
     if (generation !== this.sendInvalidationEpoch) {
       loaded.session.dispose()
@@ -2467,9 +2520,34 @@ export class ConversationController {
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
     }
+    // A side chat runs in Plan (M53). Like the imported mode below, applied
+    // only now that this opening is still current: one overtaken by another
+    // opening must leave no mode behind.
+    this.isSideChat = loaded.record.sideChat === true || this.deps.surface.isSideChat === true
+    if (this.isSideChat) {
+      this.permissionMode = 'plan'
+      this.postComposerState()
+    }
+    // A conversation built on an imported file opens asking, every time and
+    // whatever the initial mode (M84, PLAN.md D49): only the user's own mode
+    // change relaxes it, and only until it is opened again. Applied only now
+    // that this opening is still current: an imported session overtaken by
+    // another opening must leave neither its mode nor its mark (Muse review).
+    const isImported = loaded.record.imported === true
+    if (isImported) {
+      this.importedSessionIds.add(loaded.session.sessionId)
+      this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
+      this.postComposerState()
+    }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
+    if (isImported) {
+      this.notice(
+        'info',
+        fill(UI_TEXT.importedUntrusted, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+      )
+    }
     if (loaded.history.mode === HISTORY_MODE_NONE) {
       this.notice('warning', UI_TEXT.historyNotServed)
     }
@@ -2525,8 +2603,13 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
     } catch (error: unknown) {
-      if (generation === this.sendInvalidationEpoch) {
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      if (this.isFirstShowing(error)) {
         this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
+      } else {
+        this.deps.log.error(`resumeSession failed (shown already): ${describe(error)}`)
       }
     }
   }
@@ -2822,6 +2905,11 @@ export class ConversationController {
         readonly name: string | undefined
         /** Captured from the validated live host/session, never the webview's argument alone. */
         readonly ownerRecorder: WorkspaceEditRecorder | undefined
+        /**
+         * Written over imported history (M84), read while the session is
+         * still the panel's: its mark goes when the session is dropped.
+         */
+        readonly isImported: boolean
       }
     | undefined
   > {
@@ -2874,6 +2962,7 @@ export class ConversationController {
       name: history.name,
       ownerRecorder:
         host.info.kind === 'modelApi' ? this.deps.plans?.captureOwner?.(session) : undefined,
+      isImported: this.importedSessionIds.has(session.sessionId),
     }
   }
 
@@ -2900,7 +2989,13 @@ export class ConversationController {
     itemId: string,
     generation: number,
   ): Promise<
-    | { readonly saved: SaveOutcome; readonly text: string; readonly markdown: PlanMarkdown }
+    | {
+        readonly saved: SaveOutcome
+        readonly text: string
+        readonly markdown: PlanMarkdown
+        /** The reply was written over imported history (M84). */
+        readonly isImported: boolean
+      }
     | undefined
   > {
     // Refused with its reason said first: no plans without a workspace folder.
@@ -2948,7 +3043,7 @@ export class ConversationController {
       return undefined
     }
     if (known !== undefined) {
-      return { saved: { ...known, isNew: false }, text, markdown }
+      return { saved: { ...known, isNew: false }, text, markdown, isImported: reply.isImported }
     }
     // `.agents/` is a protected path (D24): the save asks, as a protected write does.
     if (!(await plans.confirmSave())) {
@@ -2962,7 +3057,7 @@ export class ConversationController {
     this.deps.log.info(
       `Plan ${saved.isNew ? 'saved' : 'found saved'} as ${planLogName(saved.fileName)} from session ${sourceSessionId}`,
     )
-    return { saved, text, markdown }
+    return { saved, text, markdown, isImported: reply.isImported }
   }
 
   /**
@@ -3137,7 +3232,9 @@ export class ConversationController {
       if (!brief.brief.isApproved) {
         this.say(
           'info',
-          fill(UI_TEXT.planFromFileMode, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+          fill(source.kind === 'file' ? UI_TEXT.planFromFileMode : UI_TEXT.planFromImportedMode, {
+            mode: UI_TEXT.permissionModes[this.permissionMode],
+          }),
         )
       }
       // MSP has no todo command: the brief asked the model to list the steps.
@@ -3179,8 +3276,11 @@ export class ConversationController {
       const { relativePath } = outcome.saved
       const { markdown, text } = outcome
       const bytes = new TextEncoder().encode(markdown.briefText(text))
+      // A reply written over imported history (M84) may be that history's
+      // doing: untrusted, as a plan file is, so the new conversation asks.
+      const isApproved = !outcome.isImported
       return {
-        brief: planBrief(relativePath, bytes, planSteps(markdown, text), true),
+        brief: planBrief(relativePath, bytes, planSteps(markdown, text), isApproved),
         relativePath,
         hasRawHtml: markdown.hasRawHtml(text),
       }
@@ -3744,7 +3844,9 @@ export class ConversationController {
         this.attachments.release(attachmentIds)
       }
       // A composer message's images were not released: the composer gets
-      // them back for another try. A brief's go with its card.
+      // them back for another try. A brief's go with its card. The card
+      // says why, so whatever else waited on the same start only logs it.
+      this.noteShown(error)
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
       return { isAccepted: false, hasSetTodos: false }
     }
@@ -4186,12 +4288,23 @@ export class ConversationController {
     }
   }
 
+  /**
+   * The skills for the palette and the slash menu, asked for each time one
+   * opens: a read in the background, so a session that does not start is
+   * logged here, never shown (a send or the panel's warm-up says it once).
+   */
   private async listSkills(): Promise<void> {
     if (this.skills !== undefined) {
       this.postSkills()
       return
     }
-    const session = await this.sessionForAction()
+    let session: AgentSession | undefined
+    try {
+      session = await this.sessionForAction()
+    } catch (error: unknown) {
+      this.deps.log.warn(`The skills were not listed: ${describe(error)}`)
+      return
+    }
     if (session !== undefined) {
       await this.refreshSkills(session)
     }
@@ -4629,6 +4742,133 @@ export class ConversationController {
     }
   }
 
+  /**
+   * A picked session-export file, parsed (M84, PLAN.md D49); undefined, with
+   * the reason posted, when it was dismissed or cannot be used.
+   */
+  private async pickTransferDocument(
+    title: string,
+    failure: string,
+  ): Promise<SessionExport | undefined> {
+    let picked: PickedTransferFile
+    try {
+      picked = await this.deps.transferFiles.pickTransferFile(title)
+    } catch (error: unknown) {
+      this.notice('error', `${failure}: ${describe(error)}`)
+      return undefined
+    }
+    if (this.isDisposed || picked.kind === 'dismissed') {
+      return undefined
+    }
+    if (picked.kind === 'tooLarge') {
+      this.notice('error', `${failure}: ${UI_TEXT.transferTooLarge}`)
+      return undefined
+    }
+    const parsed = readTransferDocument(picked.content)
+    if (!parsed.ok) {
+      this.notice('error', `${failure}: ${parsed.reason}`)
+      return undefined
+    }
+    if (parsed.doc.transcript.length === 0) {
+      this.notice('info', UI_TEXT.transferEmpty)
+      return undefined
+    }
+    return parsed.doc
+  }
+
+  /**
+   * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
+   * new conversation on the Model API backend, on the user's own model, in a
+   * mode that asks (`adopt` applies it, as on every later opening).
+   */
+  private async importSession(): Promise<void> {
+    if (this.deps.surface.isSideChat === true) {
+      this.notice('warning', UI_TEXT.sideChatSessionOnly)
+      return
+    }
+    if (this.refuseAction() !== undefined) {
+      return
+    }
+    // Disposing drops the session, which moves the epoch on: each check
+    // after an await covers a closed panel too.
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      if (host.importSession === undefined) {
+        this.notice('info', UI_TEXT.importSessionUnavailable)
+        return
+      }
+      const doc = await this.pickTransferDocument(
+        UI_TEXT.importPreviewTitle,
+        UI_TEXT.importSessionFailed,
+      )
+      if (doc === undefined || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      // Refused before the confirmation (RV84 #10): a file past what the
+      // model can read is not offered for import at all.
+      const refusal = importRefusal(doc)
+      if (refusal !== undefined) {
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${refusal}`)
+        return
+      }
+      await this.ensureModels(host)
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      const mode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
+      const isConfirmed = await this.deps.transferFiles.confirmImport(
+        UI_TEXT.importPreviewTitle,
+        fill(UI_TEXT.importPreviewDetail, {
+          source: backendLabel(doc.sourceBackend),
+          messages: plural(UI_TEXT.exportPreviewMessages, messageCount(doc.transcript)),
+          model: this.modelId,
+          mode: UI_TEXT.permissionModes[mode],
+        }),
+      )
+      if (!isConfirmed || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      this.watchList(host)
+      const loaded = await host.importSession(doc, {
+        approvalMode: approvalModeFor(mode, this.deps.hasApprovalUi),
+        modelId: this.modelId,
+      })
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return
+      }
+      await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
+    } catch (error: unknown) {
+      if (generation === this.sendInvalidationEpoch) {
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`)
+      }
+    }
+  }
+
+  /**
+   * "Open share file…" (M84): a picked export file shown read-only in the
+   * panel. Nothing reaches a session or a model; the panel only renders it.
+   */
+  private async openShareFile(): Promise<void> {
+    const doc = await this.pickTransferDocument(UI_TEXT.openShareTitle, UI_TEXT.shareFailed)
+    if (doc === undefined || this.isDisposed) {
+      return
+    }
+    this.post({
+      type: 'sharePreview',
+      title: doc.name ?? UI_TEXT.exportDefaultTitle,
+      exportedAt: doc.exportedAt,
+      sourceBackend: doc.sourceBackend,
+      modelId: doc.modelId,
+      redacted: doc.redacted,
+      items: doc.transcript,
+    })
+  }
+
   /** The Agent map asked for a subagent's own transcript (M14). */
   private async readChildSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
@@ -4768,7 +5008,12 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
-      this.say('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+      // Whatever else waited on the same start fails with it now; a message's
+      // own card says it better, so this says it only if nothing else did.
+      await new Promise((resolve) => setImmediate(resolve))
+      if (this.isFirstShowing(error)) {
+        this.say('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+      }
     }
   }
 
@@ -4989,6 +5234,14 @@ export class ConversationController {
         await this.exportConversation(message.format)
         break
       }
+      case 'importSession': {
+        await this.importSession()
+        break
+      }
+      case 'openShareFile': {
+        await this.openShareFile()
+        break
+      }
       case 'listSkills': {
         await this.listSkills()
         break
@@ -5146,14 +5399,17 @@ export class ConversationController {
   /**
    * Runs one message from the webview. The caller does not wait (a `void`
    * call), so a failure no step in `dispatch` caught would reach only VS Code's
-   * Extension Host log: it is logged here, with its stack, and said (M39).
+   * Extension Host log: it is logged here, with its stack, and said (M39),
+   * unless the panel showed this very failure already (a shared start).
    */
   public async handle(message: ConversationMessage): Promise<void> {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
       this.deps.log.error(`${message.type} failed: ${errorDetail(error)}`)
-      this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
+      if (this.isFirstShowing(error)) {
+        this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
+      }
     }
   }
 

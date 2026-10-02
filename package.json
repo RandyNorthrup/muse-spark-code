@@ -168,6 +168,16 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.importSession",
+        "title": "%command.importSession.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openShareFile",
+        "title": "%command.openShareFile.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.mcpServers",
         "title": "%command.mcpServers.title%",
         "category": "%command.category%"
@@ -268,6 +278,14 @@
         },
         {
           "command": "museSpark.exportConversation",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.importSession",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.openShareFile",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         },
         {
@@ -682,6 +700,7 @@
     "test:unit": "vitest run --coverage",
     "test:e2e:live": "vitest run test/e2e/live.e2e.test.ts",
     "test:e2e:live:modelapi": "vitest run test/e2e/modelApi.live.e2e.test.ts",
+    "test:e2e:live:eval": "vitest run test/e2e/eval.live.e2e.test.ts",
     "test:integration": "run-s build:dev test:integration:run",
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",

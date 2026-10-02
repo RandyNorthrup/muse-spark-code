@@ -68,6 +68,7 @@ import {
   approvalModeFor,
   availablePermissionModes,
   permissionModeDetail,
+  untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { formAnswers, questionForm, questionsText } from './questions'
@@ -897,6 +898,7 @@ class AgentState {
     models: readonly ModelSummary[],
     claim: SessionClaim,
     prepare: (acp: AcpSession) => Promise<void>,
+    isImported = false,
   ): Promise<AcpSession> {
     // A session loaded again replaces the one held, and one still being set
     // up by an earlier load, before anything runs on it: both hosts hand
@@ -919,7 +921,9 @@ class AgentState {
         this.clientCapabilities,
         models,
         this.deps,
-        this.deps.options.initialMode,
+        isImported
+          ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
+          : this.deps.options.initialMode,
         session.modelId,
       )
       this.adopting.set(sessionId, acp)
@@ -1123,6 +1127,7 @@ class AgentState {
           await resumed.replay([...loaded.history.items])
           resumed.sendPlan(loaded.history.todos)
         },
+        loaded.record.imported === true,
       )
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
