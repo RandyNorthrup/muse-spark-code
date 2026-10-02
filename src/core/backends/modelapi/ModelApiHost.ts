@@ -224,6 +224,7 @@ import {
   toolMatcherNames,
 } from './hooks'
 import { postModelCallFields, preModelCallFields } from './modelCallHooks'
+import { ObservationPack } from './observationPack'
 import { nextScheduleFire } from './schedules'
 import {
   type BudgetBase,
@@ -394,6 +395,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly sessionBudgetUsd: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
+  /**
+   * Observation packing (M73, PLAN.md D49): `museSpark.modelApiObservationPacking`,
+   * or the M75 eval's `packing` arm. Read when a session is created or
+   * resumed: true packs that session's outputs for its life; absent or
+   * false packs nothing and offers no `recall_output`.
+   */
+  readonly observationPacking?: (() => boolean) | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -1675,6 +1683,14 @@ export class ModelApiSession implements AgentSession {
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
+  /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
+  private readonly packing: ObservationPack | undefined
+  /**
+   * The ledger total a resumed session brought (M73), kept so a save keeps
+   * it even where this session does not pack; a packing session's store
+   * carries it on instead.
+   */
+  private restoredPackedTokens: number | undefined
   private mediaNoticeSent = false
   /**
    * The PDFs and images `read_file` read this round (M54): they follow the
@@ -1777,6 +1793,10 @@ export class ModelApiSession implements AgentSession {
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    // Packing is a full session's own store (its originals); a subagent's
+    // calls are its parent's conversation to pack, never its own.
+    this.packing =
+      !isSubagent && deps.observationPacking?.() === true ? new ObservationPack() : undefined
     const { memory } = deps
     this.context = new WorkspaceContext({
       io: deps.contextIo,
@@ -2354,7 +2374,10 @@ export class ModelApiSession implements AgentSession {
     const context = this.context.sections()
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     const repoMap = this.promptRepoMap()
-    const input = this.budget.fit(this.replay.map((entry) => entry.item))
+    const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
+    // Packing projects per request only: the replay keeps the originals, so
+    // a later request (or a restore) packs from the full outputs again.
+    const input = this.packing?.project(fitted) ?? fitted
     if (this.budget.omitted && !this.mediaNoticeSent) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.olderMediaOmitted })
       this.mediaNoticeSent = true
@@ -2407,7 +2430,13 @@ export class ModelApiSession implements AgentSession {
     let hasChanged = false
     for (const [index, entry] of requestReplay.entries()) {
       const fitted = fittedInput[index]
-      if (fitted === undefined || fitted === entry.item) {
+      if (
+        fitted === undefined ||
+        fitted === entry.item ||
+        // A placeholder stands in for one request only: the replay keeps
+        // the original, so a later request packs from the full output.
+        this.packing?.isPlaceholder(fitted) === true
+      ) {
         continue
       }
       const currentIndex = this.replay.indexOf(entry)
@@ -2441,6 +2470,7 @@ export class ModelApiSession implements AgentSession {
       hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent: this.isSubagent,
       hasMemory,
+      hasPackedRecall: this.packing !== undefined,
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
@@ -2635,7 +2665,11 @@ export class ModelApiSession implements AgentSession {
         if (reservation !== undefined) {
           reservation.isSent = true
         }
-        if (directBudget !== undefined) {
+        if (directBudget === undefined) {
+          // Packing counts the conversation's request only once it is really
+          // sent (M73); a direct review's body is not the conversation's.
+          this.packing?.noteSent(body.input)
+        } else {
           directBudget.isSent = true
         }
         this.deps.admitResponseAttempt?.onRequestStarted?.()
@@ -2876,7 +2910,7 @@ export class ModelApiSession implements AgentSession {
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
     this.deps.noteResponseUsage?.(sentModelId, billable)
-    this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
+    this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
 
@@ -2910,6 +2944,19 @@ export class ModelApiSession implements AgentSession {
         }),
       })
     }
+  }
+
+  /**
+   * The session's token totals (M73 carries the packing ledger while it
+   * runs, so Account & usage shows the row only then).
+   */
+  private emitUsage(): void {
+    this.emit({
+      type: 'tokenUsage',
+      ...this.usage,
+      modelId: this.modelId,
+      ...(this.packing !== undefined && { packedTokensAvoided: this.packing.savings() }),
+    })
   }
 
   private noteContext(usedTokens: number): void {
@@ -4243,6 +4290,18 @@ export class ModelApiSession implements AgentSession {
   }
 
   /**
+   * A `recall_output` call (M73): pages a packed original back. A read of
+   * the session's own earlier output, so it runs in every mode without a
+   * card. Without packing the tool is not offered, and a model that calls
+   * it anyway is told so, never run.
+   */
+  private recallPacked(call: FunctionCallItem): ToolOutcome {
+    return this.packing === undefined
+      ? toolFailure(`unknown tool ${call.name}`)
+      : this.packing.recall(call.arguments)
+  }
+
+  /**
    * An image call checked (M34, M44): the feature on, the arguments, the
    * output path and every source. Found before the card, so nothing is asked
    * or billed for an image that could not be made, and again after it.
@@ -4600,7 +4659,7 @@ export class ModelApiSession implements AgentSession {
       }
       this.usage = nextUsage
       child.usage = { ...latest }
-      this.emit({ type: 'tokenUsage', ...this.usage, modelId: this.modelId })
+      this.emitUsage()
       this.updateChild(child)
       return
     }
@@ -5180,6 +5239,9 @@ export class ModelApiSession implements AgentSession {
       }
       case MODEL_API_TOOLS.readSkill: {
         return { outcome: await this.readSkill(call) }
+      }
+      case MODEL_API_TOOLS.recallOutput: {
+        return { outcome: this.recallPacked(call) }
       }
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
@@ -6485,7 +6547,8 @@ export class ModelApiSession implements AgentSession {
         call.name === MODEL_API_TOOLS.createGoal ||
         call.name === MODEL_API_TOOLS.getGoal ||
         call.name === MODEL_API_TOOLS.updateGoal ||
-        call.name === MODEL_API_TOOLS.reportProgress)
+        call.name === MODEL_API_TOOLS.reportProgress ||
+        call.name === MODEL_API_TOOLS.recallOutput)
     ) {
       return { outcome: subagentFailure('tool unavailable to a subagent'), isRejected: true }
     }
@@ -8059,6 +8122,9 @@ export class ModelApiSession implements AgentSession {
         content: [{ type: 'input_text', text: `${MODEL_TEXT.compactionPrefix}\n\n${summary}` }],
       },
     })
+    // The packed originals left with the replay; the ledger stays, a
+    // session total like the token counts.
+    this.packing?.reset()
     this.compactedThroughTurnId = this.turnIds.at(-1)
     this.appendHookContexts(COMPACTION_TURN_ID, post.contexts)
     const item: ItemSnapshot = {
@@ -9035,6 +9101,7 @@ export class ModelApiSession implements AgentSession {
       .budgetIsFreshFork
       ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
       : {}
+    const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
     return {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
@@ -9061,6 +9128,7 @@ export class ModelApiSession implements AgentSession {
       usage: { ...this.usage },
       ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
       ...freshFork,
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
@@ -9117,6 +9185,10 @@ export class ModelApiSession implements AgentSession {
     this.usage = { ...stored.usage }
     this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
     this.budgetAccountId = stored.accountId
+    // The packing ledger is a session total like the token counts: a
+    // session saved before it was kept carries none, so it starts at zero.
+    this.restoredPackedTokens = stored.packedTokensAvoided
+    this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
     this.status = IDLE
     this.pendingChildResults.push(
       ...(stored.pendingChildResults ?? []).map((stored) => pendingFromStored(stored)),

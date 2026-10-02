@@ -1,60 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EVAL_MODEL_ID, EVAL_TURN_TIMED_OUT, MODEL_TEXT } from '../../../src/shared/constants'
-import { runEvalTurn, type EvalHostChange } from '../../../src/core/eval/driver'
-import { memoryContextIo } from '../helpers/fakeContextIo'
+import type { EvalHostChange } from '../../../src/core/eval/driver'
+import { driveEvalTurn, EVAL_TURN_ROOT as ROOT, type DrivenEvalTurn } from '../helpers/evalTurn'
 import {
-  FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
   fakeModelApiClient,
   type FakeModelApi,
   type ScriptedReply,
 } from '../helpers/fakeModelApi'
 import { FakeLogOutputChannel } from '../helpers/fakes'
-import { memoryToolIo, type MemoryToolIo } from '../helpers/fakeToolIo'
 
-const ROOT = '/ws'
 const TOTAL = 'export function sumAll(items) {\n  return items.length\n}\n'
 const SHORT_TURN_MS = 50
 
 const toolListSchema = z.array(z.object({ name: z.optional(z.string()), type: z.string() }))
 const outputSchema = z.object({ type: z.literal('function_call_output'), output: z.string() })
 
-interface Driven {
-  readonly api: FakeModelApi
-  readonly io: MemoryToolIo
-  readonly outcome: Awaited<ReturnType<typeof runEvalTurn>>
-}
-
 async function drive(
   replies: readonly ScriptedReply[],
   options: { change?: EvalHostChange; turnTimeoutMs?: number } = {},
-): Promise<Driven> {
-  const api = fakeModelApi()
-  api.script(...replies)
-  const log = new FakeLogOutputChannel()
-  const io = memoryToolIo({ 'total.js': TOTAL }, ROOT)
-  let ids = 0
-  const outcome = await runEvalTurn({
-    deps: {
-      client: fakeModelApiClient(api, log),
-      io,
-      contextIo: memoryContextIo(io.files),
-      platform: 'linux',
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      log,
-      now: () => 0,
-      newId: () => {
-        ids += 1
-        return `id${String(ids)}`
-      },
-      turnTimeoutMs: options.turnTimeoutMs,
-    },
-    workspace: ROOT,
+): Promise<DrivenEvalTurn> {
+  return await driveEvalTurn({
+    replies,
+    files: { 'total.js': TOTAL },
     prompt: 'Fix total.js.',
     change: options.change,
+    turnTimeoutMs: options.turnTimeoutMs,
   })
-  return { api, io, outcome }
 }
 
 /** The tool results the model was sent in the `index`th request. */

@@ -1427,6 +1427,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     webFetch,
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
+    isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),

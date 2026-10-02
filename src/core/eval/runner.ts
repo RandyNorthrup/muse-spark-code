@@ -193,6 +193,10 @@ async function runTask(
     questions: outcome?.questions ?? 0,
     paidRefusals: outcome?.paidRefusals ?? 0,
     order,
+    ...(outcome?.packedTokensAvoided !== undefined && {
+      packedTokensAvoided: outcome.packedTokensAvoided,
+    }),
+    recalls: outcome?.recalledOutputs.length ?? 0,
   }
 }
 

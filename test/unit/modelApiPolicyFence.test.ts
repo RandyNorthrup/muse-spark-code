@@ -428,6 +428,17 @@ const CASES: readonly FenceCase[] = [
   childControl('subagent_send_message', { subagent_id: CHILD, message: 'one more thing' }),
   childControl('subagent_cancel', { subagent_id: CHILD }),
   {
+    tool: 'recall_output',
+    args: { id: 'never-packed' },
+    hold: {
+      at: 'none',
+      reason:
+        "pages the session's own packed output back: no await or callback between its admission and the fence",
+    },
+    change: { kind: 'trust' },
+    leak: null,
+  },
+  {
     tool: 'web_fetch',
     args: { url: 'https://docs.example.com/guide' },
     hold: { at: 'fetch' },
@@ -708,6 +719,8 @@ function fixture(c: FenceCase) {
     ideTools: [ide],
     webFetch,
     codeIntel: heldService(service, point === 'service', held, count),
+    // Packing (M73) offers recall_output: only its row packs.
+    observationPacking: () => c.tool === 'recall_output',
     // The checks would run after every edit: only the case that runs them has them.
     ...(c.tool === 'run_checks' && { verify }),
     loadHooks: () => Promise.resolve([]),
@@ -897,6 +910,7 @@ const ALL_TOOLS: ToolDefinitionOptions = {
   hasImageGeneration: true,
   hasSubagents: true,
   hasMemory: true,
+  hasPackedRecall: true,
   checks: [CHECK],
   hasWebFetch: true,
   hasCodeIntel: true,

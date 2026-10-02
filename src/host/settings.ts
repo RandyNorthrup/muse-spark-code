@@ -66,6 +66,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
 
   /** The repo map in the Model API's system prompt (M67). */
   readonly modelApiRepoMap: boolean
+  /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
+  readonly modelApiObservationPacking: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** Notify when a turn needs attention while the window is unfocused (M82). */
@@ -116,6 +118,7 @@ const settingSchemas = {
   formatOnEdit: z.boolean(),
 
   modelApiRepoMap: z.boolean(),
+  modelApiObservationPacking: z.boolean(),
   turnCheckpoints: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
@@ -192,6 +195,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     checkCommands: readSetting(config, 'checkCommands', log),
     formatOnEdit: readSetting(config, 'formatOnEdit', log),
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
+    modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),

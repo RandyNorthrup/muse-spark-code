@@ -223,6 +223,12 @@ function TokensSection({
             <dd>{contextValue}</dd>
           </>
         )}
+        {usage?.packedTokensAvoided === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.usagePackedAvoided}</dt>
+            <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
+          </>
+        )}
         {costUsd !== undefined && (
           <>
             <dt>{UI_TEXT.usageCost}</dt>

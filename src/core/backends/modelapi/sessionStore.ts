@@ -110,6 +110,12 @@ export interface StoredSession {
   readonly budgetSpentUsd?: number
   /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
   readonly budgetIsFreshFork?: true
+  /**
+   * Observation packing's ledger (M73): the estimated tokens packed sends
+   * left out. Absent where the session never packed, and in a file saved
+   * before the ledger was kept, which resumes at zero.
+   */
+  readonly packedTokensAvoided?: number
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -255,6 +261,8 @@ const storedSessionFields = {
   // which would give the cap room it does not have.
   budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
   budgetIsFreshFork: z.optional(z.literal(true)),
+  // Optional, so a session saved before M73 kept its ledger still reads.
+  packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -323,6 +331,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     spawnCommands,
     budgetSpentUsd,
     budgetIsFreshFork,
+    packedTokensAvoided,
     ...rest
   } = result.data
   const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
@@ -382,6 +391,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
         ),
       }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
     },
   }
 }
