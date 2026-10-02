@@ -38,25 +38,14 @@ happened, not what was planned; superseded entries are kept.
     for it and then goes into the review turn.
   - 70 new strings in the 14 tables (the word for review in Simplified
     Chinese is the table's existing 审阅).
+  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
+    review turn's text, the Plan-mode hold and edit review (Open diff and
+    Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
+    first time one is used; a module that cannot be loaded refuses the review
+    with `reviewUnavailable` and the log has the cause.
 
 ### Changed
 
-- **The review loads on first use** (M70, PLAN.md D6). Git's material, the
-  review turn's text, the Plan-mode hold and edit review (Open diff and
-  Revert) are the new `dist/review.js` (40.8 KiB, budget 50), required the
-  first time one is used; a module that cannot be loaded refuses the review
-  with `reviewUnavailable` and the log has the cause.
-- Removed M70's empty English-table build workaround in preparation for the
-  approved shared `dist/uiText.js` fallback. Review model text remains in
-  `REVIEW_MODEL_TEXT` so bundles that never review do not carry it.
-- The review's git calls run as the prompt's git facts do
-  (`GIT_METADATA_OPTIONS`: no fsmonitor hook, no signature program, and
-  `--no-replace-objects`, so a replace ref cannot show other commits than
-  history holds) and share their reader of configured filter names; the
-  physical identity of a workspace folder is one helper for the review and
-  the ACP agent's Model API hosts.
-- Model API session-only model text is a separate constants block, allowing
-  activation to discard it and fit Review under the unchanged 600 KiB cap.
 - The Node bundles share their English fallback as `dist/uiText.js`, while
   installed-language state stays local to each bundle. The VSIX and ACP
   tarball include it, and CI checks both package member lists. Existing
@@ -69,18 +58,7 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
-- Unreadable stored patches refuse edit description and count as omitted
-  edits in the review pane, including beside valid patches.
-- Reviewer system instructions omit repository-owned git metadata, retaining
-  date and workspace rules; git material stays in its untrusted turn block.
-- Revert rechecks dirty editor buffers inside checkpoint write/delete
-  admission, including the original linked editor path, before touching disk.
-- Late review acknowledgements are fenced to the submitted session and
-  generation before checkpoint or turn acceptance, so a cleared conversation
-  cannot inherit an old running turn.
-- Review admission waits for an ordinary permission-mode request to settle;
-  a refused request cannot launch a review under the preceding backend mode.
-- **Revert on an edit no longer overwrites unsaved editor changes** (M70).
+- **Revert on an edit no longer overwrites unsaved editor changes**.
   Edit review's Revert and the pane's hunk Revert refuse a file whose editor
   is dirty (the file itself or a link to it), recheck that and the
   workspace confinement after the saved text is read, serialize writes to
@@ -88,25 +66,6 @@ happened, not what was planned; superseded entries are kept.
   write the checked canonical target; a failed write frees the next one.
   They tell live verification about the write without creating an edit
   round of the agent's own.
-- Branch review base and merge-base facts now remain inside the untrusted
-  material block, including a base selected from the repository picker.
-- Pane reads that finish or fail after conversation replacement no longer
-  publish old results into the replacement conversation.
-- A review refused after exhausting its untrusted-material marker retries
-  now shows the installed display language's cancellation message.
-- The review's changed files reach the reviewer as paths (a rename as
-  `old → new`) instead of git's status lines, read from git's NUL-separated
-  output, so a file that may hold secrets in a folder git quotes (a `"` or
-  `\` in its name) is still left out and only named.
-- The review's diff never exceeds its 200,000-character cap: a line break
-  exactly at the cap had kept one character more.
-- A word after `/review branch` or `/review commit` longer than 256
-  characters is read as text to review, as a word starting with `-` is,
-  instead of being refused as instructions too long.
-- The review pane answers a Revert or a list that a backend restart or a
-  lapsed sign-in interrupted instead of leaving it waiting, and a Revert
-  that wrote nothing can be pressed again instead of being refused as
-  already reverted. A cleared or other conversation still hears nothing.
 
 ## [0.10.0] - 2026-10-01
 
