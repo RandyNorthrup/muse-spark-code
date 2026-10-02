@@ -6,7 +6,11 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { credentialCue, maskValues } from '../../src/core/import/importCredentials'
+import {
+  credentialCue,
+  type CredentialCue,
+  maskValues,
+} from '../../src/core/import/importCredentials'
 import { CREDENTIAL_LEAKS, leakSecret, ORDINARY_LINES } from './helpers/credentialLeaks'
 import { SYNTHETIC } from './helpers/syntheticTokens'
 
@@ -38,24 +42,56 @@ describe('credentialCue', () => {
     },
   )
 
-  it.each([
-    ['an assignment', 'GITHUB_TOKEN=abc node x.js', 'name'],
-    ['a flag and its value', './server --api-key abc', 'name'],
-    ['a value on a later line', 'password:\n\n  hunter2', 'name'],
-    ['a bearer value', `curl -H "X: Bearer ${SYNTHETIC.bearerValue}"`, 'name'],
-    ['an encoded Basic value', 'curl -H "X-Proxy: Basic ZGVtbzpkZW1vZGVtbw=="', 'name'],
-    ['user-info', 'git clone https://me:pw@example.test/repo', 'url'],
-    ['user-info without a scheme', 'see //me:pw@example.test/repo', 'url'],
-    ['a credential-named query parameter', 'https://example.test/x?key=abc', 'url'],
-    ['a GitHub token', `gh auth ${SYNTHETIC.githubToken}`, 'token'],
-    ['an OpenAI-style key', `run ${SYNTHETIC.openAiKey}`, 'token'],
-    ['a Slack token', `post ${SYNTHETIC.slackToken}`, 'token'],
-    ['an AWS access key', `aws ${SYNTHETIC.awsAccessKey}`, 'token'],
-    ['a JSON Web Token start', 'jwt eyJdemo.eyJdemo.sig done', 'token'],
-    ['a private key', ['-----BEGIN RSA', 'PRIVATE KEY-----'].join(' '), 'token'],
-    ['a long mixed-case run with digits', `npx server ${'aB3'.repeat(14)}`, 'opaque'],
-    ['a long hex run', `npx server ${'0a'.repeat(20)}`, 'opaque'],
-  ])('names %s as a %s cue', (_name, text, cue) => {
+  it.each<{ readonly name: string; readonly text: string; readonly cue: CredentialCue }>([
+    { name: 'an assignment', text: 'GITHUB_TOKEN=abc node x.js', cue: 'name' },
+    { name: 'a flag and its value', text: './server --api-key abc', cue: 'name' },
+    { name: 'a value on a later line', text: 'password:\n\n  hunter2', cue: 'name' },
+    {
+      name: 'a bearer value',
+      text: `curl -H "X: Bearer ${SYNTHETIC.bearerValue}"`,
+      cue: 'name',
+    },
+    {
+      name: 'an encoded Basic value',
+      text: 'curl -H "X-Proxy: Basic ZGVtbzpkZW1vZGVtbw=="',
+      cue: 'name',
+    },
+    { name: 'user-info', text: 'git clone https://me:pw@example.test/repo', cue: 'url' },
+    { name: 'user-info without a scheme', text: 'see //me:pw@example.test/repo', cue: 'url' },
+    {
+      name: 'a credential-named query parameter',
+      text: 'https://example.test/x?key=abc',
+      cue: 'url',
+    },
+    { name: 'a GitHub token', text: `gh auth ${SYNTHETIC.githubToken}`, cue: 'token' },
+    { name: 'an OpenAI-style key', text: `run ${SYNTHETIC.openAiKey}`, cue: 'token' },
+    { name: 'a Slack token', text: `post ${SYNTHETIC.slackToken}`, cue: 'token' },
+    { name: 'an AWS access key', text: `aws ${SYNTHETIC.awsAccessKey}`, cue: 'token' },
+    { name: 'a JSON Web Token start', text: 'jwt eyJdemo.eyJdemo.sig done', cue: 'token' },
+    {
+      name: 'a private key',
+      text: ['-----BEGIN RSA', 'PRIVATE KEY-----'].join(' '),
+      cue: 'token',
+    },
+    {
+      name: 'a long mixed-case run with digits',
+      text: `npx server ${'aB3'.repeat(14)}`,
+      cue: 'opaque',
+    },
+    { name: 'a long hex run', text: `npx server ${'0a'.repeat(20)}`, cue: 'opaque' },
+    // Steps no other spelling covers: a run a shell joins from quoted halves,
+    // and a token split by an invisible character.
+    {
+      name: 'a long run joined from quoted halves',
+      text: `npx server '${'aB3'.repeat(6)}''${'aB3'.repeat(6)}'`,
+      cue: 'opaque',
+    },
+    {
+      name: 'a zero-width space inside a token',
+      text: SYNTHETIC.githubToken.split('_').join(`_${String.fromCodePoint(0x20_0b)}`),
+      cue: 'token',
+    },
+  ])('names $name as a $cue cue', ({ text, cue }) => {
     expect(credentialCue([text])).toBe(cue)
   })
 

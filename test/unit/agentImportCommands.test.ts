@@ -1209,24 +1209,31 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
   })
 })
 
+/**
+ * The window shows another folder from the `at`-th identity lookup on,
+ * while that lookup still identifies the old one.
+ */
+function folderChangedAtLookup(at: number) {
+  const io = memoryImportIo({ files: FILES })
+  const state = { live: WS, lookups: 0 }
+  const identifyRoot = io.identifyRoot
+  io.identifyRoot = async (root) => {
+    const identity = await identifyRoot(root)
+    if (++state.lookups === at) state.live = '/other'
+    return identity
+  }
+  return { io, state, currentRoot: () => state.live }
+}
+
 // RV83d #6: the window's folder can change while the folder's identity is
 // awaited; what was identified is then only the folder it showed before.
 describe('importFromAgents: a folder that changes during the last root check', () => {
   it('copies no project hooks when the folder changes during the final identity lookup', async () => {
-    const io = memoryImportIo({ files: FILES })
-    let live = WS
-    let lookups = 0
-    const identifyRoot = io.identifyRoot
-    io.identifyRoot = async (root) => {
-      const identity = await identifyRoot(root)
-      // The third lookup is the last one before the clipboard; it still
-      // identifies the old folder, which the window no longer shows.
-      if (++lookups === 3) live = '/other'
-      return identity
-    }
-    const flow = run({ io, pick: projectHooksOnly, currentRoot: () => live })
+    // The request's own lookup, then one per copy check: the third is the last before the clipboard.
+    const { io, state, currentRoot } = folderChangedAtLookup(3)
+    const flow = run({ io, pick: projectHooksOnly, currentRoot })
     await flow.done
-    expect(lookups).toBe(3)
+    expect(state.lookups).toBe(3)
     expect(flow.clipboard).toEqual([])
     expect(flow.opened).toEqual([])
     expect(flow.warnings).toContain(`.muse/hooks.json: ${UI_TEXT.agentImportSkippedChanged}`)
@@ -1251,17 +1258,9 @@ describe('importFromAgents: a folder that changes during the last root check', (
   })
 
   it('writes no project file when the folder changes during the identity lookup before it', async () => {
-    const io = memoryImportIo({ files: FILES })
-    let live = WS
-    let lookups = 0
-    const identifyRoot = io.identifyRoot
-    io.identifyRoot = async (root) => {
-      const identity = await identifyRoot(root)
-      // The first lookup binds the request; the second is the write's own.
-      if (++lookups === 2) live = '/other'
-      return identity
-    }
-    const flow = run({ io, pick: projectOnly, currentRoot: () => live })
+    // The first lookup binds the request; the second is the write's own.
+    const { io, currentRoot } = folderChangedAtLookup(2)
+    const flow = run({ io, pick: projectOnly, currentRoot })
     await flow.done
     expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
     expect(flow.events.some((event) => event.startsWith('user '))).toBe(false)

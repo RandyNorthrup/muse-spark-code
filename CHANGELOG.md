@@ -16,9 +16,11 @@ happened, not what was planned; superseded entries are kept.
   project's `CLAUDE.md`, Cursor rules and `.cursorrules` become headed
   sections of its `AGENTS.md`. Your MCP servers (`~/.claude.json`, Codex
   `config.toml`, Cursor `mcp.json`) and Claude Code hooks are converted to
-  Muse Code's entries, masked, copied for you to paste into Muse Code's
-  `settings.json` or the project's `.muse/hooks.json`, which the extension
-  never writes. A read-only preview shows everything first; nothing is
+  Muse Code's entries, `env` and header values masked, copied for you to
+  paste into Muse Code's `settings.json` or the project's
+  `.muse/hooks.json`, which the extension never writes. An entry that may
+  hold a credential is not imported at all: the preview lists it for you to
+  copy yourself. A read-only preview shows everything first; nothing is
   written until you choose Import, and an existing file is never replaced.
   A repository's entries are read only in a trusted workspace, confined to
   it, and offered only for that project's files. Codex's `config.toml` is
@@ -44,7 +46,8 @@ happened, not what was planned; superseded entries are kept.
   accidental full `zod` import); importing `zod/mini`, as the converter does,
   brought it to 104.0 KiB, the second review's quoted-URL fix to 104.4 KiB,
   and the third review's masking redesign to 104.1 KiB.
-  See `docs/certification/m83b.md`; these repairs are not release certification.
+  See `docs/certification/m83b.md` and `m83d.md`; these repairs are not
+  release certification.
 - Refused copy-only imports now count as not imported in notifications and logs.
   A fully refused import reports its counts as a warning without a success
   completion; native editor safety refusals also reach the result.
@@ -67,7 +70,38 @@ happened, not what was planned; superseded entries are kept.
   sometimes masked too (`keyboard shortcuts`); the preview shows it. Masking
   takes linear time: each reported slow line of 64,000 characters takes
   milliseconds (one took 13.8 s). Server `env`, header and URL fields are
-  still masked whole, their names, host and path kept.
+  still masked whole, their names, host and path kept. (Superseded by the
+  refusal below.)
+- **The import refuses an entry that may hold a credential instead of
+  masking it** (M83, fourth review). A fourth review round (RV83d) found
+  the masker still showing credentials through a value on the next line, a
+  shell line continuation, a credential name joined from quoted parts, a
+  JSON-escaped or Unicode-suffixed name, and a query after whitespace; four
+  rounds each found a new spelling. Now every entry (a rules file, a
+  command, an agent, a hook, an MCP server with its arguments, `env`,
+  headers and URL) is read whole, as written, as a shell or a JSON or URL
+  decoder would join it, and with punctuation removed. A credential-like
+  name with a value, URL user-info or a credential query parameter, a known
+  token shape, or a long random-looking value refuses the whole entry:
+  nothing of it is written or copied, and the preview lists it under **Not
+  imported: may hold a credential — copy it yourself** with the kind of cue,
+  never the value. Ordinary prose such as "count the tokens" passes; some
+  harmless text is refused too (25 of 200 open-source rule files, a third
+  of them for an example key). An MCP server's URL with user-info, a query
+  or a fragment is refused; `env` and header values are still masked whole.
+  The check takes linear time: its slowest adversarial input of 512,000
+  characters takes 0.22 s on the Kubuntu test machine.
+- **Imported files are yours, not a running turn's** (M83). A file the
+  import writes while a conversation turn runs is noted as your own edit,
+  as the other commands' writes are, so restoring that turn neither deletes
+  it nor puts the old `AGENTS.md` back.
+- The import rechecks the window's folder after its last awaited check and
+  just before the clipboard, so a folder change at that moment copies
+  nothing for the old project. A preview of an MCP argument with 128,000
+  backtick runs no longer stops on a stack overflow. A blank MCP server
+  command is listed as unsupported, as a blank hook command is. The preview,
+  and the message when nothing was found, say when some source files were
+  skipped; the log names each one and why.
 - Removed M83's temporary empty English-table stand-in and its build plugin.
   The lead-approved shared `dist/uiText.js` contract replaces this approach;
   the importer uses the same runtime fallback as the other Node bundles.

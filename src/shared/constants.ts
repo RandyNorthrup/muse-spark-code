@@ -1378,8 +1378,9 @@ export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
 // `.agents/agents/<id>.md` in the workspace (project scope) and
 // `<config>/muse/agents/<id>.md` (user scope), no name of Muse Code's own
 // (PLAN.md D13). MCP servers and hooks are never written: their converted
-// entries are shown masked for the user to copy into Muse Code's
-// settings.json and .muse/hooks.json (D17, D30).
+// entries are shown, `env` and header values masked, for the user to copy
+// into Muse Code's settings.json and .muse/hooks.json (D17, D30). An entry
+// that may hold a credential is not imported at all (`importCredentials.ts`).
 export const AGENT_IMPORT_SOURCES = ['claudeCode', 'codex', 'cursor'] as const
 export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
 export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const

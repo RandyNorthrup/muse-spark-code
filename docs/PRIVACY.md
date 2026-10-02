@@ -373,11 +373,15 @@ fields, never raw configuration or failed-command output.
   `CLAUDE_CONFIG_DIR` and `CODEX_HOME`), `~/.cursor/`, and, in a trusted
   workspace, the repository's own `.claude/`, `.codex/`, `.cursor/`,
   `.mcp.json`, `CLAUDE.md` and `.cursorrules`. Nothing is sent anywhere
-  and no model is called. The preview, the text copied to the clipboard
-  and the log show secret-looking values masked; the files the import
-  creates keep supported commands, agents and rules with secret-looking
-  values masked, matching the preview. Unsupported agent restrictions are
-  listed without creating an executable file.
+  and no model is called. An entry that may hold a credential (a
+  credential-like name with a value, a URL with a user name, password or
+  credential parameter, a known token shape, or a long random-looking
+  value) is not imported at all: nothing of it is written, copied to the
+  clipboard or logged, and the preview names it only with the kind of cue
+  it holds, so you copy it yourself. MCP servers' environment and header
+  values are masked in the preview and the clipboard. The log carries
+  paths, counts and cue kinds, never a file's content. Unsupported agent
+  restrictions are listed without creating an executable file.
 
 ## The agent for other editors
 

@@ -562,21 +562,32 @@ them and converted to the formats their destination loads.
 | Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Entries to paste into Muse Code's `settings.json`                                                                                                                       |
 | Claude Code hooks (your `settings.json`, or the project's)                        | Entries to paste into your `settings.json`, or the project's `.muse/hooks.json`                                                                                         |
 
-A read-only preview shows everything first, secret-looking values masked,
-and nothing is written until you choose Import; an existing file is never
-replaced. The extension never writes Muse Code's `settings.json` or
-`.muse/hooks.json`. In command arguments, prompts and rules, a line is masked
-from its first credential-looking value to its end: a URL's query or
-user-info, a value after a name such as `GITHUB_TOKEN=`, `--api-key` or
-`Authorization:`, or a known token. Harmless text after it is sometimes
-masked too, so check the preview. Server `env`, header and URL values are
-masked whole; copied and published text stays masked.
-It copies the masked entries for you and opens the file. It rechecks whether
+A read-only preview shows everything first, and nothing is written until
+you choose Import; an existing file is never replaced. The extension never
+writes Muse Code's `settings.json` or `.muse/hooks.json`.
+
+An entry that may hold a credential is not imported at all: nothing of it
+is written or copied, and the preview lists it under **Not imported: may
+hold a credential — copy it yourself** with the kind of thing it found,
+never the value. Each entry is read whole (a rules file, a command or agent
+and its file name, a hook's command and matcher, an MCP server's command,
+arguments, environment, headers and URL), as written and as a shell or a
+JSON or URL decoder would join it. The cues are a credential-like name with
+a value (`GITHUB_TOKEN=…`, `--api-key …`, `Authorization: …`, also with the
+value on the next line), a URL with a user name, a password or a credential
+parameter, a known token shape, and a long random-looking value. Some
+harmless text is refused too, such as a rule headed `**Secrets**: never
+commit them`; copy such an entry yourself. A server whose URL has a user
+name, a query or a fragment is refused; the servers that are imported keep
+their environment and header names, with the values masked for you to fill
+in.
+It copies the entries for you and opens the file. It rechecks whether
 the file exists before clipboard and editor actions. A file
 created while the preview waits opens for merging; a vanished file opens
 unsaved. The settings copy and its instructions use the current file state;
-you fill in what is masked. A repository's entries are read only in a
-trusted workspace and offered only for that project's files. Trust revocation
+you fill in the masked environment and header values. A repository's
+entries are read only in a trusted workspace and offered only for that
+project's files. Trust revocation
 stops further project reads during the scan. Closing the activation stops
 further scan reads and pending import prompts. A
 repository's own MCP servers are listed but not offered for your settings.
@@ -606,10 +617,13 @@ writing or opening them. The request binds its root before the pickers
 open and refuses a retargeted or replaced root through publication,
 clipboard access and editor loading. Files publish whole without replacing anything;
 rules updates stop if the prior file changed or the result would exceed
-64 KiB, preserving the existing rules. Settings that are unreadable,
-oversized or malformed offer no server or hook copies for that file and
-the preview states why. Generated command, agent and project rules files contain the
-same masked values shown in their preview.
+64 KiB, preserving the existing rules. If Muse Code's own settings file is
+unreadable, oversized or malformed, no server or hook is copied for it and
+the preview says why. A source file that cannot be used (unreadable, over
+its size limit, not text, or malformed) is skipped: the preview, or the
+message when nothing was found, says that files were skipped, and the log
+names each one and why. Generated command, agent and project rules files
+hold exactly the text their preview shows.
 Project publication, clipboard and editor actions recheck live workspace
 trust after file checks; closing the extension stops pending import effects.
 Your own imports remain available in Restricted Mode.
@@ -1849,7 +1863,7 @@ What stays in English:
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
-| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, show servers and hooks masked to copy by hand                        |
+| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, show servers and hooks to copy by hand, refuse what may be secret    |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: MCP Servers                             | —                                                                                    | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                               |
 | Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                               |

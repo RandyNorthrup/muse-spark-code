@@ -8991,7 +8991,47 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
-**Status 2026-10-01 (round 3): masking redesigned; lead certification pending.**
+**Status 2026-10-02 (round 4): refuses items that may hold a credential
+instead of masking them; lead certification pending.** The fourth
+independent review (RV83d, on `527da984`) found the round-3 masker still
+publishing credentials: a value on the next line or after a shell line
+continuation, a credential name joined from quoted parts (`Authori''zation`,
+`--to''ken`), a JSON-escaped or Unicode-suffixed name, and a query after
+whitespace or without a scheme (five P1s with the checkpoint finding below,
+three P2s); the Muse review (mr83) found the multi-line value too. Four
+review rounds each found a spelling that hid a value from span masking,
+so the lead changed the approach (2026-10-01): refuse, do not mask.
+`importMask.ts` is removed. `importCredentials.ts` reads each imported item
+whole (a rules file, a command or agent with its file name, a hook's
+command, matcher and status line, an MCP server's command, arguments, `env`
+and header names and values, URL and copied tool names) in three spellings:
+as written (NFKC, format characters removed, Cyrillic and Greek look-alikes
+read as Latin); as a shell, a JSON reader or a URL decoder would join it
+(escapes, percent and entity escapes decoded, continuations and quote marks
+removed); and with other punctuation removed. A name cue with a value (on
+its line or a later one), URL user-info or a credential query parameter, a
+known token shape, or a long base64/hex run mixing digits and letter cases
+refuses the whole item: nothing is published or copied; the preview lists
+it under "Not imported: may hold a credential — copy it yourself" with the
+cue's kind; a name holding a cue is hidden; the log counts kinds only. An
+MCP server whose fields hold a cue is refused whole, and so is a server URL
+with user-info, a query or a fragment; an admitted server's `env` and
+header values stay masked whole. False positives are accepted (fail
+closed): 25 of 200 open-source rule files refuse (12.5%; 8 hold a key, a
+password or a placeholder for one), and this repository's own corpus 4 of
+52, inside the test's 15% budget. Also fixed: a publication is noted as the
+user's own write (`noteUserSave`, as `asUserEdit` does; RV83d #5); the
+root check rechecks the window's folder after its awaited identity lookup
+and in the clipboard's synchronous guard (#6); the generated SKILL.md is no
+longer masked after serializing, so its front matter stays whole (#7);
+`fenced` finds the longest backtick run in a loop (#8); a blank MCP command
+is unsupported and the preview says when source files were skipped (mr83).
+Merged `origin/main` `2a30b1a0` (PR #67), keeping its shared-table files
+exactly. Details: `docs/certification/m83d.md`. Lead next action: full
+quality, a fresh review, native VS Code import UI, other platforms and M76
+runtime admission.
+
+**Status 2026-10-01 (round 3, historical): masking redesigned.**
 The third independent review (RV83c, `6db3cc9d`→`a895dbb4`) found credentials
 still shown through shell word-joining (`'…?k='-value`, `'…'"value"`),
 whitespace inside a quoted value, the name and scheme length caps (which
@@ -9131,11 +9171,14 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     - rules files, which become sections of `AGENTS.md`, shown in the
       preview.
   - Preview first, nothing overwritten. The preview shows each hook's and
-    server's full command, with secret values masked.
+    server's full command. An item that may hold a credential is refused
+    whole and listed for the user to copy by hand (amended 2026-10-02: the
+    import refuses such items instead of masking them, after four review
+    rounds each found a value the masking missed).
   - MCP servers and hooks live in Muse Code's `settings.json` and
     `.muse/hooks.json`, which the extension never writes (D17, D30). Their
-    converted entries are shown, masked, for the user to copy into the
-    file the preview opens.
+    converted entries are shown, `env` and header values masked, for the
+    user to copy into the file the preview opens.
   - Entries found in a repository's `.claude`, `.cursor` or `.codex`
     folder are offered only for that project's files, and only in a
     trusted workspace. Only the user's own folders are offered for user
@@ -9241,17 +9284,19 @@ The 2026-09-28 certification is historical (`docs/certification/m83.md`).
     else the members to merge, with a warning for the legacy
     `mcp_servers` key; it is copied and the file opened (unsaved at its
     path when missing, so the user saves it).
-  - **Masking.** Every `env` and header value whole; a URL field's
-    user-info and query values. Free text (MCP arguments, hook commands,
-    prompts, rules) fails closed, line by line (round 3, RV83c): from a
-    line's first credential cue to its end. The cues are a URL with a query or
-    user-info, a credential-like name followed by `=`, `:` or whitespace, and
-    the token shapes the log redactor lacks (GitHub, OpenAI and Anthropic,
-    Slack, AWS, Google, Stripe, a JSON Web Token's start). Each argument
-    counts as a line, the one after a bare credential flag is masked whole,
-    and the log redactor sweeps what is left. Entries are masked when
-    converted, so no unmasked value is kept. Parse failures are logged in fixed words: `JSON.parse` and
-    `smol-toml` messages can quote the file.
+  - **Credentials (round 4, 2026-10-02): refused, not masked.** Each item is
+    checked whole when it is found (`importCredentials.ts`; the cue list and
+    its three spellings are in the status above and the module's header).
+    An item with a cue is a `credential` candidate: checked in the picker so
+    the preview lists it under "Not imported: may hold a credential — copy
+    it yourself" with its cue's kind, and never planned, written or copied.
+    A name that itself holds a cue is shown as "(name not shown)". An
+    admitted MCP server's `env` and header values are still masked whole,
+    their names kept; its URL is refused when it has user-info, a query or
+    a fragment. Round 3's line masking (RV83c) and the URL and argument
+    maskers it replaced are history (`docs/certification/m83b.md`). Parse
+    failures are logged in fixed words: `JSON.parse` and `smol-toml`
+    messages can quote the file.
   - **Custom agents before M76.** The agent files land in
     `.agents/agents/<id>/AGENT.md` and `<config>/muse/agents/<id>/AGENT.md`,
     M76's planned extension-owned layout. The directory id is the planned
