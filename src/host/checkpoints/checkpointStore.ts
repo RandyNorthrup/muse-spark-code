@@ -33,6 +33,7 @@
 // - Within a window, one operation runs at a time.
 
 import type { Buffer } from 'node:buffer'
+import { realpathSync } from 'node:fs'
 import { rm, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { BackendKind } from '../../core/agent/agentBackend'
@@ -125,7 +126,7 @@ import {
 } from './shadowGit'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
-import type { WriteLanes } from './writeRecorder'
+import { innermostFolders, type WriteLanes } from './writeRecorder'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
 
@@ -189,6 +190,8 @@ export interface RedoRequest {
   readonly sourceSessionId: string
   /** The batch to redo. */
   readonly restoreId: string
+  /** Read the full later transcript from the source batch's persisted anchor. */
+  readonly transcriptTurnIds?: (fromTurnId: string) => Promise<readonly string[] | undefined>
   readonly unsavedPaths: () => readonly string[]
 }
 
@@ -318,7 +321,6 @@ const LOCK_SUFFIX = '.lock'
 const SEPARATOR = '/'
 const LINE_FEED = '\n'
 const SPACE = ' '
-const CURRENT_FOLDER = '.'
 const EXECUTABLE_BITS = 0o111
 const DISPOSED = 'the checkpoint store was closed with the window'
 
@@ -344,9 +346,28 @@ function ownerOf(entry: JournalEntry): Owner | undefined {
   return entry.kind === 'incomplete' || entry.kind === 'seal' ? entry.owner : undefined
 }
 
-/** A path as a case-folding volume compares it: a cheap first cut before resolving. */
+/** Cheap alias candidate filter; only OS resolution below decides actual identity. */
 function foldedCase(relative: string): string {
-  return relative.toLowerCase()
+  return relative.normalize('NFC').toLowerCase()
+}
+
+/** OS identity for live dirty documents, with spelling retained when lookup is unavailable. */
+function editorIdentity(absolute: string): string {
+  try {
+    return realpathSync.native(absolute)
+  } catch {
+    return absolute
+  }
+}
+
+/** A writer already admitted before cleanup's reservation keeps its copies. */
+function hasLiveWriter(live: ReadonlyMap<string, readonly string[]>): boolean {
+  for (const running of live.values()) {
+    if (running.some((key) => key !== CHECKPOINT_FENCED_WINDOW)) {
+      return true
+    }
+  }
+  return false
 }
 
 /** What one instance's journal says of one unit. */
@@ -675,7 +696,9 @@ export class CheckpointStore {
     this.isPeerUnsafe = [...live].some(
       ([instance, running]) => instance !== this.ownInstance && this.isUnfenced(running),
     )
-    const units = listedUnits.filter((unit) => !this.isUnitArchived(archives, unit))
+    const units = listedUnits.filter(
+      (unit) => unit.record?.isRetired !== true && !this.isUnitArchived(archives, unit),
+    )
     const legacy = listedRecords.flatMap((entry): LegacyTurn[] => {
       const { record } = entry
       return record?.kind === 'checkpoint' &&
@@ -695,8 +718,9 @@ export class CheckpointStore {
     })
     const setup: Setup = { ...opened, units, legacy, listedUnits, listedRecords, archives, live }
     if (!this.hasTidied) {
-      await this.tidy(setup, false)
       this.hasTidied = true
+      await this.recover(setup, await WriteJournal.readAll(this.deps.storageDir))
+      await this.tidy(await this.ready(), false)
       return await this.ready()
     }
     return setup
@@ -786,16 +810,31 @@ export class CheckpointStore {
     const journalFolders = await this.namesIn(journalsRoot)
     const journals = await WriteJournal.readAll(this.deps.storageDir)
     const units = await listUnits(shadow)
-    const recorded = units.flatMap((unit) => (unit.record === undefined ? [] : [unit.record.owner]))
+    // A surviving unreadable ref is not evidence of retirement. Keep every
+    // recovery input until it can be explained, including a first torn line.
+    if (units.some((unit) => unit.record === undefined)) {
+      return
+    }
+    const retired = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [unit.record.owner] : [],
+    )
     // Enumerated first, as above: a window publishes before its journal exists.
     const live = await this.presence.liveWindows()
     const goneJournals = journalFolders.filter((name) => !live.has(name))
     for (const instance of goneJournals) {
-      const entries = journals.get(instance)?.entries ?? []
-      const isStillNeeded = entries.some((entry) => {
-        const owner = ownerOf(entry)
-        return owner !== undefined && recorded.some((candidate) => isSameOwner(candidate, owner))
-      })
+      const journal = journals.get(instance)
+      if (journal?.tornTail === 'unparsed') {
+        continue
+      }
+      const entries = journal?.entries ?? []
+      const isStillNeeded =
+        units.some(
+          (unit) => unit.record?.owner.instance === instance && unit.record.isRetired !== true,
+        ) ||
+        entries.some((entry) => {
+          const owner = ownerOf(entry)
+          return owner !== undefined && retired.every((candidate) => !isSameOwner(candidate, owner))
+        })
       if (!isStillNeeded) {
         await rm(path.join(journalsRoot, instance), { recursive: true, force: true })
       }
@@ -817,6 +856,7 @@ export class CheckpointStore {
         setup.listedUnits.some(
           (unit) =>
             !deleted.has(unit.ref) &&
+            unit.record?.isRetired !== true &&
             unit.record?.owner.sessionId === sessionId &&
             unit.record.createdAt <= at,
         ) ||
@@ -846,16 +886,17 @@ export class CheckpointStore {
    * retention bounds, M72 records of another place or unreadable, and every
    * M72 restore record (which this version cannot redo).
    */
-  private droppedRefs(setup: Setup, journals: Journals): readonly HeldRef[] {
-    const units = setup.listedUnits.map((unit) => ({
-      held: { ref: unit.ref, keep: unit.keep },
-      owner: unit.record?.owner,
-      sessionId: unit.sessionKey,
-      sequence: unit.sequence,
-      createdAt: unit.record?.createdAt ?? -Infinity,
-      isOpen: this.isUnitOpen(setup, unit),
-      isArchived: this.isUnitArchived(setup.archives, unit) && !this.isUnitOpen(setup, unit),
-    }))
+  private droppedRefs(setup: Setup): readonly HeldRef[] {
+    const units = setup.listedUnits
+      .filter((unit) => unit.record !== undefined && unit.record.isRetired !== true)
+      .map((unit) => ({
+        held: { ref: unit.ref, keep: unit.keep },
+        sessionId: unit.sessionKey,
+        sequence: unit.sequence,
+        createdAt: unit.record?.createdAt ?? -Infinity,
+        isOpen: this.isUnitOpen(setup, unit),
+        isArchived: this.isUnitArchived(setup.archives, unit) && !this.isUnitOpen(setup, unit),
+      }))
     const records = setup.listedRecords.map((listed) => {
       const { record } = listed
       const isHere = record?.top === setup.top && record.prefix === setup.prefix
@@ -878,40 +919,98 @@ export class CheckpointStore {
     )
     const isDroppable = (entry: { readonly isArchived: boolean }) =>
       entry.isArchived || dropped.has(entry)
-    // A unit a journal on disk names stays (rule 3.2 reads the journals and
-    // refuses a unit named there with no record), until every unit a gone
-    // window's journal names may go: they go together, and then the journal.
-    const namedBy = new Map<string, string>()
+    return [
+      ...units.filter((entry) => isDroppable(entry)),
+      ...records.filter((entry) => isDroppable(entry)),
+    ].map((entry) => entry.held)
+  }
+
+  /** Retire by CAS, dropping bytes but retaining the owner and sequence as durable proof. */
+  private async retireRefs(setup: Setup): Promise<readonly string[]> {
+    const selected = this.droppedRefs(setup)
+    const retired: string[] = []
+    const legacy: HeldRef[] = []
+    for (const held of selected) {
+      const unit = setup.listedUnits.find((candidate) => candidate.ref === held.ref)
+      if (unit?.record === undefined) {
+        legacy.push(held)
+        continue
+      }
+      const record: StoredUnit = { ...unit.record, isRetired: true, writes: [] }
+      if ((await writeUnit(setup.shadow, held.ref, record, [], held.keep)) !== undefined) {
+        retired.push(held.ref)
+      }
+    }
+    return [...retired, ...(await deleteRefs(setup.shadow, legacy))]
+  }
+
+  /** Drop only blobs known to belong exclusively to retired owners, with all writers fenced. */
+  private async dropRetiredBlobs(shadow: ShadowGit): Promise<void> {
+    const live = await this.presence.liveWindows()
+    if (hasLiveWriter(live)) {
+      return
+    }
+    const units = await listUnits(shadow)
+    const retired = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [unit.record.owner] : [],
+    )
+    const journals = await WriteJournal.readAll(this.deps.storageDir)
     for (const [instance, journal] of journals) {
+      if (journal.tornTail !== 'none') {
+        continue
+      }
+      const needed = new Set<string>()
+      const droppable = new Set<string>()
       for (const entry of journal.entries) {
-        const owner = ownerOf(entry)
-        if (owner !== undefined) {
-          namedBy.set(ownerKey(owner), instance)
+        if (entry.kind !== 'intent') {
+          continue
+        }
+        const target = retired.some((owner) => isSameOwner(owner, entry.write.owner))
+          ? droppable
+          : needed
+        for (const oid of neededOids(entry.write)) {
+          target.add(oid)
+        }
+      }
+      for (const oid of droppable) {
+        if (!needed.has(oid)) {
+          await rm(WriteJournal.blobPath(this.deps.storageDir, instance, oid), { force: true })
         }
       }
     }
-    const freed = new Set<string>()
-    for (const instance of journals.keys()) {
-      const isFreed =
-        !setup.live.has(instance) &&
-        units.every(
-          (entry) =>
-            entry.owner === undefined ||
-            namedBy.get(ownerKey(entry.owner)) !== instance ||
-            isDroppable(entry),
-        )
-      if (isFreed) {
-        freed.add(instance)
+  }
+
+  /** M72-readable payload for the shared restore/cleanup CAS reservation. */
+  private async reservationTree(setup: Opened): Promise<string> {
+    const lease: StoredRecord = {
+      kind: 'restore',
+      top: setup.top,
+      prefix: setup.prefix,
+      id: this.ownInstance,
+      sessionId: '',
+      createdAt: this.deps.now(),
+      owner: this.ownInstance,
+      entries: [],
+    }
+    return await keepTree(setup.shadow, JSON.stringify(lease), [])
+  }
+
+  /** Cleanup and restore share one CAS lease; a precheck alone cannot protect source copies. */
+  private async withCleanup(setup: Setup, task: () => Promise<void>): Promise<void> {
+    if (this.isLegacyLive(setup) || (await this.isRestoreActive(setup))) {
+      return
+    }
+    const keep = await this.reservationTree(setup)
+    if (!(await didWriteRef(setup.shadow, RESTORE_REF, keep, undefined))) {
+      return
+    }
+    try {
+      if (!this.isLegacyLive({ live: await this.presence.liveWindows() })) {
+        await task()
       }
+    } finally {
+      await this.releaseRestoreLease(setup.shadow, keep)
     }
-    const isFree = (owner: Owner | undefined) => {
-      const instance = owner === undefined ? undefined : namedBy.get(ownerKey(owner))
-      return instance === undefined || freed.has(instance)
-    }
-    return [
-      ...units.filter((entry) => entry.isArchived || (isDroppable(entry) && isFree(entry.owner))),
-      ...records.filter((entry) => isDroppable(entry)),
-    ].map((entry) => entry.held)
   }
 
   /**
@@ -924,45 +1023,44 @@ export class CheckpointStore {
    * is live, nothing goes.
    */
   private async tidy(setup: Setup, isPruneForced: boolean): Promise<void> {
-    if ((await this.isRestoreActive(setup)) || this.isLegacyLive(setup)) {
-      return
-    }
-    const journals = await WriteJournal.readAll(this.deps.storageDir)
-    const deleted = new Set(await deleteRefs(setup.shadow, this.droppedRefs(setup, journals)))
-    if (deleted.size > 0) {
-      this.isPruneDue = true
-    }
-    const refs = await setup.shadow.text([
-      'for-each-ref',
-      '--format=%(refname) %(objectname)',
-      REF_ROOT,
-    ])
-    // Enumerate refs before refreshing windows: a window publishes its
-    // presence before creating any ref this enumeration can see.
-    const live = await this.presence.liveWindows()
-    if (this.isLegacyLive({ live })) {
-      return
-    }
-    const stale = refs.split(LINE_FEED).flatMap((line): HeldRef[] => {
-      const [ref = '', keep = ''] = line.split(SPACE)
-      const isStale =
-        ref === LEGACY_INDEX_REF ||
-        LEGACY_REF_PREFIXES.some((prefix) => ref.startsWith(prefix)) ||
-        this.isGoneWindowRef(ref, PIN_REF_PREFIX, live) ||
-        this.isGoneWindowRef(ref, WORK_REF_PREFIX, live)
-      return isStale ? [{ ref, keep }] : []
+    await this.withCleanup(setup, async () => {
+      const deleted = new Set(await this.retireRefs(setup))
+      if (deleted.size > 0) {
+        this.isPruneDue = true
+      }
+      const refs = await setup.shadow.text([
+        'for-each-ref',
+        '--format=%(refname) %(objectname)',
+        REF_ROOT,
+      ])
+      // Enumerate refs before refreshing windows: a window publishes its
+      // presence before creating any ref this enumeration can see.
+      const live = await this.presence.liveWindows()
+      if (this.isLegacyLive({ live })) {
+        return
+      }
+      const stale = refs.split(LINE_FEED).flatMap((line): HeldRef[] => {
+        const [ref = '', keep = ''] = line.split(SPACE)
+        const isStale =
+          ref === LEGACY_INDEX_REF ||
+          LEGACY_REF_PREFIXES.some((prefix) => ref.startsWith(prefix)) ||
+          this.isGoneWindowRef(ref, PIN_REF_PREFIX, live) ||
+          this.isGoneWindowRef(ref, WORK_REF_PREFIX, live)
+        return isStale ? [{ ref, keep }] : []
+      })
+      const deletedStale = await deleteRefs(setup.shadow, stale)
+      if (deletedStale.length > 0) {
+        this.isPruneDue = true
+      }
+      await this.dropGoneFiles()
+      await this.dropGoneJournals(setup.shadow)
+      await this.dropRetiredBlobs(setup.shadow)
+      await this.dropOldArchives(setup, deleted)
+      const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
+      if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
+        await this.prune(setup.shadow)
+      }
     })
-    const deletedStale = await deleteRefs(setup.shadow, stale)
-    if (deletedStale.length > 0) {
-      this.isPruneDue = true
-    }
-    await this.dropGoneFiles()
-    await this.dropGoneJournals(setup.shadow)
-    await this.dropOldArchives(setup, deleted)
-    const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
-    if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
-      await this.prune(setup.shadow)
-    }
   }
 
   /** Old source objects stay referenced while a live restore reads and writes files. */
@@ -978,6 +1076,10 @@ export class CheckpointStore {
 
   /** Deletes every copy no ref names, sparing those younger than the grace period. */
   private async prune(shadow: ShadowGit): Promise<void> {
+    const live = await this.presence.liveWindows()
+    if (hasLiveWriter(live)) {
+      return
+    }
     await shadow.prune(CHECKPOINT_PRUNE_GRACE_MS)
     this.lastPruneAt = this.deps.now()
     this.isPruneDue = false
@@ -990,19 +1092,18 @@ export class CheckpointStore {
    */
   private async retain(): Promise<void> {
     const setup = await this.ready()
-    if ((await this.isRestoreActive(setup)) || this.isLegacyLive(setup)) {
-      return
-    }
-    const journals = await WriteJournal.readAll(this.deps.storageDir)
-    const deleted = await deleteRefs(setup.shadow, this.droppedRefs(setup, journals))
-    if (deleted.length > 0) {
-      this.isPruneDue = true
-      await this.dropGoneJournals(setup.shadow)
-    }
-    const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
-    if (isIntervalOver && this.isPruneDue) {
-      await this.prune(setup.shadow)
-    }
+    await this.withCleanup(setup, async () => {
+      const deleted = await this.retireRefs(setup)
+      if (deleted.length > 0) {
+        this.isPruneDue = true
+        await this.dropGoneJournals(setup.shadow)
+        await this.dropRetiredBlobs(setup.shadow)
+      }
+      const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
+      if (isIntervalOver && this.isPruneDue) {
+        await this.prune(setup.shadow)
+      }
+    })
   }
 
   private absoluteOf(relative: string): string {
@@ -1014,6 +1115,11 @@ export class CheckpointStore {
       unsavedPaths().some(
         (unsaved) =>
           isSamePath(unsaved, this.absoluteOf(relative), this.deps.platform) ||
+          isSamePath(
+            editorIdentity(unsaved),
+            editorIdentity(this.absoluteOf(relative)),
+            this.deps.platform,
+          ) ||
           (this.deps.displayRoot !== undefined &&
             isSamePath(
               unsaved,
@@ -1124,7 +1230,7 @@ export class CheckpointStore {
     const finalizing = new AbortController().signal
     for (let attempt = 0; attempt < CHECKPOINT_FOLD_ATTEMPTS; attempt += 1) {
       const current = await readUnit(shadow, ref, finalizing)
-      if (current === undefined) {
+      if (current === undefined || current.record.isRetired === true) {
         return 'gone'
       }
       const folded = foldUnit(current.record, facts, end)
@@ -1152,8 +1258,8 @@ export class CheckpointStore {
     const key = ownerKey(owner)
     this.pendingEnds.set(key, pending)
     this.openUnits.delete(key)
-    const journals = await WriteJournal.readAll(this.deps.storageDir)
-    await this.foldInto(shadow, ref, factsOf(owner, journals.get(this.ownInstance)), {
+    const journal = await this.ownJournal.snapshot()
+    await this.foldInto(shadow, ref, factsOf(owner, journal), {
       endedAt: pending.endedAt,
       ranProcesses: pending.ranProcesses,
     })
@@ -1176,7 +1282,11 @@ export class CheckpointStore {
     let isChanged = false
     for (const unit of setup.listedUnits) {
       const { record } = unit
-      if (record === undefined || setup.live.has(record.owner.instance)) {
+      if (
+        record === undefined ||
+        record.isRetired === true ||
+        setup.live.has(record.owner.instance)
+      ) {
         continue
       }
       const journal = journals.get(record.owner.instance)
@@ -1207,7 +1317,11 @@ export class CheckpointStore {
    * there (one ref, created only if absent): another window that took the
    * number first makes this one take the next. M72 turns count.
    */
-  private async startUnitNow(setup: Setup, owner: Owner): Promise<{ readonly sequence: number }> {
+  private async startUnitNow(
+    setup: Setup,
+    owner: Owner,
+    transcript?: StoredUnit['transcript'],
+  ): Promise<{ readonly sequence: number }> {
     const key = sessionKey(owner.sessionId)
     const numbers = [
       ...setup.listedUnits.filter((unit) => unit.sessionKey === key).map((unit) => unit.sequence),
@@ -1227,6 +1341,7 @@ export class CheckpointStore {
         ranProcesses: false,
         isMarkedIncomplete: false,
         writes: [],
+        ...(transcript !== undefined && { transcript }),
       }
       if ((await writeUnit(setup.shadow, ref, record, [], undefined)) !== undefined) {
         this.openUnits.set(ownerKey(owner), { owner, ref })
@@ -1308,26 +1423,13 @@ export class CheckpointStore {
     }
   }
 
-  /** The folders a write of this path will create, outermost first. */
-  private async missingFolders(relative: string): Promise<readonly string[]> {
-    const missing: string[] = []
-    for (
-      let folder = path.posix.dirname(relative);
-      folder !== CURRENT_FOLDER && (await lstatOrUndefined(this.absoluteOf(folder))) === undefined;
-      folder = path.posix.dirname(folder)
-    ) {
-      missing.unshift(folder)
-    }
-    return missing
-  }
-
   /**
    * Whether a journal names a unit of the conversation that has no record
    * (spec 3.2): its writes are nowhere a restore can see, and where it falls
    * cannot be told. A record is made before its unit's first write, and
-   * retention never deletes one a journal on disk still names, so such a unit
-   * is one whose record was never made, or one of a conversation archived and
-   * taken back.
+   * retirement keeps its owner/sequence identity after dropping its payload.
+   * Only unexplained missing owners refuse a later range; archived owners
+   * with durable retirement proof do not poison new turns.
    */
   private hasUnrecordedOwner(
     journals: Journals,
@@ -1364,6 +1466,7 @@ export class CheckpointStore {
       readonly from: { readonly unitKind: UnitKind; readonly unitId: string }
       readonly mode: RangeInput['mode']
       readonly transcriptTurnIds: readonly string[]
+      readonly transcript: NonNullable<StoredUnit['transcript']>
       readonly isUnsaved: (relative: string) => boolean
     },
     isAllowed: () => boolean,
@@ -1503,7 +1606,15 @@ export class CheckpointStore {
     const applied =
       steps.length === 0
         ? { batchId: undefined, changed: [], refused: [] }
-        : await this.runBatch(setup, sessionId, steps, states, request.isUnsaved, isAllowed)
+        : await this.runBatch(
+            setup,
+            sessionId,
+            steps,
+            states,
+            request.isUnsaved,
+            isAllowed,
+            request.transcript,
+          )
     const allRefused = [...refused, ...applied.refused]
     return {
       ok: true,
@@ -1531,6 +1642,7 @@ export class CheckpointStore {
     states: ReadonlyMap<string, PathState>,
     isUnsaved: (relative: string) => boolean,
     isAllowed: () => boolean,
+    transcript: NonNullable<StoredUnit['transcript']>,
   ): Promise<{
     readonly batchId: string
     readonly changed: readonly string[]
@@ -1542,7 +1654,7 @@ export class CheckpointStore {
       unitKind: 'batch',
       unitId: this.deps.newId(),
     }
-    await this.startUnitNow(setup, owner)
+    await this.startUnitNow(setup, owner, transcript)
     const unit = this.openUnits.get(ownerKey(owner))
     const changed: string[] = []
     const refused: PathOutcome[] = []
@@ -1622,11 +1734,9 @@ export class CheckpointStore {
         path: step.path,
         before,
         after,
-        createdFolders:
-          step.target.present && !step.expect.present ? await this.missingFolders(step.path) : [],
+        createdFolders: [],
         isKept: true,
       }
-      await this.ownJournal.appendIntent(write)
       const fileStep: FileStep = {
         path: step.path,
         target:
@@ -1641,12 +1751,28 @@ export class CheckpointStore {
       }
       const content = fileStep.target === null ? undefined : blobs.get(fileStep.target.oid)
       const result = await applyFileStep(
-        { ...this.target, isAllowed, isUnsaved },
+        {
+          ...this.target,
+          isAllowed,
+          isUnsaved,
+          beforePublish: async (createdFolders) => {
+            await this.ownJournal.appendIntent({
+              ...write,
+              createdFolders: innermostFolders(step.path, createdFolders),
+            })
+          },
+        },
         fileStep,
         content,
       )
       if (result === 'done') {
-        await this.ownJournal.appendDone(write.id)
+        try {
+          await this.ownJournal.appendDone(write.id)
+        } catch (error: unknown) {
+          // Publication succeeded. Keep the known result and Redo; the
+          // durable intent remains unsettled for recovery to judge.
+          this.deps.log.warn(`A restore outcome was not durable: ${failureForLog(error)}`)
+        }
       } else if (result !== 'failed') {
         // Refused before anything changed: the file was not as expected, or held
         // unsaved changes, or a link was on the way, or it is too large to compare.
@@ -1675,18 +1801,8 @@ export class CheckpointStore {
     task: (fresh: Setup) => Promise<RestoreOutcome>,
   ): Promise<RestoreOutcome> {
     const { shadow } = setup
-    const lease: StoredRecord = {
-      kind: 'restore',
-      top: setup.top,
-      prefix: setup.prefix,
-      id: this.ownInstance,
-      sessionId: '',
-      createdAt: this.deps.now(),
-      owner: this.ownInstance,
-      entries: [],
-    }
     const acquire = async () => {
-      const keep = await keepTree(shadow, JSON.stringify(lease), [])
+      const keep = await this.reservationTree(setup)
       return (await didWriteRef(shadow, RESTORE_REF, keep, undefined)) ? keep : undefined
     }
     let keep = await acquire()
@@ -1780,11 +1896,6 @@ export class CheckpointStore {
   /** This window's instance: the owner of every unit and write it records. */
   public get instance(): string {
     return this.ownInstance
-  }
-
-  /** This window's journal, which the model's tools' recorder writes as well. */
-  public get journal(): WriteJournal {
-    return this.ownJournal
   }
 
   /** Native/process uncertainty in this window or a freshly observed peer. */
@@ -1949,6 +2060,7 @@ export class CheckpointStore {
           from: { unitKind: 'turn', unitId: request.turnId },
           mode: 'restore',
           transcriptTurnIds: request.transcriptTurnIds,
+          transcript: { fromTurnId: request.turnId, turnIds: request.transcriptTurnIds },
           isUnsaved: this.unsavedTest(request.unsavedPaths),
         },
         isAllowed,
@@ -1975,6 +2087,22 @@ export class CheckpointStore {
         }
         return { ok: false, reason: 'redoGone' }
       }
+      const anchor = batch.record.transcript
+      const current =
+        anchor === undefined ? undefined : await request.transcriptTurnIds?.(anchor.fromTurnId)
+      if (current === undefined || anchor === undefined) {
+        return { ok: false, reason: 'writesIncomplete' }
+      }
+      const earlier = new Set([
+        ...anchor.turnIds,
+        ...found.setup.units.flatMap((unit) =>
+          unit.record?.owner.sessionId === request.sourceSessionId &&
+          unit.sequence < batch.sequence &&
+          unit.record.owner.unitKind === 'turn'
+            ? [unit.record.owner.unitId]
+            : [],
+        ),
+      ])
       return await this.restoreRange(
         found.setup,
         found.journals,
@@ -1982,7 +2110,8 @@ export class CheckpointStore {
           sessionId: request.sourceSessionId,
           from: { unitKind: 'batch', unitId: request.restoreId },
           mode: 'redo',
-          transcriptTurnIds: [],
+          transcriptTurnIds: current.filter((id) => !earlier.has(id)),
+          transcript: { fromTurnId: anchor.fromTurnId, turnIds: current },
           isUnsaved: this.unsavedTest(request.unsavedPaths),
         },
         isAllowed,

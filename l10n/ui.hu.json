@@ -1275,7 +1275,7 @@
   "restoreConfirmDetail": "A visszaállítás az ettől az üzenettől kezdődő módosításokra vonatkozik. Csak a modell saját fájleszközeinek módosításai vonhatók vissza, amíg minden fájl pontosan a modell által hátrahagyott tartalmat őrzi. A parancsok, hookok és MCP-eszközök változtatásai, az Ön módosításai és más ablakok írásai soha nem vonhatók vissza. A nem mentett módosításokat tartalmazó fájlok változatlanul maradnak, és a nevük megjelenik. Az Újra gomb visszaállítja, amit a visszaállítás megváltoztatott.",
   "restoreConfirmAction": "Fájlok visszaállítása",
   "rewindCodeConfirmTitle": "Visszaállítja a kódot az üzenet előtti állapotra?",
-  "rewindCodeConfirmDetail": "A Muse ezen üzenet utáni rögzített szerkesztései a legújabbtól kezdve visszavonódnak; az azóta módosított fájl változatlan marad. A parancsok módosításait ez nem fedi le: azokat a Fájlok visszaállítása fedi le.",
+  "rewindCodeConfirmDetail": "A Muse ezen üzenet utáni rögzített szerkesztései a legújabbtól kezdve visszavonódnak; az azóta módosított fájl változatlan marad. A parancsok módosításait ez nem fedi le, és a Fájlok visszaállítása sem vonja vissza: változatlanul maradnak; ellenőrizze a verziókezelőt.",
   "rewindCodeConfirmAction": "Kód visszaállítása",
   "restoreBothConfirmTitle": "Visszaállítja a fájlokat, és a beszélgetést az üzenet előtti állapotra?",
   "restoreBothConfirmDetail": "A visszaállítás az ettől az üzenettől kezdődő módosításokra vonatkozik. Csak a modell saját fájleszközeinek módosításai vonhatók vissza, amíg minden fájl pontosan a modell által hátrahagyott tartalmat őrzi. A parancsok, hookok és MCP-eszközök változtatásai, az Ön módosításai és más ablakok írásai soha nem vonhatók vissza. Ezután a beszélgetés ezen üzenet előtt elágazik, és az üzenet szövege visszakerül a beviteli mezőbe. Ha egy fájl visszaállítását a rendszer elutasítja, a beszélgetés nem lép vissza. Az eredeti beszélgetés az Előzményekben marad.",
@@ -1307,7 +1307,7 @@
   "restoreWritesIncomplete": "Semmi sem lett visszaállítva: e fordulók egyes módosításai nem lettek teljesen rögzítve (újratöltés vagy összeomlás módosítás közben, vagy a fájlok ellenőrzőpontjai ki voltak kapcsolva).",
   "restoreLegacyInRange": "Semmi sem lett visszaállítva: e fordulók némelyikét egy korábbi verzió rögzítette, amelyből ez a verzió nem tud visszaállítani.",
   "restoreLegacyWindowOpen": "Egy másik ablakban a Muse Spark régebbi verziója fut; töltse újra azt az ablakot, majd próbálja ismét.",
-  "restoreCommandsNote": "Ezekben a fordulókban parancsok, hookok vagy MCP-eszközök futottak; az általuk módosított fájlok változtatásai nem lesznek visszavonva. Ellenőrizze a verziókezelőt.",
+  "restoreCommandsNote": "Ezekben a fordulókban parancsok, hookok, MCP-eszközök vagy háttérfeladatok voltak aktívak; fájlmódosításaik nem lesznek visszavonva. Ellenőrizze a verziókezelőt.",
   "restoreRefusedFailed": "Nem sikerült módosítani: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Ennek az üzenetnek már nincs fájl-ellenőrzőpontja.",
@@ -1357,5 +1357,7 @@
     "other": "{count} fájl nincs ellenőrizve"
   },
   "thenRunNoExitCode": "Kilépési kód nélkül sikertelen",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Nincs több visszateendő módosítás.",
+  "childCheckpointFailed": "Az alügynök fordulója nem futott le: a fájlellenőrzőpontja nem hozható létre, vagy az örökölt rögzítési döntés ismeretlen."
 }

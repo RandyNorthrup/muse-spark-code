@@ -1275,7 +1275,7 @@
   "restoreConfirmDetail": "Geri yükleme bu mesajdan itibaren yapılan düzenlemeleri kapsar. Yalnızca modelin kendi dosya araçlarının düzenlemeleri, her dosya modelin bıraktığı içeriği hâlâ tam olarak içeriyorsa geri alınır. Komutların, kancaların ve MCP araçlarının değişiklikleri, kendi düzenlemeleriniz ve diğer pencerelerin yazmaları hiçbir zaman geri alınmaz. Kaydedilmemiş değişiklikler içeren dosyalar olduğu gibi bırakılır ve adları gösterilir. Yinele, geri yüklemenin değiştirdiklerini geri getirir.",
   "restoreConfirmAction": "Dosyaları geri yükle",
   "rewindCodeConfirmTitle": "Kod bu mesajdan önceki hâline geri sarılsın mı?",
-  "rewindCodeConfirmDetail": "Muse’un bu mesajdan sonra kaydedilen düzenlemeleri en yeniden başlayarak geri alınır; o zamandan beri değişen bir dosya olduğu gibi bırakılır. Komutların değiştirdikleri kapsanmaz: bunları Dosyaları geri yükle kapsar.",
+  "rewindCodeConfirmDetail": "Muse’un bu mesajdan sonra kaydedilen düzenlemeleri en yeniden başlayarak geri alınır; o zamandan beri değişen bir dosya olduğu gibi bırakılır. Komutların değiştirdikleri kapsanmaz ve Dosyaları geri yükle de bunları geri almaz: olduğu gibi bırakılır; sürüm kontrolünüzü denetleyin.",
   "rewindCodeConfirmAction": "Kodu geri sar",
   "restoreBothConfirmTitle": "Dosyalar geri yüklensin ve sohbet bu mesajdan önceye geri sarılsın mı?",
   "restoreBothConfirmDetail": "Geri yükleme bu mesajdan itibaren yapılan düzenlemeleri kapsar. Yalnızca modelin kendi dosya araçlarının düzenlemeleri, her dosya modelin bıraktığı içeriği hâlâ tam olarak içeriyorsa geri alınır. Komutların, kancaların ve MCP araçlarının değişiklikleri, kendi düzenlemeleriniz ve diğer pencerelerin yazmaları hiçbir zaman geri alınmaz. Ardından konuşma bu mesajdan önce dallanır ve mesajın metni giriş alanına geri döner. Bir dosya reddedilirse konuşma geri sarılmaz. Özgün konuşma Geçmiş’te kalır.",
@@ -1307,7 +1307,7 @@
   "restoreWritesIncomplete": "Hiçbir şey geri yüklenmedi: bu turlardaki bazı düzenlemeler tam olarak kaydedilmedi (düzenleme sırasında yeniden yükleme veya çökme oldu ya da dosya kontrol noktaları kapalıydı).",
   "restoreLegacyInRange": "Hiçbir şey geri yüklenmedi: bu turların bazıları, bu sürümün geri yükleyemediği eski bir sürümle kaydedildi.",
   "restoreLegacyWindowOpen": "Başka bir pencerede Muse Spark’ın eski bir sürümü çalışıyor; o pencereyi yeniden yükleyip tekrar deneyin.",
-  "restoreCommandsNote": "Bu turlarda komutlar, kancalar veya MCP araçları çalıştı; dosyalarda yaptıkları değişiklikler geri alınmaz. Sürüm kontrolünüzü denetleyin.",
+  "restoreCommandsNote": "Bu turlarda komutlar, kancalar, MCP araçları veya arka plan işleri etkindi; dosyalarda yaptıkları değişiklikler geri alınmaz. Sürüm kontrolünüzü denetleyin.",
   "restoreRefusedFailed": "Değiştirilemedi: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Bu mesajın artık bir dosya denetim noktası yok.",
@@ -1357,5 +1357,7 @@
     "other": "{count} dosya denetlenmedi"
   },
   "thenRunNoExitCode": "Çıkış kodu olmadan başarısız oldu",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Geri konulacak bir şey kalmadı.",
+  "childCheckpointFailed": "Alt aracının turu çalışmadı: dosya kontrol noktası oluşturulamadı veya devralınan kayıt kararı bilinmiyor."
 }

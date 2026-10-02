@@ -50,6 +50,7 @@ export interface StoredChild {
   readonly objective: string
   readonly itemId: string
   readonly parentTurnId: string
+  readonly checkpointRecording?: boolean | undefined
   readonly startedAt: number
   readonly state: 'queued' | 'running' | 'interrupted' | 'result_ready' | 'closed'
   readonly result?: {
@@ -228,6 +229,7 @@ export const storedSessionSchema = z.object({
         objective: z.string(),
         itemId: z.string(),
         parentTurnId: z.string(),
+        checkpointRecording: z.optional(z.boolean()),
         startedAt: z.number(),
         state: z.enum(['queued', 'running', 'interrupted', 'result_ready', 'closed']),
         result: z.optional(

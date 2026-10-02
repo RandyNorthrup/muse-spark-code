@@ -1,6 +1,5 @@
 import { chmod, mkdir, readFile, stat, symlink, utimes, writeFile, rename } from 'node:fs/promises'
 import path from 'node:path'
-import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as atomic from '../../src/host/fsAtomic'
 import {
@@ -37,16 +36,10 @@ import {
 afterEach(async () => {
   await removeCheckpointFolders()
 })
-vi.mock('../../src/host/fsAtomic', async (importOriginal) => ({
-  ...(await importOriginal<typeof atomic>()),
-}))
 
 const realGit = processGitProcess()
 const GONE_PID = 424_242
 const SHA256_HEX_LENGTH = 64
-// How long the first `git init` waits for a second setup to reach its own:
-// one gets there in milliseconds when the setup is not shared.
-const SECOND_SETUP_WAIT_MS = 1000
 const CASE_FOLDING = new Set<NodeJS.Platform>(['win32', 'darwin'])
 
 describe('CheckpointStore and links (M72, M86)', () => {
@@ -203,19 +196,24 @@ describe('CheckpointStore failures part way (M72, M86)', () => {
       const spy = vi
         .spyOn(atomic, 'writeFileIfUnchanged')
         .mockImplementation(async (file, expected, content, options) => {
-          const journal = await readFile(
-            path.join(h.storage, 'm86', h.store.instance, 'journal.jsonl'),
-            'utf8',
-          )
-          const intents = journal
-            .split('\n')
-            .filter((line) => line.includes('"batch"') && line.includes('"intent"'))
-          seen.push({
-            batches: storedUnits(h.storage).filter((unit) => unit.owner.unitKind === 'batch')
-              .length,
-            isJournaled: intents.some((line) => line.includes('kept.txt')),
+          return await original(file, expected, content, {
+            ...options,
+            staged: async (staged) => {
+              await options.staged?.(staged)
+              const journal = await readFile(
+                path.join(h.storage, 'm86', h.store.instance, 'journal.jsonl'),
+                'utf8',
+              )
+              const intents = journal
+                .split('\n')
+                .filter((line) => line.includes('"batch"') && line.includes('"intent"'))
+              seen.push({
+                batches: storedUnits(h.storage).filter((unit) => unit.owner.unitKind === 'batch')
+                  .length,
+                isJournaled: intents.some((line) => line.includes('kept.txt')),
+              })
+            },
           })
-          return await original(file, expected, content, options)
         })
       try {
         await restoreTurn(h.store, 't1')
@@ -423,7 +421,7 @@ describe('CheckpointStore first setup (M72)', () => {
           if (args.includes('init')) {
             inits += 1
             if (inits === 1) {
-              await Promise.race([second.promise, sleep(SECOND_SETUP_WAIT_MS)])
+              await second.promise
             } else {
               second.resolve(undefined)
             }
@@ -431,8 +429,21 @@ describe('CheckpointStore first setup (M72)', () => {
           return await realGit(args, options)
         },
       })
+      let opens = 0
+      const store = new Proxy(h.store, {
+        get: (target, key, receiver): unknown => {
+          if (key === 'open') {
+            opens += 1
+            if (opens === 2) {
+              second.resolve(undefined)
+            }
+          }
+          const value: unknown = Reflect.get(target, key, receiver)
+          return value
+        },
+      })
       await expect(
-        Promise.all([h.store.turns('s1'), h.store.markTurn('pending:message', true)]),
+        Promise.all([store.turns('s1'), store.markTurn('pending:message', true)]),
       ).resolves.toEqual([[], undefined])
       expect(inits).toBe(1)
     },

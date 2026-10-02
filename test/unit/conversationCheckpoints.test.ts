@@ -227,6 +227,25 @@ describe('ConversationCheckpoints (M72, M86)', () => {
 })
 
 describe('ConversationCheckpoints reports (M72, M86)', () => {
+  it('keeps confirmations and outcome wording truthful about commands, children and Redo', () => {
+    expect(UI_TEXT.restoreCommandsNote).toBe(
+      'Commands, hooks, MCP tools or background work were active in these turns; files they changed are not undone. Check your version control.',
+    )
+    expect(UI_TEXT.rewindCodeConfirmDetail).toContain('Restore files does not undo it either')
+    expect(UI_TEXT.childCheckpointFailed).toContain('The subagent turn did not run')
+    expect(UI_TEXT.redoNothing).toBe('Nothing left to put back.')
+  })
+  it('reports an unchanged Redo with its own no-op text and file count', async () => {
+    const { checkpoints, notices } = harness({
+      backend: () => 'modelApi',
+      redo: () => Promise.resolve(restored({ unchanged: ['a.ts'], isRedoSpent: true })),
+    })
+    await checkpoints.redo('r1', 's1')
+    expect(notices).toEqual([
+      ['info', UI_TEXT.redoNothing, undefined],
+      ['info', plural(UI_TEXT.restoreUnchanged, 1), undefined],
+    ])
+  })
   it('passes the transcript’s turn ids with the restore', async () => {
     const { checkpoints, requests } = harness({ backend: () => 'modelApi' })
     await checkpoints.sessionChanged('s1')
@@ -294,7 +313,10 @@ describe('ConversationCheckpoints reports (M72, M86)', () => {
     [
       'M: nothing to do when every file was already as before',
       { restoreId: undefined, unchanged: ['a.ts'] },
-      () => [['info', UI_TEXT.restoreNothing, undefined]],
+      () => [
+        ['info', UI_TEXT.restoreNothing, undefined],
+        ['info', plural(UI_TEXT.restoreUnchanged, 1), undefined],
+      ],
     ],
     [
       'R: that commands ran, and the conversation may still rewind',

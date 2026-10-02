@@ -7,13 +7,22 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Changed
+### Added
 
 - **Turn checkpoints (M86).** On by default again, with restore rebuilt on
   the model's own file-tool writes while each file still holds exactly
-  what the model left. Commands, hooks and MCP tools are noted when they
-  run; their file changes are never undone. Workspace captures and
-  ignored-file scans are removed.
+  what the model left. Commands, hooks, MCP tools or background work active
+  in those turns are noted; their file changes are never undone. Workspace
+  captures and ignored-file scans are removed. Restore and Redo refuse
+  replaced workspace roots, swapped junctions, dirty editor aliases and
+  incomplete later transcripts. Durable recovery inputs survive unreadable
+  records; applied batches keep their results and Redo after lost outcomes.
+  Retention releases old units and file copies by sequence. Children keep
+  their inherited recording decision across reloads, and folder cleanup
+  uses actual creation ownership.
+
+### Changed
+
 - The Node bundles share their English fallback as `dist/uiText.js`, while
   installed-language state stays local to each bundle. The VSIX and ACP
   tarball include it, and CI checks both package member lists. Existing

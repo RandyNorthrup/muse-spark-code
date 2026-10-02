@@ -52,7 +52,7 @@ import {
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
-import { WriteJournal } from './writeJournal'
+import { type JournalFs, WriteJournal } from './writeJournal'
 
 const SEPARATOR = '/'
 const CURRENT_FOLDER = '.'
@@ -128,7 +128,7 @@ export interface OwnerIo extends ToolIo {
     absolutePath: string,
     content: string,
     expectedCanonicalPath: string | undefined,
-    publish: () => Promise<void>,
+    publish: (staged?: (file: StagedFile) => Promise<void>) => Promise<void>,
   ): Promise<void>
 }
 
@@ -216,7 +216,7 @@ function changedPath(): Error {
 }
 
 /** The last `count` folders on the way to the file, its own included, outermost first. */
-function innermostFolders(relative: string, count: number): readonly string[] {
+export function innermostFolders(relative: string, count: number): readonly string[] {
   const folders: string[] = []
   for (
     let folder = path.posix.dirname(relative);
@@ -462,24 +462,6 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
     }
   }
 
-  /** Every folder the file's creation will make: the missing ones on its way, outermost first. */
-  const missingFolders = async (target: Target): Promise<readonly string[]> => {
-    const missing: string[] = []
-    for (
-      let folder = path.posix.dirname(target.path);
-      folder !== CURRENT_FOLDER;
-      folder = path.posix.dirname(folder)
-    ) {
-      if (
-        (await lstatOrMissing(p.join(deps.workspaceRoot, ...folder.split(SEPARATOR)))) !== undefined
-      ) {
-        break
-      }
-      missing.unshift(folder)
-    }
-    return missing
-  }
-
   /**
    * `content` published over the file only while it is still as copied (and
    * as `isExpected` says), its intent journaled once the content is staged
@@ -638,18 +620,19 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
         if ((await lstatOrMissing(target.absolute)) !== undefined || !(await isRecorded(target))) {
           return await io.reserveFile(target.absolute, target.absolute)
         }
-        const createdFolders = await missingFolders(target)
         const isKept = await hasKept(target, [{ oid: EMPTY_OID, bytes: EMPTY }])
         const id = deps.newId()
-        await journalIntent(target, id, {
-          before: ABSENT,
-          after: { present: true, oid: EMPTY_OID },
-          createdFolders,
-          isKept,
-        })
+        const beforeCreate = async (createdFolders: number) => {
+          await journalIntent(target, id, {
+            before: ABSENT,
+            after: { present: true, oid: EMPTY_OID },
+            createdFolders: innermostFolders(target.path, createdFolders),
+            isKept,
+          })
+        }
         let reservation: FileReservation
         try {
-          reservation = await io.reserveFile(target.absolute, target.absolute)
+          reservation = await io.reserveFile(target.absolute, target.absolute, beforeCreate)
         } catch (error: unknown) {
           // Refused as taken, or nothing there now: proof nothing was made.
           // Anything else leaves the write unsettled.
@@ -674,18 +657,19 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
           await publish()
           return
         }
-        const createdFolders = await missingFolders(target)
         const bytes = Buffer.from(content, 'utf8')
         const isKept = await hasKept(target, blobsOf({ state: ABSENT, bytes: undefined }, bytes))
         const id = deps.newId()
-        await journalIntent(target, id, {
-          before: ABSENT,
-          after: { present: true, oid: gitBlobOid(bytes) },
-          createdFolders,
-          isKept,
-        })
+        const staged = async (file: StagedFile) => {
+          await journalIntent(target, id, {
+            before: ABSENT,
+            after: { present: true, oid: gitBlobOid(bytes), mode: gitMode(file.mode) },
+            createdFolders: innermostFolders(target.path, file.createdFolders),
+            isKept,
+          })
+        }
         try {
-          await publish()
+          await publish(staged)
         } catch (error: unknown) {
           // It throws only before its no-clobber link publishes anything.
           await settle(target, id, 'aborted')
@@ -742,6 +726,8 @@ export interface TurnRecordingDeps {
   /** This window's instance id: its journal's folder, and every owner's. */
   readonly instance: string
   readonly platform: NodeJS.Platform
+  /** Existing journal filesystem seam, used by deterministic durability tests. */
+  readonly fs?: JournalFs | undefined
 }
 
 /**
@@ -765,7 +751,7 @@ export interface WindowRecording {
  */
 export function createTurnRecording(deps: TurnRecordingDeps): WindowRecording {
   const { instance, platform } = deps
-  const journal = new WriteJournal({ storageDir: deps.storageDir, instance, platform })
+  const journal = new WriteJournal({ storageDir: deps.storageDir, instance, platform, fs: deps.fs })
   const lanes = new WriteLanes(platform)
   return {
     instance,

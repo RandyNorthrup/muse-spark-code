@@ -397,9 +397,12 @@ describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
     expect(
       await prepareCheckpointTurn(port, recorder, 's1', 'c3', log, { checkpoint: { kind: 'off' } }),
     ).toEqual({ kind: 'off' })
-    // A child brought back from an earlier window: the setting decides.
+    // Reloaded children keep their decision independently of today's setting.
     expect(
-      await prepareCheckpointTurn(port, recorder, 's1', 'c4', log, { checkpoint: undefined }),
+      await prepareCheckpointTurn(port, recorder, 's1', 'c4', log, {
+        checkpoint: undefined,
+        recordsFiles: false,
+      }),
     ).toEqual({ kind: 'off' })
     expect(calls.filter((call) => !call.startsWith('mark'))).toEqual([
       'start s1 c1',
@@ -413,7 +416,7 @@ describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
     const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     store.startUnit = () => Promise.reject(new Error('EACCES /private/profile/store'))
     const recording = { kind: 'recording', owner: OWNER, writes: WRITES } as const
-    for (const top of [{ checkpoint: recording }, { checkpoint: undefined }]) {
+    for (const top of [{ checkpoint: recording }, { checkpoint: undefined, recordsFiles: true }]) {
       await expect(
         prepareCheckpointTurn(
           port,
@@ -426,6 +429,16 @@ describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
       ).rejects.toThrow(UI_TEXT.checkpointFailed)
     }
     expect(calls.filter((call) => call.startsWith('writes'))).toEqual([])
+  })
+
+  it('refuses a reloaded recording child when this window has no recorder', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    await expect(
+      prepareCheckpointTurn(port, undefined, 's1', 'child', new FakeLogOutputChannel(), {
+        checkpoint: undefined,
+        recordsFiles: true,
+      }),
+    ).rejects.toThrow(UI_TEXT.childCheckpointFailed)
   })
 
   it('drains a recorded turn’s writes, then ends its unit, then withdraws its mark', async () => {

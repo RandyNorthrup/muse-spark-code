@@ -20,7 +20,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { FileReservation, ToolIo } from '../../src/core/backends/modelapi/tools'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import type { JournalEntry, Owner } from '../../src/core/checkpoints/toolWrites'
@@ -28,6 +28,7 @@ import { fingerprint } from '../../src/core/verify/fingerprint'
 import { createCheckpointedMemory } from '../../src/host/backend/checkpointedMemory'
 import { systemPath } from '../../src/host/backend/memoryIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
+import { createFileExclusively } from '../../src/host/fsAtomic'
 import { createCheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import { type JournalFs, WriteJournal } from '../../src/host/checkpoints/writeJournal'
 import {
@@ -511,8 +512,8 @@ describe(
       const t = await setup()
       const partial: ToolIo = {
         ...t.toolIo,
-        reserveFile: async (file, expected): Promise<FileReservation> => {
-          const real = await t.toolIo.reserveFile(file, expected)
+        reserveFile: async (file, expected, beforeCreate): Promise<FileReservation> => {
+          const real = await t.toolIo.reserveFile(file, expected, beforeCreate)
           return {
             ...real,
             fill: async (bytes) => {
@@ -598,6 +599,37 @@ describe(
 )
 
 describe('createOwnerIo: the copy is confined (M86 O)', { timeout: REAL_FS_TIMEOUT_MS }, () => {
+  it('records only folders actually created by image reservation or exclusive memory publication', async () => {
+    const t = await setup()
+    const borrowed: ToolIo = {
+      ...t.toolIo,
+      reserveFile: async (file, expected, beforeCreate) => {
+        // Another writer supplies the previously absent parent before our mkdir.
+        await mkdir(path.dirname(file), { recursive: true })
+        return await t.toolIo.reserveFile(file, expected, beforeCreate)
+      },
+    }
+    const io = t.ownerIo('t1', borrowed)
+    const reservation = await io.reserveFile(t.file('user-image/a.png'))
+    await reservation.fill(PNG)
+    await io.recordNew(t.file('user-memory/a.txt'), 'note', undefined, async (staged) => {
+      await mkdir(t.file('user-memory'))
+      await createFileExclusively(t.file('user-memory/a.txt'), 'note', {
+        mode: 0o600,
+        warn: () => undefined,
+        ...(staged !== undefined && { staged }),
+      })
+    })
+    const writes = intents(await t.entries())
+    expect(writes.map((write) => [write.path, write.createdFolders])).toEqual([
+      ['user-image/a.png', []],
+      ['user-image/a.png', []],
+      ['user-memory/a.txt', []],
+    ])
+    expect(await readFile(t.file('user-memory/a.txt'), 'utf8')).toBe('note')
+    await io.drain()
+    await t.journal.close()
+  })
   it('keeps no bytes from outside when a folder on the way is swapped for a link during the copy', async () => {
     const t = await setup()
     await mkdir(t.file('sub'))
@@ -722,13 +754,29 @@ describe(
         }),
       )
       const second = t.ownerIo('turn-2', t.toolIo, 's2')
+      const secondQueued = Promise.withResolvers<undefined>()
+      const entered: number[] = []
+      let attempts = 0
+      const exclusive = t.lanes.exclusive.bind(t.lanes)
+      vi.spyOn(t.lanes, 'exclusive').mockImplementation(
+        <T>(key: string, work: () => Promise<T>) => {
+          const attempt = ++attempts
+          const pending = exclusive(key, async () => {
+            entered.push(attempt)
+            return await work()
+          })
+          if (attempt === 2) {
+            secondQueued.resolve(undefined)
+          }
+          return pending
+        },
+      )
       const writingFirst = first.writeFile(t.file('shared.txt'), 'one\n', t.file('shared.txt'))
       await reached.promise
       const writingSecond = second.writeFile(t.file('shared.txt'), 'two\n', t.file('shared.txt'))
       // The second waits on the path: no intent of its own while the first is under way.
-      await new Promise((resolve) => {
-        setTimeout(resolve, 50)
-      })
+      await secondQueued.promise
+      expect(entered).toEqual([1])
       expect(kindsOf(await t.entries())).toEqual(['intent w1'])
       held.resolve(undefined)
       await Promise.all([writingFirst, writingSecond])

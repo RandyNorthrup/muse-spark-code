@@ -1309,7 +1309,7 @@
   "restoreConfirmDetail": "La restauración abarca las ediciones desde este mensaje en adelante. Solo se deshacen las ediciones de las propias herramientas de archivos del modelo, mientras cada archivo conserve exactamente lo que el modelo dejó. Nunca se deshacen los cambios de comandos, hooks, herramientas MCP, tus propias ediciones ni las escrituras de otras ventanas. Los archivos con cambios sin guardar se dejan como están y se enumeran. Rehacer recupera lo que cambió la restauración.",
   "restoreConfirmAction": "Restaurar archivos",
   "rewindCodeConfirmTitle": "¿Retroceder el código a como estaba antes de este mensaje?",
-  "rewindCodeConfirmDetail": "Se deshacen las ediciones registradas de Muse después de este mensaje, de la más reciente a la más antigua; un archivo cambiado desde entonces se deja como está. Lo que cambiaron los comandos no se incluye: Restaurar archivos sí lo incluye.",
+  "rewindCodeConfirmDetail": "Se deshacen las ediciones registradas de Muse después de este mensaje, de la más reciente a la más antigua; un archivo cambiado desde entonces se deja como está. Lo que cambiaron los comandos no se incluye, y Restaurar archivos tampoco lo deshace: se deja como está; revisa tu control de versiones.",
   "rewindCodeConfirmAction": "Retroceder el código",
   "restoreBothConfirmTitle": "¿Restaurar los archivos y retroceder la conversación hasta antes de este mensaje?",
   "restoreBothConfirmDetail": "La restauración abarca las ediciones desde este mensaje en adelante. Solo se deshacen las ediciones de las propias herramientas de archivos del modelo, mientras cada archivo conserve exactamente lo que el modelo dejó. Nunca se deshacen los cambios de comandos, hooks, herramientas MCP, tus propias ediciones ni las escrituras de otras ventanas. Después, la conversación se bifurca antes de este mensaje y su texto vuelve al cuadro de entrada. Si se rechaza algún archivo, la conversación no retrocede. La conversación original permanece en el Historial.",
@@ -1344,7 +1344,7 @@
   "restoreWritesIncomplete": "No se restauró nada: algunas ediciones de estos turnos no se registraron por completo (una recarga o un cierre inesperado durante la edición, o los puntos de control de archivos estaban desactivados).",
   "restoreLegacyInRange": "No se restauró nada: algunos de estos turnos se registraron con una versión anterior que esta versión no puede restaurar.",
   "restoreLegacyWindowOpen": "Otra ventana ejecuta una versión anterior de Muse Spark; recárgala y vuelve a intentarlo.",
-  "restoreCommandsNote": "En estos turnos se ejecutaron comandos, hooks o herramientas MCP; no se deshacen los cambios que hicieron en los archivos. Revisa tu control de versiones.",
+  "restoreCommandsNote": "En estos turnos estuvieron activos comandos, hooks, herramientas MCP o tareas en segundo plano; no se deshacen sus cambios en los archivos. Revisa tu control de versiones.",
   "restoreRefusedFailed": "No se pudieron cambiar: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Este mensaje ya no tiene un punto de control de archivos.",
@@ -1398,5 +1398,7 @@
     "other": "{count} archivos sin comprobar"
   },
   "thenRunNoExitCode": "Falló sin código de salida",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "No queda nada que volver a poner.",
+  "childCheckpointFailed": "El turno del subagente no se ejecutó: no se pudo crear su punto de control de archivos o se desconoce la decisión de registro heredada."
 }

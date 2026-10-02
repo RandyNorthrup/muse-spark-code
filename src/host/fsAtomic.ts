@@ -209,7 +209,7 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
  * outermost one it names (undefined: none). Windows names it in its long-path
  * form (`\\?\C:\…`), so both are compared in that form.
  */
-function foldersMade(folder: string, outermost: string | undefined): number {
+export function foldersMade(folder: string, outermost: string | undefined): number {
   if (outermost === undefined) {
     return 0
   }
@@ -411,7 +411,7 @@ export interface NewFileOptions {
   /** Removes the stage (`fs.rm`); tests stand in a scanner holding it. */
   readonly remove?: (stage: string) => Promise<void>
   /** Runs once the stage is written and closed, before the last check; tests swap the folder here. */
-  readonly staged?: () => Promise<void>
+  readonly staged?: (file: StagedFile) => Promise<void>
   readonly platform?: NodeJS.Platform
 }
 
@@ -503,9 +503,10 @@ export async function createFileExclusively(
   const directory = path.dirname(absolutePath)
   const expected = options.expectedDirectory ?? (await canonicalPath(directory))
   await assertSameDirectory(directory, expected, platform)
+  let createdFolders: number
   try {
     options.assertCanWrite?.()
-    await mkdir(directory, { recursive: true })
+    createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
   } catch (error: unknown) {
     const code = errorCode(error)
     if (code !== undefined && NOT_A_FOLDER_CODES.has(code)) {
@@ -520,19 +521,21 @@ export async function createFileExclusively(
   )
   let stageIdentity: Pick<Stats, 'dev' | 'ino'> | undefined
   let isPublished = false
+  let stagedMode: number
   try {
     options.assertCanWrite?.()
     const handle = await open(stage, 'wx', options.mode)
     try {
       const held = await handle.stat()
       stageIdentity = { dev: held.dev, ino: held.ino }
+      stagedMode = held.mode & PERMISSION_BITS
       options.assertCanWrite?.()
       await handle.writeFile(content, 'utf8')
       await handle.sync()
     } finally {
       await handle.close()
     }
-    await options.staged?.()
+    await options.staged?.({ mode: stagedMode, createdFolders })
     await assertSameDirectory(directory, expected, platform)
     if (!(await isOwnedFile(stage, stageIdentity))) {
       throw new Error(MODEL_TEXT.pathChangedAfterApproval)

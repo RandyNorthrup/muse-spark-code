@@ -340,8 +340,11 @@ fields, never raw configuration or failed-command output.
   Nothing is written into the workspace's `.git`, and nothing is sent
   anywhere. Earlier M72 captures remain as read-only history; M86 creates
   no new ones.
-  Retention removes whole oldest units by conversation sequence, with
-  their journal data and copies. Archiving hides a conversation's records
+  Retention retires oldest units by conversation sequence and removes
+  their unneeded file copies. Small identity-only records preserve owners
+  and sequence numbers so retirement differs from unexplained record loss.
+  Shared journal metadata remains until every unit of its instance is
+  retired; a live foreign journal is never rewritten. Archiving hides a conversation's records
   from other windows. A reload or a window closing does not by itself
   delete its durable journal. Records use compare-and-swap refs, and one
   shared ref reserves file work for a restore or Redo. Presence files hold

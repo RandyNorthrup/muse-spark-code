@@ -3171,6 +3171,7 @@ export class ModelApiSession implements AgentSession {
     }
     limit.lift()
     this.backgroundShells.set(itemId, stop)
+    this.noteBackgroundStarted()
     return { outcome: { output: MODEL_TEXT.shellMovedToBackground, visibleOutput: '' }, running }
   }
 
@@ -5946,6 +5947,15 @@ export class ModelApiSession implements AgentSession {
     return checkpoint?.kind === 'recording' ? checkpoint.writes : undefined
   }
 
+  /** Only the inherited decision is persisted, never a previous window's writes. */
+  private inheritedRecording(): boolean | undefined {
+    const top = this.topTurn
+    return (
+      top?.recordsFiles ??
+      (top?.checkpoint === undefined ? undefined : top.checkpoint.kind !== 'off')
+    )
+  }
+
   /** The running turn started a process (M86, spec 8): its restore says what it never undoes. */
   private noteProcessRan(): void {
     if (this.active !== undefined) {
@@ -5955,10 +5965,30 @@ export class ModelApiSession implements AgentSession {
 
   /** Whether a command of the conversation, its children's included, runs in the background now. */
   private hasLiveCommands(): boolean {
-    const top = this.parentSession ?? this
-    return [top, ...Array.from(top.children.values(), (child) => child.session)].some(
+    return this.conversationSessions().some(
       (session) => session.backgroundShells.size > 0 || session.userShells.size > 0,
     )
+  }
+
+  private conversationSessions(): readonly ModelApiSession[] {
+    return this.parentSession === undefined
+      ? [this, ...this.descendantSessions()]
+      : this.parentSession.conversationSessions()
+  }
+
+  private descendantSessions(): readonly ModelApiSession[] {
+    const sessions: ModelApiSession[] = []
+    for (const { session } of this.children.values()) {
+      sessions.push(session, ...session.descendantSessions())
+    }
+    return sessions
+  }
+
+  /** A task can start and finish between another turn's start/end samples. */
+  private noteBackgroundStarted(): void {
+    for (const session of this.conversationSessions()) {
+      session.noteProcessRan()
+    }
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
@@ -6006,7 +6036,9 @@ export class ModelApiSession implements AgentSession {
         this.deps.log.warn(
           `The turn checkpoint could not be admitted: ${error instanceof Error ? error.name : 'unknown failure'}`,
         )
-        throw new Error(UI_TEXT.sendMarkFailed, { cause: error })
+        throw new Error(this.isSubagent ? UI_TEXT.childCheckpointFailed : UI_TEXT.sendMarkFailed, {
+          cause: error,
+        })
       }
       turn.abort.signal.throwIfAborted()
       await this.startHooks()
@@ -6846,6 +6878,7 @@ export class ModelApiSession implements AgentSession {
     }
     const stop = new AbortController()
     this.userShells.set(started.itemId, stop)
+    this.noteBackgroundStarted()
     this.noteProcessRan()
     this.recordTranscript(this.latestTurnId(), started)
     this.touch()
@@ -7213,6 +7246,9 @@ export class ModelApiSession implements AgentSession {
           objective: child.objective,
           itemId: child.itemId,
           parentTurnId: child.parentTurnId,
+          ...(child.session.inheritedRecording() !== undefined && {
+            checkpointRecording: child.session.inheritedRecording(),
+          }),
           startedAt: child.startedAt,
           state: child.state,
           ...(child.result !== undefined && { result: child.result }),
@@ -7282,6 +7318,7 @@ export class ModelApiSession implements AgentSession {
         this.workspaceEdits,
       )
       session.adopt(saved.session)
+      session.topTurn = { checkpoint: undefined, recordsFiles: saved.checkpointRecording }
       const record: ChildRecord = {
         id: saved.id,
         role: saved.role,
@@ -7393,6 +7430,7 @@ export class ModelApiSession implements AgentSession {
         target.workspaceEdits,
       )
       session.adopt({ ...child.session.snapshot(), sessionId })
+      session.topTurn = { checkpoint: undefined, recordsFiles: child.session.inheritedRecording() }
       const cloned: ChildRecord = {
         ...child,
         session,

@@ -1146,8 +1146,8 @@ rewind button on any sent message (on hover):
   checkpoint) is one action: the confirmation, the reverts, then the fork.
   Declining the confirmation does neither.
 
-Both **Rewind code to here** and **Restore files to here** ask first, in the
-same confirmation.
+Both **Rewind code to here** and **Restore files to here** ask first, each in
+its own confirmation.
 
 **Turn checkpoints.** On by default (`museSpark.turnCheckpoints`). **Restore
 files to here** undoes the model's own file-tool edits from that message
@@ -1214,10 +1214,17 @@ Code has no stored file restore; its native rewind is separate.
   disk, refuses the tool's write before it changes the file. Oldest whole
   records, their journal data and copies are removed by conversation
   sequence; archiving hides the conversation's records from other windows.
+  Small identity records keep retired owners and sequence numbers distinct
+  from unexplained missing records. Shared journals keep their metadata until
+  their instance's units are all retired; retired file copies can go sooner.
 - **Off.** No new turns are recorded with `museSpark.turnCheckpoints` off
   or in Restricted Mode. A turn that started recording keeps recording
   until it ends, even if the setting is switched off. A restore range
   containing a turn that ran without recording is refused.
+  A child keeps its spawning turn's decision across reloads. A historical
+  child whose decision is unknown does not run. Redo checks later transcript
+  turns too; missing history or a historical batch without a recorded
+  transcript boundary refuses the range.
 - **Limits.** If someone else writes exactly the bytes the model left,
   restore cannot tell (the ABA limit). Foreign writes in other windows are
   judged by bytes, not their order. The filesystem writer checks again
@@ -1874,13 +1881,14 @@ stopped and the next message resumes the same session.
 - The paid features (web search, image generation, Muse Voice, Model API
   subagents and scheduled prompts) are off until you turn one on and accept
   its price; a repository's settings cannot turn one on.
-- Turn checkpoints copy the workspace's files (and an ignored file such as
-  `.env` only when the extension's own tools are about to change it, or when
-  a restore overwrites or deletes it, for Redo) into a shadow repository in
-  VS Code's storage directory for this workspace, never into the
-  repository's `.git`; that folder is readable by your user only (on macOS
-  and Linux). They stay on the machine and are deleted with the conversation,
-  by the retention bounds, or by removing that directory. See **Turn
+- Turn checkpoints keep the model's own file-tool bytes, including ignored
+  files its tools change, under this extension profile's global storage,
+  `checkpoints/<canonical-root-key>`, as described in the Panel section.
+  The shadow repository and per-instance journals stay outside the
+  workspace's `.git`; that folder is readable by your user only (on macOS
+  and Linux). Copies stay on the machine and are removed by conversation
+  retention or by removing that directory. Shared journal metadata remains
+  until all its instance's units are retired. See **Turn
   checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than

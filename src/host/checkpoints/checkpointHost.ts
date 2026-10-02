@@ -264,19 +264,31 @@ export async function prepareCheckpointTurn(
   top?: TopTurn,
 ): Promise<TurnCheckpoint> {
   await port.markTurn(turnKey(sessionId, turnId), true)
-  if (recorder === undefined || top?.checkpoint?.kind === 'off') {
+  if (top?.checkpoint?.kind === 'off' || top?.recordsFiles === false) {
     return OFF
+  }
+  if (recorder === undefined) {
+    if (top !== undefined) {
+      throw new Error(UI_TEXT.childCheckpointFailed)
+    }
+    return OFF
+  }
+  if (top !== undefined && top.checkpoint === undefined && top.recordsFiles === undefined) {
+    throw new Error(UI_TEXT.childCheckpointFailed)
   }
   let owner: Owner | undefined
   try {
     // A top turn that records (or tried to) passes its decision on.
-    owner = await port.startTurnUnit(sessionId, turnId, top?.checkpoint !== undefined)
+    owner = await port.startTurnUnit(sessionId, turnId, top !== undefined)
   } catch (error: unknown) {
     log.warn(`No turn record was made: ${failureForLog(error)}`)
     if (top !== undefined) {
       throw new Error(UI_TEXT.checkpointFailed, { cause: error })
     }
     return { kind: 'failed' }
+  }
+  if (top !== undefined && owner === undefined) {
+    throw new Error(UI_TEXT.childCheckpointFailed)
   }
   return owner === undefined ? OFF : { kind: 'recording', owner, writes: recorder.start(owner) }
 }
@@ -437,9 +449,9 @@ export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPo
       checkpoints.refuseStorageWrite(args[0])
       return await conditionalWrite(...args)
     },
-    reserveFile: async (absolutePath, expectedCanonicalPath) => {
+    reserveFile: async (absolutePath, expectedCanonicalPath, beforeCreate) => {
       checkpoints.refuseStorageWrite(absolutePath)
-      return await io.reserveFile(absolutePath, expectedCanonicalPath)
+      return await io.reserveFile(absolutePath, expectedCanonicalPath, beforeCreate)
     },
   }
 }

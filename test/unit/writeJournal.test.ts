@@ -15,7 +15,7 @@ import {
   CHECKPOINT_JOURNAL_FILE,
   CHECKPOINT_WRITES_DIR,
 } from '../../src/shared/constants'
-import { fsFailure, halfWhenFull, journalFsWith } from './helpers/journalFs'
+import { fsFailure, halfWhenFull, journalFsWith, NODE_JOURNAL_FS } from './helpers/journalFs'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-write-journal-')))
@@ -73,6 +73,106 @@ async function kinds(storageDir: string, instance: string) {
 }
 
 describe('WriteJournal (M86)', { timeout: REAL_FS_TIMEOUT_MS }, () => {
+  it('takes its snapshot only after a partial append becomes durable', async () => {
+    const storageDir = await storage()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let hasPaused = false
+    const journal = new WriteJournal({
+      storageDir,
+      instance: 'snapshot',
+      fs: journalFsWith((real) => ({
+        write: async (bytes, offset, length, position) => {
+          if (hasPaused) {
+            return await real.write(bytes, offset, length, position)
+          }
+          hasPaused = true
+          const half = Math.floor(length / 2)
+          await real.write(bytes, offset, half, position)
+          entered.resolve(undefined)
+          await release.promise
+          return { bytesWritten: half }
+        },
+      })),
+    })
+    const append = journal.appendIntent(writeOf('snapshot', 'w1', 1))
+    await entered.promise
+    const snapshot = journal.snapshot()
+    release.resolve(undefined)
+    await append
+    expect(await snapshot).toEqual({
+      entries: [{ kind: 'intent', write: writeOf('snapshot', 'w1', 1) }],
+      tornTail: 'none',
+    })
+    await journal.close()
+  })
+
+  it.skipIf(process.platform === 'win32')(
+    'retries blob and newly created folder name barriers after EIO',
+    async () => {
+      const storageDir = await storage()
+      const blobFolder = path.join(
+        storageDir,
+        CHECKPOINT_WRITES_DIR,
+        'barrier',
+        CHECKPOINT_BLOBS_DIR,
+      )
+      const bytes = Buffer.from('durable bytes')
+      let hasFailedFolder = false
+      let hasFailedBlob = false
+      let blobFlushes = 0
+      let parentFlushes = 0
+      const journal = new WriteJournal({
+        storageDir,
+        instance: 'barrier',
+        fs: {
+          ...NODE_JOURNAL_FS,
+          open: async (file, flags, mode) => {
+            const handle = await fsp.open(file, flags, mode)
+            if (flags !== 'r') {
+              return handle
+            }
+            return {
+              write: async (data, offset, length, position) =>
+                await handle.write(data, offset, length, position),
+              truncate: async (length) => {
+                await handle.truncate(length)
+              },
+              stat: async () => await handle.stat(),
+              close: async () => {
+                await handle.close()
+              },
+              sync: async () => {
+                if (file === storageDir) {
+                  parentFlushes += 1
+                  if (!hasFailedFolder) {
+                    hasFailedFolder = true
+                    throw fsFailure('EIO')
+                  }
+                }
+                if (file === blobFolder) {
+                  blobFlushes += 1
+                  if (!hasFailedBlob) {
+                    hasFailedBlob = true
+                    throw fsFailure('EIO')
+                  }
+                }
+                await handle.sync()
+              },
+            }
+          },
+        },
+      })
+      await expect(journal.writeBlob(bytes)).rejects.toThrow('EIO')
+      await expect(journal.writeBlob(bytes)).rejects.toThrow('EIO')
+      expect(
+        await fsp.readFile(WriteJournal.blobPath(storageDir, 'barrier', gitBlobOid(bytes))),
+      ).toEqual(bytes)
+      expect(await journal.writeBlob(bytes)).toBe(gitBlobOid(bytes))
+      expect(blobFlushes).toBe(2)
+      expect(parentFlushes).toBe(2)
+    },
+  )
   it('appends every entry as one line and reads each instance back in its order', async () => {
     const storageDir = await storage()
     const first = new WriteJournal({ storageDir, instance: 'one' })

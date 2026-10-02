@@ -646,7 +646,7 @@ export const EN = {
   restoreConfirmAction: 'Restore files',
   rewindCodeConfirmTitle: 'Rewind the code to before this message?',
   rewindCodeConfirmDetail:
-    'Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered: Restore files covers it.',
+    'Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered, and Restore files does not undo it either: it is left as it is; check version control.',
   rewindCodeConfirmAction: 'Rewind code',
   restoreBothConfirmTitle: 'Restore the files and rewind the conversation to before this message?',
   restoreBothConfirmDetail:
@@ -658,6 +658,7 @@ export const EN = {
     other: 'Restored {count} files to before this message.',
   }),
   restoreNothing: 'No file needed restoring.',
+  redoNothing: 'Nothing left to put back.',
   redoDone: forms({ one: 'Put {count} file back.', other: 'Put {count} files back.' }),
   redoAction: 'Redo',
   redoLabel: 'Redo: put back the files this restore replaced',
@@ -683,7 +684,7 @@ export const EN = {
   restoreLegacyWindowOpen:
     'Another window runs an older version of Muse Spark; reload it, then try again.',
   restoreCommandsNote:
-    'Commands, hooks or MCP tools ran in these turns; files they changed are not undone. Check your version control.',
+    'Commands, hooks, MCP tools or background work were active in these turns; files they changed are not undone. Check your version control.',
   namedFilesMore: '{files} (+{count})',
   restoreNoCheckpoint: 'This message has no file checkpoint any more.',
   restoreTurnRunning: 'Wait until no turn is running in this window, then try again.',
@@ -693,6 +694,8 @@ export const EN = {
     'The message was not sent: this window could not tell other windows on this folder that a turn is starting.',
   restoreFailed: 'Could not restore the files',
   checkpointFailed: 'the checkpoint failed',
+  childCheckpointFailed:
+    'The subagent turn did not run: its file checkpoint could not be created or its inherited recording decision is unknown.',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',

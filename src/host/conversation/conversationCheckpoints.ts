@@ -232,20 +232,19 @@ export class ConversationCheckpoints {
    * hooks or MCP tools ran in the turns, that what they changed was not
    * undone. That note never stops a rewind; a refusal does.
    */
-  private notices(outcome: RestoreOutcome, done: PluralForms): () => void {
+  private notices(outcome: RestoreOutcome, done: PluralForms, isRedo = false): () => void {
     return () => {
       if (!outcome.ok) {
         this.deps.notice('warning', this.failureText(outcome.reason))
         return
       }
       const count = outcome.changed.length
-      const isActed = count > 0 || outcome.refused.length > 0
       if (count > 0) {
         this.deps.notice('info', plural(done, count), outcome.restoreId)
       } else if (outcome.refused.length === 0) {
-        this.deps.notice('info', UI_TEXT.restoreNothing)
+        this.deps.notice('info', isRedo ? UI_TEXT.redoNothing : UI_TEXT.restoreNothing)
       }
-      if (isActed && outcome.unchanged.length > 0) {
+      if (outcome.unchanged.length > 0) {
         this.deps.notice('info', plural(UI_TEXT.restoreUnchanged, outcome.unchanged.length))
       }
       for (const reason of REFUSAL_ORDER) {
@@ -480,17 +479,22 @@ export class ConversationCheckpoints {
    * replaced goes back, and the panel learns whether its button is spent (a
    * Redo that left paths it could not do keeps it for another try).
    */
-  public async redo(restoreId: string, sourceSessionId: string): Promise<void> {
+  public async redo(
+    restoreId: string,
+    sourceSessionId: string,
+    transcriptTurnIds?: (fromTurnId: string) => Promise<readonly string[] | undefined>,
+  ): Promise<void> {
     let isSpent = false
     try {
       const outcome = await this.deps.port.redo({
         backend: () => this.deps.backend(sourceSessionId),
         sourceSessionId,
         restoreId,
+        ...(transcriptTurnIds !== undefined && { transcriptTurnIds }),
         unsavedPaths: this.deps.unsavedPaths,
       })
       isSpent = outcome.ok ? outcome.isRedoSpent : outcome.reason === 'redoGone'
-      this.notices(outcome, UI_TEXT.redoDone)()
+      this.notices(outcome, UI_TEXT.redoDone, true)()
     } catch (error: unknown) {
       this.sayFailed(error)
     }

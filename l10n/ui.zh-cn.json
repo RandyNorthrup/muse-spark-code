@@ -1241,7 +1241,7 @@
   "restoreConfirmDetail": "还原范围为此消息及之后的编辑。 仅撤销模型自身文件工具的编辑，而且只有各文件仍与模型留下的内容完全一致时才会撤销。命令、钩子、MCP 工具的更改、你自己的编辑以及其他窗口的写入均不会撤销。 有未保存更改的文件会保持原样并列出名称。重做会恢复还原操作所更改的内容。",
   "restoreConfirmAction": "还原文件",
   "rewindCodeConfirmTitle": "将代码回退到此消息之前的状态？",
-  "rewindCodeConfirmDetail": "撤消 Muse 在此消息之后记录的编辑，从最新的开始；此后被更改的文件保持原样。命令所做的更改不包括在内：“还原文件”会包括它们。",
+  "rewindCodeConfirmDetail": "撤消 Muse 在此消息之后记录的编辑，从最新的开始；此后被更改的文件保持原样。命令所做的更改不包括在内，“还原文件”也不会撤销它们：这些更改会保持原样，请检查版本控制。",
   "rewindCodeConfirmAction": "回退代码",
   "restoreBothConfirmTitle": "还原文件并将对话回退到此消息之前？",
   "restoreBothConfirmDetail": "还原范围为此消息及之后的编辑。 仅撤销模型自身文件工具的编辑，而且只有各文件仍与模型留下的内容完全一致时才会撤销。命令、钩子、MCP 工具的更改、你自己的编辑以及其他窗口的写入均不会撤销。 随后，对话会在此消息之前分支，并将消息内容放回输入框。如果有文件被拒绝还原，对话就不会回退。原对话仍保留在历史记录中。",
@@ -1270,7 +1270,7 @@
   "restoreWritesIncomplete": "未还原任何内容：这些轮次中的部分编辑未被完整记录（编辑中重新加载或崩溃，或文件检查点已关闭）。",
   "restoreLegacyInRange": "未还原任何内容：这些轮次中的部分轮次由旧版本记录，当前版本无法还原。",
   "restoreLegacyWindowOpen": "另一个窗口正在运行旧版 Muse Spark；请重新加载该窗口后再试。",
-  "restoreCommandsNote": "这些轮次中运行了命令、钩子或 MCP 工具；不会撤销它们对文件的更改。请检查版本控制。",
+  "restoreCommandsNote": "这些轮次中有命令、钩子、MCP 工具或后台工作处于活动状态；不会撤销它们对文件的更改。请检查版本控制。",
   "restoreRefusedFailed": "无法更改：{files}",
   "namedFilesMore": "{files}（+{count}）",
   "restoreNoCheckpoint": "此消息已没有文件检查点。",
@@ -1316,5 +1316,7 @@
     "other": "{count} 个文件未检查"
   },
   "thenRunNoExitCode": "失败，没有退出代码",
-  "exportThenRunSkipped": "then_run `{command}`：{outcome}"
+  "exportThenRunSkipped": "then_run `{command}`：{outcome}",
+  "redoNothing": "没有需要放回的内容了。",
+  "childCheckpointFailed": "子代理轮次未运行：无法创建其文件检查点，或继承的记录决定未知。"
 }

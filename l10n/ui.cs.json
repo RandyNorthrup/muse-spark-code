@@ -1343,7 +1343,7 @@
   "restoreConfirmDetail": "Obnovení se týká úprav od této zprávy dál. Vrátí se pouze úpravy provedené vlastními souborovými nástroji modelu, pokud každý soubor stále obsahuje přesně to, co v něm model zanechal. Změny příkazů, hooků, nástrojů MCP, vaše úpravy ani zápisy z jiných oken se nikdy nevracejí. Soubory s neuloženými změnami zůstanou beze změny a budou vypsány. Znovu vrátí to, co obnovení změnilo.",
   "restoreConfirmAction": "Obnovit soubory",
   "rewindCodeConfirmTitle": "Vrátit kód do stavu před touto zprávou?",
-  "rewindCodeConfirmDetail": "Zaznamenané úpravy Muse po této zprávě se vrátí od nejnovější; soubor změněný od té doby zůstane beze změny. Změny provedené příkazy zahrnuty nejsou: ty pokrývá Obnovit soubory.",
+  "rewindCodeConfirmDetail": "Zaznamenané úpravy Muse po této zprávě se vrátí od nejnovější; soubor změněný od té doby zůstane beze změny. Změny provedené příkazy zahrnuty nejsou a nevrací je ani Obnovit soubory: zůstanou beze změny; zkontrolujte správu verzí.",
   "rewindCodeConfirmAction": "Vrátit kód",
   "restoreBothConfirmTitle": "Obnovit soubory a vrátit konverzaci do stavu před touto zprávou?",
   "restoreBothConfirmDetail": "Obnovení se týká úprav od této zprávy dál. Vrátí se pouze úpravy provedené vlastními souborovými nástroji modelu, pokud každý soubor stále obsahuje přesně to, co v něm model zanechal. Změny příkazů, hooků, nástrojů MCP, vaše úpravy ani zápisy z jiných oken se nikdy nevracejí. Poté se konverzace rozvětví před touto zprávou a její zadání se vrátí do pole pro psaní. Pokud je obnovení některého souboru odmítnuto, konverzace se nevrátí zpět. Původní konverzace zůstane v Historii.",
@@ -1381,7 +1381,7 @@
   "restoreWritesIncomplete": "Nic nebylo obnoveno: některé úpravy těchto tahů nebyly plně zaznamenány (opětovné načtení nebo pád během úpravy, případně vypnuté kontrolní body souborů).",
   "restoreLegacyInRange": "Nic nebylo obnoveno: některé z těchto tahů zaznamenala starší verze, ze které tato verze neumí obnovovat.",
   "restoreLegacyWindowOpen": "V jiném okně běží starší verze Muse Spark; znovu jej načtěte a zkuste to znovu.",
-  "restoreCommandsNote": "V těchto tazích běžely příkazy, hooky nebo nástroje MCP; změny souborů, které provedly, se nevracejí. Zkontrolujte správu verzí.",
+  "restoreCommandsNote": "V těchto tazích byly aktivní příkazy, hooky, nástroje MCP nebo práce na pozadí; jejich změny souborů se nevracejí. Zkontrolujte správu verzí.",
   "restoreRefusedFailed": "Nepodařilo se změnit: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Tato zpráva už nemá kontrolní bod souborů.",
@@ -1439,5 +1439,7 @@
     "other": "{count} souborů nezkontrolováno"
   },
   "thenRunNoExitCode": "Selhalo bez ukončovacího kódu",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Není co znovu vrátit.",
+  "childCheckpointFailed": "Tah podagenta se nespustil: jeho souborový kontrolní bod nelze vytvořit nebo není známo zděděné rozhodnutí o zaznamenávání."
 }

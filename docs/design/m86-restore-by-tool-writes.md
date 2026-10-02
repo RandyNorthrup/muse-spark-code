@@ -113,7 +113,7 @@ containing it is refused, rule 3.2).
 
 ### 6.2 Entries
 
-`intent {write}`, `done {id}`, `aborted {id}`, `seal {owner, units}` (written when a unit ends and its writes are
+`intent {write}`, `done {id}`, `aborted {id}`, `seal {owner}` (written when a unit ends and its writes are
 folded). A torn final line is ignored as an entry; if it was an intent, the write it would have described is unknown
 (rule 6.4).
 
@@ -168,8 +168,8 @@ Journal folders are deleted only by retention (section 9), never by gone-window 
   `notKept`, `writesIncomplete` (whole range), `tooLarge`, `failed`; `unchanged` counted separately.
 - **Commands note** [MU-2, V2-M6, CM-m10]: each unit record carries `ranProcesses: boolean`, set by invocation, not by
   activity marks: true when any unit of S in the range invoked the shell tool, `then_run`, checks, hooks, or an MCP
-  tool, or had a background task alive at any time during the range. The outcome then says: "Commands, hooks or MCP
-  tools ran in these turns; files they changed are not undone — check your version control." This note never blocks
+  tool, or had a background task alive at any time during the range. The outcome then says: "Commands, hooks, MCP
+  tools or background work were active in these turns; files they changed are not undone — check your version control." This note never blocks
   "Rewind conversation and restore files"; refusals do.
 - Memory scope [V2-M6]: personal memory (outside the workspace) is never restored; README says so.
 - M72 round-7 items fixed here: confined copy from the handle [CC-M9a]; Redo bound to its conversation [CC-M9b];

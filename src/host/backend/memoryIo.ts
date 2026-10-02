@@ -11,7 +11,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { MEMORY_STAGE_FILE_MODE } from '../../shared/constants'
-import type { ToolIo } from '../../core/backends/modelapi/tools'
+import type { StagedFile, ToolIo } from '../../core/backends/modelapi/tools'
 import type { MemoryDirectoryEntry, MemoryIo } from '../../core/memory/memoryStore'
 import { isMissingPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
@@ -58,7 +58,7 @@ export function createMemoryIo(
     /** Replace the hard-link call in a deterministic publication test. */
     readonly publish?: (stage: string, target: string) => Promise<void>
     /** Existing atomic staging seam for a deterministic publication test. */
-    readonly staged?: () => Promise<void>
+    readonly staged?: (file: StagedFile) => Promise<void>
     /** Runtime owners fence publication after asynchronous staging. */
     readonly assertCanWrite?: () => void
     /**
@@ -71,7 +71,7 @@ export function createMemoryIo(
       absolutePath: string,
       content: string,
       checkedPath: string | undefined,
-      publish: () => Promise<void>,
+      publish: (staged?: (file: StagedFile) => Promise<void>) => Promise<void>,
     ) => Promise<void>
   },
 ): MemoryIo {
@@ -84,6 +84,7 @@ export function createMemoryIo(
     content: string,
     checkedPath: string | undefined,
     assertCanWrite: (() => void) | undefined,
+    staged?: (file: StagedFile) => Promise<void>,
   ) =>
     createFileExclusively(absolutePath, content, {
       mode: MEMORY_STAGE_FILE_MODE,
@@ -98,7 +99,10 @@ export function createMemoryIo(
         options.warn(`a memory note's hidden stage could not be removed ${when} (${String(code)})`)
       },
       ...(options.publish !== undefined && { publish: options.publish }),
-      ...(options.staged !== undefined && { staged: options.staged }),
+      staged: async (file) => {
+        await options.staged?.(file)
+        await staged?.(file)
+      },
     })
   return {
     readFile: (absolutePath) => files.readFile(absolutePath),
@@ -107,7 +111,8 @@ export function createMemoryIo(
     writeFile: (absolutePath, content, checkedPath, assertCanWrite) =>
       files.writeFile(absolutePath, content, checkedPath, admission(assertCanWrite)),
     createFile: async (absolutePath, content, checkedPath, assertCanWrite) => {
-      const publish = () => createNote(absolutePath, content, checkedPath, assertCanWrite)
+      const publish = (staged?: (file: StagedFile) => Promise<void>) =>
+        createNote(absolutePath, content, checkedPath, assertCanWrite, staged)
       await (options.aroundCreate === undefined
         ? publish()
         : options.aroundCreate(absolutePath, content, checkedPath, publish))

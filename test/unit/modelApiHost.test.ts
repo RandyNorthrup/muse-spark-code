@@ -10688,6 +10688,62 @@ function scriptChildWrite(t: ReturnType<typeof setup>): void {
 }
 
 describe("a Model API turn's own writes (M86, spec 5.1)", () => {
+  it.each([true, false])(
+    'persists and adopts a child recording decision, originally recording=%s',
+    async (recording) => {
+      const store = memorySessionStore()
+      const io = memoryToolIo({}, ROOT)
+      const owned = ownedWrites(io.files, io, [])
+      const first = setupSubagents({
+        store,
+        io,
+        beforeTurnRuns: recording ? owned : () => Promise.resolve(UNRECORDED),
+      })
+      const { session } = await startApprovedSubagentSession(first)
+      await completePaidChild(first, session, 'spawn-recording-decision')
+      await first.host.flush()
+      expect(store.saved.get(session.sessionId)?.children?.[0]?.checkpointRecording).toBe(recording)
+      await first.host.close()
+      const admitted = Promise.withResolvers<TopTurn | undefined>()
+      const second = setupSubagents({
+        store,
+        beforeTurnRuns: (_sessionId, _turnId, top) => {
+          admitted.resolve(top)
+          // Today's setting has changed; the inherited decision still arrives.
+          return Promise.resolve(UNRECORDED)
+        },
+      })
+      await second.host.load()
+      const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      second.api.script({ text: 'Child followed up.' })
+      await resumed.session.messageSubagent('subagent-1', 'continue', true)
+      expect(await admitted.promise).toEqual({ checkpoint: undefined, recordsFiles: recording })
+      await second.host.close()
+    },
+  )
+
+  it('reports a child checkpoint failure with child-specific text and no child model call', async () => {
+    const t = setupSubagents({
+      beforeTurnRuns: (_sessionId, _turnId, top) =>
+        top === undefined
+          ? Promise.resolve(UNRECORDED)
+          : Promise.reject(new Error('record unavailable')),
+    })
+    const { session, events } = await startApprovedSubagentSession(t)
+    scriptExplorerSpawn(t, 'child-record-fails')
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'turnCompleted',
+          terminal: 'failed',
+          reason: UI_TEXT.childCheckpointFailed,
+        }),
+      )
+    })
+    expect(t.api.responseBodies()).toHaveLength(2)
+    await t.host.close()
+  })
   it("writes a turn's files and memory notes through that turn's own writes", async () => {
     const writes: string[] = []
     const io = memoryToolIo({}, ROOT)
@@ -10798,6 +10854,52 @@ function endsOf(): {
 }
 
 describe('what a Model API turn ran, for its checkpoint (M86, spec 8)', () => {
+  it('notes a child background command that starts and finishes wholly inside a later parent turn', async () => {
+    const children: ModelApiSession[] = []
+    const subscribe = ModelApiSession.prototype.onEvent
+    const capture = vi.spyOn(ModelApiSession.prototype, 'onEvent').mockImplementation(function (
+      this: ModelApiSession,
+      ...args
+    ) {
+      if (this.sessionId.includes(':subagent-')) {
+        children.push(this)
+      }
+      return subscribe.apply(this, args)
+    })
+    const recorded = endsOf()
+    const io = heldShellToolIo({}, ROOT)
+    const t = setupSubagents({ io, afterTurnRuns: recorded.afterTurnRuns })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    await completePaidChild(t, session, 'spawn-background')
+    const child = children[0]
+    if (child === undefined) {
+      throw new Error('expected live child session')
+    }
+    const gate = Promise.withResolvers<undefined>()
+    const finished = Promise.withResolvers<undefined>()
+    child.onEvent((event) => {
+      if (event.type === 'itemCompleted' && event.item.kind === 'userShell') {
+        finished.resolve(undefined)
+      }
+    })
+    const requests = t.api.responseBodies().length
+    t.api.script({ text: 'later parent', hold: gate.promise })
+    await session.sendTurn([{ type: 'text', text: 'next' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(requests + 1)
+    })
+    await child.runUserShell('printf child')
+    await vi.waitFor(() => {
+      expect(io.runs).toHaveLength(1)
+    })
+    io.runs[0]?.finish({ stdout: 'child', exitCode: 0 })
+    await finished.promise
+    gate.resolve(undefined)
+    await turnDone()
+    expect(recorded.ends.at(-1)).toBe(true)
+    capture.mockRestore()
+    await t.host.close()
+  })
   it('says no process ran for a turn that only wrote files, and yes once it ran the shell tool', async () => {
     const recorded = endsOf()
     const t = setup({ afterTurnRuns: recorded.afterTurnRuns })

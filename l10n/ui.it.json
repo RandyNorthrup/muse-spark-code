@@ -1309,7 +1309,7 @@
   "restoreConfirmDetail": "Il ripristino riguarda le modifiche da questo messaggio in poi. Vengono annullate solo le modifiche degli strumenti per file propri del modello, finché ogni file contiene esattamente ciò che il modello ha lasciato. Non vengono mai annullati i cambiamenti di comandi, hook, strumenti MCP, le tue modifiche o le scritture di altre finestre. I file con modifiche non salvate vengono lasciati come sono ed elencati. Ripeti ripristina ciò che il ripristino ha cambiato.",
   "restoreConfirmAction": "Ripristina i file",
   "rewindCodeConfirmTitle": "Riportare il codice a prima di questo messaggio?",
-  "rewindCodeConfirmDetail": "Le modifiche registrate di Muse dopo questo messaggio vengono annullate, dalla più recente; un file modificato da allora resta com’è. Ciò che hanno modificato i comandi non è incluso: lo copre Ripristina i file.",
+  "rewindCodeConfirmDetail": "Le modifiche registrate di Muse dopo questo messaggio vengono annullate, dalla più recente; un file modificato da allora resta com’è. Ciò che hanno modificato i comandi non è incluso e nemmeno Ripristina i file lo annulla: resta com’è; controlla il tuo sistema di controllo versione.",
   "rewindCodeConfirmAction": "Riporta il codice",
   "restoreBothConfirmTitle": "Ripristinare i file e riavvolgere la conversazione a prima di questo messaggio?",
   "restoreBothConfirmDetail": "Il ripristino riguarda le modifiche da questo messaggio in poi. Vengono annullate solo le modifiche degli strumenti per file propri del modello, finché ogni file contiene esattamente ciò che il modello ha lasciato. Non vengono mai annullati i cambiamenti di comandi, hook, strumenti MCP, le tue modifiche o le scritture di altre finestre. Poi la conversazione si dirama prima di questo messaggio e il suo testo torna nel campo di inserimento. Se un file viene rifiutato, la conversazione non viene riavvolta. La conversazione originale resta nella Cronologia.",
@@ -1344,7 +1344,7 @@
   "restoreWritesIncomplete": "Non è stato ripristinato nulla: alcune modifiche di questi turni non sono state registrate completamente (ricaricamento o arresto anomalo durante una modifica, oppure punti di controllo dei file disattivati).",
   "restoreLegacyInRange": "Non è stato ripristinato nulla: alcuni di questi turni sono stati registrati da una versione precedente che questa versione non può ripristinare.",
   "restoreLegacyWindowOpen": "Un’altra finestra esegue una versione precedente di Muse Spark; ricaricala e riprova.",
-  "restoreCommandsNote": "In questi turni sono stati eseguiti comandi, hook o strumenti MCP; le loro modifiche ai file non vengono annullate. Controlla il tuo sistema di controllo versione.",
+  "restoreCommandsNote": "In questi turni erano attivi comandi, hook, strumenti MCP o attività in background; le loro modifiche ai file non vengono annullate. Controlla il tuo sistema di controllo versione.",
   "restoreRefusedFailed": "Impossibile modificare: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Questo messaggio non ha più un checkpoint dei file.",
@@ -1398,5 +1398,7 @@
     "other": "{count} file non controllati"
   },
   "thenRunNoExitCode": "Non riuscito senza codice di uscita",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Non resta nulla da rimettere.",
+  "childCheckpointFailed": "Il turno del sottoagente non è stato eseguito: non è stato possibile creare il suo punto di controllo dei file oppure la decisione di registrazione ereditata è sconosciuta."
 }

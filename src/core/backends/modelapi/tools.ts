@@ -188,7 +188,11 @@ export interface ToolIo {
    * overwritten. The file is taken before the image is bought, so a path
    * taken meanwhile costs nothing (the review of PR #27).
    */
-  reserveFile(absolutePath: string, expectedCanonicalPath?: string): Promise<FileReservation>
+  reserveFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    beforeCreate?: (createdFolders: number) => Promise<void>,
+  ): Promise<FileReservation>
   /** Whether an editor holds unsaved changes to the file (D27). */
   hasUnsavedChanges(absolutePath: string): boolean
   /** Absolute paths of the files open in an editor with unsaved changes, as the editor names them. */
@@ -275,12 +279,12 @@ export type TurnCheckpoint =
 
 /**
  * A child turn's top turn (M86, spec 3.2): the parent's turn that spawned
- * the child, whose decision it inherits; its checkpoint is undefined when
- * that turn ran in an earlier window (a child brought back): the setting
- * decides then.
+ * the child, whose decision it inherits. Reload keeps only the decision,
+ * never the old window's io. An unknown historical decision fails closed.
  */
 export interface TopTurn {
   readonly checkpoint: TurnCheckpoint | undefined
+  readonly recordsFiles?: boolean | undefined
 }
 
 /** How a turn ended, for its checkpoint (M86, spec 8). */

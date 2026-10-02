@@ -40,6 +40,7 @@ import {
   type WindowRecording,
 } from '../../../src/host/checkpoints/writeRecorder'
 import { canonicalPath } from '../../../src/host/canonicalPath'
+import type { JournalFs } from '../../../src/host/checkpoints/writeJournal'
 import { type GitProcess, processGitProcess } from '../../../src/host/git'
 import { GIT_MODE_EXECUTABLE, GIT_MODE_FILE } from '../../../src/shared/constants'
 import { FakeLogOutputChannel } from './fakes'
@@ -52,12 +53,14 @@ const folders: string[] = []
 const stores: CheckpointStore[] = []
 /** Each store's window: its instance, journal and lanes, as activation makes them. */
 const recordings = new WeakMap<CheckpointStore, WindowRecording>()
+const storageByStore = new WeakMap<object, string>()
 const EXECUTABLE_BITS = 0o111
 
 /** Closes every store and removes every folder the tests made (an `afterEach`). */
 export async function removeCheckpointFolders(): Promise<void> {
   for (const store of stores.splice(0)) {
     store.dispose()
+    await recordingOf(store).journal.close()
   }
   for (const folder of folders.splice(0)) {
     await removeFolder(folder)
@@ -107,6 +110,7 @@ export interface HarnessOptions {
   readonly heartbeatMs?: number
   /** The retention setting (`museSpark.cleanupPeriodDays`); 30 by default. */
   readonly retentionDays?: () => number
+  readonly journalFs?: JournalFs
 }
 
 export interface Harness {
@@ -174,6 +178,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
       storageDir: storeDir,
       instance: randomUUID(),
       platform: process.platform,
+      fs: options.journalFs,
     })
     const store = new CheckpointStore({
       workspaceRoot: storeRoot,
@@ -201,6 +206,7 @@ export async function harness(options: HarnessOptions = {}): Promise<Harness> {
     })
     stores.push(store)
     recordings.set(store, recording)
+    storageByStore.set(store, storeDir)
     return store
   }
   return {
@@ -258,7 +264,7 @@ export async function entryCount(folder: string): Promise<number> {
 }
 
 /** The window a harness store records in: its journal, and the lanes its restores share. */
-function recordingOf(store: CheckpointStore): WindowRecording {
+export function recordingOf(store: CheckpointStore): WindowRecording {
   const recording = recordings.get(store)
   if (recording === undefined) {
     throw new Error('not a harness store')
@@ -310,10 +316,7 @@ export type ToolWriter = (
   settle?: Settle,
 ) => Promise<WriteRecord>
 
-async function stateOf(
-  store: Pick<CheckpointStore, 'journal'>,
-  absolute: string,
-): Promise<ContentState> {
+async function stateOf(store: CheckpointStore, absolute: string): Promise<ContentState> {
   let bytes: Buffer
   try {
     bytes = await readFile(absolute)
@@ -324,7 +327,7 @@ async function stateOf(
   const isExecutable = process.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
   return {
     present: true,
-    oid: await store.journal.writeBlob(bytes),
+    oid: await recordingOf(store).journal.writeBlob(bytes),
     mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE,
   }
 }
@@ -355,44 +358,46 @@ export async function toolWrite(
   content: string | Uint8Array | null,
   settle: Settle = 'done',
 ): Promise<WriteRecord> {
-  const absolute = path.join(root, ...relative.split('/'))
-  const before = await stateOf(store, absolute)
-  const bytes = content === null ? undefined : Buffer.from(content)
-  const after: ContentState =
-    bytes === undefined
-      ? { present: false }
-      : {
-          present: true,
-          oid: await store.journal.writeBlob(bytes),
-          mode: before.mode ?? GIT_MODE_FILE,
-        }
-  const record: WriteRecord = {
-    id: randomUUID(),
-    instance: store.instance,
-    seq: recordingOf(store).lanes.nextSeq(),
-    owner: unit,
-    path: relative,
-    before,
-    after,
-    createdFolders: bytes === undefined ? [] : await missingFolders(root, relative),
-    isKept: true,
-  }
-  await store.journal.appendIntent(record)
-  if (settle === 'aborted') {
-    await store.journal.appendAborted(record.id)
-    return record
-  }
-  if (settle !== 'unpublished') {
-    if (bytes === undefined) {
-      await rm(absolute, { force: true })
-    } else {
-      await write(root, relative, bytes)
+  return await recordingOf(store).lanes.exclusive(relative, async () => {
+    const absolute = path.join(root, ...relative.split('/'))
+    const before = await stateOf(store, absolute)
+    const bytes = content === null ? undefined : Buffer.from(content)
+    const after: ContentState =
+      bytes === undefined
+        ? { present: false }
+        : {
+            present: true,
+            oid: await recordingOf(store).journal.writeBlob(bytes),
+            mode: before.mode ?? GIT_MODE_FILE,
+          }
+    const record: WriteRecord = {
+      id: randomUUID(),
+      instance: store.instance,
+      seq: recordingOf(store).lanes.nextSeq(),
+      owner: unit,
+      path: relative,
+      before,
+      after,
+      createdFolders: bytes === undefined ? [] : await missingFolders(root, relative),
+      isKept: true,
     }
-  }
-  if (settle === 'done') {
-    await store.journal.appendDone(record.id)
-  }
-  return record
+    await recordingOf(store).journal.appendIntent(record)
+    if (settle === 'aborted') {
+      await recordingOf(store).journal.appendAborted(record.id)
+      return record
+    }
+    if (settle !== 'unpublished') {
+      if (bytes === undefined) {
+        await rm(absolute, { force: true })
+      } else {
+        await write(root, relative, bytes)
+      }
+    }
+    if (settle === 'done') {
+      await recordingOf(store).journal.appendDone(record.id)
+    }
+    return record
+  })
 }
 
 /**
@@ -486,11 +491,28 @@ export async function redoOutcome(
   store: Pick<CheckpointStore, 'redo'>,
   restoreId: string | undefined,
   sourceSessionId = 's1',
+  transcriptTurnIds?: readonly string[],
 ): Promise<RestoreOutcome> {
   return await store.redo({
     backend: () => 'modelApi',
     sourceSessionId,
     restoreId: restoreId ?? '',
+    transcriptTurnIds: () => {
+      if (transcriptTurnIds !== undefined) {
+        return Promise.resolve(transcriptTurnIds)
+      }
+      const storage = storageByStore.get(store)
+      if (storage === undefined) {
+        throw new Error('no harness storage for Redo')
+      }
+      return Promise.resolve(
+        storedUnits(storage)
+          .filter(
+            (unit) => unit.owner.sessionId === sourceSessionId && unit.owner.unitKind === 'turn',
+          )
+          .map((unit) => unit.owner.unitId),
+      )
+    },
     unsavedPaths: () => [],
   })
 }
@@ -569,6 +591,7 @@ export function storedUnits(storage: string): readonly StoredUnit[] {
       }
       return record
     })
+    .filter((record) => record.isRetired !== true)
     .toSorted((left, right) => left.sequence - right.sequence)
 }
 

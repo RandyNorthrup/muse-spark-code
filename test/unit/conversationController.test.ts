@@ -8203,7 +8203,10 @@ describe('ConversationController: turn checkpoints (M72, M86)', () => {
     await afterFirstTurn(t)
     await t.controller.handle({ type: 'restoreFiles', sourceSessionId: 's1', turnId: 'unknown' })
     expect(t.checkpointCalls.filter((call) => call.startsWith('restore'))).toEqual([])
-    expect(t.surface.posted.at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.restoreFailed })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      level: 'warning',
+      text: UI_TEXT.restoreWritesIncomplete,
+    })
   })
 
   it('names what a restore left as it is, by reason, and notes commands that ran', async () => {

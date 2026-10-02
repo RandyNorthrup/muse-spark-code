@@ -3208,6 +3208,14 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 
 ## 3. Open questions (need the owner)
 
+- **M86FIX journal metadata retirement (F07):** section 9 asks for per-unit
+  journal-entry deletion; section 6.4 forbids writing a foreign instance's
+  journal. The fix enforces sequence/age/session bounds on unit payloads
+  and file copies, with durable owner/sequence identities, but keeps shared
+  journal metadata until the whole instance can retire. The lead must
+  choose a compaction protocol or explicitly approve metadata retention.
+  No change to the advertised unit/copy bounds is proposed.
+
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
   owned full-descendant shutdown proof can make native/command/hook snapshots
   destructively restorable? Current availability refuses unproved process
@@ -9059,6 +9067,11 @@ independent review and the full candidate gates remain required.**
 
 - **Status.** In progress, lanes L1–L4. No completed certification is
   claimed; [m86.md](docs/certification/m86.md) tracks pending evidence.
+- **M86FIX pre-merge batch.** Deduplicated eight reviews in the lead scratchpad
+  `m86/FIX-PLAN.md`. Repair confinement, durability, retention, Redo
+  completeness and child/background seams; strengthen real-recorder and
+  deterministic tests. All tests, typechecks and builds run on the three
+  rigs. Results and red drills belong in [m86.md](docs/certification/m86.md).
 - **Goal.** Restore files without guessing who changed them.
 - **Design.** [SPEC v3.1](docs/design/m86-restore-by-tool-writes.md) and
   [the build contract](docs/design/m86-build-contract.md).

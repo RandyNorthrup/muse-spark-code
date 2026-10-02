@@ -1343,7 +1343,7 @@
   "restoreConfirmDetail": "Przywracanie obejmuje edycje od tej wiadomości dalej. Cofane są tylko zmiany własnych narzędzi plikowych modelu, dopóki każdy plik zawiera dokładnie to, co pozostawił model. Zmiany poleceń, hooków, narzędzi MCP, Twoje edycje i zapisy z innych okien nigdy nie są cofane. Pliki z niezapisanymi zmianami pozostają bez zmian i są wymieniane. Ponów przywraca to, co zmieniło przywracanie.",
   "restoreConfirmAction": "Przywróć pliki",
   "rewindCodeConfirmTitle": "Cofnąć kod do stanu sprzed tej wiadomości?",
-  "rewindCodeConfirmDetail": "Zapisane edycje Muse po tej wiadomości zostaną cofnięte, od najnowszej; plik zmieniony od tego czasu pozostanie bez zmian. Zmiany wprowadzone przez polecenia nie są objęte: obejmuje je Przywróć pliki.",
+  "rewindCodeConfirmDetail": "Zapisane edycje Muse po tej wiadomości zostaną cofnięte, od najnowszej; plik zmieniony od tego czasu pozostanie bez zmian. Zmiany wprowadzone przez polecenia nie są objęte i Przywróć pliki również ich nie cofa: pozostają bez zmian; sprawdź system kontroli wersji.",
   "rewindCodeConfirmAction": "Cofnij kod",
   "restoreBothConfirmTitle": "Przywrócić pliki i cofnąć rozmowę do stanu sprzed tej wiadomości?",
   "restoreBothConfirmDetail": "Przywracanie obejmuje edycje od tej wiadomości dalej. Cofane są tylko zmiany własnych narzędzi plikowych modelu, dopóki każdy plik zawiera dokładnie to, co pozostawił model. Zmiany poleceń, hooków, narzędzi MCP, Twoje edycje i zapisy z innych okien nigdy nie są cofane. Następnie rozmowa zostaje rozgałęziona przed tą wiadomością, a jej treść wraca do pola wpisywania. Jeśli przywrócenie pliku zostanie odrzucone, rozmowa nie zostanie cofnięta. Oryginalna rozmowa pozostaje w Historii.",
@@ -1381,7 +1381,7 @@
   "restoreWritesIncomplete": "Nic nie przywrócono: niektóre edycje z tych tur nie zostały w pełni zapisane (ponowne wczytanie lub awaria podczas edycji albo wyłączone punkty kontrolne plików).",
   "restoreLegacyInRange": "Nic nie przywrócono: niektóre z tych tur zapisała wcześniejsza wersja, z której ta wersja nie może przywracać.",
   "restoreLegacyWindowOpen": "W innym oknie działa starsza wersja Muse Spark; wczytaj je ponownie i spróbuj jeszcze raz.",
-  "restoreCommandsNote": "W tych turach uruchomiono polecenia, hooki lub narzędzia MCP; ich zmian w plikach nie cofnięto. Sprawdź system kontroli wersji.",
+  "restoreCommandsNote": "W tych turach aktywne były polecenia, hooki, narzędzia MCP lub praca w tle; ich zmian w plikach nie cofnięto. Sprawdź system kontroli wersji.",
   "restoreRefusedFailed": "Nie udało się zmienić: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Ta wiadomość nie ma już punktu kontrolnego plików.",
@@ -1439,5 +1439,7 @@
     "other": "{count} pliku niesprawdzonego"
   },
   "thenRunNoExitCode": "Niepowodzenie bez kodu wyjścia",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Nie zostało nic do ponownego odtworzenia.",
+  "childCheckpointFailed": "Tura podagenta nie została uruchomiona: nie udało się utworzyć jej punktu kontrolnego plików lub odziedziczona decyzja o zapisie jest nieznana."
 }

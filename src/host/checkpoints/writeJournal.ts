@@ -250,6 +250,8 @@ export class WriteJournal {
   private tail: Promise<void> = Promise.resolve()
   /** An append failed and could not be cut off: nothing more is appended. */
   private brokenBy: unknown
+  /** Names whose directory barrier failed; retried even when mkdir finds them present. */
+  private readonly pendingFolders = new Set<string>()
 
   public constructor(private readonly deps: WriteJournalDeps) {
     this.fs = deps.fs ?? NODE_JOURNAL_FS
@@ -272,14 +274,14 @@ export class WriteJournal {
   }
 
   /** `work` once every step queued before it has settled. */
-  private async queued(work: () => Promise<void>): Promise<void> {
+  private async queued<T>(work: () => Promise<T>): Promise<T> {
     const previous = this.tail
     const run = (async () => {
       await previous
-      await work()
+      return await work()
     })()
     this.tail = settled(run)
-    await run
+    return await run
   }
 
   private async append(entry: JournalEntry): Promise<void> {
@@ -337,15 +339,18 @@ export class WriteJournal {
   /** The folder made, each new name in it flushed (POSIX). */
   private async makeFolder(folder: string): Promise<void> {
     const first = await this.fs.mkdir(folder, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
-    if (first === undefined) {
-      return
+    if (first !== undefined) {
+      for (
+        let made = folder;
+        made.length >= first.length && path.dirname(made) !== made;
+        made = path.dirname(made)
+      ) {
+        this.pendingFolders.add(path.dirname(made))
+      }
     }
-    for (
-      let made = folder;
-      made.length >= first.length && path.dirname(made) !== made;
-      made = path.dirname(made)
-    ) {
-      await this.syncFolder(path.dirname(made))
+    for (const parent of this.pendingFolders) {
+      await this.syncFolder(parent)
+      this.pendingFolders.delete(parent)
     }
   }
 
@@ -365,11 +370,12 @@ export class WriteJournal {
   public async writeBlob(bytes: Uint8Array): Promise<string> {
     const oid = gitBlobOid(bytes)
     const file = WriteJournal.blobPath(this.deps.storageDir, this.deps.instance, oid)
-    if (await this.isWhole(file, bytes.length)) {
-      return oid
-    }
     const folder = path.dirname(file)
     await this.makeFolder(folder)
+    if (await this.isWhole(file, bytes.length)) {
+      await this.syncFolder(folder)
+      return oid
+    }
     const stage = `${file}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
     try {
       const handle = await this.fs.open(stage, 'wx', CHECKPOINT_JOURNAL_FILE_MODE)
@@ -390,6 +396,21 @@ export class WriteJournal {
     }
     await this.syncFolder(folder)
     return oid
+  }
+
+  /** Own-instance snapshot taken inside the append queue, never through a live partial line. */
+  public async snapshot(): Promise<InstanceJournal | undefined> {
+    return await this.queued(async () => {
+      try {
+        const bytes = await this.fs.readFile(path.join(this.folder, CHECKPOINT_JOURNAL_FILE))
+        return journalOf(Buffer.from(bytes).toString('utf8'), this.deps.instance)
+      } catch (error: unknown) {
+        if (isMissingPath(error)) {
+          return
+        }
+        throw error
+      }
+    })
   }
 
   public async appendIntent(write: WriteRecord): Promise<void> {

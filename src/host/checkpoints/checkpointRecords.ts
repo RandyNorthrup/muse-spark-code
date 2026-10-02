@@ -55,6 +55,9 @@ const unitRecordSchema = z.object({
    * range that holds it is refused whole.
    */
   isMarkedIncomplete: z.boolean(),
+  /** Retention keeps identity/sequence only, so old journal owners are explained. */
+  isRetired: z.optional(z.boolean()),
+  transcript: z.optional(z.object({ fromTurnId: z.string(), turnIds: z.array(z.string()) })),
   writes: z.array(foldedWriteSchema),
 })
 
@@ -62,6 +65,9 @@ const unitRecordSchema = z.object({
 export type StoredUnit = UnitRecord & {
   readonly kind: 'unit'
   readonly isMarkedIncomplete: boolean
+  readonly isRetired?: boolean | undefined
+  readonly transcript?:
+    { readonly fromTurnId: string; readonly turnIds: readonly string[] } | undefined
 }
 
 /** A unit record from its JSON; undefined when it does not parse. */

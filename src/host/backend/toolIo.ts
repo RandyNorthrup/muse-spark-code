@@ -54,7 +54,7 @@ import {
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
 import { canonicalPath } from '../canonicalPath'
-import { writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
+import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { joinStatement, newShellJob } from './shellJob'
 
@@ -583,10 +583,12 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async reserveFile(absolutePath, expectedCanonicalPath) {
+    async reserveFile(absolutePath, expectedCanonicalPath, beforeCreate) {
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
       deps.assertWorkspaceCurrent?.()
-      await mkdir(path.dirname(absolutePath), { recursive: true })
+      const directory = path.dirname(absolutePath)
+      const createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
+      await beforeCreate?.(createdFolders)
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
       // `wx`: created here or refused, never an existing file replaced (M34).
       deps.assertWorkspaceCurrent?.()
@@ -653,6 +655,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           // cleaned up blindly: a release removes the file only while empty.
           const held = await handle.stat()
           if (held.size > 0 || !(await isReserved())) {
+            await close()
             return 'changed'
           }
           deps.assertWorkspaceCurrent?.()

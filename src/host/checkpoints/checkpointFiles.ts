@@ -12,6 +12,7 @@ import { lstat, readFile, rm, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { type BlobRef, gitBlobOid } from '../../core/checkpoints/gitListings'
+import { isSamePath } from '../../core/paths'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import {
   CHECKPOINT_FILE_MAX_BYTES,
@@ -29,8 +30,6 @@ const GIT_FOLDER = '.git'
 const FOLDER_NOT_EMPTY: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'EPERM', 'EBUSY'])
 // What Windows says about a file another program (a scanner, an indexer) holds a moment.
 const FILE_HELD: ReadonlySet<string> = new Set(['EBUSY', 'EPERM'])
-// Platforms whose usual file systems ignore letter case in names.
-const CASE_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
 
 export interface RestoreTarget {
   readonly workspaceRoot: string
@@ -46,6 +45,8 @@ export interface RestoreTarget {
   readonly remove?: (absolute: string) => Promise<void>
   /** Waits between removal attempts; injectable so tests do not sleep. */
   readonly sleep?: (ms: number) => Promise<void>
+  /** Durable intent after actual mkdir, before file publication. */
+  readonly beforePublish?: (createdFolders: number) => Promise<void>
 }
 
 /** What a file must still be just before a step changes it: these bytes, or nothing. */
@@ -84,13 +85,6 @@ function pause(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
-}
-
-/** Whether two workspace-relative paths name the same file on this platform. */
-function isSameRelative(left: string, right: string, platform: NodeJS.Platform): boolean {
-  return CASE_FOLDING_PLATFORMS.has(platform)
-    ? left.toLowerCase() === right.toLowerCase()
-    : left === right
 }
 
 /**
@@ -158,19 +152,24 @@ async function unlinked(
   | { readonly absolute: string; readonly checkedAbsolute: string; readonly canonical: string }
   | undefined
 > {
+  // The namespace was opened on this physical root. Never adopt a new
+  // target if a root (or an ancestor) was replaced with a junction.
+  if (
+    !isSamePath(await canonicalPath(target.workspaceRoot), target.workspaceRoot, target.platform)
+  ) {
+    target.log.warn(`Checkpoint restore refused ${relative}: the workspace root moved`)
+    return undefined
+  }
+  const root = await lstatOrUndefined(target.workspaceRoot)
+  if (root?.isSymbolicLink() === true || (await hasLinkOnTheWay(target.workspaceRoot, relative))) {
+    target.log.warn(`Checkpoint restore refused ${relative}: a link or junction is on the way`)
+    return undefined
+  }
   const resolution = await confineWorkspacePath(target.workspaceRoot, relative, target.platform, {
     realPath: canonicalPath,
   })
   if (!resolution.ok) {
     target.log.warn(`Checkpoint restore refused ${relative}: ${resolution.reason}`)
-    return undefined
-  }
-  if (
-    resolution.canonical !== resolution.relative &&
-    (!isSameRelative(resolution.canonical, resolution.relative, target.platform) ||
-      (await hasLinkOnTheWay(target.workspaceRoot, resolution.relative)))
-  ) {
-    target.log.warn(`Checkpoint restore refused ${relative}: a link or junction is on the way`)
     return undefined
   }
   return resolution
@@ -242,12 +241,15 @@ async function removeEmptiedFolders(
  */
 async function didRemoveHeld(
   target: RestoreTarget,
-  step: FileStep,
   absolute: string,
+  isCurrent: () => Promise<boolean>,
   assertCurrent: () => void,
 ): Promise<boolean> {
   const remove = target.remove ?? ((file: string) => rm(file, { force: true }))
   for (let attempt = 0; ; attempt += 1) {
+    if (!(await isCurrent())) {
+      return false
+    }
     try {
       assertCurrent()
       await remove(absolute)
@@ -258,9 +260,6 @@ async function didRemoveHeld(
       }
     }
     await (target.sleep ?? pause)(CHECKPOINT_REMOVE_RETRY_MS)
-    if ((await matchOf(absolute, step.expect)) !== 'same') {
-      return false
-    }
   }
 }
 
@@ -293,13 +292,13 @@ export async function applyFileStep(
     throw new Error(UI_TEXT.restoreFailed)
   }
   const isCurrent = async () => {
+    if ((await unlinked(target, step.path)) === undefined) {
+      refused = 'linked'
+      return false
+    }
     const found = await matchOf(destination.checkedAbsolute, step.expect)
     if (found !== 'same') {
       refused = found
-      return false
-    }
-    if ((await unlinked(target, step.path)) === undefined) {
-      refused = 'linked'
       return false
     }
     assertCurrent()
@@ -319,8 +318,9 @@ export async function applyFileStep(
       if (!(await isCurrent())) {
         return refused
       }
-      if (!(await didRemoveHeld(target, step, current.checkedAbsolute, assertCurrent))) {
-        return 'changed'
+      await target.beforePublish?.(0)
+      if (!(await didRemoveHeld(target, current.checkedAbsolute, isCurrent, assertCurrent))) {
+        return refused
       }
       try {
         await removeEmptiedFolders(target, step.removeFolders)
@@ -341,6 +341,9 @@ export async function applyFileStep(
       sleep: pause,
       expectedCanonicalPath: destination.checkedAbsolute,
       platform: target.platform,
+      staged: async (file) => {
+        await target.beforePublish?.(file.createdFolders)
+      },
       // An existing file keeps its own mode; one recreated gets the mode it had.
       ...(step.expect.kind === 'absent' && {
         executable: step.target.mode === GIT_MODE_EXECUTABLE,

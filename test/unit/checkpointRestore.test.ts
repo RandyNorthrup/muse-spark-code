@@ -4,12 +4,13 @@
 
 import { chmod, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   done,
   harness,
   isPresent,
   read,
+  recordingOf,
   redoOutcome,
   redoRestore,
   REAL_GIT_TIMEOUT_MS,
@@ -29,6 +30,48 @@ afterEach(async () => {
 const OWNER_EXECUTE_BIT = 0o100
 
 describe('restore by the tools’ own writes (M86)', () => {
+  it(
+    'keeps applied deletion/replacement results and Redo when done append fails',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'b.txt', 'before\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('a.txt', 'created\n')
+        await tool('b.txt', 'after\n')
+      })
+      const journal = recordingOf(h.store).journal
+      const settle = vi
+        .spyOn(journal, 'appendDone')
+        .mockRejectedValue(new Error('injected fsync failure'))
+      const restored = await restoreTurn(h.store, 't1')
+      expect(restored.changed).toEqual(['a.txt', 'b.txt'])
+      expect(restored.refused).toEqual([])
+      expect(restored.restoreId).toBeDefined()
+      expect(await isPresent(h.root, 'a.txt')).toBe(false)
+      expect(await read(h.root, 'b.txt')).toBe('before\n')
+      expect(storedUnit(h.storage, restored.restoreId ?? '').writes.map((w) => w.outcome)).toEqual([
+        'unsettled',
+        'unsettled',
+      ])
+      const multiRedo = await redoRestore(h.store, restored.restoreId)
+      expect(multiRedo.changed).toEqual(['a.txt', 'b.txt'])
+      expect(multiRedo.refused).toEqual([])
+      expect(await read(h.root, 'a.txt')).toBe('created\n')
+      expect(await read(h.root, 'b.txt')).toBe('after\n')
+      settle.mockRestore()
+      const one = await harness()
+      await turn(one, 't1', (tool) => tool('a.txt', 'created\n'))
+      vi.spyOn(recordingOf(one.store).journal, 'appendDone').mockRejectedValue(
+        new Error('lost done'),
+      )
+      const removed = await restoreTurn(one.store, 't1')
+      const redone = await redoRestore(one.store, removed.restoreId)
+      expect(redone.changed).toEqual(['a.txt'])
+      expect(redone.refused).toEqual([])
+      expect(await read(one.root, 'a.txt')).toBe('created\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
   it(
     'A: restores a created and a changed file, redoes it, and finds nothing to do the second time',
     async () => {

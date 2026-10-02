@@ -14,6 +14,7 @@ import {
   removeCheckpointFolders,
   restoreOutcome,
   storedUnits,
+  storedUnit,
   turn,
 } from './helpers/checkpointHarness'
 
@@ -24,6 +25,7 @@ import {
 vi.mock('../../src/shared/constants', async (importOriginal) => ({
   ...(await importOriginal<typeof constants>()),
   CHECKPOINTS_PER_SESSION_MAX: 3,
+  CHECKPOINT_SESSIONS_MAX: 2,
 }))
 
 afterEach(async () => {
@@ -81,24 +83,43 @@ describe('droppedRecords (M72, M86)', () => {
 
 describe('retention over real units (M86)', () => {
   it(
-    'T: keeps every unit from a turn still offered on, and drops older ones once no journal names them',
+    'bounds live shared-journal conversations by recency and age without poisoning new turns',
+    async () => {
+      let clock = NOW
+      const h = await harness({ now: () => ++clock, retentionDays: () => 1 })
+      await turn(h, 't1', (tool) => tool('a.txt', 'a\n'))
+      const oid = storedUnit(h.storage, 't1').writes[0]?.after.oid
+      expect(oid).toBeDefined()
+      await turn(h, 'u1', (tool) => tool('b.txt', 'b\n'), 's2')
+      await turn(h, 'v1', (tool) => tool('c.txt', 'c\n'), 's3')
+      expect(
+        storedUnits(h.storage)
+          .map((unit) => unit.owner.sessionId)
+          .toSorted((a, b) => a.localeCompare(b)),
+      ).toEqual(['s2', 's3'])
+      expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${oid ?? ''}`)).toBe(false)
+      clock += 2 * MILLISECONDS_PER_DAY
+      await h.store.maintain()
+      expect(storedUnits(h.storage)).toEqual([])
+      await turn(h, 'new', (tool) => tool('a.txt', 'new\n'))
+      expect(storedUnit(h.storage, 'new').sequence).toBe(2)
+      expect(done(await restoreOutcome(h.store, 'new')).changed).toEqual(['a.txt'])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+  it(
+    'T: bounds live and reloaded units by sequence while their shared journal remains',
     async () => {
       const h = await harness()
       for (const turnId of ['t1', 't2', 't3', 't4']) {
         await turn(h, turnId, (tool) => tool(`${turnId}.txt`, `${turnId}\n`))
       }
-      // This live window's journal names every unit: none is dropped yet.
-      expect(storedUnits(h.storage).map((entry) => entry.owner.unitId)).toEqual([
-        't1',
-        't2',
-        't3',
-        't4',
-      ])
+      // Retire only the oldest unit even while the instance remains live.
+      expect(storedUnits(h.storage).map((entry) => entry.owner.unitId)).toEqual(['t2', 't3', 't4'])
       h.store.dispose()
       const next = h.reopen()
       await next.maintain()
-      // The window is gone, and its journal still names units the bound keeps.
-      expect(storedUnits(h.storage)).toHaveLength(4)
+      expect(storedUnits(h.storage)).toHaveLength(3)
       for (const turnId of ['t5', 't6', 't7']) {
         await turn({ store: next, root: h.root }, turnId, (tool) =>
           tool(`${turnId}.txt`, `${turnId}\n`),

@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
-import { chmod, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
+import * as workspacePaths from '../../src/core/workspacePath'
+import * as atomic from '../../src/host/fsAtomic'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import {
   applyFileStep,
@@ -27,6 +29,9 @@ const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-checkpoin
 
 afterAll(async () => {
   await removeFolder(base)
+})
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 /** A fresh workspace holding `c/x.txt` and a folder link `a` to `c`. */
@@ -57,6 +62,90 @@ function step(
 }
 
 describe('applyFileStep (M72, M86)', () => {
+  it.each(['linux', 'win32'] as const)(
+    'L: applies synthetic mode rules on %s independently of the test OS',
+    async (platform) => {
+      const { root, target } = await linkedWorkspace()
+      const file = path.join(root, 'c', 'x.txt')
+      vi.spyOn(workspacePaths, 'confineWorkspacePath').mockImplementation((_root, relative) =>
+        Promise.resolve({
+          ok: true,
+          absolute: path.join(root, relative),
+          checkedAbsolute: path.join(root, relative),
+          relative,
+          canonical: relative,
+        }),
+      )
+      const writer = vi.spyOn(atomic, 'writeFileIfUnchanged').mockResolvedValue('written')
+      expect(
+        await applyFileStep(
+          { ...target, platform },
+          step('c/x.txt', blob('restored', GIT_MODE_EXECUTABLE), holding('the user’s file\n')),
+          Buffer.from('restored'),
+        ),
+      ).toBe('done')
+      expect(writer.mock.calls[0]?.[3]).not.toHaveProperty('executable')
+      expect(writer.mock.calls[0]?.[3].platform).toBe(platform)
+      await rm(file)
+      expect(
+        await applyFileStep(
+          { ...target, platform },
+          step('c/x.txt', blob('restored', GIT_MODE_EXECUTABLE), ABSENT),
+          Buffer.from('restored'),
+        ),
+      ).toBe('done')
+      expect(writer.mock.calls[1]?.[3]).toMatchObject({ executable: true, platform })
+    },
+  )
+  it.each(['delete', 'write'] as const)(
+    'refuses a replaced canonical root before %s',
+    async (kind) => {
+      const { root, target } = await linkedWorkspace()
+      const outside = path.join(base, randomUUID())
+      await mkdir(outside)
+      await writeFile(path.join(outside, 'x.txt'), 'after\n')
+      await rename(root, `${root}-old`)
+      await symlink(outside, root, 'junction')
+      expect(await resolvedPath(target, 'x.txt')).toBeUndefined()
+      expect(
+        await applyFileStep(
+          target,
+          step('x.txt', kind === 'delete' ? null : blob('before\n'), holding('after\n')),
+          kind === 'delete' ? undefined : Buffer.from('before\n'),
+        ),
+      ).toBe('linked')
+      expect(await readFile(path.join(outside, 'x.txt'), 'utf8')).toBe('after\n')
+    },
+  )
+
+  it('rechecks parent junction confinement after a held-delete retry wait', async () => {
+    const { root, target } = await linkedWorkspace()
+    const outside = path.join(base, randomUUID())
+    await mkdir(outside)
+    await writeFile(path.join(outside, 'x.txt'), 'the user’s file\n')
+    let attempts = 0
+    const result = await applyFileStep(
+      {
+        ...target,
+        remove: async (absolute) => {
+          attempts += 1
+          if (attempts === 1) {
+            throw Object.assign(new Error('held'), { code: 'EBUSY' })
+          }
+          await rm(absolute)
+        },
+        sleep: async () => {
+          await rename(path.join(root, 'c'), path.join(root, 'old-c'))
+          await symlink(outside, path.join(root, 'c'), 'junction')
+        },
+      },
+      step('c/x.txt', null, holding('the user’s file\n')),
+      undefined,
+    )
+    expect(result).toBe('linked')
+    expect(attempts).toBe(1)
+    expect(await readFile(path.join(outside, 'x.txt'), 'utf8')).toBe('the user’s file\n')
+  })
   it('never deletes through a folder link', async () => {
     const { root, target } = await linkedWorkspace()
     const result = await applyFileStep(

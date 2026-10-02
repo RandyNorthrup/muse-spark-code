@@ -460,6 +460,17 @@ describe('createToolIo (real file system and shell)', () => {
     await expect(io().pathExists(unused)).resolves.toBe(false)
   })
 
+  it('closes a refused native image fill while preserving the user’s bytes', async () => {
+    const file = path.join(root, 'changed-image.png')
+    const reserved = await io().reserveFile(file)
+    await writeFile(file, 'user bytes')
+    expect(await reserved.fill(Uint8Array.from([1, 2]))).toBe('changed')
+    // A real handle read fails once closed; repeated cleanup leaves the file.
+    await expect(reserved.fill(Uint8Array.from([1]))).rejects.toThrow(/closed|EBADF/u)
+    expect(await reserved.release()).toBe('changed')
+    expect(await readFile(file, 'utf8')).toBe('user bytes')
+  })
+
   it('creates the folders a new file goes into (D26)', async () => {
     const target = path.join(root, 'deep', 'er', 'b.txt')
     await io().writeFile(target, 'nested\n')

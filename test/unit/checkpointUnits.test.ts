@@ -6,6 +6,7 @@
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type * as constants from '../../src/shared/constants'
 import { turnKey } from '../../src/core/checkpoints/turnKey'
 import {
   finishCheckpointTurn,
@@ -16,6 +17,7 @@ import { processGitProcess } from '../../src/host/git'
 import {
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_LEGACY_FENCED_WINDOW,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import {
@@ -25,6 +27,7 @@ import {
   isPresent,
   owner,
   read,
+  recordingOf,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
@@ -39,6 +42,11 @@ import {
   write,
   writeLegacyRecord,
 } from './helpers/checkpointHarness'
+
+vi.mock('../../src/shared/constants', async (importOriginal) => ({
+  ...(await importOriginal<typeof constants>()),
+  CHECKPOINT_UNIT_INTENTS_MAX: 2,
+}))
 
 afterEach(async () => {
   vi.restoreAllMocks()
@@ -280,7 +288,9 @@ describe('crashes and recovery (M86)', () => {
     'F: a seal that failed after the fold leaves the record as it was folded; recovery changes nothing',
     async () => {
       const { h, crashed, unit } = await windowMidTurn('done')
-      vi.spyOn(crashed.journal, 'appendSeal').mockRejectedValue(new Error('injected fsync failure'))
+      vi.spyOn(recordingOf(crashed).journal, 'appendSeal').mockRejectedValue(
+        new Error('injected fsync failure'),
+      )
       await expect(crashed.endUnit(unit, { ranProcesses: false })).rejects.toThrow(
         'injected fsync failure',
       )
@@ -302,10 +312,15 @@ describe('crashes and recovery (M86)', () => {
     async () => {
       const h = await harness()
       await write(h.root, 'a.txt', 'a0\n')
-      await turn(h, 't1', async (tool) => {
-        await tool('a.txt', 'a1\n')
-        await h.store.journal.appendIncomplete(owner(h.store, 't1'))
-      })
+      const unit = owner(h.store, 't1')
+      const recorder = turnRecorder(h)
+      await h.store.startUnit(unit)
+      const writes = recorder.start(unit).io
+      for (const file of ['a.txt', 'b.txt', 'c.txt']) {
+        await writes.writeFile(path.join(h.root, file), 'a1\n')
+      }
+      await recorder.end(unit)
+      await h.store.endUnit(unit, { ranProcesses: false })
       expect(storedUnit(h.storage, 't1')).toMatchObject({
         status: 'incomplete',
         isMarkedIncomplete: true,
@@ -422,12 +437,12 @@ describe('completeness (M86, spec 3.2)', () => {
       const port = checkpointPort(h, true, () => false)
       const recorder = turnRecorder(h)
       const log = new FakeLogOutputChannel()
-      // Its top turn ran in an earlier window: the setting (off) decides.
-      expect(
-        await prepareCheckpointTurn(port, recorder, 's1', 'child:1', log, {
+      // An older child with no known inherited decision must not run.
+      await expect(
+        prepareCheckpointTurn(port, recorder, 's1', 'child:1', log, {
           checkpoint: undefined,
         }),
-      ).toEqual({ kind: 'off' })
+      ).rejects.toThrow(UI_TEXT.childCheckpointFailed)
       const top = {
         checkpoint: { kind: 'failed' } as const,
       }

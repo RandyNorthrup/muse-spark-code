@@ -3383,7 +3383,10 @@ export class ConversationController {
       this.deps.log.warn(`The transcript for a restore could not be read: ${describe(error)}`)
     }
     if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
-      this.notice('warning', UI_TEXT.restoreFailed)
+      this.notice(
+        'warning',
+        turnIds === undefined ? UI_TEXT.restoreWritesIncomplete : UI_TEXT.restoreFailed,
+      )
       return
     }
     const report = await this.checkpoints.restore(session.sessionId, message.turnId, turnIds)
@@ -3432,7 +3435,20 @@ export class ConversationController {
       this.post({ type: 'restoreRedone', restoreId, isSpent: false })
       return
     }
-    await this.checkpoints.redo(restoreId, sourceSessionId)
+    const session = this.session
+    await this.checkpoints.redo(restoreId, sourceSessionId, async (fromTurnId) => {
+      try {
+        const ids = await this.transcriptTurnIds(
+          await this.deps.ensureHost(),
+          sourceSessionId,
+          fromTurnId,
+        )
+        return this.session === session && !this.isTurnRunning() ? ids : undefined
+      } catch (error: unknown) {
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${describe(error)}`)
+        return
+      }
+    })
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {

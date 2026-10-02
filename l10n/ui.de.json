@@ -1275,7 +1275,7 @@
   "restoreConfirmDetail": "Die Wiederherstellung betrifft Bearbeitungen ab dieser Nachricht. Nur Änderungen durch die eigenen Dateiwerkzeuge des Modells werden rückgängig gemacht, solange jede Datei noch genau den vom Modell hinterlassenen Inhalt hat. Änderungen durch Befehle, Hooks, MCP-Werkzeuge, Ihre eigenen Bearbeitungen und Schreibvorgänge anderer Fenster werden niemals rückgängig gemacht. Dateien mit ungespeicherten Änderungen bleiben unverändert und werden genannt. Wiederholen stellt die Änderungen der Wiederherstellung wieder her.",
   "restoreConfirmAction": "Dateien wiederherstellen",
   "rewindCodeConfirmTitle": "Code auf den Stand vor dieser Nachricht zurücksetzen?",
-  "rewindCodeConfirmDetail": "Die aufgezeichneten Bearbeitungen von Muse nach dieser Nachricht werden rückgängig gemacht, die neueste zuerst; eine seither geänderte Datei bleibt unverändert. Änderungen durch Befehle sind nicht abgedeckt: Dafür gibt es „Dateien wiederherstellen“.",
+  "rewindCodeConfirmDetail": "Die aufgezeichneten Bearbeitungen von Muse nach dieser Nachricht werden rückgängig gemacht, die neueste zuerst; eine seither geänderte Datei bleibt unverändert. Änderungen durch Befehle sind nicht abgedeckt und werden auch durch „Dateien wiederherstellen“ nicht rückgängig gemacht: Sie bleiben unverändert; prüfen Sie Ihre Versionsverwaltung.",
   "rewindCodeConfirmAction": "Code zurücksetzen",
   "restoreBothConfirmTitle": "Dateien wiederherstellen und die Unterhaltung vor diese Nachricht zurückspulen?",
   "restoreBothConfirmDetail": "Die Wiederherstellung betrifft Bearbeitungen ab dieser Nachricht. Nur Änderungen durch die eigenen Dateiwerkzeuge des Modells werden rückgängig gemacht, solange jede Datei noch genau den vom Modell hinterlassenen Inhalt hat. Änderungen durch Befehle, Hooks, MCP-Werkzeuge, Ihre eigenen Bearbeitungen und Schreibvorgänge anderer Fenster werden niemals rückgängig gemacht. Danach wird die Unterhaltung vor dieser Nachricht verzweigt und ihre Eingabe kehrt ins Eingabefeld zurück. Wird eine Datei abgelehnt, wird die Unterhaltung nicht zurückgesetzt. Die ursprüngliche Unterhaltung bleibt im Verlauf.",
@@ -1307,7 +1307,7 @@
   "restoreWritesIncomplete": "Nichts wurde wiederhergestellt: Einige Bearbeitungen dieser Züge wurden nicht vollständig aufgezeichnet (Neuladen oder Absturz während der Bearbeitung oder deaktivierte Dateicheckpoints).",
   "restoreLegacyInRange": "Nichts wurde wiederhergestellt: Einige dieser Züge wurden von einer früheren Version aufgezeichnet und können von dieser Version nicht wiederhergestellt werden.",
   "restoreLegacyWindowOpen": "In einem anderen Fenster läuft eine ältere Version von Muse Spark; laden Sie es neu und versuchen Sie es erneut.",
-  "restoreCommandsNote": "In diesen Zügen liefen Befehle, Hooks oder MCP-Werkzeuge; ihre Dateiänderungen werden nicht rückgängig gemacht. Prüfen Sie Ihre Versionsverwaltung.",
+  "restoreCommandsNote": "In diesen Zügen waren Befehle, Hooks, MCP-Werkzeuge oder Hintergrundarbeiten aktiv; ihre Dateiänderungen werden nicht rückgängig gemacht. Prüfen Sie Ihre Versionsverwaltung.",
   "restoreRefusedFailed": "Konnte nicht geändert werden: {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Diese Nachricht hat keinen Dateiprüfpunkt mehr.",
@@ -1357,5 +1357,7 @@
     "other": "{count} Dateien nicht geprüft"
   },
   "thenRunNoExitCode": "Ohne Exitcode fehlgeschlagen",
-  "exportThenRunSkipped": "then_run `{command}`: {outcome}"
+  "exportThenRunSkipped": "then_run `{command}`: {outcome}",
+  "redoNothing": "Es ist nichts mehr zurückzusetzen.",
+  "childCheckpointFailed": "Der Unteragentenzug wurde nicht ausgeführt: Sein Dateikontrollpunkt konnte nicht erstellt werden oder die übernommene Aufzeichnungsentscheidung ist unbekannt."
 }

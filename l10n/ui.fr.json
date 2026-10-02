@@ -1309,7 +1309,7 @@
   "restoreConfirmDetail": "La restauration porte sur les modifications à partir de ce message. Seules les modifications des propres outils de fichiers du modèle sont annulées, tant que chaque fichier contient exactement ce que le modèle a laissé. Les changements des commandes, des hooks, des outils MCP, vos modifications et les écritures des autres fenêtres ne sont jamais annulés. Les fichiers avec des modifications non enregistrées sont laissés tels quels et nommés. Rétablir remet ce que la restauration a changé.",
   "restoreConfirmAction": "Restaurer les fichiers",
   "rewindCodeConfirmTitle": "Ramener le code tel qu’avant ce message ?",
-  "rewindCodeConfirmDetail": "Les modifications enregistrées de Muse après ce message sont annulées, de la plus récente à la plus ancienne ; un fichier modifié depuis est laissé tel quel. Ce que les commandes ont modifié n’est pas couvert : Restaurer les fichiers le couvre.",
+  "rewindCodeConfirmDetail": "Les modifications enregistrées de Muse après ce message sont annulées, de la plus récente à la plus ancienne ; un fichier modifié depuis est laissé tel quel. Ce que les commandes ont modifié n’est pas couvert et Restaurer les fichiers ne l’annule pas non plus : ces modifications sont laissées telles quelles ; vérifiez votre gestion de versions.",
   "rewindCodeConfirmAction": "Ramener le code",
   "restoreBothConfirmTitle": "Restaurer les fichiers et revenir dans la conversation à avant ce message ?",
   "restoreBothConfirmDetail": "La restauration porte sur les modifications à partir de ce message. Seules les modifications des propres outils de fichiers du modèle sont annulées, tant que chaque fichier contient exactement ce que le modèle a laissé. Les changements des commandes, des hooks, des outils MCP, vos modifications et les écritures des autres fenêtres ne sont jamais annulés. Ensuite, la conversation est bifurquée avant ce message et son texte revient dans le champ de saisie. Si un fichier est refusé, la conversation ne revient pas en arrière. La conversation initiale reste dans l’Historique.",
@@ -1344,7 +1344,7 @@
   "restoreWritesIncomplete": "Rien n’a été restauré : certaines modifications de ces tours n’ont pas été entièrement enregistrées (rechargement ou plantage pendant une modification, ou points de contrôle des fichiers désactivés).",
   "restoreLegacyInRange": "Rien n’a été restauré : certains de ces tours ont été enregistrés par une version antérieure, que celle-ci ne peut pas restaurer.",
   "restoreLegacyWindowOpen": "Une autre fenêtre exécute une ancienne version de Muse Spark ; rechargez-la, puis réessayez.",
-  "restoreCommandsNote": "Des commandes, des hooks ou des outils MCP ont été exécutés pendant ces tours ; leurs modifications de fichiers ne sont pas annulées. Vérifiez votre gestion de versions.",
+  "restoreCommandsNote": "Des commandes, des hooks, des outils MCP ou des tâches en arrière-plan étaient actifs pendant ces tours ; leurs modifications de fichiers ne sont pas annulées. Vérifiez votre gestion de versions.",
   "restoreRefusedFailed": "Impossible de modifier : {files}",
   "namedFilesMore": "{files} (+{count})",
   "restoreNoCheckpoint": "Ce message n’a plus de point de contrôle des fichiers.",
@@ -1398,5 +1398,7 @@
     "other": "{count} fichiers non vérifiés"
   },
   "thenRunNoExitCode": "Échec sans code de sortie",
-  "exportThenRunSkipped": "then_run `{command}` : {outcome}"
+  "exportThenRunSkipped": "then_run `{command}` : {outcome}",
+  "redoNothing": "Il ne reste rien à remettre.",
+  "childCheckpointFailed": "Le tour du sous-agent n’a pas été exécuté : son point de contrôle de fichiers n’a pas pu être créé ou la décision d’enregistrement héritée est inconnue."
 }
