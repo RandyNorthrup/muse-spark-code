@@ -1848,6 +1848,67 @@ describe('ConversationController: context', () => {
     })
   })
 
+  describe('one card for one failed start (0.10.1)', () => {
+    const SLOW_START = 'Muse Code did not finish starting within 120 s'
+
+    /**
+     * The panel opened (its warm-up starts the host) and `wait` more actions
+     * waiting on the same start, which then fails with one error; the next
+     * start succeeds.
+     */
+    async function failedStart(wait: (t: ReturnType<typeof setup>) => Promise<void>[]) {
+      const start = Promise.withResolvers<undefined>()
+      let isFailing = true
+      const t = setup({ beforeEnsureHost: () => (isFailing ? start.promise : Promise.resolve()) })
+      t.controller.surfaceReady()
+      t.surface.posted.length = 0
+      const waiting = wait(t)
+      start.reject(new Error(SLOW_START))
+      await Promise.all(waiting)
+      isFailing = false
+      // The warm-up says the failure only after every other waiter had its turn.
+      await new Promise((resolve) => setImmediate(resolve))
+      await new Promise((resolve) => setImmediate(resolve))
+      return t
+    }
+
+    it('shows the warm-up card once for six skill listings on the start (log only for them)', async () => {
+      const t = await failedStart((rig) =>
+        Array.from({ length: 6 }, () => rig.controller.handle({ type: 'listSkills' })),
+      )
+      expect(failureCards(t)).toEqual([
+        { type: 'notice', level: 'warning', text: `${UI_TEXT.hostStartFailed}: ${SLOW_START}` },
+      ])
+      const skillLines = logLines(t.log).filter(
+        (line) => line === `The skills were not listed: ${SLOW_START}`,
+      )
+      expect(skillLines).toHaveLength(6)
+    })
+
+    it("lets a message's own card say it, and nothing else", async () => {
+      const t = await failedStart((rig) => [
+        rig.send('l1', 'hello'),
+        rig.controller.handle({ type: 'listSkills' }),
+        rig.controller.handle({ type: 'compact' }),
+      ])
+      expect(failureCards(t)).toEqual([
+        { type: 'sendFailed', localId: 'l1', reason: SLOW_START, attachmentsKept: true },
+      ])
+    })
+
+    it('shows a user action that is not a message once, and starts afresh on the next', async () => {
+      const t = await failedStart((rig) => [
+        rig.controller.handle({ type: 'compact' }),
+        rig.controller.handle({ type: 'compact' }),
+      ])
+      expect(failureCards(t)).toEqual([
+        { type: 'notice', level: 'error', text: `${UI_TEXT.actionFailed}: ${SLOW_START}` },
+      ])
+      await t.controller.handle({ type: 'listSkills' })
+      expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    })
+  })
+
   it.each(['clearConversation', 'signOut'] as const)(
     'does not attach a native-picked file from a dialog that outlived %s',
     async (action) => {
@@ -2291,6 +2352,14 @@ describe('ConversationController: transcript actions (M4)', () => {
     }
   })
 })
+
+/** What the panel showed as a failure: a warning or error notice, or a message's failed card. */
+function failureCards(t: ReturnType<typeof setup>) {
+  return t.surface.posted.filter(
+    (message) =>
+      (message.type === 'notice' && message.level !== 'info') || message.type === 'sendFailed',
+  )
+}
 
 const sendWithContext = (t: ReturnType<typeof setup>, text = 'explain') =>
   t.controller.handle({

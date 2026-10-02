@@ -1815,6 +1815,13 @@ export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // commands that load or copy a whole session. Past them the command fails
 // with a message instead of leaving the panel waiting for ever.
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
+// A `muse serve` whose process still runs at the handshake's deadline is
+// starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
+// activation that took 211 s) it missed 30 s and was killed. It gets one
+// longer wait, this long in all. A healthy start connects in a second or
+// two (the log's "Connected ... in N ms"), so a process still silent after
+// four times the first deadline is stuck, and is ended.
+export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
 export const MSP_COMMAND_TIMEOUT_MS = 60_000
 export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
 // A command the host refused without admitting it (the SDK's own rule, D26):

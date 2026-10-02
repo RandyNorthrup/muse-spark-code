@@ -45,10 +45,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **The ACP agent reaches npm.** The release workflow passed its package as
-  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
-  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
-  npm. The path now starts with `./`.
 - **Windows hooks no longer wait on PowerShell's module scan.** The
   PowerShell wrapper that puts each Windows command and hook in its job
   object (M27) loaded the job helper with `Add-Type` and switched output to
@@ -61,6 +57,21 @@ happened, not what was planned; superseded entries are kept.
   makes .NET calls only, so a hook or command starts without any module
   discovery; the helper's self-test and a stopped command's job kill load
   it the same way.
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
+- **A slow Muse Code start is waited for, and a failed one is shown once.**
+  On a machine short of CPU, `muse serve` could miss its 30-second
+  handshake and was ended, and every action waiting on that start showed
+  its own "That did not work" card (six for one start). A start whose
+  process still runs at 30 seconds now gets up to 120 seconds in all (the
+  model pill keeps reading "Starting Muse Code…"); one whose process exits
+  fails at once. A failed start is shown once in the panel, by the first
+  action that needed it (a message on its own card); the panel's warm-up
+  says it only when nothing else did, and the skill listings of the
+  palette and the slash menu only log it. The next action starts Muse
+  Code afresh.
 - **A crafted long line no longer stalls the log.** Every line the
   extension logs passes through its secret redactor, whose JSON Web Token
   pattern read a long word again from every `eyJ` after a dash in it: a
