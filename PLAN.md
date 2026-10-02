@@ -222,10 +222,23 @@ quality`) and as a CI job.
 | `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
 | `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
+
+**Amendment (2026-09-30): one English fallback for the Node bundles.**
+The build emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
+the Model API backend, the checkpoint store and the ACP agent require it
+beside their bundles; each still owns its mutable installed-language state.
+The browser and integration-test bundles retain their inline fallback. The
+development build writes the table beside the extension, so the integration
+host needs no additional `.vscode-test.mjs` launch option. The VSIX allowlist,
+ACP packager and both CI member lists include it. Existing bundle caps stay
+unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
+and every before/after size are in
+[`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -10185,3 +10198,19 @@ in the turn's window while it ran, which a restore refuses. Release rule set
 by the lead after this round: a later Codex finding that is neither a P1 nor
 a security finding is recorded as a known limit and fixed in 0.10.1, so the
 release does not wait on review rounds that only find edge cases.
+
+**0.10.0 released (2026-10-02, tag `v0.10.0` on main `bdfb651e`, release run 36947244221).**
+PR #55 merged after seven Codex rounds; turn checkpoints ship as a Preview, off by
+default (D63). The first run's Windows quality job hit a known intermittent
+60 s hang in a real-shell hook test (root cause under investigation for 0.10.1)
+and was rerun. Published: the GitHub Release (`muse-spark-code-0.10.0.vsix`,
+1,619,488 bytes, SHA-256 `666f89b3ca93519a5272c21cb6a9ff1971202db7d452af96eff4a103d5e64a5b`;
+`muse-spark-code-acp-0.10.0.tgz`, 805,211 bytes, `96c56cfa…f946`), the VS Code
+Marketplace and Open VSX (its first publish; namespace `RandyNorthrup`
+created, not yet verified), both serving the identical VSIX. npm failed: the
+workflow passed `release/…tgz`, which npm read as a GitHub owner/repo (fixed
+by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
+0.10.1). Install smoke: the released VSIX installs as 0.10.0 on the Windows
+host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
+machine has code-server for a panel check, which CI's Hosts run on the tag
+covered (run 36947211712).

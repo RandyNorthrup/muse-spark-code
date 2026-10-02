@@ -175,7 +175,7 @@ jobs:
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
             extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js extension/dist/uiText.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
@@ -194,7 +194,7 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js \
+          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json; do
@@ -204,6 +204,14 @@ jobs:
             fi
           done
           echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
+      # The bundles load the shared English table at runtime: the extension
+      # and Model API bundles from this build, the agent as npm installs it.
+      - name: the bundles and the installed agent load the shared English table
+        run: |
+          acp="$RUNNER_TEMP/acp-install"
+          mkdir -p "$acp"
+          npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
+          node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp

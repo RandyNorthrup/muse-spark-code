@@ -14,6 +14,18 @@ happened, not what was planned; superseded entries are kept.
   what the model left. Commands, hooks and MCP tools are noted when they
   run; their file changes are never undone. Workspace captures and
   ignored-file scans are removed.
+- The Node bundles share their English fallback as `dist/uiText.js`, while
+  installed-language state stays local to each bundle. The VSIX and ACP
+  tarball include it, and CI checks both package member lists. Existing
+  bundle caps remain unchanged; runtime smoke checks cover the extension,
+  Model API bundle and the agent installed from its tarball.
+
+### Fixed
+
+- **The ACP agent reaches npm.** The release workflow passed its package as
+  `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
+  `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
+  npm. The path now starts with `./`.
 
 ## [0.10.0] - 2026-10-01
 
