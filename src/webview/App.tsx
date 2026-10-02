@@ -789,6 +789,13 @@ export function App({
     dispatch({ type: 'shareClosed' })
     dispatch({ type: 'focusRequested' })
   }, [dispatch])
+  // A share section that failed to render shows that in its place; the host's log says why.
+  const onShareSectionError = useCallback(
+    (error: unknown) => {
+      postMessage(webviewErrorReport('render', error))
+    },
+    [postMessage],
+  )
   // Every composer button toggles what it opens: a second click closes.
   const toggleOverlay = useCallback(
     (view: Overlay) => {
@@ -1678,6 +1685,7 @@ export function App({
           onClose={onCloseShare}
           onOpenLink={onOpenExternal}
           onCopy={onCopy}
+          onSectionError={onShareSectionError}
         />
       )}
       <main

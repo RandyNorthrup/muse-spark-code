@@ -45,10 +45,13 @@ const COMPLETED = 'completed'
 
 /** A code fence longer than any backtick run inside `text`, so the block cannot end early. */
 function fenced(text: string, language = ''): string {
-  const longest = Math.max(
-    0,
-    ...Array.from(text.matchAll(BACKTICK_RUN), (match) => match[0].length),
-  )
+  // A loop, not `Math.max(...runs)`: a shared file's tool output can hold
+  // hundreds of thousands of runs, past the engine's argument limit (a
+  // RangeError that took the whole panel down, RV84c C3).
+  let longest = 0
+  for (const match of text.matchAll(BACKTICK_RUN)) {
+    longest = Math.max(longest, match[0].length)
+  }
   const fence = '`'.repeat(Math.max(MIN_FENCE, longest + 1))
   return `${fence}${language}\n${text}\n${fence}`
 }
