@@ -2967,6 +2967,14 @@
                 status: 'completed',
                 text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```',
               },
+              // Thinking with no text, which the view hides: 237 of them fill
+              // the first page of 200 items, so its paging line and Show more
+              // show in the same shot (RV84 #14).
+              ...Array.from({ length: 237 }, (_, index) => ({
+                itemId: `th${String(index)}`,
+                kind: 'reasoning',
+                status: 'completed',
+              })),
             ],
           })
         },

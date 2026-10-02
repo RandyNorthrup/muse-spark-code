@@ -9020,9 +9020,10 @@ findings are fixed one commit each, with tests and red drills recorded from
 this tree in `docs/certification/m84.md`, as are the drills of the
 2026-09-29 repairs that had not run (R1 to R6). RV84 #10 and #14, open on
 2026-10-01, are now fixed too (see "Follow-up reviews" below), as is #9's
-single-string residual. Not run on this tree: `npm run quality`, the
-accessibility gate, the harness shots (the `m84-share.png` capture is
-missing) and the integration tests. The port had put `extension.js` and `modelApi.js` over
+single-string residual. The `m84-share.png` capture was taken on Kubuntu
+on 2026-10-02 (the accessibility gate passed on its `share` scenario).
+Not run on this tree: `npm run quality`, the whole accessibility gate, the
+other harness shots and the integration tests. The port had put `extension.js` and `modelApi.js` over
 their size budgets. They are back under after merging
 `build/shared-ui-text`, the shared English table (`15f847a4`). The
 redaction prefilter is proven a superset of every rule (`5df6d5c2`).
