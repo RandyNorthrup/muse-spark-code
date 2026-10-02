@@ -17,6 +17,7 @@ import {
   CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_STAT_CONCURRENCY,
   GIT_MODE_EXECUTABLE,
+  GIT_MODE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
@@ -34,6 +35,8 @@ const CURRENT_FOLDER = '.'
 const FOLDER_NOT_EMPTY: ReadonlySet<string> = new Set(['ENOTEMPTY', 'EEXIST', 'EPERM', 'EBUSY'])
 // Platforms whose usual file systems ignore letter case in names.
 const CASE_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
+// Git records a file as executable (100755) when its owner may execute it.
+const OWNER_EXECUTE_BIT = 0o100
 
 export interface RestoreTarget {
   readonly workspaceRoot: string
@@ -76,6 +79,27 @@ export function isSameRelative(left: string, right: string, platform: NodeJS.Pla
   return CASE_FOLDING_PLATFORMS.has(platform)
     ? left.toLowerCase() === right.toLowerCase()
     : left === right
+}
+
+/**
+ * Whether a folder or the file on the requested spelling of a path is a link or
+ * a junction. Letter case alone does not tell: a case-folding volume resolves
+ * `readme.md` to `README.md` with no link, while on a case-sensitive one (macOS
+ * offers both) `foo` may be a link to `Foo`.
+ */
+async function hasLinkOnTheWay(root: string, relative: string): Promise<boolean> {
+  let current = root
+  for (const segment of relative.split(/[\\/]/u)) {
+    current = path.join(current, segment)
+    const stats = await lstatOrUndefined(current)
+    if (stats === undefined) {
+      return false
+    }
+    if (stats.isSymbolicLink()) {
+      return true
+    }
+  }
+  return false
 }
 
 /** What is at the path, links not followed; undefined when nothing is. */
@@ -139,7 +163,8 @@ export async function linkedFolders(
   return linked
 }
 
-async function hasGit(folder: string): Promise<boolean> {
+/** Whether the folder holds `.git`: the folder, or a file naming it (a worktree or a submodule). */
+export async function hasGit(folder: string): Promise<boolean> {
   return (await lstatOrUndefined(path.join(folder, GIT_FOLDER))) !== undefined
 }
 
@@ -198,15 +223,35 @@ async function unlinked(
     target.log.warn(`Checkpoint restore refused ${relative}: ${resolution.reason}`)
     return undefined
   }
-  if (!isSameRelative(resolution.canonical, resolution.relative, target.platform)) {
+  if (
+    resolution.canonical !== resolution.relative &&
+    (!isSameRelative(resolution.canonical, resolution.relative, target.platform) ||
+      (await hasLinkOnTheWay(target.workspaceRoot, resolution.relative)))
+  ) {
     target.log.warn(`Checkpoint restore refused ${relative}: a link or junction is on the way`)
     return undefined
   }
   return resolution
 }
 
+/**
+ * Whether the file's execute bit is still the one the capture recorded.
+ * Windows keeps none: a capture there records none and a restore sets none
+ * (`writeFileIfUnchanged`), so only the bytes tell.
+ */
+function isSameMode(stats: Stats, mode: string, platform: NodeJS.Platform): boolean {
+  if (platform === 'win32') {
+    return true
+  }
+  return ((stats.mode & OWNER_EXECUTE_BIT) === 0 ? GIT_MODE_FILE : GIT_MODE_EXECUTABLE) === mode
+}
+
 /** Whether the file is still what the restore expects it to be. */
-async function isAsExpected(absolute: string, expect: Expectation): Promise<boolean> {
+async function isAsExpected(
+  absolute: string,
+  expect: Expectation,
+  platform: NodeJS.Platform,
+): Promise<boolean> {
   const stats = await lstatOrUndefined(absolute)
   if (expect.kind === 'absent') {
     return stats === undefined
@@ -216,7 +261,9 @@ async function isAsExpected(absolute: string, expect: Expectation): Promise<bool
   }
   return expect.kind === 'stat'
     ? isSameStat({ size: stats.size, mtimeMs: stats.mtimeMs }, expect.stat)
-    : stats.size <= CHECKPOINT_FILE_MAX_BYTES && gitBlobOid(await readFile(absolute)) === expect.oid
+    : stats.size <= CHECKPOINT_FILE_MAX_BYTES &&
+        isSameMode(stats, expect.mode, platform) &&
+        gitBlobOid(await readFile(absolute)) === expect.oid
 }
 
 /** Removes the folders a deletion left empty, up to one that was there at the checkpoint. */
@@ -287,7 +334,7 @@ export async function applyFileStep(
     throw new Error(UI_TEXT.restoreFailed)
   }
   const isCurrent = async () => {
-    if (!(await isAsExpected(destination.checkedAbsolute, step.expect))) {
+    if (!(await isAsExpected(destination.checkedAbsolute, step.expect, target.platform))) {
       refused = 'changed'
       return false
     }
@@ -299,7 +346,7 @@ export async function applyFileStep(
     return true
   }
   try {
-    if (!(await isAsExpected(destination.absolute, step.expect))) {
+    if (!(await isAsExpected(destination.absolute, step.expect, target.platform))) {
       return 'changed'
     }
     assertCurrent()
@@ -308,7 +355,7 @@ export async function applyFileStep(
       if (current === undefined) {
         return 'linked'
       }
-      if (!(await isAsExpected(current.checkedAbsolute, step.expect))) {
+      if (!(await isAsExpected(current.checkedAbsolute, step.expect, target.platform))) {
         return 'changed'
       }
       assertCurrent()

@@ -54,10 +54,14 @@ export interface CheckpointPort {
   restore(request: RestoreRequest): Promise<RestoreOutcome>
   redo(request: RedoRequest): Promise<RestoreOutcome>
   forgetSession(sessionId: string): Promise<void>
+  /** The conversation was unarchived: its archives go, whatever the setting. */
+  unforgetSession(sessionId: string): Promise<void>
   /** The window opened or was trusted: cleanup and retention, whatever the setting. */
   maintain(): Promise<void>
   /** Copies a file the extension's tools are about to write; a failed copy fails the write. */
   beforeToolWrite(absolutePath: string): Promise<void>
+  /** The user saved a file in this window: while a turn runs, a restore leaves it alone. */
+  noteUserSave(absolutePath: string): void
 }
 
 /** What the port uses of the store. */
@@ -72,11 +76,14 @@ export type CheckpointStoreApi = Pick<
   | 'restore'
   | 'redo'
   | 'forgetSession'
+  | 'unforgetSession'
   | 'queueForget'
   | 'maintain'
   | 'beforeToolWrite'
+  | 'noteUserSave'
   | 'isStoragePath'
   | 'isNativeUnsafe'
+  | 'hasOpenTurn'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
 >
@@ -121,6 +128,13 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     const posture = availability()
     return posture === 'on' || posture === 'off' ? deps.store : undefined
   }
+  /**
+   * The store while the tools' copies are taken: with the setting on, or while
+   * a turn recorded before it went off is still open, since that turn's end
+   * (which runs whatever the setting) needs them to put ignored files back.
+   */
+  const copyStore = (): CheckpointStoreApi | undefined =>
+    onStore() ?? (gitStore()?.hasOpenTurn === true ? deps.store : undefined)
   return {
     isNativeUnsafe: () => deps.store?.isNativeUnsafe === true,
     markNativeBackend: async () => {
@@ -206,8 +220,15 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
         ? deps.store?.queueForget(sessionId)
         : store.forgetSession(sessionId))
     },
+    unforgetSession: async (sessionId) => {
+      await deps.store?.unforgetSession(sessionId)
+    },
     maintain: async () => {
       await gitStore()?.maintain()
+    },
+    // Whatever the setting: a turn already under way still finishes its checkpoint.
+    noteUserSave: (absolutePath) => {
+      deps.store?.noteUserSave(absolutePath)
     },
     beforeToolWrite: async (absolutePath) => {
       // The store's own files (the repository's configuration among them) are never a
@@ -215,7 +236,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       if (deps.store?.isStoragePath(absolutePath) === true) {
         throw new Error(MODEL_TEXT.checkpointStorageWrite)
       }
-      await onStore()?.beforeToolWrite(absolutePath)
+      await copyStore()?.beforeToolWrite(absolutePath)
     },
   }
 }
@@ -313,6 +334,27 @@ export async function withCheckpointEditAt<T>(
     return await work()
   }
   return await withCheckpointEdit(checkpoints, check, work)
+}
+
+/**
+ * `work` as a write or delete the extension makes in the user's name (a
+ * command they ran, a Revert they pressed): once it is done its path is the
+ * user's, as their own save is. `workspace.fs` saves no document, so VS
+ * Code's save event never sees these writes; noted here, a turn running
+ * meanwhile neither takes the file for its own nor undoes it on a restore.
+ * The model's writes (its tools, its memory) never come through here: they
+ * are the turn's, and its restore puts them back.
+ */
+export function asUserEdit<T>(
+  checkpoints: CheckpointPort,
+  absolutePath: string,
+  work: () => Promise<T>,
+): () => Promise<T> {
+  return async () => {
+    const result = await work()
+    checkpoints.noteUserSave(absolutePath)
+    return result
+  }
 }
 
 /**

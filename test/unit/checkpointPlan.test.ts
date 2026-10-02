@@ -155,7 +155,7 @@ describe('planRestore (M72)', () => {
         {
           path: 'changed.ts',
           target: blob('b1'),
-          expect: { kind: 'blob', oid: 'a1' },
+          expect: { kind: 'blob', oid: 'a1', mode: '100644' },
           isIgnoreChecked: false,
         },
         {
@@ -167,13 +167,24 @@ describe('planRestore (M72)', () => {
         {
           path: 'added.ts',
           target: null,
-          expect: { kind: 'blob', oid: 'a3' },
+          expect: { kind: 'blob', oid: 'a3', mode: '100644' },
           isIgnoreChecked: true,
         },
       ],
       refused: [],
       unsure: [],
     })
+  })
+
+  it('expects a file’s captured execute bit with its bytes, so a chmod since is a change', () => {
+    const plan = planRestore(
+      input({
+        changes: [{ path: 'run.sh', before: blob('b1'), after: { mode: '100755', oid: 'a1' } }],
+      }),
+    )
+    expect(plan.steps.map((step) => step.expect)).toEqual([
+      { kind: 'blob', oid: 'a1', mode: '100755' },
+    ])
   })
 
   it('names the restored paths a turn with no recorded end may not have changed itself', () => {
@@ -276,6 +287,38 @@ describe('planRestore (M72)', () => {
       ],
       unsure: [],
     } satisfies RestorePlan)
+  })
+
+  it('refuses an ignored file a tool copied inside a repository of its own, at either end', () => {
+    const copied = (relative: string): IgnoredChange => ({
+      path: relative,
+      kind: 'changed',
+      preImage: blob('before'),
+      startStat: stat(1),
+      endStat: stat(2),
+    })
+    const plan = planRestore(
+      input({
+        ignoredTurns: [
+          [copied('cloned/a.c'), copied('deps/pkg/index.js'), copied('deps/plain.js')],
+        ],
+        coverage: {
+          checkpoint: { skipped: [], repositories: ['deps/pkg'] },
+          current: { skipped: [], repositories: ['cloned', 'deps/pkg'] },
+        },
+        currentStat: new Map([
+          ['cloned/a.c', stat(2)],
+          ['deps/pkg/index.js', stat(2)],
+          ['deps/plain.js', stat(2)],
+        ]),
+      }),
+    )
+    expect(plan.steps.map((step) => step.path)).toEqual(['deps/plain.js'])
+    expect(plan.refused).toEqual([
+      { path: 'cloned', reason: 'notInCheckpoint' },
+      { path: 'cloned/a.c', reason: 'notInCheckpoint' },
+      { path: 'deps/pkg/index.js', reason: 'notInCheckpoint' },
+    ])
   })
 
   it('refuses an ignored file another conversation changed meanwhile', () => {
