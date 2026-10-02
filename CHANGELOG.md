@@ -51,7 +51,9 @@ happened, not what was planned; superseded entries are kept.
   button lists every conversation in the window, on either backend, with its
   state, branch, changed files and waiting approvals; typing filters and
   Enter resumes. The board queries the known worktree roots and includes the
-  attempts of a running best-of-N.
+  attempts of a running best-of-N. Its git reads run as the prompt's git
+  facts do: opening it starts no fsmonitor, filter or other program a
+  repository configures, in any mode, and takes no index lock.
   - Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model
     API backend, behind the new off-by-default, machine-scoped
     `museSpark.modelApiBestOfN` setting: one paid-use popup per run names the

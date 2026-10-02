@@ -2,18 +2,26 @@
 // backend's list, the surface's running turn, pending prompts and git's
 // worktrees become board rows; without trust, git never runs.
 
-import { describe, expect, it, vi } from 'vitest'
+import { existsSync, realpathSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   ListSessionsOptions,
   SessionPage,
   SessionRecord,
 } from '../../src/core/agent/agentBackend'
+import { posixQuoted } from '../../src/core/shellQuote'
 import { PendingPrompts } from '../../src/core/sessionBoard'
+import { processGitRunner } from '../../src/host/git'
 import { collectSessionBoard } from '../../src/host/sessionBoard'
+import { GIT_METADATA_OPTIONS } from '../../src/shared/constants'
 import type { BoardRow } from '../../src/shared/sessionBoard'
 import type { BoardSession } from '../../src/core/sessionBoard'
 import { FakeAgentHost } from './helpers/bestOfN'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { removeFolder } from './helpers/temporaryFolders'
 
 function record(overrides: Partial<SessionRecord> & { sessionId: string }): SessionRecord {
   return {
@@ -87,7 +95,9 @@ function collectorWith(
     isWorkspaceTrusted: () => overrides.isTrusted ?? true,
     runGit: (args, cwd) => {
       gitCalls.push({ args, cwd })
-      return Promise.resolve((overrides.git ?? (() => ''))(args, cwd))
+      // The metadata runner first reads the filter names: none configured here.
+      const answer = args.includes('--get-regexp') ? () => '' : (overrides.git ?? (() => ''))
+      return Promise.resolve(answer(args, cwd))
     },
     platform: 'linux',
     currentSessionId: overrides.currentSessionId,
@@ -127,10 +137,15 @@ describe('collectSessionBoard', () => {
       currentTurnId: 'turn-1',
       pending: [['s2', 'approval-1']],
       git: (args) => {
-        return args[0] === 'worktree' ? WORKTREE_PORCELAIN : ' M src/a.ts\n?? notes.txt\n'
+        return args.includes('worktree') ? WORKTREE_PORCELAIN : ' M src/a.ts\n?? notes.txt\n'
       },
     })
     const rows = await t.rows
+    // Every call is a metadata read: no fsmonitor, maintenance or replacement refs.
+    for (const call of t.gitCalls) {
+      expect(call.args.slice(0, GIT_METADATA_OPTIONS.length)).toEqual([...GIT_METADATA_OPTIONS])
+    }
+    expect(t.gitCalls.filter((call) => call.args.at(-1) === '--porcelain=v1')).toHaveLength(2)
     expect(rows).toEqual([
       {
         sessionId: 's1',
@@ -159,7 +174,7 @@ describe('collectSessionBoard', () => {
     const t = collectorWith({
       records: [record({ sessionId: 's1', title: 'A', branch: 'main' })],
       git: (args) => {
-        if (args[0] === 'worktree') {
+        if (args.includes('worktree')) {
           return WORKTREE_PORCELAIN
         }
         throw new Error('repo locked')
@@ -269,4 +284,92 @@ describe('collectSessionBoard', () => {
       awaitingApproval: true,
     })
   })
+})
+
+// Real git, disposable repositories under the OS temp directory, no model calls.
+const realRoots: string[] = []
+// Real git and a node program per command take seconds on a busy Windows host.
+const REAL_GIT_TEST_MS = 120_000
+// The fixture's configuration is its own, never a developer's global or system one.
+const FIXTURE_GIT_ENV = {
+  ...process.env,
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+}
+
+afterEach(async () => {
+  for (const root of realRoots.splice(0)) {
+    await removeFolder(root)
+  }
+})
+
+/**
+ * A committed repository with one changed file, and a runner whose
+ * `core.fsmonitor` (given at command scope, in its environment, as the
+ * review's probe gave it) names a program that leaves a marker file.
+ */
+async function monitoredRepository() {
+  const temp = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'muse-board-')))
+  realRoots.push(temp)
+  const root = path.join(temp, 'app')
+  await mkdir(root)
+  const git = processGitRunner({ env: FIXTURE_GIT_ENV })
+  await git(['init', '--initial-branch=main'], root)
+  await git(['config', 'user.name', 'Offline test'], root)
+  await git(['config', 'user.email', 'offline@example.invalid'], root)
+  await writeFile(path.join(root, 'tracked.txt'), 'before\n')
+  await git(['add', '--all'], root)
+  await git(['commit', '-m', 'fixture'], root)
+  await writeFile(path.join(root, 'tracked.txt'), 'after, longer\n')
+  const marker = path.join(temp, 'fsmonitor-ran')
+  const program = path.join(temp, 'fsmonitor.cjs')
+  await writeFile(
+    program,
+    String.raw`require('node:fs').writeFileSync(process.argv[2], 'ran');process.stdout.write(process.argv[3] === '2' ? 'board-token\0/\0' : '/\0')`,
+  )
+  const command = [process.execPath, program, marker]
+    .map((file) => posixQuoted(file.replaceAll('\\', '/')))
+    .join(' ')
+  const monitored = processGitRunner({
+    env: {
+      ...FIXTURE_GIT_ENV,
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.fsmonitor',
+      GIT_CONFIG_VALUE_0: command,
+    },
+  })
+  return { root, marker, monitored }
+}
+
+describe('collectSessionBoard over real git (M77, the RV78 review)', () => {
+  it(
+    'counts a worktree’s changes without starting the fsmonitor its git is configured with',
+    async () => {
+      const { root, marker, monitored } = await monitoredRepository()
+      // The canary is live: an ordinary status starts the configured program.
+      await monitored(['status', '--porcelain=v1'], root)
+      expect(await readFile(marker, 'utf8')).toBe('ran')
+      await rm(marker)
+      const rows = await collectSessionBoard({
+        ensureHost: () =>
+          Promise.resolve(
+            new FakeBoardHost([
+              [record({ sessionId: 's1', title: 'A', branch: 'main', workspaceRoot: root })],
+            ]),
+          ),
+        backendOf: () => 'modelApi',
+        workspaceRoot: root,
+        isWorkspaceTrusted: () => true,
+        runGit: monitored,
+        platform: process.platform,
+        currentSessionId: undefined,
+        currentTurnId: undefined,
+        pendingPrompts: new PendingPrompts(),
+        log: new FakeLogOutputChannel(),
+      })
+      expect(rows).toMatchObject([{ sessionId: 's1', changedFiles: 1 }])
+      expect(existsSync(marker)).toBe(false)
+    },
+    REAL_GIT_TEST_MS,
+  )
 })

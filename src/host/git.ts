@@ -14,8 +14,10 @@ import type { BestOfNGitGuard } from '../core/bestOfN/bestOfNRunner'
 import { environmentValue } from '../core/backends/musecode/launch'
 import {
   BEST_OF_N_MIN_GIT_MINOR,
+  GIT_FILTER_NAMES_ARGS,
   GIT_FILTER_NAMES_MAX,
   GIT_FILTER_NAME_MAX_CHARS,
+  GIT_METADATA_OPTIONS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
@@ -48,7 +50,7 @@ const filterKeys = z
   .check(z.maxLength(GIT_FILTER_NAMES_MAX))
 
 /** Names only become scoped overrides; configured command values are never read. */
-export function gitFilterOptions(output: string): readonly string[] {
+function gitFilterOptions(output: string): readonly string[] {
   const names = output === '' ? [] : output.split(FILTER_SEPARATOR)
   if (names.at(-1) === '') {
     names.pop()
@@ -66,6 +68,33 @@ export function gitFilterOptions(output: string): readonly string[] {
     '-c',
     `${driver}.required=false`,
   ])
+}
+
+/**
+ * git for an automatic metadata read in `cwd` (the prompt's facts, D15; the
+ * session board, M77): no fsmonitor, maintenance, replacement refs or
+ * signature program (GIT_METADATA_OPTIONS), and each configured filter
+ * driver's clean and process emptied by name, its command never read. The
+ * runner's `GIT_OPTIONAL_LOCKS=0` takes no index lock, so status writes no
+ * index and no index hook runs. Rejects when the names cannot be read.
+ */
+export async function metadataGit(
+  runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>,
+  cwd: string,
+): Promise<(args: readonly string[], timeoutMs?: number) => Promise<string>> {
+  let names: string
+  try {
+    names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
+  } catch (error: unknown) {
+    // `config --get-regexp` exits 1 when no filter is configured.
+    if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 1) {
+      throw error
+    }
+    names = ''
+  }
+  const filters = gitFilterOptions(names)
+  return async (args, timeoutMs) =>
+    await runGit([...GIT_METADATA_OPTIONS, ...filters, ...args], cwd, timeoutMs)
 }
 
 /** git is not on the absolute entries of PATH (D24): nothing ran. */

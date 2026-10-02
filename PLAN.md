@@ -8615,6 +8615,15 @@ extension's own storage, never the workspace's `.git`.
 
 ### M77 — Session board and best-of-N (D49)
 
+**RV78 review fixes, 2026-10-02.** The board's git status ran through the
+ordinary runner, so opening it could start a repository's configured
+fsmonitor program with no approval, in any mode. It now runs through
+`metadataGit` (`src/host/git.ts`), the prompt's git-facts runner moved there
+and shared: `GIT_METADATA_OPTIONS`, filter drivers emptied by name and
+`GIT_OPTIONAL_LOCKS=0`. A real-git regression proves the fsmonitor canary
+live and then silent under the board. Records and drills are in
+`docs/certification/m77.md`.
+
 **Lane resume, 2026-09-30.** Retain the existing M82 commits and staged M77
 port. Compilation passed all five projects. The initial focused run found
 voice Stop was blocked by a newly enabled cap; Stop now reaches its existing

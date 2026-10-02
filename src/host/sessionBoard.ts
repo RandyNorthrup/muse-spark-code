@@ -3,9 +3,12 @@
 // and git's worktrees with their change counts, assembled into board rows.
 //
 // Git never runs in Restricted Mode (D24): there the rows carry the
-// sessions' own branch, without worktree folders or change counts. A
-// worktree whose status git cannot read keeps its row with an unknown
-// count: the board shows every conversation either way.
+// sessions' own branch, without worktree folders or change counts. In a
+// trusted workspace it runs as the prompt's metadata reads do (`metadataGit`):
+// opening the board starts no fsmonitor, filter or other program the
+// repository configures, and takes no index lock. A worktree whose status git
+// cannot read keeps its row with an unknown count: the board shows every
+// conversation either way.
 
 import type { AgentHost, SessionRecord } from '../core/agent/agentBackend'
 import {
@@ -22,6 +25,7 @@ import {
   SESSION_LIST_LIMIT,
   SESSION_LIST_MAX_PAGES,
 } from '../shared/constants'
+import { metadataGit } from './git'
 import type { Logger } from './logger'
 
 export interface SessionBoardDeps {
@@ -71,7 +75,8 @@ async function readWorktrees(deps: SessionBoardDeps): Promise<readonly BoardWork
   }
   let porcelain: string
   try {
-    porcelain = await deps.runGit(WORKTREE_LIST_ARGS, workspaceRoot, GIT_WORKTREE_TIMEOUT_MS)
+    const git = await metadataGit(deps.runGit, workspaceRoot)
+    porcelain = await git(WORKTREE_LIST_ARGS, GIT_WORKTREE_TIMEOUT_MS)
   } catch (error: unknown) {
     const detail = error instanceof Error ? error.message : String(error)
     deps.log.warn(`The session board could not list worktrees: ${detail}`)
@@ -85,7 +90,9 @@ async function readWorktrees(deps: SessionBoardDeps): Promise<readonly BoardWork
     }
     let changedFiles: number | undefined
     try {
-      const status = await deps.runGit(STATUS_ARGS, entry.path, GIT_WORKTREE_TIMEOUT_MS)
+      // Read in each worktree: its effective configuration names its filters.
+      const git = await metadataGit(deps.runGit, entry.path)
+      const status = await git(STATUS_ARGS, GIT_WORKTREE_TIMEOUT_MS)
       changedFiles = status.split(LINE_BREAK).filter((line) => line !== '').length
     } catch {
       deps.log.warn('The session board could not read a worktree’s changes')
