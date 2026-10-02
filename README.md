@@ -1358,6 +1358,54 @@ on this machine. An export asked for while a reply runs is refused until it
 finishes, and a conversation too long for Muse Code to replay is pointed to
 the session log.
 
+**Export, import and share a session.** **Export session as JSON…** (on
+either backend) writes the conversation as a portable file: the same history
+the Markdown export holds, without stored outputs, patches or anything that
+belongs to the running session. Credentials of a known shape and the key
+digest are removed from every string, item ids and error labels included:
+API keys and tokens of common services (Meta, GitHub, GitLab, npm, Google,
+AWS, Slack, Stripe-style keys), bearer and basic credentials, JSON Web
+Tokens, private keys, credentials in a URL, and secrets named by their key
+(`PASSWORD=`, `"api_key": …`, `~/.aws/credentials` lines, an Azure
+`AccountKey=`). A secret in any other shape is not recognised and stays, so
+read the preview before you share the file. Ordinary UUIDs and protocol
+words stay unchanged. Paths (your workspace and home folders wherever they
+appear, spaces and all, and any other absolute path or `file://` link, in
+any script, to its first space) and account ids
+(e-mail addresses) are redacted by default. The redacted file opens read-only in the editor first,
+with how much was redacted; nothing is written until you choose **Save
+redacted…** or **Save without redaction…**. **Muse Spark: Import Session**
+resumes such a file as a new conversation on the Model API backend, on your
+own model: the file never picks one. It starts in Manual (or Plan when that
+is your initial mode), whatever `museSpark.initialPermissionMode` says, and
+does so every time the conversation is opened again, forked or restored;
+only your own mode change relaxes it. A plan written in such a conversation
+is untrusted as a plan file is: **Implement in a fresh conversation** starts
+it in Manual (or Plan) too. It drops session rules, goals,
+schedules, todos and patches, and the model reads each imported turn as
+untrusted data in a message of yours, never as its own replies or tool calls.
+A file whose turns are more text than a conversation can start with (counted
+high, one token per UTF-8 byte: 786.4 kB, the allowance named text
+attachments have) is refused before the import is confirmed, with both sizes
+named; it can still be opened as a share file.
+The panel offers Copy only on such a conversation's code blocks, never
+Insert or Apply, as in a share file.
+The ACP agent also applies this safe start to stored sessions marked imported
+before advertising their mode or replaying history.
+**Muse Spark: Open Share File** reads such a file read-only in the panel:
+links and Copy work, code blocks have no Insert or Apply, and nothing in it
+reaches a session. It shows 200 items at a time, with **Show more** for the
+next, and an item that cannot be rendered says so in its place while the
+rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
+format or a newer version, or holds any field this version does not know.
+The picker reads a local `file:` URI on the extension host through one
+checked descriptor, stopping at the size cap even if the file grows.
+Other file providers are explicitly refused because this reader cannot
+bound their allocations; a PDF header never raises the JSON cap.
+Validation notices use localized refusals: JSON parser snippets are never
+shown, and reported field names are scrubbed before their bounded display.
+Nothing is ever uploaded: sharing is a file on your disk.
+
 **Your own shell commands.** Start a message with `!` to run it as a shell
 command in the workspace instead of sending it to the agent, as Muse Code's
 `!` does: `!git status`. The prompt switches to the editor's font and says
@@ -1781,6 +1829,8 @@ What stays in English:
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
+| Muse Spark: Import Session                          | —                                                                                    | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
+| Muse Spark: Open Share File                         | —                                                                                    | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
 | Muse Spark: MCP Servers                             | —                                                                                    | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                               |
 | Muse Spark: Hooks                                   | —                                                                                    | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                               |
 | Muse Spark: Memory                                  | —                                                                                    | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                |
@@ -1792,12 +1842,13 @@ What stays in English:
 | (composer) Run a shell command                      | Start the message with `!`                                                           | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                        |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Nine commands appear in the
+which is why its two shortcuts add `Alt`. Eleven commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking, Export Conversation and Stop Background Tasks with a
-Muse panel in view, Move Running Command to Background while one runs, Set
-Up Shell Sandbox on Windows (or in a remote window), Create AGENTS.md and
-the two worktree commands with a folder open.
+open, Toggle Thinking, Export Conversation, Import Session, Open Share File
+and Stop Background Tasks with a Muse panel in view, Move Running Command
+to Background while one runs, Set Up Shell Sandbox on Windows (or in a
+remote window), Create AGENTS.md and the two worktree commands with a folder
+open.
 
 ## Settings
 
