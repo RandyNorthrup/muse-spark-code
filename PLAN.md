@@ -8989,6 +8989,19 @@ independent review and the full candidate gates remain required.**
 
 ### M80 — Headless and CI (D49)
 
+**Lane B, implemented with Windows certification blocked, 2026-10-02:** deliver only frozen v4 §5.2/§5.3/§9:
+the existing ACP engine's one-turn client/tap, integer micro-USD ledger,
+streaming transport, lifecycle, bounded untrusted inputs, headless paid policy,
+runtime/CLI/scanner wiring and D1–D30/P1–P10/L1–L12 tests. Reuse lane A at
+`e39ac9d3`; keep Model API core unchanged. F2 carries observed metadata on
+transport loss without granting completion or credit. Tests, typechecks and
+builds run only on the rigs; full quality and C/D/live acceptance remain lead
+work. Readiness review: supplied v4 contract plus lead F1/F2 rulings resolve
+the two minor ambiguities; no new scope or dependencies are needed. Existing
+roadmap format is retained as instructed by the lane brief; the skill's
+structured-ledger validator is deferred rather than migrating the roadmap.
+Evidence moves with implementation in `docs/certification/m80.md`.
+
 **Lane A, 2026-10-02:** implement the frozen scratchpad `m80/SPEC.md` v4
 §5.1/§9 and the M80A brief only. Pure argument/result/event/output/fd/key/scanner
 modules, literal-first redaction, constants, all 14 translations and deterministic
@@ -9785,6 +9798,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M80B Windows force-exit blocker (2026-10-02).** The implementation and
+76 guard drills are present; Kubuntu A+B passed 437/437. Win11 passed
+436/437, failing D29's unread-stderr force-exit fixture. Test-owned timestamps
+show SIGINT at 624 ms, SIGTERM at 639 ms and exit 130 requested at 945 ms;
+Node then waits on its blocked asynchronous filesystem pipe worker. Closing
+fd 2 returned at 966 ms but did not unblock exit; using the native pipe stream
+blocked signal timers instead. Both probes were reverted. common.md's explicit
+two-failed-fixes rule stops this path. Keep the failing test, original limits,
+and Windows gate open. The lead must resolve the Windows native I/O/termination
+contract or obtain an explicit scope ruling before B/M80 can be certified.
+The remaining hosted/full-quality/C/D/L/LA/LR gates are also lead-owned, not
+closed by this lane. No gate or hook was changed.
+
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,
 format and localization, but unit/e2e types rejected the removed
@@ -9973,6 +9999,11 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
+
+| M80 lane B location                                          | Escape hatch                                         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Date       |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
+| `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
 M72's `src/host/checkpoints/checkpointStoreBundle.ts` uses the type predicate
 `isCheckpointStoreBundle`: the required module is unknown; both exported

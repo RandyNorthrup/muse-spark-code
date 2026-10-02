@@ -98,7 +98,9 @@ export function createExecSink(input: {
   }
   const finishOnce = (result: ExecResult) => {
     const raw = validateResult(
-      lastMessage === undefined ? result : { ...result, finalMessage: lastMessage },
+      lastMessage === undefined || result.finalMessage === UI_TEXT.execMessageWithheld
+        ? result
+        : { ...result, finalMessage: lastMessage },
     )
     const redacted = validateResult(redactValue(raw, input.literals()))
     const envelope = execEventSchema.parse({

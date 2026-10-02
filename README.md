@@ -2440,12 +2440,41 @@ via PayPal. Thank you!
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
 
-### M80 headless contracts (lane A)
+### M80 headless execution (lanes A and B)
 
-The independent M80 contracts are implemented; `exec` and `scan-secrets` are
-not wired into the executable yet. This delivery supplies their parser, output
-and key/scanner modules for the next implementation lane. It does not claim
-headless command, Action or registry-path support.
+The headless engine and command dispatch are implemented on this branch.
+Windows blocked-pipe force exit remains an open certification blocker; this
+branch does not claim that Windows lifecycle bound. See the evidence below.
+One turn runs through the existing ACP engine, with Plan as the default and
+Accept edits as the only other mode. Every ordinary approval is denied;
+questions are declined. A Model API run remains untrusted, so it starts no
+shell, check, hook, MCP, Git or web-fetch tool process. The GitHub Action,
+installed-package/host acceptance and registry path remain pending in C/D.
+
+`exec` accepts one literal prompt, `--prompt-file <path>`, or `-` for stdin,
+plus repeatable `--untrusted-file <path>` resources. It offers `--output`
+`text`, `json` or `jsonl`; `--timeout` is the process deadline. Model API
+requires `--max-budget-usd`, accepts `--max-requests`, `--ephemeral` and
+`--key-stdin`, and reads the local OS store when stdin authentication is absent.
+The stdin key is held only in memory; it conflicts with a stdin prompt.
+Muse Code requires an existing sign-in and does not accept a USD budget.
+
+The contributor model requires `--allow-contributor-models` and may be used
+for training under Meta's contributor terms. At 32,768 output tokens, the
+minimum reservation is $0.108135 for contributor or $1.409024 for standard.
+`--image-generation` additionally requires `--permission-mode acceptEdits` and
+raises these start minima by $0.01. Images default off; hosted search is refused.
+Accounting rounds each liability upward to micro-USD. Missing receipts,
+transport loss, cancellation and HTTP errors retain the full reservation.
+Only the latest verified completed response plus ACP `end_turn` permits exit 0;
+unverified completed accounting exits 9. Tool output text is suppressed and
+cut-short agent messages are withheld whole.
+
+`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally, prints
+only a count and exits 0 for clean, 10 for matches or 2 for refusal/error.
+Its 30-second lifetime includes key reading and output flush. Known literals
+and patterns are covered; other secrets are outside this protection. Command
+and process evidence is recorded with its scope in the certification record.
 
 `npm run schema:exec` deterministically regenerates
 [the result schema](docs/schemas/exec-result-v1.schema.json) and
@@ -2457,6 +2486,6 @@ identities and output sequencing), enforced by the production zod boundaries
 and sink. Budget input is unsigned ASCII decimal, positive and at most $20,
 with at most six fractional digits, converted directly to integer micro-USD.
 
-See [M80 lane A evidence](docs/certification/m80.md) for tests, deliberate breaks,
+See [M80 evidence](docs/certification/m80.md) for tests, deliberate breaks,
 platform results and remaining work. The lead still owns the full integrated
 gates and live receipts.

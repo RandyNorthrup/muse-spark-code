@@ -15,7 +15,7 @@ import { statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
-import { AcpPaidUse } from '../acp/paid'
+import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import { environmentValue } from '../core/backends/musecode/launch'
@@ -23,6 +23,7 @@ import { personalSkillsRoot } from '../core/context/skills'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
+import { redactSecrets } from '../core/redact'
 import { canonicalPath } from '../host/canonicalPath'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
@@ -60,11 +61,18 @@ import {
   paidGrantsFile,
   workspaceSessionsFolder,
 } from './dataFolder'
-import { withoutCredentials } from './credentialVariables'
+import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
+export interface ExecRuntimeOptions {
+  readonly isEphemeral: boolean
+  readonly headlessPaid: HeadlessPaidPolicy
+  readonly streamIdleMs: number
+}
+
 export interface RuntimeBackendDeps {
+  readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
   /** The folder holding the agent, backend, search and page-converter bundles. */
@@ -171,7 +179,7 @@ function modelApiManager(
     listFiles,
     systemRoot,
     // No credential variable reaches a tool's process (AGENTS.md rule 8).
-    env: () => withoutCredentials(deps.env),
+    env: () => withoutKeyringRoutes(withoutCredentials(deps.env)),
     searchWorkerPath: path.join(deps.distDir, SEARCH_WORKER_FILE),
     log: warn,
     // The agent cannot see the editor's buffers (D62); the client's `fs/*` will (M63c).
@@ -201,6 +209,37 @@ function modelApiManager(
     systemPath,
     warn: warnMemory,
   })
+  const store =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : createFileSessionStore({
+          directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),
+          log,
+          retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
+          now: () => Date.now(),
+          sleep: deps.sleep,
+        })
+  // Snapshot copies are plain structured data. Keep their type/shape while
+  // replacing every string leaf before a headless transcript reaches disk.
+  const redactSnapshot = (value: unknown, literals: readonly string[]): void => {
+    if (typeof value !== 'object' || value === null) return
+    for (const [key, leaf] of Object.entries(value)) {
+      if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
+      else redactSnapshot(leaf, literals)
+    }
+  }
+  const headlessStore =
+    store === undefined
+      ? undefined
+      : {
+          ...store,
+          async save(snapshot: Parameters<typeof store.save>[0]) {
+            const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            const copy = structuredClone(snapshot)
+            redactSnapshot(copy, key === undefined ? [] : [key])
+            await store.save(copy)
+          },
+        }
   return new ModelApiBackendManager({
     log,
     getApiKey: () => credentials.getApiKey(),
@@ -212,6 +251,7 @@ function modelApiManager(
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
     sleep: deps.sleep,
@@ -222,13 +262,7 @@ function modelApiManager(
       xdgConfigHome: homes.xdgConfigHome,
     }),
     isWorkspaceTrusted,
-    store: createFileSessionStore({
-      directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),
-      log,
-      retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
-      now: () => Date.now(),
-      sleep: deps.sleep,
-    }),
+    store: deps.exec === undefined ? store : headlessStore,
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
@@ -287,6 +321,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       sleep: deps.sleep,
     }),
     log: deps.log,
+    ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
@@ -430,7 +465,9 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     museCode,
     paid,
     forgetUnflaggedGrants: () =>
-      deps.options.backend === 'modelApi' ? paid.forgetUnflagged() : Promise.resolve(),
+      deps.exec === undefined && deps.options.backend === 'modelApi'
+        ? paid.forgetUnflagged()
+        : Promise.resolve(),
     close: async () => {
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()

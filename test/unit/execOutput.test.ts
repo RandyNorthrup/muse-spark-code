@@ -21,6 +21,25 @@ function harness(format: 'text' | 'json' | 'jsonl' = 'jsonl') {
 }
 
 describe('M80 egress (A12–A14, A17, A19, A20)', () => {
+  it('B/D27 authoritative withholding cannot reuse earlier completed commentary', async () => {
+    const h = harness('json')
+    h.sink.message({
+      itemId: 'earlier',
+      kind: 'agentMessage',
+      text: 'earlier commentary',
+      complete: true,
+    })
+    const result = resultRecord()
+    result.status = 'failed'
+    result.exitCode = 4
+    result.error = { kind: 'failed', message: 'HTTP failure' }
+    result.finalMessage = UI_TEXT.execMessageWithheld
+    await h.sink.finish(result)
+    expect(JSON.parse(h.out.chunks[0]!)).toMatchObject({
+      status: 'failed',
+      finalMessage: UI_TEXT.execMessageWithheld,
+    })
+  })
   it('A12 emits valid increasing JSONL envelopes with one final result and a summary', async () => {
     const { out, sink, summary } = harness()
     sink.emit({ type: 'question_declined', count: 1 })

@@ -5,18 +5,27 @@
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { open, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
-import { AsyncEntry } from '@napi-rs/keyring'
 import { createAcpAgent, type SignInMethod } from '../acp/agent'
 import { processGitRunner } from '../host/git'
 import { loadUiTable } from '../host/l10n'
-import { ACP_AGENT_NAME, ACP_AUTH_METHODS, SETTING_DEFAULTS, UI_TEXT } from '../shared/constants'
+import {
+  ACP_AGENT_NAME,
+  ACP_AUTH_METHODS,
+  EXEC_EXIT,
+  EXEC_SCAN_TIMEOUT_MS,
+  EXEC_FORCE_WRITE_MS,
+  SETTING_DEFAULTS,
+  UI_TEXT,
+} from '../shared/constants'
+import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
@@ -29,6 +38,11 @@ import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
 import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
+import { createLifecycle } from './exec/execLimits'
+import { createFdWriter } from './exec/fdWriter'
+import { createExecLogger, redactWhole } from './exec/execOutput'
+import { runExec } from './exec/runExec'
+import { runSecretScan } from './exec/scanSecrets'
 
 const EXIT_FAILED = 1
 // Credential variables leave the agent's own environment before anything
@@ -37,6 +51,12 @@ const museCodeCredentials = takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
+
+/** Standalone headless commands own their process, including wedged late setup. */
+function exitHeadless(code: number): never {
+  // eslint-disable-next-line unicorn/no-process-exit -- Headless deadlines and closed/stalled pipes require a bounded final process exit after async writes (PLAN.md M80, §8).
+  process.exit(code)
+}
 
 function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
@@ -61,9 +81,58 @@ function packageVersion(): string {
 }
 
 /** The OS credential store's entry; Linux is held to the Secret Service (D61). */
-const secrets = keyringSecretStore(
-  (service, account) => new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
-)
+const nativeStore: { value?: Promise<SecretStore> } = {}
+async function loadSecrets(): Promise<SecretStore> {
+  nativeStore.value ??= (async () => {
+    const { AsyncEntry } = await import('@napi-rs/keyring')
+    return keyringSecretStore(
+      (service, account) =>
+        new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
+    )
+  })()
+  return await nativeStore.value
+}
+const secrets: SecretStore = {
+  async get(name) {
+    const store = await loadSecrets()
+    return await store.get(name)
+  },
+  async store(name, value) {
+    const store = await loadSecrets()
+    await store.store(name, value)
+  },
+  async delete(name) {
+    const store = await loadSecrets()
+    await store.delete(name)
+  },
+}
+
+/** A held regular-file descriptor bounds both stat size and growth while reading. */
+async function readBoundedFile(
+  file: string,
+  maxBytes: number,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const handle = await open(file, 'r')
+  try {
+    const info = await handle.stat()
+    if (!info.isFile()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (info.size > maxBytes) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(maxBytes + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > maxBytes) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) break
+    }
+    return bytes.subarray(0, offset)
+  } finally {
+    await handle.close()
+  }
+}
 
 function authDeps(): AuthCommandDeps {
   return {
@@ -163,6 +232,113 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
+  if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
+    const stderr = createFdWriter(process.stderr.fd, () => {
+      /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
+    })
+    stderr.write(`${redactWhole(command.reason, [])}\n`)
+    await stderr.flush(EXEC_FORCE_WRITE_MS)
+    exitHeadless(EXEC_EXIT.usage)
+  }
+  if (command.command === 'exec' || command.command === 'scan-secrets') {
+    const closed = () => {
+      lifecycle.latch({ kind: 'output_closed' })
+    }
+    const stdout = createFdWriter(process.stdout.fd, closed)
+    const stderr = createFdWriter(process.stderr.fd, closed)
+    const now = () => performance.timeOrigin + performance.now()
+    const lifecycle = createLifecycle({
+      processStartMs: performance.timeOrigin,
+      timeoutMs: command.command === 'exec' ? command.options.timeoutMs : EXEC_SCAN_TIMEOUT_MS,
+      now,
+      setTimer: (ms, callback) => {
+        const timer = setTimeout(callback, ms)
+        return () => {
+          clearTimeout(timer)
+        }
+      },
+      onSignal: (signal, callback) => {
+        process.on(signal, callback)
+        return () => {
+          process.off(signal, callback)
+        }
+      },
+      forceFinish: () => {
+        void Promise.all([stdout.flush(EXEC_FORCE_WRITE_MS), stderr.flush(EXEC_FORCE_WRITE_MS)])
+      },
+      exit: exitHeadless,
+    })
+    const log = createExecLogger({
+      stderr,
+      literals: () => [],
+      verbose: command.command === 'exec' && command.options.isVerbose,
+    })
+    let headlessCode: number = EXEC_EXIT.internal
+    try {
+      try {
+        await lifecycle.race(
+          loadUiTable({
+            language: displayLanguage(
+              process.env,
+              new Intl.DateTimeFormat().resolvedOptions().locale,
+            ),
+            readExtensionFile: (segments) => readFile(path.join(packageRoot, ...segments), 'utf8'),
+            log,
+          }),
+        )
+      } catch {
+        /* The bundled English table is already installed; stop still owns the deadline. */
+      }
+      if (command.command === 'scan-secrets') {
+        try {
+          headlessCode = await lifecycle.race(
+            runSecretScan({
+              file: command.file,
+              keyFromStdin: command.keyFromStdin,
+              stdin: process.stdin,
+              signal: lifecycle.signal,
+              readFile: readBoundedFile,
+              out: stdout,
+            }),
+          )
+          return headlessCode
+        } catch {
+          headlessCode = EXEC_EXIT.usage
+          return headlessCode
+        }
+      }
+      headlessCode = await runExec(lifecycle, {
+        options: command.options,
+        version: packageVersion(),
+        distDir,
+        platform: process.platform,
+        env: process.env,
+        homeDir: homedir(),
+        processCwd: process.cwd(),
+        stdin: process.stdin,
+        stdout,
+        stderr,
+        storeSecrets: secrets,
+        runGit: processGitRunner(),
+        museCodeCredentials,
+        fetch: globalThis.fetch.bind(globalThis),
+        sleep,
+        now,
+        readFile: readBoundedFile,
+        randomHex: (bytes) => randomBytes(bytes).toString('hex'),
+        log,
+      })
+      return headlessCode
+    } catch (error: unknown) {
+      log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
+      await stderr.flush(lifecycle.remainingGraceMs())
+      headlessCode = command.command === 'scan-secrets' ? EXEC_EXIT.usage : EXEC_EXIT.internal
+      return headlessCode
+    } finally {
+      lifecycle.dispose()
+      exitHeadless(headlessCode)
+    }
+  }
   const log = stderrLogger((line) => {
     writeLine(process.stderr, line)
   }, logLevel(command))
@@ -209,7 +385,7 @@ async function main(): Promise<number> {
     case 'invalid': {
       writeLine(process.stderr, command.reason)
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      return EXIT_FAILED
+      return command.exitCode ?? EXIT_FAILED
     }
   }
 }
@@ -221,7 +397,7 @@ async function run(): Promise<void> {
   } catch (error: unknown) {
     writeLine(
       process.stderr,
-      error instanceof Error ? (error.stack ?? error.message) : String(error),
+      redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
     )
     process.exitCode = EXIT_FAILED
   }

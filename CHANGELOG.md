@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M80 headless engine and CLI (lane B):** one-turn execution uses the existing
+  ACP engine in Plan or Accept edits, denying approvals and declining questions.
+  Model API calls share an integer micro-USD context-window ledger: streaming
+  pass-through preserves the client's idle watchdog; retries and uncertain
+  responses/images retain their full reservation. Latest response accounting
+  controls completion, including exit 9 for unverified accounting. Stdin keys
+  stay in memory without loading a native keyring; headless paid images require
+  their flag, edits mode and budget. Bounded file resources preserve every input
+  character, and the scanner has a process-wide deadline. Action, packaging,
+  hosted acceptance and live receipts remain with lanes C/D and the lead.
+
 - **M80 headless contract foundation (lane A):** independent argument parsing,
   versioned result/event validation, text/JSON/JSONL output, bounded async fd
   writers, cancellable stdin key/prompt readers and a counts-only secret scanner.
@@ -17,8 +28,8 @@ happened, not what was planned; superseded entries are kept.
   patterns, including structured credential fields before JSON serialization.
   GitHub/Slack token patterns now cover long tokens. All 14 UI tables
   include the new text. `npm run schema:exec` generates the committed JSON schemas.
-  The `exec` and `scan-secrets` CLI wiring, engine, Action and full M80 acceptance
-  remain pending in the other lanes.
+  Lane B supplies the `exec` and `scan-secrets` wiring and engine below; Action
+  and full M80 acceptance remain pending in the other lanes.
 
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials

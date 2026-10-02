@@ -34,6 +34,13 @@ export interface ScriptedSearch {
 
 /** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
+  /** M80 synthetic accounting/stream faults, never claimed provider captures. */
+  readonly omitUsage?: boolean
+  readonly omitTerminal?: boolean
+  readonly usageOverride?: unknown
+  readonly malformedTerminal?: boolean
+  readonly frameDelayMs?: number
+  readonly holdEof?: Promise<unknown>
   /** Hold this response while concurrent sessions run (M48 capacity tests). */
   readonly hold?: Promise<unknown>
   /**
@@ -89,6 +96,9 @@ export const TINY_PNG_BASE64 =
 
 /** One answer of `POST /images/generations` (M34). */
 export interface ScriptedImage {
+  readonly count?: number
+  readonly dataOverride?: unknown
+  readonly hold?: Promise<unknown>
   /** The image, base64; a 1×1 PNG when absent. */
   readonly b64?: string
   readonly revisedPrompt?: string
@@ -129,7 +139,11 @@ function nextId(prefix: string): string {
 }
 
 /** The SSE text for one scripted reply, in the documented event order. */
-export function streamFor(reply: ScriptedReply, responseId: string): string {
+export function streamFor(
+  reply: ScriptedReply,
+  responseId: string,
+  model = 'muse-spark-1.3',
+): string {
   const output: Record<string, unknown>[] = []
   let text = frame({
     type: 'response.created',
@@ -271,14 +285,20 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   if (reply.doneSentinel === true) {
     text += 'data:\n\n'
   }
+  if (reply.omitTerminal === true) return text
   const usage = reply.usage ?? { input: 10, output: 5 }
-  const usagePayload = {
-    input_tokens: usage.input,
-    output_tokens: usage.output,
-    total_tokens: usage.input + usage.output,
-    input_tokens_details: { cached_tokens: usage.cached ?? 0 },
-    output_tokens_details: { reasoning_tokens: 1 },
-  }
+  const usagePayload =
+    'usageOverride' in reply
+      ? reply.usageOverride
+      : {
+          input_tokens: usage.input,
+          output_tokens: usage.output,
+          total_tokens: usage.input + usage.output,
+          input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+          output_tokens_details: { reasoning_tokens: 1 },
+        }
+  if (reply.malformedTerminal === true)
+    return `${text}${frame({ type: 'response.completed', response: { status: 'completed', usage: usagePayload } })}`
   if (reply.failed !== undefined) {
     return `${text}${frame({
       type: 'response.failed',
@@ -293,9 +313,9 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   }
   const response = {
     id: responseId,
-    model: 'muse-spark-1.3',
+    model,
     output,
-    usage: usagePayload,
+    ...(reply.omitUsage !== true && { usage: usagePayload }),
   }
   if (reply.incomplete !== undefined) {
     return `${text}${frame({
@@ -316,7 +336,43 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   })}${reply.doneSentinel === true ? 'data: [DONE]\n\n' : ''}`
 }
 
-function bodyStream(text: string): ReadableStream<Uint8Array> {
+function bodyStream(
+  text: string,
+  reply: ScriptedReply,
+  signal: AbortSignal | null | undefined,
+): ReadableStream<Uint8Array> {
+  if (reply.frameDelayMs !== undefined || reply.holdEof !== undefined) {
+    const frames = text.match(/[^]*?\n\n/g) ?? [text]
+    let index = 0
+    let isCancelled = false
+    const isStopped = () => isCancelled
+    return new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          if (reply.frameDelayMs !== undefined)
+            await afterGate(
+              new Promise((resolve) => setTimeout(resolve, reply.frameDelayMs)),
+              undefined,
+              signal,
+            )
+          if (isCancelled) return
+          const next = frames[index]
+          if (next !== undefined) {
+            index += 1
+            controller.enqueue(encoder.encode(next))
+            return
+          }
+          if (reply.holdEof !== undefined) await afterGate(reply.holdEof, undefined, signal)
+          if (!isStopped()) controller.close()
+        } catch (error: unknown) {
+          if (!isCancelled) controller.error(error)
+        }
+      },
+      cancel() {
+        isCancelled = true
+      },
+    })
+  }
   // Two chunks split mid-frame: the parser must buffer across chunks.
   const bytes = encoder.encode(text)
   const cut = Math.floor(bytes.length / 2)
@@ -329,11 +385,11 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
   })
 }
 
-async function afterGate(
+async function afterGate<T>(
   gate: Promise<unknown>,
-  response: Response,
+  response: T,
   signal: AbortSignal | null | undefined,
-): Promise<Response> {
+): Promise<T> {
   if (signal?.aborted === true) {
     throw new DOMException('aborted', 'AbortError')
   }
@@ -468,23 +524,23 @@ export function fakeModelApi(): FakeModelApi {
             ),
           )
         }
-        return Promise.resolve(
-          json({
-            created: 1,
-            data:
-              image.isEmpty === true
-                ? []
-                : [
-                    {
-                      b64_json: image.b64 ?? TINY_PNG_BASE64,
-                      ...(image.revisedPrompt !== undefined && {
-                        revised_prompt: image.revisedPrompt,
-                      }),
-                    },
-                  ],
-            output_format: 'png',
-          }),
-        )
+        let data: unknown = image.dataOverride
+        if (!('dataOverride' in image))
+          data =
+            image.isEmpty === true
+              ? []
+              : Array.from({ length: image.count ?? 1 }, () => ({
+                  b64_json: image.b64 ?? TINY_PNG_BASE64,
+                  ...(image.revisedPrompt !== undefined && { revised_prompt: image.revisedPrompt }),
+                }))
+        const response = json({
+          created: 1,
+          data,
+          output_format: 'png',
+        })
+        return image.hold === undefined
+          ? Promise.resolve(response)
+          : afterGate(image.hold, response, init?.signal)
       }
       if (url.pathname.endsWith('/responses/input_tokens')) {
         return Promise.resolve(
@@ -517,12 +573,20 @@ export function fakeModelApi(): FakeModelApi {
           ),
         )
       }
-      const text = reply.garbage === true ? 'data: {not json\n\n' : streamFor(reply, nextId('resp'))
+      const selected =
+        typeof body === 'object' &&
+        body !== null &&
+        'model' in body &&
+        typeof body.model === 'string'
+          ? body.model
+          : 'muse-spark-1.3'
+      const text =
+        reply.garbage === true ? 'data: {not json\n\n' : streamFor(reply, nextId('resp'), selected)
       const signal = init?.signal
       if (signal?.aborted === true) {
         return Promise.reject(new DOMException('aborted', 'AbortError'))
       }
-      const response = new Response(bodyStream(text), {
+      const response = new Response(bodyStream(text, reply, signal), {
         status: 200,
         headers: { 'content-type': 'text/event-stream' },
       })
