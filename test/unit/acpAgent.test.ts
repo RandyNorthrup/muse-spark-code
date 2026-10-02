@@ -10,7 +10,7 @@ import type {
   ItemSnapshot,
   Question,
 } from '../../src/shared/agentEvents'
-import { type AcpPaidFeature, UI_TEXT } from '../../src/shared/constants'
+import { type AcpPaidFeature, type PermissionMode, UI_TEXT } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
@@ -62,6 +62,7 @@ interface HarnessOptions {
   /** The client's form request fails instead of answering. */
   readonly isElicitationBroken?: boolean
   readonly canBypass?: boolean
+  readonly initialMode?: PermissionMode
   readonly allowsContributorModels?: boolean
   readonly kind?: 'museCode' | 'modelApi'
   readonly paid?: readonly AcpPaidFeature[]
@@ -98,7 +99,7 @@ function harness(options: HarnessOptions = {}): Harness {
     options: {
       canBypass: options.canBypass ?? false,
       allowsContributorModels: options.allowsContributorModels ?? false,
-      initialMode: 'manual',
+      initialMode: options.initialMode ?? 'manual',
     },
     signIn: {
       id: 'muse-code-login',
@@ -381,6 +382,16 @@ async function approvalTurn(
       await until(() => session.decideApproval.mock.calls.length === 1)
       await after(session)
     })
+  })
+}
+
+/** Initialize the client and load the old session, as the load/resume tests do. */
+async function loadOldSession(client: acp.ClientContext) {
+  await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+  return await client.request('session/load', {
+    sessionId: 'old-1',
+    cwd: CWD,
+    mcpServers: [],
   })
 }
 
@@ -1036,12 +1047,7 @@ describe('the ACP agent (M63)', () => {
       todos: [{ text: 'Fix the bug', status: 'completed' }],
     }
     await h.run(async (client) => {
-      await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
-      const loaded = await client.request('session/load', {
-        sessionId: 'old-1',
-        cwd: CWD,
-        mcpServers: [],
-      })
+      const loaded = await loadOldSession(client)
       expect(loaded.modes?.currentModeId).toBe('manual')
       await client.request('session/resume', { sessionId: 'old-2', cwd: CWD })
       await client.request('session/resume', { sessionId: 'old-2', cwd: CWD })
@@ -1063,6 +1069,50 @@ describe('the ACP agent (M63)', () => {
     ])
     expect(h.host.resumeSession).toHaveBeenCalledTimes(3)
   })
+
+  it.each(['auto', 'bypassPermissions', 'acceptEdits', 'plan'] as const)(
+    'keeps imported ACP load/resume asking with configured %s, including after an explicit mode change',
+    async (initialMode) => {
+      const h = harness({ kind: 'modelApi', canBypass: true, initialMode })
+      const resume = h.host.resumeSession.getMockImplementation()
+      if (resume === undefined) throw new Error('Missing fake resume implementation')
+      h.host.resumeSession.mockImplementation(async (...args) => {
+        const loaded = await resume(...args)
+        return { ...loaded, record: { ...loaded.record, imported: true } }
+      })
+      const safeMode = initialMode === 'plan' ? 'plan' : 'manual'
+      await h.run(async (client) => {
+        const loaded = await loadOldSession(client)
+        expect(loaded.modes?.currentModeId).toBe(safeMode)
+        expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
+          approvalModeFor(safeMode, true),
+        )
+        await client.request('session/set_mode', {
+          sessionId: 'old-1',
+          modeId: 'bypassPermissions',
+        })
+        const resumed = await client.request('session/resume', { sessionId: 'old-1', cwd: CWD })
+        expect(resumed.modes?.currentModeId).toBe(safeMode)
+        expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
+          approvalModeFor(safeMode, true),
+        )
+      })
+    },
+  )
+
+  it.each(['auto', 'bypassPermissions', 'acceptEdits', 'plan'] as const)(
+    'preserves configured %s for ordinary ACP history',
+    async (initialMode) => {
+      const h = harness({ canBypass: true, initialMode })
+      await h.run(async (client) => {
+        const loaded = await loadOldSession(client)
+        expect(loaded.modes?.currentModeId).toBe(initialMode)
+        expect(h.host.sessions.at(-1)?.setApprovalMode).toHaveBeenCalledWith(
+          approvalModeFor(initialMode, true),
+        )
+      })
+    },
+  )
 
   it('fails a load whose mode the backend refuses, and lets that session go', async () => {
     const h = harness()
