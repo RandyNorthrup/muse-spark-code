@@ -13,6 +13,17 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **A slow Muse Code start is waited for, and a failed one is shown once.**
+  On a machine short of CPU, `muse serve` could miss its 30-second
+  handshake and was ended, and every action waiting on that start showed
+  its own "That did not work" card (six for one start). A start whose
+  process still runs at 30 seconds now gets up to 120 seconds in all (the
+  model pill keeps reading "Starting Muse Code…"); one whose process exits
+  fails at once. A failed start is shown once in the panel, by the first
+  action that needed it (a message on its own card); the panel's warm-up
+  says it only when nothing else did, and the skill listings of the
+  palette and the slash menu only log it. The next action starts Muse
+  Code afresh.
 
 ### Changed
 
