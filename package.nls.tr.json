@@ -23,6 +23,8 @@
   "command.manageSkills.title": "Becerileri Yönet",
   "command.importSkills.title": "Claude Code veya Codex'ten Becerileri İçeri Aktar",
   "command.exportConversation.title": "Konuşmayı Dışarı Aktar",
+  "command.importSession.title": "Oturumu içe aktar",
+  "command.openShareFile.title": "Paylaşılan dosyayı aç",
   "command.mcpServers.title": "MCP Sunucuları",
   "command.hooks.title": "Kancalar",
   "command.memory.title": "Bellek",

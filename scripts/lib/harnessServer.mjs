@@ -104,6 +104,7 @@ export const SCENARIOS = [
   'git-commit',
   'git-pr',
   'git-pr-narrow',
+  'share',
   'verify',
   'plan',
   'plan-brief',

@@ -23,6 +23,8 @@
   "command.manageSkills.title": "Administrar aptitudes",
   "command.importSkills.title": "Importar aptitudes de Claude Code o Codex",
   "command.exportConversation.title": "Exportar conversación",
+  "command.importSession.title": "Importar sesión",
+  "command.openShareFile.title": "Abrir archivo compartido",
   "command.mcpServers.title": "Servidores MCP",
   "command.hooks.title": "Ganchos",
   "command.memory.title": "Memoria",

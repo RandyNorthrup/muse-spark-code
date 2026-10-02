@@ -3043,6 +3043,48 @@
             document.querySelectorAll('.message-assistant a')[1].click()
           })
         },
+        // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---
+        share: () => {
+          send({
+            type: 'sharePreview',
+            title: 'Fix the flaky parser test',
+            exportedAt: '2026-09-28T12:00:00.000Z',
+            sourceBackend: 'modelApi',
+            modelId: 'muse-spark-1.3',
+            redacted: true,
+            items: [
+              {
+                itemId: 'sh1',
+                kind: 'userMessage',
+                status: 'completed',
+                text: 'The parser test fails one run in ten. Find out why.',
+              },
+              {
+                itemId: 'sh2',
+                kind: 'toolCall',
+                status: 'completed',
+                tool: 'read_file',
+                args: '{"path":"[redacted path]"}',
+                visibleOutput:
+                  'export function parse(input) {\n  return cache.get(input) ?? compute(input)\n}',
+              },
+              {
+                itemId: 'sh3',
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```',
+              },
+              // Thinking with no text, which the view hides: 237 of them fill
+              // the first page of 200 items, so its paging line and Show more
+              // show in the same shot (RV84 #14).
+              ...Array.from({ length: 237 }, (_, index) => ({
+                itemId: `th${String(index)}`,
+                kind: 'reasoning',
+                status: 'completed',
+              })),
+            ],
+          })
+        },
         // Muse Code reports no cached count (0.6.0): the Model API's view is usage-api.
         usage: () => {
           send({
