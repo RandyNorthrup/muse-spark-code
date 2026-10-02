@@ -982,6 +982,7 @@
   "goalObjectiveMissing": "Введите цель после /goal.",
   "goalObjectiveTooLong": "Цель должна содержать не более {limit} символов.",
   "goalCommandFailed": "Не удалось выполнить команду цели",
+  "goalOutcomeUnknown": "Во время выполнения команды цели изменился вход или перезапустился бэкенд: команда могла примениться, а могла и нет. Проверьте цель сеанса.",
   "announceGoalStatus": "Цель: {status}",
   "scheduleOnce": "Однократно",
   "scheduleRepeats": "Повторяется",

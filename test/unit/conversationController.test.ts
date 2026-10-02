@@ -6497,6 +6497,14 @@ function goalAnswers(t: ReturnType<typeof setup>) {
   )
 }
 
+/** `session/read` answering for `s1` with a snapshot that holds `goal` (M45). */
+function readsGoal(t: ReturnType<typeof setup>, goal: Record<string, unknown>): void {
+  t.server.handle('session/read', () => ({
+    ...envelope({ ...storedSession, sessionId: 's1', status: 'idle' }, 'snapshot'),
+    history: { mode: 'snapshot', items: null, snapshot: { state: { items: storedItems, goal } } },
+  }))
+}
+
 /** The notices the panel was sent, in order. */
 function notices(t: ReturnType<typeof setup>) {
   return t.surface.posted.flatMap((message) => (message.type === 'notice' ? [message] : []))
@@ -6666,6 +6674,59 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       expect(t.server.requestsFor('goal/set')).toHaveLength(0)
       expect(goalAnswers(t)).toEqual([false])
       expect(notices(t)).toEqual([])
+    },
+  )
+
+  it.each([
+    {
+      landing: 'a key activation',
+      interrupt: (t: ReturnType<typeof setup>) => {
+        t.auth.isAdmitted = false
+      },
+      recover: (t: ReturnType<typeof setup>) => {
+        t.auth.isAdmitted = true
+      },
+    },
+    {
+      landing: 'a backend restart',
+      interrupt: (t: ReturnType<typeof setup>) => {
+        void t.controller.backendStopping(false)
+      },
+      recover: (t: ReturnType<typeof setup>) => {
+        t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+      },
+    },
+  ])(
+    'says a /goal the backend had may or may not have taken when $landing lands, and reads the goal back before the next action',
+    async ({ interrupt, recover }) => {
+      const t = setup()
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      // The interruption lands while the backend has the command.
+      t.server.handle('goal/set', (params) => {
+        interrupt(t)
+        return accepted(params)
+      })
+      await t.controller.handle(goal('set', 'Ship the parser'))
+      expect(t.server.requestsFor('goal/set')).toHaveLength(1)
+      // Answered, so the prompt keeps the command; the outcome said to be unknown.
+      expect(goalAnswers(t)).toEqual([false])
+      expect(notices(t).at(-1)).toMatchObject({
+        level: 'warning',
+        text: UI_TEXT.goalOutcomeUnknown,
+      })
+      // Reachable again: the conversation's next action reads the goal back.
+      recover(t)
+      const backendGoal = { objective: 'Ship the parser', status: 'active', percentComplete: 0 }
+      readsGoal(t, backendGoal)
+      await t.send('l2', 'next')
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'agentEvent',
+          event: { type: 'goalChanged', goal: backendGoal },
+        })
+      })
     },
   )
 

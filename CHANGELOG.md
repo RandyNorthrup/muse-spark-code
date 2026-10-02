@@ -58,7 +58,11 @@ happened, not what was planned; superseded entries are kept.
   disabled, even once the key was active. The same happened when the
   activation or a backend restart came while the command was starting,
   before the backend had it. Every such refusal is now answered: the
-  command stays in the prompt, and sending it again works.
+  command stays in the prompt, and sending it again works. When the
+  activation or the restart came after the backend had the command, the
+  panel now says it may or may not have taken effect, keeps it in the
+  prompt, and reads the goal back from the backend before the
+  conversation's next action, so the session goal shows where it stands.
 
 ## [0.10.0] - 2026-10-01
 

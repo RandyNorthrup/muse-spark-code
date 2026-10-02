@@ -946,6 +946,7 @@
   "goalObjectiveMissing": "/goal komutundan sonra hedefi yazın.",
   "goalObjectiveTooLong": "Hedef en fazla {limit} karakter olabilir.",
   "goalCommandFailed": "Hedef komutu başarısız oldu",
+  "goalOutcomeUnknown": "Hedef komutu çalışırken oturum açma değişti veya arka uç yeniden başlatıldı: komut uygulanmış da olabilir, uygulanmamış da. Oturum hedefini kontrol edin.",
   "announceGoalStatus": "Hedef: {status}",
   "scheduleOnce": "Bir kez",
   "scheduleRepeats": "Yinelenir",

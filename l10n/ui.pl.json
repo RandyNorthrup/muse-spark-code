@@ -982,6 +982,7 @@
   "goalObjectiveMissing": "Wpisz cel po /goal.",
   "goalObjectiveTooLong": "Cel może mieć maksymalnie {limit} znaków.",
   "goalCommandFailed": "Polecenie celu nie powiodło się",
+  "goalOutcomeUnknown": "Podczas wykonywania polecenia celu zmieniło się logowanie lub backend został uruchomiony ponownie: polecenie mogło zostać zastosowane lub nie. Sprawdź cel sesji.",
   "announceGoalStatus": "Cel: {status}",
   "scheduleOnce": "Jednorazowo",
   "scheduleRepeats": "Cyklicznie",

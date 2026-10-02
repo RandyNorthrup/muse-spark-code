@@ -1200,6 +1200,10 @@ export const EN = {
   // {limit} is the maximum objective length, formatted in the user's locale.
   goalObjectiveTooLong: 'Keep the goal objective within {limit} characters.',
   goalCommandFailed: 'The goal command failed',
+  // A goal command the backend already had when a key activation or a
+  // backend restart came: whether it took is not known.
+  goalOutcomeUnknown:
+    'The sign-in changed or the backend restarted while the goal command ran: it may or may not have taken effect. Check the session goal.',
   // Read out when the goal's status changes; {status} is the status in words.
   announceGoalStatus: 'Goal: {status}',
   scheduleOnce: 'Once',

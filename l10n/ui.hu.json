@@ -946,6 +946,7 @@
   "goalObjectiveMissing": "Írja be a célt a /goal után.",
   "goalObjectiveTooLong": "A cél legfeljebb {limit} karakter lehet.",
   "goalCommandFailed": "A célparancs sikertelen volt",
+  "goalOutcomeUnknown": "A célparancs futása közben megváltozott a bejelentkezés, vagy újraindult a háttérrendszer: lehet, hogy érvényesült, lehet, hogy nem. Ellenőrizze a munkamenet célját.",
   "announceGoalStatus": "Cél: {status}",
   "scheduleOnce": "Egyszer",
   "scheduleRepeats": "Ismétlődik",

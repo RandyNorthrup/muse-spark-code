@@ -928,6 +928,7 @@
   "goalObjectiveMissing": "请在 /goal 后输入目标。",
   "goalObjectiveTooLong": "目标内容不得超过 {limit} 个字符。",
   "goalCommandFailed": "目标命令失败",
+  "goalOutcomeUnknown": "目标命令运行期间登录状态已变更或后端已重启：该命令可能已生效，也可能未生效。请检查会话目标。",
   "announceGoalStatus": "目标：{status}",
   "scheduleOnce": "单次",
   "scheduleRepeats": "重复",

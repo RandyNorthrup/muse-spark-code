@@ -946,6 +946,7 @@
   "goalObjectiveMissing": "Geben Sie das Ziel nach /goal ein.",
   "goalObjectiveTooLong": "Das Ziel darf höchstens {limit} Zeichen lang sein.",
   "goalCommandFailed": "Der Zielbefehl ist fehlgeschlagen",
+  "goalOutcomeUnknown": "Während der Zielbefehl lief, hat sich die Anmeldung geändert oder das Backend wurde neu gestartet: Er wurde möglicherweise ausgeführt, möglicherweise nicht. Prüfen Sie das Sitzungsziel.",
   "announceGoalStatus": "Ziel: {status}",
   "scheduleOnce": "Einmalig",
   "scheduleRepeats": "Wiederkehrend",

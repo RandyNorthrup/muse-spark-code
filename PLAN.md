@@ -8603,7 +8603,7 @@ with `main` at `2a30b1a0` with its shared-table fixes kept as `main` has
 them (certification `docs/certification/m74.md`). Automatic compaction,
 the hidden todo follow-up and the memory flush are not built (see "Not
 built" below), so M74 is not complete. On this tree the M74 test files
-(nine files, 783 tests with the M45 goal fixes below) pass on the kubuntu
+(nine files, 785 tests with the M45 goal fixes below) pass on the kubuntu
 and Mac mini rigs; every M74 guard was broken on purpose, seen red and
 restored byte for byte (sha256), or is recorded as backed by another
 check (four are; O17, the
@@ -8718,7 +8718,11 @@ integration tests, a production build with a real `node_modules` and
     entry; certification `docs/certification/m45.md`, drill G55), and
     so does every exit of the goal command before the host has it
     (admission closing, the account ending or a restart during its host
-    lookup; drills G56–G58).
+    lookup; drills G56–G58). One the backend already had when a key
+    activation or a restart lands is answered refused too, with
+    `goalOutcomeUnknown` (it may or may not have taken effect), and the
+    goal is read back from the backend before the conversation's next
+    action (drills G59–G61).
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so

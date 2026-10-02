@@ -982,6 +982,7 @@
   "goalObjectiveMissing": "Za /goal napište zadání cíle.",
   "goalObjectiveTooLong": "Cíl může mít nejvýše {limit} znaků.",
   "goalCommandFailed": "Příkaz pro cíl selhal",
+  "goalOutcomeUnknown": "Během příkazu pro cíl se změnilo přihlášení nebo se back-end restartoval: příkaz se možná projevil, možná ne. Zkontrolujte cíl relace.",
   "announceGoalStatus": "Cíl: {status}",
   "scheduleOnce": "Jednorázově",
   "scheduleRepeats": "Opakovaně",

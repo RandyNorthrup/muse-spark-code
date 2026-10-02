@@ -828,6 +828,8 @@ export class ConversationController {
   private gapCount = 0
   /** Live goal events after a gap read began take precedence over that read. */
   private goalEventCount = 0
+  /** The session whose goal is read back before its next action (`goalOutcomeUnknown`). */
+  private goalRefreshSessionId: string | undefined
   /** The turns under way, timed for the log (M39). */
   private readonly turnClocks = new Map<string, TurnClock>()
   /** Streamed text not yet posted, and the frame timer that posts it (M39). */
@@ -2365,7 +2367,16 @@ export class ConversationController {
       return undefined
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
-    return this.isCurrentSessionAction(session, generation) ? session : undefined
+    if (!this.isCurrentSessionAction(session, generation)) {
+      return undefined
+    }
+    // A goal command's unknown outcome (M45): the strip gets the backend's
+    // goal back now that the conversation is reachable again.
+    if (this.goalRefreshSessionId === session.sessionId) {
+      this.goalRefreshSessionId = undefined
+      void this.refreshGoal(session, generation)
+    }
+    return session
   }
 
   // --- Session history (M6) ---
@@ -4207,6 +4218,7 @@ export class ConversationController {
         !this.isAuthAdmitted() ||
         this.session?.sessionId !== targetSessionId
       ) {
+        this.goalOutcomeUnknown(targetSessionId, generation, result)
         return
       }
       this.deps.log.info(
@@ -4221,10 +4233,12 @@ export class ConversationController {
         this.accountStopsInFlight > 0 ||
         (targetSessionId !== undefined && this.session?.sessionId !== targetSessionId)
       ) {
-        // Nothing to say about a conversation that changed meanwhile; one
-        // the host never had is still answered.
+        // A command the host never had is answered and nothing is said; one
+        // it had may have taken effect.
         if (!hasReachedHost) {
           result(false)
+        } else if (targetSessionId !== undefined) {
+          this.goalOutcomeUnknown(targetSessionId, generation, result)
         }
         return
       }
@@ -4236,6 +4250,62 @@ export class ConversationController {
       }
       this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
       result(false)
+    }
+  }
+
+  /**
+   * A goal command the host had when a key activation closed admission or
+   * the backend restarted (M45): whether it took is not known. While the
+   * panel still shows that conversation (attached, or waiting to resume
+   * after the restart) the command is answered refused, so it stays in
+   * the prompt, the panel says the outcome is unknown, and the goal is
+   * read back from the backend before the conversation's next action. A
+   * conversation the panel no longer shows (another one, or the account's
+   * end) was reset there: nothing is said.
+   */
+  private goalOutcomeUnknown(
+    sessionId: string,
+    generation: number,
+    result: (isAccepted: boolean) => void,
+  ): void {
+    // Attached, or waiting to be resumed after a restart.
+    const shownSessionId = (this.session ?? this.resumeTarget)?.sessionId
+    if (
+      shownSessionId !== sessionId ||
+      this.accountStopEpoch > generation ||
+      this.accountStopsInFlight > 0
+    ) {
+      return
+    }
+    this.goalRefreshSessionId = sessionId
+    this.notice('warning', UI_TEXT.goalOutcomeUnknown)
+    result(false)
+  }
+
+  /**
+   * The goal as the backend has it, back in the strip after an unknown
+   * outcome (`goalOutcomeUnknown`). A goal event that arrives during the
+   * read is newer and wins; a failed read is logged, the notice having
+   * said to check the goal.
+   */
+  private async refreshGoal(session: AgentSession, generation: number): Promise<void> {
+    const goalEventsAtStart = this.goalEventCount
+    try {
+      const host = await this.deps.ensureHost()
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      const { goal } = await host.readSession(session.sessionId, { recoverGoal: true })
+      if (
+        goal === undefined ||
+        goalEventsAtStart !== this.goalEventCount ||
+        !this.isCurrentSessionAction(session, generation)
+      ) {
+        return
+      }
+      this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
+    } catch (error: unknown) {
+      this.deps.log.warn(`goal refresh failed: ${describe(error)}`)
     }
   }
 

@@ -928,6 +928,7 @@
   "goalObjectiveMissing": "請在 /goal 後輸入目標。",
   "goalObjectiveTooLong": "目標內容不得超過 {limit} 個字元。",
   "goalCommandFailed": "目標命令失敗",
+  "goalOutcomeUnknown": "目標命令執行期間登入狀態已變更或後端已重新啟動：該命令可能已生效，也可能未生效。請檢查工作階段目標。",
   "announceGoalStatus": "目標：{status}",
   "scheduleOnce": "單次",
   "scheduleRepeats": "重複",

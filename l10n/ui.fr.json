@@ -964,6 +964,7 @@
   "goalObjectiveMissing": "Saisissez l’objectif après /goal.",
   "goalObjectiveTooLong": "Limitez l’objectif à {limit} caractères.",
   "goalCommandFailed": "La commande d’objectif a échoué",
+  "goalOutcomeUnknown": "La connexion a changé ou le back-end a redémarré pendant la commande d’objectif : elle a pu être appliquée ou non. Vérifiez l’objectif de la session.",
   "announceGoalStatus": "Objectif : {status}",
   "scheduleOnce": "Une fois",
   "scheduleRepeats": "Récurrent",
