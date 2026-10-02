@@ -138,6 +138,10 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     isWorkspaceTrusted: () => true,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // M82's cap and reply line as a fresh panel has them: no cap, no line.
+    // The evaluation's own wire counts its spend and refuses past its budget.
+    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     getAccountId: () => Promise.resolve(deps.accountId),
     isPaidFeatureOn: () => false,
     notePaidUse: (_feature, units) => {
