@@ -7,6 +7,7 @@ import {
   MODEL_TEXT,
   HOOK_STDIN_MAX_BYTES,
   TOOL_FILE_MAX_BYTES,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../src/shared/constants'
 import {
@@ -21,7 +22,7 @@ import {
   toolImagePreviewIo,
   withTerminalOverrides,
 } from '../../src/host/backend/toolIo'
-import { shellJobAssembly } from '../../src/host/backend/shellJob'
+import { newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { ShellTimeLimit } from '../../src/core/backends/modelapi/tools'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
@@ -507,6 +508,42 @@ describe('createToolIo (real file system and shell)', () => {
     TEST_BUDGET_MS,
   )
 
+  it.runIf(process.platform === 'win32')(
+    "joins the command's job and switches to UTF-8 without module auto-loading (M51)",
+    async () => {
+      // A cmdlet in these statements is found by module auto-loading, which
+      // without PowerShell's module analysis cache first analyses every
+      // installed module. A hook's narrow environment has no
+      // PSModuleAnalysisCachePath, so on GitHub's runner hooks waited 20 s,
+      // and over their 60 s test budget on a cold runner, before starting.
+      // With auto-loading off, any such cmdlet fails here at once.
+      const assembly = await jobAssembly?.()
+      if (assembly === undefined) {
+        throw new Error('job helper missing')
+      }
+      const report =
+        "[Console]::Out.WriteLine(('{0} {1} {2}' -f ($null -ne ('MuseSparkJob' -as [type])), $Error.Count, [Console]::OutputEncoding.WebName))"
+      const wrapped = shellArguments('win32', report, newShellJob(assembly)).at(-1) ?? ''
+      const result = await runCommand({
+        file: shellInterpreter('win32', process.env['SystemRoot'], {}, isNothingInstalled) ?? '',
+        args: [
+          ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+          `$PSModuleAutoLoadingPreference = 'None'; ${wrapped}`,
+        ],
+        cwd: root,
+        env: hookEnvironment(process.env, 'win32'),
+        timeoutMs: SHELL_BUDGET_MS,
+        signal: undefined,
+        tree: localTree(),
+      })
+      expect(result.stderr).toBe('')
+      // Loaded and joined, no error even caught, output in UTF-8.
+      expect(result.stdout.trim()).toBe('True 0 utf-8')
+      expect(result.exitCode).toBe(0)
+    },
+    TEST_BUDGET_MS,
+  )
+
   it(
     'runs one command line in the given directory and reports its exit',
     async () => {
@@ -708,8 +745,10 @@ describe('createToolIo (real file system and shell)', () => {
     // The stderr line says when the hook itself started, which tells a
     // timeout's causes apart: a late start (the wrapper was slow) or an early
     // start that never saw its stdin end. Hosted Windows runners timed out
-    // here twice, once with no output (PR #43) and once with the echo and
-    // exit 0 just after the timer (PR #44); 80 local runs of the launch passed.
+    // here with no output: the wrapper's `Add-Type` made PowerShell analyse
+    // every installed module (no PSModuleAnalysisCachePath in a hook's
+    // environment) before the hook could start. The wrapper names no cmdlet
+    // now; the auto-loading test above holds it to that.
     const echo =
       "process.stderr.write('hook started at '+Date.now());process.stdin.pipe(process.stdout)"
     const command =

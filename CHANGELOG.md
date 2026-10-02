@@ -21,20 +21,19 @@ happened, not what was planned; superseded entries are kept.
   again, and a brief that is ready while Account & usage or the Agent map
   is open waits until you close it. Starting leaves the old conversation
   in History and seeds the new one through the plan brief path, with the
-  open items (never
-  completed or dropped ones) as its todo list before the first request.
-  The model wrote the brief, so the new conversation starts in your
-  starting mode only when the dialog showed all of it: a brief or an item
-  holding a character the dialog does not show (a direction override, a
-  zero-width character) starts in a mode that asks, and the panel says
-  so. A handoff from Plan mode stays in Plan. Model API backend only (on
-  Muse Code the command says it is unavailable there). Side chats are
-  refused; one handoff runs at a time; a `/handoff` while a reply runs is
-  refused ("Wait for the reply to finish, or stop it, first."), nothing
-  queued; an oversized (over 256 KB) or empty brief is refused with the
-  reason; a refused `/handoff` stays in the prompt with its goal. No new
-  setting: nothing automatic runs. Automatic compaction, the hidden
-  follow-up and memory flush stay unbuilt and off.
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. No new setting: nothing automatic runs. Automatic compaction,
+  the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Changed
 
@@ -46,10 +45,29 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Windows hooks no longer wait on PowerShell's module scan.** The
+  PowerShell wrapper that puts each Windows command and hook in its job
+  object (M27) loaded the job helper with `Add-Type` and switched output to
+  UTF-8 with `New-Object`. PowerShell finds both cmdlets by module
+  auto-loading, which, without its module analysis cache, first analyses
+  every installed module. A hook's narrow environment does not carry
+  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner a hook waited
+  roughly 18 to 30 s before it started, and past the hook test's 60 s on a
+  fresh runner (the M51 hook test's intermittent timeout). The wrapper now
+  makes .NET calls only, so a hook or command starts without any module
+  discovery; the helper's self-test and a stopped command's job kill load
+  it the same way.
 - **The ACP agent reaches npm.** The release workflow passed its package as
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **A crafted long line no longer stalls the log.** Every line the
+  extension logs passes through its secret redactor, whose JSON Web Token
+  pattern read a long word again from every `eyJ` after a dash in it: a
+  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
+  run of dotted words once. A token glued after `_` or a letter
+  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
+  the old pattern redacted is left.
 - **A `/goal` refused while a Model API key is activated no longer
   sticks.** While a key was being activated, with the panel still reading
   signed in, a `/goal …` from the prompt or a goal edit was refused with
