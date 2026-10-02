@@ -2565,7 +2565,12 @@ describe('App turn checkpoints (M72)', () => {
       redoRestoreId: 'r1',
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'redoRestore', restoreId: 'r1' })
+    // The Redo names the conversation it was offered in (M86).
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'redoRestore',
+      restoreId: 'r1',
+      sourceSessionId: 'old',
+    })
     expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeDisabled()
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: false })
     expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeEnabled()

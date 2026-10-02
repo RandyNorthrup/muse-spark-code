@@ -1,18 +1,28 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
-import { chmod, mkdir, readFile, stat, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
-import { applyFileStep, linkedFolders } from '../../src/host/checkpoints/checkpointFiles'
-import { GIT_MODE_EXECUTABLE, GIT_MODE_FILE } from '../../src/shared/constants'
+import {
+  applyFileStep,
+  type FileStep,
+  resolvedPath,
+} from '../../src/host/checkpoints/checkpointFiles'
+import {
+  CHECKPOINT_FILE_MAX_BYTES,
+  CHECKPOINT_REMOVE_RETRIES,
+  GIT_MODE_EXECUTABLE,
+  GIT_MODE_FILE,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
 
-// The file steps of a restore (M72) over real folders: a folder link (a
-// junction on Windows, which Git for Windows walks into) is never followed,
-// a file no longer as expected is never touched, and permissions are kept.
+// The file steps of a restore or Redo (M72, M86) over real folders: a folder
+// link (a junction on Windows) is never followed, a file no longer as
+// expected is never touched, an existing file's mode is kept and a
+// recreated one gets the mode it had, a held file's deletion is retried.
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-checkpoint-files-')))
 
 afterAll(async () => {
@@ -33,30 +43,26 @@ async function linkedWorkspace() {
 
 const oidOf = (text: string) => gitBlobOid(Buffer.from(text))
 const blob = (text: string, mode = GIT_MODE_FILE) => ({ mode, oid: oidOf(text) })
-/** What a step expects of a file a capture held: these bytes, this mode. */
-const holding = (text: string, mode = GIT_MODE_FILE) => ({
-  kind: 'blob' as const,
-  ...blob(text, mode),
-})
+/** What a step expects of a file: these bytes. */
+const holding = (text: string) => ({ kind: 'blob' as const, oid: oidOf(text) })
+const ABSENT = { kind: 'absent' as const }
 
-describe('linkedFolders (M72)', () => {
-  it('names the outermost folder link on the way to each path, and no real folder', async () => {
-    const { root } = await linkedWorkspace()
-    await mkdir(path.join(root, 'c', 'deep'))
-    expect(await linkedFolders(root, ['a/x.txt', 'a/deep/y.txt', 'c/x.txt', 'top.txt'])).toEqual([
-      'a',
-    ])
-  })
-})
+function step(
+  relative: string,
+  target: FileStep['target'],
+  expect: FileStep['expect'],
+  folders: readonly string[] = [],
+): FileStep {
+  return { path: relative, target, expect, removeFolders: folders }
+}
 
-describe('applyFileStep (M72)', () => {
+describe('applyFileStep (M72, M86)', () => {
   it('never deletes through a folder link', async () => {
     const { root, target } = await linkedWorkspace()
     const result = await applyFileStep(
       target,
-      { path: 'a/x.txt', target: null, expect: holding('the user’s file\n') },
+      step('a/x.txt', null, holding('the user’s file\n')),
       undefined,
-      () => false,
     )
     expect(result).toBe('linked')
     expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('the user’s file\n')
@@ -66,16 +72,18 @@ describe('applyFileStep (M72)', () => {
     const { root, target } = await linkedWorkspace()
     const result = await applyFileStep(
       target,
-      {
-        path: 'a/x.txt',
-        target: blob('overwritten\n'),
-        expect: holding('the user’s file\n'),
-      },
+      step('a/x.txt', blob('overwritten\n'), holding('the user’s file\n')),
       Buffer.from('overwritten\n'),
-      undefined,
     )
     expect(result).toBe('linked')
     expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('the user’s file\n')
+  })
+
+  it('resolves a path through no link to its spelling on disk, and none through a link', async () => {
+    const { target } = await linkedWorkspace()
+    expect(await resolvedPath(target, 'c/x.txt')).toBe('c/x.txt')
+    expect(await resolvedPath(target, 'c/new.txt')).toBe('c/new.txt')
+    expect(await resolvedPath(target, 'a/x.txt')).toBeUndefined()
   })
 
   it('leaves a file that is no longer as expected', async () => {
@@ -83,139 +91,176 @@ describe('applyFileStep (M72)', () => {
     const file = 'c/x.txt'
     const changed = await applyFileStep(
       target,
-      { path: file, target: blob('restored\n'), expect: holding('older\n') },
+      step(file, blob('restored\n'), holding('older\n')),
       Buffer.from('restored\n'),
-      undefined,
     )
-    const present = await applyFileStep(
-      target,
-      { path: file, target: null, expect: { kind: 'absent' } },
-      undefined,
-      undefined,
-    )
-    const restat = await applyFileStep(
-      target,
-      { path: file, target: null, expect: { kind: 'stat', stat: { size: 1, mtimeMs: 1 } } },
-      undefined,
-      undefined,
-    )
-    expect([changed, present, restat]).toEqual(['changed', 'changed', 'changed'])
+    const present = await applyFileStep(target, step(file, null, ABSENT), undefined)
+    expect([changed, present]).toEqual(['changed', 'changed'])
     expect(await readFile(path.join(root, file), 'utf8')).toBe('the user’s file\n')
   })
 
-  it('writes and deletes a file still as expected, removing the folders it empties', async () => {
+  it('writes and deletes a file still as expected, removing the folders it names when empty', async () => {
     const { root, target } = await linkedWorkspace()
     await mkdir(path.join(root, 'made', 'deeper'), { recursive: true })
+    await mkdir(path.join(root, 'kept'))
     await writeFile(path.join(root, 'made', 'deeper', 'n.txt'), 'new\n')
+    await writeFile(path.join(root, 'kept', 'n.txt'), 'new\n')
     const deleted = await applyFileStep(
       target,
-      { path: 'made/deeper/n.txt', target: null, expect: holding('new\n') },
+      step('made/deeper/n.txt', null, holding('new\n'), ['made/deeper', 'made']),
       undefined,
-      () => false,
+    )
+    // A folder the step does not name stays, empty or not.
+    const deletedKept = await applyFileStep(
+      target,
+      step('kept/n.txt', null, holding('new\n')),
+      undefined,
     )
     const written = await applyFileStep(
       target,
-      {
-        path: 'c/x.txt',
-        target: blob('restored\n'),
-        expect: holding('the user’s file\n'),
-      },
+      step('c/x.txt', blob('restored\n'), holding('the user’s file\n')),
       Buffer.from('restored\n'),
-      undefined,
     )
-    expect([deleted, written]).toEqual(['done', 'done'])
+    expect([deleted, deletedKept, written]).toEqual(['done', 'done', 'done'])
     await expect(stat(path.join(root, 'made'))).rejects.toThrow()
+    const kept = await stat(path.join(root, 'kept'))
+    expect(kept.isDirectory()).toBe(true)
     expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('restored\n')
   })
 
+  it('stops removing folders at the first one that is not empty', async () => {
+    const { root, target } = await linkedWorkspace()
+    await mkdir(path.join(root, 'made', 'deeper'), { recursive: true })
+    await writeFile(path.join(root, 'made', 'deeper', 'n.txt'), 'new\n')
+    await writeFile(path.join(root, 'made', 'the-user’s.txt'), 'theirs\n')
+    const deleted = await applyFileStep(
+      target,
+      step('made/deeper/n.txt', null, holding('new\n'), ['made/deeper', 'made']),
+      undefined,
+    )
+    expect(deleted).toBe('done')
+    await expect(stat(path.join(root, 'made', 'deeper'))).rejects.toThrow()
+    expect(await readFile(path.join(root, 'made', 'the-user’s.txt'), 'utf8')).toBe('theirs\n')
+  })
+
   it.skipIf(process.platform === 'win32')(
-    'keeps a file’s own permissions and sets only the execute bits',
+    'L: keeps an existing file’s own mode whatever the target’s, and gives a recreated file the mode it had',
     async () => {
       const { root, target } = await linkedWorkspace()
       const file = path.join(root, 'c', 'x.txt')
       await chmod(file, 0o600)
-      await applyFileStep(
-        target,
-        {
-          path: 'c/x.txt',
-          target: blob('script\n', GIT_MODE_EXECUTABLE),
-          expect: holding('the user’s file\n'),
-        },
-        Buffer.from('script\n'),
-        undefined,
-      )
-      const script = await stat(file)
-      expect(script.mode & 0o777).toBe(0o700)
-      await applyFileStep(
-        target,
-        {
-          path: 'c/x.txt',
-          target: blob('plain\n'),
-          // The restore above made it executable: the capture then would say so.
-          expect: holding('script\n', GIT_MODE_EXECUTABLE),
-        },
-        Buffer.from('plain\n'),
-        undefined,
-      )
-      const plain = await stat(file)
-      expect(plain.mode & 0o777).toBe(0o600)
+      expect(
+        await applyFileStep(
+          target,
+          step('c/x.txt', blob('script\n', GIT_MODE_EXECUTABLE), holding('the user’s file\n')),
+          Buffer.from('script\n'),
+        ),
+      ).toBe('done')
+      const own = await stat(file)
+      expect(own.mode & 0o777).toBe(0o600)
+      await rm(file)
+      expect(
+        await applyFileStep(
+          target,
+          step('c/x.txt', blob('script\n', GIT_MODE_EXECUTABLE), ABSENT),
+          Buffer.from('script\n'),
+        ),
+      ).toBe('done')
+      const recreated = await stat(file)
+      expect(recreated.mode & 0o100).not.toBe(0)
     },
   )
 
   it.skipIf(process.platform === 'win32')(
-    'leaves a file whose execute bit changed since the capture, its bytes the same',
+    'L: restores a file whose execute bit changed since, its bytes as expected',
     async () => {
       const { root, target } = await linkedWorkspace()
       const file = path.join(root, 'c', 'x.txt')
-      const step = (mode: string) =>
-        applyFileStep(
-          target,
-          {
-            path: 'c/x.txt',
-            target: blob('restored\n'),
-            expect: holding('the user’s file\n', mode),
-          },
-          Buffer.from('restored\n'),
-          undefined,
-        )
-      // Captured plain, then made executable; captured executable, then made plain.
       await chmod(file, 0o755)
-      const madeExecutable = await step(GIT_MODE_FILE)
-      const deleted = await applyFileStep(
+      const result = await applyFileStep(
         target,
-        { path: 'c/x.txt', target: null, expect: holding('the user’s file\n') },
-        undefined,
-        undefined,
+        step('c/x.txt', blob('restored\n'), holding('the user’s file\n')),
+        Buffer.from('restored\n'),
       )
-      const executable = await stat(file)
-      await chmod(file, 0o644)
-      const madePlain = await step(GIT_MODE_EXECUTABLE)
-      const plain = await stat(file)
-      expect([madeExecutable, deleted, madePlain]).toEqual(['changed', 'changed', 'changed'])
-      expect([executable.mode & 0o777, plain.mode & 0o777]).toEqual([0o755, 0o644])
-      expect(await readFile(file, 'utf8')).toBe('the user’s file\n')
+      expect(result).toBe('done')
+      expect(await readFile(file, 'utf8')).toBe('restored\n')
+      const changed = await stat(file)
+      expect(changed.mode & 0o777).toBe(0o755)
     },
   )
 
-  it.runIf(process.platform === 'win32')(
-    'still restores an unchanged file on Windows, which keeps no execute bit',
-    async () => {
-      const { root, target } = await linkedWorkspace()
-      // A restore there sets no execute bit either, so only the bytes tell.
-      const result = await applyFileStep(
-        target,
-        {
-          path: 'c/x.txt',
-          target: blob('restored\n'),
-          expect: holding('the user’s file\n', GIT_MODE_EXECUTABLE),
-        },
-        Buffer.from('restored\n'),
-        undefined,
-      )
-      expect(result).toBe('done')
-      expect(await readFile(path.join(root, 'c', 'x.txt'), 'utf8')).toBe('restored\n')
-    },
-  )
+  it('refuses a file now over the size limit as too large to compare, and leaves it', async () => {
+    const { root, target } = await linkedWorkspace()
+    const big = path.join(root, 'c', 'big.bin')
+    await writeFile(big, Buffer.alloc(CHECKPOINT_FILE_MAX_BYTES + 1))
+    const result = await applyFileStep(
+      target,
+      step('c/big.bin', null, holding('small\n')),
+      undefined,
+    )
+    expect(result).toBe('tooLarge')
+    const held = await stat(big)
+    expect(held.size).toBe(CHECKPOINT_FILE_MAX_BYTES + 1)
+  })
+
+  it('Y: retries a deletion while another program holds the file, and deletes it', async () => {
+    const { root } = await linkedWorkspace()
+    await writeFile(path.join(root, 'held.txt'), 'held\n')
+    let attempts = 0
+    const target = {
+      workspaceRoot: root,
+      platform: process.platform,
+      log: new FakeLogOutputChannel(),
+      sleep: () => Promise.resolve(),
+      remove: async (absolute: string) => {
+        attempts += 1
+        if (attempts < 3) {
+          throw Object.assign(new Error('injected busy file'), {
+            code: attempts === 1 ? 'EBUSY' : 'EPERM',
+          })
+        }
+        await rm(absolute)
+      },
+    }
+    expect(await applyFileStep(target, step('held.txt', null, holding('held\n')), undefined)).toBe(
+      'done',
+    )
+    expect(attempts).toBe(3)
+    expect(existsSync(path.join(root, 'held.txt'))).toBe(false)
+  })
+
+  it('Y: gives up a held deletion after its retries, and stops when the file changed meanwhile', async () => {
+    const { root } = await linkedWorkspace()
+    const file = path.join(root, 'held.txt')
+    await writeFile(file, 'held\n')
+    let attempts = 0
+    const busy = (code: string) => ({
+      workspaceRoot: root,
+      platform: process.platform,
+      log: new FakeLogOutputChannel(),
+      sleep: () => Promise.resolve(),
+      remove: () => {
+        attempts += 1
+        return Promise.reject(Object.assign(new Error('injected held file'), { code }))
+      },
+    })
+    expect(
+      await applyFileStep(busy('EBUSY'), step('held.txt', null, holding('held\n')), undefined),
+    ).toBe('failed')
+    expect(attempts).toBe(CHECKPOINT_REMOVE_RETRIES + 1)
+    attempts = 0
+    const changing = {
+      ...busy('EBUSY'),
+      sleep: async () => {
+        await writeFile(file, 'changed while held\n')
+      },
+    }
+    expect(
+      await applyFileStep(changing, step('held.txt', null, holding('held\n')), undefined),
+    ).toBe('changed')
+    expect(attempts).toBe(1)
+    expect(await readFile(file, 'utf8')).toBe('changed while held\n')
+  })
 })
 
 /** Whether the temporary folder's volume tells `a` from `A`. */
@@ -247,13 +292,8 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
       }
       const result = await applyFileStep(
         target,
-        {
-          path: 'foo/x.txt',
-          target: blob('overwritten\n'),
-          expect: holding('the user’s file\n'),
-        },
+        step('foo/x.txt', blob('overwritten\n'), holding('the user’s file\n')),
         Buffer.from('overwritten\n'),
-        undefined,
       )
       expect(result).toBe('linked')
       expect(await readFile(path.join(root, 'Foo', 'x.txt'), 'utf8')).toBe('the user’s file\n')
@@ -271,16 +311,12 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
       }
       const result = await applyFileStep(
         target,
-        {
-          path: 'foo/X.TXT',
-          target: blob('restored\n'),
-          expect: holding('the user’s file\n'),
-        },
+        step('foo/X.TXT', blob('restored\n'), holding('the user’s file\n')),
         Buffer.from('restored\n'),
-        undefined,
       )
       expect(result).toBe('done')
       expect(await readFile(path.join(root, 'Foo', 'x.txt'), 'utf8')).toBe('restored\n')
+      expect(await resolvedPath(target, 'foo/X.TXT')).toBe('Foo/x.txt')
     },
   )
 })

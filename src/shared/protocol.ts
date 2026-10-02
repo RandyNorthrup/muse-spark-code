@@ -398,8 +398,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     turnId: z.string().check(z.minLength(1)),
     rewind: z.optional(rewindConversationSchema),
   }),
-  // A restore's Redo (M72): what it replaced goes back.
-  z.object({ type: z.literal('redoRestore'), restoreId: z.string().check(z.minLength(1)) }),
+  // A restore's Redo (M72, M86): what it replaced goes back, only in the
+  // conversation it was offered in.
+  z.object({
+    type: z.literal('redoRestore'),
+    restoreId: z.string().check(z.minLength(1)),
+    sourceSessionId: z.string().check(z.minLength(1)),
+  }),
   // Session history (M6).
   z.object({ type: z.literal('listSessions') }),
   // The Agent map reads a subagent's own session (M14).

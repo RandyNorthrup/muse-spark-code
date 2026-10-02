@@ -4,14 +4,12 @@ import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
-import * as z from 'zod/mini'
-import { WindowPresence } from '../../src/host/checkpoints/windowPresence'
+import { isLegacyWindow, WindowPresence } from '../../src/host/checkpoints/windowPresence'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   CHECKPOINT_FENCED_WINDOW,
+  CHECKPOINT_LEGACY_FENCED_WINDOW,
   CHECKPOINT_NATIVE_WINDOW,
-  CHECKPOINT_PEER_SAVE_KEEP_MS,
-  CHECKPOINT_PEER_SAVES_MAX,
 } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -24,11 +22,6 @@ vi.mock('node:fs/promises', async (importOriginal) => ({
 const base = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-window-presence-')))
 const GONE_PID = 424_242
 const OLD_PRESENCE_MS = 10 * 60 * 1000
-/** A saves file as the test reads it back. */
-const savesSchema = z.object({
-  saves: z.array(z.object({ path: z.string(), at: z.number() })),
-  droppedThrough: z.optional(z.number()),
-})
 afterAll(() => removeFolder(base))
 afterEach(() => {
   vi.restoreAllMocks()
@@ -68,7 +61,7 @@ async function stalePeer() {
   return { one, two }
 }
 
-describe('WindowPresence (M72)', () => {
+describe('WindowPresence (M72, M86)', () => {
   it('keeps a known live process even when its heartbeat is old', async () => {
     const one = windowIn()
     const two = windowIn(one.storageDir, 'other')
@@ -211,63 +204,62 @@ describe('WindowPresence (M72)', () => {
   })
 })
 
-describe('the user’s saves each window shares (M72)', () => {
-  it('keeps the newest save of each file, at most the count limit, and says what it let go of', async () => {
-    const one = windowIn()
-    const two = windowIn(one.storageDir, 'other')
-    one.presence.noteSave('first.txt', 1)
-    for (let index = 0; index < CHECKPOINT_PEER_SAVES_MAX; index += 1) {
-      one.presence.noteSave(`file-${String(index)}.txt`, 10 + index)
-    }
-    // Saved again: its newest save moves last, and nothing more goes.
-    one.presence.noteSave('file-0.txt', 5000)
-    // One past the limit: the oldest left goes too.
-    one.presence.noteSave('last.txt', 5001)
-    await one.presence.writeSaves()
-    const file = path.join(one.storageDir, 'windows', 'self.saves')
-    const written = savesSchema.parse(JSON.parse(await fs.readFile(file, 'utf8')))
-    expect(written.saves).toHaveLength(CHECKPOINT_PEER_SAVES_MAX)
-    expect(written.droppedThrough).toBe(11)
-    expect(written.saves.at(0)).toEqual({ path: 'file-2.txt', at: 12 })
-    expect(written.saves.slice(-2)).toEqual([
-      { path: 'file-0.txt', at: 5000 },
-      { path: 'last.txt', at: 5001 },
-    ])
-    // A turn that started before a save the limit let go of cannot know every save.
-    expect(await two.presence.peerSaves(11)).toMatchObject({ unknown: ['self.saves'] })
-    const after = await two.presence.peerSaves(5000)
-    expect(after.unknown).toEqual([])
-    expect([...after.saved]).toEqual(['file-0.txt', 'last.txt'])
-    // A save past the keep time leaves only itself.
-    one.presence.noteSave('later.txt', 5001 + CHECKPOINT_PEER_SAVE_KEEP_MS + 1)
-    await one.presence.writeSaves()
-    const later = savesSchema.parse(JSON.parse(await fs.readFile(file, 'utf8')))
-    expect(later.saves).toEqual([
-      { path: 'later.txt', at: 5001 + CHECKPOINT_PEER_SAVE_KEEP_MS + 1 },
-    ])
+/** A 0.10.0 window's presence: the v1 fence only. */
+async function legacyPresence(storageDir: string, pid: number): Promise<string> {
+  const file = path.join(storageDir, 'windows', 'legacy.json')
+  await fs.writeFile(
+    file,
+    JSON.stringify({ instance: 'legacy', pid, running: [CHECKPOINT_LEGACY_FENCED_WINDOW] }),
+  )
+  return file
+}
+
+describe('windows of 0.10.0 (M86, spec 7)', () => {
+  it('tells a 0.10.0 window by its v1 fence alone', () => {
+    expect(isLegacyWindow([CHECKPOINT_LEGACY_FENCED_WINDOW, 'turn'])).toBe(true)
+    expect(isLegacyWindow([CHECKPOINT_FENCED_WINDOW])).toBe(false)
+    expect(isLegacyWindow([CHECKPOINT_FENCED_WINDOW, CHECKPOINT_LEGACY_FENCED_WINDOW])).toBe(false)
+    expect(isLegacyWindow([])).toBe(false)
   })
 
-  it('removes a gone window’s saves file only once its newest save is past the keep time', async () => {
+  it('P: leaves its file when it closes after seeing a live 0.10.0 window, so that window stays fenced', async () => {
     const one = windowIn()
-    const folder = path.join(one.storageDir, 'windows')
-    await fs.mkdir(folder, { recursive: true })
-    const now = 2 * CHECKPOINT_PEER_SAVE_KEEP_MS
-    const savedAt = async (name: string, pid: number, at: number) => {
-      await fs.writeFile(
-        path.join(folder, name),
-        JSON.stringify({ pid, saves: [{ path: 'a.txt', at }] }),
-      )
-    }
-    await savedAt('gone-old.saves', GONE_PID, now - CHECKPOINT_PEER_SAVE_KEEP_MS - 1)
-    await savedAt('gone-recent.saves', GONE_PID, now - CHECKPOINT_PEER_SAVE_KEEP_MS)
-    await savedAt('live-old.saves', process.pid, 0)
-    await fs.writeFile(path.join(folder, 'unreadable.saves'), '{bad json')
-    await one.presence.dropGoneSaves(now)
-    const names = await fs.readdir(folder)
-    expect(names.toSorted((left, right) => left.localeCompare(right))).toEqual([
-      'gone-recent.saves',
-      'live-old.saves',
-      'unreadable.saves',
-    ])
+    await one.presence.publish([CHECKPOINT_FENCED_WINDOW])
+    await legacyPresence(one.storageDir, process.pid)
+    const seen = await one.presence.liveWindows()
+    expect(seen.get('legacy')).toEqual([CHECKPOINT_LEGACY_FENCED_WINDOW])
+    one.presence.leave()
+    expect(JSON.parse(await fs.readFile(one.file, 'utf8'))).toMatchObject({
+      running: [CHECKPOINT_FENCED_WINDOW],
+    })
+  })
+
+  it('P: removes a gone window’s left file only once no 0.10.0 window is live', async () => {
+    const one = windowIn()
+    await one.presence.publish([CHECKPOINT_FENCED_WINDOW])
+    const left = path.join(one.storageDir, 'windows', 'left.json')
+    await fs.writeFile(
+      left,
+      JSON.stringify({ instance: 'left', pid: GONE_PID, running: [CHECKPOINT_FENCED_WINDOW] }),
+    )
+    const legacy = await legacyPresence(one.storageDir, process.pid)
+    const withLegacy = await one.presence.liveWindows()
+    // Gone for this version, kept on disk for the 0.10.0 window.
+    expect(withLegacy.has('left')).toBe(false)
+    expect(await fs.stat(left)).toBeDefined()
+    await fs.rm(legacy)
+    await one.presence.liveWindows()
+    await expect(fs.stat(left)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('P: counts a 0.10.0 window whose process is gone as gone', async () => {
+    const one = windowIn()
+    await one.presence.publish([CHECKPOINT_FENCED_WINDOW])
+    const legacy = await legacyPresence(one.storageDir, GONE_PID)
+    const live = await one.presence.liveWindows()
+    expect(live.has('legacy')).toBe(false)
+    await expect(fs.stat(legacy)).rejects.toMatchObject({ code: 'ENOENT' })
+    one.presence.leave()
+    await expect(fs.stat(one.file)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })

@@ -59,11 +59,14 @@ import { ShellEntryError } from '../../src/core/shellResult'
 import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
 import {
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
+  type TurnRecording,
 } from '../../src/host/checkpoints/checkpointHost'
 import {
-  captured,
   harness as checkpointHarness,
+  owner as checkpointOwner,
+  toolWrite as checkpointToolWrite,
   read as checkpointRead,
   removeCheckpointFolders,
   write as checkpointWrite,
@@ -1147,13 +1150,16 @@ describe('Model API turn checkpoint admission (M72)', () => {
         isWorkspaceTrusted: () => true,
         hasGit: () => true,
         isEnabled: () => true,
+        log: h.log,
       })
+      const recordings = new Map<string, TurnRecording>()
       const t = setup({
-        beforeTurnRuns: (sessionId, turnId) =>
-          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+        beforeTurnRuns: async (sessionId, turnId) => {
+          recordings.set(turnId, await prepareCheckpointTurn(port, sessionId, turnId, h.log))
+        },
         afterTurnRuns: async (sessionId, turnId) => {
-          await port.endTurn(sessionId, turnId)
-          await port.markTurn(`${sessionId}\0${turnId}`, false)
+          const recording = recordings.get(turnId) ?? { kind: 'off' }
+          await finishCheckpointTurn(port, sessionId, turnId, recording, { ranProcesses: false })
         },
       })
       const { session, turnDone } = await startSession(t)
@@ -1169,9 +1175,10 @@ describe('Model API turn checkpoint admission (M72)', () => {
       })
       await closing.sessionChanged(session.sessionId)
       await checkpointWrite(h.root, 'a.txt', 'a0\n')
-      await h.store.record(session.sessionId, 'earlier', await captured(h.store))
-      await checkpointWrite(h.root, 'a.txt', 'a1\n')
-      await h.store.endTurn(session.sessionId, 'earlier')
+      const earlier = checkpointOwner(h.store, 'earlier', session.sessionId)
+      await h.store.startUnit(earlier)
+      await checkpointToolWrite(h.store, earlier, h.root, 'a.txt', 'a1\n')
+      await h.store.endUnit(earlier, { ranProcesses: false })
       const hold = Promise.withResolvers<undefined>()
       t.api.script({ hold: hold.promise, text: 'actual retained turn finished' })
       const stop = session.onEvent((event) => {
@@ -1196,6 +1203,7 @@ describe('Model API turn checkpoint admission (M72)', () => {
             backend: () => 'modelApi',
             sessionId: retained.sessionId,
             turnId: 'earlier',
+            transcriptTurnIds: ['earlier'],
             unsavedPaths: () => [],
           }),
         ).toEqual({ ok: false, reason: 'turnElsewhere' })
@@ -1207,6 +1215,7 @@ describe('Model API turn checkpoint admission (M72)', () => {
           backend: () => 'modelApi',
           sessionId: retained.sessionId,
           turnId: 'earlier',
+          transcriptTurnIds: ['earlier'],
           unsavedPaths: () => [],
         })
         expect(afterTurn.ok).toBe(true)

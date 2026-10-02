@@ -64,11 +64,6 @@ export interface PlanIoOptions {
   readonly publish?: (stage: string, target: string) => Promise<void>
   /** The extension's actual-promise checkpoint lease for workspace mutations. */
   readonly edit?: (work: (assertCanWrite?: () => void) => Promise<void>) => Promise<void>
-  /**
-   * A file this plan action (the user's) published or removed: a turn running
-   * meanwhile does not own it, and its restore leaves it as it is (M72).
-   */
-  readonly noteUserWrite?: (absolutePath: string) => void
   /** Existing no-clobber stage boundary, injectable for live-owner regressions. */
   readonly staged?: () => Promise<void>
 }
@@ -101,7 +96,6 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
             ...(options.staged !== undefined && { staged: options.staged }),
             ...(assertCanWrite !== undefined && { assertCanWrite }),
           })
-          options.noteUserWrite?.(absolutePath)
         })
         return true
       } catch (error: unknown) {
@@ -135,7 +129,6 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
               }
               assertCanWrite?.()
               await rm(stage, { force: true })
-              options.noteUserWrite?.(stage)
               removed += 1
             }
           } catch (error: unknown) {

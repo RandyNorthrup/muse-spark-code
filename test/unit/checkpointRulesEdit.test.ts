@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRulesFile } from '../../src/host/commands/createRulesFile'
-import {
-  asUserEdit,
-  type CheckpointPort,
-  withCheckpointEdit,
-} from '../../src/host/checkpoints/checkpointHost'
+import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { UI_TEXT } from '../../src/shared/constants'
 import { processGitProcess } from '../../src/host/git'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
@@ -44,15 +40,11 @@ function templateAction(
       isWorkspaceTrusted: () => isTrusted,
       fileExists: isFilePresent,
       runInit: () => undefined,
-      // As activation wires it: under the lease, and the user's once written.
+      // As activation wires it: under the lease, and never recorded (M86).
       writeFile: async (file, content) => {
-        await withCheckpointEdit(
-          port,
-          check,
-          asUserEdit(port, file, async () => {
-            await writeFile(file, content)
-          }),
-        )
+        await withCheckpointEdit(port, check, async () => {
+          await writeFile(file, content)
+        })
       },
       openFile: () => Promise.resolve(),
       showInformation: () => undefined,
@@ -155,17 +147,18 @@ describe('Create AGENTS.md pure template admission (M72)', () => {
   )
 
   it(
-    "leaves the AGENTS.md the user created while a turn ran to them on that turn's restore",
+    "never records the AGENTS.md the user created while a turn ran, so the turn's restore leaves it",
     async () => {
       const h = await harness()
       await write(h.root, 'a.txt', 'a0\n')
       const action = templateAction(h, checkpointPort(h), new AbortController().signal)
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('a.txt', 'a1\n')
         await action.run()
       })
       const outcome = done(await restoreOutcome(h.store, 't1'))
-      expect(outcome.refused).toEqual([{ path: 'AGENTS.md', reason: 'changedAfter' }])
+      expect(outcome.changed).toEqual(['a.txt'])
+      expect(outcome.refused).toEqual([])
       expect(await read(h.root, 'AGENTS.md')).toContain('##')
       // The turn's own change still goes back.
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
