@@ -131,7 +131,7 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
-import { messageCount, type SessionExport } from '../../core/export/sessionTransfer'
+import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
 import {
   type PickedTransferFile,
   readTransferDocument,
@@ -1024,6 +1024,9 @@ export class ConversationController {
       if (surfaces?.size === 0) {
         sessionSurfaces.delete(session)
       }
+      // The imported mark (M84) goes with the session: an opening reads it
+      // again from the session's record (`adopt`, `resumeAfterRestart`).
+      this.importedSessionIds.delete(session.sessionId)
     }
     session?.dispose()
     this.session = undefined
@@ -2229,6 +2232,12 @@ export class ConversationController {
       loaded.session.dispose()
       this.requireCurrentOpening(generation)
     }
+    // The same conversation continues, imported history and all (M84): its
+    // mark comes back from the record, while the panel keeps the mode its
+    // user chose.
+    if (loaded.record.imported === true) {
+      this.importedSessionIds.add(loaded.session.sessionId)
+    }
     this.activeTurnId = loaded.activeTurnId
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
@@ -2456,15 +2465,6 @@ export class ConversationController {
       this.permissionMode = 'plan'
       this.postComposerState()
     }
-    // A conversation built on an imported file opens asking, every time and
-    // whatever the initial mode (M84, PLAN.md D49): only the user's own mode
-    // change relaxes it, and only until it is opened again.
-    const isImported = loaded.record.imported === true
-    if (isImported) {
-      this.importedSessionIds.add(loaded.session.sessionId)
-      this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
-      this.postComposerState()
-    }
     const models = await host.listModels(loaded.session.sessionId)
     if (generation !== this.sendInvalidationEpoch) {
       loaded.session.dispose()
@@ -2499,6 +2499,17 @@ export class ConversationController {
       }
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
+    }
+    // A conversation built on an imported file opens asking, every time and
+    // whatever the initial mode (M84, PLAN.md D49): only the user's own mode
+    // change relaxes it, and only until it is opened again. Applied only now
+    // that this opening is still current: an imported session overtaken by
+    // another opening must leave neither its mode nor its mark (Muse review).
+    const isImported = loaded.record.imported === true
+    if (isImported) {
+      this.importedSessionIds.add(loaded.session.sessionId)
+      this.permissionMode = untrustedStartMode(this.permissionMode, this.deps.initialPermissionMode)
+      this.postComposerState()
     }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
@@ -2861,6 +2872,11 @@ export class ConversationController {
         readonly name: string | undefined
         /** Captured from the validated live host/session, never the webview's argument alone. */
         readonly ownerRecorder: WorkspaceEditRecorder | undefined
+        /**
+         * Written over imported history (M84), read while the session is
+         * still the panel's: its mark goes when the session is dropped.
+         */
+        readonly isImported: boolean
       }
     | undefined
   > {
@@ -2913,6 +2929,7 @@ export class ConversationController {
       name: history.name,
       ownerRecorder:
         host.info.kind === 'modelApi' ? this.deps.plans?.captureOwner?.(session) : undefined,
+      isImported: this.importedSessionIds.has(session.sessionId),
     }
   }
 
@@ -2939,7 +2956,13 @@ export class ConversationController {
     itemId: string,
     generation: number,
   ): Promise<
-    | { readonly saved: SaveOutcome; readonly text: string; readonly markdown: PlanMarkdown }
+    | {
+        readonly saved: SaveOutcome
+        readonly text: string
+        readonly markdown: PlanMarkdown
+        /** The reply was written over imported history (M84). */
+        readonly isImported: boolean
+      }
     | undefined
   > {
     // Refused with its reason said first: no plans without a workspace folder.
@@ -2987,7 +3010,7 @@ export class ConversationController {
       return undefined
     }
     if (known !== undefined) {
-      return { saved: { ...known, isNew: false }, text, markdown }
+      return { saved: { ...known, isNew: false }, text, markdown, isImported: reply.isImported }
     }
     // `.agents/` is a protected path (D24): the save asks, as a protected write does.
     if (!(await plans.confirmSave())) {
@@ -3001,7 +3024,7 @@ export class ConversationController {
     this.deps.log.info(
       `Plan ${saved.isNew ? 'saved' : 'found saved'} as ${planLogName(saved.fileName)} from session ${sourceSessionId}`,
     )
-    return { saved, text, markdown }
+    return { saved, text, markdown, isImported: reply.isImported }
   }
 
   /**
@@ -3222,7 +3245,7 @@ export class ConversationController {
       const bytes = new TextEncoder().encode(markdown.briefText(text))
       // A reply written over imported history (M84) may be that history's
       // doing: untrusted, as a plan file is, so the new conversation asks.
-      const isApproved = !this.importedSessionIds.has(source.sessionId)
+      const isApproved = !outcome.isImported
       return {
         brief: planBrief(relativePath, bytes, planSteps(markdown, text), isApproved),
         relativePath,
@@ -4651,6 +4674,13 @@ export class ConversationController {
         UI_TEXT.importSessionFailed,
       )
       if (doc === undefined || generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      // Refused before the confirmation (RV84 #10): a file past what the
+      // model can read is not offered for import at all.
+      const refusal = importRefusal(doc)
+      if (refusal !== undefined) {
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${refusal}`)
         return
       }
       await this.ensureModels(host)

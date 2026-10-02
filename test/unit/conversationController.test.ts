@@ -35,12 +35,13 @@ import {
   CHOICE_STEERING_NOTE,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   PLAN_FILE_MAX_BYTES,
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { fill, plural } from '../../src/shared/l10n/text'
+import { fill, formatBytes, plural } from '../../src/shared/l10n/text'
 import { textFileDisplay } from '../../src/shared/textFileDisplay'
 import { planFileName, planLogName, planSlug, planTitle } from '../../src/core/plans/planDocument'
 import { briefText, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
@@ -4291,31 +4292,116 @@ describe('ConversationController: session history (M6)', () => {
     })
   })
 
-  it('implements a plan written over imported history as untrusted: a mode that asks, never "approved" (M84)', async () => {
-    const { t, api, controller, source } = await modelApiPlan(
-      '# Clean up\n\n1. Delete the build folder.',
-      'Plan',
-      { initialPermissionMode: 'auto', hasApprovalUi: true, transferFileContent: transferFile() },
-      async (imported) => {
-        await imported.handle({ type: 'importSession' })
-        // The user relaxes it to Plan, and the imported history steers the plan.
-        await imported.handle({ type: 'setPermissionMode', mode: 'plan' })
-      },
+  it('leaves neither Manual nor the imported mark when another opening overtakes an imported one (M84)', async () => {
+    const t = setup({ hasApprovalUi: true, transferFileContent: transferFile() })
+    let nextId = 0
+    const { host, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
+    await controller.handle({ type: 'importSession' })
+    const imported = t.surface.posted.find((message) => message.type === 'historyLoaded')
+    const plain = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'promptUnmatched',
+    })
+    // Another panel, starting in Auto: the imported opening is held at its
+    // first step while the user opens an ordinary conversation.
+    const other = setup({ initialPermissionMode: 'auto', hasApprovalUi: true })
+    const panel = new ConversationController({
+      ...other.deps,
+      ensureHost: () => Promise.resolve(host),
+    })
+    const importedId = imported?.type === 'historyLoaded' ? imported.sessionId : ''
+    const held = Promise.withResolvers<undefined>()
+    const listModels = host.listModels.bind(host)
+    // `adopt` asks for the opened session's models: that request waits.
+    const listing = vi.spyOn(host, 'listModels').mockImplementation(async (sessionId) => {
+      if (sessionId === importedId) {
+        await held.promise
+      }
+      return await listModels(sessionId)
+    })
+    const applied = vi.spyOn(plain, 'setApprovalMode')
+    const overtaken = panel.handle({ type: 'resumeSession', sessionId: importedId })
+    await vi.waitFor(() => {
+      expect(listing).toHaveBeenCalledWith(importedId)
+    })
+    await panel.handle({ type: 'resumeSession', sessionId: plain.sessionId })
+    held.resolve(undefined)
+    await overtaken
+    expect(other.surface.posted).not.toContainEqual({ ...composerState, permissionMode: 'manual' })
+    expect(other.surface.posted).not.toContainEqual(untrustedNotice('Manual'))
+    expect(other.surface.posted.findLast((message) => message.type === 'historyLoaded')).toEqual(
+      expect.not.objectContaining({ imported: true }),
     )
-    await implementModelApiPlan({ t, api, controller, source })
-    // Manual, as for a plan file, though the starting mode is Auto.
-    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
-      permissionMode: 'manual',
-    })
-    expect(notices(t)).toContainEqual({
-      type: 'notice',
-      level: 'info',
-      text: fill(UI_TEXT.planFromImportedMode, { mode: UI_TEXT.permissionModes.manual }),
-    })
-    const body = JSON.stringify(api.responseBodies()[1])
-    expect(body).toContain(MODEL_TEXT.planBriefFromFile.slice(0, 40))
-    expect(body).not.toContain('The user approved the plan')
+    // The ordinary conversation runs in the panel's own Auto, not in Manual.
+    const [mode] = applied.mock.calls.at(-1) ?? []
+    expect(mode).toBeDefined()
+    expect(mode).not.toBe('promptUnmatched')
   })
+
+  it('refuses a file whose turns the model cannot read in one window, before asking (RV84 #10)', async () => {
+    const huge = 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES)
+    const t = setup({
+      transferFileContent: transferFile({
+        transcript: [{ itemId: 'u1', kind: 'userMessage', status: 'completed', text: huge }],
+      }),
+    })
+    const { host, controller } = modelApiController(t)
+    const importing = vi.spyOn(host, 'importSession')
+    await controller.handle({ type: 'importSession' })
+    const last = t.surface.posted.at(-1)
+    expect(last).toMatchObject({ type: 'notice', level: 'error' })
+    const text = last?.type === 'notice' ? last.text : ''
+    expect(text.startsWith(`${UI_TEXT.importSessionFailed}: `)).toBe(true)
+    expect(text).toContain(formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES))
+    expect(t.exported.importsConfirmed).toEqual([])
+    expect(importing).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['', false],
+    [', also once a restart continued the conversation', true],
+  ] as const)(
+    'implements a plan written over imported history as untrusted%s: a mode that asks, never "approved" (M84)',
+    async (_case, isRestarted) => {
+      const { t, api, controller, source } = await modelApiPlan(
+        '# Clean up\n\n1. Delete the build folder.',
+        'Plan',
+        { initialPermissionMode: 'auto', hasApprovalUi: true, transferFileContent: transferFile() },
+        async (imported) => {
+          await imported.handle({ type: 'importSession' })
+          // The user relaxes it to Plan, and the imported history steers the plan.
+          await imported.handle({ type: 'setPermissionMode', mode: 'plan' })
+          if (isRestarted) {
+            // The backend goes: the session is dropped, and the plan's
+            // message continues it from its saved record.
+            imported.hostExited({ description: 'crashed', isExpected: false, isPersistent: false })
+          }
+        },
+        memorySessionStore(),
+      )
+      if (isRestarted) {
+        expect(notices(t)).toContainEqual({
+          type: 'notice',
+          level: 'info',
+          text: UI_TEXT.sessionContinued,
+        })
+      }
+      await implementModelApiPlan({ t, api, controller, source })
+      // Manual, as for a plan file, though the starting mode is Auto.
+      expect(
+        t.surface.posted.findLast((message) => message.type === 'composerState'),
+      ).toMatchObject({ permissionMode: 'manual' })
+      expect(notices(t)).toContainEqual({
+        type: 'notice',
+        level: 'info',
+        text: fill(UI_TEXT.planFromImportedMode, { mode: UI_TEXT.permissionModes.manual }),
+      })
+      const body = JSON.stringify(api.responseBodies()[1])
+      expect(body).toContain(MODEL_TEXT.planBriefFromFile.slice(0, 40))
+      expect(body).not.toContain('The user approved the plan')
+    },
+  )
 
   it('refuses a file it cannot use before asking anything (M84)', async () => {
     const failed = 'The session could not be imported'
@@ -4964,6 +5050,8 @@ function modelApiController(
     readonly io?: ModelApiHostDeps['io']
     readonly contextIo?: ModelApiHostDeps['contextIo']
     readonly newId?: () => string
+    /** Where sessions are saved, when a test resumes one the host let go of. */
+    readonly store?: ModelApiHostDeps['store']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -4973,6 +5061,7 @@ function modelApiController(
     platform: options.platform ?? 'linux',
     io: options.io ?? noopToolIo,
     contextIo: options.contextIo ?? memoryContextIo(new Map()),
+    store: options.store,
     newId: options.newId ?? (() => 'fixed'),
     now: () => 0,
     log: t.log,
@@ -7613,10 +7702,15 @@ async function modelApiPlan(
   options: Parameters<typeof setup>[0] = PLAN_MODE_SETUP,
   /** Runs before the prompt (an import, M84) and leaves the panel in Plan mode. */
   beforePrompt?: (controller: ConversationController) => Promise<void>,
+  /** Where the host saves sessions, when the prelude has it let one go. */
+  store?: ModelApiHostDeps['store'],
 ) {
   const t = setup(options)
   let nextId = 0
-  const { api, controller } = modelApiController(t, { newId: () => `id${String(++nextId)}` })
+  const { api, controller } = modelApiController(t, {
+    newId: () => `id${String(++nextId)}`,
+    store,
+  })
   await beforePrompt?.(controller)
   api.script({ text: plan })
   await controller.handle({ type: 'sendMessage', localId: 'l1', text: prompt, attachmentIds: [] })
