@@ -406,6 +406,40 @@ A side chat stays in Plan mode, so it offers only Save plan. Implementing a
 saved plan is refused in Restricted Mode, because its content goes to the
 model as workspace text.
 
+### Handoff to a new conversation
+
+`/handoff`, optionally with a goal after it, asks the model — as your own
+turn in the current conversation — for a distilled brief of it: the goal,
+the decisions, the files touched, the open work and the todo list. Anything
+drawn from tool output, fetched pages or imported files is marked
+`[untrusted]` in the brief, and the new conversation is told what that
+means. The brief opens in a dialog before anything starts, with the open
+items the new todo list will hold under **Tasks**: review it, edit it if
+you need to, then **Start new conversation**, or **Cancel** and nothing
+starts. Starting leaves the old conversation in History and seeds the new
+one with the brief alone — the goal and the open items travel in its note,
+and on the Model API backend the open items become the todo list before
+the first request. The generated or edited brief may be up to 256 KB in
+UTF-8. Cancel closes a handoff before the new conversation commits. A
+brief that is ready while Account & usage, the Agent map or a share file is open waits
+until you close that dialog, then opens.
+
+The model wrote the brief, so the new conversation starts in your
+starting mode (`museSpark.initialPermissionMode`, as an implemented plan
+does: Manual when that is Plan, never Bypass in a remote window) only
+when the dialog showed you all of it. A brief or an open item holding a
+character the dialog does not show (a direction override, a zero-width
+character) starts in a mode that asks, Manual (Plan when that is your
+starting mode), and the panel names the mode. A handoff from a
+conversation in Plan mode stays in Plan.
+
+Automatic compaction, the hidden follow-up and memory flush are not
+built: only manual `/handoff` is available.
+
+Handoff runs on the Model API backend only: on Muse Code the command says
+so, where Muse Code compacts its own conversations. It starts from the
+main conversation, never a side chat.
+
 ## Rules, skills and memory
 
 In a trusted workspace the agent follows the same files Muse Code does:
@@ -1110,12 +1144,13 @@ palette with a filter box of its own. Its groups:
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/goal`, `/hooks`, `/logout`, `/mcp`, `/memory`,
-`/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API backend),
-and the session's skills. Names that start with your letters come first. Up
-and Down move, `Enter` runs a command (a skill, or `/goal`, is completed so
-you can add what follows it), `Tab` completes the name and `Esc` closes the
-list. With nothing matching, `Enter` sends the text as it is.
+`/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
+`/memory`, `/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API
+backend), and the session's skills. Names that start with your letters come
+first. Up and Down move, `Enter` runs a command (a skill, `/goal` or
+`/handoff` is completed so you can add what follows it), `Tab` completes
+the name and `Esc` closes the list. With nothing matching, `Enter` sends
+the text as it is.
 
 **Transcript.**
 
