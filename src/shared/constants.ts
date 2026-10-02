@@ -303,11 +303,10 @@ export const SETTING_DEFAULTS = {
   // M67 (PLAN.md D49): the repo map in the Model API's system prompt. It
   // spends tokens on every request, so it is off until the user turns it on.
   modelApiRepoMap: false,
-  // A checkpoint of the workspace's files at each turn boundary (M72): it
-  // runs git on every turn and copies files into the extension's storage.
-  // Preview, off until the user turns it on: its restore is being rebuilt
-  // on the tools' own writes (PLAN.md D63).
-  turnCheckpoints: false,
+  // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
+  // records what its file tools write, with nothing of the workspace
+  // captured, so it is on by default.
+  turnCheckpoints: true,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
