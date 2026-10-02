@@ -8543,6 +8543,17 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     })
   }
 
+  /** A distillation turn that ended unfinished: said, no dialog, and the slot free for `h2`. */
+  async function expectHandoffFreed(conversation: HandoffConversation) {
+    const { t } = conversation
+    await vi.waitFor(() => {
+      expect(notices(t).map((notice) => notice.text)).toContain(UI_TEXT.handoffInterrupted)
+    })
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    // The slot is free: the next handoff runs.
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  }
+
   it("distils the conversation as the user's own turn and shows the brief before anything starts", async () => {
     const conversation = await handoffConversation()
     const { t, api } = conversation
@@ -8999,15 +9010,62 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
 
   it('frees the handoff when its distillation turn is stopped, saying nothing started', async () => {
     const { conversation, release } = await heldDistillation()
-    const { t, controller } = conversation
-    await controller.handle({ type: 'cancelTurn' })
+    await conversation.controller.handle({ type: 'cancelTurn' })
     release.resolve(undefined)
-    await vi.waitFor(() => {
-      expect(notices(t).map((notice) => notice.text)).toContain(UI_TEXT.handoffInterrupted)
-    })
-    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
-    // The slot is free: the next handoff runs.
-    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+    await expectHandoffFreed(conversation)
+  })
+
+  it('frees the handoff when Stop withdraws its distillation turn, queued behind a compaction', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    // The compaction's summary is held, so the distillation turn queues behind it.
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: 'summary' }, { text: BRIEF })
+    const before = api.responseBodies().length
+    const compacting = controller.handle({ type: 'compact' })
+    try {
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(before + 1)
+      })
+      await controller.handle(handoff('h1'))
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffCommandResult',
+        requestId: 'h1',
+        accepted: true,
+      })
+      await controller.handle({ type: 'cancelTurn' })
+    } finally {
+      release.resolve(undefined)
+    }
+    await compacting
+    await expectHandoffFreed(conversation)
+  })
+
+  it('answers a request and a Start refused while a key activation holds admission, and both go through once it returns', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    // The panel still reads signed in while the backend's admission is held.
+    t.auth.isAdmitted = false
+    expect(t.auth.snapshot.status).toBe('signedIn')
+    t.surface.posted.length = 0
+    await controller.handle(handoff('h1', 'Ship it'))
+    // Refused with the reason, and answered, so the composer's command is free again.
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: false },
+    ])
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Admission back: the same command, sent again, runs.
+    t.auth.isAdmitted = true
+    await distil(conversation, 'h2', 'Ship it')
+    // The dialog's Start, refused while admission is held again, is answered too.
+    t.auth.isAdmitted = false
+    await expectConfirmRefused(t, controller, 'h2', EDITED)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    // Admission back: the waiting brief starts.
+    t.auth.isAdmitted = true
+    await confirmEdited(conversation, 'h2')
   })
 
   it('holds no slot and restores no dialog for a brief whose conversation is gone', async () => {
