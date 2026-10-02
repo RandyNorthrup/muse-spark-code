@@ -9,7 +9,8 @@
 //     shapes `MODEL_API_KEY_PATTERN` accepts
 //   - HTTP bearer and basic credentials: `Bearer <token>`, `Basic <base64>`
 //   - JSON Web Tokens (the CLI's OAuth access tokens are JWT-shaped):
-//     three base64url parts, the first two starting `eyJ`
+//     three base64url parts, the first two starting `eyJ`, redacted from
+//     the first `eyJ` on whatever is glued before it (`x-`, `x_`, `abc`)
 //   - Environment assignments of the known key variables: `META_API_KEY=...`,
 //     `MODEL_API_KEY=...`
 //   - Token and secret fields in JSON, query strings or `key=value` text:
@@ -54,13 +55,53 @@ function markUserInfo(_match: string, lead: string): string {
   return `${lead}${REDACTED_MARK}@`
 }
 
+// A token's first two parts are base64url JSON, which starts `{"`.
+const TOKEN_HEAD = 'eyJ'
+
+function isTokenPayload(part: string | undefined): boolean {
+  return part !== undefined && part.startsWith(TOKEN_HEAD) && part.length > TOKEN_HEAD.length
+}
+
+/**
+ * `words` (three or more dotted words) with every token in it redacted: a
+ * word holding `eyJ` and more, then a word starting `eyJ` and more, then any
+ * word. A token is redacted from its first `eyJ` through its third word;
+ * tokens that share a word are one redaction. Words without `eyJ` come back
+ * as they were.
+ */
+function redactTokens(words: string): string {
+  if (!words.includes(TOKEN_HEAD)) {
+    return words
+  }
+  const parts = words.split('.')
+  const kept: string[] = []
+  // The index of the last part inside a token found so far.
+  let redactedThrough = -1
+  for (const [index, part] of parts.entries()) {
+    const head = part.indexOf(TOKEN_HEAD)
+    const isTokenStart =
+      head !== -1 &&
+      head + TOKEN_HEAD.length < part.length &&
+      index + 2 < parts.length &&
+      isTokenPayload(parts[index + 1])
+    if (index > redactedThrough) {
+      kept.push(isTokenStart ? `${part.slice(0, head)}${REDACTED_MARK}` : part)
+    }
+    if (isTokenStart) {
+      redactedThrough = index + 2
+    }
+  }
+  return kept.join('.')
+}
+
 /** One credential shape, applied in list order. */
 export interface SecretRule {
   readonly pattern: RegExp
   /**
-   * Lower case; every match of `pattern` holds at least one of these, case
-   * ignored. `MAY_HOLD_SECRET` must find each, or the pattern never runs:
-   * redact.test.ts checks both against real-shaped matches.
+   * Lower case; every match of `pattern` that `replace` changes holds at
+   * least one of these, case ignored. `MAY_HOLD_SECRET` must find each, or
+   * the pattern never runs: redact.test.ts checks both against real-shaped
+   * matches.
    */
   readonly literals: readonly string[]
   readonly replace: (match: string, lead: string, quote: string) => string
@@ -68,16 +109,30 @@ export interface SecretRule {
 
 // The fields `QUOTED_SECRET_FIELD` and `SECRET_FIELD` name.
 const SECRET_FIELD_LITERALS = ['token', 'secret', 'apikey', 'api_key', 'password']
+// A PEM private key, its body to the END line. The one rule whose match runs
+// on over line breaks other than in the white space after a name, `=` or `:`
+// (`redactableSlices` relies on that).
+const PEM_PRIVATE_KEY =
+  /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[A-Za-z0-9+/=\s]*(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----)?/g
 
 export const SECRET_RULES: readonly SecretRule[] = [
   // Meta Model API keys.
   { pattern: /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/g, literals: ['llm'], replace: mark },
   { pattern: /(\bBearer\s+)[\w+./=~-]+/gi, literals: ['bearer'], replace: markAfter },
   { pattern: /(\bBasic\s+)[\w+/=]{8,}/gi, literals: ['basic'], replace: markAfter },
-  // A JSON Web Token. Starts only where no token character precedes: with
-  // `\b`, a long `eyJ-eyJ-…` run began a scan at every hyphen and took
-  // quadratic time.
-  { pattern: /(?<![\w-])eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g, literals: ['eyj'], replace: mark },
+  // JSON Web Tokens, inside three or more words joined by dots, matched
+  // whole. The lookbehind lets a match start only where a word starts, so a
+  // long word is not read again from each of its characters; the tokens are
+  // then found inside the match (`redactTokens`), so one glued after a dash,
+  // an underscore or a letter is still found. Matched from each `eyJ`
+  // instead (`\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+`), the rest of the word was read
+  // again from every `eyJ` in it: quadratic, seconds for a 64,000-character
+  // line of `eyJa-eyJa-…`.
+  {
+    pattern: /(?<![\w-])[\w-]+(?:\.[\w-]+){2,}/g,
+    literals: ['eyj'],
+    replace: (words) => redactTokens(words),
+  },
   // The known key variables.
   { pattern: /((?:META|MODEL)_API_KEY\s*=\s*)\S+/g, literals: ['api_key'], replace: markAfter },
   {
@@ -101,12 +156,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   },
   // Whole tokens, recognised by their shape and replaced entirely. A PEM
   // private key, its body to the END line:
-  {
-    pattern:
-      /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[A-Za-z0-9+/=\s]*(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----)?/g,
-    literals: ['private key'],
-    replace: mark,
-  },
+  { pattern: PEM_PRIVATE_KEY, literals: ['private key'], replace: mark },
   // GitHub tokens, GitLab personal access tokens, npm tokens.
   {
     pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,255}|github_pat_\w{20,255})/g,
@@ -225,4 +275,117 @@ export function redactSecrets(text: string): string {
     )
   }
   return result
+}
+
+// --- Long text in slices (RV84 #9) ---
+//
+// A rule's match holds a line break only in the white space after a name, an
+// `=` or a `:` (`Bearer\n  token`, `"password":\n  "…"`), or in a PEM key's
+// body. So text cut just after a line break redacts piece by piece as it
+// does whole, unless the last word before the break could start such a
+// match: one holding a rule's literal (`MAY_HOLD_SECRET`), ending in `=` or
+// `:`, or `Authorization` (whose rule has no literal of its own before its
+// colon); or unless the break is inside a PEM key. Every lookbehind and `\b`
+// reads a line break as it reads the start of the text, so a piece's edges
+// change no match. redact.test.ts checks this against every rule.
+
+const LINE_BREAK = '\n'
+const WHITESPACE = /\s/
+const OPEN_WORD_END = /(?:[=:]|authorization)$/i
+// A rule's name before the white space runs at most this long (an
+// upper-case variable: 1 + 60 + 11 + 60 characters), so a word's end is all
+// that is read.
+const OPEN_WORD_MAX_CHARS = 256
+const PEM_START = '-----BEGIN '
+const PEM_AT = new RegExp(PEM_PRIVATE_KEY.source, 'y')
+
+/** Where the white space starting at `at` ends. */
+function afterWhitespace(text: string, at: number): number {
+  let end = at
+  while (end < text.length && WHITESPACE.test(text.charAt(end))) {
+    end += 1
+  }
+  return end
+}
+
+/**
+ * Whether the last word before `cut`, after `from`, could start a match that
+ * goes on past `cut`. Only white space since `from` (a cut already found
+ * safe, or the text's start) leaves nothing open.
+ */
+function isWordOpen(text: string, from: number, cut: number): boolean {
+  let end = cut
+  while (end > from && WHITESPACE.test(text.charAt(end - 1))) {
+    end -= 1
+  }
+  let start = end
+  while (
+    start > from &&
+    end - start < OPEN_WORD_MAX_CHARS &&
+    !WHITESPACE.test(text.charAt(start - 1))
+  ) {
+    start -= 1
+  }
+  const word = text.slice(start, end)
+  return word !== '' && (MAY_HOLD_SECRET.test(word) || OPEN_WORD_END.test(word))
+}
+
+/** Where the PEM key that `cut` falls inside ends, if it falls inside one begun after `from`. */
+function pemEndAround(text: string, from: number, cut: number): number | undefined {
+  const start = text.lastIndexOf(PEM_START, cut - 1)
+  if (start < from) {
+    return undefined
+  }
+  PEM_AT.lastIndex = start
+  const key = PEM_AT.exec(text)
+  const end = key === null ? start : start + key[0].length
+  return end > cut ? end : undefined
+}
+
+/**
+ * The first cut at or after `target`, just after a line break, that no match
+ * goes on past; undefined when there is none before the text's end.
+ */
+function safeCut(text: string, from: number, target: number): number | undefined {
+  let at = target
+  for (;;) {
+    const lineBreak = text.indexOf(LINE_BREAK, at - 1)
+    const cut = lineBreak + 1
+    if (lineBreak === -1 || cut >= text.length) {
+      return undefined
+    }
+    if (isWordOpen(text, from, cut)) {
+      // The match may run through this white space: the next try is the
+      // line after the next word.
+      at = afterWhitespace(text, cut) + 1
+      continue
+    }
+    const pemEnd = pemEndAround(text, from, cut)
+    if (pemEnd === undefined) {
+      return cut
+    }
+    at = pemEnd + 1
+  }
+}
+
+/**
+ * `text` in pieces of `sliceChars` or a little more, each ending just after
+ * a line break that no credential goes on past, so `redactSecrets` of each
+ * piece, joined, is `redactSecrets` of the whole: a long text can be redacted
+ * a piece at a time, letting the event loop run between. A line longer than
+ * `sliceChars` stays in one piece.
+ */
+export function redactableSlices(text: string, sliceChars: number): string[] {
+  const slices: string[] = []
+  let from = 0
+  while (text.length - from > sliceChars) {
+    const cut = safeCut(text, from, from + sliceChars)
+    if (cut === undefined) {
+      break
+    }
+    slices.push(text.slice(from, cut))
+    from = cut
+  }
+  slices.push(text.slice(from))
+  return slices
 }

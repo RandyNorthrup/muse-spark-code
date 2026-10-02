@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { MAY_HOLD_SECRET, redactSecrets, SECRET_RULES } from '../../src/core/redact'
+import {
+  MAY_HOLD_SECRET,
+  redactableSlices,
+  redactSecrets,
+  SECRET_RULES,
+  type SecretRule,
+} from '../../src/core/redact'
 import { isValidModelApiKey } from '../../src/host/auth/credentialStore'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
@@ -73,6 +79,58 @@ const SHAPES: readonly (readonly [shape: string, text: string, redacted: string]
 // A linear scan of 100,000 characters takes milliseconds; the quadratic one took seconds.
 const LINEAR_SCAN_MS = 1000
 
+// The JWT pattern before 0.10.1, the reference the redactor must cover:
+// quadratic on a long word of `eyJ…-eyJ…-`, and blind to a token glued after
+// `_` or a letter.
+const OLD_JSON_WEB_TOKEN = /\beyJ[\w-]+\.eyJ[\w-]+\.[\w-]+/g
+// Every substring shaped like a token, wherever it starts.
+const TOKEN_SHAPE = /^eyJ[\w-]+\.eyJ[\w-]+\.[\w-]+$/
+const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl'
+const DIFFERENTIAL_CASES = 5000
+const DIFFERENTIAL_SEED = 20_261_001
+const DIFFERENTIAL_MAX_LENGTH = 40
+// How many cases of each kind the generator must reach.
+const DIFFERENTIAL_FLOOR = 50
+// The differential's pieces: its alphabet, and `eyJ` whole so tokens are common.
+const PIECES = ['eyJ', 'eyJ', 'eyJ', 'eyJ', 'e', 'y', 'J', 'a', '-', '.', '.', '.', '_', 'x', ' ']
+
+/** A seeded generator (a 32-bit LCG), so a failure names a reproducible case. */
+function seeded(seed: number): () => number {
+  let state = seed
+  return () => {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0
+    return state / 2 ** 32
+  }
+}
+
+/** Where the longest token-shaped substring from `start` ends, if there is one. */
+function tokenEnd(text: string, start: number): number | undefined {
+  for (let end = text.length; end > start; end -= 1) {
+    if (TOKEN_SHAPE.test(text.slice(start, end))) {
+      return end
+    }
+  }
+  return undefined
+}
+
+/** Every [start, end) of `text` that some token-shaped substring covers, merged. */
+function tokenSpans(text: string): [number, number][] {
+  const spans: [number, number][] = []
+  for (let start = 0; start < text.length; start += 1) {
+    const end = text.startsWith('eyJ', start) ? tokenEnd(text, start) : undefined
+    if (end === undefined) {
+      continue
+    }
+    const last = spans.at(-1)
+    if (last !== undefined && start <= last[1]) {
+      last[1] = Math.max(last[1], end)
+    } else {
+      spans.push([start, end])
+    }
+  }
+  return spans
+}
+
 describe('redactSecrets', () => {
   it('redacts Meta Model API keys wherever they appear', () => {
     expect(redactSecrets('key=LLM|1234567890|abcDEF-123_xyz done')).toBe('key=[redacted] done')
@@ -123,6 +181,81 @@ describe('redactSecrets', () => {
     expect(redactSecrets(`${'x'.repeat(31)}://user:hunter2@host`)).toBe(
       `${'x'.repeat(31)}://[redacted]@host`,
     )
+  })
+
+  it.each([
+    ['a plain token', `token ${JWT} end`, 'token [redacted] end'],
+    ['a token glued after a dash', `token=x-${JWT}`, 'token=x-[redacted]'],
+    ['a token glued after an underscore', `x_${JWT}`, 'x_[redacted]'],
+    ['a token glued after letters', `abc${JWT}`, 'abc[redacted]'],
+    ['a token between dotted words', `v1.${JWT}.tail`, 'v1.[redacted].tail'],
+    [
+      'a token in a URL query',
+      `GET https://auth.example/cb?jwt=${JWT}&state=s1`,
+      'GET https://auth.example/cb?jwt=[redacted]&state=s1',
+    ],
+    ['a token in JSON', `{"jwt":"${JWT}","n":1}`, '{"jwt":"[redacted]","n":1}'],
+  ])('redacts %s from its first eyJ on', (_case, text, redacted) => {
+    expect(redactSecrets(text)).toBe(redacted)
+  })
+
+  it('redacts every span the old JWT pattern did, and every token-shaped one', () => {
+    const random = seeded(DIFFERENTIAL_SEED)
+    const mismatches: string[] = []
+    let oldMatches = 0
+    let newlyRedacted = 0
+    for (let index = 0; index < DIFFERENTIAL_CASES; index += 1) {
+      const length = 1 + Math.floor(random() * DIFFERENTIAL_MAX_LENGTH)
+      let text = ''
+      while (text.length < length) {
+        text += PIECES[Math.floor(random() * PIECES.length)] ?? ''
+      }
+      text = text.slice(0, length)
+      const spans = tokenSpans(text)
+      for (const match of text.matchAll(OLD_JSON_WEB_TOKEN)) {
+        oldMatches += 1
+        const end = match.index + match[0].length
+        if (spans.every(([from, to]) => match.index < from || to < end)) {
+          mismatches.push(
+            `${JSON.stringify(text)}: the old match at ${String(match.index)} uncovered`,
+          )
+        }
+      }
+      let expected = ''
+      let kept = 0
+      for (const [from, to] of spans) {
+        expected += `${text.slice(kept, from)}[redacted]`
+        kept = to
+      }
+      expected += text.slice(kept)
+      const actual = redactSecrets(text)
+      if (actual !== expected) {
+        mismatches.push(`${JSON.stringify(text)}: ${JSON.stringify(actual)}`)
+      }
+      if (expected !== text.replaceAll(OLD_JSON_WEB_TOKEN, '[redacted]')) {
+        newlyRedacted += 1
+      }
+    }
+    expect(mismatches).toEqual([])
+    // The cases reached tokens the old pattern found, and text it redacted less of.
+    expect(oldMatches).toBeGreaterThan(DIFFERENTIAL_FLOOR)
+    expect(newlyRedacted).toBeGreaterThan(DIFFERENTIAL_FLOOR)
+  })
+
+  it.each([
+    ['a word of dashed eyJ parts', 'eyJa-'.repeat(25_600), 'eyJa-'.repeat(25_600)],
+    [
+      'two such words joined by a dot',
+      `${'eyJa-'.repeat(12_800)}.${'eyJa-'.repeat(12_800)}`,
+      `${'eyJa-'.repeat(12_800)}.${'eyJa-'.repeat(12_800)}`,
+    ],
+    ['dotted eyJ words', 'eyJa.'.repeat(25_600), '[redacted].'],
+  ])('reads a 128,000-character line of %s in linear time', (_case, line, redacted) => {
+    // Quadratic with the old pattern: seconds for the two dashed lines even
+    // at half this length, so the bound holds a wide margin on fast machines.
+    const started = performance.now()
+    expect(redactSecrets(line)).toBe(redacted)
+    expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
   })
 
   it('scans a long dotted run in linear time (M84 exports whole conversations)', () => {
@@ -180,6 +313,17 @@ const EARLIER_SAMPLES: readonly string[] = [
   'password="two words"',
 ]
 
+/**
+ * The matches of `rule` in `text` that its `replace` changes. The JWT rule
+ * matches every run of dotted words and changes only those holding a token.
+ */
+function changedMatches(text: string, rule: SecretRule): string[] {
+  return Array.from(text.matchAll(rule.pattern), (found) => {
+    const [match, lead = '', quote = ''] = found
+    return rule.replace(match, lead, quote) === match ? undefined : match
+  }).filter((match) => match !== undefined)
+}
+
 /** `text` with each of `literals` (lower case) blanked wherever it appears, in any case. */
 function withoutLiterals(text: string, literals: readonly string[]): string {
   let result = text
@@ -215,7 +359,7 @@ describe('MAY_HOLD_SECRET, the prefilter in front of every rule', () => {
     'lets every real-shaped match of the rule needing %s through, and the redactor removes it',
     (_literals, rule) => {
       const matches = samples.flatMap((text) =>
-        (text.match(rule.pattern) ?? []).map((match) => ({ text, match })),
+        changedMatches(text, rule).map((match) => ({ text, match })),
       )
       expect(matches).not.toHaveLength(0)
       for (const { text, match } of matches) {
@@ -226,9 +370,115 @@ describe('MAY_HOLD_SECRET, the prefilter in front of every rule', () => {
           match,
         ).toBe(true)
         // The declared literals are what the match needs: blanked, it is gone.
-        expect(withoutLiterals(text, rule.literals).match(rule.pattern), text).toBeNull()
+        expect(changedMatches(withoutLiterals(text, rule.literals), rule), text).toEqual([])
         expect(redactSecrets(text), text).not.toContain(match)
       }
     },
   )
+})
+
+// The slicing differential (RV84 #9): every rule's name, the separators and
+// white space a match may run through over a line break, values, and a PEM
+// key's edges and body, so generated texts often hold a match across a line.
+const SLICE_PIECES = [
+  '\n',
+  '\n',
+  '\n',
+  ' ',
+  ' ',
+  '\t',
+  '=',
+  ':',
+  '"',
+  "'",
+  ',',
+  'Bearer',
+  'Basic',
+  'MODEL_API_KEY',
+  'password',
+  'access_token',
+  'GITHUB_TOKEN',
+  'aws_secret_access_key',
+  'AccountKey',
+  '_auth',
+  'x-api-key',
+  'Authorization',
+  'token',
+  '{"apiKey"',
+  'https://u:p@h',
+  pemEdge('BEGIN'),
+  pemEdge('END'),
+  'QUJDRA',
+  '+/=',
+  'abc',
+  'note',
+  'eyJa',
+  '.',
+  `LLM_${'k'.repeat(16)}`,
+  `AKIA${'B'.repeat(16)}`,
+]
+const SLICE_CASES = 4000
+const SLICE_SEED = 20_261_002
+const SLICE_MAX_PIECES = 40
+const SLICE_MAX_CHARS = 24
+// How many cases must hold a match that a cut at every line break would split.
+const SLICE_FLOOR = 200
+
+describe('redactableSlices', () => {
+  it('cuts only where the pieces redact as the whole text does', () => {
+    const random = seeded(SLICE_SEED)
+    const mismatches: string[] = []
+    let crossings = 0
+    let cuts = 0
+    for (let index = 0; index < SLICE_CASES; index += 1) {
+      let text = ''
+      const pieces = 1 + Math.floor(random() * SLICE_MAX_PIECES)
+      for (let piece = 0; piece < pieces; piece += 1) {
+        text += SLICE_PIECES[Math.floor(random() * SLICE_PIECES.length)] ?? ''
+      }
+      const sliceChars = 1 + Math.floor(random() * SLICE_MAX_CHARS)
+      const slices = redactableSlices(text, sliceChars)
+      const whole = redactSecrets(text)
+      const sliced = slices.map((slice) => redactSecrets(slice)).join('')
+      if (sliced !== whole || slices.join('') !== text) {
+        mismatches.push(JSON.stringify([text, sliceChars, sliced, whole]))
+      }
+      cuts += slices.length - 1
+      // Cut after every line break instead: a match running over one would split.
+      const naive = text.split(/(?<=\n)/).map((line) => redactSecrets(line))
+      if (naive.join('') !== whole) {
+        crossings += 1
+      }
+    }
+    expect(mismatches).toEqual([])
+    expect(crossings).toBeGreaterThan(SLICE_FLOOR)
+    expect(cuts).toBeGreaterThan(SLICE_FLOOR)
+  })
+
+  it('keeps a PEM key longer than a slice in one piece, so none of its body is left', () => {
+    const body = `${'QUJDRA'.repeat(12)}\n`.repeat(400)
+    const text = `before\n${pemEdge('BEGIN')}\n${body}${pemEdge('END')}\nafter\n${'line\n'.repeat(50)}`
+    const slices = redactableSlices(text, 64)
+    expect(slices.length).toBeGreaterThan(1)
+    expect(slices.find((slice) => slice.includes('QUJD'))).toContain(pemEdge('END'))
+    expect(slices.map((slice) => redactSecrets(slice)).join('')).toBe(redactSecrets(text))
+    expect(slices.map((slice) => redactSecrets(slice)).join('')).not.toContain('QUJD')
+  })
+
+  it('cuts a long text of ordinary lines near the slice size, and leaves one long line whole', () => {
+    const lines = 'an ordinary line of output\n'.repeat(20_000)
+    const slices = redactableSlices(lines, 4096)
+    expect(slices.join('')).toBe(lines)
+    expect(Math.max(...slices.map((slice) => slice.length))).toBeLessThan(4096 + 64)
+    const line = 'x'.repeat(100_000)
+    expect(redactableSlices(`${line}\n${line}`, 4096)).toEqual([`${line}\n`, line])
+  })
+
+  it('finds its cuts in linear time where every line could start a match', () => {
+    const text = 'Bearer\n'.repeat(50_000)
+    const started = performance.now()
+    // `Bearer` then a line break then `Bearer` is a credential: never cut.
+    expect(redactableSlices(text, 64)).toEqual([text])
+    expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
+  })
 })
