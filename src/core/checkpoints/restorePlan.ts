@@ -56,9 +56,13 @@ export interface Refusal {
   readonly reason: RefusalReason
 }
 
-/** What a file must still be just before a step changes it. */
+/**
+ * What a file must still be just before a step changes it. A blob's mode
+ * counts as much as its bytes: the step writes the checkpoint's execute bit,
+ * so a chmod since the capture would be undone.
+ */
 export type Expectation =
-  | { readonly kind: 'blob'; readonly oid: string }
+  | { readonly kind: 'blob'; readonly oid: string; readonly mode: string }
   | { readonly kind: 'absent' }
   | { readonly kind: 'stat'; readonly stat: FileStat }
 
@@ -171,7 +175,9 @@ function workTreeStep(change: TreeChange): RestoreStep {
     path: change.path,
     target: change.before ?? null,
     expect:
-      change.after === undefined ? { kind: 'absent' } : { kind: 'blob', oid: change.after.oid },
+      change.after === undefined
+        ? { kind: 'absent' }
+        : { kind: 'blob', oid: change.after.oid, mode: change.after.mode },
     isIgnoreChecked: change.before === undefined,
   }
 }
@@ -202,7 +208,14 @@ function ignoredSteps(
     // What the file was before the first of these turns touched it.
     const before = first.kind === 'created' ? null : first.preImage
     const expect: Expectation = now === null ? { kind: 'absent' } : { kind: 'stat', stat: now }
+    // A tool's copy is taken wherever it writes; a repository of its own (or
+    // anything else a capture left out) is still not the checkpoint's to change.
     if (
+      !isCovered(input.coverage.checkpoint, ignoredPath) ||
+      !isCovered(input.coverage.current, ignoredPath)
+    ) {
+      refused.push({ path: ignoredPath, reason: 'notInCheckpoint' })
+    } else if (
       entry.isTouchedBetween ||
       !isSameStat(now, entry.endStat) ||
       input.changedOutsideTurns.has(ignoredPath)

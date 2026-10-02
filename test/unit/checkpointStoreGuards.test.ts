@@ -10,6 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   BYTES_PER_MIB,
@@ -48,6 +49,9 @@ const realGit = processGitProcess()
 const GONE_PID = 424_242
 const WRITE_BATCH = 500
 const SHA256_HEX_LENGTH = 64
+// How long the first `git init` waits for a second setup to reach its own:
+// one gets there in milliseconds when the setup is not shared.
+const SECOND_SETUP_WAIT_MS = 1000
 
 /** The real git, failing the commands `shouldFail` names. */
 function failingGit(shouldFail: (args: readonly string[]) => boolean): GitProcess {
@@ -180,6 +184,26 @@ describe('CheckpointStore failures part way (M72)', () => {
       expect(again.changed).toEqual(['user.txt'])
       expect(again.isRedoSpent).toBe(true)
       expect(await read(h.root, 'user.txt')).toBe('b1\n')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it.skipIf(process.platform === 'win32')(
+    'keeps a file whose execute bit the user changed since the restore out of its redo',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'run.sh', 'echo one\n')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'run.sh', 'echo two\n')
+      })
+      const restored = await restoreTurn(h.store, 't1')
+      // The bytes are as the restore left them; the execute bit is the user's.
+      await chmod(path.join(h.root, 'run.sh'), 0o755)
+      const redo = await redoRestore(h.store, restored.restoreId)
+      expect(redo.refused).toEqual([{ path: 'run.sh', reason: 'changedAfter' }])
+      const script = await stat(path.join(h.root, 'run.sh'))
+      expect(await read(h.root, 'run.sh')).toBe('echo one\n')
+      expect(script.mode & 0o777).toBe(0o755)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -344,6 +368,23 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
   )
 
   it(
+    'keeps the new checkpoints of a conversation unarchived after the clock went back',
+    async () => {
+      let clock = 5000
+      const h = await harness({ now: () => clock })
+      await h.store.forgetSession('s1')
+      // The clock goes back: everything from now on is "before" the archive.
+      clock = 1000
+      await h.store.unforgetSession('s1')
+      await turn(h, 't1', async () => {
+        await write(h.root, 'a.txt', 'a1\n')
+      })
+      expect(await h.store.turns('s1')).toEqual(['t1'])
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'when a window opens, forgets the conversations archived while it was untrusted',
     async () => {
       const h = await harness()
@@ -476,6 +517,38 @@ describe('CheckpointStore across conversations and windows (M72)', () => {
       await captured(h.store)
       const folder = await stat(h.storage)
       expect(folder.mode & 0o777).toBe(CHECKPOINT_STORAGE_MODE)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
+
+describe('CheckpointStore first setup (M72)', () => {
+  // A window's first message reads its conversation's checkpoints (in the
+  // queue) and publishes its running mark (outside it) together: the Theia
+  // host check's "the message was not sent" (PR #55).
+  it(
+    'sets the repository up once when a running mark meets the first read',
+    async () => {
+      let inits = 0
+      const second = Promise.withResolvers<undefined>()
+      const h = await harness({
+        git: 'none',
+        gitProcess: async (args, options) => {
+          if (args.includes('init')) {
+            inits += 1
+            if (inits === 1) {
+              await Promise.race([second.promise, sleep(SECOND_SETUP_WAIT_MS)])
+            } else {
+              second.resolve(undefined)
+            }
+          }
+          return await realGit(args, options)
+        },
+      })
+      await expect(
+        Promise.all([h.store.turns('s1'), h.store.markTurn('pending:message', true)]),
+      ).resolves.toEqual([[], undefined])
+      expect(inits).toBe(1)
     },
     REAL_GIT_TIMEOUT_MS,
   )
