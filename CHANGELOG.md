@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows hooks no longer wait on PowerShell's module scan.** The
+  PowerShell wrapper that puts each Windows command and hook in its job
+  object (M27) loaded the job helper with `Add-Type` and switched output to
+  UTF-8 with `New-Object`. PowerShell finds both cmdlets by module
+  auto-loading, which, without its module analysis cache, first analyses
+  every installed module. A hook's narrow environment does not carry
+  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner each hook
+  waited about 20 s before it started, and more than 60 s on a cold runner
+  (the M51 hook test's intermittent timeout). The wrapper now makes .NET
+  calls only, so a hook or command starts without any module discovery.
+
 ## [0.10.0] - 2026-10-01
 
 ### Highlights

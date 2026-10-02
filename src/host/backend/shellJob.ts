@@ -113,7 +113,14 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * The statement a command starts with to join its job. A failure (the
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
+ *
+ * It loads the assembly through .NET, not `Add-Type`: a cmdlet is found by
+ * module auto-loading, which without a module analysis cache analyses every
+ * module on the module path before the command can start. A hook runs in a
+ * narrow environment without `PSModuleAnalysisCachePath`, and on GitHub's
+ * Windows runner that analysis took 20 s and, on a cold runner, over the
+ * hook test's 60 s budget before the hook itself began.
  */
 export function joinStatement(job: ShellJob): string {
-  return `try { Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+  return `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
 }

@@ -142,7 +142,7 @@ describe('the statement a command joins its job with (M27)', () => {
       assemblyPath: String.raw`C:\Users\O'Brien\job.dll`,
     }
     expect(joinStatement(job)).toBe(
-      String.raw`try { Add-Type -Path 'C:\Users\O''Brien\job.dll'; [MuseSparkJob]::Join('Local\MuseSparkShell-1') } catch { }; `,
+      String.raw`try { [void][Reflection.Assembly]::LoadFrom('C:\Users\O''Brien\job.dll'); [MuseSparkJob]::Join('Local\MuseSparkShell-1') } catch { }; `,
     )
     expect(shellArguments('win32', 'Write-Output ok', job).at(-1)).toBe(
       `${joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}Write-Output ok`,
