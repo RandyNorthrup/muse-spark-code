@@ -404,7 +404,9 @@ describe('the job path (M27)', () => {
     const world = scripted(shell, { job: 'terminated' })
     await killTree(shell, world.scriptedDeps, Date.now() - SECOND, JOB)
     expect(world.calls).toHaveLength(1)
-    expect(world.calls[0]?.body).toContain(String.raw`Add-Type -Path 'C:\store\job.dll'`)
+    expect(world.calls[0]?.body).toContain(
+      String.raw`[void][Reflection.Assembly]::LoadFrom('C:\store\job.dll');`,
+    )
     expect(world.calls[0]?.body).toContain(String.raw`::Terminate('Local\MuseSparkShell-test', 1)`)
     expect(world.logged).toEqual([])
   })
@@ -423,13 +425,13 @@ describe('the job path (M27)', () => {
   it('falls back when the helper itself fails', async () => {
     const shell = new FakeShell(100)
     const world = scripted(shell, {
-      job: new Error('Add-Type is not allowed'),
+      job: new Error('Method invocation is supported only on core types'),
       tables: [table([])],
     })
     await killTree(shell, world.scriptedDeps, Date.now() - SECOND, JOB)
     expect(world.taskkills()).toHaveLength(1)
     expect(world.logged).toEqual([
-      'the job of 100 could not be terminated (Error: Add-Type is not allowed); ending its tree with taskkill',
+      'the job of 100 could not be terminated (Error: Method invocation is supported only on core types); ending its tree with taskkill',
     ])
   })
 })

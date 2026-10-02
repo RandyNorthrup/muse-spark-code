@@ -15,7 +15,7 @@ import {
   shellJobAssemblyName,
 } from '../../src/host/backend/shellJob'
 import { shellArguments } from '../../src/host/backend/toolIo'
-import type { RunProgram } from '../../src/host/processTree'
+import { loadJobAssembly, type RunProgram } from '../../src/host/processTree'
 import {
   SHELL_JOB_FOLDER,
   SHELL_JOB_NAME_PREFIX,
@@ -81,6 +81,8 @@ describe('shellJobAssembly (M27)', () => {
     expect(powershell.scripts).toHaveLength(2)
     expect(powershell.scripts[0]).toContain('-OutputType Library')
     expect(powershell.scripts[1]).toContain(`::Join('${SHELL_JOB_NAME_PREFIX}`)
+    // It loads the assembly as each command's join does, so it proves that load.
+    expect(powershell.scripts[1]?.split('; ', 1)[0]).toBe(loadJobAssembly(path.join(folder, name)))
     expect(logged).toEqual([])
     // A later window finds it compiled and only tests it.
     const later = fakePowerShell()

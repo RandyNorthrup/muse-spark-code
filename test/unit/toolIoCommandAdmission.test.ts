@@ -43,7 +43,7 @@ function localIo() {
     // The whole environment, as the extension host hands the shell tool. A
     // PATH-only one hid PSModuleAnalysisCachePath from Windows PowerShell on
     // GitHub's runner, so `Write-Output`'s module auto-loading analysed every
-    // installed module first: 20 s, and once past this test's deadline.
+    // installed module first: 17 to 29 s, and once past this test's deadline.
     env: () => process.env,
     listFiles: () => Promise.resolve([]),
     searchWorkerPath: 'unused',

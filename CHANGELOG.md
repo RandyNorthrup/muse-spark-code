@@ -15,10 +15,12 @@ happened, not what was planned; superseded entries are kept.
   UTF-8 with `New-Object`. PowerShell finds both cmdlets by module
   auto-loading, which, without its module analysis cache, first analyses
   every installed module. A hook's narrow environment does not carry
-  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner each hook
-  waited about 20 s before it started, and more than 60 s on a cold runner
-  (the M51 hook test's intermittent timeout). The wrapper now makes .NET
-  calls only, so a hook or command starts without any module discovery.
+  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner a hook waited
+  roughly 18 to 30 s before it started, and past the hook test's 60 s on a
+  fresh runner (the M51 hook test's intermittent timeout). The wrapper now
+  makes .NET calls only, so a hook or command starts without any module
+  discovery; the helper's self-test and a stopped command's job kill load
+  it the same way.
 - **The ACP agent reaches npm.** The release workflow passed its package as
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
