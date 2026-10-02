@@ -926,6 +926,7 @@ Section B of the audit (D24), plus the lifecycle rows of section G.
 | The CLI's config root drifts from the sign-in check (Claude Code #66499)            | An `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moved the CLI's credentials and settings, but the extension looked under the host's own environment.                                                                                                                                                                                                                                                    | The credential file, `settings.json` and the personal skill root are read under the CLI's environment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | The terminal environment (Cline #7793)                                              | The Model API shell ignored `terminal.integrated.env.*`.                                                                                                                                                                                                                                                                                                                                                         | Applied as VS Code's terminal applies it (`${env:…}`, `${workspaceFolder}`, `null` removes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `windowsHide` on every spawn                                                        | Every spawn the extension makes hides its window; the SDK's own `spawnMspConnection` has no such option and spawns without it (VS Code's extension host has a hidden console, which children inherit, so no window shows). Filed as meta-models/muse-code-sdk#34 (2026-09-23).                                                                                                                                   | Recorded; nothing the extension can pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| A slow start is killed, and its failure shown by every waiter (0.10.1)              | On a CPU-starved machine (an activation that took 211 s) `muse serve` missed the 30 s handshake deadline and was killed though its process still ran; each caller waiting on that one start (six skill listings from the palette and slash menu, the warm-up) showed its own "That did not work" card for the same failure.                                                                                      | A process still running at 30 s gets one longer wait, 120 s in all (`withSlowDeadline`, `MSP_SLOW_HANDSHAKE_TIMEOUT_MS`); one that exits fails at once. The controller shows a failure once (`shownFailures`, by the error the shared start rejected every waiter with): a message on its own card, another action's card, else the warm-up's notice after every other waiter had its turn; skill listings only log. The next action starts afresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 ### D26 — The audit: protocol and backend semantics (2026-09-23)
 
@@ -8515,6 +8516,77 @@ extension's own storage, never the workspace's `.git`.
 
 ### M75 — Paired efficiency evaluation (D49)
 
+**PR63 second review round and the 0.10.0 merge (2026-10-01):** main
+(`90ec399e`, 0.10.0 and the npm path fix) merged in; its [Unreleased]
+`### Fixed` kept, M75's entry under `### Added`. Three threads closed:
+
+- **No credential variable in the model's shell commands.** Both live
+  harnesses build their tool access through `liveToolIo`
+  (`test/e2e/evalLiveSupport.ts`), whose environment is
+  `withoutCredentials(process.env)`, as for every process the ACP agent
+  starts; the cards are allowed without a person reading them, so another
+  provider's key in the owner's shell must not reach a tool's output.
+- **Arms take turns going first.** The task at index i starts with arm
+  i mod arms, so the prompt cache a task's first run warms (the same system
+  prompt and message) is not credited to one arm; each v2 result records
+  its `order` (1 = first), shown in the report, absent from v1.
+- **The task selection is read inside the enabled test only**
+  (`liveEvalSelection`, which refuses while live tests are off without
+  reading anything), so a stale `MUSE_EVAL_TASKS` cannot fail the default
+  run; the outer deadline allows the whole task set.
+
+**PR63 final review, 2026-09-30 (repairs pending):** close the four reported
+boundaries before merge. The opt-in live evaluator reads its credential from
+the existing secure credential-store API inside the enabled test; it never
+loads a key from its initial environment, arguments or a fixture. The same
+arms list determines both execution and the outer task-by-arm deadline;
+individual turn and verifier limits stay unchanged. Workspace-creation
+failures retain cleanup but expose only bounded fixed error information,
+including failures before a workspace object can be returned. Preserve the
+authentic version-1 baseline byte-for-byte; version the expanded report as 2,
+parse the legacy fields as genuinely unrecorded and render them truthfully.
+Add ordinary mocked regression controls and deliberate failure proofs, then
+repeat exact-tree local/platform/independent/hosted gates. No live or paid
+evaluation is authorized by these repairs.
+
+- **Main 327 update plan (2026-09-30; source only).** Preserve the f7
+  candidate and original dirty source, then replay the approved continuation
+  through a normal merge of `32709441`. Retain M68's actual-send guards,
+  check registry, conditional tool I/O and canonical runtime. Reconcile
+  the eval client-settings helper with M68's canonical fake key/account
+  ports; keep the wire `3b81e698` and test `9cf294e0` bytes unchanged.
+  No QA or model run is performed by this source preparation.
+- **Current-main preparation (2026-09-30; verification held).** Join
+  main `f7db5715` through a normal pending merge and retain the original
+  ten-file approved continuation, including `wire.ts` source hash
+  `3b81e698` and its `9cf294e0` regression tests. Reuse M76's already
+  prepared current-host driver/test ports for code intelligence, repo-map
+  and web fetch defaults; do not replace this harness with an older host.
+  Preserve finite/safe-integer usage validation and the shared unknown
+  liability flag that stops later model calls after ambiguous sent usage.
+  The ten-task, 39-request historical report remains historical. New
+  current-main compiler, behavior, red and aggregate/platform evidence is
+  still required. No new model run is authorized by this preparation.
+  **Resume review 2026-09-29:** the ten-task baseline exists at `f3e6bb35`
+  (39 requests, recorded $0.0041); its JSON and Markdown remain unchanged.
+  Later WIP changed the harness and does not inherit that live certification.
+  Review found invalid negative/cached token counts could lower its budget, and
+  sent requests with missing usage could leave later tasks free to keep sending.
+  Reject invalid counts and close the shared run budget when sent usage is unknown;
+  recheck after an awaited request body before sending. Fresh tests, deliberate
+  red proofs, full rig gates and contemporary paired evidence remain required.
+  Independent review also found the non-Request send reused mutable original
+  arguments after validation; always send the validated `Request` snapshot.
+  The final independent review found fractional and unsafe integer token counts
+  still passed the eval bridge. Require nonnegative safe integer input, output
+  and cached counts, retaining cached <= input. Raw nonfinite SSE usage must
+  retain unknown liability and refuse the next shared-budget arm. The old-base
+  Mac refresh passed all 91 eval tests before/after six assertion-failing
+  mutations, host/unit types, scoped lint/format and duplication; receipt
+  `m75-count-boundary-preliminary-fix/receipt.json` records exact restoration.
+  The prior 81-test Mac receipt remains historical evidence for its exact source.
+  Current-main integration and full rig gates remain required.
+
 - **Goal.** A harness change is measured before it is trusted.
 - **Scope.**
   - A task set: repository fixtures with verifiers, split into accept and
@@ -8534,12 +8606,67 @@ extension's own storage, never the workspace's `.git`.
 - **Tests.** The runner and its verifiers against the fake Model API; the
   live runs are the evidence.
 - **Size.** M.
+- **Status.** Built on `feature/m75-eval` (2026-09-28). A first draft
+  (Muse Code, contributor model) drove a small tool loop of its own with
+  three file tools and in-memory fixtures, judged by string matching, and
+  committed a fake-API run as the baseline; the review replaced all
+  three, since a mechanism M73 or M74 adds lives in the extension's
+  harness and the draft's loop could not carry it. What landed:
+  - `src/core/eval/`: the task set (`tasks.ts`), a task's folders and its
+    verifier (`workspace.ts`), the trace (`wire.ts`), one turn on the
+    harness (`driver.ts`), the paired runner (`runner.ts`) and the report
+    (`report.ts`); the `EVAL_*` constants and `MODEL_TEXT.evalClarification`.
+  - `test/unit/eval/` (60 tests on the fake Model API, the real
+    `ModelApiHost`, the real tool I/O on disk and real verifier
+    processes) and 15 red drills (docs/certification/m75.md).
+  - `npm run test:e2e:live:eval` (`test/e2e/eval.live.e2e.test.ts`),
+    opt-in like the Model API sweep. The baseline, all ten tasks on
+    the contributor model, passed 10/10 in 39 model calls for $0.0041,
+    verdict `pass` (`docs/certification/m75-baseline.json` and `.md`),
+    after a first run of two accept tasks (6 calls, $0.0009).
+- **Decisions.**
+  - **The harness under test is the extension's own.** Each task runs a
+    `ModelApiHost` (the system prompt, tools, permission engine and loop
+    users run) with the task's prompt as the user's message. A mechanism
+    is a change to the host's dependencies (`EvalHostChange`), so the two
+    arms of a pair differ in that alone; M73 and M74 add their arm to the
+    live file with their runs. Only the panel is replaced: a card is
+    allowed once (Auto mode, so only shell commands and protected writes
+    ask), a question is answered "proceed", and no paid feature is on or
+    allowed (D48): a paid use that happens anyway fails the task.
+  - **An empty workspace per task.** A fresh folder under the system's
+    temporary folder per task and arm, holding the fixture files only
+    (each fixture is an ES module package), removed afterwards. Nothing
+    from the owner's profile (personal skills, memory, hooks) reaches the
+    prompt.
+  - **Verifiers judge behaviour.** Each is a Node module run after the
+    turn beside the workspace (the model never sees it), in its own
+    process with an empty environment and a time limit; it imports the
+    fixed files and asserts what they do, so any correct fix passes.
+    Every verifier is proved to fail its defect and to pass two
+    spellings of the fix.
+  - **Attempts from the trace.** Every request goes through the run's
+    `fetch`, which records method, path, model, status and the usage
+    Meta returned; attempts are the `POST /responses` sent, retries and
+    any call a mechanism adds included. It refuses, without sending, a
+    model call on any model but `muse-spark-1.3-contributor`, any other
+    host, and everything once the run's estimate passes $0.50.
+  - **Floors 0.75 / 0.75**, fixed in advance: 5 of 6 accept and 3 of 4
+    held-out tasks must pass, on every arm, the baseline included (a
+    task set the baseline cannot pass detects nothing). A split that did
+    not run holds no floor: such a run is `incomplete`, never `pass`.
+  - **Paired task by task**: each task runs on every arm before the next,
+    so both arms of a pair share the conditions of the moment.
+  - No new setting, command, panel string or paid feature: the
+    evaluation is developer tooling. M73 and M74 add their own
+    off-by-default settings with their passing runs.
 
 ### M73 — Observation packing (D49)
 
 - **Goal.** Long sessions stop resending large old tool outputs.
 - **Scope.**
-  - SoL-Pi's ObservationPack, ported: a tool result over a threshold is
+  - NVIDIA SoL-Pi's ObservationPack design, implemented for the Model API:
+    a tool result over a threshold is
     sent whole for its first requests, then as a placeholder with an id,
     size, and first and last lines.
   - `recall_output(id, offset)` pages the original back. Originals are
@@ -9646,6 +9773,27 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
+`7d1ed818` passed host, webview and integration types plus scoped lint,
+format and localization, but unit/e2e types rejected the removed
+`ToolIoDeps.hasUnsavedChanges` port. Seven real-disk runner assertions failed
+because the same stale fixture could not inspect unsaved editor files during
+conditional writes. Replace both eval adapters with the current
+`unsavedFiles: () => []` port: these isolated workspaces have no open editor.
+Preserve the current M68 ToolIO implementation and all assertions, then rerun
+the five types, all 91 eval controls and six isolated semantic red/restored
+cycles. The first duplication invocation failed to locate jscpd's current
+entry point; retain that runner failure and invoke the package's declared bin.
+No model call, full quality or platform certification is implied.
+Repaired tree `99d45301` passed all five type projects, 91/91 eval controls,
+scoped lint/format, localization and duplication (zero clones). Six disposable
+semantic mutations reached their exact named assertion failures and restored
+to 91/91; all archive bytes and candidate source remained unchanged. External
+`m75-host-99d4-20260930/receipt.json` and `red-receipt.json` bind the proof.
+Installed M68 tools were reused only after lock/npmrc and installed package
+metadata equality checks; fresh `npm ci`, full quality and rig gates remain
+required. See `docs/certification/m75.md`. No packing or model run occurred.
+
 **Merge goal progress (2026-09-29, America/Los_Angeles):** PR #32 merged at
 17:31 (`fefb6068`), PR #57/M67 at 18:20 (`4c35e73e`), and PR #52/M69 at
 19:46 (`c323dcc0`). Each passed independent review, four local full-quality
@@ -9740,6 +9888,24 @@ a PR. The release workflow is still tag-triggered and calls the shared
 `build.yml`; no build jobs or thresholds changed. Contributor instructions, PR
 proof fields, the README and workflow comments were updated to match, and the
 trigger was verified locally with a red drill before the M52 merge.
+
+**M75 platform fixture correction (2026-09-29, preliminary Mac proof).**
+The verifier still starts with `env: {}`. MacOS/CoreFoundation nevertheless
+generates `__CF_USER_TEXT_ENCODING`: an independent child with its parent
+variable removed and an explicit empty environment observed only that key.
+The environment-isolation test permits exactly this name only on Darwin,
+keeps all other unexpected names forbidden, and checks an unusable credential
+canary is absent. This corrects an observed OS assumption; no production
+environment policy, gate level or threshold changed. The old assumption's
+80/81 result and the earlier Request-unaware fake's 63/81 result are retained
+as fixture findings, not successful red proofs or current-main certification.
+The refreshed old-base Mac snapshot `85897211`/tree `d88477db` passed all
+81 eval tests before and after five intended production mutation failures,
+host/unit types, scoped lint/format, and the normal duplication gate. Its
+receipt is `m75-mac-preliminary-final-scope/receipt.json` under the owned
+external evidence directory. Exact source restoration was verified; model
+attempts and paid calls were zero. This is preliminary proof only:
+independent review, current-main integration and full rig gates remain open.
 
 | Gate                  | Command                                                                                                                                                                                                                                                | Status                                                                                                                                                                                                                                                                                                                                                            |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
