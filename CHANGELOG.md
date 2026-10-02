@@ -48,6 +48,20 @@ happened, not what was planned; superseded entries are kept.
   tasks: seven accept, five held-out), and a packing run passes only if
   it packed on each long-output task. The Evidence-Preserving Reducer is
   not built (PLAN.md §3).
+  - **A recalled page is untrusted tool data.** Each page names the tool
+    that returned it and comes with the untrusted-data notice, between
+    fresh random markers around the unchanged slice, so a page from the
+    middle of a fetched web page keeps its boundary.
+  - **The savings ledger survives a resume.** A saved conversation keeps
+    its total; one saved before the total was kept resumes at zero.
+  - **The recall row speaks the display language.** Its heading and its
+    refusals are in the installed language, with counts in its number
+    format; the recalled text is shown as it was, and the model's text
+    stays English.
+  - **The live report records the packing acceptance.** The report says
+    whether packing engaged on each long-output task, and a run that holds
+    the floors without packing is recorded as failed in both its JSON and
+    its Markdown.
 
 ### Changed
 

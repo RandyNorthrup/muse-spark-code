@@ -6,7 +6,8 @@
 // left. The arms are the baseline and observation packing (M73); M74 adds
 // its own with its run (D49's "Measured first"). A packing run must also
 // have packed on every long-output task it ran, or it proves nothing about
-// packing.
+// packing: that acceptance is recorded in the report, whose verdict it
+// fails, before the report is printed or written.
 //
 // Opt-in only, never in CI: it bills the owner's Model API key. It runs
 // when MUSE_LIVE_MODEL_API=1, reading the ACP agent's existing operating
@@ -46,7 +47,11 @@ import { fileContextIo } from '../../src/host/backend/contextIo'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { createLogger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
-import { MODEL_API_BASE_URL, SEARCH_WORKER_FILE } from '../../src/shared/constants'
+import {
+  EVAL_REPORT_VERSION,
+  MODEL_API_BASE_URL,
+  SEARCH_WORKER_FILE,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { readJobSource } from '../unit/helpers/jobSource'
 import { logLines } from '../unit/helpers/logText'
@@ -57,7 +62,7 @@ import {
   liveEvalSelection,
   liveToolIo,
   loadEvalLiveCredentials,
-  unengagedLongOutputTasks,
+  withPackingEngagement,
 } from './evalLiveSupport'
 
 const IS_ENABLED = process.env['MUSE_LIVE_MODEL_API'] === '1'
@@ -146,20 +151,25 @@ describe.skipIf(!IS_ENABLED)('live paired evaluation (MUSE_LIVE_MODEL_API=1)', (
       } finally {
         await removeFolder(storage)
       }
-      const markdown = formatEvalReportMarkdown(result)
+      // The packing acceptance goes into the report before it is printed or
+      // written, so neither artifact says pass for a run that never packed.
+      const report = withPackingEngagement(result, OBSERVATION_PACKING_ARM.name, tasks)
+      const markdown = formatEvalReportMarkdown(report)
       if (logLines(channel).some((line) => credentials.contains(line))) {
         leaks.push('the log')
       }
-      if (credentials.contains(`${formatEvalReportJson(result)}${markdown}`)) {
+      if (credentials.contains(`${formatEvalReportJson(report)}${markdown}`)) {
         leaks.push('the report')
       }
       expect(leaks).toEqual([])
       process.stderr.write(`${credentials.redact(markdown)}\n`)
       if (reportPath !== undefined) {
-        await writeReport(result, path.resolve(reportPath))
+        await writeReport(report, path.resolve(reportPath))
       }
-      expect(result.verdict).not.toBe('fail')
-      expect(unengagedLongOutputTasks(result, OBSERVATION_PACKING_ARM.name, tasks)).toEqual([])
+      expect(report.verdict).not.toBe('fail')
+      expect(
+        report.version === EVAL_REPORT_VERSION ? report.packingEngagement?.unengaged : undefined,
+      ).toEqual([])
     },
     // The selection is read inside the test, so the deadline allows the
     // whole task set: a run of fewer tasks ends sooner.

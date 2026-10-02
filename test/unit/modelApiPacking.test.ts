@@ -6,10 +6,15 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_API_TOOLS, OBS_PACK_THRESHOLD_CHARS } from '../../src/shared/constants'
+import { MODEL_API_TOOLS, MODEL_TEXT, OBS_PACK_THRESHOLD_CHARS } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
 import { estimatePackTokens } from '../../src/core/backends/modelapi/observationPack'
+import {
+  parseStoredSession,
+  type StoredSession,
+} from '../../src/core/backends/modelapi/sessionStore'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import {
   fakeModelApi,
@@ -19,6 +24,7 @@ import {
 } from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
+import { recalledParts } from './helpers/recalledOutput'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
@@ -148,9 +154,18 @@ function ledgerOf(events: readonly AgentEvent[]): (number | undefined)[] {
   return values
 }
 
-/** A recalled page without its header line. */
+/** A recalled page without its lead and frame. */
 function pageOf(text: string): string {
-  return text.slice(text.indexOf(':\n') + 2)
+  return recalledParts(text).page
+}
+
+/** The session's stored form as a window's file brings it back: through its schema. */
+function reloaded(stored: StoredSession): StoredSession {
+  const parsed = parseStoredSession(structuredClone(stored))
+  if (!parsed.ok) {
+    throw new Error(parsed.reason)
+  }
+  return parsed.session
 }
 
 describe('observation packing on the host', () => {
@@ -207,6 +222,10 @@ describe('observation packing on the host', () => {
     const firstPage = responseOutputsByCall(harness.api, 4).get('r1') ?? ''
     expect(firstPage).toContain('"c1"')
     expect(firstPage).toContain('call recall_output again')
+    // Framed as untrusted tool data, naming the tool its call named.
+    const { lead } = recalledParts(firstPage)
+    expect(lead).toContain(fill(MODEL_TEXT.packSourceTool, { tool: MODEL_API_TOOLS.readFile }))
+    expect(lead).toContain(MODEL_TEXT.packRecalledUntrusted)
     const next = /offset (\d+)/.exec(firstPage)?.[1] ?? ''
     expect(next).not.toBe('')
     scriptRecall(harness.api, 'c1', Number(next), 'r2', 'got the rest')
@@ -346,6 +365,58 @@ describe('observation packing on the host', () => {
     expect(replayed[0] ?? '').toContain('line 399')
     expect(replayed[0] ?? '').not.toContain('Packed output')
     await harness.host.close()
+  })
+
+  it('keeps the ledger across a save and resume, the outputs starting fresh', async () => {
+    const first = await setup(true)
+    await readThenAsk(first)
+    const saved = ledgerOf(first.events).at(-1) ?? 0
+    expect(saved).toBeGreaterThan(0)
+    const stored = reloaded(first.session.snapshot())
+    expect(stored.packedTokensAvoided).toBe(saved)
+    await first.host.close()
+
+    const resumed = await setup(true)
+    resumed.session.adopt(stored)
+    resumed.api.script({ text: 'back' })
+    await sendText(resumed, 'still there?')
+    // The total carries on; the output rides whole again after the resume.
+    expect(ledgerOf(resumed.events).at(-1)).toBe(saved)
+    const full = responseOutputsByCall(resumed.api, 0).get('c1') ?? ''
+    expect(full).toContain('line 399')
+    expect(full).not.toContain('Packed output')
+    expect(resumed.session.snapshot().packedTokensAvoided).toBe(saved)
+    await resumed.host.close()
+  })
+
+  it('resumes a session saved before the ledger was kept at zero', async () => {
+    const first = await setup(true)
+    await readThenAsk(first)
+    const { packedTokensAvoided: _kept, ...older } = first.session.snapshot()
+    await first.host.close()
+    const resumed = await setup(true)
+    resumed.session.adopt(reloaded(older))
+    resumed.api.script({ text: 'back' })
+    await sendText(resumed, 'still there?')
+    expect(ledgerOf(resumed.events).at(-1)).toBe(0)
+    await resumed.host.close()
+  })
+
+  it('keeps a stored ledger through a window that does not pack, and refuses a bad one', async () => {
+    const first = await setup(true)
+    await readThenAsk(first)
+    const stored = first.session.snapshot()
+    await first.host.close()
+    const plain = await setup(false)
+    plain.session.adopt(reloaded(stored))
+    plain.api.script({ text: 'back' })
+    await sendText(plain, 'still there?')
+    expect(ledgerOf(plain.events).every((value) => value === undefined)).toBe(true)
+    expect(plain.session.snapshot().packedTokensAvoided).toBe(stored.packedTokensAvoided)
+    await plain.host.close()
+    for (const bad of [-1, 1.5]) {
+      expect(parseStoredSession({ ...stored, packedTokensAvoided: bad }).ok).toBe(false)
+    }
   })
 
   it('tells a model that calls recall_output uninvited that it is unknown', async () => {

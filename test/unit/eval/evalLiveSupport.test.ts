@@ -9,8 +9,14 @@ import {
   liveToolIo,
   loadEvalLiveCredentials,
   unengagedLongOutputTasks,
+  withPackingEngagement,
 } from '../../e2e/evalLiveSupport'
-import type { EvalReport } from '../../../src/core/eval/report'
+import {
+  type EvalReport,
+  evalReportSchema,
+  formatEvalReportJson,
+  formatEvalReportMarkdown,
+} from '../../../src/core/eval/report'
 import { EVAL_TASKS } from '../../../src/core/eval/tasks'
 import {
   EVAL_MODEL_ID,
@@ -302,6 +308,40 @@ describe('a packing run engaged', () => {
   it('counts an arm missing from the report as never engaged', () => {
     const everyLong = Object.fromEntries(longIds.map((id) => [id, 500]))
     expect(unengagedLongOutputTasks(packingReport(everyLong), 'other', EVAL_TASKS)).toEqual(longIds)
+  })
+
+  it('records a run whose floors pass but which never packed as failed, in both artifacts', () => {
+    // Every task passed and no floor fell, yet no long-output task packed.
+    const floorsPass = packingReport({})
+    expect(floorsPass.verdict).toBe('pass')
+    const report = withPackingEngagement(floorsPass, 'packing', EVAL_TASKS)
+    expect(report.verdict).toBe('fail')
+    const json = evalReportSchema.parse(JSON.parse(formatEvalReportJson(report)))
+    expect(json.verdict).toBe('fail')
+    expect(json.version === EVAL_REPORT_VERSION ? json.packingEngagement : undefined).toEqual({
+      arm: 'packing',
+      longOutputTasks: longIds,
+      unengaged: longIds,
+      held: false,
+    })
+    const markdown = formatEvalReportMarkdown(report)
+    expect(markdown).toContain('verdict: fail')
+    expect(markdown).not.toContain('verdict: pass')
+    expect(markdown).toContain(`| packing | ${longIds.join(', ')} | ${longIds.join(', ')} | no |`)
+  })
+
+  it('leaves the verdict to the floors when packing engaged on every long-output task', () => {
+    const everyLong = Object.fromEntries(longIds.map((id) => [id, 500]))
+    const report = withPackingEngagement(packingReport(everyLong), 'packing', EVAL_TASKS)
+    expect(report.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(report)).toContain(
+      `| packing | ${longIds.join(', ')} | none | yes |`,
+    )
+    // A selection without long-output tasks has nothing to engage.
+    const small = EVAL_TASKS.filter((task) => task.isLongOutput !== true)
+    const smallReport = withPackingEngagement(packingReport({}), 'packing', small)
+    expect(smallReport.verdict).toBe('pass')
+    expect(formatEvalReportMarkdown(smallReport)).toContain('| packing | none | none | yes |')
   })
 })
 

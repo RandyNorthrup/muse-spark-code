@@ -7,24 +7,29 @@
 // for its first `OBS_PACK_WHOLE_SENDS` requests, then as a placeholder naming
 // its id (the output's `call_id`), its size and its first and last lines.
 // The swap is sticky: once packed, an output stays packed. `recall_output`
-// pages the original back; originals are kept with the session (this store,
-// reset when a compaction drops them from the replay; the replay itself
-// always keeps them). The ledger counts the estimated tokens each packed
-// send leaves out.
+// pages the original back, each page framed as untrusted tool data between
+// fresh markers and naming the tool that returned it; originals are kept
+// with the session (this store, reset when a compaction drops them from the
+// replay; the replay itself always keeps them). The ledger counts the
+// estimated tokens each packed send leaves out, and a resumed session
+// carries its total on.
 //
 // The host builds this store only while its `observationPacking` dep is on,
 // and never for a subagent. No `vscode` here.
 
+import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   MODEL_API_TOOLS,
   MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
+  OBS_PACK_MARKER_BYTES,
   OBS_PACK_PAGE_CHARS,
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
+  UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import type { FunctionToolDefinition, InputItem } from './schemas'
@@ -49,15 +54,29 @@ export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
   strict: false,
 }
 
-/** What a `recall_output` call returns; the host reports it as the tool outcome. */
+/**
+ * What a `recall_output` call returns; the host reports it as the tool
+ * outcome. `output` is the model's (English, MODEL_TEXT); `visibleOutput`
+ * and `failureReason` are the row's, in the display language, with the
+ * recalled text itself shown as it was.
+ */
 export interface RecallOutcome {
   readonly output: string
   readonly visibleOutput: string
   readonly failureReason?: string
 }
 
-function failure(reason: string): RecallOutcome {
-  return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+function failure(modelReason: string, visibleReason: string): RecallOutcome {
+  return {
+    output: `Error: ${modelReason}`,
+    visibleOutput: visibleReason,
+    failureReason: visibleReason,
+  }
+}
+
+/** Fresh random hexadecimal for one recalled page's markers. */
+function newMarker(): string {
+  return randomBytes(OBS_PACK_MARKER_BYTES).toString('hex')
 }
 
 /** Estimated tokens for `chars` characters (the ledger's rule of thumb). */
@@ -86,6 +105,8 @@ function packBoundary(text: string, index: number): number {
 interface PackedOutput {
   readonly text: string
   readonly lineCount: number
+  /** The tool that returned it, named by its call; undefined when that call is gone. */
+  readonly tool: string | undefined
   sends: number
   isPacked: boolean
 }
@@ -107,7 +128,7 @@ export class ObservationPack {
   private readonly counted = new WeakSet<readonly InputItem[]>()
   private tokensAvoided = 0
 
-  private register(callId: string, text: string): PackedOutput {
+  private register(callId: string, text: string, tool: string | undefined): PackedOutput {
     const known = this.outputs.get(callId)
     if (known !== undefined) {
       return known
@@ -115,6 +136,7 @@ export class ObservationPack {
     const entry: PackedOutput = {
       text,
       lineCount: packLines(text).length,
+      tool,
       sends: 0,
       isPacked: false,
     }
@@ -179,6 +201,13 @@ export class ObservationPack {
    * has not seen; counting happens in `noteSent`, once per request sent.
    */
   public project(input: readonly InputItem[]): InputItem[] {
+    // Each output's tool, named by its call in the same request.
+    const tools = new Map<string, string>()
+    for (const item of input) {
+      if (item.type === 'function_call') {
+        tools.set(item.call_id, item.name)
+      }
+    }
     return input.map((item) => {
       if (item.type !== 'function_call_output' || typeof item.output !== 'string') {
         return item
@@ -186,7 +215,7 @@ export class ObservationPack {
       if (item.output.length <= OBS_PACK_THRESHOLD_CHARS) {
         return item
       }
-      const entry = this.register(item.call_id, item.output)
+      const entry = this.register(item.call_id, item.output, tools.get(item.call_id))
       return entry.isPacked ? this.placeholder(item.call_id, entry, item) : item
     })
   }
@@ -234,6 +263,15 @@ export class ObservationPack {
     return this.tokensAvoided
   }
 
+  /**
+   * A resumed session's ledger (its stored total) carried on; the outputs
+   * and their send counts start fresh, as the replay packs again from the
+   * whole outputs.
+   */
+  public restoreSavings(total: number): void {
+    this.tokensAvoided = total
+  }
+
   /** A compaction dropped the originals from the replay: forget them, keep the ledger. */
   public reset(): void {
     this.outputs.clear()
@@ -246,56 +284,66 @@ export class ObservationPack {
     try {
       raw = JSON.parse(argsJson)
     } catch {
-      return failure('arguments are not valid JSON')
+      return failure(MODEL_TEXT.packInvalidJson, UI_TEXT.packRecallInvalid)
     }
     const parsed = recallOutputArgs.safeParse(raw)
     if (!parsed.success) {
-      return failure(`invalid arguments: ${z.prettifyError(parsed.error)}`)
+      return failure(
+        fill(MODEL_TEXT.packInvalidArguments, { detail: z.prettifyError(parsed.error) }),
+        UI_TEXT.packRecallInvalid,
+      )
     }
-    const entry = this.outputs.get(parsed.data.id)
+    const { id } = parsed.data
+    const entry = this.outputs.get(id)
     if (entry === undefined) {
       const known = this.ids.join(', ')
       return failure(
-        fill(MODEL_TEXT.packUnknownId, {
-          id: parsed.data.id,
-          known: known === '' ? 'none' : known,
-        }),
+        fill(MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
+        fill(UI_TEXT.packRecallUnknownId, { id }),
       )
     }
     const offset = parsed.data.offset ?? 0
+    const last = entry.text.length - 1
     if (
       !Number.isSafeInteger(offset) ||
       offset < 0 ||
-      offset >= entry.text.length ||
+      offset > last ||
       packBoundary(entry.text, offset) !== offset
     ) {
       return failure(
-        fill(MODEL_TEXT.packBadOffset, {
-          id: parsed.data.id,
-          last: String(entry.text.length - 1),
-        }),
+        fill(MODEL_TEXT.packBadOffset, { id, last: String(last) }),
+        fill(UI_TEXT.packRecallBadOffset, { id, last }),
       )
     }
-    const end = packBoundary(entry.text, Math.min(offset + OBS_PACK_PAGE_CHARS, entry.text.length))
+    const total = entry.text.length
+    const end = packBoundary(entry.text, Math.min(offset + OBS_PACK_PAGE_CHARS, total))
+    // The slice exactly as the tool returned it, never altered: the frame
+    // around it is the store's own, its markers fresh for this page.
     const page = entry.text.slice(offset, end)
-    if (end >= entry.text.length) {
-      const output = fill(MODEL_TEXT.packPageLast, {
-        id: parsed.data.id,
-        start: String(offset),
-        end: String(end),
-        total: String(entry.text.length),
-        page,
-      })
-      return { output, visibleOutput: output }
-    }
-    const output = fill(MODEL_TEXT.packPage, {
-      id: parsed.data.id,
+    const pageFacts = {
+      id,
+      source:
+        entry.tool === undefined
+          ? MODEL_TEXT.packSourceUnknown
+          : fill(MODEL_TEXT.packSourceTool, { tool: entry.tool }),
       start: String(offset),
       end: String(end),
-      total: String(entry.text.length),
-      next: String(end),
-      page,
-    })
-    return { output, visibleOutput: output }
+      total: String(total),
+    }
+    const lead =
+      end >= total
+        ? fill(MODEL_TEXT.packPageLast, pageFacts)
+        : fill(MODEL_TEXT.packPage, { ...pageFacts, next: String(end) })
+    const marker = newMarker()
+    return {
+      output: [
+        lead,
+        MODEL_TEXT.packRecalledUntrusted,
+        fill(MODEL_TEXT.packRecalledOpen, { marker }),
+        page,
+        fill(MODEL_TEXT.packRecalledClose, { marker }),
+      ].join('\n'),
+      visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start: offset, end, total })}\n${page}`,
+    }
   }
 }

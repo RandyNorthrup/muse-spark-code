@@ -16,7 +16,11 @@ import {
 import { createToolIo } from '../../src/host/backend/toolIo'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { keyringSecretStore } from '../../src/runtime/keyStore'
-import { EVAL_TURN_TIMEOUT_MS, EVAL_VERIFY_TIMEOUT_MS } from '../../src/shared/constants'
+import {
+  EVAL_REPORT_VERSION,
+  EVAL_TURN_TIMEOUT_MS,
+  EVAL_VERIFY_TIMEOUT_MS,
+} from '../../src/shared/constants'
 
 const LEGACY_KEY_VARIABLE = 'MUSE_LIVE_MODEL_API_KEY'
 const NOT_ENABLED = 'Live Model API tests are not enabled.'
@@ -183,6 +187,35 @@ export function unengagedLongOutputTasks(
       return saved === undefined || saved <= 0
     })
     .map((task) => task.id)
+}
+
+/**
+ * The report with M73's packing acceptance recorded in it (PLAN.md M73):
+ * the arm's engagement on the run's long-output tasks, and the verdict
+ * `fail` when it never packed on one, whatever the floors say. Applied
+ * before the report is printed or written, so both artifacts say what the
+ * run's acceptance decided.
+ */
+export function withPackingEngagement(
+  report: EvalReport,
+  armName: string,
+  tasks: readonly EvalTask[],
+): EvalReport {
+  if (report.version !== EVAL_REPORT_VERSION) {
+    throw new Error('Packing engagement is recorded only in a current-version report.')
+  }
+  const unengaged = unengagedLongOutputTasks(report, armName, tasks)
+  const isHeld = unengaged.length === 0
+  return {
+    ...report,
+    packingEngagement: {
+      arm: armName,
+      longOutputTasks: tasks.filter((task) => task.isLongOutput === true).map((task) => task.id),
+      unengaged,
+      held: isHeld,
+    },
+    verdict: isHeld ? report.verdict : 'fail',
+  }
 }
 
 /** Outer deadline covers every task/arm run; each turn and verifier keeps its own limit. */

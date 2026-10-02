@@ -8673,6 +8673,22 @@ evaluation is authorized by these repairs.
 
 ### M73 — Observation packing (D49)
 
+- **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
+  regression and red drills (`docs/certification/m73.md`):
+  - A recalled page is framed as untrusted tool data (D49 "Untrusted
+    content"): it names the tool its call named, carries the notice, and
+    sits between fresh random markers outside the unchanged slice, so an
+    interior page of a `web_fetch` result keeps its boundary.
+  - The ledger survives resume: the stored session keeps an optional
+    `packedTokensAvoided` (a non-negative whole number; older files resume
+    at zero), restored into the store while the outputs and their send
+    counts start fresh.
+  - The live run records its packing acceptance in the report
+    (`packingEngagement`, verdict `fail` when a long-output task never
+    packed) before it prints or writes it.
+  - The recall row's heading and refusals are `UI_TEXT` in all fifteen
+    tables, counts through `Intl`; the recalled text is shown as it was
+    and the model's text stays `MODEL_TEXT`.
 - **Main integration, 2026-10-02 (M73m).** Merge `origin/main` at
   `44b76f24` into `feature/m73-packing`, preserving final M75 behavior and
   main's changelog entries. Kubuntu passed the owning M73/M75 suites

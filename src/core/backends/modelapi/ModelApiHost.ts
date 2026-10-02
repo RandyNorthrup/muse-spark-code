@@ -1395,6 +1395,12 @@ export class ModelApiSession implements AgentSession {
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless the eval arm runs. */
   private readonly packing: ObservationPack | undefined
+  /**
+   * The ledger total a resumed session brought (M73), kept so a save keeps
+   * it even where this session does not pack; a packing session's store
+   * carries it on instead.
+   */
+  private restoredPackedTokens: number | undefined
   private mediaNoticeSent = false
   /**
    * The PDFs and images `read_file` read this round (M54): they follow the
@@ -7176,6 +7182,7 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
+    const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
     return {
       version: STORED_SESSION_VERSION,
       sessionId: this.sessionId,
@@ -7199,6 +7206,7 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: [...this.pendingChildResults],
@@ -7251,6 +7259,10 @@ export class ModelApiSession implements AgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
+    // The packing ledger is a session total like the token counts: a
+    // session saved before it was kept carries none, so it starts at zero.
+    this.restoredPackedTokens = stored.packedTokensAvoided
+    this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
     this.status = IDLE
     this.pendingChildResults.push(...(stored.pendingChildResults ?? []))
     const savedCommands = Object.entries(stored.spawnCommands ?? {})
