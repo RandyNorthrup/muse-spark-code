@@ -802,6 +802,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return await withCheckpointEdit(checkpoints, check, async () => await work(check))
       },
       beforeProjectWrite: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
+      // Each published file is the user's, as `asUserEdit` makes the other
+      // explicit writes: a turn running meanwhile neither takes it for its
+      // own nor undoes it on a restore.
+      noteUserWrite: (absolutePath) => {
+        checkpoints.noteUserSave(absolutePath)
+      },
       bundle: agentImportLoader({
         bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', AGENT_IMPORT_BUNDLE_FILE)
           .fsPath,

@@ -19,8 +19,14 @@
 // creates files that do not exist (never replacing one, even one that
 // appears in between) and appends rules sections, each destination checked
 // against its root again. MCP servers and hooks are never written (D17,
-// D30): the plan gives their converted entries, masked, as text for the user
-// to copy into Muse Code's settings file and the project's hooks file.
+// D30): the plan gives their converted entries as text for the user to copy
+// into Muse Code's settings file and the project's hooks file.
+//
+// Credentials: every entry is checked whole when it is found
+// (`importCredentials.ts`). One whose text holds a credential cue anywhere,
+// its name and its source file's name included, is refused whole: nothing of
+// it is written or copied, and the preview names it with the cue's kind for
+// the user to copy by hand. A name that holds a cue is not shown either.
 //
 // Pure: every file access is injected. No model call.
 
@@ -79,7 +85,7 @@ import {
   rulesSection,
   splitFrontMatter,
 } from './importConvert'
-import { maskText } from './importMask'
+import { credentialCue, type CredentialCue } from './importCredentials'
 
 export type ImportOrigin = 'user' | 'project'
 
@@ -114,8 +120,10 @@ export interface ImportScanInput {
   readonly isWorkspaceTrusted: () => boolean
   readonly isActive: () => boolean
   readonly sources: readonly AgentImportSource[]
-  /** The word masked values show as. */
+  /** The word masked `env` and header values show as. */
   readonly mask: string
+  /** Shown in place of an entry's name when the name itself may hold a credential. */
+  readonly hiddenName: string
 }
 
 export type ImportSkipReason =
@@ -158,6 +166,8 @@ export type ImportTarget =
   | { readonly kind: 'server'; readonly name: string; readonly entry: MuseMcpEntry }
   | { readonly kind: 'hook'; readonly file: ImportCopyFile; readonly hook: MuseHook }
   | { readonly kind: 'none'; readonly reason: ImportSkipReason }
+  /** It may hold a credential: nothing of it is written or copied; the user copies it by hand. */
+  | { readonly kind: 'credential'; readonly cue: CredentialCue }
 
 export interface ImportCandidate {
   readonly id: string
@@ -255,6 +265,24 @@ function add(scan: Scan, found: Found): void {
     id = `${base}${ID_SEPARATOR}${String(index)}`
   }
   scan.candidates.push({ ...found, id, dropped: found.dropped ?? [] })
+}
+
+/** An entry's name as the picker, the preview and the ids show it: hidden when it may hold a credential itself. */
+function labelOf(scan: Scan, name: string): string {
+  return credentialCue([name]) === undefined ? name : scan.input.hiddenName
+}
+
+/** The entry's target, unless any of its text holds a credential cue: then it is refused whole. */
+function unlessCredential(texts: readonly string[], target: () => ImportTarget): ImportTarget {
+  const cue = credentialCue(texts)
+  return cue === undefined ? target() : { kind: 'credential', cue }
+}
+
+/** A converter's refusal as the entry's target. */
+function refusalOf(refusal: Exclude<Conversion<unknown>, { readonly ok: true }>): ImportTarget {
+  return refusal.reason === 'credential'
+    ? { kind: 'credential', cue: refusal.cue }
+    : { kind: 'none', reason: refusal.reason }
 }
 
 /** Live permission to read this source; personal sources remain available without trust. */
@@ -396,7 +424,7 @@ function addServers(
       source: options.source,
       origin: options.origin,
       kind: 'mcpServer',
-      label: server.name,
+      label: labelOf(scan, server.name),
       originPath: options.originPath,
     } as const
     if (options.origin === 'project') {
@@ -404,16 +432,20 @@ function addServers(
       continue
     }
     const converted = options.convert(server.raw, scan.input.mask)
-    add(
-      scan,
-      converted.ok
-        ? {
-            ...found,
-            target: { kind: 'server', name: server.name, entry: converted.value },
-            dropped: converted.dropped,
-          }
-        : { ...found, target: { kind: 'none', reason: converted.reason } },
-    )
+    // The name keys the copied entry and the names of the fields left out are
+    // shown, so they are checked with the rest.
+    const nameCue = credentialCue([server.name, ...(converted.ok ? converted.dropped : [])])
+    if (nameCue !== undefined) {
+      add(scan, { ...found, target: { kind: 'credential', cue: nameCue } })
+    } else if (converted.ok) {
+      add(scan, {
+        ...found,
+        target: { kind: 'server', name: server.name, entry: converted.value },
+        dropped: converted.dropped,
+      })
+    } else {
+      add(scan, { ...found, target: refusalOf(converted) })
+    }
   }
 }
 
@@ -487,19 +519,19 @@ async function collectHooks(scan: Scan, origin: ImportOrigin, file: string): Pro
     return
   }
   for (const hook of hooks) {
-    const converted = convertHook(hook, scan.input.mask)
+    const converted = convertHook(hook)
     add(scan, {
       source: 'claudeCode',
       origin,
       kind: 'hook',
-      label:
-        hook.matcher === undefined
-          ? hook.event
-          : `${hook.event} (${maskText(hook.matcher, scan.input.mask)})`,
+      label: labelOf(
+        scan,
+        hook.matcher === undefined ? hook.event : `${hook.event} (${hook.matcher})`,
+      ),
       originPath: file,
       target: converted.ok
         ? { kind: 'hook', file: origin === 'user' ? 'settings' : 'hooks', hook: converted.value }
-        : { kind: 'none', reason: converted.reason },
+        : refusalOf(converted),
     })
   }
 }
@@ -636,7 +668,7 @@ async function collectMarkdownFile(
   const { fields, body } = splitFrontMatter(text)
   // Folder prefixes namespace both kinds; an agent keeps its front matter
   // name in the copied body and uses it as the final component of its file id.
-  const agentName = maskText(fields['name'] ?? '', scan.input.mask)
+  const agentName = fields['name'] ?? ''
   const agentParts = agentName === '' ? nameParts : [...nameParts.slice(0, -1), agentName]
   const id = slugOf(spec.kind === 'agent' ? agentParts : nameParts)
   if (id === '' || body === '') {
@@ -647,30 +679,35 @@ async function collectMarkdownFile(
     source: spec.source,
     origin: spec.origin,
     kind: spec.kind,
-    label: id,
+    label: labelOf(scan, id),
     originPath: file,
   } as const
+  // The whole file and the names its id comes from; a command's generated
+  // skill is checked as written too.
+  const texts = [...nameParts, id, text]
   if (spec.kind === 'agent') {
-    const content = maskText(`${text.trimEnd()}\n`, scan.input.mask)
+    const content = `${text.trimEnd()}\n`
     add(scan, {
       ...found,
-      target: isImportableAgent(content)
-        ? {
-            kind: 'file',
-            root: 'agents',
-            scope: spec.origin,
-            relativePath: `${id}/${AGENT_FILE_NAME}`,
-            content,
-          }
-        : { kind: 'none', reason: 'unsupported' },
+      target: unlessCredential(texts, () =>
+        isImportableAgent(content)
+          ? {
+              kind: 'file',
+              root: 'agents',
+              scope: spec.origin,
+              relativePath: `${id}/${AGENT_FILE_NAME}`,
+              content,
+            }
+          : { kind: 'none', reason: 'unsupported' },
+      ),
     })
     return
   }
-  const content = maskText(commandToSkill(id, fields, body), scan.input.mask)
+  const content = commandToSkill(id, fields, body)
   add(scan, {
     ...found,
     // Muse Code skips a SKILL.md over its size limit; one that would be is not offered.
-    target:
+    target: unlessCredential([...texts, content], () =>
       TEXT_ENCODER.encode(content).length > SKILL_FILE_MAX_BYTES ||
       hasUnsupportedHeader(text) ||
       Object.keys(fields).some((key) => !COMMAND_FIELDS.has(key)) ||
@@ -683,6 +720,7 @@ async function collectMarkdownFile(
             relativePath: `${id}/${SKILL_FILE_NAME}`,
             content,
           },
+    ),
   })
 }
 
@@ -747,23 +785,22 @@ async function collectProjectRules(
     scan.warnings.push(`${shown(scan, file)} holds nothing, skipped`)
     return
   }
-  const heading = maskText(
-    rulesHeading(AGENT_IMPORT_SOURCE_NAMES[source], shown(scan, file)),
-    scan.input.mask,
-  )
+  const heading = rulesHeading(AGENT_IMPORT_SOURCE_NAMES[source], shown(scan, file))
+  const section = rulesSection(heading, body, fields)
   const [agentsFile] = RULES_FILE_NAMES
   add(scan, {
     source,
     origin: 'project',
     kind: 'rules',
-    label: shown(scan, file),
+    label: labelOf(scan, shown(scan, file)),
     originPath: file,
-    target: {
+    // The whole file and the section made of it, its heading's path included.
+    target: unlessCredential([text, section], () => ({
       kind: 'rules',
       file: scan.p.join(root, agentsFile),
       heading,
-      section: maskText(rulesSection(heading, body, fields), scan.input.mask),
-    },
+      section,
+    })),
   })
 }
 
@@ -1032,16 +1069,16 @@ export interface ImportSection {
 export interface ImportCopy {
   readonly file: ImportCopyFile
   readonly absolutePath: string
-  /** Masked JSON: the whole file when it does not exist yet, else the members to merge in. */
+  /** JSON, `env` and header values masked: the whole file when it does not exist yet, else the members to merge in. */
   readonly text: string
   readonly isNewFile: boolean
   readonly candidateIds: readonly string[]
 }
 
-export interface ImportSkip {
-  readonly candidateId: string
-  readonly reason: ImportSkipReason
-}
+export type ImportSkip =
+  | { readonly candidateId: string; readonly reason: ImportSkipReason }
+  /** Refused at the scan as it may hold a credential, with the kind of cue it holds. */
+  | { readonly candidateId: string; readonly reason: 'credential'; readonly cue: CredentialCue }
 
 export interface ImportPlan {
   readonly writes: readonly ImportWrite[]
@@ -1237,6 +1274,10 @@ async function planCandidate(builder: PlanBuilder, candidate: ImportCandidate): 
       skip(builder, candidate, target.reason)
       return
     }
+    case 'credential': {
+      builder.skipped.push({ candidateId: candidate.id, reason: 'credential', cue: target.cue })
+      return
+    }
     case 'file': {
       await planFile(builder, candidate, target)
       return
@@ -1407,6 +1448,11 @@ export interface ImportApplyOptions {
   readonly beginProjectEdit?: ImportWriteNotice
   /** Keeps a project file's bytes for a checkpoint restore before it is written (M72). */
   readonly beforeProjectWrite?: (absolutePath: string) => Promise<void>
+  /**
+   * A file the import published: the user's own write, as their save is, so
+   * a turn running meanwhile neither takes it for its own nor undoes it (M72).
+   */
+  readonly notePublished?: (absolutePath: string) => void
   /** Whether the window still shows the folder the plan was made for. */
   readonly isRootCurrent?: (root: ImportProjectRoot) => Promise<boolean>
 }
@@ -1455,6 +1501,7 @@ async function fileWithinRoot(
  * One native publication between its notice and its checkpoint copy: the
  * copy first (a failed copy fails the write), then the window's guard, then
  * the work, with the notice completed either way and counting only a write.
+ * A file it wrote is noted as the user's.
  */
 async function wasPublished(
   write: ImportWrite,
@@ -1473,6 +1520,9 @@ async function wasPublished(
   let wasWritten = false
   try {
     wasWritten = await didWrite()
+    if (wasWritten) {
+      options.notePublished?.(write.absolutePath)
+    }
     return wasWritten
   } finally {
     complete?.(wasWritten)

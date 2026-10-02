@@ -45,10 +45,12 @@ const COMPLETED = 'completed'
 
 /** A code fence longer than any backtick run inside `text`, so the block cannot end early. */
 export function fenced(text: string, language = ''): string {
-  const longest = Math.max(
-    0,
-    ...Array.from(text.matchAll(BACKTICK_RUN), (match) => match[0].length),
-  )
+  // A loop, not a spread: Math.max takes its arguments on the stack, and
+  // 128,000 runs overflow it.
+  let longest = 0
+  for (const [run] of text.matchAll(BACKTICK_RUN)) {
+    longest = Math.max(longest, run.length)
+  }
   const fence = '`'.repeat(Math.max(MIN_FENCE, longest + 1))
   return `${fence}${language}\n${text}\n${fence}`
 }

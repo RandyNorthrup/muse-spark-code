@@ -1,8 +1,10 @@
 // The other agents' shapes converted to Muse Code's (M83): the MCP entry
 // Muse Code 1.4.0-R4302.1's `migrate` skill writes, hooks that never widen,
-// SKILL.md front matter a YAML reader takes, and rules sections.
+// SKILL.md front matter a YAML reader takes, and rules sections. A server or
+// hook that may hold a credential is refused whole, its cue's kind named.
 
 import { describe, expect, it } from 'vitest'
+import { parseSkillFile } from '../../src/core/context/skills'
 import {
   appendSeparator,
   commandToSkill,
@@ -20,16 +22,18 @@ import {
 import { SYNTHETIC } from './helpers/syntheticTokens'
 
 const MASK = '[masked]'
+// One line in a YAML single-quoted scalar: quote marks inside are doubled, and it is closed.
+const YAML_SINGLE_QUOTED = /^'(?:[^']|'')*'$/u
 
 describe('convertJsonServer', () => {
-  it('converts a stdio server with its env masked and mode optional', () => {
+  it('converts a stdio server with its env values masked and mode optional', () => {
     expect(
       convertJsonServer(
         {
           type: 'stdio',
           command: 'npx',
-          args: ['-y', '@upstash/context7-mcp', '--api-key', 'ctx7-secret'],
-          env: { CONTEXT7_API_KEY: 'ctx7-secret', NODE_ENV: 'production' },
+          args: ['-y', '@upstash/context7-mcp', '--port', '9'],
+          env: { NODE_ENV: 'production', LOG_LEVEL: 'debug' },
           timeout: 30,
           alwaysLoad: true,
         },
@@ -40,8 +44,8 @@ describe('convertJsonServer', () => {
       value: {
         type: 'stdio',
         command: 'npx',
-        args: ['-y', '@upstash/context7-mcp', '--api-key', MASK],
-        env: { CONTEXT7_API_KEY: MASK, NODE_ENV: MASK },
+        args: ['-y', '@upstash/context7-mcp', '--port', '9'],
+        env: { NODE_ENV: MASK, LOG_LEVEL: MASK },
         mode: 'optional',
       },
       dropped: ['timeout', 'alwaysLoad'],
@@ -55,7 +59,7 @@ describe('convertJsonServer', () => {
     })
     expect(
       convertJsonServer(
-        { url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer abc' } },
+        { url: 'https://mcp.example.com/mcp', headers: { Accept: 'application/json' } },
         MASK,
       ),
     ).toEqual({
@@ -63,11 +67,28 @@ describe('convertJsonServer', () => {
       value: {
         type: 'streamable-http',
         url: 'https://mcp.example.com/mcp',
-        headers: { Authorization: MASK },
+        headers: { Accept: MASK },
         mode: 'optional',
       },
       dropped: [],
     })
+  })
+
+  it.each([
+    ['a credential flag in its arguments', { command: 'npx', args: ['--api-key', 'abc'] }, 'name'],
+    ['a credential-named env value', { command: 'gh-mcp', env: { GITHUB_TOKEN: 'abc' } }, 'name'],
+    ['a token in an env value', { command: 'gh-mcp', env: { GH: SYNTHETIC.githubToken } }, 'token'],
+    ['a credential in its command', { command: 'TOKEN=abc server' }, 'name'],
+    [
+      'an Authorization header',
+      { url: 'https://mcp.example.com/mcp', headers: { Authorization: 'Bearer abc' } },
+      'name',
+    ],
+    ['a URL query', { url: 'https://mcp.example.com/mcp?region=eu' }, 'url'],
+    ['URL user-info', { url: 'https://me:pw@mcp.example.com/mcp' }, 'url'],
+    ['a URL fragment', { url: 'https://mcp.example.com/mcp#key' }, 'url'],
+  ])('refuses a server with %s whole', (_name, raw, cue) => {
+    expect(convertJsonServer(raw, MASK)).toEqual({ ok: false, reason: 'credential', cue })
   })
 
   it.each([
@@ -77,6 +98,9 @@ describe('convertJsonServer', () => {
     ['a header helper', { type: 'http', url: 'https://x', headersHelper: './h.sh' }],
     ['a non-string env value', { command: 'x', env: { A: 1 } }],
     ['neither a command nor a URL', { type: 'stdio' }],
+    // mr83 P3: a blank command is refused, as a blank hook command is.
+    ['a whitespace-only command', { command: ' '.repeat(3) }],
+    ['a URL that does not parse', { url: 'not a url' }],
   ])('refuses %s as unsupported', (_name, raw) => {
     expect(convertJsonServer(raw, MASK)).toEqual({ ok: false, reason: 'unsupported' })
   })
@@ -107,10 +131,14 @@ enabled = true
 CONTEXT7_API_KEY = "ctx7-secret"
 
 [mcp_servers."remote docs"]
-url = "https://docs.example.com/mcp?key=abc"
-http_headers = { "X-Api-Key" = "abc" }
+url = "https://docs.example.com/mcp"
+http_headers = { "X-Region" = "eu" }
 tool_timeout_sec = 60
+enabled_tools = ["search", "fetch"]
 cwd = "/tmp"
+
+[mcp_servers.keyed]
+url = "https://docs.example.com/mcp?key=abc"
 
 [mcp_servers.off]
 command = "off"
@@ -119,6 +147,9 @@ enabled = false
 [mcp_servers.oauth]
 url = "https://o.example.com/mcp"
 auth = "oauth"
+
+[mcp_servers.blank]
+command = " "
 `
 
 describe('Codex config.toml', () => {
@@ -127,37 +158,38 @@ describe('Codex config.toml', () => {
     expect(servers?.map((server) => server.name)).toEqual([
       'context7',
       'remote docs',
+      'keyed',
       'off',
       'oauth',
+      'blank',
     ])
     const converted = servers?.map((server) => convertCodexServer(server.raw, MASK))
     expect(converted).toEqual([
-      {
-        ok: true,
-        value: {
-          type: 'stdio',
-          command: 'npx',
-          args: ['-y', '@upstash/context7-mcp'],
-          env: { CONTEXT7_API_KEY: MASK },
-          mode: 'optional',
-          enabled: true,
-        },
-        dropped: ['startup_timeout_ms'],
-      },
+      // Its env holds a credential-named value: the whole server is refused.
+      { ok: false, reason: 'credential', cue: 'name' },
       {
         ok: true,
         value: {
           type: 'streamable-http',
-          url: `https://docs.example.com/mcp?key=${MASK}`,
-          headers: { 'X-Api-Key': MASK },
+          url: 'https://docs.example.com/mcp',
+          headers: { 'X-Region': MASK },
           mode: 'optional',
           tool_timeout_sec: 60,
+          enabled_tools: ['search', 'fetch'],
         },
         dropped: ['cwd'],
       },
+      { ok: false, reason: 'credential', cue: 'url' },
       { ok: false, reason: 'disabled' },
       { ok: false, reason: 'unsupported' },
+      { ok: false, reason: 'unsupported' },
     ])
+  })
+
+  it('checks the tool names it copies with the rest', () => {
+    expect(
+      convertCodexServer({ command: 'x', enabled_tools: [SYNTHETIC.githubToken] }, MASK),
+    ).toEqual({ ok: false, reason: 'credential', cue: 'token' })
   })
 
   it('reports a file that is not TOML as unreadable, with nothing from it', () => {
@@ -219,7 +251,7 @@ describe('hooks', () => {
 
   it('keeps a matcher, drops one Claude Code ignores, and refuses what would widen', () => {
     const found = readClaudeHooks(settings) ?? []
-    expect(found.map((hook) => convertHook(hook, MASK))).toEqual([
+    expect(found.map((hook) => convertHook(hook))).toEqual([
       {
         ok: true,
         value: {
@@ -247,18 +279,8 @@ describe('hooks', () => {
       { ok: false, reason: 'unsupported' },
       { ok: false, reason: 'unsupported' },
       { ok: false, reason: 'unsupported' },
-      {
-        ok: true,
-        value: {
-          event: 'PostToolUse',
-          group: {
-            matcher: 'Edit',
-            // From the credential's value to the end of the line, failing closed.
-            hooks: [{ type: 'command', command: `TOKEN=${MASK}`, async: true }],
-          },
-        },
-        dropped: [],
-      },
+      // A credential in its command: the whole hook is refused, nothing of it copied.
+      { ok: false, reason: 'credential', cue: 'name' },
       { ok: false, reason: 'unmapped' },
     ])
   })
@@ -295,6 +317,26 @@ describe('Markdown', () => {
     expect(commandToSkill('ship', {}, 'Ship it.')).toContain("description: 'ship'")
   })
 
+  // RV83d #7: masking the generated file cut its closing quote. Nothing is
+  // masked after serializing now: a description with a cue is refused
+  // before (agentImport.test.ts), and an ordinary one is written whole.
+  it('writes front matter the skill reader takes, its scalars closed', () => {
+    const description = 'Keyboard shortcuts for reviewing code'
+    const skill = commandToSkill('review', { description, 'argument-hint': '[file]' }, 'Review.')
+    expect(parseSkillFile(skill)).toMatchObject({
+      ok: true,
+      skill: { name: 'review', description, argumentHint: '[file]', body: 'Review.' },
+    })
+    const scalars = skill
+      .split('\n')
+      .filter((line) => line.startsWith('description: ') || line.startsWith('argument-hint: '))
+      .map((line) => line.slice(line.indexOf(': ') + 2))
+    expect(scalars).toHaveLength(2)
+    for (const scalar of scalars) {
+      expect(scalar).toMatch(YAML_SINGLE_QUOTED)
+    }
+  })
+
   it('heads a rules section with its source and keeps a Cursor rule’s scope', () => {
     const heading = rulesHeading('Cursor', '.cursor/rules/ts.mdc')
     expect(heading).toBe('## Imported from Cursor (.cursor/rules/ts.mdc)')
@@ -315,36 +357,31 @@ describe('Markdown', () => {
 })
 
 describe('hook text shown and copied', () => {
-  it('masks the matcher and the status line as well as the command', () => {
+  it.each([
+    ['its matcher', { matcher: `Bash|${SYNTHETIC.githubToken}` }, {}, 'token'],
+    ['its status line', {}, { statusMessage: 'Posting with token=abc' }, 'name'],
+  ])('refuses a hook with a credential in %s whole', (_name, group, handler, cue) => {
     const [hook] =
       readClaudeHooks(
         JSON.stringify({
           hooks: {
-            PreToolUse: [
-              {
-                matcher: `Bash|${SYNTHETIC.githubToken}`,
-                hooks: [
-                  {
-                    type: 'command',
-                    command: 'x',
-                    statusMessage: `token=${SYNTHETIC.githubToken}`,
-                  },
-                ],
-              },
-            ],
+            PreToolUse: [{ ...group, hooks: [{ type: 'command', command: 'x', ...handler }] }],
           },
         }),
       ) ?? []
-    const converted = hook === undefined ? undefined : convertHook(hook, MASK)
+    const converted = hook === undefined ? undefined : convertHook(hook)
+    expect(converted).toEqual({ ok: false, reason: 'credential', cue })
     expect(JSON.stringify(converted)).not.toContain(SYNTHETIC.githubToken)
-    expect(converted).toMatchObject({
-      ok: true,
-      value: {
-        group: {
-          matcher: `Bash|${MASK}`,
-          hooks: [{ statusMessage: `token=${MASK}` }],
-        },
-      },
+  })
+
+  it('refuses a whitespace-only hook command as unsupported', () => {
+    const [hook] =
+      readClaudeHooks(
+        JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: ' \t' }] }] } }),
+      ) ?? []
+    expect(hook === undefined ? undefined : convertHook(hook)).toEqual({
+      ok: false,
+      reason: 'unsupported',
     })
   })
 })

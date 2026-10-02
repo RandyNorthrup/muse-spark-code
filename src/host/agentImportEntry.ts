@@ -1,5 +1,5 @@
 // The import's shipped CommonJS bundle (M83, PLAN.md D6): the scan, the
-// conversion, the masking, the plan, the file access and the flow, with
+// conversion, the credential check, the plan, the file access and the flow, with
 // `smol-toml` for Codex's configuration. esbuild builds this file into
 // dist/agentImport.js, which `agentImportLoader` requires on the first
 // import, so none of it is in the bundle VS Code loads at activation. It

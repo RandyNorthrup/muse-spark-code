@@ -132,13 +132,15 @@ describe('fileImportIo', () => {
 })
 
 describe('fileImportWriter', () => {
-  it('publishes masked rules bytes on the real filesystem and loads them as the model context', async () => {
-    const workspace = path.join(folders.root, 'masked-context')
+  it('publishes ordinary rules on the real filesystem, refuses rules holding a credential, and loads only the published bytes as context', async () => {
+    const workspace = path.join(folders.root, 'refused-context')
     const home = path.join(workspace, 'home')
-    const source = path.join(workspace, 'CLAUDE.md')
+    const ordinary = path.join(workspace, 'CLAUDE.md')
+    const source = path.join(workspace, '.claude', 'CLAUDE.md')
     const target = path.join(workspace, 'AGENTS.md')
     const secret = SYNTHETIC.githubToken
-    await mkdir(workspace)
+    await mkdir(path.dirname(source), { recursive: true })
+    await writeFile(ordinary, 'Keep each change small.\n')
     await writeFile(source, `Project credential: ${secret}.\n`)
     const scan = await scanAgentImports({
       io: fileImportIo,
@@ -151,7 +153,12 @@ describe('fileImportWriter', () => {
       isActive: () => true,
       sources: ['claudeCode'],
       mask: UI_TEXT.agentImportMasked,
+      hiddenName: UI_TEXT.agentImportHiddenName,
     })
+    expect(scan.candidates.map((candidate) => candidate.target.kind)).toEqual([
+      'rules',
+      'credential',
+    ])
     const plan = await planImportApply(
       scan.candidates,
       {
@@ -173,8 +180,8 @@ describe('fileImportWriter', () => {
     expect(result.failures).toEqual([])
     const published = await readFile(target, 'utf8')
     expect(published).toBe(plan.writes[0]?.content)
-    expect(published).toContain(UI_TEXT.agentImportMasked)
-    expect(published).not.toContain(secret)
+    expect(published).toBe('## Imported from Claude Code (CLAUDE.md)\n\nKeep each change small.\n')
+    expect(plan.skipped.map((skip) => skip.reason)).toEqual(['credential'])
     expect(await readFile(source, 'utf8')).toContain(secret)
     const context = await readContextText(
       { platform: process.platform, io: fileContextIo },

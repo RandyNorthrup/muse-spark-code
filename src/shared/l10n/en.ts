@@ -245,6 +245,17 @@ export const EN = {
   agentImportSkippedUnreadable: 'the file it goes into could not be read, so it is left alone',
   agentImportSkippedTooLarge: 'it would take AGENTS.md past the size Muse Code loads',
   agentImportSkippedChanged: 'its folder changed after the preview, so it was not written',
+  // {cue}: one of the agentImportCue* phrases below; never the value itself.
+  agentImportSkippedCredential: 'may hold a credential ({cue}): copy it yourself',
+  agentImportCueName: 'a credential-like name with a value',
+  agentImportCueUrl: 'a URL with a user name, a password or a credential parameter',
+  agentImportCueToken: 'a known token shape',
+  agentImportCueOpaque: 'a long random-looking value',
+  // Shown in place of an entry's name when the name itself may hold a credential.
+  agentImportHiddenName: '(name not shown: it may hold a credential)',
+  // Shown when some of the other agents' files could not be read during the scan.
+  agentImportSkippedFiles:
+    'Some files were skipped while reading them; the log names each one and says why.',
   // Shown when the import could not start writing at all.
   agentImportNotApplied:
     'Nothing was imported: the window closed, the folder changed after the preview, or the checkpoint could not be kept.',
@@ -259,7 +270,7 @@ export const EN = {
   // The read-only preview document, in Markdown.
   agentImportPreviewTitle: 'Import preview',
   agentImportPreviewIntro:
-    'Nothing is written until you choose Import. Existing files are never replaced. Secret-looking values are masked in this preview and in the files written, so fill in by hand any value a file needs.',
+    'Nothing is written until you choose Import. Existing files are never replaced. An entry that may hold a credential is not imported at all: copy it yourself. MCP servers’ environment and header values are masked, so fill them in by hand.',
   agentImportPreviewFiles: 'New files',
   // {path}: the workspace's AGENTS.md.
   agentImportPreviewRules: 'Sections added to {path}',
@@ -277,6 +288,7 @@ export const EN = {
   // {fields}: field names, comma-separated.
   agentImportPreviewDropped: 'not carried over: {fields}',
   agentImportPreviewNotImported: 'Not imported',
+  agentImportPreviewCredentials: 'Not imported: may hold a credential — copy it yourself',
   // {count}: a number.
   agentImportCountFiles: 'New files: {count}',
   agentImportCountSections: 'Sections for AGENTS.md: {count}',

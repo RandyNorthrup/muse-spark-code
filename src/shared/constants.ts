@@ -1431,6 +1431,12 @@ export const AGENT_IMPORT_CLAUDE_STATE_MAX_BYTES = 16 * 1024 * 1024
 export const AGENT_IMPORT_DIR_MAX_ENTRIES = 200
 /** How deep Claude Code's agent folders and namespaced command folders (`frontend/component.md`) are followed. */
 export const AGENT_IMPORT_FOLDER_MAX_DEPTH = 3
+/**
+ * A run of base64 or hex characters this long, mixing digits with letters,
+ * reads as a key or token (`importCredentials.ts`): a random 32-character
+ * key lacks a digit or a letter case less than once in 200 tries.
+ */
+export const AGENT_IMPORT_OPAQUE_RUN_MIN_CHARS = 32
 /** A skill id or agent file name made from a foreign file name is cut here. */
 export const AGENT_IMPORT_ID_MAX_CHARS = 64
 /**

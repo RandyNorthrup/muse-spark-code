@@ -25,6 +25,7 @@ import { SYNTHETIC } from './helpers/syntheticTokens'
 const HOME = '/home/u'
 const WS = '/ws'
 const MASK = '[masked]'
+const HIDDEN = '(name not shown)'
 const SECRET = SYNTHETIC.githubToken
 
 function agentFile(name: string, body: string, fields = ''): string {
@@ -36,7 +37,7 @@ const FIXTURES: Record<string, string> = {
   // Claude Code: user and local-scope servers in ~/.claude.json, hooks in settings.
   [`${HOME}/.claude.json`]: JSON.stringify({
     oauthAccount: { emailAddress: 'someone@example.com' },
-    mcpServers: { github: { command: 'gh-mcp', env: { GITHUB_TOKEN: SECRET } } },
+    mcpServers: { github: { command: 'gh-mcp', env: { GH_HOST: 'github.example.com' } } },
     projects: { [WS]: { mcpServers: { local: { command: 'local-mcp' } } } },
   }),
   [`${HOME}/.claude/settings.json`]: JSON.stringify({
@@ -82,6 +83,7 @@ function input(
     isActive: () => true,
     sources: ALL_SOURCES,
     mask: MASK,
+    hiddenName: HIDDEN,
     ...overrides,
     io: memoryImportIo(tree),
   }
@@ -92,6 +94,9 @@ function targetOf(candidate: ImportCandidate): string {
   switch (target.kind) {
     case 'none': {
       return `none:${target.reason}`
+    }
+    case 'credential': {
+      return `credential:${target.cue}`
     }
     case 'file': {
       return `${target.scope} ${target.root}/${target.relativePath}`
@@ -184,7 +189,8 @@ describe('scanAgentImports', () => {
         case 'rules': {
           return candidate.origin !== 'project'
         }
-        case 'none': {
+        case 'none':
+        case 'credential': {
           return false
         }
       }
@@ -284,11 +290,62 @@ describe('scanAgentImports', () => {
     expect(scan.warnings.join('\n')).not.toContain(SECRET)
   })
 
-  it('never keeps a secret in a candidate: servers and hooks are masked at conversion', async () => {
+  it('masks every server env value at conversion, keeping its name', async () => {
     const scan = await scanAgentImports(input({ files: FIXTURES }))
     const servers = scan.candidates.filter((candidate) => candidate.kind === 'mcpServer')
-    expect(JSON.stringify(servers)).not.toContain(SECRET)
-    expect(JSON.stringify(servers)).toContain(MASK)
+    expect(JSON.stringify(servers)).not.toContain('github.example.com')
+    expect(JSON.stringify(servers)).toContain(`"GH_HOST":"${MASK}"`)
+  })
+})
+
+// The redesign after RV83d: an entry that may hold a credential is refused
+// whole at the scan, and no candidate keeps any of its text.
+describe('scanAgentImports: entries that may hold a credential', () => {
+  const credentialFiles: Record<string, string> = {
+    [`${HOME}/.claude.json`]: JSON.stringify({
+      mcpServers: {
+        github: { command: 'gh-mcp', env: { GITHUB_TOKEN: SECRET } },
+        [`named-${SECRET}`]: { command: 'plain' },
+      },
+    }),
+    [`${HOME}/.claude/settings.json`]: JSON.stringify({
+      hooks: {
+        Stop: [
+          { hooks: [{ type: 'command', command: `curl -H "Authorization: Bearer ${SECRET}"` }] },
+        ],
+        PreToolUse: [{ matcher: `Bash(${SECRET})`, hooks: [{ type: 'command', command: 'x' }] }],
+      },
+    }),
+    [`${HOME}/.claude/commands/review.md`]: `---\ndescription: Reviews\n---\n\nUse ${SECRET}.\n`,
+    // RV83d #7: a cue in the description that masking once cut mid-scalar.
+    [`${HOME}/.claude/commands/keys.md`]: '---\ndescription: token=opaque-demo-value\n---\n\nGo.\n',
+    [`${HOME}/.claude/agents/scout.md`]: agentFile('scout', 'Review.\npassword:\n  opaque'),
+    [`${WS}/CLAUDE.md`]: "Project rules.\nTOKEN='prefix\nopaque-demo-value'\n",
+  }
+
+  it('refuses each one whole, names its cue and keeps none of its text', async () => {
+    const setup = input({ files: credentialFiles }, { sources: ['claudeCode'] })
+    const scan = await scanAgentImports(setup)
+    expect(summary(scan.candidates)).toEqual([
+      'mcpServer claudeCode user github -> credential:token',
+      `mcpServer claudeCode user ${HIDDEN} -> credential:token`,
+      'hook claudeCode user Stop -> credential:token',
+      `hook claudeCode user ${HIDDEN} -> credential:token`,
+      'agent claudeCode user scout -> credential:name',
+      'command claudeCode user keys -> credential:name',
+      'command claudeCode user review -> credential:token',
+      'rules claudeCode project CLAUDE.md -> credential:name',
+    ])
+    const kept = JSON.stringify(scan.candidates)
+    for (const secret of [SECRET, 'opaque-demo-value', 'opaque']) {
+      expect(kept).not.toContain(secret)
+    }
+    const plan = await planImportApply(scan.candidates, DESTINATIONS, planState(setup.io))
+    expect(plan.writes).toEqual([])
+    expect(plan.copies).toEqual([])
+    expect(plan.skipped.map((skip) => skip.reason)).toEqual(
+      Array.from({ length: 8 }, () => 'credential'),
+    )
   })
 })
 
@@ -353,7 +410,7 @@ describe('planImportApply', () => {
     expect(JSON.parse(settings?.text ?? '')).toEqual({
       schema_version: 1,
       mcpServers: {
-        github: { type: 'stdio', command: 'gh-mcp', env: { GITHUB_TOKEN: MASK }, mode: 'optional' },
+        github: { type: 'stdio', command: 'gh-mcp', env: { GH_HOST: MASK }, mode: 'optional' },
         local: { type: 'stdio', command: 'local-mcp', mode: 'optional' },
         docs: { type: 'stdio', command: 'docs-mcp', mode: 'optional' },
         web: { type: 'streamable-http', url: 'https://w/mcp', mode: 'optional' },
@@ -527,13 +584,13 @@ describe('refusals', () => {
     },
   )
 
-  it('writes a compatible agent as its masked bytes, keeping every restriction it names', async () => {
+  it('writes a compatible agent as its own bytes, keeping every restriction it names', async () => {
     const setup = input(
       {
         files: {
           [`${WS}/.claude/agents/review/scout.md`]: agentFile(
             'scout',
-            `Review carefully. token=${SECRET}`,
+            'Review carefully.',
             'tools: read_file, search\nmodel: muse-spark-1.3\npermission-mode: plan\neffort: high\n',
           ),
         },
@@ -548,9 +605,8 @@ describe('refusals', () => {
     ])
     const written = setup.io.files.get(`${WS}/.agents/agents/review-scout/AGENT.md`)
     expect(written).toBe(
-      `---\nname: scout\ndescription: scout agent\ntools: read_file, search\nmodel: muse-spark-1.3\npermission-mode: plan\neffort: high\n---\n\nReview carefully. token=${MASK}\n`,
+      '---\nname: scout\ndescription: scout agent\ntools: read_file, search\nmodel: muse-spark-1.3\npermission-mode: plan\neffort: high\n---\n\nReview carefully.\n',
     )
-    expect(written).not.toContain(SECRET)
   })
 
   it.each([

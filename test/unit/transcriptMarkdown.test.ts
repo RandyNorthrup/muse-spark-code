@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   exportFileName,
+  fenced,
   renderTranscriptMarkdown,
   type TranscriptExport,
 } from '../../src/core/export/transcriptMarkdown'
@@ -163,6 +164,14 @@ describe('renderTranscriptMarkdown', () => {
   it('fences output longer than any backtick run inside it', () => {
     const markdown = render([item({ kind: 'toolCall', tool: 't', visibleOutput: 'a ```` b ` c' })])
     expect(markdown).toContain('`````\na ```` b ` c\n`````')
+  })
+})
+
+describe('fenced', () => {
+  // RV83d #8: spreading every run's length into Math.max overflowed the stack.
+  it('fences a text of 128,000 backtick runs, longer than its longest', () => {
+    const text = `${'`a'.repeat(128_000)}\`\`\`\``
+    expect(fenced(text, 'json')).toBe(`\`\`\`\`\`json\n${text}\n\`\`\`\`\``)
   })
 })
 

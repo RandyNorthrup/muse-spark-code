@@ -124,6 +124,7 @@ function hostDeps(
     currentRoot: () => root,
     editProject: async (work) => await work(() => undefined),
     beforeProjectWrite: () => Promise.resolve(),
+    noteUserWrite: () => undefined,
     museSettingsPath: () => path.join(folders.root, 'settings.json'),
     openDocument: () => Promise.resolve(),
     bundle: () => ({ importFromAgents, runAgentImport: bundledAgentImport }),

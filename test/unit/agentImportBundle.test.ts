@@ -171,6 +171,7 @@ describe('the shipped import bundle', () => {
         captureOwner,
         editProject: async (work) => await work(() => undefined),
         beforeProjectWrite: () => Promise.resolve(),
+        noteUserWrite: () => undefined,
         museSettingsPath: () => path.join(built.folder, 'settings.json'),
         openDocument: () => Promise.resolve(),
         bundle: () => bundled,
@@ -186,7 +187,7 @@ describe('the shipped import bundle', () => {
     })
   })
 
-  it('imports Codex’s MCP servers with smol-toml inside the bundle, masked, and writes nothing to the settings', async () => {
+  it('imports Codex’s MCP servers with smol-toml inside the bundle, refuses one holding a credential, and writes nothing to the settings', async () => {
     const home = path.join(built.folder, 'home')
     const codex = path.join(home, '.codex')
     mkdirSync(codex, { recursive: true })
@@ -195,9 +196,12 @@ describe('the shipped import bundle', () => {
       [
         '[mcp_servers.docs]',
         'command = "docs-mcp"',
-        'args = ["--token", "' + SYNTHETIC.githubToken + '"]',
+        'args = ["--port", "9"]',
         '[mcp_servers.docs.env]',
-        'API_KEY = "hunter2"',
+        'NODE_ENV = "production"',
+        '[mcp_servers.keyed]',
+        'command = "keyed-mcp"',
+        'args = ["--token", "' + SYNTHETIC.githubToken + '"]',
         '',
       ].join('\n'),
     )
@@ -217,6 +221,7 @@ describe('the shipped import bundle', () => {
       museSettingsFile: settings,
       editProject: async (work) => await work(() => undefined),
       beforeProjectWrite: () => Promise.resolve(),
+      noteUserWrite: () => undefined,
       pickSource: () => Promise.resolve('codex'),
       pickCandidates: (items) => Promise.resolve(items.map((item) => item.id)),
       openPreview: (_title, markdown) => {
@@ -252,13 +257,16 @@ describe('the shipped import bundle', () => {
         docs: {
           type: 'stdio',
           command: 'docs-mcp',
-          args: ['--token', UI_TEXT.agentImportMasked],
-          env: { API_KEY: UI_TEXT.agentImportMasked },
+          args: ['--port', '9'],
+          env: { NODE_ENV: UI_TEXT.agentImportMasked },
           mode: 'optional',
         },
       },
     })
-    expect(previews.join('\n')).not.toContain(SYNTHETIC.githubToken)
+    expect(previews.join('\n')).toContain(
+      `## ${UI_TEXT.agentImportPreviewCredentials}\n\n- keyed (`,
+    )
+    expect([...previews, ...copied].join('\n')).not.toContain(SYNTHETIC.githubToken)
     expect(opened).toEqual([settings])
     // The extension never writes Muse Code's settings file (D17, D30).
     expect(() => realpathSync(settings)).toThrow()
