@@ -2,7 +2,7 @@
   "displayName": "Muse Spark Code（非官方）",
   "description": "將 Meta 的 Muse Spark 作為 VS Code 中的程式設計代理程式：串流聊天、附差異的工具呼叫、權限模式、子代理程式、MCP 伺服器、PDF 和檔案輸入、工作階段歷程記錄和語音聽寫，使用您的 Muse 訂閱（Muse Code CLI）或 Model API 金鑰。非官方。",
   "capabilities.virtualWorkspaces.description": "Muse Spark Code 需要真實的檔案系統：Muse Code CLI 和內建工具會直接讀寫工作區檔案。",
-  "capabilities.untrustedWorkspaces.description": "在限制模式下，代理程式不會載入工作區的規則（AGENTS.md）、技能或記憶，不執行 shell 命令，延伸模組也不執行 git。信任工作區即可啟用這些功能。決定執行內容和計費對象的設定屬於電腦範圍，因此存放庫的 .vscode/settings.json 無法設定它們；在遠端視窗中（開發容器定義可以設定它們），「略過權限」一律會先詢問。",
+  "capabilities.untrustedWorkspaces.description": "在限制模式下，代理程式不會載入工作區的規則（AGENTS.md）、技能或記憶，不執行 shell 命令，延伸模組也不執行 git。信任工作區即可啟用這些功能。決定執行內容和計費對象的設定屬於電腦範圍，因此存放庫的 .vscode/settings.json 無法設定它們；在遠端視窗中（開發容器定義可以設定它們），對話絕不會以「略過權限」開始，進入該模式時一律會先詢問一次。",
   "viewsContainers.museSpark.title": "Muse Spark",
   "views.chatView.name": "聊天",
   "command.category": "Muse Spark",

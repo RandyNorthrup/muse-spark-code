@@ -295,13 +295,13 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                        | Muse Code backend                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command                                 | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands |
-| **Edit automatically** | Approves plain file edits, asks before commands                          | As Manual, plus the file approvals the CLI does raise are approved for you                                       |
-| **Plan**               | Refuses edits and commands                                               | The CLI plans without editing                                                                                    |
-| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend) | The CLI runs its own safety check and asks for anything risky                                                    |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks                | The same                                                                                                         |
+| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands |
+| **Edit automatically** | Approves plain file edits, asks before commands                                                     | As Manual, plus the file approvals the CLI does raise are approved for you                                       |
+| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                    |
+| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs its own safety check and asks for anything risky                                                    |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                       |
 
 A Manual approval still needs your answer if you open the conversation
 in another panel set to Edit automatically. Joining a conversation never
@@ -1746,19 +1746,19 @@ What stays in English:
 
 ## Limits
 
-| What                             | Limit                                                                                                                                                                                              |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                           |
-| PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50.           |
-| Model API encoded media          | 48 million data URL characters total per new message and replay request; older replayed media is named but omitted when over the cap.                                                              |
-| Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                       |
-| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.               |
-| Model API: tool rounds           | 50 per turn                                                                                                                                                                                        |
-| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                   |
-| Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short |
-| Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                            |
-| Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                             |
-| Opened tool outputs              | 16 MiB each; the latest 20, and 32 million characters together                                                                                                                                     |
+| What                             | Limit                                                                                                                                                                                                                                                           |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images and PDFs                  | 20 attachments per message together; images 10 MiB each (PDFs: next row)                                                                                                                                                                                        |
+| PDFs on the Model API backend    | 32 MB each locally (Meta allows 50 MB per inline file); images and PDF page images together: 50 per message. Meta reads text from the first 100 pages and page images from the first 50 (Meta's [file-handling guide](https://dev.meta.ai/docs/file-handling)). |
+| Model API encoded media          | 48 million data URL characters total per new message and replay request; older replayed media is named but omitted when over the cap.                                                                                                                           |
+| Picked UTF-8 text attachments    | 1 MiB per-file read cap from trusted and indexed workspace paths; Model API also caps combined text and file-name wrappers at 768 KiB to leave context room.                                                                                                    |
+| A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
+| Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
+| Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
+| Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
+| Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
+| Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
+| Opened tool outputs              | 16 MiB each; the latest 20, and 32 million characters together                                                                                                                                                                                                  |
 
 ## Commands and keybindings
 

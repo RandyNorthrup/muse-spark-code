@@ -32,6 +32,10 @@ happened, not what was planned; superseded entries are kept.
   run of dotted words once. A token glued after `_` or a letter
   (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
   the old pattern redacted is left.
+- Documentation: corrected the Bypass row of the permission-mode table (paid
+  uses still ask), the remote-window Bypass description in the Restricted Mode
+  text, and the Diagnostics, dictation and macOS helper claims in PRIVACY and
+  SECURITY; cited Meta's source for the PDF page limits.
 
 ### Changed
 
