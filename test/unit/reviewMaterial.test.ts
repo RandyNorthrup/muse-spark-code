@@ -117,7 +117,7 @@ describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
     // The secret never leaves: not in the diff, not in the lists but by name.
     expect(found.diff).not.toContain('sk-live-secret')
     expect(found.diff).not.toContain('TOKEN')
-    expect(found.changedFiles).toEqual(['M\tsrc/a.ts', 'A\tstaged.ts'])
+    expect(found.changedFiles).toEqual(['src/a.ts', 'staged.ts'])
     expect(found.untracked).toEqual(['new.ts'])
     expect(found.privateFiles.toSorted((left, right) => left.localeCompare(right))).toEqual([
       '.env',
@@ -186,6 +186,61 @@ describe('the uncommitted changes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
     expect(found.diff.endsWith('\n')).toBe(true)
     expect(found.fullLength).toBeGreaterThan(REVIEW_DIFF_MAX_CHARS)
   })
+
+  it('keeps no more than the cap when a line ends exactly at it (M70 review finding 2)', async () => {
+    const folder = await repository('line-at-cap')
+    await commitFile(folder, 'big.txt', '', 'empty')
+    const tail = `${'y'.repeat(99)}\n`.repeat(100)
+    const write = (long: number) =>
+      writeFile(path.join(folder, 'big.txt'), `${'a'.repeat(long)}\n${tail}`)
+    const fullDiff = () => git(folder, ['diff', '--no-color', 'HEAD', '--', 'big.txt'])
+    await write(1)
+    // git's header is as long whatever the first line's length: that line's
+    // break lands on the cap's own index.
+    const header = fullDiff().indexOf('\n+a') + 1
+    await write(REVIEW_DIFF_MAX_CHARS - header - 1)
+    expect(fullDiff()[REVIEW_DIFF_MAX_CHARS]).toBe('\n')
+    const found = material(
+      await collector(folder, () => undefined).collect({ scope: 'uncommitted', focus: 'general' }),
+    )
+    expect(found.fullLength).toBeGreaterThan(REVIEW_DIFF_MAX_CHARS)
+    expect(found.diff.length).toBeLessThanOrEqual(REVIEW_DIFF_MAX_CHARS)
+    expect(found.diff.endsWith('\n')).toBe(true)
+  })
+
+  it('lists changed files by path, a renamed one as old → new (M70 review finding 1)', async () => {
+    const folder = await repository('renamed')
+    await commitFile(folder, 'src/old.ts', 'export const kept = 1\n'.repeat(5), 'first')
+    git(folder, ['mv', 'src/old.ts', 'src/new.ts'])
+    await writeFile(path.join(folder, 'added.ts'), 'added\n')
+    git(folder, ['add', 'added.ts'])
+    const found = material(
+      await collector(folder, () => undefined).collect({ scope: 'uncommitted', focus: 'general' }),
+    )
+    expect(found.changedFiles).toEqual(['added.ts', 'src/old.ts → src/new.ts'])
+  })
+
+  // Git quotes a path holding `"`, `\` or a control character in its line
+  // output (core.quotePath covers only bytes past ASCII); Windows allows none.
+  it.skipIf(process.platform === 'win32')(
+    'reads paths as stored, so a file that may hold secrets in a folder git would quote is still left out (M70 review)',
+    async () => {
+      const folder = await repository('quoted')
+      await commitFile(folder, 'a.ts', 'a\n', 'first')
+      await writeFile(path.join(folder, 'a.ts'), 'b\n')
+      await mkdir(path.join(folder, 'we"ird'))
+      await writeFile(path.join(folder, 'we"ird', '.env'), 'TOKEN=sk-quoted-secret\n')
+      const found = material(
+        await collector(folder, () => undefined).collect({
+          scope: 'uncommitted',
+          focus: 'general',
+        }),
+      )
+      expect(found.untracked).toEqual([])
+      expect(found.privateFiles).toEqual(['we"ird/.env'])
+      expect(found.changedFiles).toEqual(['a.ts'])
+    },
+  )
 })
 
 describe('a branch against its base', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
@@ -258,7 +313,7 @@ describe('one commit', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       }),
     )
     expect(found.diff).toContain('+export const a = 1')
-    expect(found.changedFiles).toEqual(['A\tsrc/a.ts'])
+    expect(found.changedFiles).toEqual(['src/a.ts'])
   })
 
   it('refuses a commit git does not know', async () => {

@@ -768,7 +768,9 @@ Review what the agent did before it lands, on both backends.
   against its base since they diverged, `/review commit [revision]` one
   commit, and `/review <what to look at>` anything you describe, with no
   git at all. Leave out the base or the commit and a picker asks, the
-  repository's default branch first. Put `security` first
+  repository's default branch first. A word after `branch` or `commit`
+  that cannot be a revision (it starts with `-` or is longer than 256
+  characters) makes the whole line text to review. Put `security` first
   (`/review security`, or **Security review** in the `/` menu) to look for
   injection, secrets, authentication and unsafe APIs.
 - **What goes with it.** The extension reads the changes with git and sends
@@ -814,7 +816,9 @@ Review what the agent did before it lands, on both backends.
   that one change out of the file as it is now, or says why it cannot (the
   file changed since, or its editor has unsaved changes). Save or discard
   unsaved changes before trying Revert again. This is checked again before the
-  write or deletion, including when you edit a linked buffer while Revert waits. A revert is an edit of the
+  write or deletion, including when you edit a linked buffer while Revert waits.
+  If the backend restarts while a Revert or the pane's list waits, the pane
+  says so, and a Revert that wrote nothing can be pressed again. A revert is an edit of the
   workspace like any other: it writes through turn checkpoints (another
   window on the folder refuses a file restore while it writes). Overlapping
   reverts of the same file run in order and rebuild from its latest saved

@@ -777,8 +777,9 @@ export const REVIEW_FOCUSES = ['general', 'security'] as const
 // A base branch or commit named after `/review branch` or `/review commit`.
 export const REVIEW_REF_MAX_CHARS = 256
 export const REVIEW_INSTRUCTIONS_MAX_CHARS = 8000
-// The diff that goes with a review is cut here, at a line end; the reviewer
-// is told so and reads the rest of the files with its tools.
+// The diff that goes with a review is cut after its last whole line within
+// this many characters; the reviewer is told so and reads the rest of the
+// files with its tools.
 export const REVIEW_DIFF_MAX_CHARS = 200_000
 // The changed and untracked files named beside the diff.
 export const REVIEW_FILES_LISTED_MAX = 500
@@ -2967,7 +2968,7 @@ export const REVIEW_MODEL_TEXT = {
   reviewDiff: 'The diff:',
   reviewTruncated:
     'The diff below was cut after {chars} characters; read the rest of the changed files with your tools.',
-  reviewChangedFiles: 'The changed files (git name-status):',
+  reviewChangedFiles: 'The changed files (a renamed file as old → new):',
   reviewUntracked: 'Untracked files, not in the diff (read them when they matter):',
   reviewPrivateLeftOut:
     'Changed files left out because they may hold secrets (environment files, keys, credentials); do not read them:',

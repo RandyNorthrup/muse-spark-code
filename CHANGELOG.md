@@ -94,6 +94,19 @@ happened, not what was planned; superseded entries are kept.
   publish old results into the replacement conversation.
 - A review refused after exhausting its untrusted-material marker retries
   now shows the installed display language's cancellation message.
+- The review's changed files reach the reviewer as paths (a rename as
+  `old → new`) instead of git's status lines, read from git's NUL-separated
+  output, so a file that may hold secrets in a folder git quotes (a `"` or
+  `\` in its name) is still left out and only named.
+- The review's diff never exceeds its 200,000-character cap: a line break
+  exactly at the cap had kept one character more.
+- A word after `/review branch` or `/review commit` longer than 256
+  characters is read as text to review, as a word starting with `-` is,
+  instead of being refused as instructions too long.
+- The review pane answers a Revert or a list that a backend restart or a
+  lapsed sign-in interrupted instead of leaving it waiting, and a Revert
+  that wrote nothing can be pressed again instead of being refused as
+  already reverted. A cleared or other conversation still hears nothing.
 
 ## [0.10.0] - 2026-10-01
 

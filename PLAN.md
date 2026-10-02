@@ -7780,6 +7780,23 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Independent review follow-up (M70d, 2026-10-01).** Four code-reading
+  findings, each confirmed before repair, after merging main's shared
+  English table (PR #67). (1) The changed-file list carried git's
+  `--name-status` lines; it now holds paths (a rename as `old → new`) read
+  from `-z` output, which also keeps git's quoting out of the privacy
+  check. (2) The cut never mid-line in practice (git's diff opens with a
+  short line), but a line break exactly at the cap kept 200,001
+  characters; the cut is now within the cap and the docs say how it falls.
+  (3) A pane press or read overtaken by a restart, a crash, the host
+  closing the session or a sign-in check returned silently: the pane
+  waited forever and an unwritten hunk stayed "already reverted". It is
+  answered while the panel still shows that conversation, and a press
+  releases only its own hold. (4) A revision word over 256 characters
+  parsed as git and was refused as "too long"; the parser now applies the
+  wire schema itself, so such a word is custom text. Also: the activation
+  review-admission fixture lacked M72's `asUserEdit`, so its four cases
+  timed out since the main merge. Proof in `docs/certification/m70.md`.
 - **Shared-table decision (M70c, 2026-10-01).** Remove the lane's empty-table
   build workaround in its own commit, then merge approved `build/shared-ui-text`
   (`44d920fd`). Every Node bundle loads `dist/uiText.js`; review stays lazy
@@ -7877,8 +7894,10 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     `/review commit [revision]`, `/review <text>` (custom, no git), each
     with an optional leading `security`. A keyword counts only with at most
     one revision word after it, so `/review branch naming in utils` is
-    custom text. A revision is one word that never starts with `-`, checked
-    by the wire schema and again before git sees it. The palette's Review
+    custom text. A revision is one word of at most 256 characters that
+    never starts with `-`: the parser applies the wire schema itself, so any
+    other word there makes the line custom text, and a leading `-` is
+    refused again before git sees it. The palette's Review
     group has the presets, **Security review** (`/security-review`, Claude
     Code's name) and the pane (`/changes`); a missing base or commit is
     picked in a quick pick, the base suggested from `origin/HEAD`, else
@@ -7896,8 +7915,11 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     then unstaged, before a first commit), a branch from its merge base, and
     one commit against its first parent (a root commit whole). Files that
     may hold secrets (M54's attachment rule, now `shared/privateFiles.ts`)
-    are left out of every diff by pathspec and only named. The diff is cut
-    at 200,000 characters on a line end, and the reviewer is told so.
+    are left out of every diff by pathspec and only named. The changed files
+    are listed by path (a rename as `old → new`), read from git's `-z`
+    output so no path arrives quoted. The diff is cut after its last whole
+    line within 200,000 characters (git's diff opens with a short
+    `diff --git` line, so one always fits), and the reviewer is told so.
     Everything git said, the branch name and commit message included, goes
     between random markers under a sentence that calls it untrusted data
     (D49's untrusted content); a marker the material already holds is
@@ -7971,7 +7993,12 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
     from each other's bytes, written to the checked canonical target through
     the checkpointed edit guard (another window refuses a restore meanwhile),
     and announced to live verification without an own edit round of the
-    agent's (`beginExternalEdit`).
+    agent's (`beginExternalEdit`). A press or a pane read that a restart, a
+    crash, the host closing the session or a sign-in check overtakes is
+    answered while the panel still shows that conversation (attached, or
+    the one the next message resumes); a press that wrote nothing gives its
+    hunk back, and only its own hold. A cleared or other conversation hears
+    nothing of it.
   - **Bundles** (D6 amendment): the review's code is `dist/review.js`, and
     the Model API and review bundles carry no English table.
     The lane's budget repair splits the existing model text used only by

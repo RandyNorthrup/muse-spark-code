@@ -808,8 +808,12 @@ export class ConversationController {
   private permissionModeSelection = 0
   /** Turning Bypass off invalidates prior popups and restores, even after off/on. */
   private bypassRevocationEpoch = 0
-  /** The review pane's hunks reverted in this session (M70): each is taken out once. */
-  private readonly revertedHunks = new Set<string>()
+  /**
+   * The review pane's hunks reverted in this session (M70): each is taken out
+   * once. The value is the press that holds it, so a press that went stale
+   * releases only its own hold.
+   */
+  private readonly revertedHunks = new Map<string, symbol>()
   /**
    * The turns this panel started in Plan mode that finished with the panel
    * in Plan mode throughout (M79): only their replies are plans. A restart
@@ -2289,6 +2293,25 @@ export class ConversationController {
       this.sendInvalidationEpoch === generation &&
       this.session === session
     )
+  }
+
+  /**
+   * Whether the panel still shows `sessionId`'s conversation: attached, or
+   * the one the next message resumes after a restart, a crash or the host
+   * closing it (D25). A new or other conversation, or an account stop, which
+   * clears every panel, is not.
+   */
+  private holdsConversation(sessionId: string): boolean {
+    return (
+      !this.isDisposed &&
+      this.accountStopsInFlight === 0 &&
+      (this.session?.sessionId ?? this.resumeTarget?.sessionId) === sessionId
+    )
+  }
+
+  /** Why a pane action stopped while its conversation stayed (M70). */
+  private paneActionStoppedReason(): string {
+    return this.isAuthAdmitted() ? UI_TEXT.turnStoppedByRestart : UI_TEXT.notSignedInReason
   }
 
   /**
@@ -4111,6 +4134,14 @@ export class ConversationController {
       answer([], 0, this.isAuthAdmitted() ? UI_TEXT.sessionRequired : UI_TEXT.notSignedInReason)
       return
     }
+    // The session or its generation went meanwhile: what was read belongs to
+    // another moment. A pane the panel still shows (a restart, say) is told
+    // why, so it does not wait; a new or other conversation hears nothing.
+    const stopped = () => {
+      if (this.holdsConversation(session.sessionId)) {
+        answer([], 0, this.paneActionStoppedReason())
+      }
+    }
     const files: ReviewFile[] = []
     const read = edits.slice(0, REVIEW_PANE_MAX_EDITS)
     let omitted = edits.length - read.length
@@ -4122,6 +4153,7 @@ export class ConversationController {
         described = patch === undefined ? undefined : await this.deps.editReview.describe(patch)
       } catch {
         if (!this.isCurrentSessionAction(session, generation)) {
+          stopped()
           return
         }
         // Named by its item only: the error may quote a path the host chose (AGENTS.md rule 8).
@@ -4129,8 +4161,8 @@ export class ConversationController {
         omitted += 1
         continue
       }
-      // The conversation changed meanwhile: what was read belongs to another.
       if (!this.isCurrentSessionAction(session, generation)) {
+        stopped()
         return
       }
       if (described === undefined) {
@@ -4161,7 +4193,12 @@ export class ConversationController {
     answer(files, omitted)
   }
 
-  /** The review pane's Revert on one hunk (M70): taken out once, answered in its owning session. */
+  /**
+   * The review pane's Revert on one hunk (M70): taken out once. Each press is
+   * answered while the panel still shows its conversation, a restarted one
+   * included, and gives the hunk back when it wrote nothing; a new or other
+   * conversation hears nothing of it.
+   */
   private async revertReviewHunk(
     message: Extract<ConversationMessage, { type: 'revertReviewHunk' }>,
   ): Promise<void> {
@@ -4188,24 +4225,35 @@ export class ConversationController {
       return
     }
     // Taken before the first await: a second press cannot revert it twice.
-    this.revertedHunks.add(key)
+    const press = Symbol(key)
+    this.revertedHunks.set(key, press)
+    const release = () => {
+      if (this.revertedHunks.get(key) === press) {
+        this.revertedHunks.delete(key)
+      }
+    }
+    // The session or its generation went with nothing written: the hunk is
+    // given back, and a pane the panel still shows (a restart, say) is told
+    // why, so its button does not wait; a new or other conversation hears nothing.
+    const stopped = () => {
+      release()
+      if (this.holdsConversation(session.sessionId)) {
+        answer(false, this.paneActionStoppedReason())
+      }
+    }
     try {
       const patch = await this.fetchPatch(session, generation, itemId, outputRef)
-      if (!this.isCurrentSessionAction(session, generation)) {
-        return
-      }
-      if (patch === undefined) {
-        this.revertedHunks.delete(key)
-        answer(false, UI_TEXT.turnStoppedByRestart)
+      if (patch === undefined || !this.isCurrentSessionAction(session, generation)) {
+        stopped()
         return
       }
       const outcome = await this.deps.editReview.revertHunk(itemId, patch, fileIndex, hunkIndex)
-      // A settled write still belongs to the conversation that requested it.
-      if (!this.isCurrentSessionAction(session, generation)) {
-        return
-      }
       if (!outcome.isReverted) {
-        this.revertedHunks.delete(key)
+        release()
+      }
+      // A settled write is told only to the conversation that requested it.
+      if (!this.holdsConversation(session.sessionId)) {
+        return
       }
       const said = outcome.notices.map((notice) => notice.text).join(' ')
       for (const notice of outcome.notices) {
@@ -4214,9 +4262,10 @@ export class ConversationController {
       answer(outcome.isReverted, outcome.isReverted ? undefined : said)
     } catch (error: unknown) {
       if (!this.isCurrentSessionAction(session, generation)) {
+        stopped()
         return
       }
-      this.revertedHunks.delete(key)
+      release()
       const reason = `${UI_TEXT.editReviewFailed}: ${describe(error)}`
       this.notice('error', reason)
       answer(false, reason)

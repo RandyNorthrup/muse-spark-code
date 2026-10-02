@@ -20,8 +20,10 @@ import {
   REVIEW_SLASH_COMMAND,
 } from './constants'
 
-// A git revision word: no whitespace or control character, and never a
-// leading dash, so it cannot be read as one of git's options.
+// A git revision word: no whitespace or control character, never a leading
+// dash, so it cannot be read as one of git's options, and at most
+// REVIEW_REF_MAX_CHARS long. A word after a keyword that is not one makes the
+// prompt custom text, so the parser never asks for what the schema refuses.
 const REVISION = /^[^\s\-\p{Cc}][^\s\p{Cc}]*$/u
 const revisionSchema = z.string().check(z.maxLength(REVIEW_REF_MAX_CHARS), z.regex(REVISION))
 const focusSchema = z.enum(REVIEW_FOCUSES)
@@ -57,7 +59,7 @@ function gitScopeOf(
   if (first === undefined) {
     return { scope: 'uncommitted', focus }
   }
-  if (rest.length > 0 || (revision !== undefined && !REVISION.test(revision))) {
+  if (rest.length > 0 || (revision !== undefined && !revisionSchema.safeParse(revision).success)) {
     return undefined
   }
   if (isKeyword(first, REVIEW_KEYWORDS.branch)) {

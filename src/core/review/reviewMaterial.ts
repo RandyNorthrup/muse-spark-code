@@ -34,11 +34,11 @@ export type ReviewSubject =
 
 export interface ReviewMaterial {
   readonly subject: ReviewSubject
-  /** The diff, cut at a line end when it was longer than REVIEW_DIFF_MAX_CHARS. */
+  /** The diff, cut after its last whole line within REVIEW_DIFF_MAX_CHARS when it was longer. */
   readonly diff: string
   /** How long the diff was when it had to be cut; undefined when it is whole. */
   readonly fullLength: number | undefined
-  /** `git diff --name-status` lines, the private files left out. */
+  /** The changed files' paths (a rename as `old → new`), the private files left out. */
   readonly changedFiles: readonly string[]
   readonly untracked: readonly string[]
   /** Changed or untracked files that may hold secrets: named, never diffed. */
@@ -73,7 +73,11 @@ export interface CommitChoice {
 }
 
 const LINE_BREAK = /\r?\n/
-const NAME_STATUS_SEPARATOR = '\t'
+// `-z` output: every field ends with NUL and no path is quoted.
+const NUL = '\u{0}'
+// A rename or a copy names two paths, the old one first.
+const TWO_PATH_STATUS = /^[CR]/
+const RENAMED = ' → '
 const FIELD_SEPARATOR = '\u{1F}'
 const HEAD = 'HEAD'
 const COMMIT_SUFFIX = '^{commit}'
@@ -97,17 +101,54 @@ function linesOf(output: string): readonly string[] {
   return output.split(LINE_BREAK).filter((line) => line !== '')
 }
 
-/** The path a `--name-status` line ends with (a rename's new name). */
-function pathOfStatus(line: string): string {
-  return line.split(NAME_STATUS_SEPARATOR).at(-1) ?? line
+/** One changed file: its path, and how it is listed (a rename or copy as `old → new`). */
+interface Change {
+  readonly path: string
+  readonly listed: string
 }
 
-/** The diff within REVIEW_DIFF_MAX_CHARS, cut after the last whole line. */
+/** The changes `--name-status -z` prints; output it cannot read is a git failure. */
+function changesOf(output: string): readonly Change[] {
+  const fields = output.split(NUL)
+  const changes: Change[] = []
+  let at = 0
+  while (at < fields.length && fields[at] !== '') {
+    const count = TWO_PATH_STATUS.test(fields[at] ?? '') ? 2 : 1
+    const paths = fields.slice(at + 1, at + 1 + count)
+    const path = paths.at(-1)
+    if (path === undefined || paths.length < count || paths.includes('')) {
+      throw new Error('git printed a name status without its path')
+    }
+    changes.push({ path, listed: paths.join(RENAMED) })
+    at += 1 + count
+  }
+  return changes
+}
+
+/** The changed and untracked files, split by whether they may hold secrets. */
+function filesFrom(changes: readonly Change[], untracked: readonly string[]): ReviewFiles {
+  return {
+    changedFiles: changes
+      .filter((change) => !isPrivateFileName(change.path))
+      .map((change) => change.listed),
+    untracked: untracked.filter((file) => !isPrivateFileName(file)),
+    privateFiles: [...changes.map((change) => change.path), ...untracked].filter((file) =>
+      isPrivateFileName(file),
+    ),
+  }
+}
+
+/**
+ * The diff within REVIEW_DIFF_MAX_CHARS, cut after the last whole line that
+ * fits (its line break the last character kept). Git's diff opens with a
+ * short `diff --git` line, so one always fits; text with no line break
+ * before the cap would be cut at the cap itself.
+ */
 function bounded(diff: string): { readonly diff: string; readonly fullLength: number | undefined } {
   if (diff.length <= REVIEW_DIFF_MAX_CHARS) {
     return { diff, fullLength: undefined }
   }
-  const lineEnd = diff.lastIndexOf('\n', REVIEW_DIFF_MAX_CHARS)
+  const lineEnd = diff.lastIndexOf('\n', REVIEW_DIFF_MAX_CHARS - 1)
   return {
     diff: diff.slice(0, lineEnd > 0 ? lineEnd + 1 : REVIEW_DIFF_MAX_CHARS),
     fullLength: diff.length,
@@ -154,20 +195,29 @@ async function commitOf(git: ReviewGit, revision: string): Promise<string | unde
 
 /** The files a diff range touches, and the untracked ones, split by whether they may hold secrets. */
 async function filesOf(git: ReviewGit, range: readonly string[]): Promise<ReviewFiles> {
-  const statuses = linesOf(
-    await git(['diff', '--name-status', ...REVIEW_DIFF_OPTIONS, ...range, PATHSPEC_START, '.']),
+  const changes = changesOf(
+    await git([
+      'diff',
+      '--name-status',
+      '-z',
+      ...REVIEW_DIFF_OPTIONS,
+      ...range,
+      PATHSPEC_START,
+      '.',
+    ]),
   )
-  const untracked = linesOf(
-    await git(['ls-files', '--others', '--exclude-standard', PATHSPEC_START, '.']),
+  const listing = await git([
+    'ls-files',
+    '-z',
+    '--others',
+    '--exclude-standard',
+    PATHSPEC_START,
+    '.',
+  ])
+  return filesFrom(
+    changes,
+    listing.split(NUL).filter((file) => file !== ''),
   )
-  const privateFiles = [...statuses.map((line) => pathOfStatus(line)), ...untracked].filter(
-    (file) => isPrivateFileName(file),
-  )
-  return {
-    changedFiles: statuses.filter((line) => !isPrivateFileName(pathOfStatus(line))),
-    untracked: untracked.filter((file) => !isPrivateFileName(file)),
-    privateFiles,
-  }
 }
 
 function diffArgs(range: readonly string[]): readonly string[] {
@@ -274,24 +324,19 @@ export async function commitMaterial(git: ReviewGit, revision: string): Promise<
       PATHSPEC_START,
       ...PRIVATE_PATHSPECS,
     ])
-    const statuses = linesOf(
+    const changes = changesOf(
       await git([
         'show',
         '--format=',
         '--name-status',
+        '-z',
         ...REVIEW_DIFF_OPTIONS,
         commit,
         PATHSPEC_START,
         '.',
       ]),
     )
-    return outcome(subject, root, {
-      changedFiles: statuses.filter((line) => !isPrivateFileName(pathOfStatus(line))),
-      untracked: [],
-      privateFiles: statuses
-        .map((line) => pathOfStatus(line))
-        .filter((file) => isPrivateFileName(file)),
-    })
+    return outcome(subject, root, filesFrom(changes, []))
   })
 }
 

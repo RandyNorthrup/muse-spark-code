@@ -14,7 +14,11 @@ import {
 } from '../../src/host/editor/editReview'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { createCheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
+import {
+  asUserEdit,
+  createCheckpointPort,
+  withCheckpointEdit,
+} from '../../src/host/checkpoints/checkpointHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
@@ -94,6 +98,7 @@ describe('activation review checkpoint admission (RV70 finding 3)', () => {
       const adapters = activationReviewWrites({
         checkpoints,
         withCheckpointEdit,
+        asUserEdit,
         UI_TEXT,
         fill,
         TextEncoder,
