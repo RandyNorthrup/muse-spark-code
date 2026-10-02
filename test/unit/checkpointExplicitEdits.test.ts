@@ -4,11 +4,7 @@ import { link, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import {
-  asUserEdit,
-  type CheckpointPort,
-  withCheckpointEdit,
-} from '../../src/host/checkpoints/checkpointHost'
+import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { EditReview } from '../../src/host/editor/editReview'
 import { createPlanIo, type PlanIoOptions } from '../../src/host/planFeatures'
 import { ATOMIC_TEMPORARY_SUFFIX, PLAN_STAGE_STALE_MS, UI_TEXT } from '../../src/shared/constants'
@@ -55,7 +51,7 @@ function editLease(h: Harness, signal: AbortSignal, cwd?: string, isTrusted = ()
   const port = checkpointPort(h, isTrusted)
   const check = manager.workspaceActionGuard(signal, cwd)
   const edit = async (work: (assertCanWrite?: () => void) => Promise<void>) => {
-    await withCheckpointEdit(port, check, async () => {
+    await withCheckpointEdit(port, h.log, check, async () => {
       await work(check)
     })
   }
@@ -87,7 +83,7 @@ function holdEditAdmission(port: CheckpointPort) {
 
 type EditFamily = 'plan create' | 'plan cleanup' | 'review write' | 'review delete'
 
-/** One edit, wired as activation wires it: under the lease, and the user's once written (M72). */
+/** One edit, wired as activation wires it: under the lease, never recorded (M86). */
 async function startEdit(
   h: Harness,
   family: EditFamily,
@@ -112,18 +108,14 @@ async function startEdit(
     readFile: async (file) => await readFile(file, 'utf8'),
     realPath: canonicalPath,
     writeFile: async (file, content) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await writeFile(file, content)
-        }),
-      )
+      await edit(async () => {
+        await writeFile(file, content)
+      })
     },
     deleteFile: async (file) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await rm(file)
-        }),
-      )
+      await edit(async () => {
+        await rm(file)
+      })
     },
     openDiff: () => Promise.resolve(),
     log: h.log,
@@ -315,8 +307,6 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
   it.each<[EditFamily, string, string | undefined]>([
     ['plan create', `.agents/plans/${PLAN_NAME}`, '# Owned\n'],
     ['plan cleanup', `.agents/plans/${STALE_STAGE}`, undefined],
-    ['review write', 'review.txt', 'before\n'],
-    ['review delete', 'review.txt', undefined],
   ])(
     "leaves a %s the user made while a turn ran to them on that turn's restore",
     async (family, relative, kept) => {

@@ -94,14 +94,13 @@ import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
-  asUserEdit,
   createCheckpointPort,
+  endCheckpointTurn,
   prepareCheckpointTurn,
   withCheckpointCopies,
   withCheckpointEdit,
   withCheckpointEditAt,
 } from './host/checkpoints/checkpointHost'
-import { turnKey } from './core/checkpoints/turnKey'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
@@ -755,6 +754,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editFile: async (fsPath, work) =>
       await withCheckpointEditAt(
         checkpoints,
+        log,
         backend.workspaceActionGuard(nativeStarts.signal),
         {
           root: checkpointRoot?.canonicalRoot ?? workspaceRoot,
@@ -762,7 +762,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           platform: process.platform,
         },
         fsPath,
-        asUserEdit(checkpoints, fsPath, work),
+        work,
       ),
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
@@ -1007,8 +1007,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
   })
-  // What the extension's own tools write is copied first, so a restore can
-  // put back an ignored file they changed (M72).
+  // The window's tool io: no tool writes the checkpoint storage, and every
+  // command is workspace activity. It records nothing: each Model API turn
+  // writes through its own io, made over this one (M86, below).
   const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
@@ -1081,6 +1082,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ...ideImageTools({
         isOffered: () => isKeyStored && paid.gate.isOn('imageGeneration'),
         keyGeneration: () => auth.admissionGeneration,
+        // Muse Code's images are never recorded (M86): the window's io, not a turn's.
         workspace:
           workspaceRoot === undefined
             ? undefined
@@ -1146,18 +1148,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
   }
 
-  /** A file the extension writes in the user's name, under the lease: theirs once written (M72). */
+  /** A file the extension writes in the user's name, under the lease; never recorded (M86). */
   const writeUserFile = async (check: () => void, fsPath: string, content: string) => {
-    await withCheckpointEdit(
-      checkpoints,
-      check,
-      asUserEdit(checkpoints, fsPath, async () => {
-        await vscode.workspace.fs.writeFile(
-          vscode.Uri.file(fsPath),
-          new TextEncoder().encode(content),
-        )
-      }),
-    )
+    await withCheckpointEdit(checkpoints, log, check, async () => {
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(fsPath),
+        new TextEncoder().encode(content),
+      )
+    })
   }
 
   const editReview = new EditReview({
@@ -1171,13 +1169,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     deleteFile: async (fsPath) => {
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await withCheckpointEdit(
-        checkpoints,
-        check,
-        asUserEdit(checkpoints, fsPath, async () => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        }),
-      )
+      await withCheckpointEdit(checkpoints, log, check, async () => {
+        await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+      })
     },
     openDiff: async (beforeUri, fsPath, title) => {
       await vscode.commands.executeCommand(
@@ -1204,8 +1198,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const skillsHome = personalSkillsRoot(museConfig())
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
-  // home `muse serve` sees (`museSpark.environmentVariables` included). Its
-  // writes keep checkpoint copies and the view's edits hold the restore lease (M72).
+  // home `muse serve` sees (`museSpark.environmentVariables` included). The
+  // model's writes are its turn's, recorded (M86); the view's edits hold the
+  // restore lease (M72) and are never recorded.
   const memory = createCheckpointedMemory(toolIo, checkpoints, {
     captureGuard: () => backend.workspaceActionGuard(nativeStarts.signal),
     platform: process.platform,
@@ -1229,9 +1224,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     store: memory.viewStore,
     log,
     edit: memory.edit,
-    beforeDelete: memory.beforeDelete,
-    afterDelete: memory.afterDelete,
   })
+  // The model's own writes, recorded per turn for a restore (M86, PLAN.md
+  // D63): this window's journal under the namespace's checkpoint storage,
+  // and one io for each turn over the window's. Built by the checkpoint
+  // bundle, loaded with the store.
+  const writeRecording =
+    checkpointRoot === undefined
+      ? undefined
+      : checkpointBundle().createTurnRecording({
+          storageDir: checkpointRoot.storageDir,
+          instance: crypto.randomUUID(),
+          io: checkpointedIo,
+          memory: memory.turnWrites,
+          workspaceRoot: checkpointRoot.canonicalRoot,
+          platform: process.platform,
+          canonicalPath,
+          newId: () => crypto.randomUUID(),
+          log,
+        })
+  if (writeRecording !== undefined) {
+    context.subscriptions.push({
+      dispose: () => {
+        void writeRecording.journal.close().catch(logRejection(log, 'closing the write journal'))
+      },
+    })
+  }
+  const turnRecorder = writeRecording?.recorder
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
     workspaceRoot === undefined
@@ -1244,7 +1263,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             now: () => Date.now(),
             edit: async (work) => {
               const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
-              await withCheckpointEdit(checkpoints, check, async () => {
+              await withCheckpointEdit(checkpoints, log, check, async () => {
                 await work(check)
               })
             },
@@ -1268,11 +1287,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const modelApi = new ModelApiBackendManager({
     log,
     beforeTurnRuns: (sessionId, turnId) =>
-      prepareCheckpointTurn(checkpoints, sessionId, turnId, log),
-    afterTurnRuns: async (sessionId, turnId) => {
-      await checkpoints.endTurn(sessionId, turnId)
-      await checkpoints.markTurn(turnKey(sessionId, turnId), false)
-    },
+      prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log),
+    afterTurnRuns: (sessionId, turnId) =>
+      endCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId),
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     io: checkpointedIo,
@@ -1329,6 +1346,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
           return await withCheckpointEdit(
             checkpoints,
+            log,
             owned,
             async () => await runGit(args, cwd, undefined, owned),
           )

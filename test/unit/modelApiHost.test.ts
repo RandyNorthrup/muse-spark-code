@@ -54,7 +54,7 @@ import type {
 } from '../../src/shared/schedule'
 import { removeFolder } from './helpers/temporaryFolders'
 import { parseHookConfig, type HookDefinition } from '../../src/core/backends/modelapi/hooks'
-import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import type { ToolIo, TurnWrites } from '../../src/core/backends/modelapi/tools'
 import { ShellEntryError } from '../../src/core/shellResult'
 import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
 import {
@@ -1150,7 +1150,7 @@ describe('Model API turn checkpoint admission (M72)', () => {
       })
       const t = setup({
         beforeTurnRuns: (sessionId, turnId) =>
-          prepareCheckpointTurn(port, sessionId, turnId, h.log),
+          prepareCheckpointTurn(port, undefined, sessionId, turnId, h.log),
         afterTurnRuns: async (sessionId, turnId) => {
           await port.endTurn(sessionId, turnId)
           await port.markTurn(`${sessionId}\0${turnId}`, false)
@@ -10606,5 +10606,113 @@ describe('web fetch on the Model API backend (M69)', () => {
     await turnDone()
     expect(signals[0]?.aborted).toBe(true)
     expect(fetchRows(events)[0]).toMatchObject({ status: 'cancelled' })
+  })
+})
+
+/** Each turn's writes say whose they are: the conversation and turn they were made for. */
+function ownedWrites(files: Map<string, string>, io: ToolIo, writes: string[]) {
+  return (sessionId: string, turnId: string): Promise<TurnWrites> => {
+    const owner = `${sessionId} ${turnId}`
+    const record = (file: string, content: string) => {
+      writes.push(`${owner} ${file.slice(ROOT.length + 1)}`)
+      files.set(file, content)
+      return Promise.resolve()
+    }
+    return Promise.resolve({
+      io: {
+        ...io,
+        writeFile: async (file, content) => {
+          await record(file, content)
+        },
+      },
+      memory: {
+        writeFile: async (file, content) => {
+          await record(file, content)
+        },
+        createFile: async (file, content) => {
+          await record(file, content)
+        },
+      },
+    })
+  }
+}
+
+describe("a Model API turn's own writes (M86, spec 5.1)", () => {
+  it("writes a turn's files and memory notes through that turn's own writes", async () => {
+    const writes: string[] = []
+    const io = memoryToolIo({}, ROOT)
+    const t = setup({ io, beforeTurnRuns: ownedWrites(io.files, io, writes) })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"notes.txt","content":"x"}', callId: 'w' },
+          ADD_DEPLOY,
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    await turnDone()
+    const turn = session.history().items.find((item) => item.kind === 'userMessage')
+    const turnId = turn?.turnId ?? ''
+    expect(writes).toEqual([
+      `${session.sessionId} ${turnId} notes.txt`,
+      `${session.sessionId} ${turnId} .agents/memory/deploy.md`,
+      `${session.sessionId} ${turnId} .agents/memory/MEMORY.md`,
+    ])
+    expect(t.files.get(`${ROOT}/notes.txt`)).toBe('x')
+  })
+
+  it("gives a child turn writes of its own, under its top conversation's checkpoint session", async () => {
+    const writes: string[] = []
+    const child = Promise.withResolvers<undefined>()
+    const io = memoryToolIo({}, ROOT)
+    const owned = ownedWrites(io.files, io, writes)
+    const t = setupSubagents({
+      io,
+      beforeTurnRuns: async (sessionId, turnId) => {
+        if (turnId.includes(':subagent-')) {
+          await child.promise
+        }
+        return await owned(sessionId, turnId)
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"worker","objective":"Write child.txt"}',
+            callId: 'spawn',
+          },
+        ],
+      },
+      { text: 'Parent finished' },
+      {
+        calls: [
+          { name: 'write_file', arguments: '{"path":"child.txt","content":"c"}', callId: 'cw' },
+        ],
+      },
+      { text: 'Child finished' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await vi.waitFor(() => {
+      expect(session.status).toBe('idle')
+    })
+    child.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.files.get(`${ROOT}/child.txt`)).toBe('c')
+    })
+    expect(writes).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          String.raw`^${session.sessionId} ${session.sessionId}:subagent-1:\S+ child\.txt$`,
+          'u',
+        ),
+      ),
+    ])
+    await t.host.close()
   })
 })

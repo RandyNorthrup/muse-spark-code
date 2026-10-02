@@ -265,6 +265,7 @@ import {
   toolDefinitions,
   type ToolIo,
   type ToolOutcome,
+  type TurnWrites,
   type VisibleFile,
 } from './tools'
 import {
@@ -390,8 +391,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
-  /** M72: admitted before hooks or edits, including queued and scheduled turns. */
-  readonly beforeTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
+  /**
+   * M72: admitted before hooks or edits, including queued and scheduled
+   * turns. M86: the turn's own writes, which record what its tools write for
+   * a restore until `afterTurnRuns`; undefined while nothing is recorded.
+   */
+  readonly beforeTurnRuns?:
+    ((sessionId: string, turnId: string) => Promise<TurnWrites | undefined>) | undefined
   readonly afterTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
 }
 
@@ -521,6 +527,8 @@ interface ActiveTurn {
   goalWakePending: boolean
   /** The prompt's answer to the web search popup (M58); false until it is asked. */
   isWebSearchAllowed: boolean
+  /** What its tools write through (M86): its own recorded writes, once admitted. */
+  writes?: TurnWrites | undefined
 }
 
 interface HookToolResult {
@@ -3050,7 +3058,7 @@ export class ModelApiSession implements AgentSession {
     }
     return await runImageCall(plan, {
       client: this.deps.client,
-      io: this.deps.io,
+      io: this.toolWrites()?.io ?? this.deps.io,
       signal,
       isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
       onBilled: () => {
@@ -3841,7 +3849,7 @@ export class ModelApiSession implements AgentSession {
           outcome: await executeTool(call.name, call.arguments, {
             workspaceRoot: this.deps.workspaceRoot,
             platform: this.deps.platform,
-            io: this.deps.io,
+            io: this.toolWrites()?.io ?? this.deps.io,
             signal,
             seen: this.seenFiles,
             assertCanWrite,
@@ -4478,6 +4486,7 @@ export class ModelApiSession implements AgentSession {
     const assertCurrent = () => {
       if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
     }
+    const writes = this.toolWrites()?.memory
     assertCurrent()
     if (placed.call.tool === 'read') {
       const outcome = await runMemoryCall(memory, placed, assertCurrent)
@@ -4513,7 +4522,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
       assertCurrent()
-      return await runMemoryCall(memory, placed, assertCurrent)
+      return await runMemoryCall(memory, placed, assertCurrent, writes)
     } finally {
       for (const complete of completions) {
         complete()
@@ -4673,7 +4682,7 @@ export class ModelApiSession implements AgentSession {
       const outcome = await applyRename(plan, {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
-        io: this.deps.io,
+        io: this.toolWrites()?.io ?? this.deps.io,
         seen: this.seenFiles,
         signal,
         beforeAccess: (file) => {
@@ -5900,6 +5909,15 @@ export class ModelApiSession implements AgentSession {
     return this.parentSession?.checkpointSessionId() ?? this.sessionId
   }
 
+  /**
+   * What a tool call writes through, taken when it starts: the running
+   * turn's own recorded writes (M86), else the window's io, which records
+   * nothing. A call that outlives its turn keeps the turn's, which refuses it.
+   */
+  private toolWrites(): TurnWrites | undefined {
+    return this.active?.writes
+  }
+
   private async runTurn(queued: QueuedTurn): Promise<void> {
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
@@ -5935,7 +5953,7 @@ export class ModelApiSession implements AgentSession {
     let errorKind: string | undefined
     try {
       try {
-        await this.deps.beforeTurnRuns?.(this.checkpointSessionId(), turn.turnId)
+        turn.writes = await this.deps.beforeTurnRuns?.(this.checkpointSessionId(), turn.turnId)
       } catch (error: unknown) {
         this.deps.log.warn(
           `The turn checkpoint could not be admitted: ${error instanceof Error ? error.name : 'unknown failure'}`,

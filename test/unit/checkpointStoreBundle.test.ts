@@ -16,6 +16,8 @@ import type {
   CheckpointStore,
   CheckpointStoreDeps,
 } from '../../src/host/checkpoints/checkpointStore'
+import { canonicalPath } from '../../src/host/canonicalPath'
+import { WriteJournal } from '../../src/host/checkpoints/writeJournal'
 import { GitExitError, GitMissingError, processGitProcess } from '../../src/host/git'
 import { requireFile } from '../../src/host/lazyBundle'
 import {
@@ -26,6 +28,7 @@ import {
 import { uiLocale } from '../../src/shared/l10n/text'
 import { harness, REAL_GIT_TIMEOUT_MS, removeCheckpointFolders } from './helpers/checkpointHarness'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { nativeToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const built = { folder: '', file: '' }
@@ -240,7 +243,7 @@ describe('the checkpoint store bundle (M72)', () => {
     expect(store.isNativeUnsafe).toBe(false)
   })
 
-  it('requires both packaged entry functions', () => {
+  it('requires every packaged entry function', () => {
     const noop = () => undefined
     expect(isCheckpointStoreBundle(undefined)).toBe(false)
     expect(isCheckpointStoreBundle(null)).toBe(false)
@@ -250,6 +253,39 @@ describe('the checkpoint store bundle (M72)', () => {
     ).toBe(false)
     expect(
       isCheckpointStoreBundle({ createCheckpointStore: noop, legacyCheckpointTurns: noop }),
+    ).toBe(false)
+    expect(
+      isCheckpointStoreBundle({
+        createCheckpointStore: noop,
+        legacyCheckpointTurns: noop,
+        createTurnRecording: noop,
+      }),
     ).toBe(true)
+  })
+
+  it("carries the recorder of the turns' own writes (M86)", async () => {
+    const deps = await storeDeps()
+    const module = checkpointStoreLoader({ bundlePath: built.file, log: deps.log })()
+    const recording = module.createTurnRecording({
+      storageDir: deps.storageDir,
+      instance: 'bundled',
+      io: nativeToolIo(),
+      memory: () => ({
+        writeFile: () => Promise.reject(new Error('no memory here')),
+        createFile: () => Promise.reject(new Error('no memory here')),
+      }),
+      workspaceRoot: deps.workspaceRoot,
+      platform: process.platform,
+      canonicalPath,
+      newId: () => randomUUID(),
+      log: deps.log,
+    })
+    const turn = recording.recorder.start('session', 'turn')
+    const file = path.join(deps.workspaceRoot, 'bundled.txt')
+    await turn.io.writeFile(file, 'recorded\n', file)
+    await recording.recorder.end('session', 'turn')
+    await recording.journal.close()
+    const journals = await WriteJournal.readAll(deps.storageDir)
+    expect(journals.get('bundled')?.entries.map((entry) => entry.kind)).toEqual(['intent', 'done'])
   })
 })

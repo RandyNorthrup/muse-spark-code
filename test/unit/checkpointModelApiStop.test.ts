@@ -189,7 +189,8 @@ async function setup(hasMemory = false) {
       isWorkspaceTrusted: () => settings.isTrusted,
       codeIntel,
       verify,
-      beforeTurnRuns: (sessionId, turnId) => prepareCheckpointTurn(port, sessionId, turnId, h.log),
+      beforeTurnRuns: (sessionId, turnId) =>
+        prepareCheckpointTurn(port, undefined, sessionId, turnId, h.log),
       afterTurnRuns: async (sessionId, turnId) => {
         await port.endTurn(sessionId, turnId)
         await port.markTurn(turnKey(sessionId, turnId), false)
