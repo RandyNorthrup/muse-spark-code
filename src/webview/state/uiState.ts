@@ -1506,6 +1506,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        note: event.note,
       }
       return announce(
         withToolEntry(

@@ -77,6 +77,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Approval cards retain the Auto reviewer's and command rule's explanation
+  through webview delivery, later approval stages and saved-state restoration.
+
 - **Automatic checks respect revoked file access.** A verification round keeps
   the original edited-file policy fence even after denied files are filtered
   out of lookup. It withholds diagnostics and refuses checks after revocation.

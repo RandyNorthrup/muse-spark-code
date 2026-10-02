@@ -8735,6 +8735,28 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M78 — Auto, made safe (D49)
 
+**Final lane receipt, 2026-10-01/02.** Implemented on the release candidate
+with the approved shared English fallback (PR #67 tip `909db6736`, merged
+as `3375e828`; the named shared branch was deleted by the lead). The required
+`integrate/m72-on-24ff` merge reported Already up to date. Every bundle fits
+its unchanged cap: extension 581.5 KiB, Model API 372.5 KiB, checkpoint store
+126.3 KiB and shared UI table 82.3 KiB. All seven scoped static gates passed,
+including all five type projects and zero clones. Final Kubuntu owning run:
+51 suites / 2,083 passed / three Windows-only skips. Mac's 51-suite run passed
+2,081 tests before the final two UI regressions; its final three UI callers
+then passed all 246 tests. Windows VM native refresh passed 278 tests; the
+Windows host's shell witnesses passed all 159 with no skips. Eleven unique
+red/restored drills fired, with exact source hashes restored; the merged
+host's three affected drills were refreshed. Actual 320px viewport/body
+measurements and five narrow screenshots prove reflow, and 20 accessibility
+pages passed in four themes. This review also caught and repaired the reducer
+dropping approval reasons; delivery, stages and restoration are covered.
+The installed offline ACP tarball and both extension/backend bundles loaded
+the approved English fallback. No controller split, injected-table stub,
+cap change, public push or paid call remains. Full aggregate quality,
+independent review, installed-host/platform certification and hosted CI are
+the lead's remaining gates under common.md, not passing lane claims.
+
 **Resumed scoped proof, 2026-10-01.** The release-candidate port passed all
 five Windows type projects and 46 owning Kubuntu suites (1,889 passed,
 three Windows-only skips). Windows VM native coverage passed seven suites

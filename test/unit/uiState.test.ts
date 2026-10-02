@@ -711,6 +711,33 @@ describe('uiReducer: agent events', () => {
     expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
   })
 
+  it.each(['Reviewer asks: confirm deletion', 'Command rule asks: pushes are reviewed'])(
+    'keeps the approval reason through delivery, stage updates and restoration: %s',
+    (note) => {
+      const delivered = reduceAll([agent({ ...SHELL_APPROVAL, note })], {
+        ...initialUiState,
+        sessionId: 'approval-note-session',
+      })
+      expect(delivered.transcript[0]).toMatchObject({ approval: { note } })
+      const updated = reduceAll(
+        [
+          agent({
+            type: 'approvalUpdated',
+            approvalId: SHELL_APPROVAL.approvalId,
+            requirementId: { approvalId: SHELL_APPROVAL.approvalId, sourceIndex: 1 },
+            subject: SHELL_APPROVAL.subject,
+            availableChoices: SHELL_APPROVAL.availableChoices,
+          }),
+        ],
+        delivered,
+      )
+      expect(updated.transcript[0]).toMatchObject({ approval: { note } })
+      expect(restoredUiState(webviewStateOf(updated, true)).transcript[0]).toMatchObject({
+        approval: { note },
+      })
+    },
+  )
+
   it('attaches approvals to their tool row, follows stage updates, records the outcome', () => {
     const requested = SHELL_APPROVAL
     // Request before the item: a placeholder row is created from the request.
