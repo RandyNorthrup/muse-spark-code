@@ -58,7 +58,7 @@ async function setup(
   })
   const host = new ModelApiHost({
     ...fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log }),
-    ...(isPacking && { observationPacking: true }),
+    ...(isPacking && { observationPacking: () => true }),
   })
   const session = await host.startSession({
     workspaceRoot: ROOT,

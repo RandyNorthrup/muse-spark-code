@@ -35,18 +35,22 @@ happened, not what was planned; superseded entries are kept.
     the two counts it never recorded shown as not recorded. A workspace
     that cannot be created reports only an error code, never a path.
 
-- **Observation packing, built and held for its evaluation** (M73,
-  PLAN.md D49). It reaches no user yet: there is no setting until its M75
-  run shows the capability floors held, and that run has not happened.
-  On the Model API backend, a tool output over 8,000 characters would ride
-  whole for two requests, then as a short placeholder (its id, size, and
-  first and last lines) that stays the same on every later request, so the
-  prompt cache breaks once per output; `recall_output(id, offset)` pages
-  the original back, and the conversation itself always keeps the whole
-  output. Account & usage would show the estimated tokens saved. The
-  evaluation gains the `packing` arm and two long-output tasks (twelve
-  tasks: seven accept, five held-out), and a packing run passes only if
-  it packed on each long-output task. The Evidence-Preserving Reducer is
+- **Observation packing, off by default** (M73, PLAN.md D49;
+  `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
+  API backend, a tool output over 8,000 characters rides whole for two
+  requests, then as a short placeholder (its id, size, and first and last
+  lines) that stays the same on every later request, so the prompt cache
+  breaks once per output; `recall_output(id, offset)` pages the original
+  back, and the conversation itself always keeps the whole output.
+  Account & usage shows the estimated tokens saved. A conversation reads
+  the setting when it starts or is reopened. The evaluation gains the
+  `packing` arm and two long-output tasks (twelve tasks: seven accept,
+  five held-out), and a packing run passes only if it packed on each
+  long-output task. Its M75 run passed before the setting was added: both
+  arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+  engaged on both long-output tasks (39% fewer input tokens there, about
+  the same cost), 111 model calls for $0.0156 in all
+  (`docs/certification/m73-run.md`). The Evidence-Preserving Reducer is
   not built (PLAN.md §3).
   - **A recalled page is untrusted tool data.** Each page names the tool
     that returned it and comes with the untrusted-data notice, between

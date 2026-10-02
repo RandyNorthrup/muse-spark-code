@@ -58,7 +58,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   billed (`museBinaryPath`, `environmentVariables`, `backend`,
   `shellSandbox`, `sandboxNetwork`, `initialPermissionMode`,
   `allowDangerouslySkipPermissions`, `modelApiHooks`, `modelApiRepoMap`,
-  `modelApiPromptCacheRetention`, `turnCheckpoints`, the verify loop's `checkCommands`,
+  `modelApiObservationPacking`, `modelApiPromptCacheRetention`,
+  `turnCheckpoints`, the verify loop's `checkCommands`,
   `formatOnEdit` and `diagnosticsAfterEdits`, and the five paid
   `modelApi*` features) are machine-scoped in every workspace, trusted or
   not: a repository's

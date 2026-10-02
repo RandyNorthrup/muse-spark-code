@@ -303,6 +303,10 @@ export const SETTING_DEFAULTS = {
   // M67 (PLAN.md D49): the repo map in the Model API's system prompt. It
   // spends tokens on every request, so it is off until the user turns it on.
   modelApiRepoMap: false,
+  // M73 (PLAN.md D49): observation packing on the Model API backend. Its M75
+  // run held the capability floors (docs/certification/m73.md); it changes
+  // what every request carries, so it is off until the user turns it on.
+  modelApiObservationPacking: false,
   // A checkpoint of the workspace's files at each turn boundary (M72): it
   // runs git on every turn and copies files into the extension's storage.
   // Preview, off until the user turns it on: its restore is being rebuilt
@@ -337,6 +341,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'formatOnEdit',
   // The repo map is billed as prompt tokens on the key (M67): the user's choice.
   'modelApiRepoMap',
+  // What every Model API request carries, and the recall calls it may add
+  // to a turn on the key, are the user's choice, never a repository's (M73).
+  'modelApiObservationPacking',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
 ] as const

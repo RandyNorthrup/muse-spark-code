@@ -347,12 +347,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /**
-   * Observation packing (M73, PLAN.md D49): an M75 eval arm only. True
-   * turns packing on for the host's sessions; absent or false packs
-   * nothing and offers no `recall_output`. No setting names it until an
-   * M75 run shows the capability floors held.
+   * Observation packing (M73, PLAN.md D49): `museSpark.modelApiObservationPacking`,
+   * or the M75 eval's `packing` arm. Read when a session is created or
+   * resumed: true packs that session's outputs for its life; absent or
+   * false packs nothing and offers no `recall_output`.
    */
-  readonly observationPacking?: boolean | undefined
+  readonly observationPacking?: (() => boolean) | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
@@ -1393,7 +1393,7 @@ export class ModelApiSession implements AgentSession {
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
-  /** Packed tool outputs and the savings ledger (M73): undefined unless the eval arm runs. */
+  /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
@@ -1471,7 +1471,7 @@ export class ModelApiSession implements AgentSession {
     // Packing is a full session's own store (its originals); a subagent's
     // calls are its parent's conversation to pack, never its own.
     this.packing =
-      !isSubagent && deps.observationPacking === true ? new ObservationPack() : undefined
+      !isSubagent && deps.observationPacking?.() === true ? new ObservationPack() : undefined
     const { memory } = deps
     this.context = new WorkspaceContext({
       io: deps.contextIo,

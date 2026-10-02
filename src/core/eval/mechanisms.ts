@@ -15,5 +15,5 @@ import type { EvalArm } from './runner'
 export const OBSERVATION_PACKING_ARM: EvalArm = {
   name: 'packing',
   mechanism: `observation packing (M73): a tool result over ${String(OBS_PACK_THRESHOLD_CHARS)} characters rides whole for ${String(OBS_PACK_WHOLE_SENDS)} requests, then as a placeholder with its id, size and first and last lines; recall_output pages the original back`,
-  change: (deps) => ({ ...deps, observationPacking: true }),
+  change: (deps) => ({ ...deps, observationPacking: () => true }),
 }

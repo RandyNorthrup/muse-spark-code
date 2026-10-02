@@ -3255,12 +3255,11 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   is silently lost. Should every window publish its unsaved paths in its
   presence file, so a restore refuses them too? Default: unchanged, recorded as
   a limit (Codex, `a424e526`).
-- **M73/M75 live key:** the live evaluation reads the Model API key only from
-  the ACP agent's OS credential entry (PR #63's review), and this machine
-  holds none; the test key exists only as `claude-muse-mode\key.ps1`'s DPAPI
-  file. Store it there once (`key.ps1` piped into
-  `muse-spark-code-acp auth set`), or give the harness an apiKeyHelper-style
-  source? Default: neither; M73's run waits.
+- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
+  and this handling for M73's run: the test key decrypted from its DPAPI
+  file in memory and piped to `auth set`'s standard input only, the run, and
+  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
+  key source is unchanged.
 - **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
   evaluation fails any task on which a paid use happens. Should the
   evaluation gain a priced, counted paid arm for it, or should the reducer be
@@ -8721,7 +8720,8 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
-- **Status 2026-10-01: built, held behind its M75 run (not run).** On
+- **Status 2026-10-02: shipped off by default after its M75 run passed.**
+  Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
   - `src/core/backends/modelapi/observationPack.ts`: one session's store.
     An output over 8,000 characters rides whole for 2 requests, then as a
@@ -8737,8 +8737,9 @@ evaluation is authorized by these repairs.
     forgets the store's originals and keeps the ledger.
   - The host builds the store only while its `observationPacking` dep is
     on and never for a subagent, which is also refused `recall_output`
-    (a read-class tool: no card). No setting sets the dep: only the M75
-    arm does.
+    (a read-class tool: no card). The dep is read when a session is
+    created or resumed: `museSpark.modelApiObservationPacking` (since its
+    run passed, below) or the M75 arm.
   - The ledger rides on `tokenUsage` (`packedTokensAvoided`) to Account &
     usage's Tokens section, "Packing saved (estimate)", shown only while a
     session packs; the estimate is 4 characters a token, net of what the
@@ -8754,9 +8755,15 @@ evaluation is authorized by these repairs.
   - **Not built: the Evidence-Preserving Reducer.** The evaluation refuses
     every paid use (D48), so it cannot measure a paid reducer, and the gate
     forbids shipping what is not measured (§3).
-  - **The M75 run did not happen:** the live harness reads the key only
-    from the ACP agent's OS credential entry, which this machine does not
-    hold (§3). So there is no setting, and packing reaches no user.
+  - **The M75 run passed (2026-10-02, after the RV73 repairs):** both
+    arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+    engaged on both long-output tasks, 111 model calls on the contributor
+    model for $0.0156 (`docs/certification/m73-run.md`). On the long-output
+    tasks packing sent 39% fewer input tokens at about the same cost: what
+    it leaves out was mostly read from the cache. So, as the gate says,
+    the setting was added, off by default and machine-scoped:
+    `museSpark.modelApiObservationPacking` (VS Code only; the ACP agent
+    does not pack).
   - The WIP of `integrate/m73-m75-join-20260930` (staged tree `d52b6a9a`)
     is archived as `_archive-2026-10-01/m73-m75-join-wip`; what was kept
     and dropped is in `docs/certification/m73.md`.
