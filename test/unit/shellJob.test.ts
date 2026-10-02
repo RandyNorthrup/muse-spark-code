@@ -15,7 +15,7 @@ import {
   shellJobAssemblyName,
 } from '../../src/host/backend/shellJob'
 import { shellArguments } from '../../src/host/backend/toolIo'
-import type { RunProgram } from '../../src/host/processTree'
+import { loadJobAssembly, type RunProgram } from '../../src/host/processTree'
 import {
   SHELL_JOB_FOLDER,
   SHELL_JOB_NAME_PREFIX,
@@ -81,6 +81,12 @@ describe('shellJobAssembly (M27)', () => {
     expect(powershell.scripts).toHaveLength(2)
     expect(powershell.scripts[0]).toContain('-OutputType Library')
     expect(powershell.scripts[1]).toContain(`::Join('${SHELL_JOB_NAME_PREFIX}`)
+    // It loads the assembly as each command's join does, so it proves that
+    // load, and a failing load or join cannot reach the answer.
+    expect(powershell.scripts[1]?.split('; ', 1)[0]).toBe(
+      `try { ${loadJobAssembly(path.join(folder, name))}`,
+    )
+    expect(powershell.scripts[1]).toMatch(/'joined' \} catch \{ exit 1 \}$/)
     expect(logged).toEqual([])
     // A later window finds it compiled and only tests it.
     const later = fakePowerShell()
@@ -117,6 +123,32 @@ describe('shellJobAssembly (M27)', () => {
     expect(logged[0]).toContain('ended with taskkill and a sweep for its orphans')
   })
 
+  it.skipIf(process.platform !== 'win32')(
+    'gives no assembly when real Windows PowerShell cannot load the one it found',
+    async () => {
+      // A file where the assembly should be that is not one: the load throws,
+      // and PowerShell would carry on to the next statement without `try`.
+      const storageDir = await storage('unloadable')
+      const csharp = await readJobSource('shellJob')
+      await mkdir(path.join(storageDir, SHELL_JOB_FOLDER))
+      await writeFile(
+        path.join(storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp)),
+        'not an assembly',
+      )
+      const logged: string[] = []
+      const assembly = await shellJobAssembly({
+        readJobSource,
+        storageDir,
+        systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
+        log: (message) => {
+          logged.push(message)
+        },
+      })()
+      expect(assembly).toBeUndefined()
+      expect(logged[0]).toMatch(/^Windows job objects are unavailable/)
+    },
+  )
+
   it('says so when the compile itself fails, leaving no half-made file', async () => {
     const storageDir = await storage('broken')
     const logged: string[] = []
@@ -142,7 +174,7 @@ describe('the statement a command joins its job with (M27)', () => {
       assemblyPath: String.raw`C:\Users\O'Brien\job.dll`,
     }
     expect(joinStatement(job)).toBe(
-      String.raw`try { Add-Type -Path 'C:\Users\O''Brien\job.dll'; [MuseSparkJob]::Join('Local\MuseSparkShell-1') } catch { }; `,
+      String.raw`try { [void][Reflection.Assembly]::LoadFrom('C:\Users\O''Brien\job.dll'); [MuseSparkJob]::Join('Local\MuseSparkShell-1') } catch { }; `,
     )
     expect(shellArguments('win32', 'Write-Output ok', job).at(-1)).toBe(
       `${joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}Write-Output ok`,

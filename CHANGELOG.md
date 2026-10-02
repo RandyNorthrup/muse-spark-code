@@ -49,6 +49,25 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **Windows hooks no longer wait on PowerShell's module scan.** The
+  PowerShell wrapper that puts each Windows command and hook in its job
+  object (M27) loaded the job helper with `Add-Type` and switched output to
+  UTF-8 with `New-Object`. PowerShell finds both cmdlets by module
+  auto-loading, which, without its module analysis cache, first analyses
+  every installed module. A hook's narrow environment does not carry
+  `PSModuleAnalysisCachePath`, so on GitHub's Windows runner a hook waited
+  roughly 18 to 30 s before it started, and past the hook test's 60 s on a
+  fresh runner (the M51 hook test's intermittent timeout). The wrapper now
+  makes .NET calls only, so a hook or command starts without any module
+  discovery; the helper's self-test and a stopped command's job kill load
+  it the same way.
+- **A crafted long line no longer stalls the log.** Every line the
+  extension logs passes through its secret redactor, whose JSON Web Token
+  pattern read a long word again from every `eyJ` after a dash in it: a
+  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
+  run of dotted words once. A token glued after `_` or a letter
+  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
+  the old pattern redacted is left.
 
 ## [0.10.0] - 2026-10-01
 
