@@ -89,6 +89,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly networkAdvice?: NetworkAdvice | undefined
   /** What a missing or damaged bundle says: reinstall the extension, unless the agent says its own. */
   readonly bundleUnavailable?: (() => string) | undefined
+  readonly beforeTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
+  readonly afterTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
@@ -207,6 +209,8 @@ export class ModelApiBackendManager {
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: this.deps.isHooksEnabled,
         memory: this.deps.memory,
+        beforeTurnRuns: this.deps.beforeTurnRuns,
+        afterTurnRuns: this.deps.afterTurnRuns,
         verify: this.deps.verify,
         workspaceEdits: this.workspaceEdits,
         sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,

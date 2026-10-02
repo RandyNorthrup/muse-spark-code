@@ -147,6 +147,7 @@ import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
 import { isProtectedPath } from '../../protectedPaths'
+import { ShellEntryError } from '../../shellResult'
 import { confineWorkspacePath } from '../../workspacePath'
 import { pathModule } from '../../workspaceRoot'
 import { type CheckScope, type RunSnapshot, VerifyLedger } from './verifyLedger'
@@ -389,6 +390,9 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
+  /** M72: admitted before hooks or edits, including queued and scheduled turns. */
+  readonly beforeTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
+  readonly afterTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -554,6 +558,9 @@ interface Performed {
    */
   readonly hookEffects?: HookEffects
 }
+
+/** A captured call owner; only an explicitly moved, still-owned background shell may outlive its turn. */
+type CallAdmission = (canRunDetached?: boolean) => boolean
 
 /** What a check covers: the files passed to it, or the whole project (M68). */
 function checkScope(check: CheckCommandSetting, files: readonly EditedFile[]): CheckScope {
@@ -1432,6 +1439,7 @@ export class ModelApiSession implements AgentSession {
     private readonly onChanged: () => void,
     private readonly onPersisted: () => Promise<void>,
     private readonly onDispose: () => void,
+    private readonly isHostClosing: () => boolean,
     private readonly isSubagent = false,
     private readonly parentSession?: ModelApiSession,
     private readonly childSubagentId?: string,
@@ -3090,6 +3098,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     turnSignal: AbortSignal,
+    isAllowed: CallAdmission,
   ): Promise<Performed> {
     const stop = new AbortController()
     const onTurnStop = () => {
@@ -3107,6 +3116,10 @@ export class ModelApiSession implements AgentSession {
       signal: stop.signal,
       limit,
       seen: this.seenFiles,
+      assertCanRun: () => {
+        if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
+          throw new AbortedError()
+      },
     })
     // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
     const moved = new Promise<undefined>((resolve) => {
@@ -3516,6 +3529,7 @@ export class ModelApiSession implements AgentSession {
       // A child snapshot lives in its parent's stored session.
       () => this.onPersisted(),
       NO_CHILD_DISPOSAL,
+      this.isHostClosing,
       true,
       this,
       id,
@@ -3762,6 +3776,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
+    isAllowed: CallAdmission,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -3810,17 +3825,18 @@ export class ModelApiSession implements AgentSession {
         return { outcome: this.runGoal(call) }
       }
       case shellToolFor(this.deps.platform).name: {
-        return await this.runShellCall(itemId, call, signal)
+        return await this.runShellCall(itemId, call, signal, isAllowed)
       }
       case VERIFY_TOOLS.runChecks: {
-        return await this.runChecksCall(itemId, call, signal)
+        return await this.runChecksCall(itemId, call, signal, isAllowed)
       }
       default: {
         const intelTool = codeIntelToolOf(call.name)
         if (intelTool !== undefined && intelTool !== 'renameSymbol') {
           return { outcome: await this.readCode(intelTool, call, signal) }
         }
-        const formatter = this.formatter()
+        const assertCanWrite = this.editAdmission(call, isAllowed)
+        const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
             workspaceRoot: this.deps.workspaceRoot,
@@ -3828,6 +3844,7 @@ export class ModelApiSession implements AgentSession {
             io: this.deps.io,
             signal,
             seen: this.seenFiles,
+            assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
           }),
@@ -3843,16 +3860,54 @@ export class ModelApiSession implements AgentSession {
    * review). A formatter that fails leaves the edit as written and is
    * logged; it never fails the edit.
    */
-  private formatter(): EditFormatter | undefined {
+  private editAdmission(
+    call: FunctionCallItem,
+    isCurrent: () => boolean,
+  ): NonNullable<EditFormatter['assertCanWrite']> {
+    return (target) => {
+      if (
+        !isCurrent() ||
+        this.deps.io.hasUnsavedChanges(target.absolute) ||
+        this.deps.io.hasUnsavedChanges(target.checkedAbsolute) ||
+        this.verdictWithHook({ toolName: call.name, toolClass: 'edit' }, false) === 'deny'
+      )
+        throw new AbortedError()
+    }
+  }
+
+  private verificationAdmission(signal: AbortSignal): CallAdmission {
+    const active = this.active
+    const mode = this.permissions.currentMode
+    const wasTrusted = this.deps.isWorkspaceTrusted()
+    return (canRunDetached = false) =>
+      (canRunDetached || (!signal.aborted && this.active === active)) &&
+      !this.isDisposed &&
+      !this.isHostClosing() &&
+      this.permissions.currentMode === mode &&
+      this.deps.isWorkspaceTrusted() === wasTrusted
+  }
+
+  private refusedDiagnostics(files: readonly EditedFile[]): PendingReport {
+    return {
+      report: { text: MODEL_TEXT.verifyAccessRefused, unchecked: files.length },
+      commit: NOTHING_TO_COMMIT,
+    }
+  }
+
+  private formatter(
+    assertCanWrite: NonNullable<EditFormatter['assertCanWrite']>,
+  ): EditFormatter | undefined {
     const verify = this.deps.verify
-    if (verify?.isFormatOnEdit() !== true) {
+    if (verify?.isFormatOnEdit() !== true || !this.deps.isWorkspaceTrusted()) {
       return undefined
     }
     const warn = (message: string) => {
       this.deps.log.warn(message)
     }
     return {
+      assertCanWrite,
       format: async (target, text) => {
+        assertCanWrite(target)
         if (
           this.ledger.codeFile !== undefined ||
           isCodeLoading(target.relative) ||
@@ -3950,10 +4005,14 @@ export class ModelApiSession implements AgentSession {
     request: VerifyCommand,
     signal: AbortSignal,
     effects: HookEffects,
+    isAllowed: () => boolean,
   ): Promise<CommandOutcome> {
     if (!this.deps.isWorkspaceTrusted()) {
       return { kind: 'skipped', skip: 'restricted' }
     }
+    const commandAdmission = this.verificationAdmission(signal)
+    const isCurrent = () => isAllowed() && commandAdmission()
+    if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     const shell = shellToolFor(this.deps.platform)
     const turnId = this.active?.turnId
     const toolUseId = this.deps.newId()
@@ -3970,6 +4029,7 @@ export class ModelApiSession implements AgentSession {
       signal,
       false,
     )
+    if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     effects.contexts.push(...pre.contexts)
     if (pre.blockedReason !== undefined) {
       return { kind: 'skipped', skip: 'hookDenied', detail: pre.blockedReason }
@@ -3992,13 +4052,24 @@ export class ModelApiSession implements AgentSession {
     const refusal = await authorizeThenGuard({
       isRuleLapsed: () => this.changesWhatRunsNow(ruleCommand),
       authorize: () => this.authorizeCommand(itemId, authorized, signal),
-      ...(request.guard !== undefined && { guard: request.guard }),
+      guard: async () =>
+        isCurrent() && (request.guard === undefined || (await request.guard())) && isCurrent(),
     })
     if (refusal !== undefined) {
       return { kind: 'skipped', ...refusal }
     }
+    if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
     const startedAt = this.deps.now()
-    const result = await this.runCommand(line, request.timeoutMs, signal)
+    const result = await this.runCommand(line, request.timeoutMs, signal, () => {
+      if (!isCurrent()) throw new AbortedError()
+    })
+    if (result.isEntryRefused === true) return { kind: 'skipped', skip: 'refused' }
+    if (!isCurrent())
+      return {
+        kind: 'ran',
+        line,
+        result: { ...result, stdout: MODEL_TEXT.verifyAccessRefused, stderr: '' },
+      }
     const ran = shellOutcome(result, request.timeoutMs)
     const input = toolHookInput({ command: line, description: request.description })
     const post = await this.runHooks(
@@ -4029,7 +4100,13 @@ export class ModelApiSession implements AgentSession {
     } else if (post.blockedReason !== undefined) {
       effects.messages.push(post.blockedReason)
     }
-    return { kind: 'ran', line, result }
+    return {
+      kind: 'ran',
+      line,
+      result: isCurrent()
+        ? result
+        : { ...result, stdout: MODEL_TEXT.verifyAccessRefused, stderr: '' },
+    }
   }
 
   /**
@@ -4048,7 +4125,9 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     effects: HookEffects,
     maxChars: number,
+    isAllowed: () => boolean,
   ): Promise<CheckRun> {
+    if (!isAllowed()) return skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused)
     if (this.ledger.isStopped) {
       return skippedCheck(check, 'stopped')
     }
@@ -4075,10 +4154,11 @@ export class ModelApiSession implements AgentSession {
         timeoutMs,
         isForced: false,
         ...(check.changedFiles === true &&
-          files.length > 0 && { guard: () => this.areStillWhereConfined(files) }),
+          files.length > 0 && { guard: () => this.areStillWhereConfined(files, isAllowed) }),
       },
       signal,
       effects,
+      isAllowed,
     )
     if (outcome.kind === 'skipped') {
       if (outcome.skip === 'rejected') {
@@ -4087,22 +4167,31 @@ export class ModelApiSession implements AgentSession {
       return skippedCheck(check, outcome.skip, outcome.detail)
     }
     const run = finishedCheck(check, outcome.line, outcome.result, timeoutMs, maxChars)
-    this.ledger.record(run.summary.outcome, startedOn)
+    if (isAllowed()) this.ledger.record(run.summary.outcome, startedOn)
     return run
   }
 
   /**
    * A check or `then_run` command, as the shell tool runs one (M68). A shell
    * that cannot start is a failed run the model is told about, as the user's
-   * own `!` command is (M46), not the end of the turn.
+   * own `!` command is (M46), not the end of the turn; one refused before its
+   * entry (`ShellEntryError`) is a refusal: no hooks, nothing told to the model.
    */
   private async runCommand(
     line: string,
     timeoutMs: number,
     signal: AbortSignal,
+    assertCanRun?: () => void,
   ): Promise<ShellResult> {
     try {
-      return await this.deps.io.runShell(line, this.deps.workspaceRoot, timeoutMs, signal)
+      return await this.deps.io.runShell(
+        line,
+        this.deps.workspaceRoot,
+        timeoutMs,
+        signal,
+        undefined,
+        assertCanRun,
+      )
     } catch (error: unknown) {
       return {
         stdout: '',
@@ -4110,6 +4199,9 @@ export class ModelApiSession implements AgentSession {
         exitCode: null,
         isTimedOut: false,
         isCancelled: false,
+        // Failed before entry: no process existed, so it is a refusal, not a run
+        // (no hooks around it, no command failure told to the model).
+        ...(error instanceof ShellEntryError && { isEntryRefused: true as const }),
       }
     }
   }
@@ -4126,6 +4218,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     effects: HookEffects,
     maxChars: number,
+    isAllowed: () => boolean,
   ): Promise<readonly CheckRun[]> {
     const runs: CheckRun[] = []
     for (const check of checks) {
@@ -4135,17 +4228,26 @@ export class ModelApiSession implements AgentSession {
       if (effects.stopReason !== undefined) {
         break
       }
-      runs.push(await this.runCheck(itemId, check, files, signal, effects, maxChars))
+      runs.push(
+        isAllowed()
+          ? await this.runCheck(itemId, check, files, signal, effects, maxChars, isAllowed)
+          : skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused),
+      )
     }
     return runs
   }
 
   /** The files that still exist: only those reach a check (the M68 review). */
-  private async existingFiles(files: readonly EditedFile[]): Promise<readonly EditedFile[]> {
+  private async existingFiles(
+    files: readonly EditedFile[],
+    isAllowed: () => boolean,
+  ): Promise<readonly EditedFile[]> {
     const exists = await Promise.all(
       files.map(async (file) => {
         try {
-          return await this.deps.io.pathExists(file.absolute)
+          if (!isAllowed()) return false
+          const isExisting = await this.deps.io.pathExists(file.absolute)
+          return isExisting && isAllowed()
         } catch (error: unknown) {
           this.deps.log.warn(`Verify: ${file.relative} could not be looked up: ${describe(error)}`)
           return false
@@ -4162,13 +4264,17 @@ export class ModelApiSession implements AgentSession {
    * PR #54). Content may change (an earlier check may fix a file); the check
    * then reports on the file as it is.
    */
-  private async areStillWhereConfined(files: readonly EditedFile[]): Promise<boolean> {
+  private async areStillWhereConfined(
+    files: readonly EditedFile[],
+    isAllowed: () => boolean,
+  ): Promise<boolean> {
+    if (!isAllowed()) return false
     const p = pathModule(this.deps.platform)
     try {
       const real = await Promise.all(
         files.map((file) => this.deps.io.realPath(p.join(this.deps.workspaceRoot, file.relative))),
       )
-      return files.every((file, index) => real[index] === file.absolute)
+      return isAllowed() && files.every((file, index) => real[index] === file.absolute)
     } catch (error: unknown) {
       this.deps.log.warn(`Verify: a checked file could not be resolved again: ${describe(error)}`)
       return false
@@ -4187,6 +4293,7 @@ export class ModelApiSession implements AgentSession {
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
+    isAllowed: () => boolean,
   ): Promise<Performed> {
     const configured = this.checkCommands()
     if (configured.length === 0) {
@@ -4211,16 +4318,18 @@ export class ModelApiSession implements AgentSession {
     const isEditedScope = parsed.args.paths === undefined
     const files: EditedFile[] = []
     if (isEditedScope) {
-      files.push(...(await this.existingFiles(this.ledger.editedFiles())))
+      files.push(...(await this.existingFiles(this.ledger.editedFiles(), isAllowed)))
     } else {
       const named = parsed.args.paths ?? []
       for (const given of named) {
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
         const resolved = await confineWorkspacePath(
           this.deps.workspaceRoot,
           given,
           this.deps.platform,
           this.deps.io,
         )
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
         if (!resolved.ok) {
           return { outcome: toolFailure(resolved.reason) }
         }
@@ -4231,13 +4340,14 @@ export class ModelApiSession implements AgentSession {
             ),
           }
         }
+        if (!isAllowed()) return { outcome: toolFailure(MODEL_TEXT.verifyAccessRefused) }
         files.push({ relative: resolved.canonical, absolute: resolved.checkedAbsolute })
       }
     }
     const selected = configured.filter((check) => names.includes(check.name))
     const effects = newHookEffects()
     const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(selected.length, 1))
-    const runs = await this.runChecks(itemId, selected, files, signal, effects, share)
+    const runs = await this.runChecks(itemId, selected, files, signal, effects, share, isAllowed)
     const section = checksSection(runs)
     return {
       outcome: {
@@ -4311,6 +4421,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     toolClass: ToolClass,
     shouldForceApproval: boolean,
+    isAllowed: () => boolean,
   ): Promise<CallResult> {
     const { memory } = this.deps
     if (memory === undefined) {
@@ -4319,7 +4430,9 @@ export class ModelApiSession implements AgentSession {
     if (!this.deps.isWorkspaceTrusted()) {
       return { outcome: toolFailure(MODEL_TEXT.memoryRestrictedMode), isRejected: true }
     }
+    if (!isAllowed()) throw new AbortedError()
     const placed = await placeMemoryCall(memory, call.name, call.arguments)
+    if (!isAllowed()) throw new AbortedError()
     if (!placed.ok) {
       return { outcome: toolFailure(placed.reason), isRejected: false }
     }
@@ -4342,27 +4455,39 @@ export class ModelApiSession implements AgentSession {
       // The card was open: a swapped directory would redirect the write, so
       // the note is located again after the approval (review of PR #36).
       const replaced = await placeMemoryCall(memory, call.name, call.arguments)
+      if (!isAllowed()) throw new AbortedError()
       return {
         outcome: replaced.ok
-          ? await this.runPlacedMemoryCall(memory, replaced.value)
+          ? await this.runPlacedMemoryCall(memory, replaced.value, isAllowed)
           : toolFailure(replaced.reason),
         isRejected: false,
       }
     }
-    return { outcome: await this.runPlacedMemoryCall(memory, placed.value), isRejected: false }
+    return {
+      outcome: await this.runPlacedMemoryCall(memory, placed.value, isAllowed),
+      isRejected: false,
+    }
   }
 
   /** Memory writes can change a check's named input, including a new note's index. */
   private async runPlacedMemoryCall(
     memory: MemoryStore,
     placed: PlacedMemoryCall,
+    isAllowed: () => boolean,
   ): Promise<ToolOutcome> {
+    const assertCurrent = () => {
+      if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
+    }
+    assertCurrent()
     if (placed.call.tool === 'read') {
-      return await runMemoryCall(memory, placed)
+      const outcome = await runMemoryCall(memory, placed, assertCurrent)
+      assertCurrent()
+      return outcome
     }
     const paths = [placed.place.absolute]
     if (placed.call.tool === 'add') {
       const index = await memory.locate(placed.place.scope, MEMORY_INDEX_FILE)
+      assertCurrent()
       if (index.ok) {
         paths.push(index.value.absolute)
       }
@@ -4370,12 +4495,14 @@ export class ModelApiSession implements AgentSession {
     const completions: (() => void)[] = []
     try {
       for (const path of paths) {
+        assertCurrent()
         const target = await confineWorkspacePath(
           this.deps.workspaceRoot,
           path,
           this.deps.platform,
           this.deps.io,
         )
+        assertCurrent()
         if (target.ok) {
           completions.push(
             this.workspaceEdits.beginEdit(
@@ -4385,7 +4512,8 @@ export class ModelApiSession implements AgentSession {
           )
         }
       }
-      return await runMemoryCall(memory, placed)
+      assertCurrent()
+      return await runMemoryCall(memory, placed, assertCurrent)
     } finally {
       for (const complete of completions) {
         complete()
@@ -4497,7 +4625,9 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     signal: AbortSignal,
     shouldForceApproval: boolean,
+    isAllowed: () => boolean,
   ): Promise<CallResult> {
+    const assertFirstWrite = this.editAdmission(call, isAllowed)
     const deps = this.codeIntelDeps()
     if (deps === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
@@ -4530,6 +4660,7 @@ export class ModelApiSession implements AgentSession {
     // Every planned name lapses stale grants before the rechecks await I/O.
     // Only successful native writes enter this session's automatic check round.
     const completions: (() => void)[] = []
+    let hasWritten = false
     try {
       for (const file of plan.files) {
         completions.push(
@@ -4545,7 +4676,13 @@ export class ModelApiSession implements AgentSession {
         io: this.deps.io,
         seen: this.seenFiles,
         signal,
+        beforeAccess: (file) => {
+          if (this.isDisposed || this.isHostClosing() || !this.deps.isWorkspaceTrusted())
+            throw new AbortedError()
+          if (!hasWritten) assertFirstWrite(file)
+        },
         onWritten: (file) => {
+          hasWritten = true
           this.noteEdited(file)
         },
       })
@@ -4566,6 +4703,7 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     shouldForceApproval = false,
   ): Promise<CallResult> {
+    const isAllowed = this.verificationAdmission(signal)
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
       return {
@@ -4582,13 +4720,20 @@ export class ModelApiSession implements AgentSession {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
     if (isMemoryTool(call.name)) {
-      return await this.decideAndRunMemory(itemId, call, signal, toolClass, shouldForceApproval)
+      return await this.decideAndRunMemory(
+        itemId,
+        call,
+        signal,
+        toolClass,
+        shouldForceApproval,
+        isAllowed,
+      )
     }
     if (toolClass === 'network') {
       return await this.decideAndRunWebFetch(itemId, call, signal, shouldForceApproval)
     }
     if (call.name === CODE_INTEL_TOOLS.renameSymbol) {
-      return await this.decideAndRunRename(itemId, call, signal, shouldForceApproval)
+      return await this.decideAndRunRename(itemId, call, signal, shouldForceApproval, isAllowed)
     }
     if (
       this.isSubagent &&
@@ -4707,6 +4852,7 @@ export class ModelApiSession implements AgentSession {
         call,
         signal,
         goalCommandRevision,
+        isAllowed,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
@@ -4743,6 +4889,7 @@ export class ModelApiSession implements AgentSession {
         performed.outcome,
         signal,
         shouldForceApproval,
+        isAllowed,
       )),
       isRejected: false,
     }
@@ -4815,6 +4962,7 @@ export class ModelApiSession implements AgentSession {
     edit: ToolOutcome,
     signal: AbortSignal,
     isForced: boolean,
+    isAllowed: () => boolean,
   ): Promise<Performed> {
     const effects = newHookEffects()
     // The state a check of the same command would start on, taken before it runs.
@@ -4834,10 +4982,11 @@ export class ModelApiSession implements AgentSession {
           description: THEN_RUN_DESCRIPTION,
           timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
           isForced,
-          guard: () => this.isAsEdited(target),
+          guard: () => this.isAsEdited(target, isAllowed),
         },
         signal,
         effects,
+        isAllowed,
       )
     } catch (error: unknown) {
       if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
@@ -4872,7 +5021,7 @@ export class ModelApiSession implements AgentSession {
       }
     }
     const { line, result } = ran
-    this.noteCheckCommandRun(line, result, startedOn)
+    if (isAllowed()) this.noteCheckCommandRun(line, result, startedOn)
     const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
     return {
       outcome: {
@@ -4890,10 +5039,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Whether the file still holds what the edit left: `then_run`'s guard (M68). */
-  private async isAsEdited(target: {
-    readonly absolute: string
-    readonly checkedAbsolute: string
-  }): Promise<boolean> {
+  private async isAsEdited(
+    target: {
+      readonly absolute: string
+      readonly checkedAbsolute: string
+    },
+    isAllowed: () => boolean,
+  ): Promise<boolean> {
+    if (!isAllowed()) return false
     let current: string | undefined
     try {
       current = await this.deps.io.readFile(target.checkedAbsolute, target.checkedAbsolute)
@@ -4901,7 +5054,11 @@ export class ModelApiSession implements AgentSession {
       this.deps.log.warn(`then_run's guard could not read the file: ${describe(error)}`)
       return false
     }
-    return current !== undefined && fingerprint(current) === this.seenFiles.get(target.absolute)
+    return (
+      isAllowed() &&
+      current !== undefined &&
+      fingerprint(current) === this.seenFiles.get(target.absolute)
+    )
   }
 
   /**
@@ -5195,6 +5352,26 @@ export class ModelApiSession implements AgentSession {
     return notes.length > 0
   }
 
+  /**
+   * The final admission of the user's `!` command at its real entry, after
+   * the checkpoint mark and the native adapter's waits: the CURRENT trust,
+   * this session and the Host's closing state, and the user's own stop. It
+   * belongs to no turn, so neither the running turn, its Stop nor the
+   * permission mode (Plan included) decides it: the user typed it.
+   */
+  private userShellAdmission(stop: AbortController): () => void {
+    return () => {
+      if (
+        stop.signal.aborted ||
+        this.isDisposed ||
+        this.isHostClosing() ||
+        !this.deps.isWorkspaceTrusted()
+      ) {
+        throw new AbortedError()
+      }
+    }
+  }
+
   /** The user's `!` command (M46): run, shown as its row, and told to the model. */
   private async runUserShellCommand(
     started: ItemSnapshot,
@@ -5209,6 +5386,8 @@ export class ModelApiSession implements AgentSession {
         this.deps.workspaceRoot,
         USER_SHELL_TIMEOUT_MS,
         stop.signal,
+        undefined,
+        this.userShellAdmission(stop),
       )
     } catch (error: unknown) {
       result = {
@@ -5217,11 +5396,18 @@ export class ModelApiSession implements AgentSession {
         exitCode: null,
         isTimedOut: false,
         isCancelled: false,
+        // Failed before entry: nothing ran, so the row says so and the model
+        // is told nothing. A failure after the command ran is still told.
+        ...(error instanceof ShellEntryError && { isEntryRefused: true as const }),
       }
     } finally {
       this.userShells.delete(started.itemId)
     }
     const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS)
+    // A refused entry ran nothing: its row says so, and the model is told
+    // nothing about a command that never started.
+    const isRefused = result.isEntryRefused === true && !stop.signal.aborted
+    const failureReason = isRefused ? UI_TEXT.userShellFailed : outcome.failureReason
     // As Muse Code's rows read (captured 2026-09-25): exit 0 completed, any
     // other failed; one the user stopped reads stopped.
     let status = result.exitCode === 0 ? COMPLETED : FAILED
@@ -5231,14 +5417,16 @@ export class ModelApiSession implements AgentSession {
     const completed: ItemSnapshot = {
       ...started,
       status,
-      visibleOutput: shellText(result),
+      visibleOutput: isRefused ? UI_TEXT.userShellFailed : shellText(result),
       durationMs: this.deps.now() - startedAt,
       ...(result.exitCode !== null && { exitCode: result.exitCode }),
-      ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
+      ...(failureReason !== undefined && { failureReason }),
     }
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
-    this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+    if (result.isEntryRefused !== true) {
+      this.noteForModel(`${MODEL_TEXT.userShellLead}\n$ ${command}\n${outcome.output}`)
+    }
   }
 
   /** Calls kept from running still get an output for valid replay. */
@@ -5335,6 +5523,7 @@ export class ModelApiSession implements AgentSession {
    * returned.
    */
   private async verifyRound(turn: ActiveTurn, isLastRound: boolean): Promise<string | undefined> {
+    const isAllowed = this.verificationAdmission(turn.abort.signal)
     const edited = this.ledger.takeRoundEdits()
     const { verify } = this.deps
     const { signal } = turn.abort
@@ -5386,13 +5575,27 @@ export class ModelApiSession implements AgentSession {
     let runs: readonly CheckRun[]
     try {
       pending = isDiagnosticsOn
-        ? await this.editDiagnostics(verify, edited, signal, share)
+        ? await this.editDiagnostics(verify, edited, signal, share, isAllowed)
         : undefined
       // Looked up after the language servers' wait, so a file gone by now is not passed.
-      const existing = checks.length === 0 ? [] : await this.existingFiles(edited)
-      runs = await this.runChecks(started.itemId, checks, existing, signal, effects, share)
+      const existing =
+        checks.length === 0 || !isAllowed() ? [] : await this.existingFiles(edited, isAllowed)
+      runs = isAllowed()
+        ? await this.runChecks(started.itemId, checks, existing, signal, effects, share, isAllowed)
+        : checks.map((check) => skippedCheck(check, 'refused', MODEL_TEXT.verifyAccessRefused))
       if (isAbortRequested(signal)) {
         throw new AbortedError()
+      }
+      if (!isAllowed()) {
+        pending = this.refusedDiagnostics(edited)
+        runs = runs.map((run) => ({
+          summary: {
+            name: run.summary.name,
+            outcome: run.summary.outcome,
+            ...(run.summary.skip !== undefined && { skip: run.summary.skip }),
+          },
+          text: MODEL_TEXT.verifyAccessRefused,
+        }))
       }
     } catch (error: unknown) {
       const isStopped = error instanceof AbortedError || isAbortRequested(signal)
@@ -5472,7 +5675,9 @@ export class ModelApiSession implements AgentSession {
     edited: readonly EditedFile[],
     signal: AbortSignal,
     maxChars: number,
+    isAllowed: () => boolean,
   ): Promise<PendingReport> {
+    if (!isAllowed()) return this.refusedDiagnostics(edited)
     const { codeFile } = this.ledger
     const shown = codeFile === undefined ? edited.slice(0, VERIFY_SHOWN_FILES_MAX) : []
     const skipped: FileDiagnostics[] = edited.slice(shown.length).map((file) => ({
@@ -5483,11 +5688,12 @@ export class ModelApiSession implements AgentSession {
     let read: readonly FileDiagnostics[] = []
     if (shown.length > 0) {
       try {
-        read = await unlessStopped(verify.diagnosticsAfterEdit(shown, signal), signal)
+        read = await unlessStopped(verify.diagnosticsAfterEdit(shown, signal, isAllowed), signal)
       } catch (error: unknown) {
         if (error instanceof AbortedError) {
           throw error
         }
+        if (!isAllowed()) return this.refusedDiagnostics(edited)
         this.deps.log.warn(`Verify: the diagnostics could not be read: ${describe(error)}`)
         return {
           report: {
@@ -5498,6 +5704,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     }
+    if (!isAllowed()) return this.refusedDiagnostics(edited)
     return this.diagnosticsHistory.report([...read, ...skipped], {
       maxChars,
       ...(codeFile !== undefined && { codeFile }),
@@ -5688,6 +5895,11 @@ export class ModelApiSession implements AgentSession {
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
+  /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
+  private checkpointSessionId(): string {
+    return this.parentSession?.checkpointSessionId() ?? this.sessionId
+  }
+
   private async runTurn(queued: QueuedTurn): Promise<void> {
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
@@ -5722,6 +5934,15 @@ export class ModelApiSession implements AgentSession {
     let reason: string | undefined
     let errorKind: string | undefined
     try {
+      try {
+        await this.deps.beforeTurnRuns?.(this.checkpointSessionId(), turn.turnId)
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `The turn checkpoint could not be admitted: ${error instanceof Error ? error.name : 'unknown failure'}`,
+        )
+        throw new Error(UI_TEXT.sendMarkFailed, { cause: error })
+      }
+      turn.abort.signal.throwIfAborted()
       await this.startHooks()
       for (const message of this.pendingHookMessages.splice(0)) {
         this.emit({ type: 'backendNotice', level: 'info', text: message })
@@ -5832,6 +6053,13 @@ export class ModelApiSession implements AgentSession {
     // refused once `active` is cleared, so no input is lost between the two.
     // A note that arrived during the last reply is kept for the next request (M46).
     this.settleNotes(turn.turnId)
+    try {
+      await this.deps.afterTurnRuns?.(this.checkpointSessionId(), turn.turnId)
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `The turn checkpoint could not be ended: ${error instanceof Error ? error.name : 'unknown failure'}`,
+      )
+    }
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -6974,6 +7202,7 @@ export class ModelApiSession implements AgentSession {
         },
         () => this.onPersisted(),
         NO_CHILD_DISPOSAL,
+        this.isHostClosing,
         true,
         this,
         saved.id,
@@ -7084,6 +7313,7 @@ export class ModelApiSession implements AgentSession {
         },
         () => target.onPersisted(),
         NO_CHILD_DISPOSAL,
+        target.isHostClosing,
         true,
         target,
         child.id,
@@ -7128,6 +7358,7 @@ export class ModelApiSession implements AgentSession {
 }
 
 export class ModelApiHost implements AgentHost {
+  private isClosing = false
   private readonly sessions = new Map<string, ModelApiSession>()
   private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
@@ -7264,6 +7495,7 @@ export class ModelApiHost implements AgentHost {
       () => {
         this.sessions.delete(sessionId)
       },
+      () => this.isClosing,
       false,
       undefined,
       undefined,
@@ -7600,6 +7832,7 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async close(): Promise<void> {
+    this.isClosing = true
     const ending = new AbortController()
     const deadline = setTimeout(() => {
       ending.abort()

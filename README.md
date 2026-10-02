@@ -24,7 +24,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-090) ·
+**Contents:** [What's new](#whats-new-in-0100) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -38,7 +38,25 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.9.0
+## What's new in 0.10.0
+
+- **More editors.** Install the extension in compatible VS Code editors,
+  or use the ACP agent in editors that speak that protocol. Support levels
+  and verified versions are listed under [Other editors](#other-editors);
+  Preview support does not imply every VS Code feature is available.
+- **Code intelligence and web fetch.** Both backends can use the editor's
+  language services and read public web pages with workspace permission
+  checks ([Code intelligence](#code-intelligence), [Web fetch](#web-fetch)).
+- **Checks after edits.** The Model API verify loop can format edited files
+  and run the configured checks, with permission, trust and Stop checked
+  before work starts. Formatting and check commands remain opt in.
+- **Plans and turn checkpoints.** Save plans as files and implement them in
+  a fresh conversation. Turn checkpoints (Preview, off by default:
+  `museSpark.turnCheckpoints`) capture files on both backends;
+  stored file restore and Redo require an attached Model API session and
+  confirmed process safety ([The panel](#the-panel)).
+
+### Earlier in 0.9.0
 
 - **Install and sign in from the panel.** Without Muse Code, **Install
   Muse Code** shows Meta's install command for your system and runs it in a
@@ -58,9 +76,6 @@ two.
 - **Rewind the conversation, or take a side chat.** Any sent message can
   branch the conversation before itself; **Side chat** opens a Plan-mode
   branch without stopping the main one.
-- **Plans as files.** A Plan-mode reply can be saved to `.agents/plans/`,
-  or implemented in a fresh conversation, with the plan's steps as the
-  todo list ([Plans as files](#plans-as-files)).
 - **More of Muse Code in the panel.** A row for every tool Muse Code runs,
   workflows as live cards, goals, and background tasks you can stop.
 - **Behind a corporate network.** Muse Code gets VS Code's proxy,
@@ -183,7 +198,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.9.0.vsix
+   code --install-extension muse-spark-code-0.10.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -444,6 +459,10 @@ same notes, so a fact saved in one is known in the other:
 `$XDG_DATA_HOME` replaces `~/.local/share` when it is set (on Windows too, as
 Muse Code does). Each scope may keep a `MEMORY.md` index, one line per note:
 `- [Title](file.md) | hook`.
+Model API memory tools retain their original Stop, permission-mode, trust and
+conversation lifetime across reads, preimage copies and native publication.
+A late refusal preserves the old note; a new note already published stays
+written if its later index update is refused, with an index warning in the log.
 Names with spaces or Markdown punctuation are encoded in the index link, so
 the note can still be found and its line removed when the note is deleted.
 
@@ -852,6 +871,20 @@ files, and before the next request to Meta:
   before editing the same lines. If the formatted text cannot be written,
   the edit stays as written and the log says why.
 
+Ordinary file writes and format-on-edit publication recheck the captured
+turn, mode, trust and unsaved-buffer admission after checkpoint preimage waits
+and at the native atomic boundary. A refused late formatter keeps the edit
+already written and its patch. Rename still finishes after its first actual
+write if Stop arrives. Diagnostics returning under revoked ownership are
+withheld as unchecked; configured checks recheck admission after checkpoint
+activity marks and native launcher preparation. Restricted ordinary reads
+and edits retain their existing behavior; formatting and commands require trust.
+Every sequential check keeps the original batch admission, and explicit
+checks keep it through path preparation. A completed check retains its actual
+status; a later unstarted check is marked refused. An explicitly moved
+background shell keeps its own controller after the parent turn ends, while
+captured mode/trust and its own Stop, session disposal and Host close still hold.
+
 A **Check edits** row shows what ran: the files, their errors and warnings,
 how many were not checked, and how each check ended; open it for what the
 model read. The model can also call **run_checks** itself (files it names,
@@ -1083,6 +1116,16 @@ change, and **Click to expand** opens the diff editor. To undo, use the
 rewind button on any sent message (on hover):
 
 - **Fork conversation from here**.
+- **Restore files to here** (a message whose turn has a checkpoint) puts the
+  workspace's files back as they were before that turn, whether Muse's edit
+  tools or its shell commands changed them. It asks first, then says what it
+  restored and names every file it left as it is. See **Turn checkpoints**
+  below.
+- **Rewind conversation and restore files** does both, after one
+  confirmation that names both: it checks the conversation can be rewound,
+  restores the files, then rewinds the conversation below. When a file was
+  left short (unsaved, changed since, could not be changed) the conversation
+  stays as it is, and the panel says so.
 - **Rewind conversation to here** starts a branch before that message and
   puts its prompt back in the composer. The original conversation stays in
   History. Images return when the backend still has their bytes; the panel
@@ -1101,7 +1144,168 @@ rewind button on any sent message (on hover):
   conversation's and its subagents', in the reverse of the order they
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
-- **Fork conversation and rewind code**.
+- **Fork conversation and rewind code** (offered where the turn has no
+  checkpoint) is one action: the confirmation, the reverts, then the fork.
+  Declining the confirmation does neither.
+
+Both **Rewind code to here** and **Restore files to here** ask first, in the
+same confirmation.
+
+**Turn checkpoints (Preview).** Off by default: turn them on with
+`museSpark.turnCheckpoints`. Their restore is being rebuilt on the tools'
+own writes, so that it never has to tell your changes from the model's
+(PLAN.md D63, M86). Captures run on both backends. Stored **Restore files**
+and **Redo** require the actual connected Model API session and confirmed
+workspace-process safety; Muse Code captures remain read-only. Account
+probes, shell commands and hooks can also close Model API restoration
+availability when full descendant shutdown is unproved. Each turn gets a checkpoint of the workspace's files
+when it starts and when it ends: the tracked files and the untracked ones,
+byte for byte, but not the ones `.gitignore` names. (`.gitignore` files, the
+repository's `info/exclude` and your global excludes file decide what is
+ignored.) Checkpoints work in a folder that is not a repository too, and in a
+repository with no commits. They need git on `PATH`; without it the menu and
+the panel say git was not found.
+
+- **Where they live.** A shadow git repository under this extension profile's
+  global storage, `checkpoints/<canonical-root-key>/shadow.git`. Current-version
+  windows using the same physical canonical root and global-storage namespace
+  share it even when their VS Code workspace identities differ. Native realpath
+  resolves aliases; Windows key comparison ignores letter case. Unknown roots
+  fail closed. Old per-workspace stores remain in place, readable as legacy
+  captures; their messages are labelled read-only and no active fence/history
+  is migrated. Older versions, other profiles/users/machines, independent
+  editors/processes and remotely managed HTTP MCP services are outside this
+  fence guarantee. Nothing is written into the workspace's `.git`: no object, no
+  ref, no index change, so a push can never carry a checkpoint. That git runs
+  with hooks and fsmonitor off, none of your git configuration, and none of
+  the workspace's attribute filters.
+- **What a restore does.** It undoes what the conversation's turns changed
+  from that message on. A file changed outside those turns (by you, a build
+  you ran, or another conversation whose turn overlapped them) is left as it
+  is and named, as is a file with unsaved changes in an editor or notebook.
+  Each file is checked again just before it changes, so one edited while the
+  restore runs is left too. Deletions come before writes, so a rename that
+  changed only letter case, or a file that became a folder, comes back. A
+  file or folder reached through a link or junction is never written or
+  deleted: a folder link a turn made is left out of the checkpoint and named.
+  Restore never touches HEAD, the index, the stash or a branch, and while any
+  turn runs in the window it is refused until that turn ends. When a turn's
+  end was never recorded
+  (the window closed mid-turn), the notice names the restored files that turn
+  may not have changed itself. A folder that was there before the turn, even
+  an empty one, is never removed. A folder the turns made is removed once
+  empty when the filesystem permits, except inside a folder that held no
+  tracked or untracked file at the
+  checkpoint (an empty one, or one holding only ignored files): there it is
+  left, empty.
+- **Current windows sharing a canonical-root namespace.** They share
+  checkpoint records. Conversation history still belongs to its workspace
+  and account.
+  Records are saved independently without overwriting another window's
+  changes, and only one file restore or Redo runs at a time. A message sent
+  from the panel is marked as running before submission; Model API turns
+  also await that mark and their capture/record before hooks, shell edits
+  or model requests, including queued and scheduled turns and children that
+  outlive their parent. A failed mark refuses that turn with a localized
+  reason. While a turn is marked in either window, restores are
+  refused until its end is recorded. Tool preimages survive an end-record
+  failure; the next checkpoint operation retries the original end boundary.
+  Archives are written before returning, including in Restricted Mode, so
+  another window immediately hides those checkpoints even if this one closes.
+  Before any workspace Muse Code server or configured local stdio MCP server
+  starts, including an account probe, its window publishes a sticky unsafe
+  marker. Short CLI skills/import/export and sandbox commands, and terminals
+  the extension opens for Muse, MCP sign-in, sign-out or installation, await
+  the same marker before process or terminal creation. **Create AGENTS.md**
+  applies the same admission: `muse init` uses native admission;
+  its explicit template fallback holds a file-edit lease until I/O settles,
+  with no process marker added for that pure file write. Refused CLI startup
+  never falls back to writing a template. Extension-managed Git worktree
+  add/remove also use native admission before normal repository hooks can run.
+  Pure plan-file publication/stage cleanup and file-review Revert hold the
+  same file-edit lease through their actual I/O, retaining ownership checks.
+  So do the Memory view's new note, delete and index line, and a
+  conversation export you save inside the workspace; a note outside the
+  workspace (your personal memory) takes no project lease.
+  Automatic prompt Git facts suppress configured fsmonitor, signature and
+  clean/process helpers per command, with bounded names-only discovery and
+  live admission. Ordinary Git configuration remains intact; those reads
+  do not add permanent native uncertainty when helpers stay disabled.
+  The standalone ACP agent has no stored-checkpoint restore service or shared
+  VS Code profile namespace; its writes are outside this window exclusion
+  guarantee, like other independent editors and processes.
+  Plan publication/stale-stage cleanup recheck current workspace trust and
+  lifetime at the actual mutation boundary, retaining captured edit owners.
+  Restore/Redo recheck the expected file, dirty editors and live admission
+  after atomic staging and on rename retries. Node has no conditional rename:
+  a disk change in the final comparison-to-syscall gap remains outside that
+  guarantee, as with the Model API's conditional edits.
+  Pending starts are
+  refused after window shutdown or backend disposal. Shell and hook I/O holds a
+  separate activity mark through its real promise, including background, `!`
+  and child work. Normal process exit or pipe drain does not prove every
+  descendant stopped, so current launched-process runners leave unsafe
+  presence too. A shell that could not start at all (no interpreter on
+  `PATH`, or the operating system refused the start) proves no process exists
+  and leaves none. File restore/Redo refuses these windows and old/unknown peers.
+  Closing a server, terminal or window, owner PID death and heartbeat age cannot clear
+  that uncertainty. Intentional background work is kept running.
+- **Ignored files.** They are not copied wholesale. A file the Model API's
+  edit and write tools (or the image tools) are about to change is copied
+  first, so a restore brings it back; so is an ignored project memory note
+  the memory tools or the Memory view are about to change or delete, with
+  its `MEMORY.md`. A shell command's changes are found
+  afterwards by comparing the ignored files' sizes and times at the turn's
+  start and end. A restore deletes the ignored files the turn created and
+  lists the ones it changed without an earlier copy as **Not restorable**; it
+  never claims to have undone them. Muse Code runs its own tools, so on that
+  backend changed ignored files are listed the same way.
+- **Redo.** A restore's notice has **Redo**, which puts back what the
+  restore replaced, leaving any file you changed since. What it could not
+  put back stays on the button for another try; a redo offers its own Redo.
+  The redo record is saved before the first file changes, so a restore that
+  stops part way still says what it changed and keeps its Redo. To make Redo
+  possible, a restore copies what it overwrites or deletes, an ignored file
+  included.
+- **Limits.** A file over 16 MiB, a link, a folder link or junction, and a
+  folder that is a repository of its own are left out and named. A workspace with more than 50,000 files
+  outside its ignore rules gets no checkpoints, and a turn that would copy
+  more than 512 MiB of changed files gets none; the panel says why. The
+  ignored-file scan looks at 5,000 files at most, and an ignored folder with
+  more than 1,000 files (`node_modules`) is left out whole. git cannot open a
+  path past its own limit (260 characters on Windows, 1,024 on macOS, 4,096
+  elsewhere), so on Windows a workspace path over 258 characters, or a
+  checkpoint folder over 240, gets no checkpoints, and the panel says the
+  path is too long for git; paths within those limits work, long ones
+  included.
+- **Cleanup.** Archiving a conversation deletes its checkpoints (in
+  Restricted Mode, its records at once and its copies the next time the
+  folder is trusted). A conversation keeps
+  its 100 newest checkpoints and 20 newest redo records, the 50 most recent
+  conversations keep theirs, and records older than
+  `museSpark.cleanupPeriodDays` go. The bounds are applied each time the
+  window opens, with the setting on or off.
+- **Off.** Checkpoints are off in Restricted Mode, where the extension runs
+  no git, and with `museSpark.turnCheckpoints` off; the menu says so. A turn
+  already under way when the setting goes off still gets its end.
+  Muse Code checkpoints are read-only. Its native Windows fork limitation
+  is separate; the menu explains unavailable actions.
+
+**Recovering confirmed stale unsafe presence.** Verify yourself that all
+Muse Code servers, native scheduled/child work, shell commands, hooks and
+their workspace-capable descendants have stopped; SDK close, a completed
+row or a dead window PID alone does not prove this. Close the old implicated
+windows so they cannot rewrite their marker or restart work. In this
+extension profile's global storage, inspect
+`checkpoints/<canonical-root-key>/windows/<instance>.json`
+(the file records its window PID and random instance). Remove only the exact
+confirmed stale unsafe file: `native-backend-unsafe`, an unresolved
+`workspace-activity:` word, or an old/unreadable file that cannot attest
+`fenced-window-v1`. Saved `shadow.git` record refs, captures, Redo and history
+remain in place. Reopen with Model API and refresh the checkpoint state.
+Required account checks still run; any fresh native probe, command or hook
+can close availability again. Native destructive restoration awaits an
+upstream pre-edit fence and full shutdown proof.
 
 **Side chat.** Use **Side chat** in the header to open a separate Plan-mode
 conversation with the completed turns as reference. Its inherited goal is
@@ -1168,7 +1372,10 @@ runs while the workspace is in Restricted Mode, and a command that could not
 run comes back to the prompt with the reason. On Muse Code it runs through
 the CLI's own shell and sandbox (a missing Windows sandbox offers the setup,
 as the shell tool does); on the Model API backend it runs through the shell
-tool's runner, for ten minutes at most, and its row has a **Stop**.
+tool's runner, for ten minutes at most, and its row has a **Stop**. There it
+is checked once more at its real start (your Stop, the workspace's trust, the
+conversation and the window still standing); a command refused at that point
+says **The command did not run**, and the agent is told nothing about it.
 While a Model API command is still running, another surface sharing that
 session shows its row and can stop it. A session loaded in another VS Code
 window shows the saved row as interrupted, since that window cannot
@@ -1600,7 +1807,7 @@ All settings live under `museSpark.*`; changes apply to open panels
 immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
-`modelApiHooks`, `modelApiRepoMap`, `modelApiPromptCacheRetention`,
+`modelApiHooks`, `modelApiRepoMap`, `modelApiPromptCacheRetention`, `turnCheckpoints`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 and the five paid features, `modelApiWebSearch`, `modelApiImageGeneration`,
 `modelApiVoice`, `modelApiSubagents` and `modelApiScheduledPrompts`) are
@@ -1641,6 +1848,7 @@ Bypass at once.
 | `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                 |
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                             |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                       |
+| `turnCheckpoints`                 | `false`     | Preview. A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                           |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -1747,6 +1955,14 @@ stopped and the next message resumes the same session.
 - The paid features (web search, image generation, Muse Voice, Model API
   subagents and scheduled prompts) are off until you turn one on and accept
   its price; a repository's settings cannot turn one on.
+- Turn checkpoints copy the workspace's files (and an ignored file such as
+  `.env` only when the extension's own tools are about to change it, or when
+  a restore overwrites or deletes it, for Redo) into a shadow repository in
+  VS Code's storage directory for this workspace, never into the
+  repository's `.git`; that folder is readable by your user only (on macOS
+  and Linux). They stay on the machine and are deleted with the conversation,
+  by the retention bounds, or by removing that directory. See **Turn
+  checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
@@ -1911,8 +2127,8 @@ stopped and the next message resumes the same session.
   and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
-  a release is verified to fix them; **Rewind code to here** still works,
-  and the Model API backend offers all of them.
+  a release is verified to fix them; **Rewind code to here** and **Restore
+  files to here** still work, and the Model API backend offers all of them.
 - **A warning that "Muse Code reported an error for the decision (the tool
   may have run anyway): … approval ledger durability fence …"** — Muse Code
   on Windows (seen on 1.3.0) sometimes fails its own ledger write after applying your
@@ -2017,10 +2233,11 @@ that answers the Muse Session Protocol, including approvals, questions and
 subagents. Integration tests (`test/integration/**`) run under mocha inside a
 real VS Code launched by `@vscode/test-cli` (on Linux under `xvfb-run -a`),
 against `test/fixtures/workspace/`. The host checks (`test/hosts/`, CI's
-Hosts workflow) run the packaged extension in VSCodium, code-server and
-Eclipse Theia, and the packaged ACP agent in JupyterLab, Emacs and
-Neovim, each against the fake CLI; the Forks workflow installs the VSIX
-in the latest Cursor, Devin Desktop, Kiro and Positron and runs the
+Hosts workflow) run development-extension integration tests in VSCodium,
+packaged-extension browser checks in code-server and Eclipse Theia, and
+the packaged ACP agent in JupyterLab, Emacs and Neovim, each against the
+fake CLI. The Forks workflow installs the VSIX in the latest Cursor,
+Devin Desktop, Kiro and Positron, then runs development-extension
 integration tests there. `sh test/hosts/run-<host>.sh` runs one locally,
 with the arguments its header gives.
 
@@ -2038,7 +2255,8 @@ through the `Intl` helpers beside them. Text for the model is `MODEL_TEXT`
 and stays English. Escape hatches
 (`eslint-disable`, `@ts-expect-error`, casts) need an inline reason and a row
 in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension, 400 KiB for the
-Model API backend's own bundle, 50 KiB for the search worker, 300 KiB for
+Model API backend's own bundle, 225 KiB for the checkpoint store, 50 KiB for
+the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 

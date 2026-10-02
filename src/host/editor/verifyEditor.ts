@@ -76,6 +76,7 @@ export interface VerifyEditor {
   diagnosticsAfterEdit(
     files: readonly EditedFile[],
     signal: AbortSignal,
+    canReadFile?: (file: EditedFile) => boolean,
   ): Promise<readonly FileDiagnostics[]>
   /**
    * For the diagnostics tool asked about one file: shows it (when it is in
@@ -268,7 +269,9 @@ async function show(
   file: EditedFile,
   key: string,
   opened: OpenedTab[],
+  isAllowed?: () => boolean,
 ): Promise<Shown> {
+  if (isAllowed?.() === false) return { ok: false, reason: 'notShown' }
   let document: vscode.TextDocument
   try {
     document = await vscode.workspace.openTextDocument(vscode.Uri.file(file.absolute))
@@ -278,6 +281,7 @@ async function show(
     )
     return { ok: false, reason: 'notShown' }
   }
+  if (isAllowed?.() === false) return { ok: false, reason: 'notShown' }
   if (document.isDirty) {
     return { ok: false, reason: 'unsaved' }
   }
@@ -317,14 +321,16 @@ async function isReportedSinceWrite(
   file: EditedFile,
   key: string,
   reportLog: ReportLog,
+  isAllowed?: () => boolean,
 ): Promise<boolean> {
   const reportedAt = reportLog.lastAt(key)
   if (reportedAt === undefined) {
     return false
   }
   try {
+    if (isAllowed?.() === false) return false
     const { mtime } = await vscode.workspace.fs.stat(vscode.Uri.file(file.absolute))
-    return reportedAt >= mtime
+    return isAllowed?.() !== false && reportedAt >= mtime
   } catch {
     // A file that cannot be looked up has no write time to compare: wait for a new report.
     return false
@@ -336,13 +342,17 @@ async function isReportedSinceWrite(
  * changes aside: its server has had that text, and a server that reports
  * nothing new keeps what it said about it.
  */
-async function isShowingDiskText(document: vscode.TextDocument): Promise<boolean> {
+async function isShowingDiskText(
+  document: vscode.TextDocument,
+  isAllowed?: () => boolean,
+): Promise<boolean> {
   if (document.isDirty) {
     return false
   }
   try {
+    if (isAllowed?.() === false) return false
     const bytes = await vscode.workspace.fs.readFile(document.uri)
-    return document.getText() === new TextDecoder().decode(bytes)
+    return isAllowed?.() !== false && document.getText() === new TextDecoder().decode(bytes)
   } catch {
     // A file that cannot be read cannot be compared: it stays "not checked".
     return false
@@ -355,16 +365,23 @@ async function isShowingDiskText(document: vscode.TextDocument): Promise<boolean
  * checked immediately before each act on it, the show and the read (the
  * Codex review of PR #54).
  */
-async function isStillAsConfined(deps: VerifyEditorDeps, file: EditedFile): Promise<boolean> {
+async function isStillAsConfined(
+  deps: VerifyEditorDeps,
+  file: EditedFile,
+  isAllowed?: () => boolean,
+): Promise<boolean> {
   try {
-    if ((await deps.realPath(file.absolute)) !== file.absolute) {
+    if (
+      isAllowed?.() === false ||
+      (await deps.realPath(file.absolute)) !== file.absolute ||
+      isAllowed?.() === false
+    )
       return false
-    }
     if (file.fingerprint === undefined) {
       return true
     }
     const bytes = await vscode.workspace.fs.readFile(vscode.Uri.file(file.absolute))
-    return bytesFingerprint(bytes) === file.fingerprint
+    return isAllowed?.() !== false && bytesFingerprint(bytes) === file.fingerprint
   } catch (error: unknown) {
     deps.log.warn(`Verify: ${file.relative} could not be checked again: ${describe(error)}`)
     return false
@@ -451,30 +468,36 @@ async function settledDiagnostics(
   signal: AbortSignal,
   opened: OpenedTab[],
   shownKeys: Set<string>,
+  canReadFile?: (file: EditedFile) => boolean,
 ): Promise<FileDiagnostics> {
   if (signal.aborted) {
     return { file, entries: [], unchecked: 'stopped' }
   }
+  if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
+  const isAllowed = () => !signal.aborted && canReadFile?.(file) !== false
   const key = uriKey(vscode.Uri.file(file.absolute), deps.platform)
-  if (!(await isStillAsConfined(deps, file))) {
+  if (!(await isStillAsConfined(deps, file, isAllowed))) {
     return { file, entries: [], unchecked: 'changed' }
   }
+  if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
   const reports = watchReports(key, deps.platform)
   try {
-    const shown = await show(deps, file, key, opened)
+    const shown = await show(deps, file, key, opened, isAllowed)
     if (!shown.ok) {
       return { file, entries: [], unchecked: shown.reason }
     }
     shownKeys.add(key)
     // A file an editor already showed may have been reported on before the
     // wait began, and showing it again brings no new report.
-    const hasEarlierReport = shown.wasVisible && (await isReportedSinceWrite(file, key, reportLog))
+    const hasEarlierReport =
+      shown.wasVisible && (await isReportedSinceWrite(file, key, reportLog, isAllowed))
     const isSettled =
       (await reports.settle(deps.settle ?? SETTLE_TIMING, signal, hasEarlierReport)) ||
-      (shown.wasVisible && !isStopped(signal) && (await isShowingDiskText(shown.document)))
+      (shown.wasVisible && isAllowed() && (await isShowingDiskText(shown.document, isAllowed)))
     if (isStopped(signal)) {
       return { file, entries: [], unchecked: 'stopped' }
     }
+    if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
     if (!isSettled) {
       return { file, entries: [], unchecked: 'noReport' }
     }
@@ -483,9 +506,10 @@ async function settledDiagnostics(
     if (shown.document.isDirty) {
       return { file, entries: [], unchecked: 'unsaved' }
     }
-    if (!(await isStillAsConfined(deps, file))) {
+    if (!(await isStillAsConfined(deps, file, isAllowed))) {
       return { file, entries: [], unchecked: 'changed' }
     }
+    if (canReadFile?.(file) === false) return { file, entries: [], unchecked: 'notShown' }
     const held = vscode.languages
       .getDiagnostics()
       .find(([candidate]) => uriKey(candidate, deps.platform) === key)
@@ -504,6 +528,7 @@ async function readFiles(
   reportLog: ReportLog,
   files: readonly EditedFile[],
   signal: AbortSignal,
+  canReadFile?: (file: EditedFile) => boolean,
 ): Promise<readonly FileDiagnostics[]> {
   const opened: OpenedTab[] = []
   const shownKeys = new Set<string>()
@@ -511,7 +536,9 @@ async function readFiles(
   const results: FileDiagnostics[] = []
   try {
     for (const file of files) {
-      results.push(await settledDiagnostics(deps, reportLog, file, signal, opened, shownKeys))
+      results.push(
+        await settledDiagnostics(deps, reportLog, file, signal, opened, shownKeys, canReadFile),
+      )
     }
   } finally {
     await closeOpened(deps, opened)
@@ -693,11 +720,11 @@ export function createVerifyEditor(deps: VerifyEditorDeps): VerifyEditor {
     return await turn
   }
   return {
-    diagnosticsAfterEdit: (files, signal) =>
+    diagnosticsAfterEdit: (files, signal, canReadFile) =>
       enqueue(
         signal,
         () => files.map((file) => ({ file, entries: [], unchecked: 'stopped' as const })),
-        () => readFiles(deps, reportLog, files, signal),
+        () => readFiles(deps, reportLog, files, signal, canReadFile),
       ),
     settleFile: (absolutePath, signal = NEVER_STOPPED) =>
       enqueue(signal, NOTHING_READ, () =>

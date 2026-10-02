@@ -626,6 +626,67 @@ export const EN = {
   forkedNotice: 'Forked into a new conversation.',
   rewindImagesUnavailable: 'Some images from this message could not be restored.',
   rewindBeforeCompaction: 'Cannot rewind before the latest compaction.',
+  // Turn checkpoints (M72): the user card's menu, the confirmations, the result.
+  restoreFilesToHere: 'Restore files to here',
+  checkpointsModelApiOnly:
+    'File restore and Redo require a connected Model API session. Muse Code checkpoints are read-only.',
+  checkpointsLegacyReadOnly:
+    'This message has a legacy checkpoint. Its saved records remain readable; file restoration needs a current safely fenced capture.',
+  checkpointsNativeUnsafe:
+    'File restore and Redo are unavailable because a native workspace process or an unknown window may still edit files. Process shutdown is unproved; confirmed recovery is required.',
+  rewindAndRestore: 'Rewind conversation and restore files',
+  checkpointsRestricted: 'File checkpoints are off in Restricted Mode',
+  checkpointsOff: 'File checkpoints are off in settings',
+  checkpointsNoGit: 'File checkpoints need git on PATH',
+  conversationRewindUnavailable:
+    'Rewinding the conversation is not available with Muse Code on Windows',
+  restoreConfirmTitle: 'Restore the files to before this message?',
+  restoreConfirmDetail:
+    'What the turns from this message on changed is put back, untracked files and pre-copied ignored files included; ignored files they created are deleted. A file changed by something else in the meantime, or with unsaved changes, is left as it is and named. Redo puts back what the restore changed.',
+  restoreConfirmAction: 'Restore files',
+  rewindCodeConfirmTitle: 'Rewind the code to before this message?',
+  rewindCodeConfirmDetail:
+    'Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered: Restore files covers it.',
+  rewindCodeConfirmAction: 'Rewind code',
+  restoreBothConfirmTitle: 'Restore the files and rewind the conversation to before this message?',
+  restoreBothConfirmDetail:
+    'The files are restored first, as Restore files does; then the conversation branches before this message and its prompt returns to the composer. If a file is left as it is, the conversation is not rewound. The original conversation stays in History.',
+  restoreBothConfirmAction: 'Restore and rewind',
+  rewindNotDone: 'The conversation was not rewound.',
+  restoreDone: forms({
+    one: 'Restored {count} file to before this message.',
+    other: 'Restored {count} files to before this message.',
+  }),
+  restoreNothing: 'No file needed restoring.',
+  redoDone: forms({ one: 'Put {count} file back.', other: 'Put {count} files back.' }),
+  redoAction: 'Redo',
+  redoLabel: 'Redo: put back the files this restore replaced',
+  redoGone: 'This restore can no longer be redone.',
+  restoreRefusedUnsaved: 'Left as they are, with unsaved changes: {files}',
+  restoreRefusedChanged: 'Left as they are, changed by something else in the meantime: {files}',
+  restoreRefusedNotCovered: 'Left as they are, not in the checkpoint: {files}',
+  restoreRefusedNoCopy: 'Not restorable, no copy from before the turn was kept: {files}',
+  restoreRefusedFailed: 'Could not be changed: {files}',
+  restoreUnsure:
+    'Restored, but a turn’s end was not recorded, so these may also have undone later changes: {files}',
+  namedFilesMore: '{files} (+{count})',
+  restoreIgnoredIncomplete:
+    'Some ignored files these turns changed were not tracked and are left as they are.',
+  restoreNoCheckpoint: 'This message has no file checkpoint any more.',
+  restoreTurnRunning: 'Wait until no turn is running in this window, then try again.',
+  restoreTurnElsewhere:
+    'A turn or file restore is running in another VS Code window on this folder. Try again when it has finished.',
+  sendMarkFailed:
+    'The message was not sent: this window could not tell other windows on this folder that a turn is starting.',
+  restoreFailed: 'Could not restore the files',
+  checkpointLeftOut: 'The file checkpoint left out: {files}',
+  checkpointUnavailable: 'No file checkpoint for this turn: {reason}',
+  checkpointTooManyFiles: 'the workspace has more than {count} files outside its ignore rules',
+  checkpointTooLarge: 'over {size} MiB of changed files to copy',
+  checkpointFailed: 'the checkpoint failed',
+  checkpointNoGit: 'git was not found on PATH',
+  checkpointPathTooLong:
+    'the path of the workspace or of this extension’s storage folder is too long for git',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',

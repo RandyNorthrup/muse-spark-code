@@ -179,20 +179,21 @@ export async function placeMemoryCall(
 export async function runMemoryCall(
   store: MemoryStore,
   placed: PlacedMemoryCall,
+  assertCurrent?: () => void,
 ): Promise<ToolOutcome> {
   const { call, place } = placed
   let outcome: Located<string>
   switch (call.tool) {
     case 'read': {
-      outcome = await store.read(place, call.args)
+      outcome = await store.read(place, call.args, assertCurrent)
       break
     }
     case 'add': {
-      outcome = await store.add(place, call.args)
+      outcome = await store.add(place, call.args, assertCurrent)
       break
     }
     case 'edit': {
-      outcome = await store.edit(place, call.args)
+      outcome = await store.edit(place, call.args, assertCurrent)
       break
     }
   }

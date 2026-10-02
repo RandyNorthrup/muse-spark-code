@@ -216,6 +216,46 @@ afterEach(() => {
 })
 
 describe('diagnosticsAfterEdit', () => {
+  it('does not open or read a file refused by the live caller predicate', async () => {
+    const { verify } = editor()
+    const files = await verify.diagnosticsAfterEdit(
+      [FILE],
+      new AbortController().signal,
+      () => false,
+    )
+    expect(files).toEqual([{ file: FILE, entries: [], unchecked: 'notShown' }])
+    expect(workspace.openTextDocument).not.toHaveBeenCalled()
+    expect(workspace.fs.readFile).not.toHaveBeenCalled()
+    expect(languages.getDiagnostics).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the live predicate after a held open and before opening later batch files', async () => {
+    const { verify } = editor()
+    const { order, held } = holdFirstFile()
+    let isAllowed = true
+    const pending = verify.diagnosticsAfterEdit(
+      [FILE, OTHER],
+      new AbortController().signal,
+      () => isAllowed,
+    )
+    try {
+      await vi.waitFor(() => {
+        expect(order).toEqual([FILE.absolute])
+      })
+      isAllowed = false
+      held.resolve(undefined)
+      expect(await pending).toEqual([
+        { file: FILE, entries: [], unchecked: 'notShown' },
+        { file: OTHER, entries: [], unchecked: 'notShown' },
+      ])
+      expect(order).toEqual([FILE.absolute])
+      expect(shownDocument).not.toHaveBeenCalled()
+      expect(languages.getDiagnostics).not.toHaveBeenCalled()
+    } finally {
+      held.resolve(undefined)
+    }
+  })
+
   it('shows each file beside as a tab of its own, reads it once settled, and closes the tabs', async () => {
     const { verify } = editor()
     vi.mocked(languages.getDiagnostics).mockReturnValue([

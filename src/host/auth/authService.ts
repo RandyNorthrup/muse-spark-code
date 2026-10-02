@@ -78,9 +78,9 @@ export interface AuthServiceDeps {
     readonly get: () => boolean
     readonly set: (isHeld: boolean) => PromiseLike<void>
   }
-  readonly runInTerminal: (cliPath: string, args: readonly string[]) => void
+  readonly runInTerminal: (cliPath: string, args: readonly string[]) => void | Promise<void>
   readonly installCommand: string
-  readonly runInstallerInTerminal: () => void
+  readonly runInstallerInTerminal: () => void | Promise<void>
   readonly runDeviceSignIn: (
     signal: AbortSignal,
     onCode: (url: string, code: string) => void,
@@ -731,7 +731,7 @@ export class AuthService {
       hasCli: false,
     })
     try {
-      this.deps.runInstallerInTerminal()
+      await this.deps.runInstallerInTerminal()
       const deadline = this.deps.now() + MUSE_INSTALL_TIMEOUT_MS
       while (this.deps.now() < deadline) {
         if (epoch !== this.signOutEpoch || this.isSigningOut) {
@@ -870,7 +870,7 @@ export class AuthService {
       'Muse Code still reads signed in after account/logout; running muse logout in a terminal',
     )
     try {
-      this.deps.runInTerminal(cliPath, MUSE_LOGOUT_ARGS)
+      await this.deps.runInTerminal(cliPath, MUSE_LOGOUT_ARGS)
       return true
     } catch {
       this.deps.log.warn('Muse Code logout terminal could not open')

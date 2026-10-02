@@ -18,6 +18,10 @@ describe('createWorktreeFeatures', () => {
     const calls: (readonly string[])[] = []
     const features = createWorktreeFeatures({
       workspaceRoot: '/ws',
+      mutationGit: (args) => {
+        calls.push(args)
+        return Promise.resolve('')
+      },
       runGit: (args) => {
         calls.push(args)
         // show-ref fails: no such branch yet.
@@ -49,6 +53,8 @@ describe('createWorktreeFeatures', () => {
       'worktree /ws\nbranch refs/heads/main\n\nworktree /wt/x\nbranch refs/heads/x\n'
     const features = createWorktreeFeatures({
       workspaceRoot: '/ws',
+      mutationGit: () =>
+        Promise.reject(new Error("Command failed: git worktree remove\nfatal: '/wt/x' is locked")),
       runGit: (args) => {
         if (args[0] === 'worktree' && args[1] === 'remove') {
           return Promise.reject(
