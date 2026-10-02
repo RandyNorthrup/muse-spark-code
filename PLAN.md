@@ -10199,3 +10199,19 @@ in the turn's window while it ran, which a restore refuses. Release rule set
 by the lead after this round: a later Codex finding that is neither a P1 nor
 a security finding is recorded as a known limit and fixed in 0.10.1, so the
 release does not wait on review rounds that only find edge cases.
+
+**0.10.0 released (2026-10-02, tag `v0.10.0` on main `bdfb651e`, release run 36947244221).**
+PR #55 merged after seven Codex rounds; turn checkpoints ship as a Preview, off by
+default (D63). The first run's Windows quality job hit a known intermittent
+60 s hang in a real-shell hook test (root cause under investigation for 0.10.1)
+and was rerun. Published: the GitHub Release (`muse-spark-code-0.10.0.vsix`,
+1,619,488 bytes, SHA-256 `666f89b3ca93519a5272c21cb6a9ff1971202db7d452af96eff4a103d5e64a5b`;
+`muse-spark-code-acp-0.10.0.tgz`, 805,211 bytes, `96c56cfa…f946`), the VS Code
+Marketplace and Open VSX (its first publish; namespace `RandyNorthrup`
+created, not yet verified), both serving the identical VSIX. npm failed: the
+workflow passed `release/…tgz`, which npm read as a GitHub owner/repo (fixed
+by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
+0.10.1). Install smoke: the released VSIX installs as 0.10.0 on the Windows
+host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
+machine has code-server for a panel check, which CI's Hosts run on the tag
+covered (run 36947211712).
