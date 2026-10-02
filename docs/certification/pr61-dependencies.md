@@ -59,8 +59,9 @@ the external `pr61-compatible-source-20260930` evidence directory.
 
 - **Nothing in the `.vsix` changes.** The SDK, jsdom and Prettier are
   development dependencies, and `vsce ls` lists only `dist/extension.js`,
-  `modelApi.js`, `pageWorker.js`, `planMarkdown.js` and `searchWorker.js`: none
-  holds the SDK. The extension keeps its VS Code 1.99 floor (Node 20.18.3,
+  `modelApi.js`, `checkpointStore.js`, `uiText.js`, `pageWorker.js`,
+  `planMarkdown.js` and `searchWorker.js` (with main merged at `2a30b1a0`):
+  none holds the SDK. The extension keeps its VS Code 1.99 floor (Node 20.18.3,
   esbuild target `node20.18`).
 - **The SDK is bundled into the ACP agent alone**, `dist/acp.js` (esbuild
   target `node22`, package `engines.node` `>=22`). The metafile shows the
@@ -68,7 +69,8 @@ the external `pr61-compatible-source-20260930` evidence directory.
   `schema-deserialize.js`, `line-buffer.js`: 54,932 of 800,229 bytes); the
   v2 entry and the examples are not reachable. The 1.5.0 differences that land
   in the bundle are the optional `notice` update and `notices` capability in
-  `schema/zod.gen.js`. `dist/acp.js` is 781.5 KiB against its 850 KiB budget.
+  `schema/zod.gen.js`. `dist/acp.js` was 781.5 KiB against its 850 KiB
+  budget; after main's shared English table (#67) it is 716.8 KiB.
   The ACP package's one runtime dependency, `@napi-rs/keyring`, is unchanged.
 - **Development Node floors are unchanged.** jsdom 30.1.1 keeps 30.1.0's
   `^22.22.2 || ^24.15.0 || >=26.0.0`; its new `w3c-xmlserializer` 6.0.0 asks
