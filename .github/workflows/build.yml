@@ -204,6 +204,14 @@ jobs:
             fi
           done
           echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
+      # The bundles load the shared English table at runtime: the extension
+      # and Model API bundles from this build, the agent as npm installs it.
+      - name: the bundles and the installed agent load the shared English table
+        run: |
+          acp="$RUNNER_TEMP/acp-install"
+          mkdir -p "$acp"
+          npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
+          node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp
