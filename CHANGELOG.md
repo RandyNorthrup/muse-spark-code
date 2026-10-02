@@ -52,23 +52,34 @@ happened, not what was planned; superseded entries are kept.
   `release/muse-spark-code-acp-<version>.tgz`, which npm reads as a GitHub
   `owner/repo` and tried to fetch over SSH, so 0.10.0 was not published to
   npm. The path now starts with `./`.
+- **A crafted long line no longer stalls the log.** Every line the
+  extension logs passes through its secret redactor, whose JSON Web Token
+  pattern read a long word again from every `eyJ` after a dash in it: a
+  64,000-character line of `eyJa-eyJa-…` took seconds. It now reads each
+  run of dotted words once. A token glued after `_` or a letter
+  (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
+  the old pattern redacted is left.
 
 - **The log redacts more credential shapes.** The output channel's
-  redactor and the session export now share one list
-  (`src/core/redact.ts`), so the log also removes GitHub, GitLab, npm,
-  Google API and Slack tokens, AWS access key ids and `~/.aws/credentials`
-  lines (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
+  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
+  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
   `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
   upper-case variable, a header, a JSON field or a URL parameter.
-- **Secret redaction no longer stalls on long text.** Two log-redaction
-  patterns took quadratic time: the URL credentials pattern on a long run
-  such as `a.b.c.…` (its scheme is now bounded), and the JSON Web Token
-  pattern on a long `eyJa-eyJa-…` run (0.10.1's fix, carried into the shared
-  list: each run of dotted words is read once, and a token glued after `-`,
-  `_` or a letter is redacted too, where a pattern starting only after a
-  non-token character had missed `x-eyJ…`). The session export runs them
-  over whole conversations. Text with none of the credential literals (most
-  log lines) now skips the patterns in one scan.
+- **A long dotted line no longer stalls the log.** The redactor's URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. Text with none of the credential literals
+  (most log lines) now skips the patterns in one scan.
+- **A conversation no longer opens while the Model API backend closes or
+  after you sign out, and an overtaken side chat leaves no Plan mode.**
+  Starting, resuming or forking a conversation loaded the hooks, then made
+  the session and ran its SessionStart hook without checking again that
+  the backend was not closing (or, when resuming, that you were still
+  signed in). Both are checked now, before the session exists and again
+  after its SessionStart hook. And a side chat whose opening another
+  opening overtook (a second conversation opened before the first had
+  loaded) still switched the panel to Plan; only the opening that lands
+  sets the mode now.
 
 ## [0.10.0] - 2026-10-01
 

@@ -9251,6 +9251,13 @@ to the release candidate is described below.
       `SHARE_VIEW_PAGE_ITEMS` (200) items at a time, with Show more.
     - **RV84 #9's residual.** Long strings are scrubbed in line-break
       slices (above).
+    - **Lead decisions on the same class (released behaviour, one
+      CHANGELOG Fixed entry).** `startSession`, `resumeSession` (its
+      `revive`) and `forkSession` check the account and the closing after
+      their hooks load and again after their SessionStart hook, as the
+      import does; a SessionStart hook that fails in `revive` leaves no
+      session. `adopt` switches a side chat to Plan only after its last
+      currency check, beside the imported mode.
     - **0.10.1's JWT fix carried in.** The JWT rule is 0.10.1's linear
       dotted-words scan (`redactTokens`), so a token glued after `-` is
       redacted again; its tests (glued tokens, the differential against the
