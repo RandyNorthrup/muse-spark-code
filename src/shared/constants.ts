@@ -1875,6 +1875,13 @@ export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // commands that load or copy a whole session. Past them the command fails
 // with a message instead of leaving the panel waiting for ever.
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
+// A `muse serve` whose process still runs at the handshake's deadline is
+// starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
+// activation that took 211 s) it missed 30 s and was killed. It gets one
+// longer wait, this long in all. A healthy start connects in a second or
+// two (the log's "Connected ... in N ms"), so a process still silent after
+// four times the first deadline is stuck, and is ended.
+export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
 export const MSP_COMMAND_TIMEOUT_MS = 60_000
 export const MSP_LONG_COMMAND_TIMEOUT_MS = 180_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
@@ -2793,6 +2800,9 @@ export const MODEL_TEXT = {
   gitCommitsUnavailable: 'The commits on the branch could not be listed:',
   gitPromptTruncated: '[{count} more characters of the diff were left out]',
   gitPromptMore: '- and {count} more',
+  // M75 (PLAN.md D49): the paired evaluation's answer to a question the
+  // model asks mid-task; nobody is there to choose.
+  evalClarification: 'Proceed without asking; take the simplest reading of the request.',
   // M68 (PLAN.md D49): the verify loop. What follows an edit is data from the
   // language servers and the user's commands, never an instruction.
   verifyLead:
@@ -2928,6 +2938,57 @@ export const MODEL_TEXT = {
   webFetchMovedOpen: '<<<redirect {marker}>>>',
   webFetchMovedClose: '<<<end of redirect {marker}>>>',
 } as const
+
+// --- Paired efficiency evaluation (M75, PLAN.md D49) ---
+
+// The paired runs answer on this model only (D49's live-spend rules: the
+// contributor model on the Model API); the eval's wire refuses any other.
+export const EVAL_MODEL_ID = 'muse-spark-1.3-contributor'
+// The task splits: `accept` tasks may guide mechanism work, `heldout` tasks
+// judge it.
+export const EVAL_SPLITS = ['accept', 'heldout'] as const
+export type EvalSplit = (typeof EVAL_SPLITS)[number]
+// The harness's Auto mode (MSP `onRequest`): reads and edits run, a shell
+// command asks and the run allows it once, in the task's own folder.
+export const EVAL_APPROVAL_MODE = 'onRequest'
+// The terminal of a turn that ended normally (the host's `turnCompleted`).
+export const EVAL_TURN_COMPLETED = 'completed'
+// What a task records when its turn ran out of time and was stopped, and
+// when the harness could not start it at all.
+export const EVAL_TURN_TIMED_OUT = 'timedOut'
+export const EVAL_TURN_NOT_RUN = 'notRun'
+// One task's turn, tool rounds included, before it is stopped.
+export const EVAL_TURN_TIMEOUT_MS = 240_000
+// A verifier is a few assertions over a few-line module.
+export const EVAL_VERIFY_TIMEOUT_MS = 20_000
+// The end of a failed verifier's output kept in the report.
+export const EVAL_VERIFY_DETAIL_MAX_CHARS = 600
+// Each task gets a fresh folder under the system's temporary folder.
+export const EVAL_TEMP_PREFIX = 'muse-eval-'
+export const EVAL_WORKSPACE_DIR = 'workspace'
+// The verifier's own folder beside the workspace, made fresh for each run.
+export const EVAL_VERIFY_PREFIX = 'verify-'
+export const EVAL_VERIFY_FILE = 'verify.mjs'
+// What a report shows instead of a task's temporary folder, which sits
+// under the owner's profile.
+export const EVAL_ROOT_MASK = '<task>'
+// On Windows a scanner or an indexer can hold a file in a task's folder for
+// a moment after the run is done with it, so its removal is retried.
+export const EVAL_REMOVE_RETRIES = 5
+export const EVAL_REMOVE_RETRY_DELAY_MS = 200
+// A run stops sending once its estimate passes this: a full paired run of
+// the ten tasks is a few cents at most on the contributor tier.
+export const EVAL_BUDGET_USD = 0.5
+// Capability floors, fixed in advance: an arm whose pass rate falls below
+// either floor fails the run. At 0.75, 5 of 6 accept tasks and 3 of 4
+// held-out tasks must pass: losing more than one task per split fails.
+export const EVAL_FLOOR_ACCEPT_PASS_RATE = 0.75
+export const EVAL_FLOOR_HELDOUT_PASS_RATE = 0.75
+// The shape of the report the live run writes.
+export const EVAL_REPORT_VERSION = 2
+// Decimals for the report's dollar amounts: a task costs a few
+// ten-thousandths of a dollar on the contributor tier.
+export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'

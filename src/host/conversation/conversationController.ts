@@ -777,6 +777,12 @@ export class ConversationController {
   private hasConfirmedRemoteBypass = false
   /** Said once the surface is ready: why the conversation did not start as configured. */
   private startupNotice: string | undefined
+  /**
+   * Failures already shown in the panel. Everything waiting on one host
+   * start gets the same failure when it fails: it is shown once, and the
+   * other waiters only log it (0.10.0 showed one slow start six times).
+   */
+  private readonly shownFailures = new WeakSet<object>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
   /** Stops listening for the host closing this session. */
@@ -956,6 +962,25 @@ export class ConversationController {
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
     })
+  }
+
+  /**
+   * Whether this panel is yet to show `error`, which it now counts as shown:
+   * the first of the actions sharing a failed start shows it, the rest log it.
+   */
+  private isFirstShowing(error: unknown): boolean {
+    if (typeof error === 'object' && error !== null && this.shownFailures.has(error)) {
+      return false
+    }
+    this.noteShown(error)
+    return true
+  }
+
+  /** `error` is shown in the panel (a failed message's own card says it). */
+  private noteShown(error: unknown): void {
+    if (typeof error === 'object' && error !== null) {
+      this.shownFailures.add(error)
+    }
   }
 
   private contextLimitFor(modelId: string): number | undefined {
@@ -2599,8 +2624,13 @@ export class ConversationController {
       }
       await this.adopt(host, loaded, UI_TEXT.resumedNotice, 'resumed')
     } catch (error: unknown) {
-      if (generation === this.sendInvalidationEpoch) {
+      if (generation !== this.sendInvalidationEpoch) {
+        return
+      }
+      if (this.isFirstShowing(error)) {
         this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
+      } else {
+        this.deps.log.error(`resumeSession failed (shown already): ${describe(error)}`)
       }
     }
   }
@@ -3759,7 +3789,9 @@ export class ConversationController {
         this.attachments.release(attachmentIds)
       }
       // A composer message's images were not released: the composer gets
-      // them back for another try. A brief's go with its card.
+      // them back for another try. A brief's go with its card. The card
+      // says why, so whatever else waited on the same start only logs it.
+      this.noteShown(error)
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
       return { isAccepted: false, hasSetTodos: false }
     } finally {
@@ -4211,12 +4243,23 @@ export class ConversationController {
     }
   }
 
+  /**
+   * The skills for the palette and the slash menu, asked for each time one
+   * opens: a read in the background, so a session that does not start is
+   * logged here, never shown (a send or the panel's warm-up says it once).
+   */
   private async listSkills(): Promise<void> {
     if (this.skills !== undefined) {
       this.postSkills()
       return
     }
-    const session = await this.sessionForAction()
+    let session: AgentSession | undefined
+    try {
+      session = await this.sessionForAction()
+    } catch (error: unknown) {
+      this.deps.log.warn(`The skills were not listed: ${describe(error)}`)
+      return
+    }
     if (session !== undefined) {
       await this.refreshSkills(session)
     }
@@ -4793,7 +4836,12 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
-      this.say('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+      // Whatever else waited on the same start fails with it now; a message's
+      // own card says it better, so this says it only if nothing else did.
+      await new Promise((resolve) => setImmediate(resolve))
+      if (this.isFirstShowing(error)) {
+        this.say('warning', `${UI_TEXT.hostStartFailed}: ${describe(error)}`)
+      }
     }
   }
 
@@ -5187,14 +5235,17 @@ export class ConversationController {
   /**
    * Runs one message from the webview. The caller does not wait (a `void`
    * call), so a failure no step in `dispatch` caught would reach only VS Code's
-   * Extension Host log: it is logged here, with its stack, and said (M39).
+   * Extension Host log: it is logged here, with its stack, and said (M39),
+   * unless the panel showed this very failure already (a shared start).
    */
   public async handle(message: ConversationMessage): Promise<void> {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
       this.deps.log.error(`${message.type} failed: ${errorDetail(error)}`)
-      this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
+      if (this.isFirstShowing(error)) {
+        this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
+      }
     }
   }
 

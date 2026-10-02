@@ -58,6 +58,7 @@ import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ShellEntryError } from '../../src/core/shellResult'
 import { ConversationCheckpoints } from '../../src/host/conversation/conversationCheckpoints'
 import {
+  type CheckpointPort,
   createCheckpointPort,
   prepareCheckpointTurn,
 } from '../../src/host/checkpoints/checkpointHost'
@@ -1136,6 +1137,47 @@ describe('ModelApiHost: catalogue and sessions', () => {
   })
 })
 
+/**
+ * A panel's checkpoint port that knows when the panel's own work is done: the
+ * panel starts captures, records, marks and ends without waiting for them, so
+ * `settled` waits until none is left, one an earlier one's end started
+ * included (an end after its record). No fixed sleep.
+ */
+function settlingPort(port: CheckpointPort): {
+  readonly port: CheckpointPort
+  readonly settled: () => Promise<void>
+} {
+  const inFlight = new Set<Promise<unknown>>()
+  const track = <T>(result: Promise<T>): Promise<T> => {
+    inFlight.add(result)
+    const forget = () => {
+      inFlight.delete(result)
+    }
+    void result.then(forget).catch(forget)
+    return result
+  }
+  return {
+    port: {
+      ...port,
+      capture: () => track(port.capture()),
+      release: (snapshot) => track(port.release(snapshot)),
+      record: (sessionId, turnId, snapshot) => track(port.record(sessionId, turnId, snapshot)),
+      markTurn: (key, isRunning) => track(port.markTurn(key, isRunning)),
+      endTurn: (sessionId, turnId) => track(port.endTurn(sessionId, turnId)),
+    },
+    settled: async () => {
+      for (;;) {
+        // Every pending continuation runs first, so a call it starts is seen.
+        await new Promise((resolve) => setImmediate(resolve))
+        if (inFlight.size === 0) {
+          return
+        }
+        await Promise.allSettled(inFlight)
+      }
+    },
+  }
+}
+
 describe('Model API turn checkpoint admission (M72)', () => {
   it(
     'keeps a retained Model API turn fenced after one of two surfaces closes',
@@ -1158,8 +1200,9 @@ describe('Model API turn checkpoint admission (M72)', () => {
       })
       const { session, turnDone } = await startSession(t)
       const { session: retained } = await t.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      const surface = settlingPort(port)
       const closing = new ConversationCheckpoints({
-        port,
+        port: surface.port,
         backend: (id) => (id === session.sessionId ? 'modelApi' : undefined),
         post: () => undefined,
         notice: () => undefined,
@@ -1173,7 +1216,14 @@ describe('Model API turn checkpoint admission (M72)', () => {
       await checkpointWrite(h.root, 'a.txt', 'a1\n')
       await h.store.endTurn(session.sessionId, 'earlier')
       const hold = Promise.withResolvers<undefined>()
-      t.api.script({ hold: hold.promise, text: 'actual retained turn finished' })
+      const requested = Promise.withResolvers<undefined>()
+      t.api.script({
+        hold: hold.promise,
+        onRequest: () => {
+          requested.resolve(undefined)
+        },
+        text: 'actual retained turn finished',
+      })
       const stop = session.onEvent((event) => {
         if (event.type === 'turnStarted') {
           closing.turnStarted(session.sessionId, event.turnId)
@@ -1185,11 +1235,16 @@ describe('Model API turn checkpoint admission (M72)', () => {
         const pending = await closing.beforeTurn(session.sessionId)
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
-        await vi.waitFor(() => {
-          expect(t.api.responseBodies()).toHaveLength(1)
-        })
+        // The request follows the turn's checkpoint: real git, about 70 ms on
+        // an idle machine but seconds on a loaded one, past vi.waitFor's 1 s.
+        // Wait for the request itself, or for the turn's end if it never comes.
+        await Promise.race([requested.promise, turnDone()])
+        expect(t.api.responseBodies()).toHaveLength(1)
         await closing.sessionChanged(undefined)
         session.dispose()
+        // Another window asks only once all the closed panel started is done:
+        // a panel that ended the retained turn has cleared its fence by then.
+        await surface.settled()
         const other = h.reopen()
         expect(
           await other.restore({

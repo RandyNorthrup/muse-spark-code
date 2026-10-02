@@ -70,7 +70,10 @@ function manager(
   options: {
     binaryPath?: string
     start?: string
+    /** When a `slow` start answers, or a `dying` one exits. */
+    startMs?: number
     handshakeTimeoutMs?: number
+    slowHandshakeTimeoutMs?: number
     fingerprint?: string
   } = {},
 ) {
@@ -87,6 +90,9 @@ function manager(
       { name: 'MUSE_FAKE_NODE', value: process.execPath },
       { name: 'MUSE_FAKE_FINGERPRINT', value: options.fingerprint ?? EXPECTED_SCHEMA_FINGERPRINT },
       ...(options.start === undefined ? [] : [{ name: 'MUSE_FAKE_START', value: options.start }]),
+      ...(options.startMs === undefined
+        ? []
+        : [{ name: 'MUSE_FAKE_START_MS', value: String(options.startMs) }]),
     ],
     workspaceRoot,
     getShellSandbox: () => 'off',
@@ -96,6 +102,9 @@ function manager(
     getProxySettings: () => ({ proxy: '', noProxy: [] }),
     ...(options.handshakeTimeoutMs !== undefined && {
       handshakeTimeoutMs: options.handshakeTimeoutMs,
+    }),
+    ...(options.slowHandshakeTimeoutMs !== undefined && {
+      slowHandshakeTimeoutMs: options.slowHandshakeTimeoutMs,
     }),
   })
   managers.push(created)
@@ -474,15 +483,58 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
   })
 
   it('gives up on a host that never answers the handshake, and ends it (drill, D25)', async () => {
-    const wedged = manager({ start: 'silent', handshakeTimeoutMs: 500 })
+    const wedged = manager({
+      start: 'silent',
+      handshakeTimeoutMs: 500,
+      slowHandshakeTimeoutMs: 2000,
+    })
     const started = Date.now()
+    // Its process runs, so the first deadline only stretches the wait.
     await expect(wedged.manager.ensureHost()).rejects.toThrow(
-      'Muse Code did not finish starting within 1 s',
+      'Muse Code did not finish starting within 2 s',
+    )
+    expect(Date.now() - started).toBeGreaterThanOrEqual(2000)
+    expect(wedged.log.info).toHaveBeenCalledWith(
+      'muse serve is still starting after 1 s and its process runs; waiting up to 2 s in all',
     )
     expect(wedged.manager.isRunning).toBe(false)
     expect(Date.now() - started).toBeLessThan(TURN_TIMEOUT_MS)
     // The next call spawns afresh instead of reusing the dead attempt.
     await expect(wedged.manager.ensureHost()).rejects.toThrow('did not finish starting')
+  })
+
+  it('connects a slow start whose process runs past the first deadline (0.10.1)', async () => {
+    const slow = manager({
+      start: 'slow',
+      startMs: 1500,
+      handshakeTimeoutMs: 500,
+      slowHandshakeTimeoutMs: TURN_TIMEOUT_MS,
+    })
+    const host = await slow.manager.ensureHost()
+    expect(host.info.kind).toBe('museCode')
+    expect(slow.log.info).toHaveBeenCalledWith(
+      expect.stringContaining('muse serve is still starting after 1 s') as string,
+    )
+  })
+
+  it('fails a start whose process exits during the longer wait at once (0.10.1)', async () => {
+    const dying = manager({
+      start: 'dying',
+      startMs: 1500,
+      handshakeTimeoutMs: 500,
+      slowHandshakeTimeoutMs: 60_000,
+    })
+    const started = Date.now()
+    let failure: unknown
+    try {
+      await dying.manager.ensureHost()
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toBeInstanceOf(Error)
+    expect(String(failure)).not.toContain('did not finish starting')
+    expect(Date.now() - started).toBeLessThan(TURN_TIMEOUT_MS)
+    expect(dying.manager.isRunning).toBe(false)
   })
 
   it('rejects when there is no binary anywhere (drill)', async () => {
