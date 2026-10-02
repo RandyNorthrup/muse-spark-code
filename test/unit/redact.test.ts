@@ -170,15 +170,16 @@ describe('redactSecrets', () => {
   })
 
   it.each([
-    ['a word of dashed eyJ parts', 'eyJa-'.repeat(12_800), 'eyJa-'.repeat(12_800)],
+    ['a word of dashed eyJ parts', 'eyJa-'.repeat(25_600), 'eyJa-'.repeat(25_600)],
     [
       'two such words joined by a dot',
-      `${'eyJa-'.repeat(6400)}.${'eyJa-'.repeat(6400)}`,
-      `${'eyJa-'.repeat(6400)}.${'eyJa-'.repeat(6400)}`,
+      `${'eyJa-'.repeat(12_800)}.${'eyJa-'.repeat(12_800)}`,
+      `${'eyJa-'.repeat(12_800)}.${'eyJa-'.repeat(12_800)}`,
     ],
-    ['dotted eyJ words', 'eyJa.'.repeat(12_800), '[redacted].'],
-  ])('reads a 64,000-character line of %s in linear time', (_case, line, redacted) => {
-    // Quadratic with the old pattern: seconds for the two dashed lines.
+    ['dotted eyJ words', 'eyJa.'.repeat(25_600), '[redacted].'],
+  ])('reads a 128,000-character line of %s in linear time', (_case, line, redacted) => {
+    // Quadratic with the old pattern: seconds for the two dashed lines even
+    // at half this length, so the bound holds a wide margin on fast machines.
     const started = performance.now()
     expect(redactSecrets(line)).toBe(redacted)
     expect(performance.now() - started).toBeLessThan(LINEAR_SCAN_MS)
