@@ -28,7 +28,11 @@ happened, not what was planned; superseded entries are kept.
     meanwhile is never sent and nothing is billed. `read_skill` refuses a
     project skill the file rules deny, and a Stop during a memory read or
     write ends the call as a stop, not a file error.
-
+  - Approval cards retain the Auto reviewer's and command rule's explanation
+    through webview delivery, later approval stages and saved-state restoration.
+  - **Automatic checks respect revoked file access.** A verification round keeps
+    the original edited-file policy fence even after denied files are filtered
+    out of lookup. It withholds diagnostics and refuses checks after revocation.
 - **Awareness and budgets** (M82, PLAN.md D49).
   - While the VS Code window is unfocused, a VS Code notification says when
     a turn of a minute or more ends, or a turn waits for your approval or
@@ -57,7 +61,43 @@ happened, not what was planned; superseded entries are kept.
   - Account & usage shows what the prompt cache saved in dollars. Its value
     (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
     the localization gate lets it stay the same in every language.
-
+  - **Voice Stop remains available after a cap or paid setting changes.** It
+    reaches the recording's existing driver instead of applying new-recording
+    availability. Child requests retain separate consent and ceilings; reported
+    cost is counted without reserving against the parent's cap, as decided for
+    M82. The setting and guide name that possible overrun in every language.
+  - **Model API session budgets retain their open reservation before a
+    response arrives.** Capped requests await a durable reservation write
+    before fetch and recheck final admission afterward; failed writes or
+    unavailable storage send no request. A stopped or superseded nonsent
+    request releases its reservation. Switching a model away and back, or
+    changing it during compacted-context counting, cannot restore a stale
+    budget base. Stored usage and reply costs refuse negative values,
+    overflowing usage reports are ignored, and token-count failures log a
+    status and fixed words instead of network text.
+    Stale session saves cannot lower the shared journal's spend, and crashes
+    retain unsettled claims. Unverified historical spending refuses a cap
+    rather than treating unknown amounts as zero. All new reasons and the
+    revised setting description are localized.
+    Shared uncapped requests publish pending uncertainty before HTTP, so a
+    capped host cannot admit around an unresolved earlier request. Verified
+    known usage clears that uncertainty; unknown tariffs or earlier ambiguous
+    retry attempts remain unknown despite a successful final response.
+    Fresh forks and side chats retain copied paid and closed-child history
+    while starting their own spend at verified zero; their first own request
+    is charged only to the new conversation.
+    Attempt observers run only after final admission and request building,
+    adjacent to fetch; Stop or confirmation refusal after preflight leaves
+    the request uncounted and refunds its known nonsent reservation.
+    Paid Muse Voice on the Model API backend is unavailable with a finite
+    cap. Uncapped shared recordings publish uncertainty before authentication
+    and fence the actual account and parent context before sends. Local audio
+    duration remains an estimate without a server billing receipt; CLI voice
+    and free system dictation retain their behavior.
+    Cap-off Model API voice also remains available without a folder or
+    journal, with its original consent account/context fenced before every
+    send. A later finite cap stops authentication, audio and end sends;
+    unshared window usage remains an estimate.
 - **Session board and best-of-N** (M77, PLAN.md D49). The header's board
   button lists every conversation in the window, on either backend, with its
   state, branch, changed files and waiting approvals; typing filters and
@@ -89,6 +129,61 @@ happened, not what was planned; superseded entries are kept.
     operations run with no hooks, fsmonitor or maintenance and refuse a
     repository that configures filters or hook commands.
   - Strings ship in all 14 UI and manifest tables.
+- **Session export, import and share** (M84, PLAN.md D49): **Export
+  session as JSON…** writes a portable file on either backend. Credentials
+  of a known shape and the key digest are always scrubbed, from every
+  string including item ids and error labels (a secret in any other shape
+  is not recognised); paths (your own folders included, spaces and all,
+  and any other absolute path in any script) and account ids are redacted
+  by default, and the redacted file opens read-only in the editor before
+  anything is written. The scrub runs in slices of about 64 KiB, a long
+  message cut only between lines no credential runs across, and the window
+  keeps working between them; a single line longer than a slice is still
+  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
+  Session** resumes such a file as a new conversation on the Model API
+  backend, on your own model, in Manual (or Plan when that is the initial
+  mode) every time it is opened, forked or restored, with no session rules,
+  goals, schedules, todos or patches; the model reads each imported turn as
+  untrusted data, a plan written in such a conversation is implemented in
+  Manual (or Plan) as a plan file is, and its code blocks offer Copy only
+  (no Insert or Apply). A file whose turns are more text than a
+  conversation can start with (786.4 kB, counted as one token a byte) is
+  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
+  marked imported before it advertises a mode or replays history. **Muse
+  Spark: Open Share File** reads such a file read-only in the panel (Copy
+  and links only), 200 items at a time with Show more; an item that cannot
+  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  through one bounded descriptor of a local file (other file providers are
+  refused), the format and its version, and no unknown field; a refusal
+  never quotes the file. Nothing is uploaded: sharing is a file on your
+  disk.
+
+### Fixed
+
+- **The log redacts more credential shapes.** The output channel's
+  redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
+  API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
+  (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
+  `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
+  upper-case variable, a header, a JSON field or a URL parameter.
+- **A long dotted line no longer stalls the log.** The redactor's URL
+  credentials pattern took quadratic time on a long run such as `a.b.c.…`;
+  its scheme is now bounded. Text with none of the credential literals
+  (most log lines) now skips the patterns in one scan.
+- **A conversation no longer opens while the Model API backend closes or
+  after you sign out, and an overtaken side chat leaves no Plan mode.**
+  Starting, resuming or forking a conversation loaded the hooks, then made
+  the session and ran its SessionStart hook without checking again that
+  the backend was not closing (or, when resuming, that you were still
+  signed in). Both are checked now, before the session exists and again
+  after its SessionStart hook. And a side chat whose opening another
+  opening overtook (a second conversation opened before the first had
+  loaded) still switched the panel to Plan; only the opening that lands
+  sets the mode now.
+
+## [0.10.1] - 2026-10-02
+
+### Added
 
 - **Paired efficiency evaluation** (M75, PLAN.md D49): the harness a
   token-saving mechanism must pass before it ships (M73, M74). Ten small
@@ -126,52 +221,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Approval cards retain the Auto reviewer's and command rule's explanation
-  through webview delivery, later approval stages and saved-state restoration.
-
-- **Automatic checks respect revoked file access.** A verification round keeps
-  the original edited-file policy fence even after denied files are filtered
-  out of lookup. It withholds diagnostics and refuses checks after revocation.
-
-- **Voice Stop remains available after a cap or paid setting changes.** It
-  reaches the recording's existing driver instead of applying new-recording
-  availability. Child requests retain separate consent and ceilings; reported
-  cost is counted without reserving against the parent's cap, as decided for
-  M82. The setting and guide name that possible overrun in every language.
-
-- **Model API session budgets retain their open reservation before a
-  response arrives.** Capped requests await a durable reservation write
-  before fetch and recheck final admission afterward; failed writes or
-  unavailable storage send no request. A stopped or superseded nonsent
-  request releases its reservation. Switching a model away and back, or
-  changing it during compacted-context counting, cannot restore a stale
-  budget base. Stored usage and reply costs refuse negative values,
-  overflowing usage reports are ignored, and token-count failures log a
-  status and fixed words instead of network text.
-  Stale session saves cannot lower the shared journal's spend, and crashes
-  retain unsettled claims. Unverified historical spending refuses a cap
-  rather than treating unknown amounts as zero. All new reasons and the
-  revised setting description are localized.
-  Shared uncapped requests publish pending uncertainty before HTTP, so a
-  capped host cannot admit around an unresolved earlier request. Verified
-  known usage clears that uncertainty; unknown tariffs or earlier ambiguous
-  retry attempts remain unknown despite a successful final response.
-  Fresh forks and side chats retain copied paid and closed-child history
-  while starting their own spend at verified zero; their first own request
-  is charged only to the new conversation.
-  Attempt observers run only after final admission and request building,
-  adjacent to fetch; Stop or confirmation refusal after preflight leaves
-  the request uncounted and refunds its known nonsent reservation.
-  Paid Muse Voice on the Model API backend is unavailable with a finite
-  cap. Uncapped shared recordings publish uncertainty before authentication
-  and fence the actual account and parent context before sends. Local audio
-  duration remains an estimate without a server billing receipt; CLI voice
-  and free system dictation retain their behavior.
-  Cap-off Model API voice also remains available without a folder or
-  journal, with its original consent account/context fenced before every
-  send. A later finite cap stops authentication, audio and end sends;
-  unshared window usage remains an estimate.
-
 - **Windows hooks no longer wait on PowerShell's module scan.** The
   PowerShell wrapper that puts each Windows command and hook in its job
   object (M27) loaded the job helper with `Add-Type` and switched output to
@@ -206,6 +255,10 @@ happened, not what was planned; superseded entries are kept.
   run of dotted words once. A token glued after `_` or a letter
   (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
   the old pattern redacted is left.
+- Documentation: corrected the Bypass row of the permission-mode table (paid
+  uses still ask), the remote-window Bypass description in the Restricted Mode
+  text, and the Diagnostics, dictation and macOS helper claims in PRIVACY and
+  SECURITY; cited Meta's source for the PDF page limits.
 
 ## [0.10.0] - 2026-10-01
 

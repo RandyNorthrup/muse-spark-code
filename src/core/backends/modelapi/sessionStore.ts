@@ -70,6 +70,12 @@ export interface StoredSession {
   /** SHA-256 digest of the owning Model API key; absent on legacy files. */
   readonly accountId?: string
   readonly sideChat?: boolean
+  /**
+   * Built from an imported session-export file (M84, PLAN.md D49), or forked
+   * from one: its history is untrusted, so it starts asking whenever it is
+   * opened.
+   */
+  readonly imported?: true
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
@@ -200,6 +206,7 @@ const storedSessionFields = {
   // Legacy sessions remain readable for retention, but are never admitted.
   accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
   sideChat: z.optional(z.boolean()),
+  imported: z.optional(z.literal(true)),
   workspaceRoot: z.string(),
   modelId: z.string(),
   approvalMode: z.enum(APPROVAL_MODES),
@@ -288,6 +295,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     compactedThroughTurnId,
     goal,
     sideChat,
+    imported,
     children,
     pendingChildResults,
     spawnCommands,
@@ -335,6 +343,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
       ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
       ...(sideChat === true && { sideChat: true }),
+      ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),
       ...(pendingChildResults !== undefined && { pendingChildResults }),
       ...(spawnCommands !== undefined && { spawnCommands }),

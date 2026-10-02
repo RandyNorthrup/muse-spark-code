@@ -71,6 +71,7 @@ import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { pdfPageCount } from '../../src/core/pdf'
 import { planBody } from '../../src/core/plans/planDocument'
 import { listItems } from '../../src/core/plans/planMarkdown'
+import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { estimateCostUsd } from '../../src/core/usage/insights'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
@@ -746,7 +747,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
       sleep: (ms) => delay(ms),
       newId: () => randomUUID(),
       io: toolIo,
-      listAttemptFiles: listWorkspace,
+      listAttemptFiles: listWorkspaceFiles,
       contextIo: fileContextIo,
       memory,
       personalSkillsRoot: personalSkillsRoot(config),
@@ -1100,7 +1101,14 @@ function livePanel(rig: Rig): LivePanel {
     buildAttemptHost: (root, admit, noteUsage, budgetScope) =>
       rig.manager.buildAttemptHost(root, admit, noteUsage, budgetScope),
     realPath: canonicalPath,
-    exports: { saveMarkdown: unreached, saveSessionLog: unreached },
+    exports: {
+      saveMarkdown: unreached,
+      saveSessionLog: unreached,
+      saveJson: unreached,
+      previewExport: unreached,
+      localRoots: () => [rig.workspace],
+    },
+    transferFiles: { pickTransferFile: unreached, confirmImport: unreached },
     plans: createPlanFiles({
       workspaceRoot: rig.workspace,
       platform: process.platform,

@@ -104,6 +104,7 @@ export const SCENARIOS = [
   'auto-review',
   'auto-review-rule',
   'auto-review-usage',
+  'share',
   'verify',
   'board',
   'bestofn',

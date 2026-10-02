@@ -48,7 +48,11 @@ export interface TranscriptProps {
   readonly onReadImage: ToolRowProps['onReadImage']
   readonly onOpenLink: (url: string) => void
   readonly onCopy: (text: string) => void
-  readonly onInsert: (text: string) => void
+  /**
+   * Code block Insert; absent, with Apply, in a conversation that holds
+   * imported history (M84): someone else's file never writes into the editor.
+   */
+  readonly onInsert: ((text: string) => void) | undefined
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   /** A tool output as an editor tab (M15). */
   readonly onOpenOutput: ToolRowProps['onOpenOutput']
@@ -62,8 +66,8 @@ export interface TranscriptProps {
   readonly onStopTask: ToolRowProps['onStopTask']
   /** The backend stops the user's own `!` commands (M46). */
   readonly canStopUserShell: boolean
-  /** Code block Apply and edit review (M5). */
-  readonly onApply: (text: string) => void
+  /** Code block Apply (M5); absent as `onInsert` is. */
+  readonly onApply: ((text: string) => void) | undefined
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
   /** A tool row's path, or a reply's relative link: the file (M16, M25). */
   readonly onOpenFile: ToolRowProps['onOpenFile']
@@ -394,8 +398,9 @@ interface AssistantRowProps {
   readonly onOpenFile: ToolRowProps['onOpenFile']
   readonly onRefuseLink: (() => void) | undefined
   readonly onCopy: (text: string) => void
-  readonly onInsert: (text: string) => void
-  readonly onApply: (text: string) => void
+  /** Absent in a conversation that holds imported history (M84). */
+  readonly onInsert: ((text: string) => void) | undefined
+  readonly onApply: ((text: string) => void) | undefined
   /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
   /** Tokens and the dollar estimate under the reply (M82); hidden while off. */

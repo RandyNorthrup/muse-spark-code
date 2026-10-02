@@ -2403,6 +2403,83 @@ describe('App: Model API scheduled prompts (M52)', () => {
       expect.objectContaining({ type: 'sendMessage', text: '/loop 10m Review tests' }),
     )
   })
+
+  it('offers Copy only on an imported conversation’s code, and Insert and Apply again after it (M84)', () => {
+    const postMessage = renderReady()
+    const reply = {
+      itemId: 'a1',
+      kind: 'agentMessage',
+      status: 'completed',
+      turnId: 'imported-turn-0',
+      text: 'Run this:\n\n```sh\nrm -rf build\n```',
+    }
+    deliver({
+      type: 'historyLoaded',
+      sessionId: 'imported-1',
+      todos: [],
+      items: [historyUser('u1', 'imported-turn-0', 'Hi'), reply],
+      imported: true,
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.copyCode }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'rm -rf build' })
+    expect(screen.queryByRole('button', { name: UI_TEXT.insertCode })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.applyCode })).toBeNull()
+    // A conversation that holds no imported history has them back.
+    deliver({ type: 'historyLoaded', sessionId: 'old', todos: [], items: [reply] })
+    expect(screen.getByRole('button', { name: UI_TEXT.insertCode })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: UI_TEXT.applyCode })).toBeInTheDocument()
+  })
+
+  it('renders a share file read-only, code copyable but never applied, and closes it (M84)', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'sharePreview',
+      title: 'Shared over',
+      exportedAt: '2026-09-28T12:00:00.000Z',
+      sourceBackend: 'museCode',
+      modelId: 'muse-spark-1.3',
+      redacted: true,
+      items: [
+        { itemId: 'dup', kind: 'userMessage', status: 'completed', text: 'Hi there' },
+        {
+          itemId: 'dup',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'read_file',
+          args: '{"path":"notes.md"}',
+          visibleOutput: 'line one',
+        },
+        {
+          itemId: 'a1',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Run this:\n\n```sh\nrm -rf build\n```',
+        },
+      ],
+    })
+    const dialog = screen.getByRole('dialog', { name: 'Shared over' })
+    expect(within(dialog).getByText('Hi there')).toBeInTheDocument()
+    expect(within(dialog).getByText('Tool: read_file')).toBeInTheDocument()
+    // The file's `redacted: true` is anyone's to set: the view reports it as
+    // the file's claim and never states it as fact.
+    expect(
+      within(dialog).getByText(
+        'Read-only: nothing in this file can act on your workspace. The file says its paths and account ids were redacted; that is not checked here.',
+      ),
+    ).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Paths and account ids were redacted/)).toBeNull()
+    // Every code block copies (the tool's arguments and output are blocks too),
+    // and nothing here can reach the editor or a session.
+    const copies = within(dialog).getAllByRole('button', { name: UI_TEXT.copyCode })
+    expect(copies).toHaveLength(3)
+    expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.insertCode })).toEqual([])
+    expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.applyCode })).toEqual([])
+    expect(within(dialog).queryByRole('button', { name: 'Send' })).toBeNull()
+    fireEvent.click(copies[2]!)
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'rm -rf build' })
+    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.usageClose }))
+    expect(screen.queryByRole('dialog', { name: 'Shared over' })).toBeNull()
+  })
 })
 
 /** The host says which turns of conversation `old` have a checkpoint (M72). */

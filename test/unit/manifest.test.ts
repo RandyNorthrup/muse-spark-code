@@ -239,6 +239,9 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.createRulesFile]: 'workspaceFolderCount > 0',
       // Exports the conversation in front of the user (M30).
       [COMMAND_IDS.exportConversation]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // Imports an export file into the conversation in front of the user, or reads one (M84).
+      [COMMAND_IDS.importSession]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      [COMMAND_IDS.openShareFile]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // git worktrees of the open folder's repository (M32).
       [COMMAND_IDS.newWorktree]: 'workspaceFolderCount > 0',
       [COMMAND_IDS.removeWorktree]: 'workspaceFolderCount > 0',

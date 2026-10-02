@@ -2798,6 +2798,28 @@ body {
   overflow-y: auto;
 }
 
+/* A local share file open read-only (M84): meta line and one section per item. */
+.share-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.share-section {
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  padding-top: var(--ms-gap);
+}
+
+/* The next page of a long share file (RV84 #14): how many show, and Show more. */
+.share-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
+  padding-top: var(--ms-gap);
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {
