@@ -12,9 +12,10 @@ const BYTES_PER_KIB = 1024
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
-  // The Model API backend, loaded when it first starts (M57): 295.6 KiB when
-  // split out, plus about a third for the Model API work already planned.
-  { path: 'dist/modelApi.js', budgetKiB: 400 },
+  // The Model API backend, loaded when it first starts (M57). Revisited on
+  // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
+  // rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/modelApi.js', budgetKiB: 475 },
   // M78b: first board/best-of-N action, 61.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.

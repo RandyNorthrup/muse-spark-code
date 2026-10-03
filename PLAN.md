@@ -214,7 +214,7 @@ quality`) and as a CI job.
 | Artifact                  | Budget (minified, uncompressed)                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
+| `dist/modelApi.js`        | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)       |
 | `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
 | `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
 | `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
@@ -3304,11 +3304,21 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 
 After the action-only splits, activation is 589.1/600 KiB, the board is
 61.0/75 KiB and the reviewer is 55.2/75 KiB. Model API is 412,447 bytes:
-2,847 bytes (2.780273438 KiB) over its unchanged 400 KiB cap. This
-needs the lead's bounded next extraction or an explicit owner budget decision;
-no cap was raised. Metafile tables, first-use tests, red drills and scoped
-receipts are in `docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
-Production build and aggregate certification remain open.
+2,847 bytes (2.780273438 KiB) over its 400 KiB cap. Metafile tables,
+first-use tests, red drills and scoped receipts are in
+`docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
+
+**Resolved 2026-10-02 (lead): the budget is revisited, as M57 planned.**
+M57 set 400 KiB as 295.6 KiB plus about a third, a margin to "hold two or
+three milestones of that size before the budget is revisited on purpose".
+M77, M78 and M82 are those milestones. They added 49.2 KiB to the bundle,
+each part attributed in the metafile tables. The largest parts are the host's
+turn logic (+28.4 KiB) and M78's permission policy, shell syntax and command
+rules (+11.6 KiB). These run whenever the model works, so a third lazy
+bundle would load on nearly every turn and only move the bytes. The new
+budget follows the repository's rule: 402.8 KiB measured, plus 15%,
+rounded up to 25 KiB, which is 475 KiB. The board and paid-review splits stay,
+because those run only on their own actions.
 
 ### Q-M74 — Remaining automatic work (2026-09-29)
 
@@ -10760,7 +10770,7 @@ persistent Chrome profile; those attempted script changes were reverted.
 Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
-M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. The Model API budget stays 400 KiB. After deferring paid review it remains over cap; this is an open lead decision, not a waived or passing production build. See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
 

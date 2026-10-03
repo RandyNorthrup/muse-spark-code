@@ -227,8 +227,9 @@ happened, not what was planned; superseded entries are kept.
 - Defer the session board and best-of-N execution to their first action, and
   Auto reviewer execution until paid consent. Each loads its own bundle with
   the installed language, retaining current policy and budget admission.
-  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB;
-  the activation and Model API caps remain 600/400 KiB.
+  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
+  The activation cap stays 600 KiB. The Model API cap is revisited, as M57
+  planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
 
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
