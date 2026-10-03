@@ -684,6 +684,7 @@
   "dictationUnavailableLinux": "Die Spracheingabe ist unter Linux nicht verfügbar: Keine Distribution liefert eine Spracherkennung mit, und diese Erweiterung fügt keine Engine von Drittanbietern hinzu.",
   "dictationUnavailableWindows": "Die Spracheingabe benötigt Windows PowerShell, das nicht gefunden wurde (SystemRoot ist nicht gesetzt).",
   "dictationUnavailableDarwin": "Die Spracheingabe benötigt das macOS-Hilfsprogramm (native/darwin/muse-dictate), das in diesem Build nicht enthalten ist.",
+  "dictationNotLoaded": "der Code der Spracheingabe konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "announceListening": "Hört zu",
   "announceStoppedListening": "Hört nicht mehr zu",
   "allowOnce": "Einmal zulassen",

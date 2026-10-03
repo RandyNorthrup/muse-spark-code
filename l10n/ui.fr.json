@@ -701,6 +701,7 @@
   "dictationUnavailableLinux": "La dictée vocale n’est pas disponible sous Linux : aucune distribution ne fournit de moteur de reconnaissance vocale, et cette extension n’ajoute aucun moteur tiers.",
   "dictationUnavailableWindows": "La dictée vocale nécessite Windows PowerShell, qui est introuvable (SystemRoot n’est pas défini).",
   "dictationUnavailableDarwin": "La dictée vocale nécessite le programme d’assistance macOS (native/darwin/muse-dictate), que cette version n’inclut pas.",
+  "dictationNotLoaded": "le code de la dictée n’a pas pu être chargé ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "announceListening": "Écoute",
   "announceStoppedListening": "Écoute arrêtée",
   "allowOnce": "Autoriser une fois",

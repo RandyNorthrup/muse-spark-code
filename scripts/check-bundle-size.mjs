@@ -30,6 +30,12 @@ const BUDGETS = [
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // Code intelligence's `ide` answers (M67), loaded on the first call, and
+  // voice's drivers (M9, M35), loaded on the first recording: split out on
+  // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/codeIntel.js', budgetKiB: 100 },
+  { path: 'dist/voice.js', budgetKiB: 50 },
   // Shared English fallback; existing host budgets stay unchanged.
   { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },

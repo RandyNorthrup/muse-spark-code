@@ -667,6 +667,7 @@
   "dictationUnavailableLinux": "Linux では音声入力を使用できません: 音声認識エンジンを同梱しているディストリビューションがなく、この拡張機能はサードパーティのエンジンを追加しません。",
   "dictationUnavailableWindows": "音声入力には Windows PowerShell が必要ですが、見つかりませんでした (SystemRoot が設定されていません)。",
   "dictationUnavailableDarwin": "音声入力には macOS ヘルパー (native/darwin/muse-dictate) が必要ですが、このビルドには含まれていません。",
+  "dictationNotLoaded": "音声入力のコードを読み込めませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "announceListening": "聞き取り中",
   "announceStoppedListening": "聞き取りを停止しました",
   "allowOnce": "今回のみ許可",

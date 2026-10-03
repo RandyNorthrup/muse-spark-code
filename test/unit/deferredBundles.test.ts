@@ -68,36 +68,54 @@ describe('deferred cohort bundles', () => {
     expect(files).not.toContain('src/host/sessionBoard.ts')
   })
 
+  it('keeps code intelligence answers and voice drivers in their own bundles', () => {
+    const activation = inputs('extension')
+    for (const file of ['src/core/codeIntel/codeIntelTools.ts', 'src/core/voice/dictation.ts']) {
+      expect(activation).not.toContain(file)
+    }
+    expect(inputs('codeIntel')).toContain('src/core/codeIntel/codeIntelTools.ts')
+    expect(inputs('voice')).toContain('src/core/voice/dictation.ts')
+    // The tool list and the helper's location stay where they are read.
+    expect(activation).toContain('src/core/codeIntel/definitions.ts')
+    expect(activation).toContain('src/core/voice/helperLocation.ts')
+  })
+
   it('keeps paid review execution out of the session first-turn bundle', () => {
     expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/reviewerEntry.ts')
     expect(inputs('reviewer')).toContain('src/core/backends/modelapi/reviewerEntry.ts')
   })
 
   it.each([
-    ['extension', 'src/host/bestOfN/bestOfNManager.ts'],
-    ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts'],
-  ])('fires the %s split guard and restores its metafile byte-exact', (name, source) => {
-    const file = `dist/meta/${name}.json`
-    const original = readFileSync(file)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
-    const output = meta.outputs[`dist/${name}.js`]
-    if (output === undefined) throw new Error('Missing bundle output')
-    try {
-      output.inputs[source] = { bytesInOutput: 1 }
-      writeFileSync(file, JSON.stringify(meta))
-      const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+    ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/reviewerEntry.ts', 'on its first action'],
+    // Split out of activation on 2026-10-03 (PLAN.md D6).
+    ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
+    ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+  ])(
+    'fires the %s split guard for %s and restores its metafile byte-exact',
+    (name, source, use) => {
+      const file = `dist/meta/${name}.json`
+      const original = readFileSync(file)
+      const hash = createHash('sha256').update(original).digest('hex')
+      const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
+      const output = meta.outputs[`dist/${name}.js`]
+      if (output === undefined) throw new Error('Missing bundle output')
+      try {
+        output.inputs[source] = { bytesInOutput: 1 }
+        writeFileSync(file, JSON.stringify(meta))
+        const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+          encoding: 'utf8',
+        })
+        expect(red.status).toBe(1)
+        expect(red.stderr).toContain(`carries ${source}, which loads only ${use}`)
+      } finally {
+        writeFileSync(file, original)
+      }
+      expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
+      const green = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
         encoding: 'utf8',
       })
-      expect(red.status).toBe(1)
-      expect(red.stderr).toContain(`carries ${source}, which loads only on its first action`)
-    } finally {
-      writeFileSync(file, original)
-    }
-    expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
-    const green = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-      encoding: 'utf8',
-    })
-    expect(green.status, green.stderr).toBe(0)
-  })
+      expect(green.status, green.stderr).toBe(0)
+    },
+  )
 })

@@ -20,6 +20,10 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - code intelligence's `ide` answers (M67: the queries, the read tools, the
+//   repo map and the rename) or voice's drivers (M9, M35: the dictation
+//   driver, Muse Voice's stream, the processes and the socket) are in
+//   dist/extension.js, or missing from dist/codeIntel.js or dist/voice.js.
 //
 // Exits 1 on any problem.
 //
@@ -260,6 +264,35 @@ const checkpointStore = inputsOf(CHECKPOINT_STORE)
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+// Split out of activation on 2026-10-03 (D6): each loads on its first use.
+// The Model API backend keeps its own copy of code intelligence.
+const ON_FIRST_USE = [
+  {
+    output: 'dist/codeIntel.js',
+    metafile: 'dist/meta/codeIntel.json',
+    use: 'the first code intelligence call',
+    files: [
+      'src/host/ide/codeIntelEntry.ts',
+      'src/core/codeIntel/codeIntelQuery.ts',
+      'src/core/codeIntel/codeIntelTools.ts',
+      'src/core/codeIntel/codeText.ts',
+      'src/core/codeIntel/rename.ts',
+      'src/core/codeIntel/repoMap.ts',
+    ],
+  },
+  {
+    output: 'dist/voice.js',
+    metafile: 'dist/meta/voice.json',
+    use: 'the first recording',
+    files: [
+      'src/host/voice/voiceEntry.ts',
+      'src/host/voice/voiceProcesses.ts',
+      'src/core/voice/dictation.ts',
+      'src/core/voice/museVoice.ts',
+      'src/core/voice/recorderHelper.ts',
+    ],
+  },
+]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -271,6 +304,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   ...DEFERRED,
   AGENT_IMPORT,
+  ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
@@ -335,6 +369,20 @@ for (const prefix of IMPORT_ONLY) {
   }
 }
 
+for (const bundle of ON_FIRST_USE) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    if (activation.has(file)) {
+      problems.push(
+        `${BUNDLES.activation.output} carries ${file}, which loads only on ${bundle.use}`,
+      )
+    }
+    if (!inputs.has(file)) {
+      problems.push(`${bundle.output} no longer carries ${file}`)
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -380,3 +428,6 @@ console.log(
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
+for (const bundle of ON_FIRST_USE) {
+  console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
+}

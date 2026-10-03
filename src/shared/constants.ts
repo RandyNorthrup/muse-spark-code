@@ -1726,6 +1726,12 @@ export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
+// Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
+// on the first call; the tool list stays in dist/extension.js.
+export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
+// Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
+// the helper process and the socket, loaded on the first recording.
+export const VOICE_BUNDLE_FILE = 'voice.js'
 // A glob is matched by a table over pattern × path (no regular expression,
 // PLAN.md D24); the length cap bounds that table.
 export const GLOB_MAX_LENGTH = 256
@@ -2937,6 +2943,9 @@ export const MODEL_TEXT = {
     "[{count} more functions share this position (overloads or merged declarations) and were not asked; ask at each one's own declaration for its calls]",
   codeIntelOutsideWorkspace: 'outside the workspace',
   codeIntelNoCalls: 'No calls found.',
+  // The `ide` server's answers are dist/codeIntel.js (D6): a damaged install.
+  codeIntelUnavailable:
+    'the code intelligence tools could not be loaded (the extension needs reinstalling); use search and file reads instead',
   renameFileOperations:
     'this rename would also create, move or delete files, which rename_symbol does not do; nothing was changed',
   renameFileOperationsUnknown:

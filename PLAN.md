@@ -232,6 +232,8 @@ quality`) and as a CI job.
 | `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                               |
 | `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                             |
 | `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
+| `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                         |
+| `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                           |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -342,6 +344,40 @@ entry or any file of the parser's packages (`micromark*`, `mdast-util-*`,
 `dist/planMarkdown.js` stops carrying the reader. Since PR #53's third review
 the reader also writes the brief (`mdast-util-to-markdown`, the version
 remark-gfm's writer resolves to): 139.0 KiB.
+
+**Amendment (PR #89, 2026-10-03): code intelligence and voice load on first
+use.** Merging `main` into the M77/M78/M82 cohort took `dist/extension.js`
+to 603.3 KiB (main alone 565.0, the cohort alone 592.9). As at M57, the
+600 KiB budget stays and code that activation does not use moves out:
+
+- **Code intelligence's `ide` answers** (M67): `codeIntelQuery`,
+  `codeIntelTools`, `repoMap`, `codeText` and `rename` (22.6 KiB of
+  activation) are built from `src/host/ide/codeIntelEntry.ts` into
+  `dist/codeIntel.js` (80.3 KiB, budget 100 KiB) and required by
+  `codeIntelLoader` on the first `mcp__ide__*` code intelligence call. The
+  tool list (`definitions.ts`: names, descriptions, schemas) stays, so
+  `tools/list` loads nothing. A call that cannot load it is answered with
+  `MODEL_TEXT.codeIntelUnavailable` as an error result, as any refusal is;
+  the log has the cause and the next call tries again. The Model API
+  backend keeps its own copy in `dist/modelApi.js`.
+- **Voice's drivers** (M9, M35): the dictation driver, Muse Voice's stream,
+  the recorder adapter and the process and WebSocket adapters
+  (`src/host/voice/voiceProcesses.ts`) are built from
+  `src/host/voice/voiceEntry.ts` into `dist/voice.js` (34.5 KiB, budget
+  50 KiB). Finding the helper stays at activation, so the microphone still
+  says at once whether it can record; the driver a panel creates loads the
+  bundle on its first `start`. A recording that cannot load it fails through
+  the listener's `onError` ("Voice dictation failed:" and
+  `dictationNotLoaded`, in all 14 tables), never silently, and the next
+  press tries again.
+- **Result:** `dist/extension.js` 568.7 KiB, 31.3 KiB under the unchanged
+  budget. Code intelligence alone would have left about 581 KiB, short of
+  the 20 KiB headroom asked for, so both moved. Each entry takes the
+  installed display table per call, as the other split bundles do.
+  `check-bundle-split.mjs` fails when activation carries either entry or a
+  moved module, or a bundle stops carrying one; size, host-global, notices,
+  VSIX allowlist, CI member list, knip and dpdm list both bundles.
+
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
 D62) builds a `ModelApiBackendManager` per folder, which since M57 needs a

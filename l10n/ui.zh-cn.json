@@ -667,6 +667,7 @@
   "dictationUnavailableLinux": "Linux 上不支持语音听写：没有任何发行版附带语音识别器，而此扩展不添加第三方引擎。",
   "dictationUnavailableWindows": "语音听写需要 Windows PowerShell，但未找到它（未设置 SystemRoot）。",
   "dictationUnavailableDarwin": "语音听写需要 macOS 帮助程序（native/darwin/muse-dictate），但此版本未包含它。",
+  "dictationNotLoaded": "无法加载听写代码；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "announceListening": "正在聆听",
   "announceStoppedListening": "已停止聆听",
   "allowOnce": "允许一次",

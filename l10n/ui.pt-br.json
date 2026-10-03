@@ -701,6 +701,7 @@
   "dictationUnavailableLinux": "O ditado por voz não está disponível no Linux: nenhuma distribuição inclui um reconhecedor de fala, e esta extensão não adiciona nenhum mecanismo de terceiros.",
   "dictationUnavailableWindows": "O ditado por voz precisa do Windows PowerShell, que não foi encontrado (SystemRoot não está definido).",
   "dictationUnavailableDarwin": "O ditado por voz precisa do auxiliar do macOS (native/darwin/muse-dictate), que este build não inclui.",
+  "dictationNotLoaded": "não foi possível carregar o código do ditado; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
   "announceListening": "Ouvindo",
   "announceStoppedListening": "Parou de ouvir",
   "allowOnce": "Permitir uma vez",

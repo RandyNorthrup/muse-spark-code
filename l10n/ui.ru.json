@@ -718,6 +718,7 @@
   "dictationUnavailableLinux": "Голосовой ввод недоступен в Linux: ни один дистрибутив не поставляется с распознавателем речи, а это расширение не добавляет сторонних движков.",
   "dictationUnavailableWindows": "Для голосового ввода нужен Windows PowerShell, который не найден (переменная SystemRoot не задана).",
   "dictationUnavailableDarwin": "Для голосового ввода нужен вспомогательный модуль macOS (native/darwin/muse-dictate), которого нет в этой сборке.",
+  "dictationNotLoaded": "не удалось загрузить код голосового ввода; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
   "announceListening": "Прослушивание",
   "announceStoppedListening": "Прослушивание остановлено",
   "allowOnce": "Разрешить один раз",

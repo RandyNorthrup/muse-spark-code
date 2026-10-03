@@ -701,6 +701,7 @@
   "dictationUnavailableLinux": "La dettatura vocale non è disponibile in Linux: nessuna distribuzione include un sistema di riconoscimento vocale e questa estensione non aggiunge motori di terze parti.",
   "dictationUnavailableWindows": "La dettatura vocale richiede Windows PowerShell, che non è stato trovato (SystemRoot non è impostato).",
   "dictationUnavailableDarwin": "La dettatura vocale richiede l’helper macOS (native/darwin/muse-dictate), che questa build non include.",
+  "dictationNotLoaded": "non è stato possibile caricare il codice della dettatura; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "announceListening": "In ascolto",
   "announceStoppedListening": "Ascolto interrotto",
   "allowOnce": "Consenti una volta",

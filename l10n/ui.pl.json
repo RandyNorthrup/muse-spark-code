@@ -718,6 +718,7 @@
   "dictationUnavailableLinux": "Dyktowanie głosowe nie jest dostępne w systemie Linux: żadna dystrybucja nie zawiera modułu rozpoznawania mowy, a to rozszerzenie nie dodaje silnika innej firmy.",
   "dictationUnavailableWindows": "Dyktowanie głosowe wymaga programu Windows PowerShell, którego nie znaleziono (zmienna SystemRoot nie jest ustawiona).",
   "dictationUnavailableDarwin": "Dyktowanie głosowe wymaga programu pomocniczego macOS (native/darwin/muse-dictate), którego ta kompilacja nie zawiera.",
+  "dictationNotLoaded": "nie udało się wczytać kodu dyktowania; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "announceListening": "Słuchanie",
   "announceStoppedListening": "Zatrzymano słuchanie",
   "allowOnce": "Zezwól raz",

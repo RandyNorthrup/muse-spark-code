@@ -3,7 +3,9 @@
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
 // import from other agents (M83: the scan, the converters, the file access and
-// smol-toml, loaded on the first import), the webview, and (in dev mode) the integration tests with esbuild.
+// smol-toml, loaded on the first import), code intelligence's `ide` answers
+// (M67, loaded on the first call) and voice's drivers (M9/M35, loaded on the
+// first recording), the webview, and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -57,6 +59,10 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
+const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
+const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
+const VOICE_OUTFILE = 'dist/voice.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -165,6 +171,22 @@ const planMarkdownOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// Neither imports `vscode`, so it is not external there and a stray import
+// fails this build, as for the Model API backend.
+/** @type {import('esbuild').BuildOptions} */
+const codeIntelOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [CODE_INTEL_ENTRY],
+  outfile: CODE_INTEL_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const voiceOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_ENTRY],
+  outfile: VOICE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -276,6 +298,8 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
+    esbuild.context(codeIntelOptions),
+    esbuild.context(voiceOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -292,6 +316,8 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
+    codeIntel: esbuild.build(codeIntelOptions),
+    voice: esbuild.build(voiceOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -321,6 +347,8 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
+  reportSize(CODE_INTEL_OUTFILE)
+  reportSize(VOICE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

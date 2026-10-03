@@ -667,6 +667,7 @@
   "dictationUnavailableLinux": "Linux 不支援語音聽寫：沒有任何發行版本隨附語音辨識器，而此延伸模組不會加入第三方引擎。",
   "dictationUnavailableWindows": "語音聽寫需要 Windows PowerShell，但找不到它（未設定 SystemRoot）。",
   "dictationUnavailableDarwin": "語音聽寫需要 macOS 協助程式（native/darwin/muse-dictate），但此組建未包含它。",
+  "dictationNotLoaded": "無法載入聽寫程式碼；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "announceListening": "正在聆聽",
   "announceStoppedListening": "已停止聆聽",
   "allowOnce": "允許一次",

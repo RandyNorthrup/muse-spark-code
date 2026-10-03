@@ -684,6 +684,7 @@
   "dictationUnavailableLinux": "Sesle dikte Linux'ta kullanılamıyor: hiçbir dağıtım bir konuşma tanıyıcı içermez ve bu uzantı üçüncü taraf bir motor eklemez.",
   "dictationUnavailableWindows": "Sesle dikte Windows PowerShell gerektirir, ancak bulunamadı (SystemRoot ayarlanmamış).",
   "dictationUnavailableDarwin": "Sesle dikte macOS yardımcısını (native/darwin/muse-dictate) gerektirir, ancak bu derleme onu içermiyor.",
+  "dictationNotLoaded": "dikte kodu yüklenemedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "announceListening": "Dinleniyor",
   "announceStoppedListening": "Dinleme durduruldu",
   "allowOnce": "Bir kez izin ver",

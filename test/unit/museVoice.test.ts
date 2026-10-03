@@ -22,7 +22,7 @@ import {
   PAID_PRICES_USD,
   SECONDS_PER_HOUR,
 } from '../../src/shared/constants'
-import { openWebSocket } from '../../src/host/voice/dictationHost'
+import { openWebSocket } from '../../src/host/voice/voiceProcesses'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { startFakeVoiceServer } from './helpers/fakeVoiceServer'
 

@@ -19,6 +19,8 @@ const HOST_BUNDLES = [
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
   'dist/agentImport.js',
+  'dist/codeIntel.js',
+  'dist/voice.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

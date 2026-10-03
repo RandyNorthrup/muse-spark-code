@@ -918,6 +918,9 @@ export const EN = {
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
     'Voice dictation needs the macOS helper (native/darwin/muse-dictate), which this build does not include.',
+  // After `dictationFailed`, when voice's own code did not load (a damaged install).
+  dictationNotLoaded:
+    'the dictation code could not be loaded; reinstall the extension and reload the window. The log has the details.',
   announceListening: 'Listening',
   announceStoppedListening: 'Stopped listening',
   // Model API backend (M7).

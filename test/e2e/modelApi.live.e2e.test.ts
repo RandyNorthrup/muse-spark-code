@@ -93,7 +93,7 @@ import { ConversationController } from '../../src/host/conversation/conversation
 import type { AuthSnapshot } from '../../src/host/auth/authService'
 import { createPlanFiles, createPlanIo } from '../../src/host/planFeatures'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
-import { openWebSocket } from '../../src/host/voice/dictationHost'
+import { openWebSocket } from '../../src/host/voice/voiceProcesses'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,

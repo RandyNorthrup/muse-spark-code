@@ -300,6 +300,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Code intelligence and voice load on first use** (PLAN.md D6). Muse
+  Code's `ide` code intelligence answers and both voice engines' drivers now
+  ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
+  call and the first recording, so `dist/extension.js` goes from 603.3 to
+  568.7 KiB under its unchanged 600 KiB budget (new budgets 100 and 50 KiB).
+  Nothing changes in use. With a damaged install a code intelligence call
+  answers with an error result saying so, and a recording fails with
+  "Voice dictation failed" and reinstall guidance in every UI language; the
+  log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark

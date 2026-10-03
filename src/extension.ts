@@ -89,6 +89,7 @@ import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { createWebFetcher } from './host/web/webFetcher'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
+import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -133,6 +134,7 @@ import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
+import { voiceLoader } from './host/voice/voiceBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -157,6 +159,8 @@ import {
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
   CHECKPOINT_STORE_BUNDLE_FILE,
+  CODE_INTEL_BUNDLE_FILE,
+  VOICE_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -660,6 +664,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
     log,
   })
+  // Both engines' drivers are dist/voice.js (D6), required on the first recording.
+  const voice = voiceLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
+    log,
+  })
   // Muse Voice (M35): the paid engine's recorder, used only while it is
   // on, its price accepted, and the window runs on the Model API key.
   const museVoiceSetup = createMuseVoiceSetup(
@@ -674,6 +683,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         paid.usage.add('voice', seconds)
       },
       log,
+      voice,
     },
   )
   const broadcastPaidState = () => {
@@ -699,6 +709,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       helperDir: path.join(context.extensionPath, DICTATION_HELPER_DIR),
     },
     log,
+    voice,
   )
   const backend = new MuseCodeBackendManager({
     beforeWorkspaceHostStart: async () => {
@@ -1151,10 +1162,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           io: toolIo,
           now: () => Date.now(),
         }
+  // Their answers are dist/codeIntel.js (D6), required on the first call.
+  const codeIntelBundle = codeIntelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CODE_INTEL_BUNDLE_FILE).fsPath,
+    log,
+  })
   const ideServer = new IdeMcpServer(
     () => [
       diagnostics,
-      ...ideCodeIntelTools(codeIntel),
+      ...ideCodeIntelTools(codeIntel, codeIntelBundle),
       // The server is attached in Restricted Mode too, and has no session
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.

@@ -2819,7 +2819,11 @@ from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
 activation and an ordinary Model API turn load neither implementation.
 Both receive the current display language. These bundles each have a 75 KiB
-cap; the activation and Model API caps stay 600/400 KiB. The M78b candidate
+cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
+answers for Muse Code's `ide` tools load on the first call from
+`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+microphone's availability stay at activation. The M78b candidate
 still exceeds the Model API cap; its measurements and remaining decision
 are recorded in [the M78 certification](docs/certification/m78.md).
 

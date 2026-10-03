@@ -718,6 +718,7 @@
   "dictationUnavailableLinux": "Hlasové diktování není v Linuxu k dispozici: žádná distribuce nedodává rozpoznávač řeči a toto rozšíření nepřidává žádný modul třetí strany.",
   "dictationUnavailableWindows": "Hlasové diktování vyžaduje Windows PowerShell, který nebyl nalezen (SystemRoot není nastaveno).",
   "dictationUnavailableDarwin": "Hlasové diktování vyžaduje pomocnou aplikaci pro macOS (native/darwin/muse-dictate), kterou toto sestavení neobsahuje.",
+  "dictationNotLoaded": "kód diktování se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "announceListening": "Poslouchám",
   "announceStoppedListening": "Poslech zastaven",
   "allowOnce": "Povolit jednou",

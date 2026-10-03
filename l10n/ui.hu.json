@@ -684,6 +684,7 @@
   "dictationUnavailableLinux": "A hangalapú diktálás Linuxon nem érhető el: egyetlen disztribúció sem tartalmaz beszédfelismerőt, és ez a kiegészítő nem ad hozzá harmadik féltől származó motort.",
   "dictationUnavailableWindows": "A hangalapú diktáláshoz Windows PowerShell szükséges, amely nem található (a SystemRoot nincs beállítva).",
   "dictationUnavailableDarwin": "A hangalapú diktáláshoz a macOS-segédprogram (native/darwin/muse-dictate) szükséges, amelyet ez a build nem tartalmaz.",
+  "dictationNotLoaded": "a diktálás kódját nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "announceListening": "Figyelés",
   "announceStoppedListening": "A figyelés leállt",
   "allowOnce": "Engedélyezés egyszer",
