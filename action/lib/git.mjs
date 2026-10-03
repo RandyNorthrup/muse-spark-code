@@ -1,13 +1,25 @@
 // The one sanitized Git runner (M80, SPEC §6.3, decision D-M4). Every Git
 // child of every phase (checkout, input diff, intent-to-add, patch diff,
 // prepare and push) goes through safeGit under the launcher owner. It
-// reproduces the host's suppression of configured programs
-// (GIT_METADATA_OPTIONS and gitFilterOptions in the extension's source; the
-// parity is tested), adds the Action's own overrides, and builds an
-// allow-list environment with no inherited GIT_* variable, no credential
-// helper and no header except one explicit one-shot token for one command.
+// reproduces the host's metadata suppression (GIT_METADATA_OPTIONS in the
+// extension's source; the parity is tested), adds the Action's own
+// overrides, and builds an allow-list environment with no inherited GIT_*
+// variable, no credential helper and no header except one explicit one-shot
+// token for one command.
+//
+// Configuration is closed by its shape, not by a list of dangerous keys
+// (RVM80CD P1): no system file, an empty global file, no inherited
+// GIT_CONFIG_PARAMETERS/COUNT, no discovery above the working directory, and
+// before every command every effective configuration name outside this
+// command's own overrides (the repository's file and anything it includes)
+// must be one a fresh `git init` writes. Those name no program. Anything else
+// (url.*.insteadOf, include/includeIf, core.sshCommand, remote.*.uploadpack,
+// credential, filter, diff, protocol, http and every key Git may add later)
+// refuses the command before it starts. Network commands may use only the
+// validated remote's own transport (GIT_ALLOW_PROTOCOL).
 
 import { Buffer } from 'node:buffer'
+import path from 'node:path'
 import {
   ACTION_CHILD_STDOUT_MAX_BYTES,
   ACTION_GIT_MS,
@@ -28,51 +40,63 @@ export const GIT_METADATA_OPTIONS = Object.freeze([
   '-c',
   'core.quotePath=false',
 ])
-// The host's limits on filter names (GIT_FILTER_NAMES_MAX, GIT_FILTER_NAME_MAX_CHARS).
-export const GIT_FILTER_NAMES_MAX = 200
-export const GIT_FILTER_NAME_MAX_CHARS = 1024
-// The host lists clean/process/required; checkout also needs smudge.
-export const ACTION_FILTER_NAMES_ARGS = Object.freeze([
+// Every effective configuration name with its scope, includes followed, as
+// NUL-separated scope/name pairs. Names only: a configured value is never read.
+const ACTION_CONFIG_LIST_ARGS = Object.freeze([
   'config',
   '--null',
   '--name-only',
-  '--get-regexp',
-  String.raw`^filter\..*\.(clean|process|required|smudge)$`,
+  '--list',
+  '--show-scope',
 ])
-const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required|smudge)$/u
-const FILTER_SEPARATOR = '\u{0}'
-const NO_MATCH_EXIT = 1
+// The names a fresh `git init` writes on Linux, macOS and Windows, and the
+// repository format extensions. None of them names a program.
+export const INERT_CONFIG_NAMES = Object.freeze(
+  new Set([
+    'core.repositoryformatversion',
+    'core.filemode',
+    'core.bare',
+    'core.logallrefupdates',
+    'core.symlinks',
+    'core.ignorecase',
+    'core.precomposeunicode',
+    'extensions.objectformat',
+    'extensions.refstorage',
+  ]),
+)
+// The scope of this command's own -c and GIT_CONFIG_COUNT overrides.
+const OWN_SCOPE = 'command'
+const PAIR_SEPARATOR = '\u{0}'
 // Read-only Git commands (no index refresh lock).
 const READ_ONLY = new Set(['config', 'diff', 'rev-parse', 'merge-base', 'cat-file'])
 const AUTH_COMMAND = Object.freeze({ checkout: 'fetch', push: 'push' })
+const HTTPS_PROTOCOL = 'https'
+const FILE_PROTOCOL = 'file'
 
 /**
- * Scoped overrides for the configured filter drivers named by `output`
- * (`git config --null --name-only --get-regexp`): each driver's clean,
- * process and smudge become empty and required becomes false. Names only;
- * a configured command value is never read. Invalid or oversize names fail
- * closed, as the host's gitFilterOptions does.
+ * Refuses unless every configuration name outside this command's own
+ * overrides is inert. `output` is ACTION_CONFIG_LIST_ARGS's: malformed
+ * output fails closed, and the error names neither a key nor a value.
  */
-export function filterOverrides(output) {
-  const names = output === '' ? [] : output.split(FILTER_SEPARATOR)
-  if (names.at(-1) === '') names.pop()
-  if (
-    names.length > GIT_FILTER_NAMES_MAX ||
-    names.some((name) => name.length > GIT_FILTER_NAME_MAX_CHARS || !FILTER_KEY.test(name))
-  ) {
-    throw new Error('git filter driver names are invalid')
+export function checkConfigNames(output) {
+  const fields = output === '' ? [] : output.split(PAIR_SEPARATOR)
+  if (fields.at(-1) === '') fields.pop()
+  if (fields.length % 2 !== 0) throw new Error('git configuration listing is malformed')
+  for (let index = 0; index < fields.length; index += 2) {
+    const scope = fields[index]
+    const name = fields[index + 1]
+    if (scope !== OWN_SCOPE && !INERT_CONFIG_NAMES.has(name)) {
+      throw new Error('git configuration names a setting this Action does not allow')
+    }
   }
-  const drivers = new Set(names.map((key) => key.slice(0, key.lastIndexOf('.'))))
-  return [...drivers].flatMap((driver) => [
-    '-c',
-    `${driver}.clean=`,
-    '-c',
-    `${driver}.process=`,
-    '-c',
-    `${driver}.required=false`,
-    '-c',
-    `${driver}.smudge=`,
-  ])
+}
+
+/** The one transport a network command may use: the validated remote's own. */
+export function remoteProtocol(remote) {
+  if (typeof remote === 'string' && remote.startsWith('https://')) return HTTPS_PROTOCOL
+  // Only the tests' local bare repositories; remoteFor builds https remotes.
+  if (typeof remote === 'string' && path.isAbsolute(remote)) return FILE_PROTOCOL
+  throw new Error('the remote must be an https URL')
 }
 
 /** The options before every command: metadata suppression plus the Action's overrides. */
@@ -105,18 +129,22 @@ function authorizationHeader(token) {
 
 /**
  * Git's environment: the owner's allow-list environment with every GIT_*
- * name removed, then the isolated global configuration, no system
- * configuration or attributes, no terminal prompt, optional locks off for
- * read-only commands, and http.extraHeader reset (then, for the one
- * authenticated command, set to its one-shot token header).
+ * name removed (GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT included), then
+ * the isolated global configuration, no system configuration or
+ * attributes, no repository discovery above `cwd`, one allowed transport,
+ * no terminal prompt, optional locks off for read-only commands, and
+ * http.extraHeader reset (then, for the one authenticated command, set to
+ * its one-shot token header).
  */
-export function gitEnvironment({ baseEnv, paths, readOnly, auth }) {
+export function gitEnvironment({ baseEnv, paths, readOnly, auth, cwd, protocol = HTTPS_PROTOCOL }) {
   const env = Object.fromEntries(
     Object.entries(baseEnv).filter(([name]) => !name.toUpperCase().startsWith('GIT_')),
   )
   env.GIT_CONFIG_NOSYSTEM = '1'
   env.GIT_CONFIG_GLOBAL = paths.emptyGitConfig
   env.GIT_ATTR_NOSYSTEM = '1'
+  env.GIT_ALLOW_PROTOCOL = protocol
+  if (cwd !== undefined) env.GIT_CEILING_DIRECTORIES = path.dirname(path.resolve(cwd))
   env.GIT_TERMINAL_PROMPT = '0'
   if (readOnly) env.GIT_OPTIONAL_LOCKS = '0'
   const entries = [['http.extraHeader', '']]
@@ -140,10 +168,12 @@ export function subcommandOf(args) {
 }
 
 /**
- * Runs one Git command under the owner. The filter driver names are listed
- * again before every command, so configuration changed by an earlier step
- * (an apply, an agent's edit) cannot select a program. Returns the child's
- * outcome; callers treat a nonzero code as a fixed failure.
+ * Runs one Git command under the owner. Every effective configuration name
+ * is listed again before every command, so configuration changed by an
+ * earlier step (an apply, an agent's edit) refuses the command instead of
+ * selecting a program. `protocol` is the one transport a network command
+ * may use (remoteProtocol). Returns the child's outcome; callers treat a
+ * nonzero code as a fixed failure.
  */
 export async function safeGit({
   owner,
@@ -155,6 +185,7 @@ export async function safeGit({
   readOnly,
   stdoutPath,
   auth,
+  protocol,
   withinMs = ACTION_GIT_MS,
   stdoutMaxBytes = ACTION_CHILD_STDOUT_MAX_BYTES,
 }) {
@@ -170,22 +201,22 @@ export async function safeGit({
   const options = safeGitOptions(paths)
   const listing = await owner.child({
     file: git,
-    args: [...options, ...ACTION_FILTER_NAMES_ARGS],
+    args: [...options, ...ACTION_CONFIG_LIST_ARGS],
     cwd,
-    env: gitEnvironment({ baseEnv, paths, readOnly: true }),
+    env: gitEnvironment({ baseEnv, paths, readOnly: true, cwd }),
     withinMs,
     stdoutMaxBytes: ACTION_CHILD_STDOUT_MAX_BYTES,
     stderrMaxBytes: ACTION_STDERR_MAX_BYTES,
   })
-  if (listing.code !== 0 && listing.code !== NO_MATCH_EXIT) {
+  if (listing.code !== 0) {
     throw new Error(`git config listing failed (exit ${String(listing.code)})`)
   }
-  const names = listing.code === 0 ? Buffer.from(listing.stdout).toString('utf8') : ''
+  checkConfigNames(Buffer.from(listing.stdout).toString('utf8'))
   return await owner.child({
     file: git,
-    args: [...options, ...filterOverrides(names), ...args],
+    args: [...options, ...args],
     cwd,
-    env: gitEnvironment({ baseEnv, paths, readOnly, auth }),
+    env: gitEnvironment({ baseEnv, paths, readOnly, auth, cwd, protocol }),
     stdoutPath,
     withinMs,
     stdoutMaxBytes,

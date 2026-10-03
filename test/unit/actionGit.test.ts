@@ -1,22 +1,24 @@
 // M80 lane C: the one sanitized Git runner (SPEC §6.3, D-M4, G23). Parity
-// with the host's GIT_METADATA_OPTIONS and gitFilterOptions; an allow-list
-// environment that drops every inherited GIT_* and never carries the key;
-// the token only in the one authenticated command; and, against a real
-// repository whose configuration names fsmonitor, filter, diff, hook,
-// signer, pager, editor and credential programs (proved armed with plain
-// Git first), no fixture program runs in checkout, input diff or patch.
+// with the host's GIT_METADATA_OPTIONS; an allow-list environment that drops
+// every inherited GIT_* and never carries the key; the token only in the one
+// authenticated command; configuration closed by its shape (RVM80CD P1):
+// every effective name outside the command's own overrides must be one a
+// fresh `git init` writes. Against real repositories whose configuration
+// names fsmonitor, filter, diff, hook, signer, pager, editor, credential,
+// URL-rewrite, include, ssh and upload-pack programs (proved armed with
+// plain Git first), no fixture program runs in any phase.
 
+import { execFileSync } from 'node:child_process'
 import { appendFileSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { checkoutHead } from '../../action/lib/checkout.mjs'
 import {
-  ACTION_FILTER_NAMES_ARGS,
-  filterOverrides,
-  GIT_FILTER_NAME_MAX_CHARS,
-  GIT_FILTER_NAMES_MAX,
+  checkConfigNames,
   GIT_METADATA_OPTIONS,
   gitEnvironment,
+  INERT_CONFIG_NAMES,
+  remoteProtocol,
   requireGit,
   safeGit,
   safeGitOptions,
@@ -24,13 +26,7 @@ import {
 } from '../../action/lib/git.mjs'
 import { generateDiff } from '../../action/lib/inputs.mjs'
 import { childEnvironment } from '../../action/lib/lifecycle.mjs'
-import { gitFilterOptions } from '../../src/host/git'
-import {
-  GIT_FILTER_NAME_MAX_CHARS as HOST_NAME_MAX_CHARS,
-  GIT_FILTER_NAMES_ARGS,
-  GIT_FILTER_NAMES_MAX as HOST_NAMES_MAX,
-  GIT_METADATA_OPTIONS as HOST_METADATA_OPTIONS,
-} from '../../src/shared/constants'
+import { GIT_METADATA_OPTIONS as HOST_METADATA_OPTIONS } from '../../src/shared/constants'
 import {
   allocate,
   fixtureRepo,
@@ -51,61 +47,55 @@ import {
 const NUL = String.fromCodePoint(0)
 const posix = (value: string) => value.replaceAll('\\', '/')
 
-function names(...keys: string[]): string {
-  return keys.map((key) => `${key}${NUL}`).join('')
+/** A `config --null --name-only --list --show-scope` listing of scope/name pairs. */
+function listing(...entries: (readonly [string, string])[]): string {
+  return entries.map(([scope, name]) => `${scope}${NUL}${name}${NUL}`).join('')
 }
 
+// Every route by which Git configuration can name a program or redirect a
+// transport that this suite knows of, as Git lists the names. The check is an
+// allow-list, so this list proves coverage; it is not the mechanism.
+const PROGRAM_ROUTES = [
+  'url.ssh://git@example.invalid/.insteadof',
+  'url.https://elsewhere.example/.pushinsteadof',
+  'include.path',
+  'includeif.gitdir:/repo/.path',
+  'core.sshcommand',
+  'core.fsmonitor',
+  'core.hookspath',
+  'core.pager',
+  'core.editor',
+  'core.askpass',
+  'core.gitproxy',
+  'core.alternaterefscommand',
+  'core.attributesfile',
+  'remote.origin.url',
+  'remote.origin.uploadpack',
+  'remote.origin.receivepack',
+  'credential.helper',
+  'credential.https://github.com.helper',
+  'diff.external',
+  'diff.evil.command',
+  'diff.evil.textconv',
+  'filter.lfs.clean',
+  'filter.lfs.smudge',
+  'filter.lfs.process',
+  'merge.evil.driver',
+  'gpg.program',
+  'gpg.ssh.program',
+  'sequence.editor',
+  'alias.st',
+  'protocol.allow',
+  'protocol.ext.allow',
+  'http.extraheader',
+  'http.proxy',
+  'uploadpack.packobjectshook',
+  'extensions.worktreeconfig',
+]
+
 describe('source parity with the host policy', () => {
-  it('reproduces GIT_METADATA_OPTIONS and the filter name limits exactly', () => {
+  it('reproduces GIT_METADATA_OPTIONS exactly', () => {
     expect(GIT_METADATA_OPTIONS).toEqual(HOST_METADATA_OPTIONS)
-    expect(GIT_FILTER_NAMES_MAX).toBe(HOST_NAMES_MAX)
-    expect(GIT_FILTER_NAME_MAX_CHARS).toBe(HOST_NAME_MAX_CHARS)
-    expect(ACTION_FILTER_NAMES_ARGS.slice(0, -1)).toEqual(GIT_FILTER_NAMES_ARGS.slice(0, -1))
-    expect(ACTION_FILTER_NAMES_ARGS.at(-1)).toBe(
-      GIT_FILTER_NAMES_ARGS.at(-1)?.replace('required)', 'required|smudge)'),
-    )
-  })
-
-  it('suppresses the same drivers as gitFilterOptions, plus smudge', () => {
-    for (const output of [
-      '',
-      names('filter.lfs.clean', 'filter.lfs.process'),
-      names('filter.a.b.required', 'filter.x.clean', 'filter.a.b.clean'),
-      'filter.solo.clean',
-    ]) {
-      const action = filterOverrides(output)
-      const withoutSmudge = action.filter(
-        (arg, index) =>
-          !arg.endsWith('.smudge=') && !(arg === '-c' && action[index + 1]?.endsWith('.smudge=')),
-      )
-      expect(withoutSmudge, output).toEqual(gitFilterOptions(output))
-    }
-    expect(filterOverrides(names('filter.evil.smudge'))).toEqual([
-      '-c',
-      'filter.evil.clean=',
-      '-c',
-      'filter.evil.process=',
-      '-c',
-      'filter.evil.required=false',
-      '-c',
-      'filter.evil.smudge=',
-    ])
-  })
-
-  it('fails closed on the names gitFilterOptions refuses', () => {
-    const tooMany = names(
-      ...Array.from({ length: HOST_NAMES_MAX + 1 }, (_, i) => `filter.f${String(i)}.clean`),
-    )
-    const tooLong = names(`filter.${'n'.repeat(HOST_NAME_MAX_CHARS)}.clean`)
-    for (const output of [
-      names('filter.bad=name.clean'),
-      names('core.fsmonitor'),
-      tooMany,
-      tooLong,
-    ]) {
-      expect(() => filterOverrides(output)).toThrow(/invalid/)
-      expect(() => gitFilterOptions(output)).toThrow()
-    }
   })
 
   it('adds the Action overrides to every command', () => {
@@ -122,6 +112,53 @@ describe('source parity with the host policy', () => {
       expect(options, setting).toContain(setting)
     }
     expect(subcommandOf(['-c', 'user.name=x', '--no-pager', 'commit', '-m', 'y'])).toBe('commit')
+  })
+})
+
+describe('configuration closed by its shape (RVM80CD P1)', () => {
+  it('accepts what a fresh git init writes and the command’s own overrides', () => {
+    expect(() => {
+      checkConfigNames('')
+    }).not.toThrow()
+    expect(() => {
+      checkConfigNames(
+        listing(
+          ...[...INERT_CONFIG_NAMES].map((name) => ['local', name] as const),
+          ['command', 'core.fsmonitor'],
+          ['command', 'http.extraheader'],
+          ['command', 'credential.helper'],
+        ),
+      )
+    }).not.toThrow()
+  })
+
+  it.each(PROGRAM_ROUTES)('refuses %s from every file scope, naming no key', (name) => {
+    for (const scope of ['local', 'worktree', 'global', 'system']) {
+      expect(() => {
+        checkConfigNames(listing(['local', 'core.bare'], [scope, name]))
+      }).toThrow('git configuration names a setting this Action does not allow')
+    }
+  })
+
+  it('fails closed on a malformed listing', () => {
+    expect(() => {
+      checkConfigNames(`local${NUL}`)
+    }).toThrow(/malformed/)
+  })
+
+  it('lets a network command use only the validated remote’s own transport', () => {
+    expect(remoteProtocol('https://github.com/owner/repo.git')).toBe('https')
+    expect(remoteProtocol(path.resolve('fixture.git'))).toBe('file')
+    for (const remote of [
+      'ssh://git@github.com/owner/repo.git',
+      'git@github.com:owner/repo.git',
+      'ext::sh -c x',
+      'file:///repo.git',
+      'HTTPS://github.com/owner/repo.git',
+      'relative/repo.git',
+    ]) {
+      expect(() => remoteProtocol(remote), remote).toThrow(/https/)
+    }
   })
 })
 
@@ -162,6 +199,7 @@ describe('the Git environment', () => {
         .filter((name) => name.toUpperCase().startsWith('GIT_'))
         .toSorted((left, right) => left.localeCompare(right)),
     ).toEqual([
+      'GIT_ALLOW_PROTOCOL',
       'GIT_ATTR_NOSYSTEM',
       'GIT_CONFIG_COUNT',
       'GIT_CONFIG_GLOBAL',
@@ -171,9 +209,17 @@ describe('the Git environment', () => {
       'GIT_OPTIONAL_LOCKS',
       'GIT_TERMINAL_PROMPT',
     ])
+    expect(env['GIT_ALLOW_PROTOCOL']).toBe('https')
     expect(gitEnvironment({ baseEnv: hostile, paths, readOnly: false })).not.toHaveProperty(
       'GIT_OPTIONAL_LOCKS',
     )
+  })
+
+  it('stops repository discovery above the working directory and pins one transport', () => {
+    const cwd = path.resolve('workspace', 'pr')
+    const env = gitEnvironment({ baseEnv: {}, paths, readOnly: false, cwd, protocol: 'file' })
+    expect(env['GIT_CEILING_DIRECTORIES']).toBe(path.dirname(cwd))
+    expect(env['GIT_ALLOW_PROTOCOL']).toBe('file')
   })
 
   it('carries the token only as the one authenticated command header, after a reset', () => {
@@ -310,7 +356,7 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
     expect(hits.some((hit) => hit.startsWith('fsmonitor'))).toBe(true)
   })
 
-  it('runs no planted program in checkout, input diff, intent-to-add or patch diff', async () => {
+  it('works in a clean checkout, then refuses every phase once configuration names a program', async () => {
     const paths = allocate(layout)
     const parent = hostileParent()
     const baseEnv = childEnvironment({
@@ -323,14 +369,13 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
       ...baseEnv,
       ...Object.fromEntries(Object.entries(parent).filter(([name]) => name.startsWith('GIT_'))),
     })
-    arm(paths.checkout)
     const staged = { baseSha: repo.base, headSha: repo.head, maxDiffBytes: 1_000_000 }
     const diff = await generateDiff({ owner, git, paths, baseEnv, staged })
     expect(diff.truncated).toBe(false)
     expect(readFileSync(paths.diff, 'utf8')).toContain('+second')
     writeFileSync(path.join(paths.checkout, 'notes.txt'), 'first\nsecond\nthird\n')
     writeFileSync(path.join(paths.checkout, 'new.txt'), 'brand new\n')
-    const run = (args: string[], isReadOnly: boolean, stdoutPath?: string) =>
+    const run = (args: readonly string[], isReadOnly: boolean, stdoutPath?: string) =>
       safeGit({
         owner,
         git,
@@ -341,25 +386,30 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
         readOnly: isReadOnly,
         ...(stdoutPath !== undefined && { stdoutPath }),
       })
+    const patchArgs = ['diff', '--binary', '--no-ext-diff', '--no-textconv', repo.head]
     requireGit(await run(['add', '--intent-to-add', '--all'], false), 'add')
-    requireGit(
-      await run(
-        ['diff', '--binary', '--no-ext-diff', '--no-textconv', repo.head],
-        true,
-        paths.staging,
-      ),
-      'diff',
-    )
+    requireGit(await run(patchArgs, true, paths.staging), 'diff')
     const patch = readFileSync(paths.staging, 'utf8')
     expect(patch).toContain('+third')
     expect(patch).toContain('+brand new')
-    expect(patch).toContain('.gitattributes')
-    requireGit(await run(['rev-parse', 'HEAD'], true), 'rev-parse')
+    arm(paths.checkout)
+    await expect(generateDiff({ owner, git, paths, baseEnv, staged })).rejects.toThrow(
+      /does not allow/,
+    )
+    const phases: [readonly string[], boolean][] = [
+      [['add', '--intent-to-add', '--all'], false],
+      [patchArgs, true],
+      [['rev-parse', 'HEAD'], true],
+      [['status'], false],
+    ]
+    for (const [args, isReadOnly] of phases) {
+      await expect(run(args, isReadOnly), args.join(' ')).rejects.toThrow(/does not allow/)
+    }
     expect(sentinelHits(layout)).toEqual([])
     await owner.cleanup()
   })
 
-  it('re-reads the filter names before every command (configuration changed in between)', async () => {
+  it('re-reads the configuration before every command (configuration changed in between)', async () => {
     const paths = allocate(layout)
     const baseEnv = childEnvironment({
       platform: process.platform,
@@ -370,8 +420,8 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
     const owner = await checkedOut(paths, baseEnv)
     writeFileSync(path.join(paths.checkout, '.gitattributes'), '*.txt filter=late\n')
     writeFileSync(path.join(paths.checkout, 'notes.txt'), 'edited\n')
-    requireGit(
-      await safeGit({
+    const add = () =>
+      safeGit({
         owner,
         git,
         cwd: paths.checkout,
@@ -379,28 +429,146 @@ describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
         paths,
         baseEnv,
         readOnly: false,
-      }),
-      'add',
-    )
+      })
+    requireGit(await add(), 'add')
     appendFileSync(
       path.join(paths.checkout, '.git', 'config'),
       `[filter "late"]\n\tclean = ${setting('late-clean')}\n\trequired = true\n`,
     )
     writeFileSync(path.join(paths.checkout, 'notes.txt'), 'edited again\n')
-    requireGit(
-      await safeGit({
+    await expect(add()).rejects.toThrow(/does not allow/)
+    expect(sentinelHits(layout)).toEqual([])
+    await owner.cleanup()
+  })
+
+  /** URL rewrites, an include, ssh and upload/receive-pack programs (RVM80CD P1). */
+  function armRoutes(repository: string): void {
+    const included = path.join(layout.root, `included-${String(Date.now())}.config`)
+    writeFileSync(included, `[core]\n\tfsmonitor = ${setting('include-fsmonitor')}\n`)
+    const settings = [
+      '[url "ssh://git@example.invalid/"]\n\tinsteadOf = https://github.com/',
+      '\tpushInsteadOf = https://github.com/',
+      `[core]\n\tsshCommand = ${setting('ssh-command')}`,
+      `[include]\n\tpath = ${posix(included)}`,
+      `[remote "origin"]\n\tuploadpack = ${setting('upload-pack')}`,
+      `\treceivepack = ${setting('receive-pack')}`,
+    ]
+    appendFileSync(path.join(repository, '.git', 'config'), `${settings.join('\n')}\n`)
+  }
+
+  it('the route fixture is armed: plain Git runs its rewrite, ssh, include and upload-pack programs', () => {
+    const plain = path.join(layout.root, 'plain-routes')
+    plainGit(layout, layout.root, ['clone', '--quiet', repo.bare, plain])
+    armRoutes(plain)
+    for (const args of [
+      ['ls-remote', 'https://github.com/owner/repo.git'],
+      ['fetch', '--quiet', 'origin'],
+      ['status'],
+    ]) {
+      try {
+        plainGit(layout, plain, args)
+      } catch {
+        // Planted programs fail the command; that they ran is the point.
+      }
+    }
+    const hits = sentinelHits(layout)
+    for (const route of ['ssh-command', 'upload-pack', 'include-fsmonitor']) {
+      expect(
+        hits.some((hit) => hit.startsWith(route)),
+        route,
+      ).toBe(true)
+    }
+  })
+
+  it('refuses fetch, push and status through those routes; no program runs', async () => {
+    const paths = allocate(layout)
+    const baseEnv = childEnvironment({
+      platform: process.platform,
+      parentEnv: process.env,
+      paths,
+      nodePath: NODE,
+    })
+    const owner = await checkedOut(paths, baseEnv)
+    armRoutes(paths.checkout)
+    const remote = 'https://github.com/owner/repo.git'
+    const run = (args: string[], auth?: { kind: 'checkout' | 'push'; token: string }) =>
+      safeGit({
         owner,
         git,
         cwd: paths.checkout,
-        args: ['add', '--all'],
+        args,
         paths,
         baseEnv,
         readOnly: false,
+        protocol: remoteProtocol(remote),
+        ...(auth !== undefined && { auth }),
+      })
+    await expect(
+      run(['fetch', '--quiet', remote, `+${repo.head}:refs/muse-spark/x`], {
+        kind: 'checkout',
+        token: TEST_TOKEN,
       }),
-      'add',
-    )
+    ).rejects.toThrow(/does not allow/)
+    await expect(
+      run(['push', '--quiet', remote, 'HEAD:refs/heads/feature'], {
+        kind: 'push',
+        token: TEST_TOKEN,
+      }),
+    ).rejects.toThrow(/does not allow/)
+    await expect(run(['status'])).rejects.toThrow(/does not allow/)
     expect(sentinelHits(layout)).toEqual([])
     await owner.cleanup()
+  })
+
+  it('never acts on a repository above its working directory', async () => {
+    const parent = path.join(layout.root, 'parent-repo')
+    plainGit(layout, layout.root, ['clone', '--quiet', repo.bare, parent])
+    const inside = path.join(parent, 'not-a-checkout')
+    mkdirSync(inside)
+    const paths = allocate(layout)
+    const { owner } = testOwner(paths)
+    const outcome = await safeGit({
+      owner,
+      git,
+      cwd: inside,
+      args: ['rev-parse', '--verify', 'HEAD'],
+      paths,
+      baseEnv: childEnvironment({
+        platform: process.platform,
+        parentEnv: process.env,
+        paths,
+        nodePath: NODE,
+      }),
+      readOnly: true,
+    })
+    expect(outcome.code).not.toBe(0)
+    await owner.cleanup()
+  })
+
+  it('the transport pin alone refuses a rewrite to another protocol', () => {
+    const plain = path.join(layout.root, 'pinned-routes')
+    plainGit(layout, layout.root, ['clone', '--quiet', repo.bare, plain])
+    armRoutes(plain)
+    const paths = allocate(layout)
+    const env = gitEnvironment({
+      baseEnv: childEnvironment({
+        platform: process.platform,
+        parentEnv: process.env,
+        paths,
+        nodePath: NODE,
+      }),
+      paths,
+      readOnly: true,
+      cwd: plain,
+    })
+    expect(() =>
+      execFileSync(git, ['ls-remote', 'https://github.com/owner/repo.git'], {
+        cwd: plain,
+        env,
+        stdio: 'pipe',
+      }),
+    ).toThrow()
+    expect(sentinelHits(layout)).toEqual([])
   })
 
   it('refuses a token on the wrong command and a read-only flag on a writing command', async () => {

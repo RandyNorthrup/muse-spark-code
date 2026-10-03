@@ -7,7 +7,7 @@
 
 import { mkdir, readdir } from 'node:fs/promises'
 import process from 'node:process'
-import { gitText, requireGit, safeGit } from './git.mjs'
+import { gitText, remoteProtocol, requireGit, safeGit } from './git.mjs'
 import { ACTION_CHECKOUT_MS, childEnvironment, createLauncherOwner, isEntry } from './lifecycle.mjs'
 import {
   actionPaths,
@@ -45,9 +45,20 @@ async function emptyDirectory(directory) {
  */
 export async function checkoutHead({ owner, git, paths, baseEnv, directory, remote, shas, token }) {
   if (shas.some((sha) => !SHA.test(sha))) throw new InputError('a commit id is malformed')
+  const protocol = remoteProtocol(remote)
   await emptyDirectory(directory)
   const run = (args, extra = {}) =>
-    safeGit({ owner, git, cwd: directory, args, paths, baseEnv, readOnly: false, ...extra })
+    safeGit({
+      owner,
+      git,
+      cwd: directory,
+      args,
+      paths,
+      baseEnv,
+      readOnly: false,
+      protocol,
+      ...extra,
+    })
   requireGit(await run(['init', '--quiet', `--template=${paths.emptyHooks}`]), 'init')
   requireGit(
     await run(
