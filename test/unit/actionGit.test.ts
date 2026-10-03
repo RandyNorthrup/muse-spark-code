@@ -37,6 +37,7 @@ import {
   gitPath,
   NODE,
   plainGit,
+  PROCESS_SUITE,
   SENTINEL,
   sentinelHits,
   tempLayout,
@@ -193,7 +194,7 @@ describe('the Git environment', () => {
   })
 })
 
-describe('safeGit against armed fixture programs (G23)', () => {
+describe('safeGit against armed fixture programs (G23)', PROCESS_SUITE, () => {
   let layout: TempLayout
   let repo: FixtureRepo
   let git: string

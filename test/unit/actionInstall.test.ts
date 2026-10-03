@@ -36,6 +36,7 @@ import {
   jsonFetch,
   jsonRecord,
   NODE,
+  PROCESS_SUITE,
   tempLayout,
   TEST_KEY,
   TEST_TOKEN,
@@ -245,7 +246,7 @@ describe('G22 provenance from the verified bundles', () => {
   })
 })
 
-describe('installAgent', () => {
+describe('installAgent', PROCESS_SUITE, () => {
   let layout: TempLayout
   beforeEach(() => {
     layout = tempLayout()
@@ -373,6 +374,8 @@ describe('installAgent', () => {
       ],
     ] as const) {
       const run = setup(scenario)
+      // The escaping bin's target exists, so only the confinement check can refuse it.
+      writeFileSync(path.join(run.paths.work, 'outside.js'), '// outside the package\n')
       await expect(run.install(), JSON.stringify(scenario)).rejects.toThrow(expected)
       await run.test.owner.cleanup()
     }

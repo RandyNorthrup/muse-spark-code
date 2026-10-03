@@ -20,6 +20,7 @@ import {
   NODE,
   plainGit,
   preparedRun,
+  PROCESS_SUITE,
   SENTINEL,
   sentinelHits,
   tempLayout,
@@ -39,7 +40,7 @@ function openPull(repo: FixtureRepo, headSha = repo.head) {
   }
 }
 
-describe('the apply sub-action (G25)', () => {
+describe('the apply sub-action (G25)', PROCESS_SUITE, () => {
   let layout: TempLayout
   beforeEach(() => {
     layout = tempLayout()

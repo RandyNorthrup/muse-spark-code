@@ -42,6 +42,10 @@ export const PERCENT_KEY = 'LLM|123|before%after+/.=$&'
 export const TEST_TOKEN = `ghs_${'t'.repeat(36)}`
 export const SECRET_TOKEN = `ghp_${'S'.repeat(36)}`
 export const FAST_BOUNDS = { killAfterMs: 400, reapMs: 2000, cleanupMs: 3000 }
+// Suites that start real Git and agent children: on the Windows VM one full run
+// (fixture origin, checkout, exec, patch, scan) takes about 1.5 s and a case
+// loops over up to four. Per-suite, as the MCP process suites do.
+export const PROCESS_SUITE = { timeout: 60_000 }
 
 export interface TempLayout {
   readonly root: string

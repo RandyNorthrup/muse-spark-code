@@ -7,7 +7,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
@@ -43,6 +43,7 @@ import {
   isRecord,
   jsonRecord,
   NODE,
+  PROCESS_SUITE,
   PERCENT_KEY,
   preparedRun,
   SECRET_TOKEN,
@@ -76,6 +77,16 @@ async function until(isDone: () => boolean, withinMs = 10_000): Promise<void> {
 
 function outFiles(run: PreparedRun): string[] {
   return readdirSync(run.paths.out).toSorted(byText)
+}
+
+/** SIGTERM after exec completed: the patch is withheld as cancelled and the step exits 143. */
+async function terminatedAfterExec(run: PreparedRun, running: Promise<ActionRunReport>) {
+  run.test.send('SIGTERM')
+  const report = await running
+  await run.test.owner.cleanup()
+  expect(report).toMatchObject({ execCode: 0, patchWithheld: 'cancelled', patchPublished: false })
+  expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
+  expect(exitCodeFor(report, run.test.owner)).toBe(143)
 }
 
 /** The whole run, then cleanup, then what the step would output and exit with. */
@@ -234,7 +245,7 @@ describe('G21 result extraction', () => {
     }
   })
 
-  describe('extractResult', () => {
+  describe('extractResult', PROCESS_SUITE, () => {
     let layout: TempLayout
     beforeEach(() => {
       layout = tempLayout(true)
@@ -272,7 +283,7 @@ describe('G21 result extraction', () => {
   })
 })
 
-describe('the owner run (G18, G20, G24)', () => {
+describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
   let layout: TempLayout
   beforeEach(() => {
     layout = tempLayout()
@@ -377,6 +388,7 @@ describe('the owner run (G18, G20, G24)', () => {
     const scan = fakeReports(run.paths).find((line) => line['command'] === 'scan-secrets')
     expect(scan?.['keyLine']).toBe(TEST_KEY)
     expect(JSON.stringify(scan?.['env'])).not.toContain(TEST_KEY)
+    expect(JSON.stringify(scan?.['args'])).not.toContain(TEST_KEY)
     expect(existsSync(run.paths.staging)).toBe(false)
     expect(outFiles(run)).toEqual(['events.jsonl', 'fix.patch', 'manifest.json', 'result.json'])
   })
@@ -670,23 +682,36 @@ describe('the owner run (G18, G20, G24)', () => {
     'G18 a signal while the scanner hangs stops it; nothing later starts or publishes (POSIX)',
     async () => {
       const { run, running } = await hungScan()
-      run.test.send('SIGTERM')
-      const report = await running
-      await run.test.owner.cleanup()
-      expect(report).toMatchObject({
-        execCode: 0,
-        patchWithheld: 'cancelled',
-        patchPublished: false,
-      })
+      await terminatedAfterExec(run, running)
       expect(fakeReports(run.paths).filter((line) => line['signal'] === 'SIGTERM')).toHaveLength(1)
-      expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
       expect(existsSync(run.paths.staging)).toBe(false)
-      expect(exitCodeFor(report, run.test.owner)).toBe(143)
+    },
+  )
+
+  it.skipIf(!isPosix)(
+    'G18 a signal while a patch Git child hangs after exec stops it; no scan or publication follows (POSIX)',
+    async () => {
+      const run = await preparedRun(layout, {
+        mode: 'fix',
+        exec: { result: completedResult(), writes: [{ path: 'notes.txt', text: 'safe\n' }] },
+      })
+      // Real Git for everything except intent-to-add, which hangs after leaving a marker.
+      const marker = path.join(layout.root, 'git-hanging')
+      const hanging = path.join(layout.root, 'hanging-git')
+      writeFileSync(
+        hanging,
+        `#!/bin/sh\ncase "$*" in *--intent-to-add*) : > '${marker}'; exec sleep 600;; esac\nexec '${run.input.git}' "$@"\n`,
+      )
+      chmodSync(hanging, 0o755)
+      const running = runProposal({ ...run.input, git: hanging })
+      await until(() => existsSync(marker))
+      await terminatedAfterExec(run, running)
+      expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
     },
   )
 })
 
-describe('lifecycle bounds and cleanup (G24)', () => {
+describe('lifecycle bounds and cleanup (G24)', PROCESS_SUITE, () => {
   let layout: TempLayout
   beforeEach(() => {
     layout = tempLayout()

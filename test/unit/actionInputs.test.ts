@@ -35,6 +35,7 @@ import {
   allocate,
   gitPath,
   preparedRun,
+  PROCESS_SUITE,
   readOutputs,
   tempLayout,
   TEMPLATES_DIR,
@@ -279,15 +280,14 @@ describe('allocation, paths and outputs', () => {
 
   it('writes outputs that a value cannot forge', async () => {
     const file = path.join(layout.root, 'out.txt')
-    await writeOutputs(file, { status: 'completed', note: 'line\nstatus=failed\nMUSE_x<<EOF' })
-    expect(readOutputs(file)).toEqual({
-      status: 'completed',
-      note: 'line\nstatus=failed\nMUSE_x<<EOF',
-    })
+    // A value with bare delimiter-like lines tries to end its record and open a forged one.
+    const note = 'line\nEOF\nforged<<EOF\nyes\nEOF\nMUSE_x<<EOF'
+    await writeOutputs(file, { status: 'completed', note })
+    expect(readOutputs(file)).toEqual({ status: 'completed', note })
   })
 })
 
-describe('staging and the prompt (G12)', () => {
+describe('staging and the prompt (G12)', PROCESS_SUITE, () => {
   let layout: TempLayout
   beforeEach(() => {
     layout = tempLayout()
