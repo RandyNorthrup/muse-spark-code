@@ -1312,7 +1312,10 @@ the text as it is.
   shows a chip for either; × drops it.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
-  multi-step shell lines are approved one step at a time. Question cards
+  multi-step shell lines are approved one step at a time. Each step takes
+  one decision: the card locks at your first click and stays locked until
+  Muse Code answers, and a step that moved on before your choice arrived
+  shows the step Muse Code now waits on and says so on the card. Question cards
   stack radio buttons for one answer and checkboxes for several, put
   multiple questions on tabs, always offer **Other**, and keep **Submit**
   greyed until every question has an answer; **Cancel** declines the prompt,
@@ -2396,11 +2399,25 @@ stopped and the next message resumes the same session.
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore
   files to here** still work, and the Model API backend offers all of them.
-- **A warning that "Muse Code reported an error for the decision (the tool
-  may have run anyway): … approval ledger durability fence …"** — Muse Code
-  on Windows (seen on 1.3.0) sometimes fails its own ledger write after applying your
-  decision ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
-  The tool row shows what happened; nothing needs redoing.
+- **"Muse Code applies your approvals in this conversation but reports an
+  error for each one"** — Muse Code on Windows can fail its own approval
+  ledger after applying a decision ("approval ledger durability fence",
+  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). Since
+  1.4.2 it does this for every decision of a conversation that went through
+  the fault below. The panel says so once. The card follows what Muse Code
+  does next and is never offered again, because the decision applied. **New
+  conversation** avoids the fault.
+- **"Muse Code refuses every message in this conversation"** — Muse Code 1.4
+  ("approval replay failed: decision stage evidence contains an unrecorded
+  human resolution") fails every message of a conversation whose turn
+  stopped while a multi-step command was partly approved. **Restart now**
+  stops Muse Code, and your next message starts it again and continues the
+  conversation. **New conversation** starts afresh. The panel now rejects
+  the waiting step before a Stop, which keeps the conversation usable.
+- **"Could not load the output: Muse Code did not answer item/readOutput
+  within 60 s"** — a busy Muse Code answers stored-output reads one after
+  another. The panel says it once per conversation; the row keeps the diff it
+  already has, and collapsing and expanding the row asks again.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   log says which credential it started with). If the CLI itself holds a

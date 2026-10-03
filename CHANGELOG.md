@@ -204,6 +204,60 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
+- **One decision per approval step (0.10.0, 0.10.1).** The approval card
+  sent a step's decision again, so one approval got two or three answers
+  and Muse Code refused the extra ones ("That request moved on to its next
+  step…"). Two things re-armed it:
+  - The card reopened after every error for a decision. Muse Code 1.4.2
+    reports its ledger fault for decisions it has applied
+    ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
+  - The card also reopened after every 60-second deadline. On a busy
+    machine Muse Code took one decision in three minutes after it was
+    sent, after two more for the same step.
+
+  Now:
+  - The card locks at the first click and stays locked until Muse Code
+    settles the decision, however fast the clicks come and whatever arrives
+    in between.
+  - The session sends one decision per step whatever the card asks.
+  - A decision that got no answer, or that Muse Code applied while
+    reporting an error, is never offered again. The card reopens only when
+    Muse Code refused the decision and still waits on that very step.
+  - The log names the step each answer was for: a multi-step command
+    decided step by step had read as repeated answers.
+- **A step Muse Code moved without saying so no longer strands its
+  card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
+  show a step its new rule already allows, refuse the decision for it as
+  stale, and never show the step it waits on. The card then waited for
+  ever, and the only way out was Stop. Now the card moves to the step the
+  refusal names, with that step's own "Always allow" label, and says on
+  the card that the request moved on.
+- **A Stop no longer wedges a conversation.** With Muse Code 1.4, stopping
+  a turn while a multi-step command was partly approved left the
+  conversation refusing every message ("approval replay failed: decision
+  stage evidence contains an unrecorded human resolution") until Muse Code
+  restarted. On Windows, every decision then reported the ledger fault.
+  - A Stop now rejects the waiting step first, through Muse Code's own
+    decision, which keeps the conversation usable. It waits 10 s at most,
+    then stops anyway.
+  - A conversation already in that state is named once, in plain words, as
+    a fault in Muse Code. The notice offers **Restart now** (the next
+    message starts Muse Code again and continues the conversation) and
+    **New conversation**.
+  - The ledger fault is named once per conversation the same way, with
+    **New conversation**.
+- **Tool outputs load quietly while Muse Code works (0.10.0, 0.10.1).**
+  An edit row read its stored patch while the edit was still running, and
+  Muse Code answered "item or attached output ref was not found". On a busy
+  Muse Code, which answers reads one after another, each row's read waited
+  60 s and failed, and each failure stacked its own error ("Could not load
+  the output", five at once). Now:
+  - A row reads its patch once the edit has finished.
+  - A read already in flight is joined rather than sent again.
+  - A failure is said once per conversation, as a warning saying how to
+    retry; later ones go to the log until a read succeeds.
+  - Collapsing and expanding the row asks again. The row keeps the diff it
+    already shows, and the turn goes on meanwhile.
 
 ## [0.10.1] - 2026-10-02
 
