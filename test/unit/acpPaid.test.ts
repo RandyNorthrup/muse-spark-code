@@ -10,6 +10,58 @@ import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { removeFolder } from './helpers/temporaryFolders'
+import type { PaidUseRequest } from '../../src/shared/paid'
+
+describe('M80 structural headless paid policy', () => {
+  it('P4/P7 headless receives requiresAsking and never reads or changes grants or asks editor', async () => {
+    const grants = {
+      read: vi.fn(() => new Set<'imageGeneration'>(['imageGeneration'])),
+      add: vi.fn(() => Promise.resolve()),
+      forget: vi.fn(() => Promise.resolve()),
+    }
+    const policy = vi.fn((request: PaidUseRequest, requiresAsking: boolean) =>
+      Promise.resolve(request.feature === 'imageGeneration' && !requiresAsking),
+    )
+    const paid = new AcpPaidUse({
+      flagged: ['imageGeneration'],
+      canRemember: () => true,
+      grants,
+      log: logger(),
+      headless: policy,
+    })
+    const ask = vi.fn(() => Promise.resolve('always' as const))
+    paid.attach(ask)
+    const request = {
+      feature: 'imageGeneration',
+      kind: 'generate',
+      path: 'x.png',
+      sources: [],
+      prompt: 'dot',
+    } as const
+    expect(await paid.allows('/ws', 'session', request, false)).toBe(true)
+    expect(await paid.allows('/ws', 'session', request, true)).toBe(false)
+    expect(policy).toHaveBeenLastCalledWith(request, true)
+    expect(paid.isRemembered('/ws', 'imageGeneration')).toBe(false)
+    await paid.forgetUnflagged()
+    expect(grants.read).not.toHaveBeenCalled()
+    expect(grants.add).not.toHaveBeenCalled()
+    expect(grants.forget).not.toHaveBeenCalled()
+    expect(ask).not.toHaveBeenCalled()
+  })
+  it('P1 off flag denies before headless policy despite remembered grant', async () => {
+    const policy = vi.fn(() => Promise.resolve(true))
+    const grants = memoryPaidGrants()
+    const paid = new AcpPaidUse({
+      flagged: [],
+      canRemember: () => true,
+      grants,
+      log: logger(),
+      headless: policy,
+    })
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBe(false)
+    expect(policy).not.toHaveBeenCalled()
+  })
+})
 
 // M58 in the agent (PLAN.md D48, D62): a paid use is off without its flag,
 // asks the editor each time otherwise, and "Allow always" is kept per folder

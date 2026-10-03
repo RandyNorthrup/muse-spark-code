@@ -197,7 +197,8 @@ jobs:
           for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
-            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json; do
+            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json \
+            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1
@@ -212,6 +213,10 @@ jobs:
           mkdir -p "$acp"
           npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
           node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
+      - name: built headless process and package guards (fake transport only)
+        env:
+          MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
+        run: npx vitest run test/e2e/execStdio.e2e.test.ts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp

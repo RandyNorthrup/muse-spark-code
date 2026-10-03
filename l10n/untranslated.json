@@ -40,7 +40,9 @@
       "loopItem",
       "namedFilesMore",
       "agentImportSourceCursor",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "execUsage",
+      "execScanUsage"
     ],
     "cs": [
       "groupModel",
