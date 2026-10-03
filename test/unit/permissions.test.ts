@@ -246,6 +246,22 @@ describe('web fetch (M69, PLAN.md D49)', () => {
       label: 'Always allow in this session: docs.example.com',
     })
   })
+
+  // M81: what widens a browser check beyond loopback when no card shows.
+  it('tells whether the user chose "always" for a host, whatever the mode says', () => {
+    const engine = new PermissionEngine('allowAll')
+    const check = {
+      toolName: 'browser_check',
+      toolClass: 'network',
+      command: 'intranet.example',
+    } as const
+    expect(engine.verdict(check)).toBe('allow')
+    expect(engine.isAllowedForSession(check)).toBe(false)
+    engine.allowForSession('browser_check', 'intranet.example')
+    expect(engine.isAllowedForSession(check)).toBe(true)
+    expect(engine.isAllowedForSession({ ...check, command: 'other.example' })).toBe(false)
+    expect(engine.isAllowedForSession({ ...check, toolName: 'web_fetch' })).toBe(false)
+  })
 })
 
 describe('paid calls (M34, PLAN.md D30)', () => {

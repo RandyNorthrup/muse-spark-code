@@ -133,11 +133,18 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       when that backend first starts), the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the search worker and web fetch's page converter worker
-                      (dist/pageWorker.js, started for each page),
+                      (dist/pageWorker.js, started for each page), the
+                      browser check's processes (the verified pinned runtime
+                      only, behind its own proxy; no system browser, no
+                      policy reads) and bundle entry (dist/browserCheck.js,
+                      loaded on the first check), its runtime's acquisition
+                      and verification (dist/browserRuntime.js: the pin,
+                      download, bounded ZIP reader, store; loaded only to
+                      prepare a runtime) and the runtime's consent and command,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
-                      fetch), VS Code's language services, the MCP servers'
+                      fetch, browser check), VS Code's language services, the MCP servers'
                       spawner, the network posture, web fetch's pinned
                       transport and the verify loop's editor side: settled
                       diagnostics, format on edit and turn checkpoints' shadow repository)
@@ -147,7 +154,9 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
-                      public-address checks and HTML converter, the verify
+                      public-address checks and HTML converter, the browser
+                      check's address rule, managed-policy check, CDP pipe
+                      and run, the verify
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,

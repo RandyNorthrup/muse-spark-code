@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { ApprovalCard } from '../../src/webview/components/ApprovalCard'
 import { TodoPanel } from '../../src/webview/components/TodoPanel'
 import type { PendingApproval } from '../../src/webview/state/uiState'
@@ -179,6 +180,34 @@ describe('ApprovalCard', () => {
       screen.getByRole('group', { name: 'Muse wants to fetch https://docs.example.com/a?b=1' }),
     ).toBeInTheDocument()
     expect(screen.getByText('https://docs.example.com/a?b=1').tagName).toBe('CODE')
+  })
+
+  it('names the page a browser check opens, and says when it is beyond this computer (M81)', () => {
+    for (const [kind, title] of [
+      ['browserCheck', 'Muse wants to open http://localhost:5173/ in a headless browser'],
+      [
+        'browserCheckWiden',
+        'Muse wants to open http://localhost:5173/ in a headless browser, beyond this computer',
+      ],
+    ] as const) {
+      const { unmount } = render(
+        <ApprovalCard
+          approval={{
+            ...approval,
+            subject: { kind, target: 'http://localhost:5173/', toolName: 'browser_check' },
+            isProtectedWrite: false,
+          }}
+          toolName="browser_check"
+          onDecide={vi.fn()}
+        />,
+      )
+      expect(screen.getByRole('group', { name: title })).toBeInTheDocument()
+      expect(screen.getByText('http://localhost:5173/').tagName).toBe('CODE')
+      // M81 A1: widening says what it also allows, under that card only.
+      const residual = screen.queryByText(UI_TEXT.approvalBrowserCheckWidenResidual)
+      expect(residual === null, kind).toBe(kind !== 'browserCheckWiden')
+      unmount()
+    }
   })
 })
 

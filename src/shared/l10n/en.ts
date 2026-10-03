@@ -607,6 +607,96 @@ export const EN = {
   webFetchMoved:
     'The page redirected to {location}, on another host. Muse can fetch it in a new call, which asks again.',
   webFetchRestrictedMode: 'Web fetch is off in Restricted Mode. Trust the workspace to use it.',
+  // M81 (PLAN.md D49): the browser check. Before each check Muse Code asks
+  // the extension for; the second sentence when the host is beyond loopback.
+  browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
+  browserCheckConfirmDetail:
+    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
+  browserCheckConfirmDetailWiden:
+    '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
+  // M81 A1: the question before the browser check's runtime is downloaded,
+  // the Download command's progress and outcome.
+  browserRuntimeConsentTitle: 'Download the browser for browser checks ({size})?',
+  browserRuntimeConsentDetail:
+    'Muse Spark Code will download Google’s Chrome for Testing headless shell {version} ({size}) from storage.googleapis.com and keep it in {location}. It is used only for browser checks, and each new version an extension update pins is downloaded again. Set museSpark.browserCheckRuntime to download to stop asking, or to off to turn the browser check off.',
+  browserRuntimeDownload: 'Download',
+  browserRuntimeNotNow: 'Not now',
+  browserRuntimePreparing: 'Getting the browser check’s browser ready…',
+  browserRuntimeReady: 'The browser check’s browser {version} is ready.',
+  // The Model API row: what the check found, then each entry under its count.
+  browserCheckDone: 'Checked {url}: {errors}, {failed}, {blocked}',
+  browserCheckConsoleErrors: forms({
+    one: '{count} console error',
+    other: '{count} console errors',
+  }),
+  browserCheckFailedRequests: forms({
+    one: '{count} failed request',
+    other: '{count} failed requests',
+  }),
+  browserCheckBlockedRequests: forms({
+    one: '{count} request blocked beyond this computer',
+    other: '{count} requests blocked beyond this computer',
+  }),
+  // Why a check did not happen or did not finish.
+  browserCheckUrlRefused:
+    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+  browserCheckInvalidArguments:
+    'The browser check was asked for with arguments that are not valid, so nothing was opened.',
+  // The runtime's preparation (M81 A1): why no verified browser was ready.
+  browserCheckRuntimeMissing:
+    'The browser check’s browser is not installed and could not be downloaded now. Check the connection and try again.',
+  browserCheckRuntimeUnsupported:
+    'The browser check is not available on this computer. It supports Windows x64, Linux x64 and macOS.',
+  browserCheckRuntimeOutdated:
+    'The browser check’s browser is more than 45 days old. Update Muse Spark Code to use the browser check again.',
+  browserCheckRuntimeIntegrity:
+    'The browser check’s browser does not match the version this extension pins, so it was not started.',
+  browserCheckRuntimeBlocked:
+    'This computer did not allow the browser check’s browser to run (application control or code signing).',
+  browserCheckRuntimeDeclined:
+    'The browser check’s browser was not downloaded, so nothing was opened.',
+  browserCheckPreparationTimedOut:
+    'Getting the browser check’s browser ready took longer than {duration}, so it stopped.',
+  browserCheckScopeChanged:
+    'The hosts the browser check may reach changed while it was getting ready, so nothing was opened. Ask again to check with the new hosts.',
+  browserCheckNotOffered:
+    'The browser check is no longer available here (workspace trust, the permission mode, the network setting or the runtime setting changed), so nothing was opened.',
+  // Its confinement: nothing from the page is shown after any of these.
+  browserCheckLaunch: 'The browser check’s browser could not be started.',
+  browserCheckUnrecognized:
+    'The browser check stopped: the browser did not match the exact version and setup it expects.',
+  browserCheckProfile:
+    'The browser check stopped: it could not set up a fresh private browser profile.',
+  browserCheckRouteUnconfirmed:
+    'The browser check stopped: it could not confirm that the page’s traffic goes only through its own proxy.',
+  browserCheckResolverUnconfirmed:
+    'The browser check stopped: it could not confirm that the browser looks up no host names itself.',
+  browserCheckSignIn:
+    'The browser check stopped: in its own test, a sign-in challenge or credential got past its proxy.',
+  browserCheckWebrtc:
+    'The browser check stopped: it could not confirm that WebRTC stays inside its proxy.',
+  browserCheckTransport:
+    'The browser check stopped: it could not confirm that WebTransport is refused.',
+  browserCheckUnverifiable:
+    'The browser check stopped: it could not run one of its own confinement tests on this computer (for example, it found no network address to test against).',
+  browserCheckUnwatchable:
+    'The browser check stopped: the page started a frame or worker it could not watch.',
+  browserCheckAuditFailed:
+    'The browser check discarded the page’s results: its tests after the page ran did not pass.',
+  browserCheckRestartObserved:
+    'The browser check discarded the page’s results: the browser’s network service restarted during the check.',
+  // The page run.
+  browserCheckBrowserFailed: 'The browser stopped responding during the check.',
+  browserCheckPageFailed: 'The page did not load ({error}).',
+  browserCheckPageFailedUnknown: 'The page did not load.',
+  browserCheckPageBlocked:
+    'The page did not load: it went to an address beyond this computer, which the browser check blocks.',
+  browserCheckTimedOut: 'The browser check did not finish within {duration}.',
+  browserCheckNoElement: 'No element on the page matches {selector}, or it takes no text.',
+  browserCheckLeaked:
+    'The page reached, or tried to reach, beyond this computer in a way the check cannot block, so the browser check was stopped and returned nothing.',
+  browserCheckRestrictedMode:
+    'The browser check is off in Restricted Mode. Trust the workspace to use it.',
   // Observation packing (M73): a recall_output row's heading above the
   // recalled text (shown as it was), and why a recall read nothing back.
   packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
@@ -649,6 +739,17 @@ export const EN = {
   approvalUseTool: 'Muse wants to use {action}',
   /** A web fetch on the Model API backend (M69): {action} is the URL, shown as code. */
   approvalFetch: 'Muse wants to fetch {action}',
+  /**
+   * A browser check on the Model API backend (M81): {action} is the URL. The
+   * second when its host is beyond loopback and the setting: allowing it
+   * widens the check to that host.
+   */
+  approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
+  approvalBrowserCheckWiden:
+    'Muse wants to open {action} in a headless browser, beyond this computer',
+  // M81 A1: what widening a host also allows, shown under that card.
+  approvalBrowserCheckWidenResidual:
+    'Allowing also lets this check reach the host over https and WebSockets. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // {paths} is the list of images an edit starts from, shown as code.
   approvalImageSources: 'Starting from {paths}',
   // M67: a rename's card names a few of its files ({files}) and counts the rest.
@@ -1252,6 +1353,9 @@ export const EN = {
     mcp__ide__editImage: 'Edit image',
     // The extension's web fetch for Muse Code, through the ide server (M69).
     mcp__ide__webFetch: 'Fetch page',
+    // The browser check on the Model API backend and for Muse Code (M81).
+    browser_check: 'Browser check',
+    mcp__ide__browserCheck: 'Browser check',
     // Muse Code's own tools (M43): captured live 2026-09-25, the rest named
     // from the CLI's tool list (PLAN.md D36).
     read_memory: 'Read memory',

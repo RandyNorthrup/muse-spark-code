@@ -17,6 +17,15 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the browser check's pipe, run, proxy, canaries and processes (M81) are
+//   in dist/extension.js, dist/modelApi.js, dist/acp.js or
+//   dist/browserRuntime.js, or missing from their own bundle,
+//   dist/browserCheck.js, required on the first check.
+// - the browser check's runtime acquisition (M81 A1: the pin manifest, the
+//   downloader, the ZIP reader, hashing, staging and publication) is in any
+//   bundle but dist/browserRuntime.js, or missing from it (design spec v4
+//   §9.1: dist/browserCheck.js keeps its 50 KiB and never carries the
+//   extractor).
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -68,6 +77,8 @@ const LAZY_ONLY = [
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
+  // M81: what a browser check hands the model and the row.
+  'browserCalls.ts',
   // The verify loop's session side and its tool surface (M68).
   'verifyLedger.ts',
   'verifyLoop.ts',
@@ -223,6 +234,76 @@ const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
+// M81: the browser check's pipe, run, proxy, canaries and processes live in
+// their own bundle, required on the first check; activation keeps the
+// loader, the tool and the lifetime both bundles' callers share.
+const BROWSER_CHECK = { output: 'dist/browserCheck.js', metafile: 'dist/meta/browserCheck.json' }
+const BROWSER_ONLY = [
+  'src/host/browser/browserCheckEntry.ts',
+  'src/host/browser/browserProcess.ts',
+  'src/core/browser/browserRun.ts',
+  'src/core/browser/pageCheck.ts',
+  'src/core/browser/canaries.ts',
+  'src/core/browser/checkProxy.ts',
+  'src/core/browser/browserLaunch.ts',
+  'src/core/browser/requestLog.ts',
+  'src/core/browser/cdpPipe.ts',
+]
+// M81 A1: the runtime's acquisition, loaded only when a runtime is prepared
+// or verified; no other bundle carries any of it.
+const BROWSER_RUNTIME = {
+  output: 'dist/browserRuntime.js',
+  metafile: 'dist/meta/browserRuntime.json',
+}
+const RUNTIME_ONLY = [
+  'src/host/browser/browserRuntimeEntry.ts',
+  'src/host/browser/runtime/browserRuntime.json',
+  'src/host/browser/runtime/runtimeStore.ts',
+  'src/host/browser/runtime/zipExtract.ts',
+  'src/core/browser/runtime/runtimeManifest.ts',
+]
+const browserCheck = inputsOf(BROWSER_CHECK)
+const browserRuntime = inputsOf(BROWSER_RUNTIME)
+for (const file of BROWSER_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_RUNTIME.output, browserRuntime],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser check bundle`)
+    }
+  }
+  if (!browserCheck.has(file)) {
+    problems.push(`${BROWSER_CHECK.output} no longer carries ${file}`)
+  }
+}
+for (const file of RUNTIME_ONLY) {
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [BROWSER_CHECK.output, browserCheck],
+    [CHECKPOINT_STORE.output, inputsOf(CHECKPOINT_STORE)],
+  ]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the browser runtime bundle`)
+    }
+  }
+  if (!browserRuntime.has(file)) {
+    problems.push(`${BROWSER_RUNTIME.output} no longer carries ${file}`)
+  }
+}
+// M81 A1: the browser check and its runtime store return a closed failure
+// union and show no text of their own, so neither loads the English table;
+// neither may carry a copy of it either.
+for (const [output, inputs] of [
+  [BROWSER_RUNTIME.output, browserRuntime],
+  [BROWSER_CHECK.output, browserCheck],
+]) {
+  if (inputs.has(ENGLISH_TABLE)) {
+    problems.push(`${output} duplicates ${ENGLISH_TABLE}`)
+  }
+}
 for (const bundle of [
   BUNDLES.activation,
   BUNDLES.modelApi,
@@ -332,6 +413,12 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${BROWSER_CHECK.output}: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool`,
+)
+console.log(
+  `ok   ${BROWSER_RUNTIME.output}: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does`,
 )
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,

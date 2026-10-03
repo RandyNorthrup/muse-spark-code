@@ -41,6 +41,11 @@
 // a PermissionRequest hook may deny it or ask, but its "allow" does not
 // replace the card (ModelApiHost.askApproval). Plan refuses it: its rules allow reads of the workspace, not of the
 // network. Restricted Mode refuses it before the engine is asked.
+//
+// A browser check (M81, PLAN.md D49) is judged the same way, per host. A
+// host beyond loopback and the user's setting is reached only once the user
+// allowed it on a card: that call's, or an "always" chosen on one in this
+// session; Bypass alone does not widen it (ModelApiHost asks the card).
 
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
@@ -202,6 +207,15 @@ export class PermissionEngine {
    */
   public allowForSession(toolName: string, command?: string): void {
     this.allowed.add(ruleKey(toolName, command))
+  }
+
+  /**
+   * Whether the user chose "always allow" for this call on a card in this
+   * session, whatever the mode says: what widens a browser check beyond
+   * loopback when no card is shown (M81), since Bypass alone never does.
+   */
+  public isAllowedForSession(query: PermissionQuery): boolean {
+    return this.allowed.has(ruleKey(query.toolName, query.command))
   }
 
   public verdict(query: PermissionQuery): PermissionVerdict {

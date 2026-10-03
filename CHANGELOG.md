@@ -9,6 +9,154 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Browser check** (M81, PLAN.md D49). After a web change the model can
+  open a page of your local dev server in a headless browser, optionally
+  click and type through up to eight steps, and read back the console
+  errors and the failed requests; on the Model API backend it also sees a
+  screenshot (`browser_check`). Muse Code gets the same check as text
+  through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call.
+  - **The browser** is Google's Chrome for Testing headless shell, one
+    version pinned by each release (154.0.8037.92, r1689415), for Windows
+    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
+    before downloading it (about 100 to 120 MB from
+    `storage.googleapis.com`) into the extension's storage; the new
+    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
+    `off`) can download it without asking or turn the check off. The
+    archive and the browser are checked against the pin's lengths and
+    SHA-256 by a bounded ZIP reader before anything runs, and the browser
+    again before each check; getting it ready has its own 15 minutes, the
+    check its 60 seconds after. A pin serves for 45 days after Google
+    published it; then the check refuses until an update pins a newer one,
+    and the release and a weekly job fail when the pin is past that, or
+    more than 14 days behind the newest Stable. A **Download Browser Check
+    Runtime** command is contributed for getting it ahead of a check.
+  - **Where a page may go.** All its traffic goes to the check's own proxy
+    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
+    the page's private context: plain `http` to this computer and to the
+    hosts you widened, with sign-in challenges and credentials taken out;
+    `https` and WebSockets only to a widened host, passed encrypted and
+    unread (a site there may sign in with this computer's account, which
+    the card and the setting now say). The browser looks up no names
+    itself. The check's own tests run before, between and after the page
+    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
+    and a network-service restart), and any that fails returns nothing from
+    the page. Over the debugging pipe, never a network port, in a fresh
+    private profile deleted afterwards. Only you widen it, in the
+    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+    dialog for one check; never the model. Every failure is one of a fixed
+    set of reasons, in your language.
+- The browser check ships as two bundles of its own: `dist/browserCheck.js`
+  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
+  loaded on the first check, and `dist/browserRuntime.js` (getting and
+  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
+  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
+  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
+- **Session export, import and share** (M84, PLAN.md D49): **Export
+  session as JSON…** writes a portable file on either backend. Credentials
+  of a known shape and the key digest are always scrubbed, from every
+  string including item ids and error labels (a secret in any other shape
+  is not recognised); paths (your own folders included, spaces and all,
+  and any other absolute path in any script) and account ids are redacted
+  by default, and the redacted file opens read-only in the editor before
+  anything is written. The scrub runs in slices of about 64 KiB, a long
+  message cut only between lines no credential runs across, and the window
+  keeps working between them; a single line longer than a slice is still
+  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
+  Session** resumes such a file as a new conversation on the Model API
+  backend, on your own model, in Manual (or Plan when that is the initial
+  mode) every time it is opened, forked or restored, with no session rules,
+  goals, schedules, todos or patches; the model reads each imported turn as
+  untrusted data, a plan written in such a conversation is implemented in
+  Manual (or Plan) as a plan file is, and its code blocks offer Copy only
+  (no Insert or Apply). A file whose turns are more text than a
+  conversation can start with (786.4 kB, counted as one token a byte) is
+  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
+  marked imported before it advertises a mode or replays history. **Muse
+  Spark: Open Share File** reads such a file read-only in the panel (Copy
+  and links only), 200 items at a time with Show more; an item that cannot
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
+  through one bounded descriptor of a local file (other file providers are
+  refused), the format and its version, and no unknown field; a refusal
+  never quotes the file. Nothing is uploaded: sharing is a file on your
+  disk.
+- **Observation packing, off by default** (M73, PLAN.md D49;
+  `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
+  API backend, a tool output over 8,000 characters rides whole for two
+  requests, then as a short placeholder (its id, size, and first and last
+  lines) that stays the same on every later request, so the prompt cache
+  breaks once per output; `recall_output(id, offset)` pages the original
+  back, and the conversation itself always keeps the whole output.
+  Account & usage shows the estimated tokens saved. A conversation reads
+  the setting when it starts or is reopened. The evaluation gains the
+  `packing` arm and two long-output tasks (twelve tasks: seven accept,
+  five held-out), and a packing run passes only if it packed on each
+  long-output task. Its M75 run passed before the setting was added: both
+  arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+  engaged on both long-output tasks (39% fewer input tokens there, about
+  the same cost), 111 model calls for $0.0156 in all
+  (`docs/certification/m73-run.md`). The Evidence-Preserving Reducer is
+  not built (PLAN.md §3).
+  - **A recalled page is untrusted tool data.** Each page names the tool
+    that returned it and comes with the untrusted-data notice, between
+    fresh random markers around the unchanged slice, so a page from the
+    middle of a fetched web page keeps its boundary.
+  - **The savings ledger survives a resume.** A saved conversation keeps
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
+  - **The recall row speaks the display language.** Its heading and its
+    refusals are in the installed language, with counts in its number
+    format; the recalled text is shown as it was, and the model's text
+    stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
+  - **The live report records the packing acceptance.** The report says
+    whether packing engaged on each long-output task, and a run that holds
+    the floors without packing is recorded as failed in both its JSON and
+    its Markdown.
+- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
+  optionally with a goal after it, asks the model — as your own turn in the
+  current conversation — for a distilled brief: the goal, the decisions,
+  the files touched, the open work and the todo list. Anything drawn from
+  tool output, fetched pages or imported files is marked `[untrusted]` in
+  the brief, and the new conversation is told what that means. The brief
+  opens in a dialog before anything starts, with the open items the new
+  todo list will hold: review it, edit it, then start the new
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again, and a brief that is ready while Account & usage, the Agent map or a share file
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
   model runs one through `subagent_spawn` with `agent` set to its id, and the
@@ -52,110 +200,9 @@ happened, not what was planned; superseded entries are kept.
   the others still load, and an agent it, or a file in it that was skipped,
   might define is refused by name rather than replaced by a broader personal
   or built-in agent of the same id.
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
-  commands become skills, compatible agents become M76 agent files, project
-  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
-  editor edits for review and save. Import preserves source exposure:
-  personal stays personal and git-ignored files never enter tracked targets;
-  target exposure and path guards are checked again at publication/edit.
-  Values stay unchanged; no credential detector or clipboard operation.
-  Preview/picker output shows names, scopes and targets only, logs counts
-  and fixed reasons only. Only active MCP transport fields are copied;
-  inactive/unknown fields are dropped by name. Existing files and running
-  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
-  1.8.0 in the existing lazy importer bundle. Lead certification pending.
-- **Session export, import and share** (M84, PLAN.md D49): **Export
-  session as JSON…** writes a portable file on either backend. Credentials
-  of a known shape and the key digest are always scrubbed, from every
-  string including item ids and error labels (a secret in any other shape
-  is not recognised); paths (your own folders included, spaces and all,
-  and any other absolute path in any script) and account ids are redacted
-  by default, and the redacted file opens read-only in the editor before
-  anything is written. The scrub runs in slices of about 64 KiB, a long
-  message cut only between lines no credential runs across, and the window
-  keeps working between them; a single line longer than a slice is still
-  scrubbed in one go (about half a second for 16 MiB). **Muse Spark: Import
-  Session** resumes such a file as a new conversation on the Model API
-  backend, on your own model, in Manual (or Plan when that is the initial
-  mode) every time it is opened, forked or restored, with no session rules,
-  goals, schedules, todos or patches; the model reads each imported turn as
-  untrusted data, a plan written in such a conversation is implemented in
-  Manual (or Plan) as a plan file is, and its code blocks offer Copy only
-  (no Insert or Apply). A file whose turns are more text than a
-  conversation can start with (786.4 kB, counted as one token a byte) is
-  refused before the import is confirmed, naming both sizes. The ACP agent applies the same start to a stored session
-  marked imported before it advertises a mode or replays history. **Muse
-  Spark: Open Share File** reads such a file read-only in the panel (Copy
-  and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
-  through one bounded descriptor of a local file (other file providers are
-  refused), the format and its version, and no unknown field; a refusal
-  never quotes the file. Nothing is uploaded: sharing is a file on your
-  disk.
-- **Observation packing, off by default** (M73, PLAN.md D49;
-  `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
-  API backend, a tool output over 8,000 characters rides whole for two
-  requests, then as a short placeholder (its id, size, and first and last
-  lines) that stays the same on every later request, so the prompt cache
-  breaks once per output; `recall_output(id, offset)` pages the original
-  back, and the conversation itself always keeps the whole output.
-  Account & usage shows the estimated tokens saved. A conversation reads
-  the setting when it starts or is reopened. The evaluation gains the
-  `packing` arm and two long-output tasks (twelve tasks: seven accept,
-  five held-out), and a packing run passes only if it packed on each
-  long-output task. Its M75 run passed before the setting was added: both
-  arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
-  engaged on both long-output tasks (39% fewer input tokens there, about
-  the same cost), 111 model calls for $0.0156 in all
-  (`docs/certification/m73-run.md`). The Evidence-Preserving Reducer is
-  not built (PLAN.md §3).
-  - **A recalled page is untrusted tool data.** Each page names the tool
-    that returned it and comes with the untrusted-data notice, between
-    fresh random markers around the unchanged slice, so a page from the
-    middle of a fetched web page keeps its boundary.
-  - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
-  - **The recall row speaks the display language.** Its heading and its
-    refusals are in the installed language, with counts in its number
-    format; the recalled text is shown as it was, and the model's text
-    stays English.
-  - **The live report records the packing acceptance.** The report says
-    whether packing engaged on each long-output task, and a run that holds
-    the floors without packing is recorded as failed in both its JSON and
-    its Markdown.
-- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
-  optionally with a goal after it, asks the model — as your own turn in the
-  current conversation — for a distilled brief: the goal, the decisions,
-  the files touched, the open work and the todo list. Anything drawn from
-  tool output, fetched pages or imported files is marked `[untrusted]` in
-  the brief, and the new conversation is told what that means. The brief
-  opens in a dialog before anything starts, with the open items the new
-  todo list will hold: review it, edit it, then start the new
-  conversation, or cancel and nothing starts; a reloaded panel shows it
-  again, and a brief that is ready while Account & usage, the Agent map or a share file
-  is open waits until you close it. Starting leaves the old conversation
-  in History and seeds the new one through the plan brief path, with the
-  open items (never completed or dropped ones) as its todo list before
-  the first request. The model wrote the brief, so the new conversation
-  starts in your starting mode only when the dialog showed all of it: a
-  brief or an item holding a character the dialog does not show (a
-  direction override, a zero-width character) starts in a mode that asks,
-  and the panel says so. A handoff from Plan mode stays in Plan. Model API
-  backend only (on Muse Code the command says it is unavailable there).
-  Side chats are refused; one handoff runs at a time; a `/handoff` while a
-  reply runs is refused ("Wait for the reply to finish, or stop it,
-  first."), nothing queued; an oversized (over 256 KB) or empty brief is
-  refused with the reason; a refused `/handoff` stays in the prompt with
-  its goal. While a new API key is being activated, a Start is refused
-  before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
-  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Changed
 
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
 - README: an install guide for the most used editors (VS Code, Cursor,
   Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
   Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
@@ -175,6 +222,8 @@ happened, not what was planned; superseded entries are kept.
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
@@ -225,21 +274,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **A spawn that starts no child asks nothing** (Model API backend). One past
-  the 64 children of a conversation, one asking for worktree isolation, or
-  one reusing an earlier spawn's command id for a different task is refused
-  before the paid-use popup or the contributor question; a retry of the
-  same spawn under its command id answers with that child without asking
-  again. Each used to ask first.
-- When your PreToolUse hook rewrites a `then_run` command into one that
-  names no command, the line under the edit says so in your display
-  language; it was English. The model is still told in English.
-- A skill folder that cannot be read no longer hides the other folder's
-  skills (Model API backend): each loads on its own, and the log names the
-  one that failed.
-- Project context files are read through the canonical path confinement.
-  Replacing an agent/skill/rules alias with an outside link between check and
-  read no longer redirects the read outside the workspace.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
   API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
@@ -260,11 +300,6 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
-- Web fetch decodes a windows-1252 page by the Encoding standard's table on
-  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
-  so the euro sign, curly quotes and dashes of a page in that encoding (and of
-  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
-  windows-1252) came out as invisible control characters there.
 - **A `/goal` refused while a Model API key is activated no longer
   sticks.** While a key was being activated, with the panel still reading
   signed in, a `/goal …` from the prompt or a goal edit was refused with
@@ -283,7 +318,21 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
-- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
 - **Approval decisions and recovery (PR #90, D26):** simultaneous panels
   share one decision's eventual result, so a confirmed refusal unlocks
   both. Stop waits for an in-flight decision and rejects the next waiting
