@@ -32,7 +32,7 @@
   <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb" text-anchor="middle">
     <text x="384" y="272" font-size="86" font-weight="700" letter-spacing="-1" text-anchor="start">Muse Spark Code</text>
     <rect x="490" y="300" width="300" height="3" rx="1.5" fill="url(#rule)"/>
-    <text x="640" y="356" font-size="32" fill="#c3cbdc">Meta’s Muse Spark as a coding agent in VS Code and other editors</text>
+    <text x="640" y="356" font-size="32" fill="#c3cbdc">Meta’s Muse Spark as a coding agent in your editor</text>
     <g font-size="20" font-weight="600" fill="#9fb7ff">
       <rect x="252" y="402" width="176" height="44" rx="22" fill="#1c2540" stroke="#33427a"/>
       <text x="340" y="431">Muse Code CLI</text>
@@ -44,6 +44,6 @@
       <text x="909" y="431">Windows · macOS · Linux</text>
     </g>
     <text x="640" y="500" font-size="19" fill="#7c879d">Streaming chat · tool calls with diffs · permission modes · session history · no telemetry</text>
-    <text x="640" y="570" font-size="18" fill="#5f6a80">VS Code Marketplace · RandyNorthrup.muse-spark-code · unofficial, not affiliated with Meta · MIT</text>
+    <text x="640" y="570" font-size="18" fill="#5f6a80">Unofficial · not affiliated with Meta · MIT</text>
   </g>
 </svg>
