@@ -131,33 +131,69 @@ rig, the file was restored from HEAD, and the tree was checked clean
 Drill 7 was run again with a narrower match, after its first text matched
 twice.
 
-| #   | Guard broken                                                           | File                                                    | Exit | Tests                                    |
-| --- | ---------------------------------------------------------------------- | ------------------------------------------------------- | ---- | ---------------------------------------- |
-| 1   | host: a second decision for a decided stage is not sent                | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 4 failed, 70 passed (74)                 |
-| 2   | host: no decision for a stage the approval has left                    | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                 |
-| 3   | host: a stale refusal moves the card to the stage it names             | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 2 failed, 72 passed (74)                 |
-| 4   | ledger: the moved card takes its stage's own rule label                | `core/backends/musecode/promptLedger.ts`                | 1    | 2 failed, 7 passed (9)                   |
-| 5   | host: the replay fault on turn/start is named                          | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 2 failed, 418 passed (420)               |
-| 6   | host: the ledger fault is named and keeps its stage decided            | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                 |
-| 7   | host: a decision without an answer is never offered again              | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                 |
-| 8   | host: a failed listPending check keeps the stage decided               | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 345 passed (346)               |
-| 9   | host: a Stop rejects a part-decided approval first                     | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 3 failed, 71 passed (74)                 |
-| 10  | host: a Stop goes on when its reject fails                             | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                 |
-| 11  | controller: a Muse Code fault is said once per conversation            | `host/conversation/conversationController.ts`           | 1    | 2 failed, 344 passed (346)               |
-| 12  | controller: the card reopens only when the decision did not apply      | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 13  | controller: the ledger fault is said as Muse Code's, without reopening | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 14  | controller: the replay fault on a message gets its notice and way on   | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 15  | controller: a read in flight is joined                                 | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 16  | controller: a failed read is said once until one succeeds              | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 17  | controller: a stale refusal is said on the card                        | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)               |
-| 18  | card: one decision per click burst (the ref)                           | `webview/components/ApprovalCard.tsx`                   | 1    | 2 failed, 122 passed (124)               |
-| 19  | webview: the same request announced again keeps the lock               | `webview/state/uiState.ts`                              | 1    | 2 failed, 241 passed (243)               |
-| 20  | webview: a moved-on step is marked on its card                         | `webview/state/uiState.ts`                              | 1    | 1 failed, 115 passed (116)               |
-| 21  | row: the patch is read once the edit has finished                      | `webview/components/ToolRow.tsx`                        | 1    | 1 failed, 37 passed (38)                 |
-| 22  | row: a page that never came is asked again on re-expand                | `webview/components/ToolRow.tsx`                        | 1    | 1 failed, 37 passed (38)                 |
-| 23  | transcript: a fault notice offers its way on                           | `webview/components/Transcript.tsx`                     | 1    | 1 failed, 37 passed (38)                 |
-| 24  | webview: an update of the decided step keeps its buttons disabled      | `webview/state/uiState.ts`                              | 1    | 3 failed, 240 passed (243)               |
-| 25  | lint: `instanceof MuseCodeFaultError` in src is refused                | `eslint.config.mjs` (a line added to `MuseCodeHost.ts`) | 1    | `no-restricted-syntax` at the added line |
+| #   | Guard broken                                                           | File                                                    | Exit | Tests                                              |
+| --- | ---------------------------------------------------------------------- | ------------------------------------------------------- | ---- | -------------------------------------------------- |
+| 1   | host: a second decision for a decided stage is not sent                | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 4 failed, 70 passed (74)                           |
+| 2   | host: no decision for a stage the approval has left                    | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                           |
+| 3   | host: a stale refusal moves the card to the stage it names             | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 2 failed, 72 passed (74)                           |
+| 4   | ledger: the moved card takes its stage's own rule label                | `core/backends/musecode/promptLedger.ts`                | 1    | 2 failed, 7 passed (9)                             |
+| 5   | host: the replay fault on turn/start is named                          | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 2 failed, 418 passed (420)                         |
+| 6   | host: the ledger fault is named and keeps its stage decided            | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                           |
+| 7   | host: a decision without an answer is never offered again              | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                           |
+| 8   | host: a failed listPending check keeps the stage decided               | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 345 passed (346)                         |
+| 9   | host: a Stop rejects a part-decided approval first                     | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 3 failed, 71 passed (74)                           |
+| 10  | host: a Stop goes on when its reject fails                             | `core/backends/musecode/MuseCodeHost.ts`                | 1    | 1 failed, 73 passed (74)                           |
+| 11  | controller: a Muse Code fault is said once per conversation            | `host/conversation/conversationController.ts`           | 1    | 2 failed, 344 passed (346)                         |
+| 12  | controller: the card reopens only when the decision did not apply      | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 13  | controller: the ledger fault is said as Muse Code's, without reopening | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 14  | controller: the replay fault on a message gets its notice and way on   | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 15  | controller: a read in flight is joined                                 | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 16  | controller: a failed read is said once until one succeeds              | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 17  | controller: a stale refusal is said on the card                        | `host/conversation/conversationController.ts`           | 1    | 1 failed, 345 passed (346)                         |
+| 18  | card: one decision per click burst (the ref)                           | `webview/components/ApprovalCard.tsx`                   | 1    | 2 failed, 122 passed (124)                         |
+| 19  | webview: the same request announced again keeps the lock               | `webview/state/uiState.ts`                              | 1    | 2 failed, 241 passed (243)                         |
+| 20  | webview: a moved-on step is marked on its card                         | `webview/state/uiState.ts`                              | 1    | 1 failed, 115 passed (116)                         |
+| 21  | row: the patch is read once the edit has finished                      | `webview/components/ToolRow.tsx`                        | 1    | 1 failed, 37 passed (38)                           |
+| 22  | row: a page that never came is asked again on re-expand                | `webview/components/ToolRow.tsx`                        | 1    | 1 failed, 37 passed (38)                           |
+| 23  | transcript: a fault notice offers its way on                           | `webview/components/Transcript.tsx`                     | 1    | 1 failed, 37 passed (38)                           |
+| 24  | webview: an update of the decided step keeps its buttons disabled      | `webview/state/uiState.ts`                              | 1    | 3 failed, 240 passed (243)                         |
+| 25  | lint: `instanceof MuseCodeFaultError` in src is refused                | `eslint.config.mjs` (a line added to `MuseCodeHost.ts`) | 1    | `no-restricted-syntax` at the added line           |
+| 26  | dock: the oldest waiting approval comes first                          | `webview/state/uiState.ts`                              | 1    | 1 failed, 127 passed (128)                         |
+| 27  | dock: an arriving card takes focus                                     | `webview/components/ApprovalDock.tsx`                   | 1    | 3 failed, 122 passed (125)                         |
+| 28  | dock: typing keeps focus                                               | `webview/components/ApprovalDock.tsx`                   | 1    | 1 failed, 124 passed (125)                         |
+| 29  | dock: no focus behind a modal                                          | `webview/components/ApprovalDock.tsx`                   | 1    | 1 failed, 124 passed (125)                         |
+| 30  | row: the waiting row keeps its compact record                          | `webview/components/ToolRow.tsx`                        | 1    | 2 failed, 153 passed (155)                         |
+| 31  | a11y: the dock's count at a low contrast (`#d8d8d8`)                   | `webview/styles.css`                                    | 1    | `color-contrast` on 2 elements, `approval-several` |
+
+## Docked approvals (the owner's request, 2026-10-03)
+
+A waiting approval's card is docked between the panels and the composer
+(`ApprovalDock`), outside the scrolled transcript, and before the composer
+in Tab order. The tool's row says "Waiting for your approval, in the card
+above the message box", and shows the decision once settled.
+
+- **Several waiting.** The oldest is docked, with "Approvals waiting: N".
+  That is the order Muse asked, and the composer stays on screen at 320 px.
+- **Focus.** An arriving card takes focus on the card itself (`tabIndex=-1`
+  on its group). It does not while the user types (a field holding text,
+  or a key within 1.5 s) or behind a modal. The reducer's announcement in
+  the live region covers those cases.
+- **Size.** The dock scrolls on its own at 45% of the panel's height, and
+  a long command wraps.
+- **The lock.** The single-decision lock above is the card's own, so it
+  holds in the dock.
+
+Tests: `ApprovalDock.test.tsx` (new), App, Transcript, uiState and cards;
+299 passed on the rig. The axe gate ran the scenarios `approval`,
+`approval-several`, `approval-narrow` (320 px), `approval-moved`,
+`approval-tool`, `cancelled` and `question` in the four themes: 28 pages,
+0 violations. Screenshots (harness renders):
+
+- `approval-dock-several.png`: three waiting, the oldest docked.
+- `approval-dock-narrow.png`: the same at 320 px.
+- `approval-dock-moved.png`: a step that moved on, said on the card.
+
+The README's `media/readme/approval.png` is the docked card.
 
 ## Upstream
 

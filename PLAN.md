@@ -1190,6 +1190,18 @@ Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
   owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
   The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s
   leaves six times the slowest observed.
+- **The dock (the owner's request, 2026-10-03).** A waiting approval's card
+  is docked above the composer (`ApprovalDock`), outside the scrolled
+  transcript. Its row keeps a compact record, then the decision.
+  - **Several waiting.** The oldest is docked, in the order its row stands,
+    which is the order Muse asked, with "Approvals waiting: N". Stacking all
+    of them would push the composer off a 320 px panel, and Muse Code takes
+    them in order anyway.
+  - **Focus.** An arriving card takes focus, on the card itself, not on a
+    choice a stray Enter would make. It does not when the user is typing (a
+    field holding text, or a key within `DOCK_TYPING_GRACE_MS`) or a modal
+    is open; the reducer's live-region announcement covers those cases.
+  - The single-decision lock is the card's, so it holds in the dock.
 
 ### D27 — The audit: editing correctness (2026-09-23)
 
