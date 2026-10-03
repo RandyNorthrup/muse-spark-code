@@ -80,7 +80,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
-import { isGitExitError, type GitProcess } from '../git'
+import type { GitProcess } from '../git'
 import type { Logger } from '../logger'
 import {
   type ArchiveFile,
@@ -995,13 +995,35 @@ export class CheckpointStore {
     return await keepTree(setup.shadow, JSON.stringify(lease), [])
   }
 
+  /** Restore and cleanup are serial here; only an abandoned lease may be replaced. */
+  private async acquireRestoreLease(setup: Opened): Promise<string | undefined> {
+    const { shadow } = setup
+    const keep = await this.reservationTree(setup)
+    if (await didWriteRef(shadow, RESTORE_REF, keep, undefined)) {
+      return keep
+    }
+    const previous = await refValue(shadow, RESTORE_REF)
+    if (previous === undefined) {
+      return undefined
+    }
+    const held = parseRecord(await shadow.text(['cat-file', 'blob', `${previous}:record.json`]))
+    const owner = held?.kind === 'restore' ? held.owner : undefined
+    const live = await this.presence.liveWindows()
+    // A failed release is abandoned in this serial instance. Other owners
+    // remain protected until presence proves they are gone, including uncertainty.
+    if (owner === undefined || (owner !== this.ownInstance && live.has(owner))) {
+      return undefined
+    }
+    return (await didWriteRef(shadow, RESTORE_REF, keep, previous)) ? keep : undefined
+  }
+
   /** Cleanup and restore share one CAS lease; a precheck alone cannot protect source copies. */
   private async withCleanup(setup: Setup, task: () => Promise<void>): Promise<void> {
-    if (this.isLegacyLive(setup) || (await this.isRestoreActive(setup))) {
+    if (this.isLegacyLive(setup)) {
       return
     }
-    const keep = await this.reservationTree(setup)
-    if (!(await didWriteRef(setup.shadow, RESTORE_REF, keep, undefined))) {
+    const keep = await this.acquireRestoreLease(setup)
+    if (keep === undefined) {
       return
     }
     try {
@@ -1063,17 +1085,6 @@ export class CheckpointStore {
     })
   }
 
-  /** Old source objects stay referenced while a live restore reads and writes files. */
-  private async isRestoreActive(setup: Opened): Promise<boolean> {
-    const keep = await refValue(setup.shadow, RESTORE_REF)
-    if (keep === undefined) {
-      return false
-    }
-    const lease = parseRecord(await setup.shadow.text(['cat-file', 'blob', `${keep}:record.json`]))
-    const live = await this.presence.liveWindows()
-    return lease?.kind !== 'restore' || lease.owner === undefined || live.has(lease.owner)
-  }
-
   /** Deletes every copy no ref names, sparing those younger than the grace period. */
   private async prune(shadow: ShadowGit): Promise<void> {
     const live = await this.presence.liveWindows()
@@ -1097,8 +1108,9 @@ export class CheckpointStore {
       if (deleted.length > 0) {
         this.isPruneDue = true
         await this.dropGoneJournals(setup.shadow)
-        await this.dropRetiredBlobs(setup.shadow)
       }
+      // A peer may have deferred the previous sweep; retry even with no new retirement.
+      await this.dropRetiredBlobs(setup.shadow)
       const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
       if (isIntervalOver && this.isPruneDue) {
         await this.prune(setup.shadow)
@@ -1801,31 +1813,7 @@ export class CheckpointStore {
     task: (fresh: Setup) => Promise<RestoreOutcome>,
   ): Promise<RestoreOutcome> {
     const { shadow } = setup
-    const acquire = async () => {
-      const keep = await this.reservationTree(setup)
-      return (await didWriteRef(shadow, RESTORE_REF, keep, undefined)) ? keep : undefined
-    }
-    let keep = await acquire()
-    if (keep === undefined) {
-      const previous = await refValue(shadow, RESTORE_REF)
-      if (previous !== undefined) {
-        const held = parseRecord(await shadow.text(['cat-file', 'blob', `${previous}:record.json`]))
-        const owner = held?.kind === 'restore' ? held.owner : undefined
-        const live = await this.presence.liveWindows()
-        // Its own lease while no restore runs here (they are serial) is a leftover
-        // of a release that failed; a gone window's lease is taken over as well.
-        if (owner !== undefined && (owner === this.ownInstance || !live.has(owner))) {
-          try {
-            await shadow.run(['update-ref', '-d', RESTORE_REF, previous])
-          } catch (error: unknown) {
-            if (!isGitExitError(error)) {
-              throw error
-            }
-          }
-          keep = await acquire()
-        }
-      }
-    }
+    const keep = await this.acquireRestoreLease(setup)
     if (keep === undefined) {
       return { ok: false, reason: 'turnElsewhere' }
     }
@@ -1846,7 +1834,7 @@ export class CheckpointStore {
    * restored, so a failure here (a ref lock held for a moment) must not replace
    * the restore's outcome with a failure and hide its Redo: it is tried once
    * more, then logged. A lease this window still holds is taken over by its next
-   * restore (see `withRestore`).
+   * restore or cleanup (see `acquireRestoreLease`).
    */
   private async releaseRestoreLease(shadow: ShadowGit, keep: string): Promise<void> {
     const release = () =>

@@ -8,7 +8,7 @@
 // terminal would give (D24).
 
 import { spawn } from 'node:child_process'
-import { existsSync, type Stats } from 'node:fs'
+import { existsSync, type BigIntStats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
@@ -385,8 +385,8 @@ async function checkedOpenedFile(
   file: FileHandle,
   expectedCanonicalPath: string | undefined,
   platform: NodeJS.Platform,
-): Promise<{ readonly dev: number; readonly ino: number }> {
-  const held = await file.stat()
+): Promise<{ readonly dev: bigint; readonly ino: bigint }> {
+  const held = await file.stat({ bigint: true })
   // Node exposes inode identity, not a final path by handle. This catches
   // observed swaps; rapid adversarial ABA swaps remain outside the guarantee.
   if (expectedCanonicalPath === undefined) {
@@ -394,7 +394,7 @@ async function checkedOpenedFile(
   }
   for (let sample = 0; sample < 2; sample += 1) {
     await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, platform)
-    const current = await stat(absolutePath)
+    const current = await stat(absolutePath, { bigint: true })
     if (held.dev !== current.dev || held.ino !== current.ino) {
       throw new Error(MODEL_TEXT.pathChangedAfterApproval)
     }
@@ -599,9 +599,9 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       // `wx`: created here or refused, never an existing file replaced (M34).
       deps.assertWorkspaceCurrent?.()
       const handle = await open(absolutePath, 'wx')
-      let identity: { readonly dev: number; readonly ino: number }
+      let identity: { readonly dev: bigint; readonly ino: bigint }
       try {
-        identity = await handle.stat()
+        identity = await handle.stat({ bigint: true })
       } catch (error: unknown) {
         await handle.close()
         throw error
@@ -619,9 +619,9 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       // the user wrote into it meanwhile are theirs and stay.
       const isReserved = async (): Promise<boolean> => {
         await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
-        let current: Stats
+        let current: BigIntStats
         try {
-          current = await lstat(absolutePath)
+          current = await lstat(absolutePath, { bigint: true })
         } catch (error: unknown) {
           if (isMissingFile(error)) {
             return false
@@ -632,7 +632,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           current.isFile() &&
           current.dev === identity.dev &&
           current.ino === identity.ino &&
-          current.size === 0
+          Number(current.size) === 0
         )
       }
       const release = async (): Promise<ReservationStep> => {
@@ -659,8 +659,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           // Immediately before writing: the held file is still empty and the
           // path still names it. A failure part way is left as it is, never
           // cleaned up blindly: a release removes the file only while empty.
-          const held = await handle.stat()
-          if (held.size > 0 || !(await isReserved())) {
+          const held = await handle.stat({ bigint: true })
+          if (Number(held.size) > 0 || !(await isReserved())) {
             await close()
             return 'changed'
           }

@@ -9681,6 +9681,15 @@ to the release candidate is described below.
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **FIX86 confirmation review (2026-10-02).** F01: share exact-value
+  restore/cleanup lease takeover, recovering only gone owners or this serial
+  instance's abandoned lease; preserve live and uncertain owners. F02: use
+  exact BigInt device/inode samples for image reservations and opened-file
+  checks. F03: retry retired-copy cleanup on each bounded retention pass,
+  even without a newly retired unit. Regressions and byte-exact guard drills
+  run on Kubuntu, with the image identity tests also on Windows 11; receipts
+  belong in [m86.md](docs/certification/m86.md). The lane brief reserves full
+  quality and installed-editor certification for the lead.
 - **Status.** Implemented; M86P final merged-tree full suites passed on all
   three rigs, and Kubuntu coverage, static/build and accessibility gates passed.
   F07 closed by the lead's 2026-10-02 metadata lifetime decision. The lead's

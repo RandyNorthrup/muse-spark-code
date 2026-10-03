@@ -92,6 +92,44 @@ describe('droppedRecords (M72, M86)', () => {
 
 describe('retention over real units (M86)', () => {
   it(
+    'retries retired blob cleanup when a peer ends without another retirement',
+    async () => {
+      const h = await harness()
+      await write(h.root, 'private.txt', 'private before')
+      await turn(h, 't1', (tool) => tool('private.txt', 'private after'))
+      const retiredWrite = storedUnit(h.storage, 't1').writes[0]
+      const peer = h.reopen()
+      await peer.markTurn('peer-running', true)
+      const peerOwner = owner(peer, 'peer-turn', 's2')
+      await peer.startUnit(peerOwner)
+      for (const turnId of ['t2', 't3', 't4']) {
+        await turn(h, turnId)
+      }
+      const retiredRef = unitRef('s1', 1)
+      expect(
+        parseUnit(shadowGit(h.storage, ['cat-file', '-p', `${retiredRef}:record.json`])),
+      ).toMatchObject({
+        isRetired: true,
+        writes: [],
+      })
+      const blobs = [retiredWrite?.before.oid, retiredWrite?.after.oid]
+      for (const oid of blobs) {
+        expect(oid).toBeDefined()
+        expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${oid ?? ''}`)).toBe(true)
+      }
+      const before = storedUnits(h.storage).map((unit) => unit.owner.unitId)
+      await peer.markTurn('peer-running', false)
+      await peer.endUnit(peerOwner, { ranProcesses: false })
+      expect(storedUnits(h.storage).map((unit) => unit.owner.unitId)).toEqual(before)
+      for (const oid of blobs) {
+        expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${oid ?? ''}`)).toBe(false)
+      }
+      expect(await read(h.root, 'private.txt')).toBe('private after')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
     'retains identity metadata without file content or paths beyond canonical keys',
     async () => {
       const h = await harness()

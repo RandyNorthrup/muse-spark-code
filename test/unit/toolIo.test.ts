@@ -1,8 +1,9 @@
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   MODEL_TEXT,
   HOOK_STDIN_MAX_BYTES,
@@ -31,6 +32,11 @@ import { posixQuoted } from '../../src/core/shellQuote'
 import type { RunProgram } from '../../src/host/processTree'
 import { removeFolder } from './helpers/temporaryFolders'
 import { readJobSource } from './helpers/jobSource'
+
+// Keep native I/O, with replaceable identity samples for deterministic ID collisions.
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof fs>()),
+}))
 
 const INSTALLED_SHELLS: ReadonlySet<string> = new Set([
   '/usr/bin/bash',
@@ -470,6 +476,77 @@ describe('createToolIo (real file system and shell)', () => {
     expect(await reserved.release()).toBe('changed')
     expect(await readFile(file, 'utf8')).toBe('user bytes')
   })
+
+  it.each([
+    ['fill', 'ino'],
+    ['fill', 'dev'],
+    ['unchecked fill', 'ino'],
+    ['unchecked fill', 'dev'],
+    ['release', 'ino'],
+    ['release', 'dev'],
+  ] as const)(
+    'refuses image %s for distinct native %s IDs that round to the same Number',
+    async (operation, field) => {
+      const otherField = field === 'ino' ? 'dev' : 'ino'
+      const target = path.join(root, `rounded-image-${operation}-${field}.png`)
+      const moved = `${target}-moved`
+      const reservedId = 9_007_199_254_740_992n
+      const replacementId = reservedId + 1n
+      expect(Number(reservedId)).toBe(Number(replacementId))
+      let isSwapped = false
+      const realOpen = fs.open
+      const realStat = fs.stat
+      const realLstat = fs.lstat
+      try {
+        vi.spyOn(fs, 'open').mockImplementation(async (...args) => {
+          const handle = await realOpen(...args)
+          if (args[0] === target) {
+            const sample = handle.stat.bind(handle)
+            vi.spyOn(handle, 'stat').mockImplementation(async (options) => {
+              const stats = await sample(options)
+              stats[field] = typeof stats[field] === 'bigint' ? reservedId : Number(reservedId)
+              stats[otherField] = typeof stats[otherField] === 'bigint' ? 1n : 1
+              return stats
+            })
+          }
+          return handle
+        })
+        for (const [name, sample] of [
+          ['stat', realStat],
+          ['lstat', realLstat],
+        ] as const) {
+          vi.spyOn(fs, name).mockImplementation(async (file, options) => {
+            const stats = await sample(file, options)
+            if (file === target) {
+              const id = isSwapped ? replacementId : reservedId
+              stats[field] = typeof stats[field] === 'bigint' ? id : Number(id)
+              stats[otherField] = typeof stats[otherField] === 'bigint' ? 1n : 1
+            }
+            return stats
+          })
+        }
+        const reserved = await io().reserveFile(
+          target,
+          operation === 'unchecked fill' ? undefined : target,
+        )
+        await rename(target, moved)
+        await writeFile(target, '')
+        isSwapped = true
+        if (operation === 'fill') {
+          await expect(reserved.fill(Uint8Array.from([1, 2]))).rejects.toThrow(
+            MODEL_TEXT.pathChangedAfterApproval,
+          )
+        } else if (operation === 'unchecked fill') {
+          expect(await reserved.fill(Uint8Array.from([1, 2]))).toBe('changed')
+        }
+        expect(await reserved.release()).toBe('changed')
+        expect(await readFile(target, 'utf8')).toBe('')
+        expect(await readFile(moved, 'utf8')).toBe('')
+      } finally {
+        vi.restoreAllMocks()
+      }
+    },
+  )
 
   it('creates the folders a new file goes into (D26)', async () => {
     const target = path.join(root, 'deep', 'er', 'b.txt')

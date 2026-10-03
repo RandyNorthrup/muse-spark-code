@@ -249,6 +249,112 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
     }
     expect(await read(h.root, 'a.txt')).toBe('after\n')
   })
+  it.each(['reopened window', 'same instance'])(
+    'recovers a crashed first cleanup in the %s and admits an ordinary send',
+    async (recovery) => {
+      const ref = 'refs/muse-spark/restore-active'
+      let isCrashing = true
+      let isOwnerAlive = true
+      let hasReserved = false
+      let refusedReleases = 0
+      const h = await harness({
+        isProcessAlive: () => isOwnerAlive,
+        gitProcess: async (args, options) => {
+          if (isCrashing && hasReserved) {
+            if (args.includes('update-ref') && args.includes('-d') && args.includes(ref)) {
+              refusedReleases += 1
+              throw new Error('cleanup release interrupted')
+            }
+            if (args.includes('for-each-ref') && args.includes('refs/muse-spark/')) {
+              throw new Error('first cleanup interrupted')
+            }
+          }
+          const result = await realGit(args, options)
+          if (args.includes('update-ref') && !args.includes('-d') && args.includes(ref)) {
+            hasReserved = true
+          }
+          return result
+        },
+      })
+      await expect(h.store.turns('s1')).rejects.toThrow('first cleanup interrupted')
+      expect(refusedReleases).toBe(2)
+      expect(shadowRefs(h.storage)).toContain(ref)
+      expect(storedUnits(h.storage)).toEqual([])
+      isCrashing = false
+      isOwnerAlive = recovery === 'same instance'
+      const next = recovery === 'same instance' ? h.store : h.reopen()
+      await next.maintain()
+      expect(shadowRefs(h.storage)).not.toContain(ref)
+      await turn({ store: next, root: h.root }, 'ordinary-send')
+      expect(storedUnit(h.storage, 'ordinary-send').status).toBe('complete')
+    },
+  )
+
+  it.each(['live', 'uncertain'])(
+    'keeps a cleanup reservation belonging to the %s peer',
+    async (ownerState) => {
+      const ref = 'refs/muse-spark/restore-active'
+      let isReleaseRefused = true
+      const h = await harness({
+        gitProcess: async (args, options) => {
+          if (
+            isReleaseRefused &&
+            args.includes('update-ref') &&
+            args.includes('-d') &&
+            args.includes(ref)
+          ) {
+            throw new Error('cleanup release interrupted')
+          }
+          return await realGit(args, options)
+        },
+      })
+      await h.store.turns('s1')
+      const keep = shadowGit(h.storage, ['rev-parse', ref]).trim()
+      isReleaseRefused = false
+      if (ownerState === 'uncertain') {
+        await writeFile(path.join(h.storage, 'windows', `${h.store.instance}.json`), '{')
+      }
+      const peer = h.reopen()
+      await peer.maintain()
+      expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(keep)
+      await expect(peer.markTurn('ordinary-send', true)).rejects.toThrow(/another VS Code window/u)
+      await peer.markTurn('ordinary-send', false)
+    },
+  )
+
+  it('keeps a reservation replaced after cleanup sampled its abandoned lease', async () => {
+    const ref = 'refs/muse-spark/restore-active'
+    let isReleaseRefused = true
+    let previous = ''
+    let replacement = ''
+    let hasSwapped = false
+    const h = await harness({
+      gitProcess: async (args, options) => {
+        if (args.includes('update-ref') && args.includes(ref)) {
+          if (isReleaseRefused && args.includes('-d')) {
+            throw new Error('cleanup release interrupted')
+          }
+          if (
+            !isReleaseRefused &&
+            !hasSwapped &&
+            (args.at(-1) === previous || args.length === args.indexOf('update-ref') + 3)
+          ) {
+            shadowGit(h.storage, ['update-ref', ref, replacement, previous])
+            hasSwapped = true
+          }
+        }
+        return await realGit(args, options)
+      },
+    })
+    await h.store.turns('s1')
+    previous = shadowGit(h.storage, ['rev-parse', ref]).trim()
+    replacement = shadowGit(h.storage, ['mktree'], '').trim()
+    isReleaseRefused = false
+    await h.store.maintain()
+    expect(hasSwapped).toBe(true)
+    expect(shadowRefs(h.storage)).toContain(ref)
+    expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(replacement)
+  })
   it.each(['restore', 'redo'] as const)(
     'keeps outside bytes when the canonical root is replaced before %s',
     async (kind) => {

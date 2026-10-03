@@ -17,7 +17,11 @@ happened, not what was planned; superseded entries are kept.
   replaced workspace roots, swapped junctions, dirty editor aliases and
   incomplete later transcripts. Durable recovery inputs survive unreadable
   records; applied batches keep their results and Redo after lost outcomes.
-  Retention releases old units and file copies by sequence. Children keep
+  Retention releases old units and file copies by sequence, retrying copy
+  cleanup after another window finishes. Abandoned cleanup reservations
+  recover on reopening or maintenance so ordinary sends can resume. Image
+  reservations compare exact native file identities before filling or
+  releasing, preserving replacement files. Children keep
   their inherited recording decision across reloads, and folder cleanup
   uses actual creation ownership.
   Identity metadata without file contents may outlive retired copies until
