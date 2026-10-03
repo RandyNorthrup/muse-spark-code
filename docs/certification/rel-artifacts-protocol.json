@@ -7,10 +7,10 @@
   "workflow_sha256": "ea324135fc66c26beb445e2e93044956e7a4bcb79549ee48c69d5237786c8a55",
   "workflow_restored_byte_exact": true,
   "checksum_entries": [
-    "bac48d9b8db6f5b50640701f5b5a8535370edfb16869ce51b3155cc2a79a331a  ./muse-spark-code-0.10.1.vsix",
+    "2d8eb77ade6877de8ffc89cbfc4e6ca72b82f2199fab4901c62fc36a1a08c97d  ./muse-spark-code-0.10.1.vsix",
     "2ee05c2017d0367d25019c893a7bb39225ce52c6e816cefddd86a5d286efb4cb  ./muse-spark-code-acp-0.10.1.tgz",
-    "0961f4b420bf83d2eed414609b4176aae227a3751f9c350158176e4187fa63bb  ./muse-spark-code-acp.cdx.json",
-    "c3e53340e12ee5f77a7eea8e2095f9ac08b878c49c429b4dff3061f4344b2a20  ./muse-spark-code.cdx.json"
+    "d45dba03a93e2aff76abe2a3a9c3a9f4aab6763390df1de9ce74857f6be54b90  ./muse-spark-code-acp.cdx.json",
+    "1e38e8e77f76bbb928d2f01a52f1709ed7e7347209d7d42ea6148300da0dee3d  ./muse-spark-code.cdx.json"
   ],
   "missing_tarball_red": 1,
   "m80_action_exists": false,

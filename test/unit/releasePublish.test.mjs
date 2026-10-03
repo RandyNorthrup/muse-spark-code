@@ -101,9 +101,7 @@ describe('registry recovery', () => {
     })
     const fetch = vi.fn().mockResolvedValue(new globalThis.Response(gzipSync(bytes)))
     await publishRegistry('marketplace', fixture.artifact, manifest, { run, fetch })
-    expect(fetch.mock.calls[0][0]).toContain(
-      '/0.10.1/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage',
-    )
+    expect(fetch.mock.calls[0][0]).toContain('/vsextensions/muse-spark-code/0.10.1/vspackage')
   })
   it.each(['marketplace', 'openvsx'])(
     'refuses a different existing %s artifact',

@@ -3,96 +3,96 @@
     "guard": "retry-limit",
     "file": "publish-registry.mjs",
     "failed_tests": 13,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "f4697a3d85c5d35783a980781aa8f5c7a0b7d8be1281f9c3190d9fb2667ee19f",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "521d755c99737ac99a678383fc04af0634a1125cc99b17ec2190cf8ccc7818d7",
     "restored": true
   },
   {
     "guard": "network-only",
     "file": "publish-registry.mjs",
     "failed_tests": 9,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "22285c7474a7b00356455b1cddaab4d9a21f126de0ade3d734e80841777a436d",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "5fc39a3a8921b952e05b93d750711e5e7a5ebd33df72909cb9c0e32b90a359b9",
     "restored": true
   },
   {
     "guard": "backoff",
     "file": "publish-registry.mjs",
     "failed_tests": 13,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "0fd5f1469420a175574bd1a5d3b88d83647ab1e8892236050a0d223bbe29a30d",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "bee3efa2e7971c23cd96d8258134eb14c145181ecdd4e5d962416381b51cf987",
     "restored": true
   },
   {
     "guard": "existing-version-verification",
     "file": "publish-registry.mjs",
     "failed_tests": 3,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "90d25b0b5a060c00f0517e56972fef9ab9b296cef5e5290eeebb4f38df138283",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "ad09626cedd57f089c7ee20781077770e4378e392e8e548e4cde7a12010cc28e",
     "restored": true
   },
   {
     "guard": "npm-integrity",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "5ba23c36a4a73c00695d5c68d3a4d8546c76ee0fd88ba1de5645b54e73cbd3e2",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "b19aa432903e00e8b5fed6fa552dbe4caa746ac02a30e57fbd68e2b930d78571",
     "restored": true
   },
   {
     "guard": "vsix-hash",
     "file": "publish-registry.mjs",
     "failed_tests": 3,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "a220f39e70a8adfbfaf31784c49fd1fab823ed7a78f6ed9b6ad07c2cd64fe8d1",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "2dd5589a5348bd24103296a55b956f2d113db5e8e3e8cea4e3ccb2982d931363",
     "restored": true
   },
   {
     "guard": "gallery-gzip",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "a67c5e8dcc0cabc2da16bb8429b457b1988862739aec8a7694b7f64555466ac6",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "767b2b2a043398b737cd3cc08733397c87559253b677f91c88deedd3f0e13b54",
     "restored": true
   },
   {
     "guard": "metadata-schema",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "0a511cad2fa3bd7d0cda1b2f25cbb9394a7e5f162f5afd1922e29ea578861775",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "2d9273e4ea9a03913d35b6554cf32717b5c4eb1d0511a19e09d09c9300d5bb44",
     "restored": true
   },
   {
     "guard": "https-download",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "44ce8c82c793fa3d4f989f8a2be5dc3ee742214099eec527f2dc67c5e9990b42",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "18525040502758b6bdc4cb58794e4b9a0f03d9569ae4110adc7bac524ed61a30",
     "restored": true
   },
   {
     "guard": "failed-http-download",
     "file": "publish-registry.mjs",
     "failed_tests": 2,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "eb17856f235fbe9df982d4ae553afe9a8ba9843fccb31bc18738f6da73dacac2",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "2e43bc1487a5a5ba7206329c547df2cc86e991b75c4d73510efd200e132b481e",
     "restored": true
   },
   {
     "guard": "npm-integrity-schema",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "9131f5a8ed92d57083dc356124b6e07d5c34dcf79d461a83e9bf8fc7fe5bd1e8",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "aa07b76cfac0c23bc2722771f5b9fc195a343cee1e3957cbeb88cf39cc312670",
     "restored": true
   },
   {
     "guard": "namespace-auth",
     "file": "publish-registry.mjs",
     "failed_tests": 1,
-    "sha256": "8e34975f54717d77afd4970f621c00b489b7ecd2f28ac691632768099fabd86c",
-    "mutant_sha256": "c3867fb3ac8af0429dd4390cc6d74e9863307c1f0d15f05d2b5e3eeddfd0c25e",
+    "sha256": "6045e95b090bd40fd48524d73cdae751b5ef5ef3c21680e3d7f80108e9a724fb",
+    "mutant_sha256": "1a882a4d1a4e01a8a8f29e6fe3efa5ab5f25ac29b0e499f5d0934593361e899e",
     "restored": true
   },
   {

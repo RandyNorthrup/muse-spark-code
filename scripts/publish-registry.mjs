@@ -81,7 +81,7 @@ export async function verifyPublished(channel, artifact, manifest, deps = {}) {
   }
   let url
   if (channel === 'marketplace') {
-    url = `https://${encodeURIComponent(publisher)}.gallery.vsassets.io/_apis/public/gallery/publisher/${encodeURIComponent(publisher)}/extension/${encodeURIComponent(name)}/${encodeURIComponent(version)}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage`
+    url = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${encodeURIComponent(publisher)}/vsextensions/${encodeURIComponent(name)}/${encodeURIComponent(version)}/vspackage`
   } else if (channel === 'openvsx') {
     const metadata = await response(
       `https://open-vsx.org/api/${encodeURIComponent(publisher)}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
