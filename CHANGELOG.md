@@ -68,17 +68,6 @@ happened, not what was planned; superseded entries are kept.
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
-
-### Changed
-
-- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
-  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
-  tentative; HTML meta declarations still win or trigger a later reparse. Valid
-  transport encodings without a runtime decoder remain explicit errors. Version
-  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
-  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
-  extension's floor), now in the integration run's `minimum` label too
-  (`docs/certification/pr60-sniffer7.md`).
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -108,6 +97,21 @@ happened, not what was planned; superseded entries are kept.
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
+### Changed
+
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the banner and social preview now say the agent runs in VS Code
+  and other editors.
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
 ### Fixed
 
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on

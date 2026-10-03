@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent inside VS Code" width="100%">
+  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent in VS Code and other editors" width="100%">
 </p>
 
 <p align="center">
@@ -297,8 +297,63 @@ agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release.
 [docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
 key (the operating system's credential store), and the editor's settings.
-VS Code forks built on VS Code 1.99 or later can install the extension
-from a `.vsix`, and from Open VSX once a release is published there.
+VS Code forks built on VS Code 1.99 or later install the extension itself,
+from Open VSX or a `.vsix`.
+
+### Install in your editor
+
+| Editor                                                   | How                                                                                                                                                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.10.1.vsix` |
+| **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
+| **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
+| **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
+| **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+**The ACP agent** needs Node.js 22 or later. Install it from the release:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.10.1/muse-spark-code-acp-0.10.1.tgz
+muse-spark-code-acp --version
+```
+
+**Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
+Muse Spark under External Agents in the Agent Panel's new-thread menu.
+
+```json
+{
+  "agent_servers": {
+    "Muse Spark": {
+      "type": "custom",
+      "command": "muse-spark-code-acp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+**JetBrains IDEs**: in the AI Chat tool window choose **Add Custom Agent**,
+which opens `~/.jetbrains/acp.json`, and add the agent under
+`agent_servers` ([JetBrains' ACP guide](https://www.jetbrains.com/help/ai-assistant/acp.html)).
+This setup follows JetBrains' documentation and has not been tested here yet.
+
+```json
+{
+  "default_mcp_settings": {},
+  "agent_servers": {
+    "Muse Spark": {
+      "command": "muse-spark-code-acp",
+      "args": []
+    }
+  }
+}
+```
+
+Add `"--backend", "modelApi"` to `args` in either editor to use the Model
+API backend instead of Muse Code.
+
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
 which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
