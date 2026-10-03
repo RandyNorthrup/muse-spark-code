@@ -493,6 +493,9 @@ describe('createToolIo (real file system and shell)', () => {
       const reservedId = 9_007_199_254_740_992n
       const replacementId = reservedId + 1n
       expect(Number(reservedId)).toBe(Number(replacementId))
+      // The checked path a tool resolves: a temporary folder can sit behind a
+      // link (macOS /var, a Windows 8.3 name), so the plain join is not it.
+      const checked = operation === 'unchecked fill' ? undefined : await canonicalPath(target)
       let isSwapped = false
       const realOpen = fs.open
       const realStat = fs.stat
@@ -525,10 +528,7 @@ describe('createToolIo (real file system and shell)', () => {
             return stats
           })
         }
-        const reserved = await io().reserveFile(
-          target,
-          operation === 'unchecked fill' ? undefined : target,
-        )
+        const reserved = await io().reserveFile(target, checked)
         await rename(target, moved)
         await writeFile(target, '')
         isSwapped = true
