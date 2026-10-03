@@ -49,6 +49,8 @@
     "action/apply/lib/*.mjs",
     // The Action tests' fake agent, fake npm and Git sentinel, started by path.
     "test/action/*.mjs",
+    // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
+    "test/action/exec-test-launcher.ts",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],
