@@ -35,24 +35,27 @@ export function truncateUtf8(text, maxBytes) {
 
 /**
  * The PR metadata resource (pr.md): head, base and truncation notices, then
- * the untrusted title and body, the two together at most ACTION_META_MAX_BYTES.
+ * the untrusted title and body; the whole file at most ACTION_META_MAX_BYTES.
  */
 export function metadataResource(gate) {
-  const title = truncateUtf8(gate.title, ACTION_META_MAX_BYTES)
-  const body = truncateUtf8(gate.body, ACTION_META_MAX_BYTES - Buffer.byteLength(title.text))
+  const resource = (titleText, bodyText, truncated) =>
+    [
+      `Pull request #${String(gate.prNumber)}`,
+      `Head: ${gate.headSha}`,
+      `Base: ${gate.baseSha}`,
+      truncated ? 'metadata truncated: the title and description were cut to fit' : '',
+      '',
+      `Title: ${titleText}`,
+      '',
+      bodyText,
+      '',
+    ].join('\n')
+  // The fixed envelope, its truncation notice included, is reserved first.
+  const room = ACTION_META_MAX_BYTES - Buffer.byteLength(resource('', '', true))
+  const title = truncateUtf8(gate.title, room)
+  const body = truncateUtf8(gate.body, room - Buffer.byteLength(title.text))
   const truncated = title.truncated || body.truncated
-  const lines = [
-    `Pull request #${String(gate.prNumber)}`,
-    `Head: ${gate.headSha}`,
-    `Base: ${gate.baseSha}`,
-    truncated ? 'metadata truncated: the title and description were cut to fit' : '',
-    '',
-    `Title: ${title.text}`,
-    '',
-    body.text,
-    '',
-  ]
-  return { text: lines.join('\n'), truncated }
+  return { text: resource(title.text, body.text, truncated), truncated }
 }
 
 /** Reads the gate's private decision and validates what the prompt uses. */

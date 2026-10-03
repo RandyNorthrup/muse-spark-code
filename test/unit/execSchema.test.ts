@@ -328,6 +328,13 @@ describe('M80 schemas (A15/A16/F1)', () => {
       expect(raw).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema' })
     }
   })
+  it('npm run package:acp checks schema freshness before it packs', async () => {
+    const manifest = await readFile('package.json', 'utf8')
+    const steps = (/"package:acp": "([^"]*)"/.exec(manifest)?.[1] ?? '').split(' && ')
+    const check = steps.indexOf('node scripts/exec-schema.mjs --check')
+    expect(check).toBeGreaterThan(-1)
+    expect(check).toBeLessThan(steps.indexOf('node scripts/package-acp.mjs'))
+  })
   it('RVM80A P2-2 the shipped event schema itself refuses what execEventSchema refuses in update', async () => {
     const root = JSON.parse(
       await readFile('docs/schemas/exec-event-v1.schema.json', 'utf8'),

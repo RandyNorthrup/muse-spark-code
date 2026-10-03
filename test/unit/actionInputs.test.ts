@@ -323,6 +323,27 @@ describe('staging and the prompt (G12)', PROCESS_SUITE, () => {
     expect(metadataResource({ ...gate, body: 'short' }).truncated).toBe(false)
   })
 
+  it('keeps the whole pr.md, envelope included, within the cap when title and body fill it', () => {
+    const full = 'x'.repeat(ACTION_META_MAX_BYTES)
+    for (const untrusted of [
+      { title: full, body: full },
+      { title: 'T', body: full },
+      { title: full, body: '' },
+      { title: 'é'.repeat(ACTION_META_MAX_BYTES), body: '😀'.repeat(ACTION_META_MAX_BYTES) },
+    ]) {
+      const meta = metadataResource({
+        prNumber: 2_147_483_647,
+        headSha: 'h'.repeat(64),
+        baseSha: 'b'.repeat(64),
+        ...untrusted,
+      })
+      expect(meta.truncated).toBe(true)
+      expect(meta.text).toContain('metadata truncated')
+      expect(meta.text).toContain(`Head: ${'h'.repeat(64)}`)
+      expect(Buffer.byteLength(meta.text)).toBeLessThanOrEqual(ACTION_META_MAX_BYTES)
+    }
+  })
+
   it('refuses a stored task over 4,000 characters', async () => {
     const file = path.join(layout.root, 'gate.json')
     const gate = { prNumber: 1, headSha: 'a', baseSha: 'b', title: '', body: '' }

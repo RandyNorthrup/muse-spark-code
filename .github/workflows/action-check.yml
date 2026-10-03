@@ -98,9 +98,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    # Joined here, not spelled out: W reviews this repository's own pull
+    # request, and a literal in any tracked file would ride in its diff.
     env:
-      W_KEY: LLM|1|m80-w-fabricated
-      W_SENTINEL: M80W-SENTINEL-fabricated-token
+      W_KEY: ${{ format('LLM|1|m80-w-{0}', 'fabricated') }}
+      W_SENTINEL: ${{ format('M80W-SENTINEL-{0}', 'fabricated-token') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -295,7 +297,7 @@ jobs:
         continue-on-error: true
         uses: ./action-src/action
         with:
-          model-api-key: LLM|1|m80-w-fabricated
+          model-api-key: ${{ format('LLM|1|m80-w-{0}', 'fabricated') }}
           max-budget-usd: '0.10'
           mode: review
           model: muse-spark-1.3-contributor

@@ -651,6 +651,24 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
     expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
   })
 
+  it('G20 withholds a NUL-bearing file that .gitattributes makes Git diff as text', async () => {
+    const run = await preparedRun(layout, {
+      mode: 'fix',
+      exec: {
+        result: completedResult(),
+        writes: [
+          { path: '.gitattributes', text: '*.dat diff\n' },
+          { path: 'data.dat', base64: Buffer.from('valid\u{0}utf8\u{0}\n').toString('base64') },
+        ],
+      },
+    })
+    const { outputs, code } = await finish(run)
+    expect(code).toBe(0)
+    expect(outputs).toMatchObject({ 'patch-withheld': 'binary', 'patch-path': '' })
+    expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
+    expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
+  })
+
   it('G20 withholds on scanner exit 2, malformed or contradictory counts and output overflow', async () => {
     for (const [mode, expected] of [
       ['exit2', 'scan_failed'],
@@ -1018,6 +1036,7 @@ describe('lifecycle bounds and cleanup (G24)', PROCESS_SUITE, () => {
     )
     expect(isBinaryPatch(encoder.encode('Binary files a/x and b/x differ\n'))).toBe(true)
     expect(isBinaryPatch(new Uint8Array([0xff, 0xfe]))).toBe(true)
+    expect(isBinaryPatch(encoder.encode('diff --git a/x.dat b/x.dat\n+a\u{0}b\n'))).toBe(true)
     expect(isBinaryPatch(encoder.encode('+GIT binary patch in a line\n'))).toBe(false)
     expect(scanCount(encoder.encode('0 secret matches\n'))).toBe(0)
     expect(scanCount(encoder.encode('1 234 correspondances secrètes\n'))).toBe(1234)

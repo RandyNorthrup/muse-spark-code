@@ -11,9 +11,10 @@ import path from 'node:path'
 import process from 'node:process'
 import { isExecResult } from '../../action/lib/result.mjs'
 
-// Projections of test/action/execTestTransport.ts (the launcher's own constants).
-const W_FIXTURE_KEY = 'LLM|1|m80-w-fabricated'
-const W_SENTINEL = 'M80W-SENTINEL-fabricated-token'
+// Projections of test/action/execTestTransport.ts (the launcher's own constants),
+// joined at run time as there, so the reviewed diff never holds either literal.
+const W_FIXTURE_KEY = ['LLM|1|m80-w', 'fabricated'].join('-')
+const W_SENTINEL = ['M80W-SENTINEL', 'fabricated-token'].join('-')
 const W_TEXT_FILE = 'test/action/w-text-fix.txt'
 const W_IMAGE_FILE = 'generated/m80.png'
 const W_TEXT_LINE = 'W text fix: one ordinary new line.'

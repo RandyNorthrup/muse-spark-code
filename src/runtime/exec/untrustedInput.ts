@@ -13,6 +13,18 @@ import {
 import { fill, plural } from '../../shared/l10n/text'
 import type { ExecInputRecord } from './execProtocol'
 
+/**
+ * A file name as it stands in the lead, outside the markers: a JSON string
+ * (quotes, backslashes and C0 controls escaped), with every other control,
+ * format or separator character percent-encoded, so a name cannot leave its
+ * line or pass for the lead's own words.
+ */
+function quotedName(name: string): string {
+  return JSON.stringify(name).replaceAll(/[\p{C}\p{Zl}\p{Zp}]/gu, (char) =>
+    encodeURIComponent(char),
+  )
+}
+
 export async function readUntrustedInputs(input: {
   files: readonly string[]
   signal: AbortSignal
@@ -35,13 +47,14 @@ export async function readUntrustedInputs(input: {
       throw new Error(UI_TEXT.execFileTooLarge)
     const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
     const name = path.basename(file)
+    const label = quotedName(name)
     const pieces: { marker: string; text: string }[] = []
     let offset = 0
     do {
       const marker = input.randomHex(EXEC_MARKER_BYTES)
       const envelope = (slice: string, part: number, parts: number) =>
         [
-          fill(MODEL_TEXT.execUntrustedLead, { name, part, parts }),
+          fill(MODEL_TEXT.execUntrustedLead, { name: label, part, parts }),
           fill(MODEL_TEXT.execUntrustedOpen, { marker }),
           slice,
           fill(MODEL_TEXT.execUntrustedClose, { marker }),
@@ -71,7 +84,11 @@ export async function readUntrustedInputs(input: {
       resources.push({
         name,
         text: [
-          fill(MODEL_TEXT.execUntrustedLead, { name, part: index + 1, parts: pieces.length }),
+          fill(MODEL_TEXT.execUntrustedLead, {
+            name: label,
+            part: index + 1,
+            parts: pieces.length,
+          }),
           fill(MODEL_TEXT.execUntrustedOpen, { marker: piece.marker }),
           piece.text,
           fill(MODEL_TEXT.execUntrustedClose, { marker: piece.marker }),

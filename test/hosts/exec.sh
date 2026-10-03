@@ -95,6 +95,9 @@ const { EN } = require(path.join(process.argv[2], 'dist', 'uiText.js'))
 assert.equal(readFileSync(process.argv[3], 'utf8').trim(), EN.acpKeyAbsent)
 JS
 }
+# The shared fake answers only its own fabricated key (FAKE_MODEL_API_KEY);
+# any other key gets its 401, and exec exits 3.
+key='LLM|1|secret'
 
 if [ "$mode" = '--store' ]; then
   # Refuse an existing key AND an unavailable store before any mutation.
@@ -103,7 +106,7 @@ if [ "$mode" = '--store' ]; then
   fi
   assert_absent
   stored=1
-  printf 'LLM|123456|fabricated-for-m80-host\n' | node "$agent" auth set
+  printf '%s\n' "$key" | node "$agent" auth set
   node "$agent" auth status
   M80D_STORE=1 run_exec
   node "$agent" auth clear
@@ -111,7 +114,7 @@ if [ "$mode" = '--store' ]; then
   if node "$agent" auth status > "$work/status" 2> "$work/status-error"; then fail 'key outlived clear'; fi
   assert_absent
 elif [ -z "$mode" ]; then
-  printf 'LLM|123456|fabricated-for-m80-host\n' | run_exec --key-stdin
+  printf '%s\n' "$key" | run_exec --key-stdin
 else
   fail 'expected --store or no second argument'
 fi

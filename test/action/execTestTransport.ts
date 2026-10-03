@@ -10,10 +10,13 @@ import { createHash } from 'node:crypto'
 import { MODEL_API_BASE_URL, MODEL_API_TOOLS } from '../../src/shared/constants'
 import { FAKE_MODEL_API_KEY, fakeModelApi, type ScriptedReply } from '../unit/helpers/fakeModelApi'
 
+// W reviews its own pull request, whose diff the request bodies carry: the two
+// literals are joined at run time (the workflow's format() joins them too), so
+// no tracked file, and no reviewed diff, holds what the leak checks look for.
 /** The fabricated key the W workflow passes as model-api-key; never a credential. */
-export const W_FIXTURE_KEY = 'LLM|1|m80-w-fabricated'
+export const W_FIXTURE_KEY = ['LLM|1|m80-w', 'fabricated'].join('-')
 /** The fabricated GitHub token sentinel W plants in the Action step's environment. */
-export const W_SENTINEL = 'M80W-SENTINEL-fabricated-token'
+export const W_SENTINEL = ['M80W-SENTINEL', 'fabricated-token'].join('-')
 /** The repository file W-review reads. */
 export const W_FIXTURE_FILE = 'test/action/w-fixture.txt'
 /**

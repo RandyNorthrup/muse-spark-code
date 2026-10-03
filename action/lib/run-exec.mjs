@@ -118,8 +118,14 @@ export function execArguments({ agentJs, paths, inputs }) {
   ]
 }
 
-/** A patch Git renders as binary (or that is not UTF-8) is withheld whole. */
+/**
+ * A patch Git renders as binary, that holds a NUL byte or that is not UTF-8
+ * is withheld whole. The NUL check is Git's own binary test applied to the
+ * patch itself, so a repository's .gitattributes cannot turn a binary file
+ * into a textual diff that passes.
+ */
 export function isBinaryPatch(bytes) {
+  if (bytes.includes(0)) return true
   let text
   try {
     text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
