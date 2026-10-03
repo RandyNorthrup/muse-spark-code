@@ -36,6 +36,8 @@ function inputs(name: string): string[] {
 describe('deferred cohort bundles', () => {
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = path.resolve('dist/extension.js')
+    expect(readFileSync(entry, 'utf8')).toContain('./sessionBoard.js')
+    expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./reviewer.js')
     const nativeRequire = createRequire(entry)
     const loaded: string[] = []
     const module: { exports: unknown } = { exports: {} }

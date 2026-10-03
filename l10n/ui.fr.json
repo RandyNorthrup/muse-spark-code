@@ -1347,6 +1347,7 @@
   },
   "usagePaidBestOfNIncluded": "Estimation des jetons déclarés : {cost}",
   "boardTitle": "Tableau des sessions",
+  "boardUnavailable": "Impossible de charger le tableau des sessions et Best of N. Réinstallez l’extension et réessayez.",
   "boardEmpty": "Aucune conversation pour l’instant. Envoyez un message pour en démarrer une.",
   "boardStatusRunning": "En cours",
   "boardStatusIdle": "Inactif",

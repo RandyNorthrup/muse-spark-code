@@ -1279,6 +1279,7 @@
   },
   "usagePaidBestOfNIncluded": "報告されたトークンの推定費用：{cost}",
   "boardTitle": "セッションボード",
+  "boardUnavailable": "セッションボードとBest of Nを読み込めませんでした。拡張機能を再インストールして、もう一度お試しください。",
   "boardEmpty": "会話はまだありません。メッセージを送って開始してください。",
   "boardStatusRunning": "実行中",
   "boardStatusIdle": "アイドル",

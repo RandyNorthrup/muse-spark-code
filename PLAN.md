@@ -233,6 +233,14 @@ and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
 
 **M78b implementation scope (2026-10-02): deferred cohort bundles.**
+**FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
+bundle with fixed translated text and log its cause; pin both production
+dynamic-import filenames; suppress best-of-N failure notices after disposal
+during the first import. Exercise the real built controller and bundle,
+red-drill every affected guard, and record Kubuntu receipts in
+`docs/certification/m78.md`. The lead retains aggregate quality and release
+gates; this lane runs only the scoped rig checks named in FIXCOH.md.
+
 Kubuntu's production metafiles at `12060f84` measure activation at 613.0 KiB
 and the Model API backend at 406.0 KiB, above their unchanged 600/400 KiB
 caps. Defer the session board and best-of-N implementation until a board
@@ -11145,6 +11153,7 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 
 | File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
 | ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                 | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                 | 2026-10-02 |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
 | `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                       | 2026-10-02 |
 | `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                          | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                              | 2026-09-30 |

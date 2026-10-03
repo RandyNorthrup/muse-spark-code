@@ -1313,6 +1313,7 @@
   },
   "usagePaidBestOfNIncluded": "Gemeldete Tokenschätzung: {cost}",
   "boardTitle": "Sitzungsboard",
+  "boardUnavailable": "Das Sitzungsboard und Best of N konnten nicht geladen werden. Installieren Sie die Erweiterung neu und versuchen Sie es erneut.",
   "boardEmpty": "Noch keine Unterhaltungen. Senden Sie eine Nachricht, um eine zu beginnen.",
   "boardStatusRunning": "Läuft",
   "boardStatusIdle": "Inaktiv",

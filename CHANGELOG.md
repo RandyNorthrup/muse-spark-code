@@ -136,6 +136,9 @@ happened, not what was planned; superseded entries are kept.
     operations run with no hooks, fsmonitor or maintenance and refuse a
     repository that configures filters or hook commands.
   - Strings ship in all 14 UI and manifest tables.
+  - A missing or damaged board/best-of-N bundle gives a translated refusal
+    with reinstall guidance; its cause goes to the log. Closing the panel
+    during the first best-of-N load suppresses stale failure notices.
 
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials

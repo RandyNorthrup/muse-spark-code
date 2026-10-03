@@ -1,9 +1,12 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { mkdir, rename, symlink, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import vm from 'node:vm'
+import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AgentHost, SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
@@ -791,6 +794,151 @@ function setup(
 }
 
 describe('ConversationController: deferred best-of-N', () => {
+  const built = { folder: '' }
+  const folders: string[] = []
+  const actions = [
+    { type: 'startBestOfN', prompt: 'refactor this', attempts: 2, requestCeilingPerAttempt: 2 },
+    { type: 'takeBestOfNAttempt', attemptId: 'a1', runId: 'r1' },
+    { type: 'cancelBestOfN', runId: 'r1' },
+    { type: 'openBestOfNAttempt', attemptId: 'a1', runId: 'r1' },
+  ] as const satisfies readonly ConversationMessage[]
+
+  beforeAll(async () => {
+    built.folder = mkdtempSync(path.join(tmpdir(), 'muse-board-bundle-'))
+    await build({
+      entryPoints: {
+        controller: path.resolve('src/host/conversation/conversationController.ts'),
+        sessionBoard: path.resolve('src/host/sessionBoardEntry.ts'),
+      },
+      outdir: built.folder,
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      // Keep the asynchronous import but expose its require to the fixture's disposal hook.
+      supported: { 'dynamic-import': false },
+      external: ['vscode'],
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'deferred-board',
+          setup: (builder) => {
+            builder.onResolve({ filter: /\/sessionBoardEntry$/ }, (args) =>
+              args.kind === 'dynamic-import'
+                ? { path: './sessionBoard.js', external: true }
+                : undefined,
+            )
+          },
+        },
+      ],
+    })
+  })
+  afterAll(async () => {
+    await Promise.all([built.folder, ...folders].map((folder) => removeFolder(folder)))
+  })
+
+  /** The real CJS controller; intercept only the first bundle require when requested. */
+  function controllerFrom(file: string, onImport?: () => void): typeof ConversationController {
+    const nativeRequire = createRequire(file)
+    const module: { exports: unknown } = { exports: {} }
+    const run = vm.compileFunction(
+      readFileSync(file, 'utf8'),
+      ['require', 'module', 'exports', '__dirname', '__filename'],
+      { filename: file },
+    )
+    Reflect.apply(run, undefined, [
+      (name: string): unknown => {
+        if (name === './sessionBoard.js') onImport?.()
+        return nativeRequire(name)
+      },
+      module,
+      module.exports,
+      path.dirname(file),
+      file,
+    ])
+    const loaded = module.exports
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('ConversationController' in loaded) ||
+      typeof loaded.ConversationController !== 'function'
+    )
+      throw new Error('Missing built controller')
+    // Same source/build as the typed controller; constructor signatures are trusted (PLAN §8).
+    return loaded.ConversationController as typeof ConversationController
+  }
+
+  it.each([
+    { name: 'missing', body: undefined, cause: 'Cannot find module' },
+    { name: 'invalid JavaScript', body: 'module.exports = {{', cause: "Unexpected token '{'" },
+    {
+      name: 'malformed reader',
+      body: 'module.exports = { readSessionBoard: 1, createBestOfNManager: () => {} }',
+      cause: 'does not export its reader and manager factory',
+    },
+    {
+      name: 'malformed factory',
+      body: 'module.exports = { readSessionBoard: () => [], createBestOfNManager: 1 }',
+      cause: 'does not export its reader and manager factory',
+    },
+  ])(
+    'refuses board and first best-of-N actions when the built bundle is $name',
+    async ({ body, cause }) => {
+      const folder = mkdtempSync(path.join(tmpdir(), 'muse-board-failure-'))
+      folders.push(folder)
+      const file = path.join(folder, 'controller.js')
+      const board = path.join(folder, 'sessionBoard.js')
+      copyFileSync(path.join(built.folder, 'controller.js'), file)
+      copyFileSync(path.join(built.folder, 'sessionBoard.js'), board)
+      if (body === undefined) unlinkSync(board)
+      else writeFileSync(board, body)
+      const Controller = controllerFrom(file)
+      const t = setup()
+      t.controller.dispose()
+      const controller = new Controller(t.deps)
+      try {
+        for (const [message, title] of [
+          [{ type: 'requestSessionBoard' }, UI_TEXT.boardTitle],
+          [actions[0], UI_TEXT.bestOfNTitle],
+        ] as const) {
+          t.surface.posted.length = 0
+          t.log.error.mockClear()
+          await expect(controller.handle(message)).resolves.toBeUndefined()
+          expect(notices(t).map((notice) => notice.text)).toEqual([
+            `${title}: ${UI_TEXT.boardUnavailable}`,
+          ])
+          expect(t.log.error).toHaveBeenCalledWith(expect.stringContaining('session board bundle'))
+          expect(t.log.error).toHaveBeenCalledWith(expect.stringContaining(cause))
+        }
+      } finally {
+        controller.dispose()
+      }
+    },
+  )
+
+  it.each(actions)(
+    'posts no notice when disposed during the first $type import',
+    async (message) => {
+      for (const isGenerationHeld of [false, true]) {
+        const t = setup()
+        t.controller.dispose()
+        const imported = vi.fn(() => {
+          const generation: unknown = Reflect.get(controller, 'sendInvalidationEpoch')
+          controller.dispose()
+          // Merged main also advances the epoch on disposal. Hold it to prove this guard alone.
+          if (isGenerationHeld) Reflect.set(controller, 'sendInvalidationEpoch', generation)
+        })
+        const Controller = controllerFrom(path.join(built.folder, 'controller.js'), imported)
+        const controller = new Controller(t.deps)
+        t.surface.posted.length = 0
+        await expect(controller.handle(message)).resolves.toBeUndefined()
+        expect(imported).toHaveBeenCalledOnce()
+        expect(notices(t)).toEqual([])
+        expect(t.log.error).not.toHaveBeenCalled()
+      }
+    },
+  )
+
   it('loads the manager on its first action and recognizes its refusal across the boundary', async () => {
     const t = setup()
     try {

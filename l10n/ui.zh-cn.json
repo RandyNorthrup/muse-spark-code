@@ -1279,6 +1279,7 @@
   },
   "usagePaidBestOfNIncluded": "已报告令牌的估算费用：{cost}",
   "boardTitle": "会话面板",
+  "boardUnavailable": "无法加载会话面板和 Best of N。请重新安装扩展后重试。",
   "boardEmpty": "还没有会话。发送消息以开始一个。",
   "boardStatusRunning": "运行中",
   "boardStatusIdle": "空闲",

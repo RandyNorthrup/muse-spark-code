@@ -1279,6 +1279,7 @@
   },
   "usagePaidBestOfNIncluded": "已回報權杖的估算費用：{cost}",
   "boardTitle": "工作階段面板",
+  "boardUnavailable": "無法載入工作階段面板和 Best of N。請重新安裝擴充功能後再試一次。",
   "boardEmpty": "還沒有對話。傳送訊息以開始一個。",
   "boardStatusRunning": "執行中",
   "boardStatusIdle": "閒置",

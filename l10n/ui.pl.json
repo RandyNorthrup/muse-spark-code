@@ -1381,6 +1381,7 @@
   },
   "usagePaidBestOfNIncluded": "Szacunkowy koszt zgłoszonych tokenów: {cost}",
   "boardTitle": "Panel sesji",
+  "boardUnavailable": "Nie udało się załadować panelu sesji ani funkcji Best of N. Zainstaluj rozszerzenie ponownie i spróbuj jeszcze raz.",
   "boardEmpty": "Brak rozmów. Wyślij wiadomość, aby zacząć.",
   "boardStatusRunning": "W toku",
   "boardStatusIdle": "Bezczynna",

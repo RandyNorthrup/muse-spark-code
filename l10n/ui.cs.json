@@ -1381,6 +1381,7 @@
   },
   "usagePaidBestOfNIncluded": "Odhad ceny nahlášených tokenů: {cost}",
   "boardTitle": "Přehled relací",
+  "boardUnavailable": "Přehled relací a funkci Best of N se nepodařilo načíst. Přeinstalujte rozšíření a zkuste to znovu.",
   "boardEmpty": "Zatím žádné konverzace. Začněte odesláním zprávy.",
   "boardStatusRunning": "Běží",
   "boardStatusIdle": "Nečinná",

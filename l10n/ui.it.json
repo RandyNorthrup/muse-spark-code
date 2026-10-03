@@ -1347,6 +1347,7 @@
   },
   "usagePaidBestOfNIncluded": "Stima dei token segnalati: {cost}",
   "boardTitle": "Pannello delle sessioni",
+  "boardUnavailable": "Impossibile caricare il pannello delle sessioni e Best of N. Reinstalla l’estensione e riprova.",
   "boardEmpty": "Ancora nessuna conversazione. Invia un messaggio per iniziarne una.",
   "boardStatusRunning": "In esecuzione",
   "boardStatusIdle": "Inattivo",

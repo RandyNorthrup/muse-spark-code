@@ -1313,6 +1313,7 @@
   },
   "usagePaidBestOfNIncluded": "Bildirilen token tahmini: {cost}",
   "boardTitle": "Oturum panosu",
+  "boardUnavailable": "Oturum panosu ve Best of N yüklenemedi. Uzantıyı yeniden yükleyip tekrar deneyin.",
   "boardEmpty": "Henüz konuşma yok. Başlamak için bir ileti gönderin.",
   "boardStatusRunning": "Çalışıyor",
   "boardStatusIdle": "Boşta",

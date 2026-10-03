@@ -145,6 +145,7 @@ import {
   type ExportOutcome,
 } from './exportConversation'
 import type { BestOfNManager } from '../bestOfN/bestOfNManager'
+import type * as SessionBoardBundle from '../sessionBoardEntry'
 import { uiLocale } from '../../shared/l10n/text'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { SubagentUsage } from '../../shared/paid'
@@ -2634,9 +2635,27 @@ export class ConversationController {
 
   // --- Session board and best-of-N (M77) ---
 
+  private async sessionBoard(): Promise<typeof SessionBoardBundle> {
+    try {
+      const bundle = await import('../sessionBoardEntry')
+      if (
+        typeof bundle.readSessionBoard !== 'function' ||
+        typeof bundle.createBestOfNManager !== 'function'
+      ) {
+        throw new TypeError(
+          'The session board bundle does not export its reader and manager factory',
+        )
+      }
+      return bundle
+    } catch (error: unknown) {
+      this.deps.log.error(`The session board bundle could not be loaded: ${describe(error)}`)
+      throw new Error(UI_TEXT.boardUnavailable, { cause: error })
+    }
+  }
+
   private async bestOfN(): Promise<BestOfNManager> {
     const generation = this.sendInvalidationEpoch
-    const { createBestOfNManager } = await import('../sessionBoardEntry')
+    const { createBestOfNManager } = await this.sessionBoard()
     if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
       throw new Error(UI_TEXT.bestOfNContextChanged)
     }
@@ -2758,7 +2777,7 @@ export class ConversationController {
     const generation = this.sendInvalidationEpoch
     const isCurrent = () => generation === this.sendInvalidationEpoch && !this.isDisposed
     try {
-      const { readSessionBoard } = await import('../sessionBoardEntry')
+      const { readSessionBoard } = await this.sessionBoard()
       if (!isCurrent()) return
       const rows = await readSessionBoard(
         {
@@ -2803,7 +2822,7 @@ export class ConversationController {
       const manager = await this.bestOfN()
       await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
     } catch (error: unknown) {
-      if (generation !== this.sendInvalidationEpoch) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
       this.noticeBestOfNFailure(error)
@@ -2825,7 +2844,7 @@ export class ConversationController {
         this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
       }
     } catch (error: unknown) {
-      if (generation !== this.sendInvalidationEpoch) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
       this.noticeBestOfNFailure(error, attemptId)
@@ -2838,7 +2857,7 @@ export class ConversationController {
       const manager = await this.bestOfN()
       await manager.cancel(runId)
     } catch (error: unknown) {
-      if (generation !== this.sendInvalidationEpoch) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
       this.noticeBestOfNFailure(error)
@@ -6322,6 +6341,7 @@ export class ConversationController {
           const manager = await this.bestOfN()
           await manager.open(message.attemptId, message.runId)
         } catch (error: unknown) {
+          if (this.isDisposed) break
           this.noticeBestOfNFailure(error, message.attemptId)
         }
         break

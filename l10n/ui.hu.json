@@ -1313,6 +1313,7 @@
   },
   "usagePaidBestOfNIncluded": "Jelentett tokenek becsült költsége: {cost}",
   "boardTitle": "Munkamenet-tábla",
+  "boardUnavailable": "A munkamenet-tábla és a Best of N nem tölthető be. Telepítse újra a bővítményt, és próbálja újra.",
   "boardEmpty": "Még nincsenek beszélgetések. Küldjön egy üzenetet az indításhoz.",
   "boardStatusRunning": "Fut",
   "boardStatusIdle": "Tétlen",

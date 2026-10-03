@@ -1742,6 +1742,8 @@ export const EN = {
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
   // The session board (M77, PLAN.md D49).
   boardTitle: 'Session board',
+  boardUnavailable:
+    'The session board and best-of-N could not be loaded. Reinstall the extension and try again.',
   boardEmpty: 'No conversations yet. Send a message to start one.',
   boardStatusRunning: 'Running',
   boardStatusIdle: 'Idle',

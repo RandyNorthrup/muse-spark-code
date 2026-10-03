@@ -1347,6 +1347,7 @@
   },
   "usagePaidBestOfNIncluded": "Estimativa dos tokens informados: {cost}",
   "boardTitle": "Painel de sessões",
+  "boardUnavailable": "Não foi possível carregar o painel de sessões nem o Best of N. Reinstale a extensão e tente novamente.",
   "boardEmpty": "Ainda não há conversas. Envie uma mensagem para começar uma.",
   "boardStatusRunning": "Em execução",
   "boardStatusIdle": "Inativo",

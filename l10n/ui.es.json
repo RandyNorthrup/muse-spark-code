@@ -1347,6 +1347,7 @@
   },
   "usagePaidBestOfNIncluded": "Estimación de tokens registrados: {cost}",
   "boardTitle": "Tablero de sesiones",
+  "boardUnavailable": "No se pudieron cargar el tablero de sesiones ni Best of N. Reinstala la extensión e inténtalo de nuevo.",
   "boardEmpty": "Aún no hay conversaciones. Envíe un mensaje para iniciar una.",
   "boardStatusRunning": "En ejecución",
   "boardStatusIdle": "Inactivo",

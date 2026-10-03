@@ -1279,6 +1279,7 @@
   },
   "usagePaidBestOfNIncluded": "보고된 토큰 예상 비용: {cost}",
   "boardTitle": "세션 보드",
+  "boardUnavailable": "세션 보드와 Best of N을 불러올 수 없습니다. 확장 기능을 다시 설치한 후 다시 시도하세요.",
   "boardEmpty": "아직 대화가 없습니다. 메시지를 보내 시작하세요.",
   "boardStatusRunning": "실행 중",
   "boardStatusIdle": "유휴",
