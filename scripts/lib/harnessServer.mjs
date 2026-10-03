@@ -81,6 +81,7 @@ export const SCENARIOS = [
   'history-archived',
   'long-patch',
   'size-refused',
+  'notice-repeat',
   'slash-palette',
   'slash-commands',
   'paid',

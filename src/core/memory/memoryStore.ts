@@ -54,8 +54,17 @@ export interface MemoryIo {
   readFile(absolutePath: string): Promise<string | undefined>
   /** Whether the path is open with unsaved changes, which a replacement must not clobber. */
   hasUnsavedChanges(absolutePath: string): boolean
-  /** Replaces the file whole (a temporary file renamed into place), folders created. */
-  writeFile(absolutePath: string, content: string, assertCanWrite?: () => void): Promise<void>
+  /**
+   * Replaces the file whole (a temporary file renamed into place), folders
+   * created. With `checkedPath` (its canonical path as `locate` checked it),
+   * a path that leads elsewhere by the time it is written is refused.
+   */
+  writeFile(
+    absolutePath: string,
+    content: string,
+    checkedPath?: string,
+    assertCanWrite?: () => void,
+  ): Promise<void>
   /**
    * Atomically publishes a complete new note only if absent; never replaces
    * another writer. With `checkedPath` (the note's canonical path as `locate`
@@ -73,6 +82,13 @@ export interface MemoryIo {
   /** A directory's entries; empty when it is missing. */
   listEntries(absolutePath: string): Promise<readonly MemoryDirectoryEntry[]>
 }
+
+/**
+ * The writes of one memory call. The store is the window's, so a turn's
+ * model hands in its own, which record each write for a restore (M86); the
+ * store's own io records nothing.
+ */
+export type MemoryWrites = Pick<MemoryIo, 'writeFile' | 'createFile'>
 
 export interface MemoryStoreDeps {
   readonly io: MemoryIo
@@ -366,7 +382,8 @@ export class MemoryStore {
   private async addIndexLine(
     place: MemoryNotePlace,
     hook: string,
-    assertCurrent?: () => void,
+    assertCurrent: (() => void) | undefined,
+    writes: MemoryWrites,
   ): Promise<void> {
     if (isIndexPath(place.path)) {
       return
@@ -386,9 +403,10 @@ export class MemoryStore {
       if (text !== undefined && hasIndexLine(text, place.path)) {
         return
       }
-      await this.deps.io.writeFile(
+      await writes.writeFile(
         index.absolute,
         withIndexLine(text, indexLineFor(place.path, hook)),
+        index.checked,
         assertCurrent,
       )
     } catch (error: unknown) {
@@ -582,6 +600,7 @@ export class MemoryStore {
     place: MemoryNotePlace,
     note: NoteAddition,
     assertCurrent?: () => void,
+    writes: MemoryWrites = this.deps.io,
   ): Promise<MemoryOutcome> {
     const read = await this.readNote(place, assertCurrent)
     if (!read.ok) {
@@ -597,16 +616,12 @@ export class MemoryStore {
     assertCurrent?.()
     try {
       if (existing === undefined) {
-        await this.deps.io.createFile(
-          place.absolute,
-          newNoteText(note),
-          place.checked,
-          assertCurrent,
-        )
+        await writes.createFile(place.absolute, newNoteText(note), place.checked, assertCurrent)
       } else {
-        await this.deps.io.writeFile(
+        await writes.writeFile(
           place.absolute,
           appendedText(existing, note.content),
+          place.checked,
           assertCurrent,
         )
       }
@@ -617,7 +632,12 @@ export class MemoryStore {
     const result = written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten)
     if (existing === undefined) {
       try {
-        await this.addIndexLine(place, note.description ?? noteSummary(note.content), assertCurrent)
+        await this.addIndexLine(
+          place,
+          note.description ?? noteSummary(note.content),
+          assertCurrent,
+          writes,
+        )
       } catch (error: unknown) {
         // Only the owner's throw reaches here: the note is published already.
         throw new IndexLineStoppedError(result, error)
@@ -631,6 +651,7 @@ export class MemoryStore {
     place: MemoryNotePlace,
     change: NoteEdit,
     assertCurrent?: () => void,
+    writes: MemoryWrites = this.deps.io,
   ): Promise<MemoryOutcome> {
     if (change.old_str === '') {
       return failed(MODEL_TEXT.memoryOldStrEmpty)
@@ -656,9 +677,10 @@ export class MemoryStore {
     }
     assertCurrent?.()
     try {
-      await this.deps.io.writeFile(
+      await writes.writeFile(
         place.absolute,
         text.replace(change.old_str, () => change.new_str),
+        place.checked,
         assertCurrent,
       )
     } catch (error: unknown) {
@@ -722,7 +744,7 @@ export class MemoryStore {
       })
     }
     try {
-      await this.addIndexLine(place.value, hook, assertCurrent)
+      await this.addIndexLine(place.value, hook, assertCurrent, this.deps.io)
     } catch {
       // The view keeps a note its guard left published; its line was logged as not written.
     }
@@ -749,7 +771,7 @@ export class MemoryStore {
       )
       return
     }
-    await this.deps.io.writeFile(index.absolute, updated, assertCurrent)
+    await this.deps.io.writeFile(index.absolute, updated, index.checked, assertCurrent)
   }
 
   /**

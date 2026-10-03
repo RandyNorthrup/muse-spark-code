@@ -47,9 +47,11 @@ import {
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
 import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
+import type { Owner } from '../../checkpoints/toolWrites'
 import { changeHunk } from '../../codeIntel/codeText'
 import { MODEL_API_CODE_INTEL_DEFINITIONS } from '../../codeIntel/definitions'
 import { readImageInfo } from '../../imageDimensions'
+import type { MemoryWrites } from '../../memory/memoryStore'
 import { isPdf, pdfPageCount } from '../../pdf'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
@@ -168,10 +170,12 @@ export interface ToolIo {
    * `writeFile`, only while the file still holds the text whose fingerprint
    * is `expectedFingerprint`, compared immediately before the rename (M68,
    * `fsAtomic.writeFileIfUnchanged`): `changed`, and nothing written, when not.
+   * A function instead asks whether the file is still as expected; it may
+   * expect no file (M86's recorder: a new file's folders are then created).
    */
   writeFileIfUnchanged(
     absolutePath: string,
-    expectedFingerprint: string,
+    expectedFingerprint: string | (() => Promise<boolean>),
     content: string,
     options: {
       readonly expectedCanonicalPath: string
@@ -179,6 +183,12 @@ export interface ToolIo {
       readonly unsavedAt: readonly string[]
       /** The caller's live admission, checked synchronously beside final native publication. */
       readonly assertCanWrite?: () => void
+      /**
+       * Runs once the content is staged beside the file, before the file is
+       * replaced: M86's recorder journals its intent here. A throw leaves the
+       * file as it was.
+       */
+      readonly staged?: (file: StagedFile) => Promise<void>
     },
   ): Promise<ConditionalWrite>
   /** Whether anything (a file, a folder, a link) is at the path. */
@@ -189,7 +199,11 @@ export interface ToolIo {
    * overwritten. The file is taken before the image is bought, so a path
    * taken meanwhile costs nothing (the review of PR #27).
    */
-  reserveFile(absolutePath: string, expectedCanonicalPath?: string): Promise<FileReservation>
+  reserveFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    beforeCreate?: (createdFolders: number) => Promise<void>,
+  ): Promise<FileReservation>
   /** Whether an editor holds unsaved changes to the file (D27). */
   hasUnsavedChanges(absolutePath: string): boolean
   /** Absolute paths of the files open in an editor with unsaved changes, as the editor names them. */
@@ -230,12 +244,70 @@ export interface ToolIo {
   realPath(absolutePath: string): Promise<string>
 }
 
-/** A new file held empty until its bytes arrive, or removed if they never do. */
+/**
+ * A new file held empty until its bytes arrive, or removed if they never do.
+ * Each step acts only while the path still names the reserved file and it is
+ * still empty (M86): `changed` when not, and the file is left as it is.
+ */
 export interface FileReservation {
-  /** Writes the bytes into the file and lets it go. */
-  fill(bytes: Uint8Array): Promise<void>
-  /** Lets the file go and removes it (it is still empty). */
-  release(): Promise<void>
+  /** Writes the bytes into the file and lets it go. A failure part way is not cleaned up. */
+  fill(bytes: Uint8Array): Promise<ReservationStep>
+  /** Lets the file go and removes it. */
+  release(): Promise<ReservationStep>
+}
+
+/** What a reservation's step did: done, or found the file changed and left it. */
+export type ReservationStep = 'done' | 'changed'
+
+/** A conditional write's content, staged beside its file before the file is replaced. */
+export interface StagedFile {
+  /** The staged file's permission bits, read from its handle: what the file will have. */
+  readonly mode: number
+  /** How many of the file's folders, its own and up, the write created for it (0: none). */
+  readonly createdFolders: number
+}
+
+/**
+ * What one turn's tools write through while it runs (M86, PLAN.md D63): an io
+ * and memory writes bound to the turn, each write recorded for a restore.
+ */
+export interface TurnWrites {
+  readonly io: ToolIo
+  readonly memory: MemoryWrites
+}
+
+/**
+ * Whether a turn's writes are recorded for a restore (M86, PLAN.md D63), and
+ * what its tools write through while they are. A child turn inherits its top
+ * turn's (spec 3.2).
+ */
+export type TurnCheckpoint =
+  | { readonly kind: 'recording'; readonly owner: Owner; readonly writes: TurnWrites }
+  /** Checkpoints are not on: nothing of the turn is recorded. */
+  | { readonly kind: 'off' }
+  /** Its record could not be made: it runs unrecorded, and a restore over it is refused. */
+  | { readonly kind: 'failed' }
+
+/**
+ * A child turn's top turn (M86, spec 3.2): the parent's turn that spawned
+ * the child, whose decision it inherits. Reload keeps only the decision,
+ * never the old window's io. An unknown historical decision fails closed.
+ */
+export interface TopTurn {
+  readonly checkpoint: TurnCheckpoint | undefined
+  readonly recordsFiles?: boolean | undefined
+}
+
+/** How a turn ended, for its checkpoint (M86, spec 8). */
+export interface TurnEnd {
+  /** What its admission gave it; undefined when the admission failed. */
+  readonly checkpoint: TurnCheckpoint | undefined
+  /**
+   * Whether it invoked the shell tool, a check or then_run, a hook or an MCP
+   * tool, or had a command of the conversation running in the background:
+   * what those changed a restore never undoes, and says so.
+   */
+  readonly ranProcesses: boolean
 }
 
 export interface ToolContext {

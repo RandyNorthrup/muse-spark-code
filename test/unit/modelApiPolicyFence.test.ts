@@ -609,8 +609,9 @@ function fixture(c: FenceCase) {
       const reservation = await base.reserveFile(...args)
       return {
         fill: async (bytes) => {
-          await reservation.fill(bytes)
+          const step = await reservation.fill(bytes)
           if (point === 'imageFill') await held.hold()
+          return step
         },
         release: () => reservation.release(),
       }

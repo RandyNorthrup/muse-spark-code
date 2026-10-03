@@ -45,6 +45,7 @@ const PROMPT_SETTLED_ERROR = 'PromptSettledError'
 const GOAL_REFUSED_ERROR = 'GoalRefusedError'
 const MUSE_CODE_FAULT_ERROR = 'MuseCodeFaultError'
 const DECISION_NOT_APPLIED_ERROR = 'DecisionNotAppliedError'
+const STEER_REFUSED_ERROR = 'SteerRefusedError'
 
 /** An `Error` of either bundle carrying the given name. */
 function isNamedError(error: unknown, name: string): error is Error {
@@ -160,6 +161,25 @@ export class DecisionNotAppliedError extends Error {
 /** Whether a failed decision is known not to have applied. */
 export function isDecisionNotAppliedError(error: unknown): error is DecisionNotAppliedError {
   return isNamedError(error, DECISION_NOT_APPLIED_ERROR)
+}
+
+/**
+ * A steer the backend refused outright, so none of it reached the running
+ * turn: Muse Code found no turn to take it (MSP `commandRejected` with a
+ * no-turn reason), or the Model API session took nothing. Only then may the
+ * message go as a new turn instead. Any other steer failure may have
+ * reached the turn, and nothing more is sent (CLI recovery, 2026-10-03).
+ */
+export class SteerRefusedError extends Error {
+  public constructor(message: string) {
+    super(message)
+    this.name = STEER_REFUSED_ERROR
+  }
+}
+
+/** Whether a steer was refused with nothing taken (a `SteerRefusedError` of either bundle). */
+export function isSteerRefusedError(error: unknown): error is SteerRefusedError {
+  return isNamedError(error, STEER_REFUSED_ERROR)
 }
 
 /**
@@ -410,7 +430,10 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
-  /** Inject input into the running turn; rejects when it is no longer running. */
+  /**
+   * Inject input into the running turn. A `SteerRefusedError` says none of
+   * it was taken (no turn to steer); any other failure may have reached it.
+   */
   steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission>
   cancel(): Promise<void>
   setModel(modelId: string): Promise<void>
@@ -482,6 +505,12 @@ export interface AgentSession {
    * the model's own tool), so Muse Code sessions do not offer it.
    */
   readonly setTodos?: (items: readonly TodoItem[]) => void
+  /**
+   * Told when the backend reports this session's own event log failed, so
+   * it can take no new message (CLI recovery): Muse Code 1.4.2 answered a
+   * command with "event log failed: …". The Model API keeps no such log.
+   */
+  readonly onLogDamaged?: (listener: () => void) => () => void
   dispose(): void
 }
 

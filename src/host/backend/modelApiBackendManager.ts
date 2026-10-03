@@ -14,7 +14,11 @@ import { createHash } from 'node:crypto'
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import type { NetworkAdvice } from '../../core/networkFailure'
 import type { McpPoolSnapshot, McpToolSource } from '../../core/backends/modelapi/mcp/pool'
-import type { ModelApiHost, ModelApiPaidHooks } from '../../core/backends/modelapi/ModelApiHost'
+import type {
+  ModelApiHost,
+  ModelApiHostDeps,
+  ModelApiPaidHooks,
+} from '../../core/backends/modelapi/ModelApiHost'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
@@ -126,8 +130,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly networkAdvice?: NetworkAdvice | undefined
   /** What a missing or damaged bundle says: reinstall the extension, unless the agent says its own. */
   readonly bundleUnavailable?: (() => string) | undefined
-  readonly beforeTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
-  readonly afterTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
+  /** A turn starts: its checkpoint admission, and its own recorded writes (M86). */
+  readonly beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
+  readonly afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'

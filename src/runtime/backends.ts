@@ -11,9 +11,8 @@
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
-import { statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
 import path from 'node:path'
+import { fileIdentityKey, sameFile, statIdentity, statIdentitySync } from '../core/fs/fileIdentity'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
@@ -51,7 +50,6 @@ import {
   SECRET_KEYS,
   SETTING_DEFAULTS,
   UI_TEXT,
-  WORKSPACE_IDENTITY_ZERO,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
@@ -388,15 +386,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
     const canonical = await canonicalPath(cwd)
-    const identity = await stat(canonical, { bigint: true })
-    if (
-      !identity.isDirectory() ||
-      identity.ino <= WORKSPACE_IDENTITY_ZERO ||
-      identity.dev < WORKSPACE_IDENTITY_ZERO
-    ) {
+    const identity = await statIdentity(canonical)
+    const key = fileIdentityKey(identity)
+    if (key === undefined || !identity.isDirectory()) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
-    const key = `${identity.dev.toString()}:${identity.ino.toString()}`
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -407,12 +401,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     const assertWorkspaceCurrent = () => {
       try {
         for (const root of [cwd, canonical]) {
-          const current = statSync(root, { bigint: true })
-          if (
-            !current.isDirectory() ||
-            current.dev !== identity.dev ||
-            current.ino !== identity.ino
-          ) {
+          const current = statIdentitySync(root)
+          if (!current.isDirectory() || !sameFile(current, identity)) {
             throw new Error(MODEL_TEXT.pathChangedAfterApproval)
           }
         }

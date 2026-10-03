@@ -253,11 +253,15 @@ const CHECKPOINT_ONLY = [
   'src/host/checkpoints/checkpointFiles.ts',
   'src/host/checkpoints/checkpointRecords.ts',
   'src/host/checkpoints/checkpointRetention.ts',
-  'src/host/checkpoints/ignoredScan.ts',
   'src/host/checkpoints/recordRefs.ts',
   'src/host/checkpoints/shadowGit.ts',
   'src/core/checkpoints/gitListings.ts',
-  'src/core/checkpoints/restorePlan.ts',
+  // M86: the engine that decides a restore runs only in the store.
+  'src/core/checkpoints/restoreChain.ts',
+  // M86: the window's recording (its journal and the turns' recorder) is made
+  // by the store's bundle at activation; the activation bundle has its types only.
+  'src/host/checkpoints/writeJournal.ts',
+  'src/host/checkpoints/writeRecorder.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
 // The English fallback is shared; installed-language state stays in each bundle.

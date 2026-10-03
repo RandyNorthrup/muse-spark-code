@@ -914,13 +914,30 @@ body {
   outline-offset: 1px;
 }
 
+/* How many times a notice was said (D26): small and outlined in the
+   notice's own colour, so its contrast is the notice's. */
+.notice-repeat {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
 .notice-warning {
   color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
   background: var(--vscode-inputValidation-warningBackground, transparent);
 }
 
+/* The theme's text colour on the error tint, as VS Code's own validation
+   message does: errorForeground on that tint is below 4.5:1 in Light (2.6)
+   and Dark (3.8). The edge keeps it red. */
 .notice-error {
-  color: var(--vscode-errorForeground);
+  border-inline-start: 2px solid
+    var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  color: var(--vscode-inputValidation-errorForeground, var(--vscode-foreground));
   background: var(--vscode-inputValidation-errorBackground, transparent);
 }
 

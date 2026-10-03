@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import { applyFileStep } from '../../src/host/checkpoints/checkpointFiles'
-import { ATOMIC_TEMPORARY_SUFFIX, GIT_MODE_FILE } from '../../src/shared/constants'
+import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
 import {
   done,
   harness,
@@ -58,9 +58,9 @@ async function fileTurn() {
   const h = await harness()
   await write(h.root, 'nested/a.txt', 'a0\n')
   await write(h.root, 'b.txt', 'b0\n')
-  await turn(h, 't1', async () => {
-    await write(h.root, 'nested/a.txt', 'a1\n')
-    await write(h.root, 'b.txt', 'b1\n')
+  await turn(h, 't1', async (tool) => {
+    await tool('nested/a.txt', 'a1\n')
+    await tool('b.txt', 'b1\n')
   })
   return h
 }
@@ -74,7 +74,7 @@ function lateChangeResult(change: string) {
     : { reason: 'failed', after: 'foreign bytes\n' }
 }
 
-describe('checkpoint native publication boundary (M72/M68)', () => {
+describe('checkpoint native publication boundary (M72/M68/M86)', () => {
   it.each(['disk edit', 'dirty editor', 'parent junction swap'])(
     'preserves a late %s during a real closed stage and keeps partial Redo',
     async (change) => {
@@ -86,6 +86,7 @@ describe('checkpoint native publication boundary (M72/M68)', () => {
         backend: () => 'modelApi',
         sessionId: 's1',
         turnId: 't1',
+        transcriptTurnIds: ['t1'],
         unsavedPaths: () => (isDirty ? [target] : []),
       })
       const outside = path.join(path.dirname(h.top), 'foreign')
@@ -130,6 +131,7 @@ describe('checkpoint native publication boundary (M72/M68)', () => {
         backend: () => 'modelApi',
         sessionId: 's1',
         turnId: 't1',
+        transcriptTurnIds: ['t1'],
         unsavedPaths: () => [],
       })
       try {
@@ -139,10 +141,16 @@ describe('checkpoint native publication boundary (M72/M68)', () => {
         held.resume.resolve(undefined)
       }
       const restored = done(await restoring)
-      expect(restored.changed).toEqual(['b.txt', 'nested/a.txt'])
+      expect(restored.changed.toSorted((left, right) => left.localeCompare(right))).toEqual([
+        'b.txt',
+        'nested/a.txt',
+      ])
       expect(await read(h.root, 'nested/a.txt')).toBe('a0\n')
       const redone = await redoRestore(h.reopen(), restored.restoreId ?? '')
-      expect(redone.changed).toEqual(['b.txt', 'nested/a.txt'])
+      expect(redone.changed.toSorted((left, right) => left.localeCompare(right))).toEqual([
+        'b.txt',
+        'nested/a.txt',
+      ])
       expect(await read(h.root, 'nested/a.txt')).toBe('a1\n')
     },
     REAL_GIT_TIMEOUT_MS,
@@ -175,13 +183,9 @@ describe('checkpoint native publication boundary (M72/M68)', () => {
           {
             path: 'nested/a.txt',
             target: null,
-            expect: {
-              kind: 'blob',
-              oid: gitBlobOid(Buffer.from('original\n')),
-              mode: GIT_MODE_FILE,
-            },
+            expect: { kind: 'blob', oid: gitBlobOid(Buffer.from('original\n')) },
+            removeFolders: [],
           },
-          undefined,
           undefined,
         ),
       ).toBe('linked')
