@@ -1,20 +1,25 @@
 <p align="center">
-  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent inside VS Code" width="100%">
+  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent in your editor" width="100%">
 </p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://badgen.net/vs-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=3b6cf6"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
+  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
+  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm: the ACP agent" src="https://badgen.net/npm/v/muse-spark-code-acp?label=npm%20(ACP%20agent)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="VS Code 1.99 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.99-2b7de9">
+  <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
   <a href="#languages"><img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
   <a href="https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82"><img alt="Donate via PayPal" src="https://img.shields.io/badge/donate-PayPal-0070ba"></a>
 </p>
 
-**Muse Spark Code** puts Meta's Muse Spark model to work inside VS Code as a
-coding agent. A chat panel streams answers, reads and edits your files with
+**Muse Spark Code** puts Meta's Muse Spark model to work in your editor as a
+coding agent: as an extension in VS Code, Cursor, Windsurf, VSCodium and other
+VS Code-based editors, and through its ACP agent in Zed, JetBrains IDEs,
+Neovim, Emacs and more ([install](#install-in-your-editor)). A chat panel streams answers, reads and edits your files with
 reviewable diffs, runs commands behind permission modes, and delegates to
 subagents you can watch and steer. It also remembers past conversations and
 takes dictation from your microphone. It runs on your Muse subscription
@@ -297,8 +302,86 @@ agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release.
 [docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
 key (the operating system's credential store), and the editor's settings.
-VS Code forks built on VS Code 1.99 or later can install the extension
-from a `.vsix`, and from Open VSX once a release is published there.
+VS Code forks built on VS Code 1.99 or later install the extension itself,
+from Open VSX or a `.vsix`.
+
+### Install in your editor
+
+Get it from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
+
+| Editor                                                   | How                                                                                                                                                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.10.1.vsix` |
+| **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
+| **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
+| **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
+| **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+**The ACP agent** needs Node.js 22 or later. Install it from the release:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.10.1/muse-spark-code-acp-0.10.1.tgz
+muse-spark-code-acp --version
+```
+
+**Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
+Muse Spark under External Agents in the Agent Panel's new-thread menu.
+
+```json
+{
+  "agent_servers": {
+    "Muse Spark": {
+      "type": "custom",
+      "command": "muse-spark-code-acp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+**JetBrains IDEs**: in the AI Chat tool window choose **Add Custom Agent**,
+which opens `~/.jetbrains/acp.json`, and add the agent under
+`agent_servers` ([JetBrains' ACP guide](https://www.jetbrains.com/help/ai-assistant/acp.html)).
+This setup follows JetBrains' documentation and has not been tested here yet.
+
+```json
+{
+  "default_mcp_settings": {},
+  "agent_servers": {
+    "Muse Spark": {
+      "command": "muse-spark-code-acp",
+      "args": []
+    }
+  }
+}
+```
+
+Add `"--backend", "modelApi"` to `args` in either editor to use the Model
+API backend instead of Muse Code.
+
+**On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
+which some editors cannot start. If the editor says it cannot find or start
+the agent, use `node` as the command and the agent's script as the first
+argument, before any others. `<npm root -g>` is the folder `npm root -g`
+prints, usually `%APPDATA%\npm\node_modules`. This form works on every
+platform ([docs/acp.md](docs/acp.md#install)).
+
+```json
+{
+  "command": "node",
+  "args": [
+    "C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\muse-spark-code-acp\\dist\\acp.js"
+  ]
+}
+```
+
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
 which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
@@ -602,9 +685,63 @@ session offers Muse Code's `resume-claude` and `resume-codex` skills, the
 palette's Context group has **Continue a Claude Code session** and
 **Continue a Codex session**.
 
+**Import from other agents…** (Customize group, both backends) moves you
+off Claude Code, Codex or Cursor: their MCP servers, Claude Code hooks,
+custom agents, slash commands and rules files, found where each tool keeps
+them and converted to the formats their destination loads.
+
+| From                                                                              | Becomes                                                                                                                                                                 |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slash commands (`.claude/commands`, `~/.codex/prompts`, `.cursor/commands`)       | Skills: the project's `.agents/skills/<id>/SKILL.md`, or your own `~/.config/muse/skills/<id>`                                                                          |
+| Custom agents (`.claude/agents`, `.cursor/agents`)                                | Compatible M76 agents in `.agents/agents/<id>/AGENT.md`, or your own `~/.config/muse/agents/<id>/AGENT.md`; the directory id is the Model API `subagent_spawn` selector |
+| A project's rules (`CLAUDE.md`, `.cursor/rules/*.mdc`, `.cursorrules`)            | Headed sections appended to the project's `AGENTS.md`                                                                                                                   |
+| Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Unsaved editor edits in Muse Code's `settings.json`                                                                                                                     |
+| Claude Code hooks (your `settings.json`, or the project's)                        | Unsaved editor edits in your `settings.json`, or the project's `.muse/hooks.json`                                                                                       |
+
+Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+
+The read-only preview lists kind, item name, source scope, target path and
+refusals with their reasons. It never shows bodies, commands, arguments,
+environment or header values, or URLs. Picker details show personal or
+project scope, never source paths. Names remain visible as the source tool
+shows them. Nothing is written until you choose Import; an existing file
+is never replaced. Config entries open as unsaved edits in their target
+editor for you to review and save; the importer never uses the clipboard
+or saves Muse Code's settings or hooks files. Values stay unchanged.
+
+Personal means under your home and outside every open workspace. Project
+files are either git-ignored (project-local) or tracked/not ignored
+(project-tracked). A non-repository folder counts as tracked. Project-local
+may go to project-local or personal; project-tracked may go to any of the
+three. Target exposure is checked again at publication or editor edit time.
+An unreadable classification refuses the item. The native-path checks also
+refuse links and junctions below the project root, including dangling ones.
+An arbitrary native writer can still race the final filesystem operation;
+Node has no handle-relative publication API to close that window.
+
+Project sources require workspace trust. Losing trust stops project reads
+and effects; closing activation stops pending prompts. Personal imports
+remain available in Restricted Mode. A repository's MCP servers are listed
+but are not offered for personal settings; personal rules remain Muse Code's
+`/rules import`. Hooks keep supported matchers and restrictions. Unsupported
+events, non-command handlers, narrowing fields (`if`, `args`, `shell`),
+disabled servers, SSE, WebSockets, OAuth and header helpers are listed and
+not converted. MCP conversion copies only the active transport's fields;
+inactive and unknown fields are listed as dropped by name, never by value.
+
+Claude agents and commands retain namespaces up to three levels. Agents
+need M76's supported metadata; runtime admission awaits M76 integration.
+Commands keep supported descriptions and argument hints; unsupported
+restrictions are refused. One import runs at a time. Project publications
+hold the checkpoint lease and count as your own edits, so restoring a turn
+preserves them. Rules appends stop on changed prior text or a result over
+64 KiB. Skipped-file messages and logs contain counts and fixed reasons,
+never item names, paths or content. Only successful publications and config
+edits actually offered count as imported.
+
 **MCP servers and hooks.** Muse Code reads both from its own settings file
 (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`), and project
-hooks from `.muse/hooks.json`. The extension shows them and never edits them:
+hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuration without editing it:
 
 - **MCP servers…** lists each server:
   - Its transport, where it points (a URL is cut to its scheme and host),
@@ -1484,6 +1621,10 @@ reaches a session. It shows 200 items at a time, with **Show more** for the
 next, and an item that cannot be rendered says so in its place while the
 rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
+At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
+with the theme's focus border; Escape closes the view and focuses the composer.
+For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
+captures both widths; `share-narrow` also runs in all four accessibility themes.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -1914,6 +2055,7 @@ What stays in English:
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
+| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: Import Session                          | —                                                                                    | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
 | Muse Spark: Open Share File                         | —                                                                                    | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
@@ -2254,13 +2396,16 @@ stopped and the next message resumes the same session.
   on 1.3.0 the first command also takes about half a minute) cannot enter
   folders under `C:\Users\<you>`
   ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  This sandbox issue was not retested on 1.4.2 in the October 2 probes;
+  the workaround remains until a fix is verified.
   With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
   without the sandbox for such workspaces: commands run directly as you, in
   the project, still gated by the approval cards, and the panel says so once
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
-  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0
-  and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
+  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
+  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore

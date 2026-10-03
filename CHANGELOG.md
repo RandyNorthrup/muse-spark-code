@@ -68,7 +68,6 @@ happened, not what was planned; superseded entries are kept.
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
-
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -101,6 +100,18 @@ happened, not what was planned; superseded entries are kept.
   keeping its exact draft and images without replacing newer typing.
   No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 
 ### Changed
 
@@ -112,6 +123,46 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
+- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
+  optionally with a goal after it, asks the model — as your own turn in the
+  current conversation — for a distilled brief: the goal, the decisions,
+  the files touched, the open work and the todo list. Anything drawn from
+  tool output, fetched pages or imported files is marked `[untrusted]` in
+  the brief, and the new conversation is told what that means. The brief
+  opens in a dialog before anything starts, with the open items the new
+  todo list will hold: review it, edit it, then start the new
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again, and a brief that is ready while Account & usage, the Agent map or a share file
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
+
 ### Fixed
 
 - **Implement in a fresh conversation** now waits while handoff Start is
@@ -160,6 +211,7 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 
 ## [0.10.1] - 2026-10-02
 

@@ -26,6 +26,7 @@ import {
   OBS_PACK_HEAD_LINES,
   OBS_PACK_MARKER_BYTES,
   OBS_PACK_PAGE_CHARS,
+  OBS_PACK_RECALL_ID_LIMIT,
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
@@ -296,7 +297,11 @@ export class ObservationPack {
     const { id } = parsed.data
     const entry = this.outputs.get(id)
     if (entry === undefined) {
-      const known = this.ids.join(', ')
+      let known = this.ids.slice(-OBS_PACK_RECALL_ID_LIMIT).join(', ')
+      const omitted = this.ids.length - OBS_PACK_RECALL_ID_LIMIT
+      if (omitted > 0) {
+        known = fill(MODEL_TEXT.packKnownIdsMore, { known, count: String(omitted) })
+      }
       return failure(
         fill(MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
         fill(UI_TEXT.packRecallUnknownId, { id }),
