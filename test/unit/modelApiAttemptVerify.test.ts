@@ -161,6 +161,36 @@ async function setup() {
   }
 }
 
+/** The model's turns that read `source.ts`, rewrite it, then finish. */
+function readThenWrite() {
+  return [
+    { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'source.ts' }) }] },
+    {
+      calls: [
+        {
+          name: 'write_file',
+          arguments: JSON.stringify({ path: 'source.ts', content: 'const answer = 2;\n' }),
+        },
+      ],
+    },
+    { text: 'done' },
+  ]
+}
+
+/** An Allow-all session in `workspaceRoot`, with every event it raises collected. */
+async function allowAllSession(host: ModelApiHost, workspaceRoot: string) {
+  const session = await host.startSession({
+    workspaceRoot,
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  const events: AgentEvent[] = []
+  session.onEvent((event) => {
+    events.push(event)
+  })
+  return { session, events }
+}
+
 async function trial(t: Awaited<ReturnType<typeof setup>>) {
   const host = await t.manager.buildAttemptHost(t.trialRoot, () => undefined)
   hosts.push(host)
@@ -179,18 +209,7 @@ async function trial(t: Awaited<ReturnType<typeof setup>>) {
         choiceId: 'allow_once',
       })
   })
-  t.api.script(
-    { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'source.ts' }) }] },
-    {
-      calls: [
-        {
-          name: 'write_file',
-          arguments: JSON.stringify({ path: 'source.ts', content: 'const answer = 2;\n' }),
-        },
-      ],
-    },
-    { text: 'done' },
-  )
+  t.api.script(...readThenWrite())
   return { host, session, events }
 }
 
@@ -200,15 +219,7 @@ async function nativeRename(t: Awaited<ReturnType<typeof setup>>) {
   t.settings.checks = false
   const host = await t.manager.ensureHost()
   hosts.push(host)
-  const session = await host.startSession({
-    workspaceRoot: t.root,
-    modelId: 'muse-spark-1.3',
-    approvalMode: 'allowAll',
-  })
-  const events: AgentEvent[] = []
-  session.onEvent((event) => {
-    events.push(event)
-  })
+  const { session, events } = await allowAllSession(host, t.root)
   t.api.script(
     {
       calls: [
@@ -557,15 +568,7 @@ describe('production trial verification uses its own root (M77/M68)', () => {
     t.settings.commandRules = [{ pattern: ['npm', 'test'], decision: 'allow', match: ['npm test'] }]
     const host = await t.manager.buildAttemptHost(t.trialRoot, () => undefined)
     hosts.push(host)
-    const session = await host.startSession({
-      workspaceRoot: t.trialRoot,
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-    })
-    const events: AgentEvent[] = []
-    session.onEvent((event) => {
-      events.push(event)
-    })
+    const { session, events } = await allowAllSession(host, t.trialRoot)
     t.api.script(
       {
         calls: [
@@ -575,16 +578,7 @@ describe('production trial verification uses its own root (M77/M68)', () => {
           },
         ],
       },
-      { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'source.ts' }) }] },
-      {
-        calls: [
-          {
-            name: 'write_file',
-            arguments: JSON.stringify({ path: 'source.ts', content: 'const answer = 2;\n' }),
-          },
-        ],
-      },
-      { text: 'done' },
+      ...readThenWrite(),
     )
     await session.sendTurn([{ type: 'text', text: 'fix the trial' }])
     await finishedTurn(events)
