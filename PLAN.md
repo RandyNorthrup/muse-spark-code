@@ -211,18 +211,18 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                  |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                         |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                     |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                   |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                               |
-| `.vsix`                   | ≤ 1850 KiB compressed (REL after main join: 1,631,505 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                            |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                              |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                         |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                          |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
+| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                             |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                               |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX

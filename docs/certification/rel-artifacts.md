@@ -15,9 +15,19 @@ a REL suppression. The Marketplace URL correction uses the exact gallery
 `/vspackage` endpoint named in the brief: its expectation failed first (one
 of 60 tests), then passed after the change, with scoped lint repeated.
 The first measurement, 1,631,349 bytes, and the post-join measurement,
-1,631,505 bytes, both give 1,850 KiB after adding 15% and rounding to 25 KiB.
+1,633,017 bytes, both give 1,850 KiB after adding 15% and rounding to 25 KiB.
 Implementation commit `17715e34` ran configured lint-staged ESLint/Prettier
 and gitleaks hooks successfully; no bypass.
+
+Final main join: `42f94d14` incorporates `3ffc9665` (approved editor
+quick-start documentation and artwork). README/CHANGELOG merged cleanly.
+Release scripts, workflows, owning tests and discovery configuration match
+the tested snapshot byte-for-byte; their receipts and 20 exact restoration
+bindings remain valid. Production build/package and size gates reran after
+this join: 62 entries, 1,633,017 bytes, the same 1,850 KiB cap and unchanged
+bundle sizes. The original baseline and final measurement both round to that
+cap. The size script retains its original measurement comment. Final protocol
+receipts use the newly packaged VSIX.
 
 ## Scope and findings
 
@@ -31,7 +41,7 @@ and gitleaks hooks successfully; no bypass.
 | 6, 11, signing              | PLAN §8 records Marketplace signing, no self-signed VSIX, unsigned version tags and the intentionally mutable/unsigned future `v0` alias. No signing credentials created.                                                                                                                                                                                                                                                                                          |
 | 7, launcher                 | `src/acp/agent.ts` forwards MCP to Muse Code and runs none on Model API; `src/runtime/backends.ts` composes only `shellJobAssembly`. `package-acp.mjs` comments explain why MCP launcher source is excluded. The two shell job sources stay shipped and gated.                                                                                                                                                                                                     |
 | 8, npm auth                 | Release guide documents granular token Bypass 2FA or trusted publishing once the package exists, with current npm policy links. Credentials/publisher configuration are owner work.                                                                                                                                                                                                                                                                                |
-| 9, VSIX size                | `check-vsix-size.mjs` and the CI package job enforce 1,850 KiB: measured 1,631,505 compressed bytes with the real universal helper, plus 15%, rounded up to 25 KiB. PLAN D6 mirrors it.                                                                                                                                                                                                                                                                            |
+| 9, VSIX size                | `check-vsix-size.mjs` and the CI package job enforce 1,850 KiB: measured 1,633,017 compressed bytes with the real universal helper, plus 15%, rounded up to 25 KiB. PLAN D6 mirrors it.                                                                                                                                                                                                                                                                            |
 | 10, ACP locales             | The package gate checks every source `l10n/ui.*.json` table (14), rather than one German sample.                                                                                                                                                                                                                                                                                                                                                                   |
 | 12, namespace               | Base 0.10.1 record already proves Open VSX publication/download. No namespace ownership claim made or credential changed; administrative verification needs the owner.                                                                                                                                                                                                                                                                                             |
 | M80 hooks                   | Schema assets upload only if present; `v0` moves only if `action/` exists and all four channels published. A skipped/failed channel holds it; ancestry prevents an older rerun moving it backwards. Both directories are absent, so hooks remain inert. Guide names `RandyNorthrup/muse-spark-code/action@v0` and no Actions Marketplace listing.                                                                                                                  |
@@ -56,7 +66,7 @@ dependency added.
 | Windows host                            | `npm run package` (runs literal `npm run build` via prepublish)          | Exit 0; all existing size/split/host-global/notices gates pass; 62 VSIX entries, actual universal helper included.                                                                                    |
 | Windows host                            | `node scripts/package-acp.mjs`                                           | Exit 0; 25 entries, both job sources and all 14 locale tables.                                                                                                                                        |
 | Windows host                            | `node scripts/release-sbom.mjs`                                          | Exit 0; extension 81 dependency versions, ACP 20; zero dangling refs and zero eslint/vitest/typescript/esbuild components in output.                                                                  |
-| Windows host                            | `node scripts/check-vsix-size.mjs <measured VSIX>`                       | Exit 0, 1,631,505 / 1,894,400 bytes.                                                                                                                                                                  |
+| Windows host                            | `node scripts/check-vsix-size.mjs <measured VSIX>`                       | Exit 0, 1,633,017 / 1,894,400 bytes.                                                                                                                                                                  |
 | Windows host                            | Node invocation of resolved OVSX CLI `--version`                         | Exit 0, 1.2.0.                                                                                                                                                                                        |
 | Kubuntu, Node 24.18.0, `~/gates/rt-rel` | Both owning Vitest files, final script/test tree                         | 60/60 pass; no filtered/skipped tests. Private snapshot `5ac69f47`.                                                                                                                                   |
 | Kubuntu                                 | actionlint 1.7.12 with ShellCheck 0.11.0 on both workflows               | Exit 0; ShellCheck invoked by actionlint.                                                                                                                                                             |
@@ -88,7 +98,7 @@ The local source bytes match the rig's restored hashes.
 hash, 14-table gate exercise, standard checksum entries and absent M80 folders.
 These refer to local, unpublished 0.10.1 build artifacts, not the already
 published 0.10.1 bytes. The measured VSIX SHA-256 is
-`2d8eb77ade6877de8ffc89cbfc4e6ca72b82f2199fab4901c62fc36a1a08c97d`.
+`4ac6a5b70d9c46bd835730f7f320a509e49bc7accbfaaef94b6b242312af5fb6`.
 
 Initial findings retained: first lint run rejected shebang/export combination,
 implicit JS globals and fixture assignments; these were fixed without
