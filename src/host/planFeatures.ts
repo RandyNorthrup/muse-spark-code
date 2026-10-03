@@ -119,8 +119,8 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
           }
           const stage = path.join(absolutePath, entry.name)
           try {
-            const stats = await lstat(stage)
-            if (stats.isFile() && options.now() - stats.mtimeMs > PLAN_STAGE_STALE_MS) {
+            const stats = await lstat(stage, { bigint: true })
+            if (stats.isFile() && options.now() - Number(stats.mtimeMs) > PLAN_STAGE_STALE_MS) {
               if (
                 !isSamePath(await canonicalPath(stage), stage, process.platform) ||
                 !(await isOwnedFile(stage, stats))

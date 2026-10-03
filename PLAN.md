@@ -9684,6 +9684,13 @@ to the release candidate is described below.
 - **Status.** In progress: F07 closed by the lead's 2026-10-02 metadata
   lifetime decision; final merged-tree gates and full milestone certification remain open.
   [m86.md](docs/certification/m86.md) records the fix-batch gates and drills.
+- **M86P merged Windows gate follow-up.** The final full Windows suite at
+  `eb021063` found one real staged-file replacement admitted by the numeric
+  inode guard (`fsAtomic.test.ts`, promise resolved instead of rejecting).
+  Native probe IDs exceed JavaScript's safe integer range. Keep exact BigInt
+  device/inode identities for atomic/exclusive stages and plan-stage cleanup;
+  keep permission modes numeric. Extend the existing ownership regression and
+  drill both admission and exact-stat reads, then refresh the full rig matrix.
 - **M86FIX pre-merge batch.** Deduplicated eight reviews in the lead scratchpad
   `m86/FIX-PLAN.md`. Repaired confinement, durability, unit/copy retention,
   Redo completeness and child/background seams; strengthened real-recorder

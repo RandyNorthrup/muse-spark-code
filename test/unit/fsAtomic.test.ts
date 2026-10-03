@@ -18,6 +18,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   createFileExclusively,
   isNameTaken,
+  isOwnedFile,
   writeFileAtomically,
   writeFileIfUnchanged,
 } from '../../src/host/fsAtomic'
@@ -34,6 +35,16 @@ beforeAll(async () => {
 afterAll(() => removeFolder(paths.root))
 
 const noWait = () => Promise.resolve()
+
+it('compares exact inode identities and captured metadata for owned-file cleanup', async () => {
+  const target = path.join(paths.root, 'exact-identity.txt')
+  await writeFile(target, 'owned bytes')
+  const identity = await lstat(target, { bigint: true })
+  expect(await isOwnedFile(target, identity)).toBe(true)
+  expect(await isOwnedFile(target, { ...identity, ino: identity.ino + 1n })).toBe(false)
+  expect(await isOwnedFile(target, { ...identity, mtimeNs: identity.mtimeNs + 1n })).toBe(false)
+  expect(await isOwnedFile(target, { ...identity, size: identity.size + 1n })).toBe(false)
+})
 
 /** A file-system error with its code, as Node raises one. */
 function coded(code: string): Error {
