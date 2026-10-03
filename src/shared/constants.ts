@@ -268,7 +268,8 @@ export const SETTING_DEFAULTS = {
   allowDangerouslySkipPermissions: false,
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
-  // deleted: MSP has no delete, and "Show archived" brings them back.
+  // deleted: the extension does not call session/delete (available since
+  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -1888,13 +1889,15 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // MSP schema fingerprints Muse Code has served beyond the one
-// `@muse-code/sdk` 1.3.0 pins, each an additive change (1.4.0's schema export
-// diffed against 1.3.0's; Meta's release manifests carry the same values).
+// `@muse-code/sdk` 1.3.0 pins, each an additive change (SDK tarballs, schema
+// exports and release manifests; docs/certification/sdk142.md).
 // Such a host is logged at info with its build; any other mismatch stays a
 // warning (docs/certification/release-0.9.1.md).
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
   'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
+  'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f': '1.4.1-R4503.1',
+  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
