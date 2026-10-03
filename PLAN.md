@@ -3653,31 +3653,11 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
   evaluation fails any task on which a paid use happens. Should the
   evaluation gain a priced, counted paid arm for it, or should the reducer be
   judged by its own D48 consent without an M75 run? Default: not built.
-- **M87 queued messages on Muse Code (D66, item 12).** A message typed
-  during a Muse Code turn is steered into that turn, and MSP cannot take a
-  steered message back. So Edit is offered only for the messages Muse Code
-  queued: a handoff, a message with a text file, or a refused steer. Should
-  the panel queue every such message instead (`ifBusy: "queue"`), so that
-  Edit always works? The cost is that the model reads them only after the
-  turn. Default: steer, as today.
-- **M88 saved prompts and Settings Sync (D67, item 13).** Should saved
-  prompts get an opt-in to follow Settings Sync
-  (`globalState.setKeysForSync`)? Default: not synced.
-- **M88 one-shot confirmation on the Model API (D67, item 15).** May a
-  one-shot be confirmed at the moment it is scheduled, so that it sends at
-  its time with nobody there? The D48 popup would be shown for that one run,
-  bound to its prompt, model, session and key digest. All of these would be
-  checked again at its time, and any change would send it back to Run.
-  Default: M52's rule, Run when it is due.
-- **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** May a
-  Muse Code timed send or resume go at its time without "Send now"? No key
-  pays for it, but the turn runs tools in the session's mode with nobody
-  watching. Default: it waits for Send now.
-- **M88 Muse Code usage-limit capture (D67, item 16).** The error Muse
-  Code gives when the subscription window is full has not been captured.
-  May one short turn on the contributor model be run in an empty workspace
-  the next time the owner's window is full, to capture it? Default: limit
-  detection rests only on the usage report and the goal status.
+- **M87 queued messages on Muse Code (D66, item 12).** **Resolved 2026-10-03 (owner): keep steering.** A message typed during a Muse Code turn still goes into that turn. Edit is offered only for messages Muse Code really queued (a handoff, a message with a text file, a refused steer).
+- **M88 saved prompts and Settings Sync (D67, item 13).** **Resolved 2026-10-03 (owner): optional sync.** One setting, off by default, adds saved prompts and bookmarks to Settings Sync (`globalState.setKeysForSync`). Off, they stay on this machine.
+- **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
+- **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
+- **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
