@@ -40,9 +40,9 @@ function folder(): string {
 }
 
 // The agent's dist/ folder: the Model API backend's own bundle, required by path.
-beforeAll(() => {
+beforeAll(async () => {
   dist.folder = folder()
-  buildModelApiBundle(dist.folder)
+  await buildModelApiBundle(dist.folder)
 })
 
 afterAll(async () => {

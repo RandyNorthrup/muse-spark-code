@@ -1,5 +1,6 @@
 // A `ModelApiHost`'s dependencies over the fake Model API and an in-memory
-// workspace: trusted, nothing paid or allowed, no personal skills or memory,
+// workspace: trusted, non-confidential, nothing paid or allowed, no personal
+// skills, agents or memory,
 // ids and a clock that count up. The host suites spread it and change what
 // they test.
 
@@ -38,7 +39,10 @@ export function fakeModelApiHostDeps(base: {
     },
     log: base.log,
     personalSkillsRoot: undefined,
+    personalAgentsRoot: undefined,
     isWorkspaceTrusted: () => true,
+    isConfidentialWorkspace: () => false,
+    confirmContributorModel: () => Promise.resolve(false),
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     isPaidFeatureOn: () => false,

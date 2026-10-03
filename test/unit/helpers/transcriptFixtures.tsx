@@ -62,7 +62,6 @@ export function transcriptProps(
     onInsert: vi.fn(),
     onReadOutput: vi.fn(),
     onOpenOutput: vi.fn(),
-    onDecide: vi.fn(),
     onAnswer: vi.fn(),
     onCancelQuestion: vi.fn(),
     onClarifyQuestion: vi.fn(),

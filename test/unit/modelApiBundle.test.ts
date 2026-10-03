@@ -41,13 +41,19 @@ const ROOT = '/ws'
 const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
 
-beforeAll(() => {
+beforeAll(async () => {
   // Node keys its module cache by real path: macOS's temporary folder is
   // /var/folders, a link to /private/var/folders, so the cache checks below
   // look the reviewer bundle up by the folder's real path.
   built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-')))
-  built.file = buildModelApiBundle(built.folder)
+  built.file = await buildModelApiBundle(built.folder)
 })
+
+/** Installs both runtime modules into a fixture that started with a missing or broken backend. */
+function copyBundleTo(file: string): void {
+  copyFileSync(built.file, file)
+  copyFileSync(path.join(built.folder, 'uiText.js'), path.join(path.dirname(file), 'uiText.js'))
+}
 
 afterAll(() => removeFolder(built.folder))
 
@@ -202,7 +208,7 @@ describe('the Model API bundle (M57)', () => {
     { name: 'malformed', body: 'module.exports = { reviewPaidCall: 1 }' },
   ])('asks without billing when the deferred reviewer bundle is $name', async ({ body }) => {
     const file = path.join(scratchFolder(), MODEL_API_BUNDLE_FILE)
-    copyFileSync(built.file, file)
+    copyBundleTo(file)
     if (body !== undefined) writeFileSync(path.join(path.dirname(file), 'reviewerEntry.js'), body)
     const paid: string[] = []
     const t = managerFor(file, {
@@ -267,7 +273,7 @@ describe('the Model API bundle (M57)', () => {
     await expect(t.manager.ensureHost()).rejects.toThrow(UI_TEXT.modelApiBundleUnavailable)
     expect(t.manager.isRunning).toBe(false)
     expect(t.log.error).toHaveBeenCalledWith(expect.stringContaining(file))
-    copyFileSync(built.file, file)
+    copyBundleTo(file)
     const host = await t.manager.ensureHost()
     expect(host.info.kind).toBe('modelApi')
     await t.manager.dispose()
@@ -301,7 +307,7 @@ describe('the Model API bundle (M57)', () => {
     const t = managerFor(file)
     await expect(t.manager.ensureHost()).rejects.toThrow(UI_TEXT.modelApiBundleUnavailable)
     // Node cached the module that ran; the manager must not keep reading that copy.
-    copyFileSync(built.file, file)
+    copyBundleTo(file)
     const host = await t.manager.ensureHost()
     expect(host.info.kind).toBe('modelApi')
     await t.manager.dispose()
@@ -325,6 +331,22 @@ describe('the Model API bundle (M57)', () => {
     await expect(session.controlGoal({ verb: 'set', objective: ' ' })).rejects.toThrow(
       `goal/set: ${de.table.goalObjectiveMissing}`,
     )
+    await t.manager.dispose()
+  })
+
+  it('loads the shared English fallback without changing it when a language is installed', async () => {
+    const bundleText = readFileSync(built.file, 'utf8')
+    expect(bundleText).toMatch(/require\(["']\.\/uiText\.js["']\)/u)
+    expect(bundleText).not.toContain(EN.goalObjectiveMissing)
+    const fallback: unknown = createRequire(built.file)('./uiText.js')
+    expect(fallback).toHaveProperty('EN.goalObjectiveMissing', EN.goalObjectiveMissing)
+    setUiText({ ...EN, goalObjectiveMissing: 'Installed goal sentence' }, BASE_LOCALE)
+    const t = managerFor(built.file)
+    const session = await startSession(t.manager)
+    await expect(session.controlGoal({ verb: 'set', objective: ' ' })).rejects.toThrow(
+      'goal/set: Installed goal sentence',
+    )
+    expect(fallback).toHaveProperty('EN.goalObjectiveMissing', EN.goalObjectiveMissing)
     await t.manager.dispose()
   })
 

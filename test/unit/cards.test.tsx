@@ -45,19 +45,14 @@ const approval: PendingApproval = {
 describe('ApprovalCard', () => {
   it('shows the current stage, flags, and sends the chosen decision with feedback', () => {
     const onDecide = vi.fn()
-    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />)
+    const first = render(
+      <ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />,
+    )
     expect(screen.getByText('Get-Content x')).toBeInTheDocument()
     expect(screen.getByText('(step 2 of 2)')).toBeInTheDocument()
     expect(screen.getByText('Protected write')).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
       target: { value: ' use the file tool ' },
-    })
-    fireEvent.click(screen.getByText('Allow once'))
-    expect(onDecide).toHaveBeenLastCalledWith({
-      approvalId: 'a1',
-      choiceId: 'allow_once',
-      requirementId: { approvalId: 'a1', sourceIndex: 1 },
-      feedback: undefined,
     })
     fireEvent.click(screen.getByText('Reject'))
     expect(onDecide).toHaveBeenLastCalledWith({
@@ -69,6 +64,41 @@ describe('ApprovalCard', () => {
     expect(screen.getByTitle('Always allow in this workspace: Get-Content ...')).toHaveClass(
       'button-primary',
     )
+    // A choice without feedback carries none (a fresh card: one decision per stage).
+    first.unmount()
+    const onOther = vi.fn()
+    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={onOther} />)
+    fireEvent.click(screen.getByText('Allow once'))
+    expect(onOther).toHaveBeenLastCalledWith({
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+      feedback: undefined,
+    })
+  })
+
+  it('sends one decision for its stage, however fast the clicks, until the host reopens it (D26)', () => {
+    const onDecide = vi.fn()
+    const { rerender } = render(
+      <ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />,
+    )
+    // Both clicks land before the locked card renders.
+    fireEvent.click(screen.getByText('Allow once'))
+    fireEvent.click(screen.getByText('Allow once'))
+    fireEvent.click(screen.getByText('Reject'))
+    expect(onDecide).toHaveBeenCalledTimes(1)
+    // Locked by the host's state, then reopened: the stage may be decided again.
+    rerender(
+      <ApprovalCard
+        approval={{ ...approval, decidedSourceIndex: 1 }}
+        toolName="powershell"
+        onDecide={onDecide}
+      />,
+    )
+    rerender(<ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />)
+    fireEvent.click(screen.getByText('Reject'))
+    expect(onDecide).toHaveBeenCalledTimes(2)
+    expect(onDecide).toHaveBeenLastCalledWith(expect.objectContaining({ choiceId: 'abort' }))
   })
 
   it('locks every control once the current stage has been decided', () => {

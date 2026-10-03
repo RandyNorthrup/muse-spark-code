@@ -11,8 +11,14 @@ import {
   type TodoItem,
   todoItemSchema,
 } from '../../../shared/agentEvents'
-import { STORED_SESSION_VERSION } from '../../../shared/constants'
+import {
+  AGENT_SOURCES,
+  EFFORT_LEVELS,
+  PERMISSION_MODES,
+  STORED_SESSION_VERSION,
+} from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
 import type { SessionBudgetJournal } from './sessionBudget'
@@ -90,6 +96,12 @@ export interface StoredSession {
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly effort: string
+  /**
+   * A custom agent's narrowed run (M76): present on a child spawned with an
+   * agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
+   * on parents, plain children, and sessions saved before M76's review.
+   */
+  readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
   readonly lastActivityAt: string
@@ -227,6 +239,18 @@ const storedSessionFields = {
   modelId: z.string(),
   approvalMode: z.enum(APPROVAL_MODES),
   effort: z.string(),
+  // Optional, so a session saved before M76's review still reads.
+  agent: z.optional(
+    z.object({
+      id: z.string(),
+      source: z.enum(AGENT_SOURCES),
+      prompt: z.string(),
+      toolAllowlist: z.optional(z.array(z.string())),
+      effort: z.enum(EFFORT_LEVELS),
+      approvalMode: z.optional(z.enum(APPROVAL_MODES)),
+      permissionMode: z.optional(z.enum(PERMISSION_MODES)),
+    }),
+  ),
   name: z.optional(z.string()),
   createdAt: z.string(),
   lastActivityAt: z.string(),
@@ -349,6 +373,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     spawnCommands,
     budgetSpentUsd,
     budgetIsFreshFork,
+    agent,
     packedTokensAvoided,
     ...rest
   } = result.data
@@ -409,6 +434,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
         ),
       }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
     },
   }

@@ -1121,7 +1121,6 @@ body {
 
 .tool-body,
 .reasoning-body,
-.approval,
 .question {
   margin: 4px 0 4px calc(8px + var(--ms-gap));
 }
@@ -1304,6 +1303,46 @@ body {
   gap: var(--ms-gap);
   color: var(--vscode-descriptionForeground);
   font-size: 0.85em;
+}
+
+/* The approvals waiting, docked above the composer (D26): always in view. A
+   long command scrolls inside the dock, so the composer stays on screen. */
+.approval-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 45vh;
+  margin: 0 var(--ms-gap);
+  overflow-y: auto;
+}
+
+.approval-dock-count {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+/* A long command wraps at 320 px instead of widening the panel. */
+.approval-title {
+  overflow-wrap: anywhere;
+}
+
+.approval:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+/* A decision arrived after its step moved on (D26): the card says so on itself. */
+.approval-moved {
+  border-width: 2px;
+}
+
+.approval-moved-note {
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+  background: var(--vscode-inputValidation-warningBackground, transparent);
 }
 
 /* What a subagent spawn's card would start (M18). */

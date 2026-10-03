@@ -1350,6 +1350,72 @@
             isProtectedWrite: false,
           })
         },
+        // --- D26: three approvals waiting; the oldest is docked, with the count ---
+        'approval-several': () => {
+          steps.approval()
+          for (const [approvalId, itemId, command] of [
+            ['a3', 'sh3', 'git push origin main'],
+            ['a4', 'sh4', 'npm publish'],
+          ]) {
+            event({
+              type: 'approvalRequested',
+              approvalId,
+              itemId,
+              toolName: 'powershell',
+              rawArgs: JSON.stringify({ command }),
+              requirementId: { approvalId, sourceIndex: 0 },
+              subject: { kind: 'shell', command },
+              availableChoices: [
+                {
+                  choiceId: 'allow_once',
+                  label: 'Allow once',
+                  decision: 'approved',
+                  scope: 'once',
+                },
+                { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+              ],
+              isJudgeEscalated: false,
+              isProtectedWrite: false,
+            })
+          }
+        },
+        // --- D26: the docked card at 320 px ---
+        'approval-narrow': () => {
+          document.body.style.maxWidth = '320px'
+          steps['approval-several']()
+        },
+        // --- D26: a decision refused as stale; the card shows the next step and says so ---
+        'approval-moved': () => {
+          steps.approval()
+          event({
+            type: 'approvalUpdated',
+            approvalId: 'a1',
+            requirementId: { approvalId: 'a1', sourceIndex: 1 },
+            subject: {
+              kind: 'shell',
+              command: 'Set-Content -Path x -Value outside; Get-Content -Path x',
+              stages: [
+                {
+                  requirementId: { approvalId: 'a1', sourceIndex: 0 },
+                  position: 1,
+                  totalStages: 2,
+                  argv: ['Set-Content', '-Path', 'x', '-Value', 'outside'],
+                },
+                {
+                  requirementId: { approvalId: 'a1', sourceIndex: 1 },
+                  position: 2,
+                  totalStages: 2,
+                  argv: ['Get-Content', '-Path', 'x'],
+                },
+              ],
+            },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+            ],
+          })
+          send({ type: 'approvalMovedOn', approvalId: 'a1' })
+        },
         question: () => {
           transcriptFixture()
           event({

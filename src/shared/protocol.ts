@@ -159,10 +159,18 @@ export const HOST_ACTIONS = [
   /** The palette's "New worktree…" and "Remove a worktree…" (M32). */
   'newWorktree',
   'removeWorktree',
+  /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
+  'restartMuseCode',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
 export const NOTICE_LEVELS = ['info', 'warning', 'error'] as const
+/**
+ * The way on a notice offers (D26): the panel's own New conversation, or
+ * the `restartMuseCode` host action.
+ */
+export const NOTICE_ACTIONS = ['restartMuseCode', 'newConversation'] as const
+export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 
 const modelOptionSchema = z.object({
   modelId: z.string(),
@@ -570,6 +578,9 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // A decision the host did not take (D26): the approval card can be answered again.
   z.object({ type: z.literal('approvalReopened'), approvalId: z.string() }),
+  // A decision refused as stale (D26): the card shows, on itself, that the
+  // request moved to another step and waits for a choice there.
+  z.object({ type: z.literal('approvalMovedOn'), approvalId: z.string() }),
   // The host no longer waits on this prompt (D26): its card goes, with no outcome.
   z.object({
     type: z.literal('promptDropped'),
@@ -723,11 +734,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('attachmentsCleared') }),
   // A one-line message for the transcript (failed host command, warnings).
   // `redoRestoreId` (M72): a file restore's Redo, offered on its notice.
+  // `actions` (D26): the buttons of a Muse Code fault's notice.
   z.object({
     type: z.literal('notice'),
     level: z.enum(NOTICE_LEVELS),
     text: z.string(),
     redoRestoreId: z.optional(z.string()),
+    actions: z.optional(z.array(z.enum(NOTICE_ACTIONS))),
   }),
   // A Redo was answered (M72): spent, its button goes; otherwise it stays
   // for another try (a file left as it is, a turn running).

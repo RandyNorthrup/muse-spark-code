@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { OUTPUT_PREVIEW_CHARS } from '../../src/shared/constants'
+import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { segment, Transcript } from '../../src/webview/components/Transcript'
@@ -614,10 +614,6 @@ function stagedRow(sourceIndex: number) {
   return tool({ id: 'sh', tool: 'powershell', status: 'inProgress', approval: stage(sourceIndex) })
 }
 
-function box() {
-  return screen.getByPlaceholderText(/what to do instead/)
-}
-
 describe('Transcript rows (M25)', () => {
   it('marks a row its turn cut off as interrupted, without an alert', () => {
     renderTranscript([tool({ id: 'sh', tool: 'powershell', status: 'interrupted' })])
@@ -656,6 +652,70 @@ describe('Transcript rows (M25)', () => {
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
   })
 
+  it('reads an edit’s patch once the edit has finished, not while it runs (D26)', () => {
+    const running = tool({
+      id: 'ed',
+      tool: 'edit_file',
+      args: '{"path":"notes.md"}',
+      status: 'inProgress',
+      patchRef: { id: 'p', byteLen: 300 },
+    })
+    const view = mountTranscript([running])
+    // 1.4.2 names the patch mid-edit; a read then can find nothing.
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    view.rerender({ entries: [{ ...running, status: 'completed' }] })
+    expect(view.props.onReadOutput).toHaveBeenCalledWith('ed', 'p', 0)
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks again for a page that never came when its row is collapsed and expanded (D26)', () => {
+    const view = mountTranscript([
+      tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
+    ])
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    // A re-render alone asks nothing more of a busy host.
+    view.rerender({ isRunning: true })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
+    // A page that came is not asked for again.
+    view.rerender({
+      outputPages: { 'ed:p': { content: '{"files":[]}', isEof: true, nextOffset: 12 } },
+    })
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers a fault notice’s way on as buttons (D26)', () => {
+    const onNoticeAction = vi.fn()
+    renderTranscript(
+      [
+        {
+          kind: 'notice',
+          id: 'n1',
+          level: 'error',
+          text: 'Muse Code refuses every message',
+          actions: ['restartMuseCode', 'newConversation'],
+        },
+      ],
+      { onNoticeAction },
+    )
+    const restart = screen.getByRole('button', { name: 'Restart now' })
+    act(() => {
+      // All arrive before React commits the disabled state.
+      fireEvent.click(restart)
+      fireEvent.click(restart)
+      fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    })
+    expect(onNoticeAction.mock.calls).toEqual([['n1', 'restartMuseCode']])
+    expect(restart).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'New conversation' })).toBeDisabled()
+    expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
+  })
+
   it('stops fetching a document that never ends at the host page budget', () => {
     const view = mountTranscript([
       tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
@@ -667,13 +727,11 @@ describe('Transcript rows (M25)', () => {
     expect(offsets).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
   })
 
-  it('starts the feedback box empty on every stage of a multi-command approval', () => {
-    const view = mountTranscript([stagedRow(0)])
-    fireEvent.change(box(), { target: { value: 'not the first one' } })
-    view.rerender({ entries: [stagedRow(0)] })
-    expect(box()).toHaveValue('not the first one')
-    view.rerender({ entries: [stagedRow(1)] })
-    expect(box()).toHaveValue('')
+  it('keeps a compact record of a waiting approval; the card is in the dock (D26)', () => {
+    renderTranscript([stagedRow(0)])
+    expect(screen.getByText(UI_TEXT.approvalDockedNote)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /^Muse wants to / })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
   it('locks a question card once it was answered or cancelled', () => {

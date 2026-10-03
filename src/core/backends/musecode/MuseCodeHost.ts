@@ -9,8 +9,16 @@
 import { Buffer } from 'node:buffer'
 import { type Connection, MspError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
-import type { AgentEvent, QuestionAnswer, SessionGoal } from '../../../shared/agentEvents'
 import {
+  type AgentEvent,
+  type QuestionAnswer,
+  type RequirementRef,
+  requirementRefSchema,
+  type SessionGoal,
+} from '../../../shared/agentEvents'
+import {
+  APPROVAL_REJECT_ATTEMPTS,
+  APPROVAL_REJECT_DEADLINE_MS,
   CLARIFICATION_FORMAT,
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
@@ -27,6 +35,8 @@ import {
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
   MSP_USER_SHELL_CAPABILITY,
+  MUSE_APPROVAL_LEDGER_FAULT,
+  MUSE_APPROVAL_REPLAY_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
   UI_TEXT,
@@ -52,6 +62,7 @@ import type {
   ListSessionsOptions,
   LoadedSession,
   ModelSummary,
+  MuseCodeFault,
   OutputPage,
   OutputPageRequest,
   SessionEventListener,
@@ -65,7 +76,10 @@ import type {
   TurnSubmission,
 } from '../../agent/agentBackend'
 import {
+  DecisionNotAppliedError,
   GoalRefusedError,
+  isPromptSettledError,
+  MuseCodeFaultError,
   PromptSettledError,
   type PromptSettledReason,
   SessionNotLoadedError,
@@ -143,6 +157,18 @@ const listPendingResultSchema = z.object({
   approvals: z.array(z.record(z.string(), z.unknown())),
   userInputs: z.array(z.record(z.string(), z.unknown())),
 })
+// One of them, as far as a failed decision's check reads it.
+const pendingStageSchema = z.object({
+  approvalId: z.string(),
+  currentRequirementId: requirementRefSchema,
+})
+
+// The stage token a stale refusal names (`approvalRequirementStale`'s
+// `currentRequirementId`, msp.d.ts ErrorData).
+const REQUIREMENT_STALE = 'approvalRequirementStale'
+const MSP_INTERNAL = 'internal'
+// The Reject choice Muse Code offers on every stage (captured 2026-10-02).
+const REJECT_DECISION = 'abort'
 
 const sessionStartResultSchema = z.object({
   session: z.object({ sessionId: z.string(), modelId: z.nullable(z.string()) }),
@@ -263,6 +289,20 @@ function settledOr(error: unknown): unknown {
   }
   const reason = PROMPT_SETTLED_KINDS.get(error.kind)
   return reason === undefined ? error : new PromptSettledError(reason, error.message)
+}
+
+const FAULT_MARKERS: Readonly<Record<MuseCodeFault, string>> = {
+  approvalReplay: MUSE_APPROVAL_REPLAY_FAULT,
+  approvalLedger: MUSE_APPROVAL_LEDGER_FAULT,
+}
+
+/** Muse Code's own approval fault as a `MuseCodeFaultError`; anything else unchanged. */
+function faultOr(error: unknown, fault: MuseCodeFault): unknown {
+  return error instanceof MspError &&
+    error.kind === MSP_INTERNAL &&
+    error.message.includes(FAULT_MARKERS[fault])
+    ? new MuseCodeFaultError(fault, error.message)
+    : error
 }
 
 // A `task/*` command naming a task that is not (or no longer) there, as
@@ -468,6 +508,8 @@ export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
+  /** A stage's callers share its eventual result, and Stop waits for it. */
+  private readonly decisionsInFlight = new Map<string, Promise<void>>()
   /**
    * What arrived before anyone listened (D26): the events right after
    * `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -502,6 +544,150 @@ export class MuseSession implements AgentSession {
     this.isDisposed = true
     this.listeners.clear()
     this.onDispose()
+  }
+
+  /**
+   * A Stop under a multi-stage approval with a stage already decided rejects
+   * its waiting stage first, through `approval/decide`: a turn cancelled
+   * under such an approval leaves Muse Code 1.4.2 refusing every later
+   * `turn/start` of the session (the `approvalReplay` fault, captured live
+   * 2026-10-02), while one whose approval was rejected first runs on.
+   */
+  private async rejectPartlyDecided(): Promise<void> {
+    // A click locks the stage before its command settles. Let the host's
+    // answer and stage update land before deciding what Stop must reject.
+    while (this.decisionsInFlight.size > 0) {
+      await Promise.allSettled(this.decisionsInFlight.values())
+    }
+    for (const approval of this.prompts.partlyDecided()) {
+      await this.rejectWaitingStage(approval.approvalId)
+    }
+  }
+
+  private async rejectWaitingStage(approvalId: string): Promise<void> {
+    for (let attempt = 0; attempt < APPROVAL_REJECT_ATTEMPTS; attempt += 1) {
+      const approval = this.prompts.pending(approvalId)
+      const reject = approval?.availableChoices.find(
+        (choice) => choice.decision === REJECT_DECISION,
+      )
+      if (approval === undefined || reject === undefined) {
+        return
+      }
+      this.log.info(
+        `Stop: approval ${approvalId} stage ${String(approval.requirementId.sourceIndex)} is rejected before the turn stops`,
+      )
+      // Bounded: a Stop never waits long on a host that does not answer.
+      const deadlineMs = Math.min(APPROVAL_REJECT_DEADLINE_MS, this.timeouts.normalMs)
+      try {
+        await withDeadline(
+          this.decideApproval({
+            approvalId,
+            choiceId: reject.choiceId,
+            requirementId: approval.requirementId,
+          }),
+          deadlineMs,
+          `the reject before the Stop did not answer within ${String(deadlineMs)} ms`,
+        )
+        return
+      } catch (error: unknown) {
+        // A stage that moved on is now the ledger's: rejected on the next pass.
+        if (!isPromptSettledError(error) || error.reason !== 'movedOn') {
+          this.log.warn(
+            `Stop: rejecting approval ${approvalId} failed: ${failureForLog(error)}; the turn stops anyway`,
+          )
+          return
+        }
+      }
+    }
+  }
+
+  /** The single wire decision whose outcome every caller of this stage sees. */
+  private async sendApprovalDecision(decision: ApprovalDecision): Promise<void> {
+    const { approvalId, requirementId } = decision
+    let ack: unknown
+    try {
+      ack = await this.command('approval/decide', {
+        approvalId,
+        choiceId: decision.choiceId,
+        requirementId,
+        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
+      })
+    } catch (error: unknown) {
+      throw await this.decisionFailed(requirementId, error)
+    }
+    // `terminal: true` closed the whole approval; a trailing stage update the
+    // host can still send for it must not reopen the card (the facade's #37538).
+    if (approvalDecideResultSchema.safeParse(ack).data?.terminal === true) {
+      this.prompts.close(approvalId)
+    }
+  }
+
+  /** What a failed `approval/decide` means for its card (PLAN.md D26). */
+  private async decisionFailed(requirementId: RequirementRef, error: unknown): Promise<unknown> {
+    const { approvalId } = requirementId
+    if (error instanceof MspError && error.kind === REQUIREMENT_STALE) {
+      // The stage moved on. The refusal names the stage the host waits on;
+      // the card goes there when Muse Code does not say so itself.
+      const waiting = requirementRefSchema.safeParse(error.data['currentRequirementId'])
+      const update = waiting.success ? this.prompts.advanceTo(waiting.data) : undefined
+      if (update !== undefined) {
+        this.log.info(
+          `Approval ${approvalId} stage ${String(requirementId.sourceIndex)} was stale; the card moves to stage ${String(update.requirementId.sourceIndex)}, where Muse Code waits`,
+        )
+        this.emit(update)
+      }
+      return settledOr(error)
+    }
+    const settled = settledOr(error)
+    if (isPromptSettledError(settled)) {
+      this.prompts.close(approvalId)
+      return settled
+    }
+    const fault = faultOr(error, 'approvalLedger')
+    if (fault !== error) {
+      // The decision applied (#29, and every decision after the replay
+      // fault); the card follows the host's resolve.
+      return fault
+    }
+    // No answer (the deadline, a closed connection): the command may still
+    // be queued in a busy Muse Code and apply later. On 2026-10-02 one sent
+    // at 23:49:40 was taken in at 23:52:33, after two more for the same
+    // stage, sent from a card reopened at each deadline, which it refused as
+    // stale. The stage stays decided; the card follows the host's events.
+    if (!(error instanceof MspError)) {
+      this.log.info(
+        `Approval ${approvalId} stage ${String(requirementId.sourceIndex)}: no answer; it may still apply, so it is not offered again`,
+      )
+      return error
+    }
+    if (await this.isStillWaiting(requirementId)) {
+      this.prompts.unmarkDecided(requirementId)
+      return new DecisionNotAppliedError(error.message)
+    }
+    return error
+  }
+
+  /**
+   * Whether the host, which answered the decision with a refusal, still
+   * waits on this very stage: then the decision did not apply and may be
+   * made again. A check that fails cannot tell, and the stage stays decided.
+   */
+  private async isStillWaiting(requirementId: RequirementRef): Promise<boolean> {
+    let pending: z.infer<typeof listPendingResultSchema>
+    try {
+      pending = listPendingResultSchema.parse(await this.command('approval/listPending', {}))
+    } catch (error: unknown) {
+      this.log.warn(`approval/listPending after a failed decision failed: ${failureForLog(error)}`)
+      return false
+    }
+    return pending.approvals.some((params) => {
+      const parsed = pendingStageSchema.safeParse(params)
+      return (
+        parsed.success &&
+        parsed.data.approvalId === requirementId.approvalId &&
+        parsed.data.currentRequirementId.sourceIndex === requirementId.sourceIndex
+      )
+    })
   }
 
   /** One more surface holds this handle (a second panel resumed the same session). */
@@ -560,12 +746,16 @@ export class MuseSession implements AgentSession {
    * more than the user typed (editor context, M5).
    */
   public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
-    const result = turnStartResultSchema.parse(
-      await this.command('turn/start', {
+    let ack: unknown
+    try {
+      ack = await this.command('turn/start', {
         input: mspInput(parts),
         ...(displayText !== undefined && { displayText }),
-      }),
-    )
+      })
+    } catch (error: unknown) {
+      throw faultOr(error, 'approvalReplay')
+    }
+    const result = turnStartResultSchema.parse(ack)
     return { turnId: result.turnId, disposition: result.disposition ?? DEFAULT_DISPOSITION }
   }
 
@@ -575,17 +765,24 @@ export class MuseSession implements AgentSession {
    * turn never leaks into the next; callers fall back to `sendTurn`.
    */
   public async steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
-    const result = await this.command('turn/steer', { expectedTurnId, input: mspInput(parts) })
+    let result: unknown
+    try {
+      result = await this.command('turn/steer', { expectedTurnId, input: mspInput(parts) })
+    } catch (error: unknown) {
+      throw faultOr(error, 'approvalReplay')
+    }
     return { turnId: turnSteerResultSchema.parse(result).turnId, disposition: 'steered' }
   }
 
   /** Ask the host to stop the running turn gracefully. */
   public async cancel(): Promise<void> {
+    await this.rejectPartlyDecided()
     await this.command('turn/cancel', {})
   }
 
   /** Stop the running turn immediately. */
   public async interrupt(): Promise<void> {
+    await this.rejectPartlyDecided()
     await this.command('turn/interrupt', {})
   }
 
@@ -615,25 +812,43 @@ export class MuseSession implements AgentSession {
   }
 
   /**
-   * Answer a gated tool call. `requirementId` is the stage token from the
-   * request; a stale one is rejected by the host, never silently applied.
+   * Answer a gated tool call: one decision per stage (PLAN.md D26).
+   * `requirementId` is the stage token from the request; a stale one is
+   * rejected by the host, never silently applied. A second decision for a
+   * stage already decided is not sent (a repeated click, a re-rendered card,
+   * a second surface), nor one for a stage the approval has left.
    */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
-    let ack: unknown
-    try {
-      ack = await this.command('approval/decide', {
-        approvalId: decision.approvalId,
-        choiceId: decision.choiceId,
-        requirementId: decision.requirementId,
-        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
-      })
-    } catch (error: unknown) {
-      throw settledOr(error)
+    const { approvalId, requirementId } = decision
+    const key = `${approvalId}\u{0}${String(requirementId.sourceIndex)}`
+    const inFlight = this.decisionsInFlight.get(key)
+    if (inFlight !== undefined) {
+      await inFlight
+      return
     }
-    // `terminal: true` closed the whole approval; a trailing stage update the
-    // host can still send for it must not reopen the card (the facade's #37538).
-    if (approvalDecideResultSchema.safeParse(ack).data?.terminal === true) {
-      this.prompts.close(decision.approvalId)
+    const stage = `approval ${approvalId} stage ${String(requirementId.sourceIndex)}`
+    if (this.prompts.isClosed(approvalId)) {
+      throw new PromptSettledError('alreadySettled', `${stage}: the approval is closed`)
+    }
+    if (this.prompts.isDecided(requirementId)) {
+      this.log.info(`A second decision for ${stage} was not sent: one was sent already`)
+      return
+    }
+    const waiting = this.prompts.pending(approvalId)?.requirementId
+    if (waiting !== undefined && waiting.sourceIndex !== requirementId.sourceIndex) {
+      // The card is behind the ledger: the update that moves it is on its way.
+      this.log.info(
+        `A decision for ${stage} was not sent: the approval waits on stage ${String(waiting.sourceIndex)}`,
+      )
+      throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
+    }
+    this.prompts.markDecided(requirementId)
+    const pending = this.sendApprovalDecision(decision)
+    this.decisionsInFlight.set(key, pending)
+    try {
+      await pending
+    } finally {
+      this.decisionsInFlight.delete(key)
     }
   }
 

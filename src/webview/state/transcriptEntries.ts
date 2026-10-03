@@ -23,7 +23,7 @@ import {
   workflowRunFields,
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
-import { NOTICE_LEVELS } from '../../shared/protocol'
+import { NOTICE_ACTIONS, NOTICE_LEVELS } from '../../shared/protocol'
 
 const pendingApprovalSchema = z.object({
   approvalId: z.string(),
@@ -42,6 +42,11 @@ const pendingApprovalSchema = z.object({
    * update alone cannot unlock it.
    */
   decidedSourceIndex: z.optional(z.number()),
+  /**
+   * A decision was refused as stale (D26): the card says, on itself, that
+   * the request moved to the step it now shows, until the user chooses there.
+   */
+  hasMovedOn: z.optional(z.boolean()),
 })
 export type PendingApproval = z.infer<typeof pendingApprovalSchema>
 
@@ -270,6 +275,8 @@ const noticeEntrySchema = z.object({
   redoRestoreId: z.optional(z.string()),
   isRedoPending: z.optional(z.boolean()),
   isRedoUsed: z.optional(z.boolean()),
+  /** A Muse Code fault's way on (D26): its buttons. */
+  actions: z.optional(z.readonly(z.array(z.enum(NOTICE_ACTIONS)))),
 })
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [
