@@ -343,6 +343,7 @@ fields, never raw configuration or failed-command output.
   Retention retires oldest units by conversation sequence and removes
   their unneeded file copies. Small identity-only records preserve owners
   and sequence numbers so retirement differs from unexplained record loss.
+  Identity records without file contents may outlive their copies until the window that wrote them retires.
   Shared journal metadata remains until every unit of its instance is
   retired; a live foreign journal is never rewritten. Archiving hides a conversation's records
   from other windows. A reload or a window closing does not by itself

@@ -184,9 +184,14 @@ Journal folders are deleted only by retention (section 9), never by gone-window 
   appended and fsynced before the first unrecorded write, the fold carries it into the record, and any range containing
   the unit is refused whole; the tool write still proceeds. [C3-m1] Disk full while journaling → the tool
   write is refused before mutation, honestly reported.
-- Retention: per conversation, by sequence (never clock), deletes whole oldest units with their journal entries and
-  blobs. A restore from U needs only S's units from U on, which are newer than anything retention deletes first. A
+- Retention: per conversation, by sequence (never clock), retires whole oldest unit payloads and their unneeded file
+  copies; age and session bounds also apply. A restore from U needs only S's units from U on, which are newer than anything retention deletes first. A
   deleted foreign record only removes an ordering hint; bytes still decide.
+- **Lead decision (2026-10-02), F07 closed by decision — metadata lifetime exception:** file copies and unit payloads
+  remain bounded by sequence, age and session. The shared journal's identity records (owner and sequence, never file
+  contents; intents may retain the canonical workspace-relative path key from section 2) persist until their owning
+  instance retires, because section 6.4 forbids one instance writing another's journal. Each instance compacts only its
+  own journal, and only at retirement. Removing the extension's storage clears these records.
 - Folders: `createdFolders` lists every folder a write created; a restore that deletes the file removes those folders
   bottom-up when empty.
 

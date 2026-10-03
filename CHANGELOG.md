@@ -20,6 +20,8 @@ happened, not what was planned; superseded entries are kept.
   Retention releases old units and file copies by sequence. Children keep
   their inherited recording decision across reloads, and folder cleanup
   uses actual creation ownership.
+  Identity metadata without file contents may outlive retired copies until
+  the window that wrote it retires; removing extension storage clears it.
 
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials

@@ -3206,16 +3206,13 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   Missing records refuse the whole range; per-file refusals name the
   reason. Mixed-version fences, native process safety and the ABA and
   final compare-to-rename limits remain explicit in the spec.
+- **Lead decision (2026-10-02), F07 closed by decision.** File copies and
+  unit payloads remain bounded by sequence, age and session. Shared-journal
+  identity metadata, never file contents, may persist until its owning
+  instance retires; only that instance compacts its journal, at retirement.
+  Removing extension storage clears it. SPEC section 9 records this exception.
 
 ## 3. Open questions (need the owner)
-
-- **M86FIX journal metadata retirement (F07):** section 9 asks for per-unit
-  journal-entry deletion; section 6.4 forbids writing a foreign instance's
-  journal. The fix enforces sequence/age/session bounds on unit payloads
-  and file copies, with durable owner/sequence identities, but keeps shared
-  journal metadata until the whole instance can retire. The lead must
-  choose a compaction protocol or explicitly approve metadata retention.
-  No change to the advertised unit/copy bounds is proposed.
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
   owned full-descendant shutdown proof can make native/command/hook snapshots
@@ -9421,8 +9418,8 @@ to the release candidate is described below.
 
 ### M86 — Restore by the tools' own writes (D63)
 
-- **Status.** In progress: F07 shared-journal metadata retirement needs the
-  design choice in section 3, and full milestone certification remains open.
+- **Status.** In progress: F07 closed by the lead's 2026-10-02 metadata
+  lifetime decision; final merged-tree gates and full milestone certification remain open.
   [m86.md](docs/certification/m86.md) records the fix-batch gates and drills.
 - **M86FIX pre-merge batch.** Deduplicated eight reviews in the lead scratchpad
   `m86/FIX-PLAN.md`. Repaired confinement, durability, unit/copy retention,
