@@ -33,6 +33,8 @@ const pendingApprovalSchema = z.object({
   availableChoices: z.readonly(z.array(approvalChoiceSchema)),
   isProtectedWrite: z.boolean(),
   isJudgeEscalated: z.boolean(),
+  /** Why the card asks beyond the mode (M78), as the host said it. */
+  note: z.optional(z.string()),
   /**
    * The stage the user has already decided, so the card locks until the host
    * moves to the next stage or resolves. The host may repeat
@@ -109,6 +111,9 @@ const assistantEntrySchema = z.object({
   isStreaming: z.boolean(),
   /** The web pages the reply cites (M33), listed under it as links. */
   citations: z.optional(z.readonly(z.array(citationSchema))),
+  /** The response's tokens and dollar estimate (M82, Model API only). */
+  usage: z.optional(tokenUsageSchema),
+  costUsd: z.optional(z.number()),
 })
 
 const reasoningEntrySchema = z.object({

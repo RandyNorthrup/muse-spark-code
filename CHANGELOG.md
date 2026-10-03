@@ -9,6 +9,140 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Auto rules, permission profiles and an optional paid reviewer (M78).**
+  Standing command rules include executable examples; repository rules only
+  tighten them. Complex commands ask, native language-service reads obey file
+  denials, and malformed profiles deny access. Files a profile hides spend
+  none of the repo map's 1,000-file cap: it reads on to readable files.
+  Reviewer consent binds account,
+  model, turn and policy, uses its own M82 claim, and falls back to asking on
+  failure or its circuit breaker. It cannot allow a forbid, an ask rule,
+  a protected write or another paid call. Attempt editors stay rooted in their
+  worktree; applying a selected snapshot invalidates the original check ledger.
+  - **A settings change reaches calls already in flight.** Whatever any tool
+    brings back, an MCP or IDE tool's included, is judged again under the
+    current rules, profile, mode and workspace trust just before it reaches
+    the model. A call they no longer allow is refused with a reason in the
+    user's language and nothing from it is sent; a change it had already
+    written stays, and its row says so. Output that may quote files it
+    cannot list (a shell command's, an MCP or IDE tool's, a check's, a
+    subagent's) is refused if any file rule, the profile or the trust
+    changed at all while the call ran, and a subagent's result is withheld
+    if they changed since it started, after a restart too. A shell command
+    is judged again at its process's entry, a memory note at its write, and
+    an image edit's sources right before the request leaves the machine, so
+    a source denied meanwhile is never sent and nothing is billed.
+    `read_skill` refuses a project skill the file rules deny, and a Stop
+    during a memory read or write, its index line included, ends the call
+    as a stop, not a file error.
+  - Approval cards retain the Auto reviewer's and command rule's explanation
+    through webview delivery, later approval stages and saved-state restoration.
+  - **Automatic checks respect revoked file access.** A verification round keeps
+    the original edited-file policy fence even after denied files are filtered
+    out of lookup. It withholds diagnostics and refuses checks after revocation.
+- **Awareness and budgets** (M82, PLAN.md D49).
+  - While the VS Code window is unfocused, a VS Code notification says when
+    a turn of a minute or more ends, or a turn waits for your approval or
+    answer, with **Show conversation**; nothing shows while the window is
+    focused, and two panels on one conversation raise it once. Off with
+    `museSpark.notifyOnBackgroundTurn`.
+  - On the Model API, `museSpark.modelApiReplyUsage` (off by default) prints
+    the tokens and dollar estimate under each reply, counting every request
+    since the previous line in that turn. Muse Code reports no per-reply
+    totals, so its replies carry none. The dollar amount is labeled
+    estimated, including the unverified tier fallback for unfamiliar models.
+  - The machine-scoped `museSpark.modelApiSessionBudgetUsd` caps what each
+    Model API conversation may spend. Each request's input is estimated high
+    (the last reported input plus what was added since, one token per byte)
+    and `max_output_tokens` is lowered so it fits what is left; a request
+    that cannot fit is not sent and the turn says why. Each request is
+    priced at the model it was sent to, and the spend is saved as it is
+    spent, even while a call waits for approval. Shared durable liabilities
+    cover hosts reopening the same conversation, ordinary requests and known
+    image fees. Unknown sent usage retains its whole reservation;
+    ambiguous failures cannot retry under that same allowance while capped.
+    Hosted search is unavailable with a cap until its billed query bound is
+    verified; cap-off search keeps its paid consent. A model with no published price
+    is refused while a cap is set. The transcript shows each turn's cost
+    against the cap, and warns when a reply used all the output it was left.
+  - Account & usage shows what the prompt cache saved in dollars. Its value
+    (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
+    the localization gate lets it stay the same in every language.
+  - **Voice Stop remains available after a cap or paid setting changes.** It
+    reaches the recording's existing driver instead of applying new-recording
+    availability. Child requests retain separate consent and ceilings; reported
+    cost is counted without reserving against the parent's cap, as decided for
+    M82. The setting and guide name that possible overrun in every language.
+  - **Model API session budgets retain their open reservation before a
+    response arrives.** Capped requests await a durable reservation write
+    before fetch and recheck final admission afterward; failed writes or
+    unavailable storage send no request. A stopped or superseded nonsent
+    request releases its reservation. Switching a model away and back, or
+    changing it during compacted-context counting, cannot restore a stale
+    budget base. Stored usage and reply costs refuse negative values,
+    overflowing usage reports are ignored, and token-count failures log a
+    status and fixed words instead of network text.
+    Stale session saves cannot lower the shared journal's spend, and crashes
+    retain unsettled claims. Unverified historical spending refuses a cap
+    rather than treating unknown amounts as zero. All new reasons and the
+    revised setting description are localized.
+    Shared uncapped requests publish pending uncertainty before HTTP, so a
+    capped host cannot admit around an unresolved earlier request. Verified
+    known usage clears that uncertainty; unknown tariffs or earlier ambiguous
+    retry attempts remain unknown despite a successful final response.
+    Fresh forks and side chats retain copied paid and closed-child history
+    while starting their own spend at verified zero; their first own request
+    is charged only to the new conversation.
+    Attempt observers run only after final admission and request building,
+    adjacent to fetch; Stop or confirmation refusal after preflight leaves
+    the request uncounted and refunds its known nonsent reservation.
+    Paid Muse Voice on the Model API backend is unavailable with a finite
+    cap. Uncapped shared recordings publish uncertainty before authentication
+    and fence the actual account and parent context before sends. Local audio
+    duration remains an estimate without a server billing receipt; CLI voice
+    and free system dictation retain their behavior.
+    Cap-off Model API voice also remains available without a folder or
+    journal, with its original consent account/context fenced before every
+    send. A later finite cap stops authentication, audio and end sends;
+    unshared window usage remains an estimate.
+- **Session board and best-of-N** (M77, PLAN.md D49). The header's board
+  button lists every conversation open in the window, on either backend, and
+  the saved conversations of the backend the window runs on, with its
+  state, branch, changed files and waiting approvals; typing filters and
+  Enter resumes. The board queries the known worktree roots and includes the
+  attempts of a running best-of-N. Its git reads run as the prompt's git
+  facts do: opening it starts no fsmonitor, filter or other program a
+  repository configures, in any mode, and takes no index lock.
+  - Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model
+    API backend, behind the new off-by-default, machine-scoped
+    `museSpark.modelApiBestOfN` setting: one paid-use popup per run names the
+    prompt, the published token rates, the attempt count and the per-attempt
+    request ceiling, and the subscription never pays. Each attempt works on
+    its own `best-of-n/<run>/<index>` branch; attempts that would ask are
+    declined and counted. Attempts run no shell command and no configured
+    check, in any mode, Bypass included: a working folder confines no
+    process. **Open** appears only for an attempt whose worktree was made.
+    Needs a trusted workspace with a folder open. The
+    form stays open after **Start** until the run begins, so a start that is
+    refused keeps its prompt and numbers beside the reason, ready to retry.
+  - Successful attempts compare side by side, and **Apply and stage** takes
+    only that attempt's immutable preview: its uncommitted tracked and
+    unignored new files, binary changes included, applied and staged as exact
+    bytes, with no project commit. A failed, cancelled or unreadable attempt
+    cannot be selected; fresh checkout, editor, ownership and path checks
+    refuse a changed or linked target.
+  - The run reserves its window owner before the paid popup and rechecks
+    context and account after it; actual HTTP tries and retries are counted at
+    the final key-read boundary, and every attempt host binds the M82 parent
+    journal, so a finite session budget refuses when that scope is
+    unavailable. Account & usage shows reported attempt tokens and cost
+    separately, with unreported requests marked unknown. Automatic Git
+    operations run with no hooks, fsmonitor or maintenance and refuse a
+    repository that configures filters or hook commands.
+  - Strings ship in all 14 UI and manifest tables.
+  - A missing or damaged board/best-of-N bundle gives a translated refusal
+    with reinstall guidance; its cause goes to the log. Closing the panel
+    during the first best-of-N load suppresses stale failure notices.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -32,7 +166,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -59,11 +195,15 @@ happened, not what was planned; superseded entries are kept.
     fresh random markers around the unchanged slice, so a page from the
     middle of a fetched web page keeps its boundary.
   - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
   - **The recall row speaks the display language.** Its heading and its
     refusals are in the installed language, with counts in its number
     format; the recalled text is shown as it was, and the model's text
     stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
   - **The live report records the packing acceptance.** The report says
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
@@ -112,6 +252,12 @@ happened, not what was planned; superseded entries are kept.
   inactive/unknown fields are dropped by name. Existing files and running
   turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
   1.8.0 in the existing lazy importer bundle. Lead certification pending.
+- Defer the session board and best-of-N execution to their first action, and
+  Auto reviewer execution until paid consent. Each loads its own bundle with
+  the installed language, retaining current policy and budget admission.
+  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
+  The activation cap stays 600 KiB. The Model API cap is revisited, as M57
+  planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
   model runs one through `subagent_spawn` with `agent` set to its id, and the
@@ -158,6 +304,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Code intelligence and voice load on first use** (PLAN.md D6). Muse
+  Code's `ide` code intelligence answers and both voice engines' drivers now
+  ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
+  call and the first recording, so `dist/extension.js` goes from 603.3 to
+  568.7 KiB under its unchanged 600 KiB budget (new budgets 100 and 50 KiB).
+  Nothing changes in use. With a damaged install a code intelligence call
+  answers with an error result saying so, and a recording fails with
+  "Voice dictation failed" and reinstall guidance in every UI language; the
+  log has the cause, and the next call or press tries again.
+- Regenerate the host API inventory and bundled-package notices from the
+  combined import, session board, reviewer, budget and handoff source.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -177,6 +334,27 @@ happened, not what was planned; superseded entries are kept.
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -205,33 +383,10 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
-- Take the compatible development updates from the grouped Dependabot pull
-  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
-  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
-  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
-  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
-  alone; no file of the extension changes.
-- **Approval cards are docked above the message box** while they wait,
-  as in Claude Code's panel, so scrolling never loses one.
-  - The tool's row in the conversation keeps a short "Waiting for your
-    approval" line, then shows the decision.
-  - With several waiting, the oldest is docked (the order Muse asked) with
-    "Approvals waiting: N"; each moves up as the one before is settled.
-  - Focus moves to an arriving card itself, not onto a choice. A field you
-    are typing in (one holding text, or a key in the last 1.5 s) keeps
-    focus, and the panel's live region announces the card either way.
-  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
-    panel's height and wraps a long command at 320 px.
-  - The accessibility gate checks it in the four themes in new scenarios:
-    several cards, 320 px, and a step that moved on.
 
 ### Fixed
 
-- **Implement in a fresh conversation** now waits while handoff Start is
-  running, and Start waits for Implement, so they cannot both leave the
-  conversation and steer one brief into the other.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
@@ -275,15 +430,6 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
-- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
-- **A handoff brief no longer mixes in a later turn's tasks.** A message
-  sent after the distillation turn ended but before its brief was read
-  back could update the todo list the dialog and the new conversation
-  take from it. Sends stay refused until the brief and its todos are
-  captured. A brief deferred by key activation now also survives the
-  activation's restart: it is read back once the key is active, instead
-  of never returning. And a send refused while it waited is kept across
-  a panel reload, so the exact draft is still restored.
 - **A spawn that starts no child asks nothing** (Model API backend). One past
   the 64 children of a conversation, one asking for worktree isolation, or
   one reusing an earlier spawn's command id for a different task is refused
@@ -360,6 +506,17 @@ happened, not what was planned; superseded entries are kept.
     retry; later ones go to the log until a read succeeds.
   - Collapsing and expanding the row asks again. The row keeps the diff it
     already shows, and the turn goes on meanwhile.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
 
 ### Release infrastructure
 

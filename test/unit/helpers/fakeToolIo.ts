@@ -130,6 +130,7 @@ export function memoryToolIo(
       if (isUnsaved || current === undefined || fingerprint(current) !== expectedFingerprint) {
         return Promise.resolve('changed')
       }
+      options.assertCanWrite?.()
       files.set(key, content)
       return Promise.resolve('written')
     },

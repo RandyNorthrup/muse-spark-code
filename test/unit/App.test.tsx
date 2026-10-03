@@ -2,6 +2,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
+import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
@@ -2931,5 +2932,43 @@ describe('App turn checkpoints (M72)', () => {
     expect(
       screen.getByRole('menuitem', { name: UI_TEXT.checkpointsLegacyReadOnly }),
     ).toHaveAttribute('aria-disabled', 'true')
+  })
+})
+
+describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
+  // Each refusal before the runner publishes a run: the controller's notice, no update.
+  it.each([
+    ['an untrusted workspace', 'warning', () => UI_TEXT.bestOfNNeedsTrust],
+    ['a model with no verified price', 'warning', () => UI_TEXT.bestOfNTariffUnknown],
+    ['another surface’s run', 'warning', () => UI_TEXT.bestOfNAlreadyRunning],
+    ['a declined paid-use popup', 'warning', () => UI_TEXT.bestOfNConsentDeclined],
+    ['a missing budget journal', 'warning', () => UI_TEXT.bestOfNBudgetUnavailable],
+    ['a host that failed to start', 'error', () => `${UI_TEXT.bestOfNTitle}: spawn failed`],
+  ] as const)('keeps the form and its prompt after %s', (_refusal, level, text) => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'paidState',
+      state: {
+        features: ['bestOfN'],
+        tally: EMPTY_PAID_TALLY,
+        isKeyStored: true,
+        alwaysAllowed: [],
+      },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardTitle }))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.boardStartBestOfN }))
+    const prompt = screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)
+    fireEvent.change(prompt, { target: { value: 'leave a note' } })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: 'startBestOfN', prompt: 'leave a note' }),
+    )
+    deliver({ type: 'notice', level, text: text() })
+    expect(screen.getAllByText(text()).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText(UI_TEXT.bestOfNPromptLabel)).toHaveValue('leave a note')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.bestOfNStart }))
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'startBestOfN'),
+    ).toHaveLength(2)
   })
 })

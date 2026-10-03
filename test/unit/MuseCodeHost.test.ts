@@ -977,6 +977,8 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
       sessionId: 's-old',
     })
     expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'questionRequested'])
+    // Both were waiting before this window: neither raises a new notice (M82).
+    expect(events.map((event) => 'isReplayed' in event && event.isReplayed)).toEqual([true, true])
   })
 
   it('does not pull pending prompts when the resume names none, and survives a failed pull', async () => {
@@ -1086,6 +1088,26 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
         approvalId: 'a1',
         requirementId: { approvalId: 'a1', sourceIndex: 2 },
       }),
+    ])
+  })
+
+  it('marks a question shown again to a second surface as replayed (M82)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    const first: AgentEvent[] = []
+    session.onEvent((event) => {
+      first.push(event)
+    })
+    server.notify('userInput/requested', questionParams(session.sessionId))
+    await settle()
+    expect(first).toEqual([expect.objectContaining({ type: 'questionRequested' })])
+    expect(first[0]).not.toHaveProperty('isReplayed')
+    const late: AgentEvent[] = []
+    session.onEvent((event) => {
+      late.push(event)
+    })
+    expect(late).toEqual([
+      expect.objectContaining({ type: 'questionRequested', userInputId: 'u1', isReplayed: true }),
     ])
   })
 

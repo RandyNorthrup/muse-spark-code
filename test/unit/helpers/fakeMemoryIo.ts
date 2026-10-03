@@ -24,6 +24,12 @@ export interface MemoryIoOptions {
   readonly platform?: NodeJS.Platform
   /** A competing writer placed a file after the store's first read. */
   readonly beforeCreate?: (path: string, files: Map<string, string>) => void
+  /** A replacement waits here, before its owner's final assertion, as a real write's awaits do. */
+  readonly beforeWrite?: (path: string) => Promise<void>
+  /** A read waits here before the file answers (M78: a Stop or a policy change meanwhile). */
+  readonly beforeRead?: (path: string) => Promise<void>
+  /** A write or a new note waits here once its bytes are in place. */
+  readonly afterWrite?: (path: string) => Promise<void>
 }
 
 function forward(absolutePath: string): string {
@@ -45,19 +51,33 @@ export function memoryIoOver(files: Map<string, string>, options: MemoryIoOption
   return {
     readFile: (absolutePath) => {
       const key = through(absolutePath)
-      return options.unreadable?.has(key) === true
-        ? Promise.reject(new Error(`${key} is not UTF-8 text`))
-        : Promise.resolve(files.get(key))
+      const answer = () =>
+        options.unreadable?.has(key) === true
+          ? Promise.reject(new Error(`${key} is not UTF-8 text`))
+          : Promise.resolve(files.get(key))
+      const { beforeRead } = options
+      // Without a hold the answer is read at the call, as before.
+      return beforeRead === undefined
+        ? answer()
+        : (async () => {
+            await beforeRead(key)
+            return await answer()
+          })()
     },
     hasUnsavedChanges: (absolutePath) => options.unsaved?.has(through(absolutePath)) === true,
-    writeFile: (absolutePath, content, assertCanWrite) => {
+    writeFile: async (absolutePath, content, assertCanWrite) => {
       const key = through(absolutePath)
       if (options.unwritable?.has(key) === true) {
-        return Promise.reject(new Error(`EACCES: permission denied, open '${key}'`))
+        throw new Error(`EACCES: permission denied, open '${key}'`)
+      }
+      if (options.beforeWrite !== undefined) {
+        await options.beforeWrite(key)
       }
       assertCanWrite?.()
       files.set(key, content)
-      return Promise.resolve()
+      if (options.afterWrite !== undefined) {
+        await options.afterWrite(key)
+      }
     },
     createFile: (absolutePath, content, _checkedPath, assertCanWrite) => {
       const key = through(absolutePath)
@@ -74,7 +94,7 @@ export function memoryIoOver(files: Map<string, string>, options: MemoryIoOption
       }
       assertCanWrite?.()
       files.set(key, content)
-      return Promise.resolve()
+      return options.afterWrite?.(key) ?? Promise.resolve()
     },
     realPath: (absolutePath) => Promise.resolve(native(through(absolutePath))),
     listEntries: (absolutePath) => {

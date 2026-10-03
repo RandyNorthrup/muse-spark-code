@@ -736,6 +736,12 @@ body {
 .palette-filter {
   flex: 1;
   min-width: 0;
+}
+
+.palette-filter,
+.bestofn-prompt,
+.bestofn-number,
+.bestofn-selects select {
   padding: 4px 6px;
   border: 1px solid var(--vscode-input-border, transparent);
   border-radius: var(--ms-radius);
@@ -1935,6 +1941,13 @@ body {
   top: 24px;
 }
 
+/* A reply's tokens and dollar estimate under it (M82, Model API only). */
+.response-usage {
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
 /* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
    on a narrow panel, and stay clear of the reply's copy button. */
 .plan-actions {
@@ -2777,6 +2790,81 @@ body {
 
 .agent-task-stop {
   align-self: flex-start;
+}
+
+/* --- Session board and best-of-N (M77) --- */
+
+.bestofn-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.bestofn-attempt,
+.bestofn-actions {
+  flex-wrap: wrap;
+}
+
+.bestofn-actions {
+  display: flex;
+  gap: var(--ms-gap);
+}
+
+.bestofn-label {
+  display: block;
+  margin: var(--ms-gap) 0 4px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.bestofn-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
+.bestofn-numbers,
+.bestofn-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px calc(var(--ms-gap) * 1.5);
+}
+
+.bestofn-number {
+  width: 5em;
+}
+
+.bestofn-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+}
+
+.bestofn-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ms-gap);
+}
+
+.bestofn-pane-title {
+  margin: 0 0 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bestofn-diff {
+  max-height: 30vh;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editor-background);
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
 }
 
 /* A local share file open read-only (M84): meta line and one section per item. */
