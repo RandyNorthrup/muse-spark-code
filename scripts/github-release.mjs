@@ -6,7 +6,10 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
 
-const RELEASE = z.object({ assets: z.array(z.object({ name: z.string() })) })
+const RELEASE = z.object({
+  isDraft: z.boolean(),
+  assets: z.array(z.object({ name: z.string() })),
+})
 
 function run(args) {
   return execFileSync('gh', args, {
@@ -24,7 +27,9 @@ export function ensureGithubRelease(tag, notes, artifacts, execute = run) {
   if (artifacts.length === 0) throw new Error('No release assets supplied')
   let existing
   try {
-    existing = RELEASE.parse(JSON.parse(execute(['release', 'view', tag, '--json', 'assets'])))
+    existing = RELEASE.parse(
+      JSON.parse(execute(['release', 'view', tag, '--json', 'assets,isDraft'])),
+    )
   } catch (error) {
     // Only a not-found response permits creation; auth/network/schema failures stay failures.
     if (
@@ -46,6 +51,13 @@ export function ensureGithubRelease(tag, notes, artifacts, execute = run) {
     ])
     return
   }
+  // Every downloadable asset must belong to this run's checksum set and
+  // attestation; a stray asset from a manual upload or partial workflow
+  // would otherwise publish uncovered.
+  const expected = new Set(artifacts.map((artifact) => path.basename(artifact)))
+  for (const { name } of existing.assets) {
+    if (!expected.has(name)) throw new Error(`Unexpected release asset: ${name}`)
+  }
   const names = new Set(existing.assets.map(({ name }) => name))
   const directory = mkdtempSync(
     path.join(path.dirname(path.resolve(artifacts[0])), '.verify-release-'),
@@ -65,6 +77,9 @@ export function ensureGithubRelease(tag, notes, artifacts, execute = run) {
     }
     const missing = artifacts.filter((artifact) => !names.has(path.basename(artifact)))
     if (missing.length > 0) execute(['release', 'upload', tag, ...missing])
+    // A `release create` interrupted mid-upload leaves a draft behind; the
+    // rerun must publish it once every asset matches.
+    if (existing.isDraft) execute(['release', 'edit', tag, '--draft=false'])
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

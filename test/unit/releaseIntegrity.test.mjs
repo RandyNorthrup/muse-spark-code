@@ -48,7 +48,8 @@ describe('GitHub Release reruns', () => {
     const extra = path.join(fixture.directory, 'SHA256SUMS')
     writeFileSync(extra, 'sums')
     const run = vi.fn((args) => {
-      if (args[1] === 'view') return JSON.stringify({ assets: [{ name: 'artifact.vsix' }] })
+      if (args[1] === 'view')
+        return JSON.stringify({ isDraft: false, assets: [{ name: 'artifact.vsix' }] })
       if (args[1] === 'download')
         copyFileSync(fixture.artifact, path.join(args.at(-1), 'artifact.vsix'))
       return ''
@@ -57,9 +58,50 @@ describe('GitHub Release reruns', () => {
     expect(run).toHaveBeenLastCalledWith(['release', 'upload', 'v0.10.1', extra])
     expect(run.mock.calls.flat(Infinity)).not.toContain('--clobber')
   })
+  it('rejects a stray asset outside this run before uploading anything', () => {
+    const run = vi.fn((args) => {
+      if (args[1] === 'view')
+        return JSON.stringify({
+          isDraft: false,
+          assets: [{ name: 'artifact.vsix' }, { name: 'stray.vsix' }],
+        })
+      return ''
+    })
+    expect(() => ensureGithubRelease('v0.10.1', 'notes.md', [fixture.artifact], run)).toThrow(
+      'Unexpected release asset: stray.vsix',
+    )
+    expect(run.mock.calls.some(([args]) => args[1] === 'upload')).toBe(false)
+  })
+  it('publishes a recovered draft only after every asset matches', () => {
+    const run = vi.fn((args) => {
+      if (args[1] === 'view')
+        return JSON.stringify({ isDraft: true, assets: [{ name: 'artifact.vsix' }] })
+      if (args[1] === 'download')
+        copyFileSync(fixture.artifact, path.join(args.at(-1), 'artifact.vsix'))
+      return ''
+    })
+    ensureGithubRelease('v0.10.1', 'notes.md', [fixture.artifact], run)
+    expect(run).toHaveBeenLastCalledWith(['release', 'edit', 'v0.10.1', '--draft=false'])
+  })
+  it('uploads missing assets before publishing a recovered draft', () => {
+    const extra = path.join(fixture.directory, 'SHA256SUMS')
+    writeFileSync(extra, 'sums')
+    const run = vi.fn((args) => {
+      if (args[1] === 'view')
+        return JSON.stringify({ isDraft: true, assets: [{ name: 'artifact.vsix' }] })
+      if (args[1] === 'download')
+        copyFileSync(fixture.artifact, path.join(args.at(-1), 'artifact.vsix'))
+      return ''
+    })
+    ensureGithubRelease('v0.10.1', 'notes.md', [fixture.artifact, extra], run)
+    const verbs = run.mock.calls.map(([args]) => args[1])
+    expect(verbs).toEqual(['view', 'download', 'upload', 'edit'])
+    expect(run).toHaveBeenLastCalledWith(['release', 'edit', 'v0.10.1', '--draft=false'])
+  })
   it('refuses differing bytes before uploading anything', () => {
     const run = vi.fn((args) => {
-      if (args[1] === 'view') return JSON.stringify({ assets: [{ name: 'artifact.vsix' }] })
+      if (args[1] === 'view')
+        return JSON.stringify({ isDraft: false, assets: [{ name: 'artifact.vsix' }] })
       writeFileSync(path.join(args.at(-1), 'artifact.vsix'), 'wrong bytes')
       return ''
     })
@@ -116,13 +158,74 @@ describe('bundled extension and ACP CycloneDX inventories', () => {
       new Set(['zod@4.6.5', '@napi-rs/keyring@2.1.0']),
       'muse-spark-code-acp',
     )
-    expect(acp.components).toEqual(components.slice(0, 2))
+    expect(acp.components).toEqual(
+      components.slice(0, 2).map((component) => ({ ...component, scope: 'required' })),
+    )
     expect(acp.dependencies).toEqual([
       { ref: 'pkg:npm/muse-spark-code-acp@0.10.1', dependsOn: ['keyring', 'zod'] },
       { ref: 'zod', dependsOn: [] },
     ])
     expect(acp.metadata.component.purl).toBe('pkg:npm/muse-spark-code-acp@0.10.1')
     expect(() => shippedBom(bom, new Set(['missing@1.0.0']), 'extension')).toThrow('omitted')
+  })
+  it('gives each derived SBOM a unique identity and a clean root', () => {
+    const source = {
+      ...bom,
+      serialNumber: 'urn:uuid:00000000-0000-0000-0000-000000000000',
+      metadata: {
+        component: {
+          type: 'application',
+          name: 'muse-spark-code',
+          version: '0.10.1',
+          description: 'extension-only description',
+          'bom-ref': 'root',
+          purl: 'pkg:npm/muse-spark-code@0.10.1',
+          'cdx:npm:package:private': 'true',
+        },
+      },
+    }
+    const first = shippedBom(source, new Set(['zod@4.6.5']), 'muse-spark-code')
+    const second = shippedBom(source, new Set(['zod@4.6.5']), 'muse-spark-code-acp')
+    expect(first.serialNumber).toMatch(/^urn:uuid:[0-9a-f-]{36}$/)
+    expect(second.serialNumber).toMatch(/^urn:uuid:[0-9a-f-]{36}$/)
+    expect(second.serialNumber).not.toBe(first.serialNumber)
+    expect(second.metadata.component).toEqual({
+      type: 'application',
+      name: 'muse-spark-code-acp',
+      version: '0.10.1',
+      purl: 'pkg:npm/muse-spark-code-acp@0.10.1',
+      'bom-ref': 'pkg:npm/muse-spark-code-acp@0.10.1',
+    })
+  })
+  it('marks bundled devDeps required while native-only platform packages stay optional', () => {
+    const scoped = {
+      ...bom,
+      components: [
+        {
+          name: 'zod',
+          version: '4.6.5',
+          'bom-ref': 'zod',
+          scope: 'optional',
+          properties: [{ name: 'cdx:npm:package:development', value: 'true' }],
+        },
+        {
+          group: '@napi-rs',
+          name: 'keyring',
+          version: '2.1.0',
+          'bom-ref': 'keyring',
+          scope: 'optional',
+        },
+      ],
+    }
+    const included = new Set(['zod@4.6.5', '@napi-rs/keyring@2.1.0'])
+    const acp = shippedBom(scoped, included, 'muse-spark-code-acp', new Set(['zod@4.6.5']))
+    expect(acp.components.find(({ name }) => name === 'zod')).toEqual({
+      name: 'zod',
+      version: '4.6.5',
+      'bom-ref': 'zod',
+      scope: 'required',
+    })
+    expect(acp.components.find(({ name }) => name === 'keyring')?.scope).toBe('optional')
   })
   it('uses output contributions, including scoped/nested packages, never zero-byte inputs', () => {
     const read = vi.fn((file) =>

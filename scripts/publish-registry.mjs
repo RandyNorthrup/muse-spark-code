@@ -15,8 +15,9 @@ import { z } from 'zod'
 const require = createRequire(import.meta.url)
 const OVSX_CLI = require.resolve('ovsx/bin/ovsx')
 const BACKOFF_MS = [20_000, 60_000]
+// All registry hostnames are fixed and valid, so ENOTFOUND is transient DNS.
 const NETWORK_ERROR =
-  /\b(?:ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|E502|E503|E504|TimeoutError)\b|\b(?:HTTP|status(?:\s*code)?)\s*[:=]?\s*(?:502|503|504)\b|Failed request:\s*\((?:502|503|504)\)|socket hang up/i
+  /\b(?:ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|ENOTFOUND|E502|E503|E504|TimeoutError)\b|\b(?:HTTP|status(?:\s*code)?)\s*[:=]?\s*(?:502|503|504)\b|Failed request:\s*\((?:502|503|504)\)|socket hang up/i
 const EXISTS_ERROR =
   /already (?:published|exists)|already been published|cannot publish over|EPUBLISHCONFLICT|version[^\n]*already/i
 const OPEN_VSX = z.object({ files: z.object({ download: z.url() }) })

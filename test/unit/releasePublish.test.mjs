@@ -39,6 +39,7 @@ describe('registry recovery', () => {
     'ECONNRESET',
     'ETIMEDOUT',
     'EAI_AGAIN',
+    'getaddrinfo ENOTFOUND registry.npmjs.org',
     'HTTP 502',
     'HTTP 503',
     'HTTP 504',
@@ -249,6 +250,7 @@ describe('publish failure labels', () => {
     ['ERROR  Failed request: (403) Forbidden', '(403)'],
     ['npm error code E404\nnpm error 404 Not Found', '(404)'],
     ['read ECONNRESET', 'network attempts exhausted'],
+    ['getaddrinfo ENOTFOUND registry.npmjs.org', 'network attempts exhausted'],
     ['something unexpected', 'publication refused'],
   ])('labels %j as %s', (stderr, label) => {
     expect(failureReason(cliFailure(stderr))).toContain(label)

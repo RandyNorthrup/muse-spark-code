@@ -1,6 +1,7 @@
 // npm's full locked CycloneDX inventory, restricted to actual shipped esbuild inputs.
 // --omit=dev alone is wrong here: zod, React and the Muse/ACP SDKs are bundled devDeps.
 import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -80,23 +81,41 @@ export function nativePackages(lock) {
   return packages
 }
 
-export function shippedBom(document, included, name) {
+function componentKey(component) {
+  return `${component.group === undefined ? '' : `${component.group}/`}${component.name}@${component.version}`
+}
+
+/** Bundled devDeps run at runtime, so they ship as required, not optional. */
+function asRuntime(component) {
+  const normalized = { ...component, scope: 'required' }
+  if (Array.isArray(component.properties)) {
+    const kept = component.properties.filter((property) => !/develop/i.test(property?.name ?? ''))
+    if (kept.length > 0) normalized.properties = kept
+    else delete normalized.properties
+  }
+  return normalized
+}
+
+export function shippedBom(document, included, name, required = included) {
   const bom = BOM.parse(document)
-  const components = bom.components.filter((component) =>
-    included.has(
-      `${component.group === undefined ? '' : `${component.group}/`}${component.name}@${component.version}`,
-    ),
-  )
-  const found = new Set(
-    components.map(
-      (component) =>
-        `${component.group === undefined ? '' : `${component.group}/`}${component.name}@${component.version}`,
-    ),
-  )
+  const components = bom.components
+    .filter((component) => included.has(componentKey(component)))
+    .map((component) => (required.has(componentKey(component)) ? asRuntime(component) : component))
+  const found = new Set(components.map((component) => componentKey(component)))
   if ([...included].some((entry) => !found.has(entry)))
     throw new Error('npm SBOM omitted a shipped package')
-  const rootRef = `pkg:npm/${name}@${bom.metadata.component.version}`
-  const root = { ...bom.metadata.component, name, purl: rootRef, 'bom-ref': rootRef }
+  const source = bom.metadata.component
+  const rootRef = `pkg:npm/${name}@${source.version}`
+  // Each derived document is its own product: a fresh identity and a root
+  // built from name and version only, never the source BOM wholesale (which
+  // would share the serialNumber and leak extension-only root metadata).
+  const root = {
+    type: source.type ?? 'application',
+    name,
+    version: source.version,
+    purl: rootRef,
+    'bom-ref': rootRef,
+  }
   const refs = new Set(components.map((component) => component['bom-ref']))
   // Inventory edges only: no build-tool or omitted intermediary component references.
   const dependencies = bom.dependencies
@@ -109,7 +128,13 @@ export function shippedBom(document, included, name) {
     ref: root['bom-ref'],
     dependsOn: [...refs].toSorted((a, b) => a.localeCompare(b, 'en')),
   })
-  return { ...bom, metadata: { ...bom.metadata, component: root }, components, dependencies }
+  return {
+    ...bom,
+    serialNumber: `urn:uuid:${randomUUID()}`,
+    metadata: { ...bom.metadata, component: root },
+    components,
+    dependencies,
+  }
 }
 
 if (
@@ -130,18 +155,21 @@ if (
   )
   const full = JSON.parse(raw)
   const extension = bundledPackages(readdirSync('dist/meta').map((file) => `dist/meta/${file}`))
+  // Only bundled inputs are proven runtime code; unbundled native platform
+  // dependencies keep the optional scope npm gave them.
+  const acpBundled = bundledPackages(ACP_META)
   const acp = new Set([
-    ...bundledPackages(ACP_META),
+    ...acpBundled,
     ...nativePackages(JSON.parse(readFileSync('package-lock.json', 'utf8'))),
   ])
   mkdirSync('dist/sbom', { recursive: true })
-  for (const [name, packages] of [
-    ['muse-spark-code', extension],
-    ['muse-spark-code-acp', acp],
+  for (const [name, packages, required] of [
+    ['muse-spark-code', extension, extension],
+    ['muse-spark-code-acp', acp, acpBundled],
   ]) {
     writeFileSync(
       path.join('dist/sbom', `${name}.cdx.json`),
-      `${JSON.stringify(shippedBom(full, packages, name), null, 2)}\n`,
+      `${JSON.stringify(shippedBom(full, packages, name, required), null, 2)}\n`,
     )
     console.log(`${name}: ${packages.size} shipped dependency versions in CycloneDX`)
   }
