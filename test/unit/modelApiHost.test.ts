@@ -12681,6 +12681,24 @@ describe('the browser check on the Model API backend (M81)', () => {
     })
   })
 
+  it('marks its turn as having run a process, so a restore says so (M86)', async () => {
+    const browser = recordingBrowser()
+    const ends: boolean[] = []
+    const t = setup({
+      browserCheck: browser.host,
+      afterTurnRuns: (_sessionId, _turnId, end) => {
+        ends.push(end.ranProcesses)
+        return Promise.resolve()
+      },
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    scriptChecks(t, 'http://127.0.0.1:5173/')
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    await turnDone()
+    expect(browser.requests).toHaveLength(1)
+    expect(ends).toEqual([true])
+  })
+
   it('runs on loopback in Bypass without a card, and is refused in Plan without a check', async () => {
     for (const [mode, isAsked, isChecked] of [
       ['onRequest', true, true],

@@ -5272,6 +5272,9 @@ export class ModelApiSession implements AgentSession {
       const now = browserCheckScope(placement, browser.extraHosts())
       return browserScopeKey(placement.url, now) === approvalKey ? 'ok' : 'scopeChanged'
     }
+    // A browser runs, and a page it drives can make a local server change
+    // files: a restore says so, as for commands (M86, spec 8).
+    this.noteProcessRan()
     const result = await browser.check(
       {
         url: placement.url,

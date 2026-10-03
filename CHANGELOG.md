@@ -224,6 +224,7 @@ happened, not what was planned; superseded entries are kept.
   verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
   it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
   - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
+  - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
 
 ### Changed
 
