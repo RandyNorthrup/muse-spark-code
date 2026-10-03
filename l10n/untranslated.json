@@ -5,6 +5,7 @@
       "modesHintKeys",
       "exportItem",
       "compactItem",
+      "handoffItem",
       "clearItem",
       "logoutItem",
       "agentsCommand",

@@ -41,6 +41,7 @@ import {
   MODEL_TEXT,
   PLAN_FILE_MAX_BYTES,
   MUSE_VOICE_BYTES_PER_SECOND,
+  PLAN_STEP_MAX_CHARS,
   type GoalCommandVerb,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -61,7 +62,13 @@ import type {
 } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import {
+  FAKE_MODEL_API_ACCOUNT_ID,
+  fakeModelApi,
+  fakeModelApiClient,
+  type FakeModelApi,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
@@ -5231,6 +5238,7 @@ function modelApiController(
     readonly io?: ModelApiHostDeps['io']
     readonly contextIo?: ModelApiHostDeps['contextIo']
     readonly newId?: () => string
+    readonly beforeEnsureHost?: () => Promise<void>
     /** Where sessions are saved, when a test resumes one the host let go of. */
     readonly store?: ModelApiHostDeps['store']
   } = {},
@@ -5259,7 +5267,10 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
-    ensureHost: () => Promise.resolve(host),
+    ensureHost: async () => {
+      await options.beforeEnsureHost?.()
+      return host
+    },
     ...(options.store !== undefined && {
       ownedVoiceBudgetScope: (sessionId: string) => host.getOwnedBudgetScope(sessionId),
     }),
@@ -7494,6 +7505,21 @@ function goal(verb: GoalCommandVerb, objective?: string) {
   }
 }
 
+/** Whether each goal command the panel was answered for was taken, in order (M45). */
+function goalAnswers(t: ReturnType<typeof setup>) {
+  return t.surface.posted.flatMap((message) =>
+    message.type === 'goalCommandResult' ? [message.accepted] : [],
+  )
+}
+
+/** `session/read` answering for `s1` with a snapshot that holds `goal` (M45). */
+function readsGoal(t: ReturnType<typeof setup>, goal: Record<string, unknown>): void {
+  t.server.handle('session/read', () => ({
+    ...envelope({ ...storedSession, sessionId: 's1', status: 'idle' }, 'snapshot'),
+    history: { mode: 'snapshot', items: null, snapshot: { state: { items: storedItems, goal } } },
+  }))
+}
+
 /** The notices the panel was sent, in order. */
 function notices(t: ReturnType<typeof setup>) {
   return t.surface.posted.flatMap((message) => (message.type === 'notice' ? [message] : []))
@@ -7577,6 +7603,147 @@ describe('ConversationController: the session goal (M45, PLAN.md D38)', () => {
       })),
     )
   })
+
+  it('answers a /goal refused while a key activation holds admission, and the same /goal goes through once it returns', async () => {
+    const t = setup()
+    t.server.handle('goal/set', accepted)
+    // The panel still reads signed in while the backend's admission is held.
+    t.auth.isAdmitted = false
+    expect(t.auth.snapshot.status).toBe('signedIn')
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    // Refused and answered, so the prompt keeps the command and can send it again.
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+    ])
+    t.auth.isAdmitted = true
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')[0]?.params).toMatchObject({
+      objective: 'Ship the parser',
+    })
+    expect(t.surface.posted.filter((message) => message.type === 'goalCommandResult')).toEqual([
+      { type: 'goalCommandResult', requestId: 'g1', accepted: false },
+      { type: 'goalCommandResult', requestId: 'g1', accepted: true },
+    ])
+  })
+
+  it('answers a /goal whose admission closes during the host lookup, sending nothing, and the same /goal goes through after', async () => {
+    const deferred = setupWithDeferredHost()
+    const { t } = deferred
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    t.server.handle('goal/set', accepted)
+    deferred.delay()
+    const held = t.controller.handle(goal('set', 'Ship the parser'))
+    await vi.waitFor(() => {
+      expect(deferred.isWaiting()).toBe(true)
+    })
+    // A key activation closes admission during the lookup; the panel still reads signed in.
+    t.auth.isAdmitted = false
+    deferred.release()
+    await held
+    expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    // Answered, so the prompt keeps the command and can send it again.
+    expect(goalAnswers(t)).toEqual([false])
+    t.auth.isAdmitted = true
+    await t.controller.handle(goal('set', 'Ship the parser'))
+    expect(t.server.requestsFor('goal/set')).toHaveLength(1)
+    expect(goalAnswers(t)).toEqual([false, true])
+  })
+
+  it.each([
+    { stop: 'a sign-out', isConversationEnding: true, isLookupFailing: false },
+    { stop: 'a restart', isConversationEnding: false, isLookupFailing: true },
+  ])(
+    'answers a /goal the host never had when $stop interrupts its lookup, saying nothing about it',
+    async ({ isConversationEnding, isLookupFailing }) => {
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      let shouldHold = false
+      const t = setup({
+        beforeEnsureHost: async () => {
+          if (!shouldHold) {
+            return
+          }
+          shouldHold = false
+          entered.resolve(undefined)
+          await released.promise
+          if (isLookupFailing) {
+            throw new Error('the host did not start')
+          }
+        },
+      })
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      shouldHold = true
+      const held = t.controller.handle(goal('set', 'Ship the parser'))
+      await entered.promise
+      await t.controller.backendStopping(isConversationEnding)
+      t.surface.posted.length = 0
+      released.resolve(undefined)
+      await held
+      expect(t.server.requestsFor('goal/set')).toHaveLength(0)
+      expect(goalAnswers(t)).toEqual([false])
+      expect(notices(t)).toEqual([])
+    },
+  )
+
+  it.each([
+    {
+      landing: 'a key activation',
+      interrupt: (t: ReturnType<typeof setup>) => {
+        t.auth.isAdmitted = false
+      },
+      recover: (t: ReturnType<typeof setup>) => {
+        t.auth.isAdmitted = true
+      },
+    },
+    {
+      landing: 'a backend restart',
+      interrupt: (t: ReturnType<typeof setup>) => {
+        void t.controller.backendStopping(false)
+      },
+      recover: (t: ReturnType<typeof setup>) => {
+        t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
+      },
+    },
+  ])(
+    'says a /goal the backend had may or may not have taken when $landing lands, and reads the goal back before the next action',
+    async ({ interrupt, recover }) => {
+      const t = setup()
+      await t.send('l1', 'hi')
+      t.finishTurn()
+      await settle()
+      // The interruption lands while the backend has the command.
+      t.server.handle('goal/set', (params) => {
+        interrupt(t)
+        return accepted(params)
+      })
+      await t.controller.handle(goal('set', 'Ship the parser'))
+      expect(t.server.requestsFor('goal/set')).toHaveLength(1)
+      // Answered, so the prompt keeps the command; the outcome said to be unknown.
+      expect(goalAnswers(t)).toEqual([false])
+      expect(notices(t).at(-1)).toMatchObject({
+        level: 'warning',
+        text: UI_TEXT.goalOutcomeUnknown,
+      })
+      // Reachable again: the conversation's next action reads the goal back.
+      recover(t)
+      const backendGoal = { objective: 'Ship the parser', status: 'active', percentComplete: 0 }
+      readsGoal(t, backendGoal)
+      await t.send('l2', 'next')
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'agentEvent',
+          event: { type: 'goalChanged', goal: backendGoal },
+        })
+      })
+    },
+  )
 
   it('resumes the session and sends again when the host no longer holds it', async () => {
     const t = setup()
@@ -8669,6 +8836,31 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(retried.planFiles.files.size).toBe(0)
   })
 
+  it('refuses to implement when admission closes during the new conversation’s host lookup, leaving this one', async () => {
+    // Closes admission at the first host lookup after the plan was saved:
+    // the brief's own, before anything is left (a key activation).
+    const holder: { t?: ReturnType<typeof setup> } = {}
+    let hasClosed = false
+    const t = await museCodePlan({
+      beforeEnsureHost: () => {
+        const current = holder.t
+        if (!hasClosed && current !== undefined && current.planFiles.files.size > 0) {
+          hasClosed = true
+          current.auth.isAdmitted = false
+        }
+        return Promise.resolve()
+      },
+    })
+    holder.t = t
+    t.surface.posted.length = 0
+    await t.controller.handle(IMPLEMENT)
+    expect(hasClosed).toBe(true)
+    expect(t.surface.posted.some((message) => message.type === 'conversationCleared')).toBe(false)
+    expect(t.surface.posted.some((message) => message.type === 'briefSubmitted')).toBe(false)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+  })
+
   it('implements the approved plan in a fresh Muse Code conversation: English for the model, the plan as named text, the steps left to the model', async () => {
     const t = await museCodePlan()
     t.surface.posted.length = 0
@@ -9394,5 +9586,878 @@ describe('ConversationController: turn checkpoints (M72)', () => {
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'gone', isArchived: true })
     await t.controller.handle({ type: 'setSessionArchived', sessionId: 'back', isArchived: false })
     expect(t.checkpointCalls).toEqual(['forget gone', 'unforget back'])
+  })
+})
+
+/** A `/handoff` request, with the goal where one was typed. */
+function handoff(requestId: string, goal?: string): ConversationMessage {
+  return { type: 'requestHandoff', requestId, ...(goal !== undefined && { goal }) }
+}
+
+/** A confirm that must refuse: the result, and no seeded card. */
+async function expectConfirmRefused(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  requestId: string,
+  brief: string,
+): Promise<void> {
+  t.surface.posted.length = 0
+  await controller.handle({ type: 'confirmHandoff', requestId, brief })
+  expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+    { type: 'handoffCommandResult', requestId, accepted: false },
+  ])
+  expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+}
+
+/** `requestId` refused for closed admission: the reason said, and refused its only answer. */
+function expectAdmissionRefusal(t: ReturnType<typeof setup>, requestId: string): void {
+  expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+  expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+    { type: 'handoffCommandResult', requestId, accepted: false },
+  ])
+}
+
+interface HandoffConversation {
+  readonly t: ReturnType<typeof setup>
+  readonly api: FakeModelApi
+  readonly controller: ConversationController
+  readonly host: ModelApiHost
+}
+
+/** A Model API conversation with one completed turn, ready to hand off. */
+async function handoffConversation(
+  firstReply?: ScriptedReply,
+  beforeEnsureHost?: () => Promise<void>,
+  options: Parameters<typeof setup>[0] = {},
+): Promise<HandoffConversation> {
+  const t = setup(options)
+  let nextId = 0
+  const { api, controller, host } = modelApiController(t, {
+    newId: () => `id${String(++nextId)}`,
+    ...(beforeEnsureHost !== undefined && { beforeEnsureHost }),
+  })
+  api.script(firstReply ?? { text: 'did the thing' })
+  await controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: 'do the thing',
+    attachmentIds: [],
+  })
+  await vi.waitFor(() => {
+    expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+  })
+  return { t, api, controller, host }
+}
+
+/** The permission mode the panel was last told: the new conversation's, after a Start. */
+function lastMode(conversation: HandoffConversation) {
+  return conversation.t.surface.posted
+    .flatMap((posted) => (posted.type === 'composerState' ? [posted.permissionMode] : []))
+    .at(-1)
+}
+
+/** An ordinary message whose reply is held: a turn running beside a handoff. */
+async function startOrdinaryTurn(
+  conversation: HandoffConversation,
+  hold: Promise<unknown>,
+): Promise<void> {
+  conversation.api.script({ hold, text: 'ordinary reply' })
+  await conversation.controller.handle({
+    type: 'sendMessage',
+    localId: 'ordinary',
+    text: 'continue normally',
+    attachmentIds: [],
+  })
+}
+
+/** Characters the handoff dialog does not show as the model reads them (D49). */
+const ZERO_WIDTH_SPACE = 0x20_0b
+const RIGHT_TO_LEFT_OVERRIDE = 0x20_2e
+
+/** Hold exactly the next host lookup after the conversation has been prepared. */
+function holdNextHandoffHost() {
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  let shouldHold = false
+  return {
+    entered: entered.promise,
+    release: () => {
+      released.resolve(undefined)
+    },
+    hold: () => {
+      shouldHold = true
+    },
+    beforeEnsureHost: async () => {
+      if (!shouldHold) {
+        return
+      }
+      shouldHold = false
+      entered.resolve(undefined)
+      await released.promise
+    },
+  }
+}
+
+/**
+ * The last notice a Model API controller's message produced. Only notices
+ * posted by the message count, so a turn running alongside cannot leak in.
+ */
+async function lastModelNotice(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  message: ConversationMessage,
+): Promise<string | undefined> {
+  const before = notices(t).length
+  await controller.handle(message)
+  return notices(t).slice(before).at(-1)?.text
+}
+
+describe('ConversationController: handoff to a new conversation (M74)', () => {
+  const BRIEF =
+    '## Goal\nShip it.\n\n## Decisions\nNone.\n\n## Files touched\nNone.\n\n## Open work\nShip it.\n\n## Todo list\n- [ ] Polish the tile'
+  const EDITED = `${BRIEF}\n\n## Notes\nEdited by hand.`
+
+  /** The handoff's distillation turn, through to its dialog. */
+  async function distil(conversation: HandoffConversation, requestId: string, goal?: string) {
+    const { t, api, controller } = conversation
+    api.script({ text: BRIEF })
+    await controller.handle(handoff(requestId, goal))
+    await vi.waitFor(() => {
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(true)
+    })
+    return t.surface.posted.find((posted) => posted.type === 'handoffReady')
+  }
+
+  /** A handoff `h1` whose distillation turn runs, its reply held until `release`. */
+  async function heldDistillation(goal?: string) {
+    const conversation = await handoffConversation()
+    const release = Promise.withResolvers<unknown>()
+    conversation.api.script({ hold: release.promise, text: BRIEF })
+    await conversation.controller.handle(handoff('h1', goal))
+    return { conversation, release }
+  }
+
+  /** Start the edited brief as `requestId`'s new conversation, and require the accept. */
+  async function confirmEdited(
+    conversation: HandoffConversation,
+    requestId: string,
+    brief: string = EDITED,
+  ) {
+    const { t, api, controller } = conversation
+    api.script({ text: 'on it' })
+    // The confirm's own result: the request's, under the same id, came before.
+    const before = t.surface.posted.length
+    await controller.handle({ type: 'confirmHandoff', requestId, brief })
+    expect(t.surface.posted.slice(before)).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId,
+      accepted: true,
+    })
+  }
+
+  /** A distillation turn that ended unfinished: said, no dialog, and the slot free for `h2`. */
+  async function expectHandoffFreed(conversation: HandoffConversation) {
+    const { t } = conversation
+    await vi.waitFor(() => {
+      expect(notices(t).map((notice) => notice.text)).toContain(UI_TEXT.handoffInterrupted)
+    })
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    // The slot is free: the next handoff runs.
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  }
+
+  /** The dialog for `h1`'s brief, with no goal and no open items, once posted. */
+  async function expectBriefReady(t: ReturnType<typeof setup>) {
+    await vi.waitFor(() => {
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffReady',
+        requestId: 'h1',
+        brief: BRIEF,
+        todos: [],
+      })
+    })
+  }
+
+  it("distils the conversation as the user's own turn and shows the brief before anything starts", async () => {
+    const conversation = await handoffConversation()
+    const { t, api } = conversation
+    const ready = await distil(conversation, 'h1', 'Ship it')
+    expect(ready).toEqual({
+      type: 'handoffReady',
+      requestId: 'h1',
+      brief: BRIEF,
+      goal: 'Ship it',
+      todos: [],
+    })
+    // The request turn's card, in the user's language.
+    const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(card).toMatchObject({
+      type: 'briefSubmitted',
+      text: fill(UI_TEXT.handoffRequestCardWithGoal, { goal: 'Ship it' }),
+      attachments: [],
+    })
+    expect(card?.type === 'briefSubmitted' && card.localId.startsWith('handoff-')).toBe(true)
+    // The command was taken, so the composer may let it go.
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+    ])
+    // The model was asked for the distilled brief, with the goal and the
+    // untrusted-content rule (PLAN.md D49). Both sides are JSON text, so
+    // the expectation is encoded the same way.
+    const request = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    expect(request).toContain(JSON.stringify(MODEL_TEXT.handoffRequest).slice(1, -1))
+    expect(request).toContain('Ship it')
+    expect(request).toContain('[untrusted]')
+    // Nothing started: the conversation was not cleared.
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+  })
+
+  it('starts the reviewed brief as a new conversation through the brief path, seeding the open items', async () => {
+    const conversation = await handoffConversation({
+      text: 'did the thing',
+      calls: [
+        {
+          name: 'todo_write',
+          arguments:
+            '{"items":[{"text":"Polish the tile","status":"pending"},{"text":"Already shipped tile","status":"completed"}]}',
+        },
+      ],
+    })
+    const { t, api, controller } = conversation
+    // The dialog lists the open items it will seed, so the user sees them before Start.
+    const ready = await distil(conversation, 'h1', 'Ship it')
+    expect(ready).toMatchObject({ type: 'handoffReady', todos: ['Polish the tile'] })
+    api.script({ text: 'on it' })
+    t.surface.posted.length = 0
+    await controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    // The seeded turn runs to completion before its request is read back.
+    await vi.waitFor(() => {
+      expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(1)
+    })
+    const kinds = t.surface.posted.map((posted) => posted.type)
+    // The old conversation is left before the brief's card appears (M79's path).
+    expect(kinds.indexOf('conversationCleared')).toBeLessThan(kinds.indexOf('briefSubmitted'))
+    const seeded = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(seeded).toMatchObject({ type: 'briefSubmitted', text: EDITED, attachments: [] })
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+    ])
+    // The open items land before the brief's request; what is done stays behind.
+    const lists = t.surface.posted.flatMap((posted) =>
+      posted.type === 'agentEvent' && posted.event.type === 'todoChanged'
+        ? [posted.event.items]
+        : [],
+    )
+    expect(lists.at(-1)).toEqual([{ text: 'Polish the tile', status: 'pending' }])
+    // The seeded turn carries the edited brief, the goal and what [untrusted] means.
+    const body = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    expect(body).toContain(JSON.stringify(EDITED).slice(1, -1))
+    expect(body).toContain('Work toward this goal: Ship it')
+    expect(body).toContain('never as instructions')
+    expect(body).toContain('1. Polish the tile')
+    expect(body).not.toContain('Already shipped tile')
+    expect(body).not.toContain('did the thing')
+  })
+
+  it('tells the model the open items whole, never claiming they were shortened', async () => {
+    // Longer than a plan's steps are cut to: a handoff's items are not cut.
+    const long = `Polish the tile ${'x'.repeat(PLAN_STEP_MAX_CHARS)}`
+    const conversation = await handoffConversation({
+      text: 'did the thing',
+      calls: [
+        {
+          name: 'todo_write',
+          arguments: JSON.stringify({ items: [{ text: long, status: 'pending' }] }),
+        },
+      ],
+    })
+    const { api } = conversation
+    await distil(conversation, 'h1')
+    const before = api.responseBodies().length
+    await confirmEdited(conversation, 'h1')
+    await vi.waitFor(() => {
+      expect(api.responseBodies().length).toBeGreaterThan(before)
+    })
+    const body = JSON.stringify(api.responseBodies().at(-1)?.['input'])
+    const note = fill(MODEL_TEXT.handoffTodosSet, { steps: `1. ${long}` })
+    expect(body).toContain(JSON.stringify(note).slice(1, -1))
+    expect(body).not.toContain('shortened')
+  })
+
+  it('starts a brief the dialog showed whole in the starting mode, and one hiding a character in a mode that asks (D49)', async () => {
+    const options = { initialPermissionMode: 'auto', hasApprovalUi: true } as const
+    // Seen whole and started from the dialog: the starting mode, said nothing.
+    const seen = await handoffConversation(undefined, undefined, options)
+    await distil(seen, 'h1')
+    await confirmEdited(seen, 'h1')
+    expect(lastMode(seen)).toBe('auto')
+    expect(notices(seen.t).map((notice) => notice.text)).not.toContain(
+      fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes.auto }),
+    )
+    const asking = fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes.manual })
+    // A zero-width character in the brief the user started: not all of it was seen.
+    const hiddenInBrief = await handoffConversation(undefined, undefined, options)
+    await distil(hiddenInBrief, 'h1')
+    await confirmEdited(hiddenInBrief, 'h1', `${EDITED}${String.fromCodePoint(ZERO_WIDTH_SPACE)}`)
+    expect(lastMode(hiddenInBrief)).toBe('manual')
+    expect(notices(hiddenInBrief.t).at(-1)).toMatchObject({ level: 'info', text: asking })
+    // A direction override in an open item the dialog listed: the same.
+    const overridden = `Polish ${String.fromCodePoint(RIGHT_TO_LEFT_OVERRIDE)}elit eht`
+    const hiddenInTodo = await handoffConversation(
+      {
+        text: 'did the thing',
+        calls: [
+          {
+            name: 'todo_write',
+            arguments: JSON.stringify({ items: [{ text: overridden, status: 'pending' }] }),
+          },
+        ],
+      },
+      undefined,
+      options,
+    )
+    expect(await distil(hiddenInTodo, 'h1')).toMatchObject({ todos: [overridden] })
+    await confirmEdited(hiddenInTodo, 'h1')
+    expect(lastMode(hiddenInTodo)).toBe('manual')
+    expect(notices(hiddenInTodo.t).at(-1)).toMatchObject({ level: 'info', text: asking })
+  })
+
+  it('keeps a handoff from Plan mode in Plan, whatever the starting mode', async () => {
+    const conversation = await handoffConversation(undefined, undefined, {
+      initialPermissionMode: 'auto',
+      hasApprovalUi: true,
+    })
+    await conversation.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+    await distil(conversation, 'h1')
+    await confirmEdited(conversation, 'h1')
+    expect(lastMode(conversation)).toBe('plan')
+  })
+
+  it('refuses where it cannot run, starting nothing', async () => {
+    // Muse Code compacts itself: the command is unavailable there.
+    const museCode = setup({})
+    expect(await lastNoticeText(museCode, handoff('h1'))).toBe(UI_TEXT.handoffUnavailable)
+    expect(museCode.server.requestsFor('session/start')).toHaveLength(0)
+    expect(museCode.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Nothing to distil yet.
+    const emptySetup = setup({})
+    const { controller: emptyController } = modelApiController(emptySetup)
+    expect(await lastModelNotice(emptySetup, emptyController, handoff('h1'))).toBe(
+      UI_TEXT.handoffEmpty,
+    )
+    // A side chat stays where it is.
+    const sideSetup = setup({ isSideChat: true })
+    const { controller: sideController } = modelApiController(sideSetup)
+    expect(await lastModelNotice(sideSetup, sideController, handoff('h1'))).toBe(
+      UI_TEXT.handoffSideChat,
+    )
+    for (const refused of [museCode, emptySetup, sideSetup]) {
+      expect(refused.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+      // Refused: the composer keeps the typed command and its goal.
+      expect(
+        refused.surface.posted.filter((posted) => posted.type === 'handoffCommandResult'),
+      ).toEqual([{ type: 'handoffCommandResult', requestId: 'h1', accepted: false }])
+    }
+  })
+
+  it('refuses a handoff while a reply runs, queuing nothing, and takes one once it is done', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: 'later' })
+    const running = controller.handle({
+      type: 'sendMessage',
+      localId: 'l2',
+      text: 'another thing',
+      attachmentIds: [],
+    })
+    await vi.waitFor(() => {
+      expect(
+        t.surface.posted.some(
+          (posted) => posted.type === 'turnAccepted' && posted.localId === 'l2',
+        ),
+      ).toBe(true)
+    })
+    expect(await lastModelNotice(t, controller, handoff('h1'))).toBe(UI_TEXT.handoffWaitTurn)
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    expect(t.surface.posted).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId: 'h1',
+      accepted: false,
+    })
+    release.resolve(undefined)
+    await running
+    // Both turns done: the first and the held one.
+    await vi.waitFor(() => {
+      expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+    })
+    // Nothing was queued: the refused request starts no turn of its own.
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Asked again once the reply is done, the handoff runs.
+    const ready = await distil(conversation, 'h1')
+    expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h1', brief: BRIEF })
+  })
+
+  it('brings a waiting brief back to a rebuilt panel, so a later handoff is never stuck busy', async () => {
+    // Rebuilt while the distillation turn runs: no brief yet, no dialog.
+    const { conversation, release } = await heldDistillation('Ship it')
+    const { t, controller } = conversation
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(true)
+    })
+    // Rebuilt with the dialog open: the dialog went with the webview, the
+    // brief waits here, and the dialog comes back for it, after the surface
+    // state that may clear a stale restored conversation.
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffReady')).toEqual([
+      { type: 'handoffReady', requestId: 'h1', brief: BRIEF, goal: 'Ship it', todos: [] },
+    ])
+    const kinds = t.surface.posted.map((posted) => posted.type)
+    expect(kinds.indexOf('handoffReady')).toBeGreaterThan(kinds.indexOf('surfaceState'))
+    // The restored dialog's Start goes through, and then nothing waits.
+    await confirmEdited(conversation, 'h1')
+    t.surface.posted.length = 0
+    controller.surfaceReady()
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+  })
+
+  it('refuses a second handoff while its brief waits', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    expect(await lastModelNotice(t, controller, handoff('h2'))).toBe(UI_TEXT.handoffBusy)
+    expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+    expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual([
+      { type: 'handoffCommandResult', requestId: 'h1', accepted: true },
+      { type: 'handoffCommandResult', requestId: 'h2', accepted: false },
+    ])
+  })
+
+  it('owns the handoff before held host preparation so a second request cannot submit', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, api, controller } = conversation
+    api.script({ text: BRIEF })
+    gate.hold()
+    const first = controller.handle(handoff('h1'))
+    try {
+      await gate.entered
+      expect(await lastModelNotice(t, controller, handoff('h2'))).toBe(UI_TEXT.handoffBusy)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      gate.release()
+    }
+    await first
+    await expectBriefReady(t)
+    expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+  })
+
+  it('cancels held preparation without an older completion discarding the newer handoff', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, controller } = conversation
+    gate.hold()
+    const old = controller.handle(handoff('h1'))
+    try {
+      await gate.entered
+      await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+      await distil(conversation, 'h2')
+    } finally {
+      gate.release()
+    }
+    await old
+    await confirmEdited(conversation, 'h2')
+    expect(
+      t.surface.posted.some(
+        (posted) => posted.type === 'handoffReady' && posted.requestId === 'h1',
+      ),
+    ).toBe(false)
+  })
+
+  it('refuses distillation when an ordinary turn starts during the history read', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller, host } = conversation
+    const entered = Promise.withResolvers<undefined>()
+    const historyReleased = Promise.withResolvers<undefined>()
+    const ordinaryReleased = Promise.withResolvers<unknown>()
+    const readSession = host.readSession.bind(host)
+    const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => {
+      entered.resolve(undefined)
+      await historyReleased.promise
+      return await readSession(sessionId)
+    })
+    const preparing = controller.handle(handoff('h1'))
+    try {
+      await entered.promise
+      await startOrdinaryTurn(conversation, ordinaryReleased.promise)
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId: 'ordinary' }),
+      )
+      historyReleased.resolve(undefined)
+      await preparing
+      expect(notices(t).at(-1)?.text).toBe(UI_TEXT.handoffWaitTurn)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      historyReleased.resolve(undefined)
+      ordinaryReleased.resolve(undefined)
+      reading.mockRestore()
+    }
+  })
+
+  it("says once, on the request's card, that a turn started during its send refused it", async () => {
+    // Holds the send's first host lookup once the request's card is up.
+    const watched: { t?: ReturnType<typeof setup> } = {}
+    let hasHeld = false
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const conversation = await handoffConversation(undefined, async () => {
+      const isCardUp =
+        watched.t?.surface.posted.some((posted) => posted.type === 'briefSubmitted') === true
+      if (hasHeld || !isCardUp) {
+        return
+      }
+      hasHeld = true
+      entered.resolve(undefined)
+      await released.promise
+    })
+    const { t, controller } = conversation
+    watched.t = t
+    const ordinaryReleased = Promise.withResolvers<unknown>()
+    const requesting = controller.handle(handoff('h1'))
+    try {
+      await entered.promise
+      await startOrdinaryTurn(conversation, ordinaryReleased.promise)
+      released.resolve(undefined)
+      await requesting
+      // The card failed with the reason; no notice repeats it.
+      const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+      const said = [
+        ...notices(t).map((notice) => notice.text),
+        ...t.surface.posted.flatMap((posted) =>
+          posted.type === 'sendFailed' &&
+          card?.type === 'briefSubmitted' &&
+          posted.localId === card.localId
+            ? [posted.reason]
+            : [],
+        ),
+      ]
+      expect(said.filter((text) => text === UI_TEXT.handoffWaitTurn)).toHaveLength(1)
+      expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.handoffWaitTurn)
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffCommandResult',
+        requestId: 'h1',
+        accepted: false,
+      })
+    } finally {
+      released.resolve(undefined)
+      ordinaryReleased.resolve(undefined)
+    }
+  })
+
+  it('cancels a held Start before commit and preserves a newer handoff operation', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    t.surface.posted.length = 0
+    gate.hold()
+    const oldStart = controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    try {
+      await gate.entered
+      await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+      await distil(conversation, 'h2')
+    } finally {
+      gate.release()
+    }
+    await oldStart
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    await confirmEdited(conversation, 'h2')
+  })
+
+  it.each([
+    { kind: 'ascii', brief: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) },
+    { kind: 'multibyte', brief: 'é'.repeat(PLAN_FILE_MAX_BYTES / 2 + 1) },
+  ])(
+    'refuses an edited $kind brief over the UTF-8 byte bound before clearing or sending',
+    async ({ brief }) => {
+      const conversation = await handoffConversation()
+      const { t, api, controller } = conversation
+      await distil(conversation, 'h1')
+      const before = api.responseBodies().length
+      await expectConfirmRefused(t, controller, 'h1', brief)
+      expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+      expect(api.responseBodies()).toHaveLength(before)
+      expect(notices(t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
+    },
+  )
+
+  it("refuses an emptied brief and another request's confirm, and the waiting brief still starts", async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    // Emptied in the dialog: refused with the reason, nothing cleared.
+    await expectConfirmRefused(t, controller, 'h1', ' \n ')
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.handoffEmpty })
+    // A confirm naming another request starts nothing.
+    await expectConfirmRefused(t, controller, 'h-other', EDITED)
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    await confirmEdited(conversation, 'h1')
+  })
+
+  it('refuses a conversation whose history holds nothing yet', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller, host } = conversation
+    const readSession = host.readSession.bind(host)
+    const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => ({
+      ...(await readSession(sessionId)),
+      items: [],
+    }))
+    try {
+      expect(await lastModelNotice(t, controller, handoff('h1'))).toBe(UI_TEXT.handoffEmpty)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    } finally {
+      reading.mockRestore()
+    }
+  })
+
+  it('frees the handoff when its distillation turn is stopped, saying nothing started', async () => {
+    const { conversation, release } = await heldDistillation()
+    await conversation.controller.handle({ type: 'cancelTurn' })
+    release.resolve(undefined)
+    await expectHandoffFreed(conversation)
+  })
+
+  it('frees the handoff when Stop withdraws its distillation turn, queued behind a compaction', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    // The compaction's summary is held, so the distillation turn queues behind it.
+    const release = Promise.withResolvers<unknown>()
+    api.script({ hold: release.promise, text: 'summary' }, { text: BRIEF })
+    const before = api.responseBodies().length
+    const compacting = controller.handle({ type: 'compact' })
+    try {
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(before + 1)
+      })
+      await controller.handle(handoff('h1'))
+      expect(t.surface.posted).toContainEqual({
+        type: 'handoffCommandResult',
+        requestId: 'h1',
+        accepted: true,
+      })
+      await controller.handle({ type: 'cancelTurn' })
+    } finally {
+      release.resolve(undefined)
+    }
+    await compacting
+    await expectHandoffFreed(conversation)
+  })
+
+  it('answers a request and a Start refused while a key activation holds admission, and both go through once it returns', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    // The panel still reads signed in while the backend's admission is held.
+    t.auth.isAdmitted = false
+    expect(t.auth.snapshot.status).toBe('signedIn')
+    t.surface.posted.length = 0
+    await controller.handle(handoff('h1', 'Ship it'))
+    // Refused with the reason, and answered, so the composer's command is free again.
+    expectAdmissionRefusal(t, 'h1')
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    // Admission back: the same command, sent again, runs.
+    t.auth.isAdmitted = true
+    await distil(conversation, 'h2', 'Ship it')
+    // The dialog's Start, refused while admission is held again, is answered too.
+    t.auth.isAdmitted = false
+    await expectConfirmRefused(t, controller, 'h2', EDITED)
+    expect(notices(t).at(-1)).toMatchObject({ level: 'warning', text: UI_TEXT.notSignedInReason })
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    // Admission back: the waiting brief starts.
+    t.auth.isAdmitted = true
+    await confirmEdited(conversation, 'h2')
+  })
+
+  it('releases a brief cancelled while admission is held, so the next handoff runs once it returns', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    t.auth.isAdmitted = false
+    // The panel closed its dialog: releasing the operation needs no admission.
+    await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+    expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.notSignedInReason)
+    t.auth.isAdmitted = true
+    t.surface.posted.length = 0
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  })
+
+  it('refuses a Start whose admission closes during its host lookup, leaving the conversation and the reviewed brief to start again', async () => {
+    const gate = holdNextHandoffHost()
+    const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+    const { t, api, controller } = conversation
+    await distil(conversation, 'h1')
+    const before = api.responseBodies().length
+    t.surface.posted.length = 0
+    gate.hold()
+    const start = controller.handle({ type: 'confirmHandoff', requestId: 'h1', brief: EDITED })
+    try {
+      await gate.entered
+      t.auth.isAdmitted = false
+    } finally {
+      gate.release()
+    }
+    await start
+    // Nothing left or sent: refused with the reason, the operation waiting.
+    expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+    expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    expect(api.responseBodies()).toHaveLength(before)
+    expectAdmissionRefusal(t, 'h1')
+    // Admission back: the same reviewed brief starts.
+    t.auth.isAdmitted = true
+    await confirmEdited(conversation, 'h1')
+  })
+
+  it('refuses a request whose admission closes during its send, before the model has it, and frees the slot', async () => {
+    // Closes admission at the send's first host lookup once the request's card is up.
+    const watched: { t?: ReturnType<typeof setup> } = {}
+    let hasClosed = false
+    const conversation = await handoffConversation(undefined, () => {
+      const isCardUp =
+        watched.t?.surface.posted.some((posted) => posted.type === 'briefSubmitted') === true
+      if (!hasClosed && isCardUp && watched.t !== undefined) {
+        hasClosed = true
+        watched.t.auth.isAdmitted = false
+      }
+      return Promise.resolve()
+    })
+    const { t, api, controller } = conversation
+    watched.t = t
+    const before = api.responseBodies().length
+    await controller.handle(handoff('h1'))
+    expect(hasClosed).toBe(true)
+    // The card failed with the reason; the model never had the request.
+    const card = t.surface.posted.find((posted) => posted.type === 'briefSubmitted')
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'sendFailed',
+        localId: card?.type === 'briefSubmitted' ? card.localId : '',
+        reason: UI_TEXT.notSignedInReason,
+      }),
+    )
+    expect(api.responseBodies()).toHaveLength(before)
+    expect(t.surface.posted).toContainEqual({
+      type: 'handoffCommandResult',
+      requestId: 'h1',
+      accepted: false,
+    })
+    t.auth.isAdmitted = true
+    t.surface.posted.length = 0
+    expect(await distil(conversation, 'h2')).toMatchObject({ requestId: 'h2', brief: BRIEF })
+  })
+
+  it.each([
+    { trigger: 'the next /handoff', isRebuilt: false },
+    { trigger: 'a rebuilt panel', isRebuilt: true },
+  ])(
+    'puts off reading a brief while admission is closed, and reads it for $trigger once it returns',
+    async ({ isRebuilt }) => {
+      const { conversation, release } = await heldDistillation()
+      const { t, controller } = conversation
+      // The distillation turn completes while a key activation holds admission.
+      t.auth.isAdmitted = false
+      release.resolve(undefined)
+      await vi.waitFor(() => {
+        expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      })
+      await settle()
+      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+      t.auth.isAdmitted = true
+      t.surface.posted.length = 0
+      if (isRebuilt) {
+        controller.surfaceReady()
+      } else {
+        await controller.handle(handoff('h2'))
+        // Answered by the waiting brief's dialog, not run, and not called busy.
+        expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual(
+          [{ type: 'handoffCommandResult', requestId: 'h2', accepted: false }],
+        )
+        expect(notices(t).map((notice) => notice.text)).not.toContain(UI_TEXT.handoffBusy)
+      }
+      await expectBriefReady(t)
+      expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+    },
+  )
+
+  it('holds no slot and restores no dialog for a brief whose conversation is gone', async () => {
+    const restarted = await handoffConversation()
+    await distil(restarted, 'h1')
+    // The backend restarted: the waiting brief is stale, so a rebuilt panel
+    // gets no dialog for it and a new request is not "already running".
+    await restarted.controller.backendStopping(false)
+    restarted.t.surface.posted.length = 0
+    restarted.controller.surfaceReady()
+    expect(restarted.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    expect(await lastModelNotice(restarted.t, restarted.controller, handoff('h2'))).not.toBe(
+      UI_TEXT.handoffBusy,
+    )
+    // A new conversation drops the waiting brief: no dialog comes back for it.
+    const cleared = await handoffConversation()
+    await distil(cleared, 'h1')
+    await cleared.controller.handle({ type: 'clearConversation' })
+    cleared.t.surface.posted.length = 0
+    cleared.controller.surfaceReady()
+    expect(cleared.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+  })
+
+  it('cancels the brief and lets a later handoff through; a stale confirm starts nothing', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    await controller.handle({ type: 'cancelHandoff', requestId: 'h1' })
+    await expectConfirmRefused(t, controller, 'h1', EDITED)
+    // Cancelled, the next handoff runs.
+    const ready = await distil(conversation, 'h2')
+    expect(ready).toMatchObject({ type: 'handoffReady', requestId: 'h2', brief: BRIEF })
+  })
+
+  it('refuses a confirm after the conversation changed, and a brief that is too large or empty', async () => {
+    const conversation = await handoffConversation()
+    const { t, controller } = conversation
+    await distil(conversation, 'h1')
+    await controller.backendStopping(false)
+    await expectConfirmRefused(t, controller, 'h1', EDITED)
+    expect(notices(t).at(-1)).toMatchObject({
+      level: 'info',
+      text: UI_TEXT.handoffChangedNotStarted,
+    })
+
+    const large = await handoffConversation()
+    large.api.script({ text: 'x'.repeat(PLAN_FILE_MAX_BYTES + 1) })
+    large.t.surface.posted.length = 0
+    await large.controller.handle(handoff('h1'))
+    await vi.waitFor(() => {
+      expect(notices(large.t).length).toBeGreaterThan(0)
+    })
+    expect(notices(large.t).at(-1)).toMatchObject({ level: 'warning' })
+    expect(notices(large.t).at(-1)?.text).toContain(String(PLAN_FILE_MAX_BYTES / 1024))
+    expect(large.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+
+    const empty = await handoffConversation()
+    empty.api.script({ text: '' })
+    empty.t.surface.posted.length = 0
+    await empty.controller.handle(handoff('h1'))
+    await vi.waitFor(() => {
+      expect(notices(empty.t).length).toBeGreaterThan(0)
+    })
+    // The reason in the user's language too, from the table (M40).
+    expect(notices(empty.t).at(-1)).toMatchObject({
+      level: 'error',
+      text: `${UI_TEXT.handoffFailed}: ${UI_TEXT.handoffNoBrief}`,
+    })
+    expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
   })
 })

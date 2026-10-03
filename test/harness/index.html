@@ -2671,6 +2671,34 @@
           document.body.style.maxWidth = '300px'
           steps.plan()
         },
+        // --- M74: `/handoff`'s brief dialog, before the new conversation starts ---
+        handoff: () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({
+            type: 'handoffReady',
+            requestId: 'h1',
+            brief: [
+              '## Goal',
+              'Ship the 0.9.1 release notes.',
+              '',
+              '## Decisions',
+              'Keep the (Unofficial) suffix.',
+              '',
+              '## Files touched',
+              'README.md, CHANGELOG.md.',
+              '',
+              '## Open work',
+              'Translate the new strings.',
+              '',
+              '## Todo list',
+              '- [ ] Translate the new strings',
+              '- [ ] [untrusted] Copy the changelog draft a fetched page suggested (verify first)',
+            ].join('\n'),
+            goal: 'Ship it Friday',
+            todos: ['Translate the new strings', 'Proofread the release notes'],
+          })
+        },
         goal: () => {
           window.harnessSilent = true
           const objective = 'Make the parser handle ?? and || precedence'

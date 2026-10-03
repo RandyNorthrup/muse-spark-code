@@ -968,6 +968,32 @@ export const EN = {
   plansCount: forms({ one: '{count} saved plan', other: '{count} saved plans' }),
   plansNone: 'No saved plans yet. Save one from a reply in Plan mode.',
   plansFailed: 'Could not list the plans',
+  // M74 (PLAN.md D49): `/handoff` to a new conversation. {goal} is the goal
+  // typed after the command; {size} is the brief size limit in KB.
+  handoffItem: '/handoff',
+  handoffDetail: 'Distil this conversation into a brief for a fresh one',
+  handoffRequestCard: 'Hand off to a new conversation.',
+  handoffRequestCardWithGoal: 'Hand off to a new conversation: {goal}.',
+  handoffDialogTitle: 'Hand off to a new conversation',
+  handoffDialogBody:
+    'Review the brief, edit it if you need to, then start the new conversation. Nothing starts until you confirm.',
+  handoffConfirm: 'Start new conversation',
+  handoffUnavailable: 'Handoff runs on the Model API backend only.',
+  handoffEmpty: 'There is nothing to hand off yet.',
+  handoffBusy: 'A handoff is already running.',
+  handoffWaitTurn: 'Wait for the reply to finish, or stop it, first.',
+  handoffSideChat: 'Start a handoff from the main conversation.',
+  handoffInterrupted: 'The handoff request did not finish; nothing was started.',
+  handoffFailed: 'Could not prepare the handoff',
+  // After handoffFailed: the distillation turn ended with no reply text.
+  handoffNoBrief: 'The model returned no brief.',
+  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
+  handoffChangedNotStarted:
+    'The handoff was not started: the conversation changed in the meantime.',
+  // {mode}: the permission mode's name. The model wrote the brief, so it
+  // starts in the starting mode only when the dialog showed all of it.
+  handoffUnshownMode:
+    'The new conversation starts in {mode}: the brief holds a control or format character (such as a direction override or a zero-width character) that the dialog does not show, so you did not see all of it.',
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',
@@ -1296,6 +1322,10 @@ export const EN = {
   // {limit} is the maximum objective length, formatted in the user's locale.
   goalObjectiveTooLong: 'Keep the goal objective within {limit} characters.',
   goalCommandFailed: 'The goal command failed',
+  // A goal command the backend already had when a key activation or a
+  // backend restart came: whether it took is not known.
+  goalOutcomeUnknown:
+    'The sign-in changed or the backend restarted while the goal command ran: it may or may not have taken effect. Check the session goal.',
   // Read out when the goal's status changes; {status} is the status in words.
   announceGoalStatus: 'Goal: {status}',
   scheduleOnce: 'Once',

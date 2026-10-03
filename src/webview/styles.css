@@ -1918,6 +1918,30 @@ body {
   padding-right: 52px;
 }
 
+/* The handoff dialog's editable brief (M74) and its Start/Cancel row. */
+.handoff-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.handoff-edit {
+  box-sizing: border-box;
+  resize: vertical;
+  width: 100%;
+}
+
+.handoff-todos {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
 /* The Agent map's owner controls and note box (M18). */
 .agent-controls {
   display: flex;

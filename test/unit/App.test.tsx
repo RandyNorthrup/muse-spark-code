@@ -1062,6 +1062,13 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
+    // M74: /handoff readies the prompt for the new conversation's goal.
+    run('/handoff')
+    expect(textarea().value).toBe('/handoff ')
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'requestHandoff' }),
+    )
+    fireEvent.change(textarea(), { target: { value: '' } })
     run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
     // The CLI's own rows (M30) need the Muse Code backend.
