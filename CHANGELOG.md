@@ -385,6 +385,23 @@ happened, not what was planned; superseded entries are kept.
   once in the owner's session). At most four reads go to Muse Code at a
   time, in order, and one for a conversation no longer shown is never
   sent.
+- **A notice said again is one row, not a stack (0.10.1 and earlier).**
+  When Muse Code stopped answering, the conversation filled with copies of
+  the same notice: "Could not load the output: … within 60 s" five times,
+  "Reasoning effort could not be applied: …" seven times. That buried the
+  chat. Now:
+  - A notice with the same level and text as one in the run of notices
+    that ends the conversation replaces it. The one row moves to the end,
+    with a small count after its text ("7×", read out as "Shown 7 times").
+    A notice said before the last message stays where it was said.
+  - Notices with a different text or level stay apart.
+  - Each file restore's notice keeps its own row and its Redo.
+  - A Muse Code fault said again offers its buttons again.
+  - The count is kept when the panel reloads.
+- **Error notices in the conversation are readable in the Light and Dark
+  themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
+  WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
+  with a red edge.
 
 ## [0.10.1] - 2026-10-02
 

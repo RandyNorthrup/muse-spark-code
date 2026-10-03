@@ -1516,6 +1516,13 @@
   "redoAction": "Znovu",
   "redoLabel": "Znovu: vrátit soubory, které toto obnovení nahradilo",
   "redoGone": "Toto obnovení už nelze provést znovu.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Zobrazeno {count}krát",
+    "few": "Zobrazeno {count}krát",
+    "many": "Zobrazeno {count}krát",
+    "other": "Zobrazeno {count}krát"
+  },
   "restoreRefusedUnsaved": "Ponecháno beze změny, s neuloženými změnami: {files}",
   "restoreRefusedChanged": "Ponecháno beze změny, mezitím změněno něčím jiným: {files}",
   "restoreRefusedNotCovered": "Ponecháno beze změny, není v kontrolním bodu: {files}",

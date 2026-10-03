@@ -1434,6 +1434,11 @@
   "redoAction": "Wiederholen",
   "redoLabel": "Wiederholen: die von dieser Wiederherstellung ersetzten Dateien zurückholen",
   "redoGone": "Diese Wiederherstellung kann nicht mehr wiederholt werden.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "{count}-mal angezeigt",
+    "other": "{count}-mal angezeigt"
+  },
   "restoreRefusedUnsaved": "Unverändert gelassen, mit ungespeicherten Änderungen: {files}",
   "restoreRefusedChanged": "Unverändert gelassen, inzwischen anderweitig geändert: {files}",
   "restoreRefusedNotCovered": "Unverändert gelassen, nicht im Prüfpunkt: {files}",

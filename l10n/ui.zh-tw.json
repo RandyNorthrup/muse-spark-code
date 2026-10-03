@@ -1393,6 +1393,10 @@
   "redoAction": "重做",
   "redoLabel": "重做：恢復此次還原取代的檔案",
   "redoGone": "此次還原已無法重做。",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "other": "已顯示 {count} 次"
+  },
   "restoreRefusedUnsaved": "保持原樣，有未儲存的變更：{files}",
   "restoreRefusedChanged": "保持原樣，在此期間被其他原因變更：{files}",
   "restoreRefusedNotCovered": "保持原樣，不在檢查點中：{files}",

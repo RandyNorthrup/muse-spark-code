@@ -1393,6 +1393,10 @@
   "redoAction": "やり直し",
   "redoLabel": "やり直し: この復元で置き換えたファイルを元に戻す",
   "redoGone": "この復元はもうやり直せません。",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "other": "{count} 回表示されました"
+  },
   "restoreRefusedUnsaved": "未保存の変更があるためそのままにしました: {files}",
   "restoreRefusedChanged": "その間に他の原因で変更されたためそのままにしました: {files}",
   "restoreRefusedNotCovered": "チェックポイントにないためそのままにしました: {files}",

@@ -1475,6 +1475,12 @@
   "redoAction": "Ripeti",
   "redoLabel": "Ripeti: rimetti i file sostituiti da questo ripristino",
   "redoGone": "Questo ripristino non può più essere ripetuto.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Mostrato {count} volta",
+    "many": "Mostrato {count} di volte",
+    "other": "Mostrato {count} volte"
+  },
   "restoreRefusedUnsaved": "Lasciati come sono, con modifiche non salvate: {files}",
   "restoreRefusedChanged": "Lasciati come sono, modificati nel frattempo da altro: {files}",
   "restoreRefusedNotCovered": "Lasciati come sono, non presenti nel checkpoint: {files}",

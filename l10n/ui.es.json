@@ -1475,6 +1475,12 @@
   "redoAction": "Rehacer",
   "redoLabel": "Rehacer: devolver los archivos que reemplazó esta restauración",
   "redoGone": "Esta restauración ya no se puede rehacer.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Mostrado {count} vez",
+    "many": "Mostrado {count} de veces",
+    "other": "Mostrado {count} veces"
+  },
   "restoreRefusedUnsaved": "Se dejaron como están, con cambios sin guardar: {files}",
   "restoreRefusedChanged": "Se dejaron como están, cambiados por otra cosa mientras tanto: {files}",
   "restoreRefusedNotCovered": "Se dejaron como están, no están en el punto de control: {files}",

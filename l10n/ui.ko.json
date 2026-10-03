@@ -1393,6 +1393,10 @@
   "redoAction": "다시 실행",
   "redoLabel": "다시 실행: 이 복원이 바꾼 파일을 되돌려 놓기",
   "redoGone": "이 복원은 더 이상 다시 실행할 수 없습니다.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "other": "{count}회 표시됨"
+  },
   "restoreRefusedUnsaved": "저장되지 않은 변경 내용이 있어 그대로 둠: {files}",
   "restoreRefusedChanged": "그사이 다른 원인으로 변경되어 그대로 둠: {files}",
   "restoreRefusedNotCovered": "체크포인트에 없어 그대로 둠: {files}",

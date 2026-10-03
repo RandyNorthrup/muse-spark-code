@@ -1475,6 +1475,12 @@
   "redoAction": "Refazer",
   "redoLabel": "Refazer: devolver os arquivos que esta restauração substituiu",
   "redoGone": "Esta restauração não pode mais ser refeita.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Exibido {count} vez",
+    "many": "Exibido {count} de vezes",
+    "other": "Exibido {count} vezes"
+  },
   "restoreRefusedUnsaved": "Deixados como estão, com alterações não salvas: {files}",
   "restoreRefusedChanged": "Deixados como estão, alterados por outra coisa nesse meio-tempo: {files}",
   "restoreRefusedNotCovered": "Deixados como estão, fora do ponto de verificação: {files}",
