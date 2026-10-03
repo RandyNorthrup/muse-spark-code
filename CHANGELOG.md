@@ -69,16 +69,6 @@ happened, not what was planned; superseded entries are kept.
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
 
-### Changed
-
-- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
-  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
-  tentative; HTML meta declarations still win or trigger a later reparse. Valid
-  transport encodings without a runtime decoder remain explicit errors. Version
-  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
-  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
-  extension's floor), now in the integration run's `minimum` label too
-  (`docs/certification/pr60-sniffer7.md`).
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -104,12 +94,29 @@ happened, not what was planned; superseded entries are kept.
   refused with the reason; a refused `/handoff` stays in the prompt with
   its goal. While a new API key is being activated, a Start is refused
   before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
+  still works, and a deferred brief read says why and retries when sign-in
+  or key activation completes, including a read that failed while admission
+  was held. Start shares the plan actions' operation lock: either refuses
+  while the other runs. A composer send during distillation is refused,
+  keeping its exact draft and images without replacing newer typing.
+  No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
+### Changed
+
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
 ### Fixed
 
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of

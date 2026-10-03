@@ -404,7 +404,8 @@ says why when it cannot.
 
 A side chat stays in Plan mode, so it offers only Save plan. Implementing a
 saved plan is refused in Restricted Mode, because its content goes to the
-model as workspace text.
+model as workspace text. Implement and handoff Start share one operation
+lock: either asks you to wait while the other is still starting.
 
 ### Handoff to a new conversation
 
@@ -423,6 +424,12 @@ the first request. The generated or edited brief may be up to 256 KB in
 UTF-8. Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
+
+While the model distils the brief, a composer send is refused with the
+busy reason. Its images come back, and its exact draft comes back if you
+have not edited it meanwhile. A brief read held by sign-in or key activation says
+why and retries when sign-in completes, including a read that failed
+while admission was held. Cancel still releases the waiting handoff.
 
 The model wrote the brief, so the new conversation starts in your
 starting mode (`museSpark.initialPermissionMode`, as an implemented plan
