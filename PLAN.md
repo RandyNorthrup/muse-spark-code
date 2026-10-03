@@ -10009,6 +10009,13 @@ remain the lead's.
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **FIX86 verified (2026-10-03).** `662be22c` fixes F01–F03 with twelve
+  regression controls and seven byte-exact guard drills. `f6a33f5a` merges
+  current main `17ba7deb`, including the M83 import adaptation below. Final
+  scoped rigs passed: Kubuntu 438 tests, Windows 11 106 tests, with four
+  existing skips on each. Required static/build checks passed on Kubuntu;
+  [m86.md](docs/certification/m86.md) binds the receipts. Full quality and
+  installed-editor certification remain the lead's gates.
 - **Current-main import integration (FIX86).** M83 project imports keep the
   edit lease and storage refusal under M86; capture-era preimage and user-save
   callbacks are removed. Accepted imports remain the user's explicit writes,

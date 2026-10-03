@@ -23,7 +23,8 @@ happened, not what was planned; superseded entries are kept.
   reservations compare exact native file identities before filling or
   releasing, preserving replacement files. Children keep
   their inherited recording decision across reloads, and folder cleanup
-  uses actual creation ownership.
+  uses actual creation ownership. Imports from other agents keep their edit
+  and storage guards while remaining outside the model's recorder.
   Identity metadata without file contents may outlive retired copies until
   the window that wrote it retires; removing extension storage clears it.
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
