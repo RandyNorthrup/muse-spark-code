@@ -61,7 +61,7 @@ interface Options {
   readonly currentRoot?: () => string | undefined
   /** Replaces the checkpoint lease the project writes run under. */
   readonly editProject?: AgentImportDeps['editProject']
-  /** Replaces the checkpoint copy taken before each project write. */
+  /** Replaces the checkpoint storage guard before each project write. */
   readonly beforeProjectWrite?: AgentImportDeps['beforeProjectWrite']
   /** Runs when the editor is about to show a file, after it loaded. */
   readonly whileOpening?: (io: MemoryImportIo, path: string) => void
@@ -116,12 +116,9 @@ function run(options: Options = {}) {
     beforeProjectWrite:
       options.beforeProjectWrite ??
       (async (path) => {
-        events.push(`copy ${path}`)
+        events.push(`guard ${path}`)
         await Promise.resolve()
       }),
-    noteUserWrite: (path) => {
-      events.push(`user ${path}`)
-    },
     io,
     writer: {
       ...io,
@@ -588,17 +585,13 @@ describe('importFromAgents', () => {
     expect(flow.events).toEqual([
       `preview ${UI_TEXT.agentImportPreviewTitle}.md`,
       'confirm',
-      // The project writes hold the checkpoint lease, each with its copy taken first (M72).
+      // Project writes hold the checkpoint lease and storage guard (M86).
       'lease',
       `write ${HOME}/.config/muse/skills/review/SKILL.md`,
-      // Each publication is the user's own write once it is done (M72).
-      `user ${HOME}/.config/muse/skills/review/SKILL.md`,
-      `copy ${WS}/.agents/skills/ship/SKILL.md`,
+      `guard ${WS}/.agents/skills/ship/SKILL.md`,
       `write ${WS}/.agents/skills/ship/SKILL.md`,
-      `user ${WS}/.agents/skills/ship/SKILL.md`,
-      `copy ${WS}/AGENTS.md`,
+      `guard ${WS}/AGENTS.md`,
       `append ${WS}/AGENTS.md`,
-      `user ${WS}/AGENTS.md`,
       'release',
       // An unsaved edit is bound to its file only until saved: the prompt says where (RV83f P2-2).
       `offer Open converted entries in ~/.config/muse/settings.json as an unsaved edit for you to review and save? Save it only to that path, never to another file.`,
@@ -1094,14 +1087,14 @@ describe('importFromAgents: a folder that changes during the approval wait', () 
   })
 })
 
-describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
+describe('importFromAgents: the checkpoint lease and storage guard (M86)', () => {
   it('takes no lease when nothing is written into the project', async () => {
     const flow = run({
       pick: (items) => items.filter((item) => item.label === 'review').map((item) => item.id),
     })
     await flow.done
     expect(flow.events).not.toContain('lease')
-    expect(flow.events.some((event) => event.startsWith('copy '))).toBe(false)
+    expect(flow.events.some((event) => event.startsWith('guard '))).toBe(false)
     expect(flow.io.files.has(`${HOME}/.config/muse/skills/review/SKILL.md`)).toBe(true)
   })
 
@@ -1133,7 +1126,7 @@ describe('importFromAgents: the checkpoint lease and copies (M72)', () => {
     expect(flow.logged()).toContain('the checkpoint lease failed')
   })
 
-  it('fails the write whose checkpoint copy could not be kept, and only that one', async () => {
+  it('fails only the write refused by its checkpoint storage guard', async () => {
     const flow = run({
       beforeProjectWrite: (path) =>
         path.endsWith('AGENTS.md')
@@ -1288,17 +1281,23 @@ describe('importFromAgents: what the preview and the log say', () => {
     expect(flow.logged()).not.toContain(name)
   })
 
-  it('notes only a file the import actually wrote as the user’s', async () => {
+  it('counts only a published project import for its captured workspace owner', async () => {
+    const published: string[] = []
     const flow = run({
+      beginProjectEdit: (file) => (wasWritten) => {
+        if (wasWritten) {
+          published.push(file.absolute)
+        }
+      },
       whilePreviewed: ({ files }) => {
         files.set(`${WS}/.agents/skills/ship/SKILL.md`, 'appeared after the preview')
       },
     })
     await flow.done
-    expect(flow.events.filter((event) => event.startsWith('user '))).toEqual([
-      `user ${HOME}/.config/muse/skills/review/SKILL.md`,
-      `user ${WS}/AGENTS.md`,
-    ])
+    expect(published).toEqual([`${WS}/AGENTS.md`])
+    expect(flow.io.files.get(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(
+      'appeared after the preview',
+    )
   })
 })
 

@@ -260,6 +260,9 @@ export interface UiState {
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
+  /** The latest pending send's exact draft, restored only on a handoff refusal. */
+  readonly pendingSendDraft:
+    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -425,6 +428,7 @@ export const initialUiState: UiState = {
   childOwners: {},
   strayItems: {},
   unsentAttachments: {},
+  pendingSendDraft: undefined,
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -767,6 +771,38 @@ function withInsert(state: UiState, text: string): UiState {
   }
 }
 
+/** A notice that says the same as one about to be raised: a restore's keeps its own row (its Redo). */
+function isSameNotice(entry: TranscriptEntry, level: NoticeLevel, text: string): boolean {
+  return (
+    entry.kind === 'notice' &&
+    entry.level === level &&
+    entry.text === text &&
+    entry.redoRestoreId === undefined
+  )
+}
+
+/** The index of a same notice among the notices that end the transcript, or -1. */
+function trailingRepeatIndex(
+  transcript: readonly TranscriptEntry[],
+  level: NoticeLevel,
+  text: string,
+): number {
+  for (let index = transcript.length - 1; index >= 0; index -= 1) {
+    const entry = transcript[index]
+    if (entry?.kind !== 'notice') return -1
+    if (isSameNotice(entry, level, text)) return index
+  }
+  return -1
+}
+
+/**
+ * A notice at the end of the transcript. One said again among the notices
+ * that end it (the same level and text, D26: a busy Muse Code fails the same
+ * way many times) replaces the earlier row rather than stacking: that row
+ * goes, and this one, at the end, counts how many times it was said. A new
+ * id, so a spent button comes back for the new failure. A notice before the
+ * last message or tool row stays where it was said.
+ */
 function withNotice(
   state: UiState,
   level: NoticeLevel,
@@ -775,11 +811,17 @@ function withNotice(
   actions?: readonly NoticeAction[],
 ): UiState {
   const localSequence = state.localSequence + 1
+  const repeatIndex =
+    redoRestoreId === undefined ? trailingRepeatIndex(state.transcript, level, text) : -1
+  const repeated = state.transcript[repeatIndex]
+  const repeatCount = repeated?.kind === 'notice' ? (repeated.repeatCount ?? 1) + 1 : undefined
+  const transcript =
+    repeated === undefined ? state.transcript : state.transcript.toSpliced(repeatIndex, 1)
   return {
     ...state,
     localSequence,
     transcript: [
-      ...state.transcript,
+      ...transcript,
       {
         kind: 'notice',
         id: `notice:${String(localSequence)}`,
@@ -787,6 +829,7 @@ function withNotice(
         text,
         ...(redoRestoreId !== undefined && { redoRestoreId }),
         ...(actions !== undefined && actions.length > 0 && { actions }),
+        ...(repeatCount !== undefined && { repeatCount }),
       },
     ],
   }
@@ -1784,6 +1827,7 @@ function clearedConversation(state: UiState): UiState {
     strayItems: {},
     pendingReplayTurns: {},
     unsentAttachments: {},
+    pendingSendDraft: undefined,
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2223,6 +2267,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDraft:
+          state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user'
             ? {
@@ -2304,9 +2350,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         unsent.every((chip) => chip.id !== attachment.id),
       )
       const isKept = message.attachmentsKept === true
+      // A composer send refused during handoff distillation keeps its
+      // text too. Never replace a newer draft the user already typed.
+      const pending = state.pendingSendDraft
+      const shouldRestoreDraft =
+        isKept &&
+        message.reason === UI_TEXT.handoffBusy &&
+        pending?.localId === message.localId &&
+        pending.revision === state.draftRevision
       return announce(
         {
           ...state,
+          draft: shouldRestoreDraft ? pending.text : state.draft,
+          pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2547,6 +2603,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           ...state,
           draft: '',
           draftRevision: state.draftRevision + 1,
+          pendingSendDraft: {
+            localId: action.localId,
+            text: state.draft,
+            revision: state.draftRevision + 1,
+          },
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
           attachments: [],

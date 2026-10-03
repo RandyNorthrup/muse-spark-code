@@ -11,7 +11,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { MEMORY_STAGE_FILE_MODE } from '../../shared/constants'
-import type { ToolIo } from '../../core/backends/modelapi/tools'
+import type { StagedFile, ToolIo } from '../../core/backends/modelapi/tools'
 import type { MemoryDirectoryEntry, MemoryIo } from '../../core/memory/memoryStore'
 import { isMissingPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
@@ -58,41 +58,64 @@ export function createMemoryIo(
     /** Replace the hard-link call in a deterministic publication test. */
     readonly publish?: (stage: string, target: string) => Promise<void>
     /** Existing atomic staging seam for a deterministic publication test. */
-    readonly staged?: () => Promise<void>
+    readonly staged?: (file: StagedFile) => Promise<void>
     /** Runtime owners fence publication after asynchronous staging. */
     readonly assertCanWrite?: () => void
-    /** Exclusive creation has no ToolIo write call: the note's checkpoint copy is taken here. */
-    readonly beforeCreate?: (absolutePath: string) => Promise<void>
+    /**
+     * Exclusive creation has no ToolIo write call: what the tool io does
+     * around a write runs here instead, the checkpoint storage refused and,
+     * through a turn's recording io (M86), its intent journaled before
+     * `publish` runs.
+     */
+    readonly aroundCreate?: (
+      absolutePath: string,
+      content: string,
+      checkedPath: string | undefined,
+      publish: (staged?: (file: StagedFile) => Promise<void>) => Promise<void>,
+    ) => Promise<void>
   },
 ): MemoryIo {
   const admission = (assertCanWrite?: () => void) => () => {
     options.assertCanWrite?.()
     assertCanWrite?.()
   }
+  const createNote = (
+    absolutePath: string,
+    content: string,
+    checkedPath: string | undefined,
+    assertCanWrite: (() => void) | undefined,
+    staged?: (file: StagedFile) => Promise<void>,
+  ) =>
+    createFileExclusively(absolutePath, content, {
+      mode: MEMORY_STAGE_FILE_MODE,
+      assertCanWrite: admission(assertCanWrite),
+      // The folder `locate` checked (C2-4): one swapped for a link since is refused.
+      ...(checkedPath !== undefined && { expectedDirectory: path.dirname(checkedPath) }),
+      // The stage is named after the note, which the model named: not logged (M39).
+      warn: (_stage, isPublished, error) => {
+        const when = isPublished ? 'after the note was published' : 'after the write failed'
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+        options.warn(`a memory note's hidden stage could not be removed ${when} (${String(code)})`)
+      },
+      ...(options.publish !== undefined && { publish: options.publish }),
+      staged: async (file) => {
+        await options.staged?.(file)
+        await staged?.(file)
+      },
+    })
   return {
     readFile: (absolutePath) => files.readFile(absolutePath),
     hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
-    writeFile: (absolutePath, content, assertCanWrite) =>
-      files.writeFile(absolutePath, content, undefined, admission(assertCanWrite)),
+    // The checked path holds a replacement to where `locate` found the note (C2-4, M86).
+    writeFile: (absolutePath, content, checkedPath, assertCanWrite) =>
+      files.writeFile(absolutePath, content, checkedPath, admission(assertCanWrite)),
     createFile: async (absolutePath, content, checkedPath, assertCanWrite) => {
-      await options.beforeCreate?.(absolutePath)
-      await createFileExclusively(absolutePath, content, {
-        mode: MEMORY_STAGE_FILE_MODE,
-        assertCanWrite: admission(assertCanWrite),
-        // The folder `locate` checked (C2-4): one swapped for a link since is refused.
-        ...(checkedPath !== undefined && { expectedDirectory: path.dirname(checkedPath) }),
-        // The stage is named after the note, which the model named: not logged (M39).
-        warn: (_stage, isPublished, error) => {
-          const when = isPublished ? 'after the note was published' : 'after the write failed'
-          const code =
-            typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-          options.warn(
-            `a memory note's hidden stage could not be removed ${when} (${String(code)})`,
-          )
-        },
-        ...(options.publish !== undefined && { publish: options.publish }),
-        ...(options.staged !== undefined && { staged: options.staged }),
-      })
+      const publish = (staged?: (file: StagedFile) => Promise<void>) =>
+        createNote(absolutePath, content, checkedPath, assertCanWrite, staged)
+      await (options.aroundCreate === undefined
+        ? publish()
+        : options.aroundCreate(absolutePath, content, checkedPath, publish))
     },
     realPath: (absolutePath) => files.realPath(absolutePath),
     listEntries: listMemoryEntries,

@@ -9,49 +9,26 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Browser check** (M81, PLAN.md D49). After a web change the model can
-  open a page of your local dev server in a headless browser, optionally
-  click and type through up to eight steps, and read back the console
-  errors and the failed requests; on the Model API backend it also sees a
-  screenshot (`browser_check`). Muse Code gets the same check as text
-  through the extension's `ide` server (`mcp__ide__browserCheck`),
-  confirmed in the extension's own dialog before every call.
-  - **The browser** is Google's Chrome for Testing headless shell, one
-    version pinned by each release (154.0.8037.92, r1689415), for Windows
-    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
-    before downloading it (about 100 to 120 MB from
-    `storage.googleapis.com`) into the extension's storage; the new
-    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
-    `off`) can download it without asking or turn the check off. The
-    archive and the browser are checked against the pin's lengths and
-    SHA-256 by a bounded ZIP reader before anything runs, and the browser
-    again before each check; getting it ready has its own 15 minutes, the
-    check its 60 seconds after. A pin serves for 45 days after Google
-    published it; then the check refuses until an update pins a newer one,
-    and the release and a weekly job fail when the pin is past that, or
-    more than 14 days behind the newest Stable. A **Download Browser Check
-    Runtime** command is contributed for getting it ahead of a check.
-  - **Where a page may go.** All its traffic goes to the check's own proxy
-    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
-    the page's private context: plain `http` to this computer and to the
-    hosts you widened, with sign-in challenges and credentials taken out;
-    `https` and WebSockets only to a widened host, passed encrypted and
-    unread (a site there may sign in with this computer's account, which
-    the card and the setting now say). The browser looks up no names
-    itself. The check's own tests run before, between and after the page
-    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
-    and a network-service restart), and any that fails returns nothing from
-    the page. Over the debugging pipe, never a network port, in a fresh
-    private profile deleted afterwards. Only you widen it, in the
-    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
-    dialog for one check; never the model. Every failure is one of a fixed
-    set of reasons, in your language.
-- The browser check ships as two bundles of its own: `dist/browserCheck.js`
-  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
-  loaded on the first check, and `dist/browserRuntime.js` (getting and
-  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
-  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
-  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
+- **Turn checkpoints (M86).** On by default again, with restore rebuilt on
+  the model's own file-tool writes while each file still holds exactly
+  what the model left. Commands, hooks, MCP tools or background work active
+  in those turns are noted; their file changes are never undone. Workspace
+  captures and ignored-file scans are removed. Restore and Redo refuse
+  replaced workspace roots, swapped junctions, dirty editor aliases and
+  incomplete later transcripts. Durable recovery inputs survive unreadable
+  records; applied batches keep their results and Redo after lost outcomes.
+  Retention releases old units by sequence and sweeps every unreferenced
+  content copy, including failed writes without an intent, after a one-hour
+  grace period with no live writer. Bounded passes resume next time.
+  One CAS lease manager recovers abandoned cleanup reservations before ordinary
+  sends, trusted startup, cleanup and restore, preserving live and uncertain
+  owners. One BigInt identity module protects copies, reservations, publication,
+  cleanup and workspace fences; ESLint rejects identity reads elsewhere. Children keep
+  their inherited recording decision across reloads, and folder cleanup
+  uses actual creation ownership. Imports from other agents keep their edit
+  and storage guards while remaining outside the model's recorder.
+  Identity metadata without file contents may outlive retired copies until
+  the window that wrote it retires; removing extension storage clears it.
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
   commands become skills, compatible agents become M76 agent files, project
   rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
@@ -154,8 +131,12 @@ happened, not what was planned; superseded entries are kept.
   refused with the reason; a refused `/handoff` stays in the prompt with
   its goal. While a new API key is being activated, a Start is refused
   before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
+  still works, and a deferred brief read says why and retries when sign-in
+  or key activation completes, including a read that failed while admission
+  was held. Start shares the plan actions' operation lock: either refuses
+  while the other runs. A composer send during distillation is refused,
+  keeping its exact draft and images without replacing newer typing.
+  No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
@@ -200,9 +181,65 @@ happened, not what was planned; superseded entries are kept.
   the others still load, and an agent it, or a file in it that was skipped,
   might define is refused by name rather than replaced by a broader personal
   or built-in agent of the same id.
+- **Browser check** (M81, PLAN.md D49). After a web change the model can
+  open a page of your local dev server in a headless browser, optionally
+  click and type through up to eight steps, and read back the console
+  errors and the failed requests; on the Model API backend it also sees a
+  screenshot (`browser_check`). Muse Code gets the same check as text
+  through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call.
+  - **The browser** is Google's Chrome for Testing headless shell, one
+    version pinned by each release (154.0.8037.92, r1689415), for Windows
+    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
+    before downloading it (about 100 to 120 MB from
+    `storage.googleapis.com`) into the extension's storage; the new
+    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
+    `off`) can download it without asking or turn the check off. The
+    archive and the browser are checked against the pin's lengths and
+    SHA-256 by a bounded ZIP reader before anything runs, and the browser
+    again before each check; getting it ready has its own 15 minutes, the
+    check its 60 seconds after. A pin serves for 45 days after Google
+    published it; then the check refuses until an update pins a newer one,
+    and the release and a weekly job fail when the pin is past that, or
+    more than 14 days behind the newest Stable. A **Download Browser Check
+    Runtime** command is contributed for getting it ahead of a check.
+  - **Where a page may go.** All its traffic goes to the check's own proxy
+    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
+    the page's private context: plain `http` to this computer and to the
+    hosts you widened, with sign-in challenges and credentials taken out;
+    `https` and WebSockets only to a widened host, passed encrypted and
+    unread (a site there may sign in with this computer's account, which
+    the card and the setting now say). The browser looks up no names
+    itself. The check's own tests run before, between and after the page
+    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
+    and a network-service restart), and any that fails returns nothing from
+    the page. Over the debugging pipe, never a network port, in a fresh
+    private profile deleted afterwards. Only you widen it, in the
+    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+    dialog for one check; never the model. Every failure is one of a fixed
+    set of reasons, in your language.
+- The browser check ships as two bundles of its own: `dist/browserCheck.js`
+  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
+  loaded on the first check, and `dist/browserRuntime.js` (getting and
+  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
+  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
+  - **Refusals and Stop:** a runtime the OS refuses to run reads as blocked whether the refusal is thrown or arrives after the spawn returned; a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
 
 ### Changed
 
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
 - README: an install guide for the most used editors (VS Code, Cursor,
   Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
   Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
@@ -222,14 +259,6 @@ happened, not what was planned; superseded entries are kept.
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
-- Take the compatible development updates from the grouped Dependabot pull
-  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
-  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
-  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
-  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
-  alone; no file of the extension changes.
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -258,22 +287,26 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- **Approval cards are docked above the message box** while they wait,
-  as in Claude Code's panel, so scrolling never loses one.
-  - The tool's row in the conversation keeps a short "Waiting for your
-    approval" line, then shows the decision.
-  - With several waiting, the oldest is docked (the order Muse asked) with
-    "Approvals waiting: N"; each moves up as the one before is settled.
-  - Focus moves to an arriving card itself, not onto a choice. A field you
-    are typing in (one holding text, or a key in the last 1.5 s) keeps
-    focus, and the panel's live region announces the card either way.
-  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
-    panel's height and wraps a long command at 320 px.
-  - The accessibility gate checks it in the four themes in new scenarios:
-    several cards, 320 px, and a step that moved on.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
 
 ### Fixed
 
+- Staged file writes and plan-stage cleanup compare exact device/inode IDs,
+  preventing rounded Windows file IDs from accepting or removing a replacement.
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
@@ -318,28 +351,6 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
-- **A spawn that starts no child asks nothing** (Model API backend). One past
-  the 64 children of a conversation, one asking for worktree isolation, or
-  one reusing an earlier spawn's command id for a different task is refused
-  before the paid-use popup or the contributor question; a retry of the
-  same spawn under its command id answers with that child without asking
-  again. Each used to ask first.
-- When your PreToolUse hook rewrites a `then_run` command into one that
-  names no command, the line under the edit says so in your display
-  language; it was English. The model is still told in English.
-- A skill folder that cannot be read no longer hides the other folder's
-  skills (Model API backend): each loads on its own, and the log names the
-  one that failed.
-- Project context files are read through the canonical path confinement.
-  Replacing an agent/skill/rules alias with an outside link between check and
-  read no longer redirects the read outside the workspace.
-- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
-  share one decision's eventual result, so a confirmed refusal unlocks
-  both. Stop waits for an in-flight decision and rejects the next waiting
-  stage before cancelling. A fault's Restart now stops only Muse Code;
-  Model API conversations continue. Recovery buttons retire on first use
-  and remain retired in restored panels. The approval dock count uses
-  localized plural forms in every display language.
 - **One decision per approval step (0.10.0, 0.10.1).** The approval card
   sent a step's decision again, so one approval got two or three answers
   and Muse Code refused the extra ones ("That request moved on to its next
@@ -394,6 +405,89 @@ happened, not what was planned; superseded entries are kept.
     retry; later ones go to the log until a read succeeds.
   - Collapsing and expanding the row asks again. The row keeps the diff it
     already shows, and the turn goes on meanwhile.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
+- **A message sent while a turn runs is never sent twice (0.10.x).** When
+  Muse Code did not answer the steer within 60 s, the panel sent the same
+  message again as a new turn, and a slow Muse Code took both: the copy
+  waited in its queue and ran (or failed) after the turn. Now only Muse
+  Code saying no turn is there to take it sends the message as a new turn.
+  A steer with no answer fails the message's card with "Muse Code did not
+  confirm your message reached the running turn. It may still arrive; check
+  before you send it again.", and the composer keeps the text; any other
+  refusal is said in its own words.
+- **A Muse Code that stops answering no longer leaves every action waiting
+  60 s.** On 2026-10-03 `muse serve` stopped writing anything at all (one
+  core busy), and every command (a message, a new chat, Stop) waited out
+  its deadline, with no way out but reloading the window. Now, after three
+  commands in a row missed their deadline with nothing at all from Muse
+  Code for 90 s, it counts as not answering: new commands fail at once
+  ("Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."), and anything Muse Code sends clears it. With no turn running in
+  the window it is restarted at once and the panel says so; while a turn
+  runs, that panel's notice offers **Restart now**, which stops the turn.
+- **Muse Spark: Restart Muse Code** starts a fresh `muse serve` without
+  reloading the window. A running turn is stopped, and each conversation
+  continues with its next message. A fault notice's **Restart now** does
+  the same.
+- **A conversation whose Muse Code log is damaged says so.** Muse Code
+  1.4.2 can fail a session's event log ("event log failed: …", a fault in
+  Muse Code), after which it fails every message of that session. The
+  panel now remembers such a session (the newest 50 in each workspace): it
+  is never resumed by itself after a restart or a reload, and a message to
+  it is refused before Muse Code hears of it, with a notice offering **New
+  conversation**. The conversation stays in History.
+- **Moving the effort slider no longer sends a change per step.** Eight
+  quick steps sent eight `session/setReasoningEffort` at once, and a busy
+  Muse Code failed each with its own warning. Now one change per
+  conversation is in flight, the newest waits, and a failed burst is said
+  once.
+- **Edit rows no longer read all their diffs at once after a resume.**
+  Every open edit row asked for its stored diff at the same instant (26 at
+  once in the owner's session). At most four reads go to Muse Code at a
+  time, in order, and one for a conversation no longer shown is never
+  sent.
+- **A notice said again is one row, not a stack (0.10.1 and earlier).**
+  When Muse Code stopped answering, the conversation filled with copies of
+  the same notice: "Could not load the output: … within 60 s" five times,
+  "Reasoning effort could not be applied: …" seven times. That buried the
+  chat. Now:
+  - A notice with the same level and text as one in the run of notices
+    that ends the conversation replaces it. The one row moves to the end,
+    with a small count after its text ("7×", read out as "Shown 7 times").
+    A notice said before the last message stays where it was said.
+  - Notices with a different text or level stay apart.
+  - Each file restore's notice keeps its own row and its Redo.
+  - A Muse Code fault said again offers its buttons again.
+  - The count is kept when the panel reloads.
+- **Error notices in the conversation are readable in the Light and Dark
+  themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
+  WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
+  with a red edge.
 
 ### Release infrastructure
 

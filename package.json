@@ -221,6 +221,11 @@
         "command": "museSpark.stopBackgroundTasks",
         "title": "%command.stopBackgroundTasks.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.restartMuseCode",
+        "title": "%command.restartMuseCode.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -627,7 +632,7 @@
         },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.turnCheckpoints.description%",
           "scope": "machine"
         },

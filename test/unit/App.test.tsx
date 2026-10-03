@@ -625,6 +625,33 @@ describe('App conversation', () => {
     expect(document.querySelector('[aria-live]')).toHaveTextContent('Open a folder first')
   })
 
+  it.each([undefined, 'Newer typing', ''])(
+    'keeps the composer draft and image on handoff refusal, respecting newer edit %s',
+    (newer) => {
+      const postMessage = renderReady()
+      deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 'distillation' } })
+      addTestImage()
+      const draft = '  Do this instead\n'
+      send(draft)
+      expect(postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'sendMessage', text: 'Do this instead' }),
+      )
+      if (newer !== undefined) {
+        fireEvent.change(textarea(), { target: { value: 'Newer typing' } })
+        fireEvent.change(textarea(), { target: { value: newer } })
+      }
+      deliver({
+        type: 'sendFailed',
+        localId: 'local-1',
+        reason: UI_TEXT.handoffBusy,
+        attachmentsKept: true,
+      })
+      expect(textarea().value).toBe(newer ?? draft)
+      expect(screen.getByLabelText('Remove shot.png')).toBeInTheDocument()
+      expect(document.querySelector('[aria-live]')).toHaveTextContent(UI_TEXT.handoffBusy)
+    },
+  )
+
   it('labels the model pill with model and effort, like the Claude Code pill', () => {
     renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
@@ -1260,6 +1287,23 @@ describe('App palette', () => {
     expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
       'Reasoning effort could not be applied',
     )
+  })
+
+  it('shows a notice said again as one row with its count, and a different one apart (D26)', () => {
+    renderReady()
+    const timeout =
+      'Could not load the output: Muse Code did not answer item/readOutput within 60 s'
+    for (let index = 0; index < 5; index += 1) {
+      deliver({ type: 'notice', level: 'warning', text: timeout })
+    }
+    deliver({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' })
+    const notices = screen
+      .getByRole('list', { name: 'Conversation' })
+      .querySelectorAll(':scope > li.notice')
+    expect([...notices].map((notice) => notice.textContent)).toEqual([
+      `${timeout} 5×Shown 5 times`,
+      'Reasoning effort could not be applied',
+    ])
   })
 
   it('retires a fault notice on first use and keeps it retired after restoration (D26)', () => {
@@ -2848,7 +2892,12 @@ describe('App turn checkpoints (M72)', () => {
       redoRestoreId: 'r1',
     })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'redoRestore', restoreId: 'r1' })
+    // The Redo names the conversation it was offered in (M86).
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'redoRestore',
+      restoreId: 'r1',
+      sourceSessionId: 'old',
+    })
     expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeDisabled()
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: false })
     expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeEnabled()

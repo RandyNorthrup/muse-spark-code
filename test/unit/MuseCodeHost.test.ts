@@ -8,8 +8,10 @@ import {
   MuseCodeHost,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MSP_FRAME_LIMIT_BYTES, UI_TEXT } from '../../src/shared/constants'
+import { MSP_FRAME_LIMIT_BYTES, MSP_UNRESPONSIVE_MISSES, UI_TEXT } from '../../src/shared/constants'
+import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { countLogged } from './helpers/logText'
 import {
   fakeInitializeResult,
   fakeMspHost,
@@ -1911,5 +1913,145 @@ describe('MuseCodeHost: a permission mode above the ceiling', () => {
     )
     server.handle('session/start', refusalOf('commandRejected'))
     await expect(host.startSession(startOptions)).rejects.toThrow('refused: commandRejected')
+  })
+})
+
+/** What a promise rejected with; a resolution fails the test. */
+async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
+  try {
+    await promise
+  } catch (error: unknown) {
+    return error
+  }
+  throw new Error('expected a rejection')
+}
+
+describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', () => {
+  // Deadlines short enough for a test; the watchdog's silence is said per test.
+  const FAST = { normalMs: 30, longMs: 30 }
+  const steered = [{ type: 'text' as const, text: 'are you stuck?' }]
+
+  it.each(['invalid_target', 'missing_run', 'already_terminal'])(
+    'refuses a steer with nothing taken when Muse Code says %s',
+    async (reason) => {
+      const { host, server } = setup()
+      const session = await host.startSession(startOptions)
+      server.handle('turn/steer', rejectionFor(reason))
+      await expect(session.steer('turn-1', steered)).rejects.toMatchObject({
+        name: 'SteerRefusedError',
+      })
+    },
+  )
+
+  it('says a steer with no answer may still reach the turn', async () => {
+    const { host, server, log } = setup({ timeouts: FAST })
+    const session = await host.startSession(startOptions)
+    server.silence('turn/steer')
+    const failure: unknown = await rejectionOf(session.steer('turn-1', steered))
+    expect(failure).toMatchObject({ name: 'Error', message: UI_TEXT.steerUnconfirmed })
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('turn/steer into turn turn-1 got no answer'),
+    )
+  })
+
+  it('keeps any other steer refusal in its own words, never as nothing taken', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.handle('turn/steer', rejectionFor('policy_rejected'))
+    const failure: unknown = await rejectionOf(session.steer('turn-1', steered))
+    expect(failure).toMatchObject({ message: 'command rejected: policy_rejected' })
+    expect(failure).not.toMatchObject({ name: 'SteerRefusedError' })
+  })
+
+  it('stops sending after three missed deadlines with nothing heard, says so once, and sends again once Muse Code is heard', async () => {
+    const { host, server, log } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    const told = vi.fn()
+    host.onUnresponsive(told)
+    server.silence('model/list')
+    for (let miss = 0; miss < MSP_UNRESPONSIVE_MISSES; miss += 1) {
+      await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+    }
+    expect(told).toHaveBeenCalledOnce()
+    expect(countLogged(log, 'Muse Code is not answering: 3 commands in a row')).toBe(1)
+    const sent = server.requests.length
+    await expect(host.startSession(startOptions)).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+    await expect(host.listModels()).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+    expect(server.requests).toHaveLength(sent)
+    expect(told).toHaveBeenCalledOnce()
+    // Any frame clears it: an event for a session it never named will do.
+    server.notify('turn/started', { sessionId: 'elsewhere', turnId: 't', viewCursor: 'v' })
+    await settle()
+    await expect(host.startSession(startOptions)).resolves.toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+    })
+    expect(log.info).toHaveBeenCalledWith('Muse Code answers again; commands are sent again')
+  })
+
+  it('sends again once Muse Code asks something of its own', async () => {
+    const { host, server } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    server.silence('model/list')
+    for (let miss = 0; miss < MSP_UNRESPONSIVE_MISSES; miss += 1) {
+      await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+    }
+    await expect(host.startSession(startOptions)).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+    // A prompt for a session this connection never opened is still a frame.
+    server.serverRequest('approval/request', { sessionId: 'elsewhere' })
+    await settle()
+    await expect(host.startSession(startOptions)).resolves.toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+    })
+  })
+
+  it('keeps sending while Muse Code was heard within the silence, however many deadlines pass', async () => {
+    const { host, server } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 60_000 } })
+    const told = vi.fn()
+    host.onUnresponsive(told)
+    server.silence('model/list')
+    for (let miss = 0; miss <= MSP_UNRESPONSIVE_MISSES; miss += 1) {
+      await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+    }
+    expect(told).not.toHaveBeenCalled()
+    await expect(host.startSession(startOptions)).resolves.toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+    })
+  })
+
+  it('starts the count again on any answer, a late one included', async () => {
+    const { host, server } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    const told = vi.fn()
+    host.onUnresponsive(told)
+    server.silence('model/list')
+    const missed = async (count: number) => {
+      for (let miss = 0; miss < count; miss += 1) {
+        await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+      }
+    }
+    await missed(MSP_UNRESPONSIVE_MISSES - 1)
+    // The first read's answer, long after its deadline.
+    const [first] = server.requestsFor('model/list')
+    server.incoming.push(
+      `${JSON.stringify({ jsonrpc: '2.0', id: first?.id, result: { models: [] } })}\n`,
+    )
+    await settle()
+    await missed(MSP_UNRESPONSIVE_MISSES - 1)
+    expect(told).not.toHaveBeenCalled()
+    await missed(1)
+    expect(told).toHaveBeenCalledOnce()
+  })
+
+  it('tells the conversation when Muse Code answers with its event log failure, and only then', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    const damaged = vi.fn()
+    session.onLogDamaged(damaged)
+    server.handle('turn/start', replayFault)
+    await expect(session.sendTurn(steered)).rejects.toThrow(REPLAY_FAULT_MESSAGE)
+    expect(damaged).not.toHaveBeenCalled()
+    server.handle('turn/start', eventLogFault)
+    await expect(session.sendTurn(steered)).rejects.toThrow(EVENT_LOG_SUBMIT_MESSAGE)
+    expect(damaged).toHaveBeenCalledOnce()
+    expect(countLogged(log, 'event log failed (internal (MSP error -32603))')).toBe(1)
+    // The CLI's own words never reach the log (AGENTS.md rule 8).
+    expect(countLogged(log, 'conflicts with an existing event')).toBe(0)
   })
 })

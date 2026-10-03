@@ -775,6 +775,74 @@ describe('uiReducer: agent events', () => {
     ])
   })
 
+  it('merges a notice said again into one row at the end, with its count (D26)', () => {
+    const timeout =
+      'Could not load the output: Muse Code did not answer item/readOutput within 60 s'
+    const state = reduceAll([
+      host({ type: 'notice', level: 'warning', text: timeout }),
+      { type: 'submitted', localId: 'l1', text: 'go on', attachments: [], contextLabel: undefined },
+      host({ type: 'notice', level: 'warning', text: timeout }),
+      host({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' }),
+      host({ type: 'notice', level: 'warning', text: timeout }),
+    ])
+    expect(state.transcript).toEqual([
+      // Said before the message: it stays where it was said.
+      { kind: 'notice', id: 'notice:1', level: 'warning', text: timeout },
+      expect.objectContaining({ kind: 'user', id: 'l1' }),
+      expect.objectContaining({ kind: 'notice', text: 'Reasoning effort could not be applied' }),
+      { kind: 'notice', id: 'notice:4', level: 'warning', text: timeout, repeatCount: 2 },
+    ])
+    expect(state.transcript[2]).not.toHaveProperty('repeatCount')
+    // Each one is still read out.
+    expect(state.announcement).toEqual({ text: timeout, sequence: 4 })
+    // The count survives a reload.
+    expect(restoredUiState(webviewStateOf(state, true)).transcript.at(-1)).toMatchObject({
+      repeatCount: 2,
+    })
+  })
+
+  it('keeps notices apart when the text or the level differs, and each restore’s own (D26)', () => {
+    const state = reduceAll([
+      host({ type: 'notice', level: 'warning', text: 'Could not switch model: a' }),
+      host({ type: 'notice', level: 'warning', text: 'Could not switch model: b' }),
+      host({ type: 'notice', level: 'error', text: 'Could not switch model: b' }),
+      { type: 'noticeRaised', level: 'warning', text: 'Could not switch model: a' },
+      host({ type: 'notice', level: 'info', text: 'Restored 1 file.', redoRestoreId: 'r1' }),
+      host({ type: 'notice', level: 'info', text: 'Restored 1 file.', redoRestoreId: 'r2' }),
+    ])
+    expect(state.transcript).toEqual([
+      expect.objectContaining({ level: 'warning', text: 'Could not switch model: b' }),
+      expect.objectContaining({ level: 'error', text: 'Could not switch model: b' }),
+      expect.objectContaining({ text: 'Could not switch model: a', repeatCount: 2 }),
+      expect.objectContaining({ redoRestoreId: 'r1' }),
+      expect.objectContaining({ redoRestoreId: 'r2' }),
+    ])
+    expect(state.transcript.filter((entry) => 'repeatCount' in entry)).toHaveLength(1)
+  })
+
+  it('offers a spent fault notice’s way on again when the fault is said again (D26)', () => {
+    const fault: HostToWebviewMessage = {
+      type: 'notice',
+      level: 'error',
+      text: 'refused',
+      actions: ['restartMuseCode', 'newConversation'],
+    }
+    const said = reduceAll([host(fault)])
+    const spent = uiReducer(said, { type: 'noticeActionRequested', entryId: 'notice:1' })
+    expect(spent.transcript).toMatchObject([{ actions: [] }])
+    const again = uiReducer(spent, host(fault))
+    expect(again.transcript).toEqual([
+      {
+        kind: 'notice',
+        id: 'notice:2',
+        level: 'error',
+        text: 'refused',
+        actions: ['restartMuseCode', 'newConversation'],
+        repeatCount: 2,
+      },
+    ])
+  })
+
   it('attaches approvals to their tool row, follows stage updates, records the outcome', () => {
     const requested = SHELL_APPROVAL
     // Request before the item: a placeholder row is created from the request.

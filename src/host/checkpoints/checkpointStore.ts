@@ -1,101 +1,87 @@
-// Turn checkpoints (M72, PLAN.md D51): a snapshot of the workspace's files
-// at each turn's start and end, in a shadow repository in the extension's
-// storage (shadowGit.ts), never in the workspace's `.git`.
+// Turn checkpoints (M72, M86; PLAN.md D51, D63): a restore reverses only the
+// writes the model's own file tools made, and only along an unbroken chain of
+// bytes that ends in exactly what is on disk now. Nothing of the workspace is
+// captured.
 //
-// - A capture holds every file outside the ignore rules, untracked ones
-//   included, byte for byte. A file over CHECKPOINT_FILE_MAX_BYTES, a link,
-//   a folder reached through a link or junction (everything below it) and a
-//   folder that is a repository of its own are left out and named. A
-//   private index keeps the files' stat data, so a capture hashes only what
-//   changed since the last one; a capture waiting for its turn is pinned by
-//   a ref of its own until it is recorded or let go.
-// - Ignored files are not copied wholesale: a bounded scan records their
-//   size and time at each end of a turn (ignoredScan.ts), and a file the
-//   extension itself is about to write (the Model API's tools, the image
-//   tools) is copied first (`beforeToolWrite`). A restore deletes ignored
-//   files the turn created, puts back the ones it copied first, and lists
-//   the rest as not restorable.
-// - A restore undoes the conversation's turns from the chosen one on, file
-//   by file (restorePlan.ts). A file changed outside those turns (between
-//   them, after them, by an overlapping turn the restore does not undo), with
-//   unsaved editor changes, or changed while the restore runs is refused and
-//   listed. The redo record is saved before the first file changes and cut
-//   to what was done at the end, so a restore that stops part way still
-//   says what it changed and keeps its Redo. A partial redo keeps what it
-//   could not do for another try.
-// - Two windows on the same folder share the store with no lock. Each
-//   record is its own ref, created only if absent and changed or deleted
-//   only from the value it was read at (recordRefs.ts); each window has its
-//   own index; prune spares objects younger than a grace period, so another
-//   window's objects in flight survive. A turn (or a message about to start
-//   one) is published as running in the window's presence file before it may
-//   edit a file (windowPresence.ts), and stays published until its end is
-//   recorded; the user's saves in each window go to a saves file beside its
-//   presence, which every turn's end reads; a tool's copy of a file goes to
-//   the window's own staging folder and is kept until the turn's end has it;
-//   an archive is a file of its own, written before the archive returns
-//   (checkpointArchives.ts).
-//   Within a window, one operation runs at a time.
-// - No restore or redo runs while any turn runs, in this window or in
-//   another live one.
-// - Git trees hold no empty folder, so a capture before a turn also records
-//   the folders it holds no file of: a restore removes only the folders the
-//   turns made.
+// - Units. Each turn of a conversation (child sessions' turns included, under
+//   their top conversation) and each restore or Redo of it (a batch) is a
+//   unit with a number of its own in the conversation: a ref under
+//   `refs/muse-spark/m86/unit/`, created only if absent, so two windows never
+//   take one number (the second takes the next). The record is made when the
+//   unit starts, before any write.
+// - Writes. The model's tools journal each write in this window's journal
+//   (writeJournal.ts, the recorder in writeRecorder.ts) with a copy of the
+//   bytes before and after. At a unit's end its writes are folded into its
+//   record by write id, each with how it ended, and the copies it needs are
+//   brought into the shadow repository (shadowGit.ts) under the record's
+//   tree; then the journal is sealed for it, and only then does its running
+//   mark go. A window that died leaves its journal: any window folds it into
+//   the units' records by compare-and-swap, never writing that journal.
+// - Restore and Redo. The conversation's units, the writes of everything else
+//   to the same paths and each path's bytes on disk now go to the pure engine
+//   (restoreChain.ts), which decides each path; the store writes what it
+//   decided through the kept writer (checkpointFiles.ts), each write recorded
+//   as the batch's own, so a later restore or Redo sees it.
+// - Two windows on the same folder share the store with no lock. Each record
+//   is its own ref, created only if absent and changed or deleted only from
+//   the value it was read at (recordRefs.ts). A turn (or a message about to
+//   start one) is published as running in the window's presence file before
+//   it may edit a file (windowPresence.ts), and stays published until its unit
+//   is sealed. No restore or Redo runs while any turn runs, in this window or
+//   another live one, nor while a 0.10.0 window is live; one restore at a
+//   time holds `CHECKPOINT_RESERVATION_REF` across windows.
+// - Within a window, one operation runs at a time.
 
 import type { Buffer } from 'node:buffer'
-import type { BackendKind } from '../../core/agent/agentBackend'
-import { turnKey } from '../../core/checkpoints/turnKey'
-import { createHash } from 'node:crypto'
-import { rmSync, type Stats } from 'node:fs'
-import { copyFile, mkdir, readdir, rm } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
+import { rm, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { BackendKind } from '../../core/agent/agentBackend'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   type BlobRef,
+  gitBlobOid,
   parseBatchCheck,
   parseCatFileBatch,
-  parseDiffTree,
-  parseStatusListing,
-  splitNul,
-  type TreeChange,
 } from '../../core/checkpoints/gitListings'
-import {
-  type Coverage,
-  type Expectation,
-  type FileStat,
-  type IgnoredChange,
-  planRestore,
-  type Refusal,
-  type RefusalReason,
-  type RestoreStep,
-} from '../../core/checkpoints/restorePlan'
+import { decideRange } from '../../core/checkpoints/restoreChain'
+import type {
+  ContentState,
+  FoldedWrite,
+  JournalEntry,
+  Owner,
+  PathDecision,
+  PathRefusal,
+  RangeInput,
+  RangeRefusal,
+  UnitKind,
+  WriteOutcome,
+  WriteRecord,
+} from '../../core/checkpoints/toolWrites'
+import { turnKey } from '../../core/checkpoints/turnKey'
 import { isSamePath } from '../../core/paths'
 import {
-  CHECKPOINT_BLOB_BATCH_MAX_BYTES,
-  CHECKPOINT_CAPTURE_MAX_BYTES,
-  CHECKPOINT_FILE_MAX_BYTES,
-  CHECKPOINT_FOLDERS_MAX,
-  CHECKPOINT_FORGOTTEN_KEEP_MS,
-  CHECKPOINT_GIT_TIMEOUT_MS,
-  CHECKPOINT_HEARTBEAT_MS,
-  CHECKPOINT_IGNORED_CHANGES_MAX,
-  CHECKPOINT_MAX_FILES,
-  CHECKPOINT_FENCED_WINDOW,
-  CHECKPOINT_NATIVE_WINDOW,
   CHECKPOINT_ACTIVITY_PREFIX,
-  CHECKPOINT_PEER_SAVE_KEEP_MS,
+  CHECKPOINT_BLOB_BATCH_MAX_BYTES,
+  CHECKPOINT_BLOBS_DIR,
+  CHECKPOINT_FENCED_WINDOW,
+  CHECKPOINT_FILE_MAX_BYTES,
+  CHECKPOINT_FOLD_ATTEMPTS,
+  CHECKPOINT_FORGOTTEN_KEEP_MS,
+  CHECKPOINT_HEARTBEAT_MS,
+  CHECKPOINT_NATIVE_WINDOW,
   CHECKPOINT_PRUNE_GRACE_MS,
   CHECKPOINT_PRUNE_INTERVAL_MS,
   CHECKPOINT_PUBLISH_RETRY_MS,
+  CHECKPOINT_SEQUENCE_ATTEMPTS,
   CHECKPOINT_STALE_LOCK_MS,
-  CHECKPOINT_STORAGE_MODE,
-  GIT_MISSING_OBJECT,
+  CHECKPOINT_WRITES_DIR,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
-import { failureForLog } from '../../core/backends/musecode/logText'
-import { canonicalPath, isMissingPath } from '../canonicalPath'
-import { isGitExitError, isGitMissingError, type GitProcess } from '../git'
+import { isMissingPath } from '../canonicalPath'
+import type { GitProcess } from '../git'
 import type { Logger } from '../logger'
 import {
   type ArchiveFile,
@@ -107,32 +93,28 @@ import {
 import {
   applyFileStep,
   type FileStep,
-  linkedFolders,
   lstatOrUndefined,
-  mapInBatches,
   repositoryTop,
+  resolvedPath,
   type RestoreTarget,
   type StepResult,
-  userExclude,
 } from './checkpointFiles'
+import { type StoredUnit } from './checkpointRecords'
+import { CheckpointCopies } from './checkpointCopies'
+import { CheckpointLease } from './checkpointLease'
+import { droppedRecords } from './checkpointRetention'
 import {
-  type CheckpointRecord,
-  type CheckpointRecords,
-  parseRecord,
-  type RestoreEntry,
-  type RestoreRecord,
-} from './checkpointRecords'
-import { retainRecords } from './checkpointRetention'
-import { type IgnoredInventory, ignoredChanges, regularFileStat, scanIgnored } from './ignoredScan'
-import {
-  deleteRecords,
-  didWriteRef,
-  type KeptObjects,
+  deleteRefs,
+  type HeldRef,
   type ListedRecord,
+  type ListedUnit,
   listRecords,
-  keepTree,
-  refValue,
-  writeRecord,
+  listUnits,
+  readUnit,
+  recordRef,
+  sessionKey,
+  unitRef,
+  writeUnit,
 } from './recordRefs'
 import {
   indexFileInstance,
@@ -141,103 +123,75 @@ import {
   ShadowGit,
   ShadowPathTooLongError,
   ShadowStorageInWorkspaceError,
-  withoutGitVariables,
 } from './shadowGit'
-import { WindowPresence } from './windowPresence'
+import { isLegacyWindow, WindowPresence } from './windowPresence'
+import { WriteJournal } from './writeJournal'
+import { innermostFolders, type WriteLanes } from './writeRecorder'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
 
-/** A capture's result, before it is recorded against a turn. */
-export interface Snapshot {
-  readonly tree: string
-  readonly coverage: Coverage
-  readonly inventory: IgnoredInventory
-  readonly createdAt: number
-  /**
-   * When the capture began, before it read any file, on the window's own
-   * clock (`monotonicNow`): a save or a tool's copy from then on may postdate
-   * what it read. Never recorded: it means nothing to another window.
-   */
-  readonly startedAt: number
-  /**
-   * When the capture began on the wall clock the folder's windows share: the
-   * other windows' saves from then on count for the turn it starts.
-   */
-  readonly startedWallAt: number
-  /** The ref that keeps the capture from pruning until it is recorded or let go. */
-  readonly pin: string | undefined
-  /** The folders it holds no file of (a capture before a turn); undefined when unknown. */
-  readonly folders: readonly string[] | undefined
-}
-
-/** Why no capture: the limits, no git, a path git cannot use, or a failure. */
-export type CaptureRefusal = 'tooManyFiles' | 'tooLarge' | 'noGit' | 'pathTooLong' | 'failed'
-
-export type CaptureResult =
-  | { readonly ok: true; readonly snapshot: Snapshot }
-  | { readonly ok: false; readonly reason: CaptureRefusal; readonly detail: string }
-
-/** What a failed step of a capture is called: no git, a path git cannot use, or a failure. */
-function captureFailure(error: unknown): Extract<CaptureResult, { ok: false }> {
-  if (error instanceof ShadowPathTooLongError) {
-    return { ok: false, reason: 'pathTooLong', detail: error.message }
-  }
-  return {
-    ok: false,
-    reason: isGitMissingError(error) ? 'noGit' : 'failed',
-    detail: failureForLog(error),
-  }
-}
-
 /**
- * Why a restore or a redo did nothing: no checkpoint (any more); a turn is
- * running in the window, or in another window on the folder; the capture it
- * starts with was refused; the redo record is gone; checkpoints are not
- * available here.
+ * Why a restore or a Redo did nothing: no unit to restore from (any more); a
+ * turn is running here, or in another window on the folder; the Redo's batch
+ * is gone or not this conversation's; checkpoints are not available here; or
+ * the engine refused the whole range (its edits not all recorded, a turn an
+ * earlier version recorded, a 0.10.0 window live).
  */
 export type RestoreFailure =
   | 'noCheckpoint'
   | 'turnRunning'
   | 'turnElsewhere'
-  | 'captureFailed'
   | 'redoGone'
   | 'unavailable'
   | 'backendUnsupported'
   | 'nativeUnsafe'
+  | RangeRefusal
+
+/** A path a restore or a Redo left as it is, and why. */
+export interface PathOutcome {
+  readonly path: string
+  readonly reason: PathRefusal
+}
 
 export type RestoreOutcome =
   | {
       readonly ok: true
-      /** What a redo takes; undefined when nothing changed. */
+      /** The batch a Redo takes; undefined when nothing changed. */
       readonly restoreId: string | undefined
       readonly changed: readonly string[]
-      readonly refused: readonly Refusal[]
-      /** Restored paths a turn with no recorded end may not have changed itself. */
-      readonly unsure: readonly string[]
-      /** Some turn's ignored files were not fully tracked (a reload mid-turn, the scan's limit). */
-      readonly isIgnoredIncomplete: boolean
-      /** A redo: whether its record is spent (false: what it could not do can be tried again). */
+      /** Paths already as the restore would leave them (not refused). */
+      readonly unchanged: readonly string[]
+      readonly refused: readonly PathOutcome[]
+      /** A unit in range ran commands, hooks or MCP tools: their changes are not undone. */
+      readonly ranProcesses: boolean
+      /** A Redo: whether its batch is spent (every path done or unchanged). */
       readonly isRedoSpent: boolean
     }
-  | {
-      readonly ok: false
-      readonly reason: RestoreFailure
-      readonly captureRefusal?: CaptureRefusal
-      readonly detail?: string
-    }
+  | { readonly ok: false; readonly reason: RestoreFailure }
 
 export interface RestoreRequest {
   /** Server-owned actual attached backend, read again after awaits; absent is unsafe. */
   readonly backend?: () => BackendKind | undefined
   readonly sessionId: string
   readonly turnId: string
+  /**
+   * The transcript's turn ids of the conversation from `turnId` on, the turns
+   * of every child session they started included (spec 3.2): each must have
+   * a record.
+   */
+  readonly transcriptTurnIds: readonly string[]
   /** Files open with unsaved changes, absolute, asked again before each file changes. */
   readonly unsavedPaths: () => readonly string[]
 }
 
 export interface RedoRequest {
   readonly backend?: () => BackendKind | undefined
+  /** The conversation the Redo was offered in: it must be the batch's own. */
+  readonly sourceSessionId: string
+  /** The batch to redo. */
   readonly restoreId: string
+  /** Read the full later transcript from the source batch's persisted anchor. */
+  readonly transcriptTurnIds?: (fromTurnId: string) => Promise<readonly string[] | undefined>
   readonly unsavedPaths: () => readonly string[]
 }
 
@@ -245,26 +199,28 @@ export interface CheckpointStoreDeps {
   readonly workspaceRoot: string
   /** The original first-folder spelling, only for conservative unsaved-editor matching. */
   readonly displayRoot?: string | undefined
-  /** `<workspace storage>/checkpoints`: the shadow repository and its records. */
+  /** `<global storage>/checkpoints/<namespace>`: the shadow repository, the records and the journals. */
   readonly storageDir: string
   readonly platform: NodeJS.Platform
   readonly git: GitProcess
   /** The extension host's environment (PATH, HOME); `GIT_*` never reaches the shadow. */
   readonly env: NodeJS.ProcessEnv
-  /** `museSpark.cleanupPeriodDays`: records older than this go; 0 keeps them by age. */
+  /** `museSpark.cleanupPeriodDays`: a conversation idle longer goes; 0 keeps them by age. */
   readonly retentionDays: () => number
   readonly now: () => number
-  /**
-   * The window's own clock, which never goes back as `now` can (the wall
-   * clock set back): it orders the window's turn starts, tool copies and
-   * saves among themselves, and nothing else. `performance.now()` unless a
-   * test sets it.
-   */
-  readonly monotonicNow?: () => number
   readonly newId: () => string
   /** This extension host's process, and whether another window's still runs. */
   readonly pid: number
   readonly isProcessAlive: (pid: number) => boolean
+  /** This window's instance (`createTurnRecording`): the owner of every unit and write it records. */
+  readonly instance: string
+  /**
+   * This window's journal and write lanes, the turns' recorder's own: the
+   * store's restores and Redos journal their writes in it, take their places
+   * in the one order and hold each path's lock as the tools' writes do.
+   */
+  readonly journal: WriteJournal
+  readonly lanes: WriteLanes
   /** How often the window's presence is written again; CHECKPOINT_HEARTBEAT_MS unless a test shortens it. */
   readonly heartbeatMs?: number
   /** The longest path git takes: the platform's own unless a test lowers it to reach the limits. */
@@ -277,86 +233,80 @@ export interface CheckpointStoreDeps {
   readonly log: Logger
 }
 
-/** A copy of a file taken, with no lock, just before the extension wrote it. */
-interface JournalEntry {
-  /** When, on the window's own clock (`monotonicNow`). */
-  readonly at: number
-  /** The staged copy; null: there was no file; undefined: none taken (over the limit, a link). */
-  readonly staged: string | null | undefined
-  readonly isExecutable: boolean
-  readonly stat: FileStat | null
+/** One instance's journal as read: its entries and what its last line was. */
+interface ReadJournal {
+  readonly entries: readonly JournalEntry[]
+  readonly tornTail: 'none' | 'unparsed' | 'intent'
 }
 
-/** A tool copy a turn took, with the file's state when the turn ended. */
-interface TurnCopy {
-  readonly entry: JournalEntry
-  readonly endStat: FileStat | null
+type Journals = ReadonlyMap<string, ReadJournal>
+
+/** What one instance's journal says of one unit. */
+interface UnitFacts {
+  readonly intents: readonly WriteRecord[]
+  readonly done: ReadonlySet<string>
+  readonly aborted: ReadonlySet<string>
+  /** An `incomplete` marker, or a last line that could not be read while the unit was unsealed. */
+  readonly isMarked: boolean
+  readonly isSealed: boolean
 }
 
-/**
- * A recorded turn of this window not yet ended: its record and start scan.
- * It stays until its end is recorded, so its tool copies stay too.
- */
-interface OpenTurn {
-  readonly id: string
-  /** When its start capture began, on the window's own clock (`monotonicNow`). */
-  readonly startedAt: number
-  /** When its start capture began, on the wall clock: the other windows' saves since count. */
-  readonly startedWallAt: number
-  readonly inventory: IgnoredInventory
-  /** The files the user saved in this window while it ran: theirs, not the turn's. */
-  readonly userSaves: Set<string>
+/** A unit of this window started and not yet sealed. */
+interface OpenUnit {
+  readonly owner: Owner
+  readonly ref: string
 }
 
-/** A completed end capture whose ref write can be retried without recapturing later user edits. */
+/** A unit whose end could not be folded or sealed yet: tried again before the next operation. */
 interface PendingEnd {
-  readonly record: CheckpointRecord
-  /** Its turn's `startedAt`: the tools' copies since then stay until the end is written. */
-  readonly startedAt: number
-  readonly kept: KeptObjects
-  readonly previous: string
-  readonly pin: string
-  readonly copies: ReadonlyMap<string, TurnCopy>
+  readonly unit: OpenUnit
+  readonly endedAt: number
+  readonly ranProcesses: boolean
 }
 
-/** The shadow repository and the workspace's place in its work tree, set up once. */
+/** The shadow repository and the workspace's place in its work tree (an M72 record's), set up once. */
 interface Opened {
   readonly shadow: ShadowGit
   readonly top: string
   readonly prefix: string
 }
 
+/** An M72 turn of this place, which is listed as legacy and never restored. */
+interface LegacyTurn {
+  readonly sessionId: string
+  readonly turnId: string
+  /** Its start's number; an M72 candidate's record (no number) counts as before every other. */
+  readonly sequence: number
+  /** The last number it holds (its end's, when seen): the next unit is numbered after it. */
+  readonly lastSequence: number
+  readonly createdAt: number
+}
+
 /**
- * One operation's view, read afresh: this workspace's records (archived
- * ones left out) and the tree each ref names, everything listed (for
- * cleanup), the archives, and each live window's running turns.
+ * One operation's view, read afresh: every unit (archived ones left out),
+ * this place's M72 turns, everything listed (for cleanup), the archives, and
+ * each live window's running turns.
  */
 interface Setup extends Opened {
-  readonly records: CheckpointRecords
-  readonly keeps: ReadonlyMap<string, string>
-  readonly listed: readonly ListedRecord[]
+  readonly units: readonly ListedUnit[]
+  readonly legacy: readonly LegacyTurn[]
+  readonly listedUnits: readonly ListedUnit[]
+  readonly listedRecords: readonly ListedRecord[]
   readonly archives: readonly ArchiveFile[]
   readonly live: ReadonlyMap<string, readonly string[]>
 }
 
-/** A step of a restore or a redo, with what it replaces (for the redo record). */
-interface PlannedStep extends FileStep {
-  readonly before: BlobRef | null
-  readonly isIgnoreChecked: boolean
-}
-
-interface Applied {
-  readonly entries: readonly RestoreEntry[]
-  readonly refused: readonly Refusal[]
+/** A path's state now, as the restore read it. */
+interface PathState {
+  readonly content: ContentState
+  readonly isTooLarge: boolean
 }
 
 const SHADOW_HEAD = path.join('shadow.git', 'HEAD')
 const REF_ROOT = 'refs/muse-spark/'
+// Refs and files an M72 window kept: its captures' pins, its index's ref and file, its staged copies.
 const PIN_REF_PREFIX = `${REF_ROOT}pin/`
-// Each window's index keeps its copies from pruning under a ref of its own.
 const WORK_REF_PREFIX = `${REF_ROOT}work/`
-const RESTORE_REF = `${REF_ROOT}restore-active`
-// Refs of earlier builds (a records file, one shared index, tool-copy refs).
 const LEGACY_REF_PREFIXES = [`${REF_ROOT}keep/`, `${REF_ROOT}journal/`] as const
 const LEGACY_INDEX_REF = `${REF_ROOT}index`
 const LEGACY_FILES: ReadonlySet<string> = new Set([
@@ -367,88 +317,128 @@ const LEGACY_FILES: ReadonlySet<string> = new Set([
 ])
 const STAGING_DIR = 'staging'
 const LOCK_SUFFIX = '.lock'
-const IGNORE_FILE = '.gitignore'
-const CURRENT_PATH_PREFIX = './'
 const SEPARATOR = '/'
-const NUL = '\0'
 const LINE_FEED = '\n'
 const SPACE = ' '
 const EXECUTABLE_BITS = 0o111
-// `git config --get` and `git check-ignore` exit 1 for "none".
-const NONE_EXIT = 1
-// Where git looks for the global excludes file when core.excludesFile is unset.
-const DEFAULT_EXCLUDES = path.join('git', 'ignore')
-const CONFIG_HOME = '.config'
 const DISPOSED = 'the checkpoint store was closed with the window'
 
-/** A coverage as the records keep it (plain arrays). */
-function storedCoverage(coverage: Coverage): { skipped: string[]; repositories: string[] } {
-  return { skipped: [...coverage.skipped], repositories: [...coverage.repositories] }
+/** Whether two owners are one unit of one window. */
+function isSameOwner(left: Owner, right: Owner): boolean {
+  return (
+    left.instance === right.instance &&
+    left.sessionId === right.sessionId &&
+    left.unitKind === right.unitKind &&
+    left.unitId === right.unitId
+  )
 }
 
-function nulInput(values: readonly string[]): string {
-  return values.map((value) => `${value}${NUL}`).join('')
+function ownerKey(owner: Owner): string {
+  return JSON.stringify([owner.instance, owner.sessionId, owner.unitKind, owner.unitId])
 }
 
-function byText(left: string, right: string): number {
-  return left.localeCompare(right)
+/** The unit a journal line speaks of; undefined for a write's settlement (named by write id). */
+function ownerOf(entry: JournalEntry): Owner | undefined {
+  if (entry.kind === 'intent') {
+    return entry.write.owner
+  }
+  return entry.kind === 'incomplete' || entry.kind === 'seal' ? entry.owner : undefined
 }
 
-/** A turn of a conversation, with where its start and end fall among the conversation's turns. */
-interface TurnSpan {
-  readonly record: CheckpointRecord
-  readonly start: number
-  /** Undefined: its end was not seen. */
-  readonly end: number | undefined
-  /** Numbered (`sequence`), or a 0.10.0 candidate's record, which only its clock places. */
-  readonly isNumbered: boolean
+/** Cheap alias candidate filter; only OS resolution below decides actual identity. */
+function foldedCase(relative: string): string {
+  return relative.normalize('NFC').toLowerCase()
+}
+
+/** OS identity for live dirty documents, with spelling retained when lookup is unavailable. */
+function editorIdentity(absolute: string): string {
+  try {
+    return realpathSync.native(absolute)
+  } catch {
+    return absolute
+  }
+}
+
+/** A writer already admitted before cleanup's reservation keeps its copies. */
+function hasLiveWriter(live: ReadonlyMap<string, readonly string[]>): boolean {
+  for (const running of live.values()) {
+    if (running.some((key) => key !== CHECKPOINT_FENCED_WINDOW)) {
+      return true
+    }
+  }
+  return false
+}
+
+/** What one instance's journal says of one unit. */
+function factsOf(owner: Owner, journal: ReadJournal | undefined): UnitFacts {
+  const entries = journal?.entries ?? []
+  const intents = entries.flatMap((entry) =>
+    entry.kind === 'intent' && isSameOwner(entry.write.owner, owner) ? [entry.write] : [],
+  )
+  const ids = new Set(intents.map((write) => write.id))
+  const settledAs = (kind: 'done' | 'aborted') =>
+    new Set(
+      entries.flatMap((entry) => (entry.kind === kind && ids.has(entry.id) ? [entry.id] : [])),
+    )
+  const isSealed = entries.some((entry) => entry.kind === 'seal' && isSameOwner(entry.owner, owner))
+  // A torn last line that parses as an intent is that intent, unsettled; one
+  // that does not parse could have been any unsealed unit's.
+  const isTorn =
+    journal !== undefined &&
+    (journal.tornTail === 'unparsed' ||
+      (journal.tornTail === 'intent' && entries.at(-1)?.kind !== 'intent'))
+  return {
+    intents,
+    done: settledAs('done'),
+    aborted: settledAs('aborted'),
+    isMarked:
+      entries.some((entry) => entry.kind === 'incomplete' && isSameOwner(entry.owner, owner)) ||
+      (isTorn && !isSealed),
+    isSealed,
+  }
 }
 
 /**
- * A conversation's turns in the order they started. A 0.10.0 candidate's
- * records have no number: those builds wrote them before this one ran, so
- * they come first, in the order of their clock (all they have).
+ * The record with the journal's facts folded in, by write id: a write keeps
+ * an ending a fold already gave it (`done`, `aborted`), and is `unsettled`
+ * until the journal settles it. Folding again changes nothing. A folded unit
+ * is `complete` unless its journal says writes may exist that no intent
+ * describes (spec 6.3, as amended): an unsettled write is the engine's to
+ * judge at restore time (rule 6.4).
  */
-function inTurnOrder(records: readonly CheckpointRecord[]): readonly TurnSpan[] {
-  const spans = records.map((record): TurnSpan =>
-    record.sequence === undefined
-      ? { record, start: record.createdAt, end: record.endedAt, isNumbered: false }
-      : { record, start: record.sequence, end: record.endSequence, isNumbered: true },
-  )
-  return spans.toSorted((left, right) =>
-    left.isNumbered === right.isNumbered
-      ? left.start - right.start
-      : Number(left.isNumbered) - Number(right.isNumbered),
-  )
-}
-
-/** The number the conversation's next turn start or end takes: one past every one recorded. */
-function nextTurnNumber(records: readonly CheckpointRecord[], sessionId: string): number {
-  const numbers = records.flatMap((record) =>
-    record.sessionId === sessionId
-      ? [record.sequence, record.endSequence].filter((value) => value !== undefined)
-      : [],
-  )
-  return Math.max(0, ...numbers) + 1
-}
-
-/** Each turn's next one in its conversation's order, by record id. */
-function nextTurns(records: readonly CheckpointRecord[]): ReadonlyMap<string, CheckpointRecord> {
-  const conversations = new Map<string, CheckpointRecord[]>()
-  for (const record of records) {
-    conversations.set(record.sessionId, [...(conversations.get(record.sessionId) ?? []), record])
-  }
-  const next = new Map<string, CheckpointRecord>()
-  for (const conversation of conversations.values()) {
-    const ordered = inTurnOrder(conversation)
-    for (const [index, turn] of ordered.entries()) {
-      const following = ordered[index + 1]
-      if (following !== undefined) {
-        next.set(turn.record.id, following.record)
-      }
+function foldUnit(
+  record: StoredUnit,
+  facts: UnitFacts,
+  end: { readonly endedAt: number | undefined; readonly ranProcesses: boolean },
+): StoredUnit {
+  const journaled = (id: string): WriteOutcome => {
+    if (facts.done.has(id)) {
+      return 'done'
     }
+    return facts.aborted.has(id) ? 'aborted' : 'unsettled'
   }
-  return next
+  const folded = record.writes.map((write) =>
+    write.outcome === 'unsettled' ? { ...write, outcome: journaled(write.id) } : write,
+  )
+  const known = new Set(record.writes.map((write) => write.id))
+  for (const write of facts.intents) {
+    if (known.has(write.id)) {
+      continue
+    }
+
+    known.add(write.id)
+    folded.push({ ...write, outcome: journaled(write.id) })
+  }
+  const writes = folded.toSorted((left, right) => left.seq - right.seq)
+  const isMarkedIncomplete = record.isMarkedIncomplete || facts.isMarked
+  return {
+    ...record,
+    ...(end.endedAt !== undefined && { endedAt: end.endedAt }),
+    ranProcesses: record.ranProcesses || end.ranProcesses,
+    isMarkedIncomplete,
+    status: isMarkedIncomplete ? 'incomplete' : 'complete',
+    writes,
+  }
 }
 
 /** The task once the one before it settled, whichever way. */
@@ -476,25 +466,23 @@ function pause(ms: number): Promise<void> {
   })
 }
 
-/** The blobs a redo record names. */
-function blobsOfEntries(entries: readonly RestoreEntry[]): readonly BlobRef[] {
-  return entries.flatMap((entry) => [entry.before, entry.after].filter((blob) => blob !== null))
-}
-
-/** `update-ref --stdin`'s line deleting a ref, whatever it names. */
-function deleteLine(ref: string, oid: string): string {
-  return `delete ${ref} ${oid}${LINE_FEED}`
-}
-
-/** What a step's result means for the file list of the report. */
-function refusalFor(result: Exclude<StepResult, 'done'>): RefusalReason {
-  const reasons: Readonly<Record<Exclude<StepResult, 'done'>, RefusalReason>> = {
+/** What a step's result means for the outcome's list. */
+function refusalFor(result: Exclude<StepResult, 'done'>): PathRefusal {
+  const reasons: Readonly<Record<Exclude<StepResult, 'done'>, PathRefusal>> = {
     changed: 'changedAfter',
-    linked: 'notInCheckpoint',
+    linked: 'linked',
     failed: 'failed',
     unsaved: 'unsaved',
+    tooLarge: 'tooLarge',
   }
   return reasons[result]
+}
+
+/** The oids a write's copies need: its before for a restore, its after for a Redo. */
+function neededOids(write: WriteRecord): readonly string[] {
+  return [write.before, write.after].flatMap((state) =>
+    state.present && state.oid !== undefined ? [state.oid] : [],
+  )
 }
 
 export class CheckpointStore {
@@ -503,54 +491,62 @@ export class CheckpointStore {
   private opening: Promise<Opened> | undefined
   private hasTidied = false
   private place: { readonly top: string; readonly prefix: string } | undefined
-  /** Each recorded turn of this window not yet ended, by turn key. */
-  private readonly openTurns = new Map<string, OpenTurn>()
-  /**
-   * Every turn running in the window, and every message about to start one,
-   * as published, with when (on the window's own clock, `monotonicNow`).
-   */
-  private readonly runningTurns = new Map<string, number>()
-  /** The user's saves while anything runs here (when: `monotonicNow`), for a turn whose record comes next. */
-  private recentSaves: readonly { readonly relative: string; readonly at: number }[] = []
-  private readonly journal = new Map<string, JournalEntry[]>()
+  /** Every turn running in the window, and every message about to start one, as published. */
+  private readonly runningTurns = new Set<string>()
+  /** This window's units started and not yet sealed, by owner. */
+  private readonly openUnits = new Map<string, OpenUnit>()
   private readonly pendingEnds = new Map<string, PendingEnd>()
   private readonly stopping = new AbortController()
   /** Presence outlives cancellation until the final in-flight file/record step has settled. */
   private readonly presenceStopping = new AbortController()
-  /** This store's id: its pins, index and staged copies are named by it. */
-  private readonly instance: string
+  /** This store's id: one extension-host lifetime of one window. */
+  private readonly ownInstance: string
+  private readonly ownJournal: WriteJournal
   private readonly presence: WindowPresence
+  private readonly lease: CheckpointLease
+  private readonly copies: CheckpointCopies
   private heartbeat: ReturnType<typeof setInterval> | undefined
-  private emptyTree: string | undefined
   private lastPruneAt = 0
   private isPruneDue = false
   private isPeerUnsafe = false
 
   public constructor(private readonly deps: CheckpointStoreDeps) {
-    this.instance = deps.newId()
+    this.ownInstance = deps.instance
+    this.ownJournal = deps.journal
+    this.copies = new CheckpointCopies(deps.storageDir, deps.log)
     this.presence = new WindowPresence({
       storageDir: deps.storageDir,
-      instance: this.instance,
+      instance: this.ownInstance,
       pid: deps.pid,
       isProcessAlive: deps.isProcessAlive,
       sleep: pause,
       signal: this.presenceStopping.signal,
     })
-  }
-
-  /**
-   * Now on the window's own clock. Turn starts, tool copies and saves are
-   * compared with one another by it, never with `now`, so the wall clock
-   * set back cannot put one of them before an event it followed.
-   */
-  private monotonicNow(): number {
-    return this.deps.monotonicNow?.() ?? performance.now()
+    this.lease = new CheckpointLease({
+      instance: this.ownInstance,
+      storageDir: deps.storageDir,
+      now: deps.now,
+      log: deps.log,
+      isGone: async (instance) => {
+        const live = await this.presence.liveWindows()
+        return !live.has(instance)
+      },
+    })
   }
 
   private publishedTurns(): readonly string[] {
+    const units = [
+      ...this.openUnits.values(),
+      ...Array.from(this.pendingEnds.values(), (end) => end.unit),
+    ]
     return [
       CHECKPOINT_FENCED_WINDOW,
-      ...new Set([...this.runningTurns.keys(), ...this.openTurns.keys()]),
+      ...new Set([
+        ...this.runningTurns,
+        ...units.flatMap(({ owner }) =>
+          owner.unitKind === 'turn' ? [turnKey(owner.sessionId, owner.unitId)] : [],
+        ),
+      ]),
     ]
   }
 
@@ -558,24 +554,12 @@ export class CheckpointStore {
     if (this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)) {
       return true
     }
-    for (const key of this.runningTurns.keys()) {
+    for (const key of this.runningTurns) {
       if (key.startsWith(CHECKPOINT_ACTIVITY_PREFIX)) {
         return true
       }
     }
     return false
-  }
-
-  private get pinPrefix(): string {
-    return `${PIN_REF_PREFIX}${this.instance}${SEPARATOR}`
-  }
-
-  private get workRef(): string {
-    return `${WORK_REF_PREFIX}${this.instance}`
-  }
-
-  private get stagingDir(): string {
-    return path.join(this.deps.storageDir, STAGING_DIR, this.instance)
   }
 
   private get target(): RestoreTarget {
@@ -585,16 +569,6 @@ export class CheckpointStore {
       log: this.deps.log,
       signal: this.stopping.signal,
     }
-  }
-
-  private async hasReservedFiles(): Promise<boolean> {
-    for (const refPath of [RESTORE_REF, 'packed-refs']) {
-      const file = path.join(this.deps.storageDir, 'shadow.git', refPath)
-      if ((await lstatOrUndefined(file)) !== undefined) {
-        return true
-      }
-    }
-    return false
   }
 
   /** The window's presence is written again every beat while the store is in use. */
@@ -625,31 +599,18 @@ export class CheckpointStore {
     return run
   }
 
-  /** Retries durable end metadata before another operation, keeping its original boundary. */
+  /** Folds and seals the ends that failed before, from what they were, before another operation. */
   private async finishPendingEnds(): Promise<void> {
     if (this.pendingEnds.size === 0) {
       return
     }
-    const setup = await this.ready()
-    const endings = [...this.pendingEnds]
-    for (const [, pending] of endings) {
-      if (setup.records.checkpoints.some((record) => record.id === pending.record.id)) {
-        await this.persistEnd(setup, pending)
-      } else {
-        await this.deleteRefs(setup.shadow, [pending.pin])
-        this.pendingEnds.delete(pending.record.id)
-      }
-      for (const [key, open] of this.openTurns) {
-        if (open.id === pending.record.id) {
-          this.openTurns.delete(key)
-        }
-      }
+    const { opened } = await this.open()
+    for (const pending of this.pendingEnds.values()) {
+      await this.sealUnit(opened.shadow, pending)
     }
-    await this.trimJournal()
-    await this.presence.publish(this.publishedTurns())
   }
 
-  /** The work tree's top and the workspace's place in it (no git). */
+  /** The work tree's top and the workspace's place in it, as an M72 record names it (no git). */
   private async placeOf(): Promise<{ readonly top: string; readonly prefix: string }> {
     if (this.place === undefined) {
       const top = await repositoryTop(this.deps.workspaceRoot)
@@ -662,10 +623,8 @@ export class CheckpointStore {
   /**
    * The shadow repository, set up the first time. A running mark opens it
    * outside the queue, so the first read can be setting it up at that very
-   * moment (a window's first message starts both): every caller shares the
-   * one setup under way. Two would each `git init` in this window's one
-   * initializer folder, and the first to finish moves it away under the
-   * other. A setup that failed is not kept: the next caller tries again.
+   * moment: every caller shares the one setup under way. A setup that failed
+   * is not kept: the next caller tries again.
    */
   private async open(): Promise<{ readonly opened: Opened }> {
     this.opening ??= this.setUpOnce()
@@ -690,7 +649,7 @@ export class CheckpointStore {
         storageDir,
         top,
         platform,
-        instance: this.instance,
+        instance: this.ownInstance,
         gitPathMax: this.deps.gitPathMax,
         storageRoot: this.deps.storageRoot,
       },
@@ -698,7 +657,7 @@ export class CheckpointStore {
     )
     shadow.assertFits()
     await shadow.assertSeparate()
-    await shadow.prepare(await userExclude(top), await this.globalExcludesFile())
+    await shadow.prepare()
     await shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
     return { shadow, top, prefix }
   }
@@ -707,8 +666,8 @@ export class CheckpointStore {
    * The shadow repository for a turn's start, or undefined where none can ever
    * exist: a path git cannot use, or storage and workspace holding one another.
    * Every window of that folder meets the same refusal, so no restore can be
-   * running elsewhere and the message goes ahead with no checkpoint (a capture
-   * says so); any other failure still stops the message.
+   * running elsewhere and the turn goes ahead with no record; any other
+   * failure still stops it.
    */
   private async openIfUsable(): Promise<Opened | undefined> {
     try {
@@ -732,77 +691,102 @@ export class CheckpointStore {
    */
   private async ready(): Promise<Setup> {
     const { opened } = await this.open()
-    const listed = await listRecords(opened.shadow)
+    await this.lease.recoverAbandoned(opened)
+    const listedUnits = await listUnits(opened.shadow)
+    const listedRecords = await listRecords(opened.shadow)
     const archives = await readArchives(this.deps.storageDir)
     const live = await this.presence.liveWindows()
     this.isPeerUnsafe = [...live].some(
-      ([instance, running]) =>
-        instance !== this.instance &&
-        (!running.includes(CHECKPOINT_FENCED_WINDOW) || running.includes(CHECKPOINT_NATIVE_WINDOW)),
+      ([instance, running]) => instance !== this.ownInstance && this.isUnfenced(running),
     )
-    const checkpoints: CheckpointRecord[] = []
-    const restores: RestoreRecord[] = []
-    const keeps = new Map<string, string>()
-    for (const entry of listed) {
+    const units = listedUnits.filter(
+      (unit) => unit.record?.isRetired !== true && !this.isUnitArchived(archives, unit),
+    )
+    const legacy = listedRecords.flatMap((entry): LegacyTurn[] => {
       const { record } = entry
-      const isHere = record?.top === opened.top && record.prefix === opened.prefix
-      if (
-        record === undefined ||
-        !isHere ||
-        isArchived(archives, record.sessionId, record.createdAt)
-      ) {
-        continue
-      }
-      keeps.set(entry.id, entry.keep)
-      if (record.kind === 'checkpoint') {
-        checkpoints.push(record)
-      } else {
-        restores.push(record)
-      }
-    }
-    const setup: Setup = {
-      ...opened,
-      records: { checkpoints, restores },
-      keeps,
-      listed,
-      archives,
-      live,
-    }
+      return record?.kind === 'checkpoint' &&
+        record.top === opened.top &&
+        record.prefix === opened.prefix &&
+        !isArchived(archives, record.sessionId, record.createdAt)
+        ? [
+            {
+              sessionId: record.sessionId,
+              turnId: record.turnId,
+              sequence: record.sequence ?? 0,
+              lastSequence: Math.max(record.sequence ?? 0, record.endSequence ?? 0),
+              createdAt: record.createdAt,
+            },
+          ]
+        : []
+    })
+    const setup: Setup = { ...opened, units, legacy, listedUnits, listedRecords, archives, live }
     if (!this.hasTidied) {
-      await this.tidy(setup, false)
       this.hasTidied = true
+      await this.recover(setup, await WriteJournal.readAll(this.deps.storageDir))
+      await this.tidy(await this.ready(), false)
       return await this.ready()
     }
     return setup
   }
 
-  /** Whether a ref named by a window's instance belongs to a window that is gone. */
-  private isGoneWindowRef(ref: string, prefix: string, setup: Setup): boolean {
+  /** A window whose running list proves no fence of either version, or names native work. */
+  private isUnfenced(running: readonly string[]): boolean {
     return (
-      ref.startsWith(prefix) && !setup.live.has(ref.slice(prefix.length).split(SEPARATOR)[0] ?? '')
+      (!running.includes(CHECKPOINT_FENCED_WINDOW) && !isLegacyWindow(running)) ||
+      running.includes(CHECKPOINT_NATIVE_WINDOW)
     )
   }
 
-  /**
-   * The staging folders and index files of windows that are gone, their
-   * saves files once no turn can need them, and files of earlier builds.
-   */
-  private async dropGoneFiles(): Promise<void> {
-    await this.presence.dropGoneSaves(this.deps.now())
-    const stagingRoot = path.join(this.deps.storageDir, STAGING_DIR)
-    let staged: string[] = []
-    try {
-      staged = await readdir(stagingRoot)
-    } catch (error: unknown) {
-      if (!isMissingPath(error)) {
-        throw error
+  /** A unit of an archived conversation made at or before the archive; an unreadable one when its conversation was archived. */
+  private isUnitArchived(archives: readonly ArchiveFile[], unit: ListedUnit): boolean {
+    return unit.record === undefined
+      ? archives.some((entry) => sessionKey(entry.archive.sessionId) === unit.sessionKey)
+      : isArchived(archives, unit.record.owner.sessionId, unit.record.createdAt)
+  }
+
+  /** Whether a 0.10.0 window is live: this version then restores nothing and deletes no record. */
+  private isLegacyLive(setup: Pick<Setup, 'live'>): boolean {
+    for (const running of setup.live.values()) {
+      if (isLegacyWindow(running)) {
+        return true
       }
     }
-    const names = await readdir(this.deps.storageDir)
+    return false
+  }
+
+  /** Whether a ref named by a window's instance belongs to a window that is gone. */
+  private isGoneWindowRef(
+    ref: string,
+    prefix: string,
+    live: ReadonlyMap<string, readonly string[]>,
+  ): boolean {
+    return ref.startsWith(prefix) && !live.has(ref.slice(prefix.length).split(SEPARATOR)[0] ?? '')
+  }
+
+  /** The names in a folder; none when it is missing. */
+  private async namesIn(folder: string): Promise<readonly string[]> {
+    try {
+      return await readdir(folder)
+    } catch (error: unknown) {
+      if (isMissingPath(error)) {
+        return []
+      }
+      throw error
+    }
+  }
+
+  /**
+   * What gone M72 windows left: their staging folders and index files, and
+   * files of earlier builds.
+   */
+  private async dropGoneFiles(): Promise<void> {
+    const stagingRoot = path.join(this.deps.storageDir, STAGING_DIR)
+    const staged = await this.namesIn(stagingRoot)
+    const names = await this.namesIn(this.deps.storageDir)
     // A window publishes before creating these files. Enumerate first,
     // then read presence, so a new window cannot be mistaken for an orphan.
     const live = await this.presence.liveWindows()
-    const goneStaging = staged.filter((name) => !live.has(name))
+    const goneStaging = staged.filter((entry) => !live.has(entry))
     for (const name of goneStaging) {
       await rm(path.join(stagingRoot, name), { recursive: true, force: true })
     }
@@ -818,218 +802,271 @@ export class CheckpointStore {
   }
 
   /**
+   * The journal folders of gone windows whose units no record holds any
+   * more (retention or an archive took them; their copies were brought into
+   * the records' trees when they were folded). Right after those records
+   * go: a journal naming a unit with no record refuses its conversation's
+   * restores (rule 3.2).
+   */
+  private async dropGoneJournals(shadow: ShadowGit): Promise<void> {
+    const journalsRoot = path.join(this.deps.storageDir, CHECKPOINT_WRITES_DIR)
+    const journalFolders = await this.namesIn(journalsRoot)
+    const journals = await WriteJournal.readAll(this.deps.storageDir)
+    const units = await listUnits(shadow)
+    // A surviving unreadable ref is not evidence of retirement. Keep every
+    // recovery input until it can be explained, including a first torn line.
+    if (units.some((unit) => unit.record === undefined)) {
+      return
+    }
+    const retired = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [unit.record.owner] : [],
+    )
+    // Enumerated first, as above: a window publishes before its journal exists.
+    const live = await this.presence.liveWindows()
+    const goneJournals = journalFolders.filter((name) => !live.has(name))
+    for (const instance of goneJournals) {
+      const journal = journals.get(instance)
+      if (journal?.tornTail === 'unparsed') {
+        continue
+      }
+      const entries = journal?.entries ?? []
+      const isStillNeeded =
+        units.some(
+          (unit) => unit.record?.owner.instance === instance && unit.record.isRetired !== true,
+        ) ||
+        entries.some((entry) => {
+          const owner = ownerOf(entry)
+          return owner !== undefined && retired.every((candidate) => !isSameOwner(candidate, owner))
+        })
+      if (isStillNeeded || this.copies.isScanning(instance)) continue
+      const copies = await this.namesIn(path.join(journalsRoot, instance, CHECKPOINT_BLOBS_DIR))
+      if (copies.length === 0)
+        await rm(path.join(journalsRoot, instance), { recursive: true, force: true })
+    }
+  }
+
+  /**
    * Archive files past their time go, once the records they archived are
    * gone (until then they keep hiding them).
    */
-  private async dropOldArchives(setup: Setup, deletedIds: ReadonlySet<string>): Promise<void> {
+  private async dropOldArchives(setup: Setup, deleted: ReadonlySet<string>): Promise<void> {
     const now = this.deps.now()
     for (const entry of setup.archives) {
       if (now - entry.archive.at < CHECKPOINT_FORGOTTEN_KEEP_MS) {
         continue
       }
-      const isHiding = setup.listed.some(
-        (listed) =>
-          !deletedIds.has(listed.id) &&
-          listed.record?.sessionId === entry.archive.sessionId &&
-          listed.record.createdAt <= entry.archive.at,
-      )
+      const { sessionId, at } = entry.archive
+      const isHiding =
+        setup.listedUnits.some(
+          (unit) =>
+            !deleted.has(unit.ref) &&
+            unit.record?.isRetired !== true &&
+            unit.record?.owner.sessionId === sessionId &&
+            unit.record.createdAt <= at,
+        ) ||
+        setup.listedRecords.some(
+          (listed) =>
+            !deleted.has(recordRef(listed.id)) &&
+            listed.record?.sessionId === sessionId &&
+            listed.record.createdAt <= at,
+        )
       if (!isHiding) {
         await removeArchive(entry)
       }
     }
   }
 
-  private retainedRecords(setup: Setup) {
-    const retained = retainRecords(
-      setup.records,
-      this.deps.now(),
-      this.deps.retentionDays(),
-      (record) => this.isOpen(setup, record),
+  /** Whether a listed unit still runs: its record has no end and its window is live. */
+  private isUnitOpen(setup: Pick<Setup, 'live'>, unit: ListedUnit): boolean {
+    return (
+      unit.record !== undefined &&
+      unit.record.endedAt === undefined &&
+      setup.live.has(unit.record.owner.instance)
     )
-    const keptIds = new Set(
-      [...retained.checkpoints, ...retained.restores].map((record) => record.id),
-    )
-    return { retained, keptIds }
   }
 
   /**
-   * Drops what no one needs any more: records of another place, unreadable
-   * ones, archived ones and those the retention bounds exclude (each only if
-   * unchanged since it was read); the pins, index refs, index files and
-   * staging folders of windows that are gone; refs and files of earlier
-   * builds; archive files past their time. Unreferenced copies are then
-   * pruned when due (or now), sparing objects younger than the grace period.
+   * The refs the bounds drop: archived units, units and M72 turns past the
+   * retention bounds, M72 records of another place or unreadable, and every
+   * M72 restore record (which this version cannot redo).
+   */
+  private droppedRefs(setup: Setup): readonly HeldRef[] {
+    const units = setup.listedUnits
+      .filter((unit) => unit.record !== undefined && unit.record.isRetired !== true)
+      .map((unit) => ({
+        held: { ref: unit.ref, keep: unit.keep },
+        sessionId: unit.sessionKey,
+        sequence: unit.sequence,
+        createdAt: unit.record?.createdAt ?? -Infinity,
+        isOpen: this.isUnitOpen(setup, unit),
+        isArchived: this.isUnitArchived(setup.archives, unit) && !this.isUnitOpen(setup, unit),
+      }))
+    const records = setup.listedRecords.map((listed) => {
+      const { record } = listed
+      const isHere = record?.top === setup.top && record.prefix === setup.prefix
+      return {
+        held: { ref: recordRef(listed.id), keep: listed.keep },
+        sessionId: sessionKey(record?.sessionId ?? ''),
+        sequence: record?.kind === 'checkpoint' ? (record.sequence ?? 0) : 0,
+        createdAt: record?.createdAt ?? -Infinity,
+        isOpen: false,
+        isArchived:
+          record === undefined ||
+          !isHere ||
+          record.kind === 'restore' ||
+          isArchived(setup.archives, record.sessionId, record.createdAt),
+      }
+    })
+    const kept = [...units, ...records].filter((entry) => !entry.isArchived)
+    const dropped = new Set<unknown>(
+      droppedRecords(kept, this.deps.now(), this.deps.retentionDays()),
+    )
+    const isDroppable = (entry: { readonly isArchived: boolean }) =>
+      entry.isArchived || dropped.has(entry)
+    return [
+      ...units.filter((entry) => isDroppable(entry)),
+      ...records.filter((entry) => isDroppable(entry)),
+    ].map((entry) => entry.held)
+  }
+
+  /** Retire by CAS, dropping bytes but retaining the owner and sequence as durable proof. */
+  private async retireRefs(setup: Setup): Promise<readonly string[]> {
+    const selected = this.droppedRefs(setup)
+    const retired: string[] = []
+    const legacy: HeldRef[] = []
+    for (const held of selected) {
+      const unit = setup.listedUnits.find((candidate) => candidate.ref === held.ref)
+      if (unit?.record === undefined) {
+        legacy.push(held)
+        continue
+      }
+      const record: StoredUnit = { ...unit.record, isRetired: true, writes: [] }
+      if ((await writeUnit(setup.shadow, held.ref, record, [], held.keep)) !== undefined) {
+        retired.push(held.ref)
+      }
+    }
+    return [...retired, ...(await deleteRefs(setup.shadow, legacy))]
+  }
+
+  /** Mark live journal/record references and sweep all older unreferenced copies. */
+  private async sweepCopies(shadow: ShadowGit): Promise<void> {
+    const units = await listUnits(shadow)
+    if (
+      units.some((unit) => unit.record === undefined) ||
+      hasLiveWriter(await this.presence.liveWindows())
+    )
+      return
+    const retired = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [unit.record.owner] : [],
+    )
+    const writes = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [] : (unit.record?.writes ?? []),
+    )
+    await this.copies.sweep(retired, writes)
+  }
+
+  /** Cleanup and restore share one CAS lease; a precheck alone cannot protect source copies. */
+  private async withCleanup(setup: Setup, task: () => Promise<void>): Promise<void> {
+    if (this.isLegacyLive(setup)) {
+      return
+    }
+    const keep = await this.lease.acquire(setup)
+    if (keep === undefined) {
+      return
+    }
+    try {
+      if (!this.isLegacyLive({ live: await this.presence.liveWindows() })) {
+        await task()
+      }
+    } finally {
+      await this.lease.release(setup.shadow, keep)
+    }
+  }
+
+  /**
+   * Drops what no one needs any more: archived units, units and M72 records
+   * the retention bounds exclude (each only if unchanged since it was read),
+   * the refs and files an M72 window that is gone kept, the journal folders
+   * of gone windows no record needs, and archive files past their time.
+   * Unreferenced copies are then pruned when due (or now), sparing objects
+   * younger than the grace period. While a restore runs, or a 0.10.0 window
+   * is live, nothing goes.
    */
   private async tidy(setup: Setup, isPruneForced: boolean): Promise<void> {
-    if (await this.isRestoreActive(setup)) {
-      return
-    }
-    const { keptIds } = this.retainedRecords(setup)
-    const doomed = setup.listed.filter((entry) => !keptIds.has(entry.id))
-    const deletedIds = new Set(await deleteRecords(setup.shadow, doomed))
-    if (deletedIds.size > 0) {
-      this.isPruneDue = true
-    }
-    const refs = await setup.shadow.text(['for-each-ref', '--format=%(refname)', REF_ROOT])
-    // Enumerate refs before refreshing windows: a window publishes its
-    // presence before creating any ref this enumeration can see.
-    const refreshed = { ...setup, live: await this.presence.liveWindows() }
-    const stale = refs
-      .split(LINE_FEED)
-      .filter(
-        (ref) =>
+    await this.withCleanup(setup, async () => {
+      const deleted = new Set(await this.retireRefs(setup))
+      if (deleted.size > 0) {
+        this.isPruneDue = true
+      }
+      const refs = await setup.shadow.text([
+        'for-each-ref',
+        '--format=%(refname) %(objectname)',
+        REF_ROOT,
+      ])
+      // Enumerate refs before refreshing windows: a window publishes its
+      // presence before creating any ref this enumeration can see.
+      const live = await this.presence.liveWindows()
+      if (this.isLegacyLive({ live })) {
+        return
+      }
+      const stale = refs.split(LINE_FEED).flatMap((line): HeldRef[] => {
+        const [ref = '', keep = ''] = line.split(SPACE)
+        const isStale =
           ref === LEGACY_INDEX_REF ||
           LEGACY_REF_PREFIXES.some((prefix) => ref.startsWith(prefix)) ||
-          this.isGoneWindowRef(ref, PIN_REF_PREFIX, refreshed) ||
-          this.isGoneWindowRef(ref, WORK_REF_PREFIX, refreshed),
-      )
-    if (stale.length > 0) {
-      await this.deleteRefs(setup.shadow, stale)
-      this.isPruneDue = true
-    }
-    await this.dropGoneFiles()
-    await this.dropOldArchives(setup, deletedIds)
-    const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
-    if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
-      await this.prune(setup.shadow)
-    }
-  }
-
-  /** Drops what the retention bounds exclude (each only if unchanged); prunes when due. */
-  private async retain(setup: Setup): Promise<void> {
-    if (await this.isRestoreActive(setup)) {
-      return
-    }
-    const { retained, keptIds } = this.retainedRecords(setup)
-    const dropped = retained.dropped.flatMap((record) => {
-      const keep = setup.keeps.get(record.id)
-      return keep === undefined || keptIds.has(record.id) ? [] : [{ id: record.id, keep }]
-    })
-    const deleted = await deleteRecords(setup.shadow, dropped)
-    if (deleted.length > 0) {
-      this.isPruneDue = true
-    }
-    const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
-    if (isIntervalOver && this.isPruneDue) {
-      await this.prune(setup.shadow)
-    }
-  }
-
-  /** Old source objects stay referenced while a live restore sets up and writes files. */
-  private async isRestoreActive(setup: Setup): Promise<boolean> {
-    const keep = await refValue(setup.shadow, RESTORE_REF)
-    if (keep === undefined) {
-      return false
-    }
-    const lease = parseRecord(await setup.shadow.text(['cat-file', 'blob', `${keep}:record.json`]))
-    const live = await this.presence.liveWindows()
-    return lease?.owner === undefined || live.has(lease.owner)
-  }
-
-  /** Deletes refs no one needs (a ref another window deleted meanwhile is skipped). */
-  private async deleteRefs(shadow: ShadowGit, refs: readonly string[]): Promise<void> {
-    if (refs.length === 0) {
-      return
-    }
-    const wanted = new Set(refs)
-    const listing = await shadow.text([
-      'for-each-ref',
-      '--format=%(refname) %(objectname)',
-      REF_ROOT,
-    ])
-    const listed = listing.split(LINE_FEED).flatMap((line) => {
-      const [ref = '', oid = ''] = line.split(SPACE)
-      return oid !== '' && wanted.has(ref) ? [{ ref, oid }] : []
-    })
-    try {
-      await shadow.run(['update-ref', '--stdin'], {
-        input: listed.map(({ ref, oid }) => deleteLine(ref, oid)).join(''),
+          this.isGoneWindowRef(ref, PIN_REF_PREFIX, live) ||
+          this.isGoneWindowRef(ref, WORK_REF_PREFIX, live)
+        return isStale ? [{ ref, keep }] : []
       })
-      return
-    } catch (error: unknown) {
-      if (!isGitExitError(error)) {
-        throw error
+      const deletedStale = await deleteRefs(setup.shadow, stale)
+      if (deletedStale.length > 0) {
+        this.isPruneDue = true
       }
-    }
-    for (const { ref, oid } of listed) {
-      try {
-        await shadow.run(['update-ref', '--stdin'], { input: deleteLine(ref, oid) })
-      } catch (error: unknown) {
-        if (!isGitExitError(error) || (await refValue(shadow, ref)) === oid) {
-          throw error
-        }
+      await this.dropGoneFiles()
+      await this.sweepCopies(setup.shadow)
+      await this.dropGoneJournals(setup.shadow)
+      await this.dropOldArchives(setup, deleted)
+      const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
+      if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
+        await this.prune(setup.shadow)
       }
-    }
+    })
   }
 
   /** Deletes every copy no ref names, sparing those younger than the grace period. */
   private async prune(shadow: ShadowGit): Promise<void> {
+    const live = await this.presence.liveWindows()
+    if (hasLiveWriter(live)) {
+      return
+    }
     await shadow.prune(CHECKPOINT_PRUNE_GRACE_MS)
     this.lastPruneAt = this.deps.now()
     this.isPruneDue = false
   }
 
-  /** The user's global excludes file, read by git in any repository; undefined without one. */
-  private async globalExcludesFile(): Promise<string | undefined> {
-    const env = withoutGitVariables(this.deps.env)
-    let configured = ''
-    try {
-      const answer = await this.deps.git(
-        ['config', '--global', '--path', '--get', 'core.excludesFile'],
-        {
-          cwd: this.deps.workspaceRoot,
-          env,
-          timeoutMs: CHECKPOINT_GIT_TIMEOUT_MS,
-          signal: this.stopping.signal,
-        },
-      )
-      configured = answer.toString('utf8').trim()
-    } catch (error: unknown) {
-      if (!isGitExitError(error) || error.exitCode !== NONE_EXIT) {
-        throw error
+  /**
+   * Retention after a unit ended or a restore ran: the records the bounds
+   * drop (each only if unchanged), pruned when due. Nothing goes while a
+   * restore runs or a 0.10.0 window is live.
+   */
+  private async retain(): Promise<void> {
+    const setup = await this.ready()
+    await this.withCleanup(setup, async () => {
+      const deleted = await this.retireRefs(setup)
+      if (deleted.length > 0) {
+        this.isPruneDue = true
       }
-    }
-    const home = env['HOME'] ?? env['USERPROFILE']
-    const configHome =
-      env['XDG_CONFIG_HOME'] ?? (home === undefined ? undefined : path.join(home, CONFIG_HOME))
-    const fallback = configHome === undefined ? undefined : path.join(configHome, DEFAULT_EXCLUDES)
-    const candidate = configured === '' ? fallback : configured
-    if (candidate === undefined) {
-      return undefined
-    }
-    return (await regularFileStat(candidate)) === undefined ? undefined : candidate
-  }
-
-  private relativeOf(absolutePath: string): string | undefined {
-    for (const root of [this.deps.workspaceRoot, this.deps.displayRoot]) {
-      if (root === undefined) {
-        continue
+      await this.sweepCopies(setup.shadow)
+      await this.dropGoneJournals(setup.shadow)
+      const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
+      if (isIntervalOver && this.isPruneDue) {
+        await this.prune(setup.shadow)
       }
-      const relative = path.relative(root, absolutePath)
-      // A segment, not a prefix: a file named `..cache` is inside the workspace.
-      const isOutside =
-        relative === '' ||
-        relative === '..' ||
-        relative.startsWith(`..${path.sep}`) ||
-        path.isAbsolute(relative)
-      if (!isOutside) {
-        return relative.split(path.sep).join(SEPARATOR)
-      }
-    }
-    return undefined
+    })
   }
 
   private absoluteOf(relative: string): string {
     return path.join(this.deps.workspaceRoot, ...relative.split(SEPARATOR))
-  }
-
-  private topOf(setup: Setup, relative: string): string {
-    return setup.prefix === '' ? relative : `${setup.prefix}${SEPARATOR}${relative}`
-  }
-
-  /** A path git printed relative to the work tree's top, relative to the workspace. */
-  private inWorkspace(setup: Setup, topPath: string): string {
-    return setup.prefix === '' ? topPath : topPath.slice(setup.prefix.length + SEPARATOR.length)
   }
 
   private unsavedTest(unsavedPaths: () => readonly string[]): (relative: string) => boolean {
@@ -1037,6 +1074,11 @@ export class CheckpointStore {
       unsavedPaths().some(
         (unsaved) =>
           isSamePath(unsaved, this.absoluteOf(relative), this.deps.platform) ||
+          isSamePath(
+            editorIdentity(unsaved),
+            editorIdentity(this.absoluteOf(relative)),
+            this.deps.platform,
+          ) ||
           (this.deps.displayRoot !== undefined &&
             isSamePath(
               unsaved,
@@ -1046,55 +1088,20 @@ export class CheckpointStore {
       )
   }
 
-  private find(setup: Setup, sessionId: string, turnId: string): CheckpointRecord | undefined {
-    return setup.records.checkpoints.find(
-      (record) => record.sessionId === sessionId && record.turnId === turnId,
-    )
-  }
-
   private isAnyTurnRunning(): boolean {
-    return this.runningTurns.size > 0 || this.openTurns.size > 0
+    return this.runningTurns.size > 0 || this.openUnits.size > 0 || this.pendingEnds.size > 0
   }
 
   /**
-   * When each turn of this window began, on its own clock (`monotonicNow`):
-   * its start capture, or the time it (or its message) was published as
-   * running. A tool's copy is taken and kept for any of them, even before
-   * the turn's record exists.
-   */
-  private runningSince(): readonly number[] {
-    return [
-      ...Array.from(this.openTurns.values(), (turn) => turn.startedAt),
-      ...Array.from(this.runningTurns, ([key, at]) =>
-        key === CHECKPOINT_NATIVE_WINDOW ? Infinity : at,
-      ),
-      ...Array.from(this.pendingEnds.values(), (pending) => pending.startedAt),
-    ]
-  }
-
-  /** A turn another live window publishes as running. */
-  private isRunningElsewhere(setup: Setup, record: CheckpointRecord): boolean {
-    const { owner } = record
-    const running = owner === this.instance ? undefined : setup.live.get(owner ?? '')
-    return running?.includes(turnKey(record.sessionId, record.turnId)) === true
-  }
-
-  /** A turn still running here, or in another live window. */
-  private isOpen(setup: Setup, record: CheckpointRecord): boolean {
-    const open = this.openTurns.get(turnKey(record.sessionId, record.turnId))
-    return open?.id === record.id || this.isRunningElsewhere(setup, record)
-  }
-
-  /**
-   * Why no restore or redo may run now: a turn running here, or a turn (or a
-   * message about to start one) another live window publishes.
+   * Why no restore or Redo may run now: a 0.10.0 window is live, a window
+   * that proves no fence, a turn running here, or a turn (or a message about
+   * to start one) another live window publishes.
    */
   private turnBlocking(setup: Setup): RestoreFailure | undefined {
-    const isNativeUncertain = [...setup.live].some(
-      ([, running]) =>
-        !running.includes(CHECKPOINT_FENCED_WINDOW) || running.includes(CHECKPOINT_NATIVE_WINDOW),
-    )
-    if (isNativeUncertain) {
+    if (this.isLegacyLive(setup)) {
+      return 'legacyWindowOpen'
+    }
+    if ([...setup.live].some(([, running]) => this.isUnfenced(running))) {
       return 'nativeUnsafe'
     }
     if (this.isAnyTurnRunning()) {
@@ -1102,1142 +1109,658 @@ export class CheckpointStore {
     }
     const isElsewhere = [...setup.live].some(
       ([instance, running]) =>
-        instance !== this.instance && running.some((key) => key !== CHECKPOINT_FENCED_WINDOW),
+        instance !== this.ownInstance && running.some((key) => key !== CHECKPOINT_FENCED_WINDOW),
     )
     return isElsewhere ? 'turnElsewhere' : undefined
   }
 
-  /** Drops this window's open turns of a conversation (archived). */
-  private dropOpenTurns(sessionId: string): void {
-    const prefix = turnKey(sessionId, '')
-    for (const key of this.openTurns.keys()) {
-      if (key.startsWith(prefix)) {
-        this.openTurns.delete(key)
+  /**
+   * The copies the folded writes need, brought into the shadow repository
+   * from their windows' journals where it lacks them. A write whose copy is
+   * in neither is no longer kept.
+   */
+  private async keptCopies(
+    shadow: ShadowGit,
+    writes: readonly FoldedWrite[],
+    signal: AbortSignal,
+  ): Promise<{ readonly writes: readonly FoldedWrite[]; readonly blobs: readonly BlobRef[] }> {
+    const wanted = [...new Set(writes.flatMap((write) => (write.isKept ? neededOids(write) : [])))]
+    const present = new Set<string>()
+    if (wanted.length > 0) {
+      const answer = await shadow.text(['cat-file', '--batch-check'], {
+        input: wanted.map((oid) => `${oid}${LINE_FEED}`).join(''),
+        signal,
+      })
+      for (const oid of parseBatchCheck(answer).keys()) {
+        present.add(oid)
       }
     }
-  }
-
-  /** The files `git status` lists outside the ignore rules: kept (with sizes) or left out. */
-  private async sortListed(
-    relatives: readonly string[],
-  ): Promise<{ wanted: Map<string, number>; skipped: string[] }> {
-    const wanted = new Map<string, number>()
-    const skipped: string[] = []
-    const stats = await mapInBatches(relatives, (relative) =>
-      lstatOrUndefined(this.absoluteOf(relative)),
+    const imports = new Map<string, string>()
+    for (const write of writes) {
+      const oids = write.isKept ? neededOids(write) : []
+      for (const oid of oids) {
+        const file = WriteJournal.blobPath(this.deps.storageDir, write.instance, oid)
+        if (
+          !present.has(oid) &&
+          !imports.has(oid) &&
+          (await lstatOrUndefined(file)) !== undefined
+        ) {
+          imports.set(oid, file)
+        }
+      }
+    }
+    if (imports.size > 0) {
+      const files = [...imports]
+      const hashed = await shadow.text(['hash-object', '-w', '--no-filters', '--stdin-paths'], {
+        input: files.map(([, file]) => `${file}${LINE_FEED}`).join(''),
+        signal,
+      })
+      const oids = hashed.split(LINE_FEED)
+      for (const [index, [oid]] of files.entries()) {
+        // A copy whose bytes are not what its name says is not kept.
+        if (oids[index] === oid) {
+          present.add(oid)
+        }
+      }
+    }
+    const folded = writes.map((write) =>
+      write.isKept && neededOids(write).some((oid) => !present.has(oid))
+        ? { ...write, isKept: false }
+        : write,
     )
-    for (const [index, relative] of relatives.entries()) {
-      const found = stats[index]
-      if (found === undefined) {
-        continue
-      }
-      if (found.isFile() && found.size <= CHECKPOINT_FILE_MAX_BYTES) {
-        wanted.set(relative, found.size)
-      } else {
-        skipped.push(relative)
-      }
-    }
-    return { wanted, skipped }
-  }
-
-  /** Brings the private index to the files kept; the capture's tree. */
-  private async syncIndex(
-    setup: Setup,
-    wanted: ReadonlyMap<string, number>,
-  ): Promise<{ readonly tree: string } | { readonly bytes: number }> {
-    const { shadow } = setup
-    const spec = setup.prefix === '' ? [] : ['--', setup.prefix]
-    const listedText = await shadow.text(['ls-files', '-z', ...spec])
-    const dirtyText = await shadow.text(['ls-files', '-z', '-m', '-d', ...spec])
-    const listed = new Set(splitNul(listedText).map((topPath) => this.inWorkspace(setup, topPath)))
-    const dirty = new Set(splitNul(dirtyText).map((topPath) => this.inWorkspace(setup, topPath)))
-    const stale: string[] = []
-    for (const relative of listed) {
-      if (!wanted.has(relative)) {
-        stale.push(relative)
-      }
-    }
-    const toHash: string[] = []
-    for (const relative of wanted.keys()) {
-      if (!listed.has(relative) || dirty.has(relative)) {
-        toHash.push(relative)
-      }
-    }
-    const bytes = toHash.reduce((total, relative) => total + (wanted.get(relative) ?? 0), 0)
-    if (bytes > CHECKPOINT_CAPTURE_MAX_BYTES) {
-      return { bytes }
-    }
-    if (stale.length > 0) {
-      await shadow.run(['update-index', '--force-remove', '-z', '--stdin'], {
-        input: nulInput(stale.map((relative) => this.topOf(setup, relative))),
-      })
-    }
-    if (toHash.length > 0) {
-      await shadow.run(['update-index', '--add', '--remove', '-z', '--stdin'], {
-        input: nulInput(toHash.map((relative) => this.topOf(setup, relative))),
-      })
-    }
-    const full = await shadow.text(['write-tree'])
-    // The ref keeps the index's copies from pruning. Another window may have
-    // moved it since, so it is set every time.
-    await shadow.run(['update-ref', this.workRef, full])
-    if (wanted.size === 0) {
-      return { tree: await this.emptyTreeOf(shadow) }
-    }
-    return {
-      tree:
-        setup.prefix === '' ? full : await shadow.text(['rev-parse', `${full}:${setup.prefix}`]),
-    }
+    const blobs = [...new Set(folded.flatMap((write) => (write.isKept ? neededOids(write) : [])))]
+    return { writes: folded, blobs: blobs.map((oid) => ({ mode: GIT_MODE_FILE, oid })) }
   }
 
   /**
-   * The folders the private index holds no file of (git lists an untracked
-   * folder whole, and an empty one too), with the ignored folders; undefined
-   * past CHECKPOINT_FOLDERS_MAX.
+   * Folds a journal's facts into a unit's record by compare-and-swap, read
+   * again whenever another window changed it meanwhile: whether it wrote the
+   * record, found it already folded, or found it gone (archived, or dropped
+   * by retention), when there is nothing to fold into and none is made.
+   * Recording what already happened outlives a closing window: its git runs
+   * to the end.
    */
-  private async foldersWithoutFiles(
-    setup: Setup,
-    ignoredFolders: readonly string[],
-  ): Promise<readonly string[] | undefined> {
-    const spec = setup.prefix === '' ? [] : ['--', setup.prefix]
-    const answer = await setup.shadow.text([
-      'ls-files',
-      '--others',
-      '--directory',
-      '--exclude-standard',
-      '-z',
-      ...spec,
-    ])
-    const listed = splitNul(answer)
-      .filter((topPath) => topPath.endsWith(SEPARATOR))
-      .map((topPath) => this.inWorkspace(setup, topPath.slice(0, -SEPARATOR.length)))
-    const folders = [...new Set([...listed, ...ignoredFolders])]
-    return folders.length > CHECKPOINT_FOLDERS_MAX ? undefined : folders.toSorted(byText)
-  }
-
-  /**
-   * The workspace's files now: the private index brought up to date, and
-   * the ignored scan. Paths below a link or junction are left out. With
-   * `shouldListFolders` (a capture before a turn), the folders it holds no file of.
-   */
-  private async captureNow(setup: Setup, shouldListFolders: boolean): Promise<CaptureResult> {
-    // Taken before any file is read: a save that lands while the capture runs
-    // may be missing from it, so it counts as made after the turn's start.
-    const startedAt = this.monotonicNow()
-    const startedWallAt = this.deps.now()
-    try {
-      await setup.shadow.clearStaleLocks(this.deps.now(), CHECKPOINT_STALE_LOCK_MS)
-      // Every capture (a turn's start and end, a restore's) goes through here: the
-      // user may have changed either excludes file since the repository was opened.
-      await setup.shadow.refreshExcludes(
-        await userExclude(setup.top),
-        await this.globalExcludesFile(),
-      )
-      const spec = setup.prefix === '' ? [] : ['--', setup.prefix]
-      const statusText = await setup.shadow.text(
-        [
-          'status',
-          '--porcelain=v1',
-          '-z',
-          '--ignored=matching',
-          '--untracked-files=all',
-          '--no-renames',
-          ...spec,
-        ],
-        { index: 'none' },
-      )
-      const listing = parseStatusListing(statusText)
-      const inWorkspace = (paths: readonly string[]) =>
-        paths.map((topPath) => this.inWorkspace(setup, topPath))
-      const files = inWorkspace(listing.files)
-      const ignoredFiles = inWorkspace(listing.ignoredFiles)
-      const ignoredFolders = inWorkspace(listing.ignoredFolders)
-      const repositories = inWorkspace(listing.repositories)
-      const linked = await linkedFolders(this.deps.workspaceRoot, [
-        ...files,
-        ...ignoredFiles,
-        ...ignoredFolders.map((folder) => `${folder}${SEPARATOR}${CURRENT_PATH_PREFIX}`),
-        ...repositories,
-      ])
-      const isReachable = (relative: string) =>
-        linked.every(
-          (folder) => relative !== folder && !relative.startsWith(`${folder}${SEPARATOR}`),
-        )
-      const reachableFiles = files.filter((relative) => isReachable(relative))
-      if (reachableFiles.length > CHECKPOINT_MAX_FILES) {
-        return {
-          ok: false,
-          reason: 'tooManyFiles',
-          detail: `${String(reachableFiles.length)} files outside the ignore rules`,
-        }
+  private async foldInto(
+    shadow: ShadowGit,
+    ref: string,
+    facts: UnitFacts,
+    end: { readonly endedAt: number | undefined; readonly ranProcesses: boolean },
+  ): Promise<'written' | 'same' | 'gone'> {
+    const finalizing = new AbortController().signal
+    for (let attempt = 0; attempt < CHECKPOINT_FOLD_ATTEMPTS; attempt += 1) {
+      const current = await readUnit(shadow, ref, finalizing)
+      if (current === undefined || current.record.isRetired === true) {
+        return 'gone'
       }
-      const { wanted, skipped } = await this.sortListed(reachableFiles)
-      const synced = await this.syncIndex(setup, wanted)
-      if ('bytes' in synced) {
-        return {
-          ok: false,
-          reason: 'tooLarge',
-          detail: `${String(synced.bytes)} bytes of changed files to copy`,
-        }
+      const folded = foldUnit(current.record, facts, end)
+      const kept = await this.keptCopies(shadow, folded.writes, finalizing)
+      const record: StoredUnit = { ...folded, writes: kept.writes }
+      if (JSON.stringify(record) === JSON.stringify(current.record)) {
+        return 'same'
       }
-      const reachableIgnoredFolders = ignoredFolders.filter((relative) => isReachable(relative))
-      const scan = await scanIgnored(
-        this.deps.workspaceRoot,
-        ignoredFiles.filter((relative) => isReachable(relative)),
-        reachableIgnoredFolders,
-      )
-      const folders = shouldListFolders
-        ? await this.foldersWithoutFiles(setup, [...reachableIgnoredFolders, ...linked])
-        : undefined
-      return {
-        ok: true,
-        snapshot: {
-          tree: synced.tree,
-          coverage: {
-            skipped: [...skipped, ...linked].toSorted(byText),
-            // Git names an untracked repository; one an ignore rule hides, the scan finds.
-            repositories: [
-              ...repositories.filter((relative) => isReachable(relative)),
-              ...scan.repositories,
-            ].toSorted(byText),
-          },
-          inventory: scan.inventory,
-          createdAt: this.deps.now(),
-          startedAt,
-          startedWallAt,
-          pin: undefined,
-          folders,
-        },
+      if (
+        (await writeUnit(shadow, ref, record, kept.blobs, current.keep, finalizing)) !== undefined
+      ) {
+        return 'written'
       }
-    } catch (error: unknown) {
-      return captureFailure(error)
     }
-  }
-
-  private async emptyTreeOf(shadow: ShadowGit): Promise<string> {
-    this.emptyTree ??= await shadow.text(['hash-object', '-t', 'tree', '-w', '--stdin'], {
-      input: '',
-    })
-    return this.emptyTree
-  }
-
-  /** A copy of the file now; null when absent, undefined when too big or a link. */
-  private async copyOf(
-    setup: Setup,
-    relative: string,
-  ): Promise<{ preImage: BlobRef | null | undefined; stat: FileStat | null }> {
-    const stats = await lstatOrUndefined(this.absoluteOf(relative))
-    if (stats === undefined) {
-      return { preImage: null, stat: null }
-    }
-    const stat = { size: stats.size, mtimeMs: stats.mtimeMs }
-    if (!stats.isFile() || stats.size > CHECKPOINT_FILE_MAX_BYTES) {
-      return { preImage: undefined, stat }
-    }
-    const oid = await setup.shadow.text([
-      'hash-object',
-      '-w',
-      '--no-filters',
-      '--',
-      setup.shadow.fileArgument(this.topOf(setup, relative)),
-    ])
-    const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
-    return { preImage: { mode: isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE, oid }, stat }
-  }
-
-  /**
-   * A copy of the file now in this window's staging folder, with no lock
-   * and no git; null when absent, undefined when too big or a link.
-   */
-  private async stage(relative: string): Promise<Omit<JournalEntry, 'at'>> {
-    const absolute = this.absoluteOf(relative)
-    const stats = await lstatOrUndefined(absolute)
-    if (stats === undefined) {
-      return { staged: null, isExecutable: false, stat: null }
-    }
-    const stat = { size: stats.size, mtimeMs: stats.mtimeMs }
-    const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
-    if (!stats.isFile() || stats.size > CHECKPOINT_FILE_MAX_BYTES) {
-      return { staged: undefined, isExecutable, stat }
-    }
-    await mkdir(this.stagingDir, { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
-    const staged = path.join(this.stagingDir, this.deps.newId())
-    await this.copyInsideWorkspace(absolute, staged, stats)
-    return { staged, isExecutable, stat }
-  }
-
-  /**
-   * Copies a workspace file into staging, and keeps the copy only if it came from
-   * the workspace: a parent folder replaced by a link or a junction after the
-   * tool's own check would otherwise stage a file from outside it. The parent is
-   * resolved first and the copy is taken through that resolved path; afterwards the
-   * file and its parent are looked at again, and a copy that cannot be vouched for
-   * is deleted at once, so no outside bytes are retained.
-   */
-  private async copyInsideWorkspace(
-    absolute: string,
-    staged: string,
-    before: Stats,
-  ): Promise<void> {
-    const parent = await canonicalPath(path.dirname(absolute))
-    if (!isWithinFolder(parent, this.deps.workspaceRoot)) {
-      throw new Error(UI_TEXT.checkpointFailed)
-    }
-    await copyFile(path.join(parent, path.basename(absolute)), staged)
-    const after = await lstatOrUndefined(absolute)
-    const isSame =
-      after?.isFile() === true &&
-      after.ino === before.ino &&
-      after.dev === before.dev &&
-      (await canonicalPath(path.dirname(absolute))) === parent
-    if (isSame) {
-      return
-    }
-    await rm(staged, { force: true })
     throw new Error(UI_TEXT.checkpointFailed)
   }
 
   /**
-   * The first copy the tools took of each file since the turn began (its
-   * `startedAt`), and each file's state now.
+   * A unit's end: its writes folded into its record, then the journal sealed
+   * for it, then its running mark withdrawn. A failure keeps it pending (and
+   * its mark published), to be tried again before the next operation.
    */
-  private async copiesSince(startedAt: number): Promise<ReadonlyMap<string, TurnCopy>> {
-    const copies = new Map<string, TurnCopy>()
-    for (const [relative, entries] of this.journal) {
-      const entry = entries.find((candidate) => candidate.at >= startedAt)
-      if (entry === undefined) {
-        continue
-      }
-      const endStat = (await regularFileStat(this.absoluteOf(relative))) ?? null
-      copies.set(relative, { entry, endStat })
+  private async sealUnit(shadow: ShadowGit, pending: PendingEnd): Promise<void> {
+    const { owner, ref } = pending.unit
+    const key = ownerKey(owner)
+    this.pendingEnds.set(key, pending)
+    this.openUnits.delete(key)
+    const journal = await this.ownJournal.snapshot()
+    await this.foldInto(shadow, ref, factsOf(owner, journal), {
+      endedAt: pending.endedAt,
+      ranProcesses: pending.ranProcesses,
+    })
+    await this.ownJournal.appendSeal(owner)
+    this.pendingEnds.delete(key)
+    if (owner.unitKind === 'turn') {
+      this.runningTurns.delete(turnKey(owner.sessionId, owner.unitId))
     }
-    return copies
+    await this.presence.publish(this.publishedTurns())
   }
 
   /**
-   * Adds the copies the tools took during this turn to its ignored changes,
-   * their staged bytes brought into the shadow repository.
+   * Folds what windows that are gone left into their units' records (spec
+   * 6.4): each unit of theirs never folded (cut short, journal lines or none)
+   * or unsealed in their journal, idempotent by write id. A unit cut short
+   * may have run commands nobody can name now: it counts as having run them.
+   * Another window's journal is only read.
    */
-  private async withToolCopies(
-    setup: Setup,
-    record: CheckpointRecord,
-    scanned: readonly IgnoredChange[],
-    copies: ReadonlyMap<string, TurnCopy>,
-  ): Promise<readonly IgnoredChange[]> {
-    if (copies.size === 0) {
-      return scanned
-    }
-    // A file in the start capture is restored from it; the copies matter for the rest.
-    const inStart = await this.presentIn(
-      setup.shadow,
-      record.start.tree,
-      [...copies].map(([relative]) => relative),
-    )
-    const wanted = [...copies].filter(([relative]) => !inStart.has(relative))
-    const staged = wanted.flatMap(([relative, copy]) =>
-      typeof copy.entry.staged === 'string' ? [{ relative, copy, file: copy.entry.staged }] : [],
-    )
-    const hashed =
-      staged.length === 0
-        ? ''
-        : await setup.shadow.text(['hash-object', '-w', '--no-filters', '--stdin-paths'], {
-            input: staged.map((entry) => `${entry.file}${LINE_FEED}`).join(''),
-          })
-    const oids = hashed.split(LINE_FEED)
-    const imported = new Map<string, BlobRef>()
-    for (const [index, entry] of staged.entries()) {
-      const oid = oids[index]
-      if (oid === undefined || oid === '') {
+  private async recover(setup: Setup, journals: Journals): Promise<boolean> {
+    let isChanged = false
+    for (const unit of setup.listedUnits) {
+      const { record } = unit
+      if (
+        record === undefined ||
+        record.isRetired === true ||
+        setup.live.has(record.owner.instance)
+      ) {
         continue
       }
-      const mode = entry.copy.entry.isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
-      imported.set(entry.relative, { mode, oid })
-    }
-    const unchanged = await this.endsAsCopied(setup, wanted, imported)
-    const changes = new Map(
-      scanned
-        .filter((change) => !unchanged.has(change.path))
-        .map((change) => [change.path, change]),
-    )
-    for (const [relative, copy] of wanted) {
-      if (unchanged.has(relative)) {
+      const journal = journals.get(record.owner.instance)
+      const facts = factsOf(record.owner, journal)
+      // A unit never folded (its window went mid-turn, with or without a
+      // journal line), or named unsealed by its window's journal.
+      const isNeverFolded = record.status === 'incomplete' && !record.isMarkedIncomplete
+      const isUnsealed =
+        journal?.entries.some((entry) => {
+          const owner = ownerOf(entry)
+          return owner !== undefined && isSameOwner(owner, record.owner)
+        }) === true && !facts.isSealed
+      if (!isNeverFolded && !isUnsealed) {
         continue
       }
-      const preImage = copy.entry.staged === null ? null : imported.get(relative)
-      const scannedChange = changes.get(relative)
-      if (scannedChange !== undefined) {
-        changes.set(relative, {
-          ...scannedChange,
-          kind: preImage === null ? 'created' : scannedChange.kind,
-          preImage,
-        })
-        continue
-      }
-      if (preImage === null && copy.endStat === null) {
-        continue
-      }
-      let kind: IgnoredChange['kind'] = 'changed'
-      if (preImage === null) {
-        kind = 'created'
-      } else if (copy.endStat === null) {
-        kind = 'deleted'
-      }
-      changes.set(relative, {
-        path: relative,
-        kind,
-        ...(preImage !== undefined && { preImage }),
-        startStat: copy.entry.stat,
-        endStat: copy.endStat,
+      // A unit folded at its end keeps what it said; one cut short ran what nobody can name now.
+      const folded = await this.foldInto(setup.shadow, unit.ref, facts, {
+        endedAt: undefined,
+        ranProcesses: record.endedAt === undefined,
       })
+      isChanged ||= folded === 'written'
     }
-    return [...changes]
-      .map(([, change]) => change)
-      .toSorted((left, right) => byText(left.path, right.path))
+    return isChanged
   }
 
   /**
-   * The copied files that end the turn holding their copy's bytes: the tool's
-   * write never landed (refused at its last check) or wrote the same bytes.
-   * They are no change, so a restore leaves them alone rather than replacing
-   * them (a new inode and times, a broken hard link, a Redo of nothing).
+   * Takes the conversation's next unit number and makes the unit's record
+   * there (one ref, created only if absent): another window that took the
+   * number first makes this one take the next. M72 turns count.
    */
-  private async endsAsCopied(
+  private async startUnitNow(
     setup: Setup,
-    wanted: readonly (readonly [string, TurnCopy])[],
-    imported: ReadonlyMap<string, BlobRef>,
-  ): Promise<ReadonlySet<string>> {
-    // Only a file still at its copy's size can hold its copy's bytes.
-    const sameSize = wanted.filter(
-      ([relative, copy]) =>
-        imported.has(relative) &&
-        copy.endStat !== null &&
-        copy.endStat.size === copy.entry.stat?.size,
-    )
-    if (sameSize.length === 0) {
-      return new Set()
-    }
-    const hashed = await setup.shadow.text(['hash-object', '--no-filters', '--stdin-paths'], {
-      input: sameSize.map(([relative]) => `${this.absoluteOf(relative)}${LINE_FEED}`).join(''),
-    })
-    const oids = hashed.split(LINE_FEED)
-    return new Set(
-      sameSize
-        .filter(([relative], index) => oids[index] === imported.get(relative)?.oid)
-        .map(([relative]) => relative),
-    )
-  }
-
-  /**
-   * Staged copies no turn of this window can need any more go: older than
-   * every turn still open (its end not yet recorded) and every running mark.
-   */
-  private async trimJournal(): Promise<void> {
-    const oldestOpen = Math.min(Infinity, ...this.runningSince())
-    const released: string[] = []
-    for (const [relative, entries] of this.journal) {
-      const remaining = entries.filter((entry) => entry.at >= oldestOpen)
-      for (const entry of entries) {
-        if (typeof entry.staged === 'string' && !remaining.includes(entry)) {
-          released.push(entry.staged)
-        }
-      }
-      if (remaining.length === 0) {
-        this.journal.delete(relative)
-      } else {
-        this.journal.set(relative, remaining)
-      }
-    }
-    for (const file of released) {
-      await rm(file, { force: true })
-    }
-  }
-
-  /** Which of these workspace paths the tree holds. */
-  private async presentIn(
-    shadow: ShadowGit,
-    tree: string,
-    relatives: readonly string[],
-  ): Promise<ReadonlySet<string>> {
-    const answer = await shadow.text(['cat-file', '--batch-check'], {
-      input: relatives.map((relative) => `${tree}:${relative}${LINE_FEED}`).join(''),
-    })
-    const present = new Set<string>()
-    for (const [index, line] of answer.split(LINE_FEED).entries()) {
-      const relative = relatives[index]
-      if (relative !== undefined && !line.endsWith(` ${GIT_MISSING_OBJECT}`)) {
-        present.add(relative)
-      }
-    }
-    return present
-  }
-
-  private async diff(shadow: ShadowGit, from: string, to: string): Promise<readonly TreeChange[]> {
-    return from === to
-      ? []
-      : parseDiffTree(await shadow.text(['diff-tree', '-r', '-z', '--no-renames', from, to]))
-  }
-
-  /**
-   * Paths these turns did not change themselves: in a gap between them and
-   * after the last, every path another conversation's turn changed while
-   * one of them ran, and every path an `earlier` turn of their own
-   * conversation changed when it was still running as the first of them
-   * started (the conversation open in two windows): it is not undone. Turns
-   * that overlap (a subagent's turn that started before its parent's ended)
-   * make one stretch, which ends where the last of them to end did; only a
-   * gap between stretches is outside them. A turn whose end was not seen
-   * counts everything up to the next capture as its own; when it closes a
-   * stretch, those paths are `uncertain`.
-   */
-  private async changedOutside(
-    setup: Setup,
-    earlier: readonly TurnSpan[],
-    turns: readonly TurnSpan[],
-    currentTree: string,
-  ): Promise<{ readonly changed: ReadonlySet<string>; readonly uncertain: ReadonlySet<string> }> {
-    const changed = new Set<string>()
-    const uncertain = new Set<string>()
-    const gapAfter = async (closing: CheckpointRecord, nextTree: string) => {
-      const found = closing.end === undefined ? uncertain : changed
-      const since = await this.diff(setup.shadow, closing.end?.tree ?? closing.start.tree, nextTree)
-      for (const change of since) {
-        found.add(change.path)
-      }
-    }
-    // The turn whose end closes the stretch so far, and where that end falls.
-    let closing: { readonly turn: TurnSpan; readonly end: number } | undefined
-    for (const [index, turn] of turns.entries()) {
-      // A turn that starts where the stretch ended follows it, and the gap is
-      // checked: an equal number means the end was numbered before the start
-      // was recorded, and a candidate's equal tick may hide an edit between.
-      const isInStretch = closing?.turn.isNumbered === turn.isNumbered && turn.start < closing.end
-      if (closing !== undefined && !isInStretch) {
-        await gapAfter(closing.turn.record, turn.record.start.tree)
-        closing = undefined
-      }
-      // An end not seen falls, as far as is known, at the next turn's start.
-      const next = turns[index + 1]
-      const end = turn.end ?? (next?.isNumbered === turn.isNumbered ? next.start : Infinity)
-      if (closing === undefined || end > closing.end) {
-        closing = { turn, end }
-      }
-    }
-    if (closing !== undefined) {
-      await gapAfter(closing.turn.record, currentTree)
-    }
-    const records = turns.map((turn) => turn.record)
-    // What the user saved while a turn ran is theirs, whatever the trees say.
-    const userSaves = records.flatMap((record) => record.userSaves ?? [])
-    for (const saved of userSaves) {
-      changed.add(saved)
-    }
-    const now = this.deps.now()
-    const nextTurn = nextTurns(setup.records.checkpoints)
-    // Where a turn ends, as far as is known: at its end; now while it runs.
-    // An end no window saw (its window went first) came by the start of its
-    // conversation's next turn, as the conversation went on; with no next
-    // turn, it may be as late as now.
-    const endOf = (record: CheckpointRecord) => {
-      const following =
-        record.endedAt === undefined && !this.isOpen(setup, record)
-          ? nextTurn.get(record.id)
-          : undefined
-      return {
-        at: record.endedAt ?? following?.createdAt ?? now,
-        tree: record.end?.tree ?? following?.start.tree ?? currentTree,
-      }
-    }
-    // A turn's time: from its start capture to its end.
-    const windowOf = (record: CheckpointRecord) => ({
-      start: record.createdAt,
-      end: endOf(record).at,
-    })
-    const sessionId = records[0]?.sessionId
-    const overlapping = setup.records.checkpoints.filter((other) => {
-      if (other.sessionId === sessionId) {
-        return false
-      }
-      const theirs = windowOf(other)
-      return records.some((turn) => {
-        const ours = windowOf(turn)
-        // Turns that touch at one tick count as overlapping: the clock is in
-        // milliseconds and two windows' clocks are not exact, so an edit may
-        // sit on either side of the shared tick.
-        return theirs.start <= ours.end && theirs.end >= ours.start
-      })
-    })
-    // An earlier turn of this conversation overlaps when its end has the
-    // first turn's start number or a later one (an equal number: both were
-    // numbered at once, in two windows), or it is still running elsewhere.
-    // An end no window saw, its window gone, came by the start of its
-    // conversation's next turn, as above, so no later than the first's: a
-    // window reloaded mid-turn does not block every later restore. The limit:
-    // the conversation open in two windows, one gone mid-turn while the other
-    // went on. A 0.10.0 candidate's record never overlaps a numbered turn.
-    const [first] = turns
-    const earlierOverlapping =
-      first === undefined
-        ? []
-        : earlier.filter(
-            (turn) =>
-              turn.isNumbered === first.isNumbered &&
-              (turn.end === undefined ? this.isOpen(setup, turn.record) : turn.end >= first.start),
-          )
-    const blamed = [
-      ...overlapping.map((other) => ({ record: other, endTree: endOf(other).tree })),
-      ...earlierOverlapping.map(({ record }) => ({
-        record,
-        endTree: record.end?.tree ?? currentTree,
-      })),
+    owner: Owner,
+    transcript?: StoredUnit['transcript'],
+  ): Promise<{ readonly sequence: number }> {
+    const key = sessionKey(owner.sessionId)
+    const numbers = [
+      ...setup.listedUnits.filter((unit) => unit.sessionKey === key).map((unit) => unit.sequence),
+      ...setup.legacy
+        .filter((turn) => turn.sessionId === owner.sessionId)
+        .map((turn) => turn.lastSequence),
     ]
-    for (const { record, endTree } of blamed) {
-      const theirChanges = [
-        ...(await this.diff(setup.shadow, record.start.tree, endTree)),
-        ...(record.ignored?.changes ?? []),
-      ]
-      for (const change of theirChanges) {
-        changed.add(change.path)
+    let sequence = Math.max(0, ...numbers) + 1
+    for (let attempt = 0; attempt < CHECKPOINT_SEQUENCE_ATTEMPTS; attempt += 1) {
+      const ref = unitRef(owner.sessionId, sequence)
+      const record: StoredUnit = {
+        kind: 'unit',
+        owner,
+        sequence,
+        createdAt: this.deps.now(),
+        status: 'incomplete',
+        ranProcesses: false,
+        isMarkedIncomplete: false,
+        writes: [],
+        ...(transcript !== undefined && { transcript }),
       }
-    }
-    // A blamed turn whose end no window recorded left no list of the ignored
-    // files it changed, which git's trees cannot show: any ignored file these
-    // turns would put back may have been changed by it since, so none is.
-    if (blamed.some(({ record }) => record.ignored === undefined)) {
-      const ignoredPaths = turns.flatMap((turn) => turn.record.ignored?.changes ?? [])
-      for (const change of ignoredPaths) {
-        changed.add(change.path)
+      if ((await writeUnit(setup.shadow, ref, record, [], undefined)) !== undefined) {
+        this.openUnits.set(ownerKey(owner), { owner, ref })
+        await this.presence.publish(this.publishedTurns())
+        return { sequence }
       }
+      sequence += 1
     }
-    return { changed, uncertain }
+    throw new Error(UI_TEXT.checkpointFailed)
   }
 
-  /** The blobs' bytes, by object name; a missing one is absent from the map. */
+  /** The bytes of these blobs, by object name, read in bounded batches; a missing one is absent. */
   private async blobsOf(
     shadow: ShadowGit,
     oids: readonly string[],
   ): Promise<ReadonlyMap<string, Buffer>> {
     const unique = [...new Set(oids)]
-    if (unique.length === 0) {
-      return new Map()
-    }
-    const output = await shadow.run(['cat-file', '--batch'], {
-      input: unique.map((oid) => `${oid}${LINE_FEED}`).join(''),
-    })
     const blobs = new Map<string, Buffer>()
-    for (const [oid, content] of parseCatFileBatch(output)) {
-      if (content !== undefined) {
-        blobs.set(oid, content)
-      }
+    if (unique.length === 0) {
+      return blobs
     }
-    return blobs
-  }
-
-  /**
-   * The writes in batches whose blobs together stay under
-   * CHECKPOINT_BLOB_BATCH_MAX_BYTES (one `cat-file` each), in order.
-   */
-  private async blobBatches(
-    shadow: ShadowGit,
-    steps: readonly PlannedStep[],
-  ): Promise<readonly (readonly PlannedStep[])[]> {
-    const oids = [
-      ...new Set(steps.flatMap((step) => (step.target === null ? [] : [step.target.oid]))),
-    ]
-    if (oids.length === 0) {
-      return []
-    }
-    const answer = await shadow.text(['cat-file', '--batch-check'], {
-      input: oids.map((oid) => `${oid}${LINE_FEED}`).join(''),
-    })
-    const sizes = parseBatchCheck(answer)
-    const batches: PlannedStep[][] = []
-    let current: PlannedStep[] = []
+    const sizes = parseBatchCheck(
+      await shadow.text(['cat-file', '--batch-check'], {
+        input: unique.map((oid) => `${oid}${LINE_FEED}`).join(''),
+      }),
+    )
+    const batches: string[][] = []
+    let current: string[] = []
     let bytes = 0
-    for (const step of steps) {
-      const size = step.target === null ? 0 : (sizes.get(step.target.oid) ?? 0)
+    const stored = unique.filter((candidate) => sizes.has(candidate))
+    for (const oid of stored) {
+      const size = sizes.get(oid) ?? 0
       if (current.length > 0 && bytes + size > CHECKPOINT_BLOB_BATCH_MAX_BYTES) {
         batches.push(current)
         current = []
         bytes = 0
       }
-      current.push(step)
+      current.push(oid)
       bytes += size
     }
-    batches.push(current)
-    return batches
-  }
-
-  /**
-   * Which of these added paths the ignore rules (as restored) name. Each is
-   * given as `./path`, so a name that looks like pathspec magic is only a
-   * name (`check-ignore` refuses literal pathspecs).
-   */
-  private async ignoredAmong(
-    setup: Setup,
-    relatives: readonly string[],
-  ): Promise<ReadonlySet<string>> {
-    if (relatives.length === 0) {
-      return new Set()
+    if (current.length > 0) {
+      batches.push(current)
     }
-    try {
-      const answer = await setup.shadow.text(['check-ignore', '--no-index', '-z', '--stdin'], {
-        index: 'none',
-        literalPathspecs: false,
-        input: nulInput(
-          relatives.map((relative) => `${CURRENT_PATH_PREFIX}${this.topOf(setup, relative)}`),
-        ),
+    for (const batch of batches) {
+      const output = await shadow.run(['cat-file', '--batch'], {
+        input: batch.map((oid) => `${oid}${LINE_FEED}`).join(''),
       })
-      return new Set(
-        splitNul(answer).map((topPath) =>
-          this.inWorkspace(
-            setup,
-            topPath.startsWith(CURRENT_PATH_PREFIX)
-              ? topPath.slice(CURRENT_PATH_PREFIX.length)
-              : topPath,
-          ),
-        ),
-      )
-    } catch (error: unknown) {
-      if (isGitExitError(error) && error.exitCode === NONE_EXIT) {
-        return new Set()
-      }
-      throw error
-    }
-  }
-
-  /**
-   * Whether a folder was there at the checkpoint: its tree holds a file
-   * below it, or the capture listed it (or a folder above it) as holding
-   * none. A capture that listed none (over the limit, or an older record)
-   * counts every folder as there, so a restore removes none.
-   */
-  private async wasFolderThere(
-    shadow: ShadowGit,
-    start: CheckpointRecord['start'],
-  ): Promise<(folder: string) => boolean> {
-    const { folders } = start
-    if (folders === undefined) {
-      return () => true
-    }
-    const answer = await shadow.text(['ls-tree', '-r', '-d', '--name-only', '-z', start.tree])
-    const inTree = new Set(splitNul(answer))
-    return (folder) =>
-      inTree.has(folder) ||
-      folders.some((listed) => folder === listed || folder.startsWith(`${listed}${SEPARATOR}`))
-  }
-
-  /**
-   * One step, if it may still run: not once the window is closing; a file
-   * with unsaved editor changes is left as it is, and so is one no longer as
-   * the restore expects.
-   */
-  private async runStep(
-    step: PlannedStep,
-    content: Buffer | undefined,
-    wasFolderThere: ((folder: string) => boolean) | undefined,
-    isUnsaved: (relative: string) => boolean,
-    isAllowed: () => boolean,
-  ): Promise<Refusal | undefined> {
-    if (this.stopping.signal.aborted) {
-      throw new Error(DISPOSED)
-    }
-    if (isUnsaved(step.path)) {
-      return { path: step.path, reason: 'unsaved' }
-    }
-    const result = await applyFileStep(
-      { ...this.target, isAllowed, isUnsaved },
-      step,
-      content,
-      wasFolderThere,
-    )
-    return result === 'done' ? undefined : { path: step.path, reason: refusalFor(result) }
-  }
-
-  /**
-   * Runs the steps: ignore files first (so the rules as restored can judge
-   * the added files), then deletions (a case-only rename or a file swapped
-   * for a folder of the same name must go before the file comes back), then
-   * the other writes, their blobs read in bounded batches. Whatever fails,
-   * the entries done and the refusals are returned; a step never begun is
-   * refused as failed.
-   */
-  private async runSteps(
-    setup: Setup,
-    steps: readonly PlannedStep[],
-    wasFolderThere: ((folder: string) => boolean) | undefined,
-    isUnsaved: (relative: string) => boolean,
-    isAllowed: () => boolean,
-  ): Promise<Applied> {
-    const entries: RestoreEntry[] = []
-    const refused: Refusal[] = []
-    const settledPaths = new Set<string>()
-    const note = (step: PlannedStep, refusal: Refusal | undefined) => {
-      settledPaths.add(step.path)
-      if (refusal === undefined) {
-        entries.push({ path: step.path, before: step.before, after: step.target })
-      } else {
-        refused.push(refusal)
-      }
-    }
-    const runWrites = async (writes: readonly PlannedStep[]) => {
-      const batches = await this.blobBatches(setup.shadow, writes)
-      for (const batch of batches) {
-        const blobs = await this.blobsOf(
-          setup.shadow,
-          batch.flatMap((step) => (step.target === null ? [] : [step.target.oid])),
-        )
-        for (const step of batch) {
-          const content = step.target === null ? undefined : blobs.get(step.target.oid)
-          note(step, await this.runStep(step, content, undefined, isUnsaved, isAllowed))
+      for (const [oid, content] of parseCatFileBatch(output)) {
+        if (content !== undefined) {
+          blobs.set(oid, content)
         }
       }
     }
-    try {
-      const isIgnoreFile = (step: PlannedStep) =>
-        step.target !== null && path.posix.basename(step.path) === IGNORE_FILE
-      await runWrites(steps.filter((step) => isIgnoreFile(step)))
-      const checked = steps.filter((step) => step.isIgnoreChecked).map((step) => step.path)
-      const ignoredNow = await this.ignoredAmong(setup, checked)
-      const deletes = steps.filter((candidate) => candidate.target === null)
-      for (const step of deletes) {
-        note(
-          step,
-          ignoredNow.has(step.path)
-            ? { path: step.path, reason: 'notInCheckpoint' }
-            : await this.runStep(
-                step,
-                undefined,
-                step.isIgnoreChecked ? wasFolderThere : undefined,
-                isUnsaved,
-                isAllowed,
-              ),
-        )
+    return blobs
+  }
+
+  /** A path's bytes and presence on disk now (its mode for a write's record). */
+  private async stateOf(relative: string, rangeFolders: ReadonlySet<string>): Promise<PathState> {
+    const absolute = this.absoluteOf(relative)
+    const stats = await lstatOrUndefined(absolute)
+    // A folder the range's own writes made goes with their files: as far as
+    // the file of that name is concerned, nothing is there (the writer still
+    // refuses when it is not empty by then).
+    if (stats === undefined || (stats.isDirectory() && rangeFolders.has(relative))) {
+      return { content: { present: false }, isTooLarge: false }
+    }
+    if (!stats.isFile()) {
+      // A folder, a link or a device: present, and no bytes any write left.
+      return { content: { present: true }, isTooLarge: false }
+    }
+    const isExecutable = this.deps.platform !== 'win32' && (stats.mode & EXECUTABLE_BITS) !== 0
+    const mode = isExecutable ? GIT_MODE_EXECUTABLE : GIT_MODE_FILE
+    if (stats.size > CHECKPOINT_FILE_MAX_BYTES) {
+      return { content: { present: true, mode }, isTooLarge: true }
+    }
+    return {
+      content: { present: true, oid: gitBlobOid(await readFile(absolute)), mode },
+      isTooLarge: false,
+    }
+  }
+
+  /**
+   * Whether a journal names a unit of the conversation that has no record
+   * (spec 3.2): its writes are nowhere a restore can see, and where it falls
+   * cannot be told. A record is made before its unit's first write, and
+   * retirement keeps its owner/sequence identity after dropping its payload.
+   * Only unexplained missing owners refuse a later range; archived owners
+   * with durable retirement proof do not poison new turns.
+   */
+  private hasUnrecordedOwner(
+    journals: Journals,
+    sessionId: string,
+    listed: readonly ListedUnit[],
+  ): boolean {
+    const recorded = listed.flatMap((unit) =>
+      unit.record?.owner.sessionId === sessionId ? [unit.record.owner] : [],
+    )
+    for (const journal of journals.values()) {
+      const isUnrecorded = journal.entries.some(
+        (entry) =>
+          entry.kind === 'intent' &&
+          entry.write.owner.sessionId === sessionId &&
+          recorded.every((owner) => !isSameOwner(owner, entry.write.owner)),
+      )
+      if (isUnrecorded) {
+        return true
       }
-      await runWrites(steps.filter((step) => step.target !== null && !isIgnoreFile(step)))
+    }
+    return false
+  }
+
+  /**
+   * Decides a restore or a Redo with the engine and writes what it decided
+   * as a batch of its own: each write journaled before it is made, and the
+   * batch sealed at the end, so a later restore or Redo sees it.
+   */
+  private async restoreRange(
+    setup: Setup,
+    journals: Journals,
+    request: {
+      readonly sessionId: string
+      readonly from: { readonly unitKind: UnitKind; readonly unitId: string }
+      readonly mode: RangeInput['mode']
+      readonly transcriptTurnIds: readonly string[]
+      readonly transcript: NonNullable<StoredUnit['transcript']>
+      readonly isUnsaved: (relative: string) => boolean
+    },
+    isAllowed: () => boolean,
+  ): Promise<RestoreOutcome> {
+    const { sessionId, from } = request
+    const key = sessionKey(sessionId)
+    const conversation = setup.units.filter((unit) => unit.sessionKey === key)
+    const start = conversation.find(
+      (unit) =>
+        unit.record?.owner.unitKind === from.unitKind && unit.record.owner.unitId === from.unitId,
+    )
+    if (start === undefined) {
+      if (request.mode === 'redo') {
+        return { ok: false, reason: 'redoGone' }
+      }
+      const isLegacy = setup.legacy.some(
+        (turn) => turn.sessionId === sessionId && turn.turnId === from.unitId,
+      )
+      return { ok: false, reason: isLegacy ? 'legacyInRange' : 'noCheckpoint' }
+    }
+    // A unit whose record does not parse, in range, and a journal naming a
+    // unit with no record are what the engine cannot see (spec 3.2); every
+    // other completeness rule is the engine's.
+    const isUnreadableInRange = conversation.some(
+      (unit) => unit.record === undefined && unit.sequence >= start.sequence,
+    )
+    if (isUnreadableInRange || this.hasUnrecordedOwner(journals, sessionId, setup.listedUnits)) {
+      return { ok: false, reason: 'writesIncomplete' }
+    }
+    const records = conversation.flatMap((unit) => (unit.record === undefined ? [] : [unit.record]))
+    // Each recorded path as it names a file now: keys that now name one file are one path.
+    const resolved = new Map<string, string | undefined>()
+    const resolve = async (key: string): Promise<string | undefined> => {
+      if (!resolved.has(key)) {
+        resolved.set(key, await resolvedPath(this.target, key))
+      }
+      return resolved.get(key)
+    }
+    const linked = new Set<string>()
+    const pathOf = async (key: string): Promise<string> => {
+      const found = await resolve(key)
+      if (found === undefined) {
+        linked.add(key)
+        return key
+      }
+      return found
+    }
+    const rekey = async (write: FoldedWrite): Promise<FoldedWrite> => ({
+      ...write,
+      path: await pathOf(write.path),
+    })
+    const units: RangeInput['units'] = [
+      ...(await Promise.all(
+        records.map(async (unit) => ({
+          ...unit,
+          writes: await Promise.all(unit.writes.map(async (write) => await rekey(write))),
+        })),
+      )),
+      ...setup.legacy
+        .filter((turn) => turn.sessionId === sessionId)
+        .map((turn) => ({ legacy: true as const, sequence: turn.sequence, turnId: turn.turnId })),
+    ]
+    const rangePaths = new Set(
+      units.flatMap((unit) =>
+        'legacy' in unit || unit.sequence < start.sequence
+          ? []
+          : unit.writes.map((write) => write.path),
+      ),
+    )
+    const rangeCases = new Set(Array.from(rangePaths, (relative) => foldedCase(relative)))
+    const foreignWrites: WriteRecord[] = []
+    for (const unit of setup.units) {
+      const record = unit.record
+      const isOwnRange =
+        record !== undefined && unit.sessionKey === key && unit.sequence >= start.sequence
+      if (record === undefined || isOwnRange) {
+        continue
+      }
+      for (const write of record.writes) {
+        if (write.outcome === 'aborted' || !rangeCases.has(foldedCase(write.path))) {
+          continue
+        }
+        const rekeyed = { ...write, path: await pathOf(write.path) }
+        if (rangePaths.has(rekeyed.path)) {
+          foreignWrites.push(rekeyed)
+        }
+      }
+    }
+    const rangeFolders = new Set<string>()
+    for (const unit of units) {
+      const isInRange = !('legacy' in unit) && unit.sequence >= start.sequence
+      const folders = isInRange ? unit.writes.flatMap((write) => write.createdFolders) : []
+      for (const folder of folders) {
+        rangeFolders.add(await pathOf(folder))
+      }
+    }
+    const states = new Map<string, PathState>()
+    for (const relative of rangePaths) {
+      // A path reached through a link is not read: its bytes match nothing,
+      // and it is refused as linked whatever the engine says.
+      states.set(
+        relative,
+        linked.has(relative)
+          ? { content: { present: true }, isTooLarge: false }
+          : await this.stateOf(relative, rangeFolders),
+      )
+    }
+    const decision = decideRange({
+      units,
+      from,
+      mode: request.mode,
+      transcriptTurnIds: request.transcriptTurnIds,
+      foreignWrites,
+      current: new Map([...states].map(([relative, state]) => [relative, state.content])),
+    })
+    if (!decision.ok) {
+      return { ok: false, reason: decision.reason }
+    }
+    const unchanged: string[] = []
+    const refused: PathOutcome[] = []
+    const steps: (PathDecision & { readonly kind: 'restore' })[] = []
+    for (const decided of decision.paths) {
+      if (linked.has(decided.path)) {
+        refused.push({ path: decided.path, reason: 'linked' })
+      } else if (states.get(decided.path)?.isTooLarge === true) {
+        refused.push({ path: decided.path, reason: 'tooLarge' })
+      } else if (decided.kind === 'unchanged') {
+        unchanged.push(decided.path)
+      } else if (decided.kind === 'refused') {
+        refused.push({ path: decided.path, reason: decided.reason })
+      } else if (request.isUnsaved(decided.path)) {
+        refused.push({ path: decided.path, reason: 'unsaved' })
+      } else {
+        steps.push(decided)
+      }
+    }
+    const applied =
+      steps.length === 0
+        ? { batchId: undefined, changed: [], refused: [] }
+        : await this.runBatch(
+            setup,
+            sessionId,
+            steps,
+            states,
+            request.isUnsaved,
+            isAllowed,
+            request.transcript,
+          )
+    const allRefused = [...refused, ...applied.refused]
+    return {
+      ok: true,
+      restoreId: applied.changed.length > 0 ? applied.batchId : undefined,
+      changed: applied.changed,
+      unchanged,
+      refused: allRefused,
+      ranProcesses: decision.ranProcesses,
+      isRedoSpent: allRefused.length === 0,
+    }
+  }
+
+  /**
+   * Writes the decided paths as one batch of the conversation: its unit is
+   * numbered and recorded first, each write journaled before it is made and
+   * settled after (`aborted` only when nothing changed, as a refused
+   * conditional write proves; a failure stays unsettled), and the batch is
+   * folded and sealed at the end, whatever happened. Deletions go first, so a
+   * case-only rename or a file swapped for a folder clears the way.
+   */
+  private async runBatch(
+    setup: Setup,
+    sessionId: string,
+    steps: readonly (PathDecision & { readonly kind: 'restore' })[],
+    states: ReadonlyMap<string, PathState>,
+    isUnsaved: (relative: string) => boolean,
+    isAllowed: () => boolean,
+    transcript: NonNullable<StoredUnit['transcript']>,
+  ): Promise<{
+    readonly batchId: string
+    readonly changed: readonly string[]
+    readonly refused: readonly PathOutcome[]
+  }> {
+    const owner: Owner = {
+      instance: this.ownInstance,
+      sessionId,
+      unitKind: 'batch',
+      unitId: this.deps.newId(),
+    }
+    await this.startUnitNow(setup, owner, transcript)
+    const unit = this.openUnits.get(ownerKey(owner))
+    const changed: string[] = []
+    const refused: PathOutcome[] = []
+    const ordered = [
+      ...steps.filter((step) => !step.target.present),
+      ...steps.filter((step) => step.target.present),
+    ]
+    const settledPaths = new Set<string>()
+    try {
+      const blobs = await this.blobsOf(
+        setup.shadow,
+        ordered.flatMap((step) =>
+          step.target.present && step.target.oid !== undefined ? [step.target.oid] : [],
+        ),
+      )
+      for (const step of ordered) {
+        if (this.stopping.signal.aborted) {
+          throw new Error(DISPOSED)
+        }
+        const result = await this.runStep(owner, step, states, blobs, isUnsaved, isAllowed)
+        settledPaths.add(step.path)
+        if (result === 'done') {
+          changed.push(step.path)
+        } else {
+          refused.push({ path: step.path, reason: refusalFor(result) })
+        }
+      }
     } catch (error: unknown) {
       this.deps.log.warn(`A checkpoint restore stopped part way: ${failureForLog(error)}`)
-      for (const step of steps) {
+      for (const step of ordered) {
         if (!settledPaths.has(step.path)) {
           refused.push({ path: step.path, reason: 'failed' })
         }
       }
+    } finally {
+      if (unit !== undefined) {
+        try {
+          await this.sealUnit(setup.shadow, { unit, endedAt: this.deps.now(), ranProcesses: false })
+        } catch (error: unknown) {
+          // What the batch did is in this window's journal: its end is tried
+          // again before the next operation, and another window recovers it.
+          this.deps.log.warn(`A restore's record was not sealed yet: ${failureForLog(error)}`)
+        }
+      }
     }
-    return { entries, refused }
+    return { batchId: owner.unitId, changed, refused }
   }
 
   /**
-   * Cuts a redo record to these entries, only if it is still as it was read;
-   * deletes it (and so lets its copies go) when none is left. Whether it is
-   * still kept.
+   * One write of a batch: journaled, made through the kept writer, settled,
+   * alone on its path with the tools' writes (the window's lanes), so its
+   * place in the window's order is the order the path's writes landed in.
    */
-  private async trimRestore(
-    setup: Setup,
-    record: RestoreRecord,
-    keep: string,
-    entries: readonly RestoreEntry[],
-    signal?: AbortSignal,
-  ): Promise<boolean> {
-    if (entries.length === 0) {
-      await deleteRecords(setup.shadow, [{ id: record.id, keep }], signal)
-      this.isPruneDue = true
-      return false
-    }
-    const trimmed = await writeRecord(
-      setup.shadow,
-      { ...record, entries: [...entries] },
-      { trees: [], blobs: blobsOfEntries(entries) },
-      keep,
-      signal,
-    )
-    return trimmed !== undefined
-  }
-
-  /**
-   * Saves the redo record of every step (its own ref, created only if
-   * absent) before the first file changes, runs them, then cuts the record
-   * to what was done: a restore that stops part way keeps its Redo and says
-   * what it changed.
-   */
-  private async runRecorded(
-    setup: Setup,
-    sessionId: string,
-    steps: readonly PlannedStep[],
-    wasFolderThere: ((folder: string) => boolean) | undefined,
+  private async runStep(
+    owner: Owner,
+    step: PathDecision & { readonly kind: 'restore' },
+    states: ReadonlyMap<string, PathState>,
+    blobs: ReadonlyMap<string, Buffer>,
     isUnsaved: (relative: string) => boolean,
     isAllowed: () => boolean,
-  ): Promise<Applied & { readonly restoreId: string | undefined }> {
-    if (steps.length === 0) {
-      return { entries: [], refused: [], restoreId: undefined }
+  ): Promise<StepResult> {
+    if (isUnsaved(step.path)) {
+      return 'unsaved'
     }
-    const entries = steps.map((step) => ({
-      path: step.path,
-      before: step.before,
-      after: step.target,
-    }))
-    const pending: RestoreRecord = {
-      kind: 'restore',
-      top: setup.top,
-      prefix: setup.prefix,
-      id: this.deps.newId(),
-      sessionId,
-      createdAt: this.deps.now(),
-      entries,
-    }
-    const keep = await writeRecord(
-      setup.shadow,
-      pending,
-      { trees: [], blobs: blobsOfEntries(entries) },
-      undefined,
-    )
-    if (keep === undefined) {
-      throw new Error('the redo record could not be saved')
-    }
-    const applied = await this.runSteps(setup, steps, wasFolderThere, isUnsaved, isAllowed)
-    // Cancellation stops file work; it must still durably say which steps
-    // were applied, so Redo never treats an unstarted step as completed.
-    const finalizing = new AbortController().signal
-    let isKept = true
-    try {
-      isKept = await this.trimRestore(setup, pending, keep, applied.entries, finalizing)
-      if (!this.stopping.signal.aborted) {
-        await this.retain(setup)
+    return await this.deps.lanes.exclusive(step.path, async () => {
+      const currentMode = states.get(step.path)?.content.mode
+      const before: ContentState = { ...step.expect, mode: currentMode }
+      // An existing file keeps its own mode; one recreated gets the mode it had.
+      const after: ContentState = step.expect.present
+        ? { ...step.target, mode: currentMode }
+        : step.target
+      const write: WriteRecord = {
+        id: this.deps.newId(),
+        instance: this.ownInstance,
+        seq: this.deps.lanes.nextSeq(),
+        owner,
+        path: step.path,
+        before,
+        after,
+        createdFolders: [],
+        isKept: true,
       }
-    } catch (error: unknown) {
-      // The original durable record still keeps every preimage. Redo
-      // rechecks each entry, including steps that were never applied.
-      this.deps.log.warn(
-        `A redo record was kept after finalization failed: ${failureForLog(error)}`,
+      const fileStep: FileStep = {
+        path: step.path,
+        target:
+          step.target.present && step.target.oid !== undefined
+            ? { oid: step.target.oid, mode: step.target.mode ?? GIT_MODE_FILE }
+            : null,
+        expect:
+          step.expect.present && step.expect.oid !== undefined
+            ? { kind: 'blob', oid: step.expect.oid }
+            : { kind: 'absent' },
+        removeFolders: step.removeFolders,
+      }
+      const content = fileStep.target === null ? undefined : blobs.get(fileStep.target.oid)
+      const result = await applyFileStep(
+        {
+          ...this.target,
+          isAllowed,
+          isUnsaved,
+          beforePublish: async (createdFolders) => {
+            await this.ownJournal.appendIntent({
+              ...write,
+              createdFolders: innermostFolders(step.path, createdFolders),
+            })
+          },
+        },
+        fileStep,
+        content,
       )
-    }
-    return { ...applied, restoreId: isKept ? pending.id : undefined }
-  }
-
-  /** The restore's steps with what each replaces; a step whose file cannot be kept for Redo is refused. */
-  private async plannedSteps(
-    setup: Setup,
-    steps: readonly RestoreStep[],
-    inCurrent: ReadonlyMap<string, BlobRef>,
-  ): Promise<{ readonly planned: readonly PlannedStep[]; readonly refused: readonly Refusal[] }> {
-    const planned: PlannedStep[] = []
-    const refused: Refusal[] = []
-    for (const step of steps) {
-      const before = await this.beforeOf(setup, step, inCurrent)
-      if (before === undefined) {
-        refused.push({ path: step.path, reason: 'notInCheckpoint' })
-      } else {
-        planned.push({ ...step, before })
+      if (result === 'done') {
+        try {
+          await this.ownJournal.appendDone(write.id)
+        } catch (error: unknown) {
+          // Publication succeeded. Keep the known result and Redo; the
+          // durable intent remains unsettled for recovery to judge.
+          this.deps.log.warn(`A restore outcome was not durable: ${failureForLog(error)}`)
+        }
+      } else if (result !== 'failed') {
+        // Refused before anything changed: the file was not as expected, or held
+        // unsaved changes, or a link was on the way, or it is too large to compare.
+        await this.ownJournal.appendAborted(write.id)
       }
-    }
-    return { planned, refused }
+      return result
+    })
   }
 
-  /** What a step replaces: the current capture's blob, nothing, or a copy taken now. */
-  private async beforeOf(
+  /** The journals of every window, and the setup again when folding a gone window's changed it. */
+  private async recovered(
     setup: Setup,
-    step: RestoreStep,
-    inCurrent: ReadonlyMap<string, BlobRef>,
-  ): Promise<BlobRef | null | undefined> {
-    if (step.expect.kind === 'absent') {
-      return null
-    }
-    if (step.expect.kind === 'blob') {
-      return inCurrent.get(step.path)
-    }
-    const copy = await this.copyOf(setup, step.path)
-    return copy.preImage
+  ): Promise<{ readonly setup: Setup; readonly journals: Journals }> {
+    const journals = await WriteJournal.readAll(this.deps.storageDir)
+    return { setup: (await this.recover(setup, journals)) ? await this.ready() : setup, journals }
   }
 
   /**
-   * The files the user saved while a turn ran: in this window, and in the
-   * folder's other windows since its start capture (read after its end
-   * capture, so a save that capture holds is in). When the other windows'
-   * saves are not all known (a saves file that cannot be read, a save let go
-   * of, a turn past the keep time), every file the turn changed counts as
-   * saved: a restore leaves it alone rather than undo a save it cannot see.
-   */
-  private async userSavesOf(
-    shadow: ShadowGit,
-    record: CheckpointRecord,
-    start: OpenTurn,
-    end: { readonly at: number; readonly tree: string | undefined },
-    ignored: readonly IgnoredChange[],
-  ): Promise<string[]> {
-    const saved = new Set(start.userSaves)
-    const peers = await this.presence.peerSaves(start.startedWallAt)
-    for (const relative of peers.saved) {
-      saved.add(relative)
-    }
-    const isPastKeep = end.at - start.startedWallAt > CHECKPOINT_PEER_SAVE_KEEP_MS
-    if (isPastKeep || peers.unknown.length > 0) {
-      const unknown = isPastKeep
-        ? [...peers.unknown, 'the turn ran past the keep time']
-        : peers.unknown
-      this.deps.log.warn(
-        `Checkpoint at the end of turn ${record.turnId}: the other windows' saves are not all known (${unknown.join(', ')}); a restore leaves every file the turn changed alone`,
-      )
-      const changes =
-        end.tree === undefined ? [] : await this.diff(shadow, record.start.tree, end.tree)
-      for (const change of [...changes, ...ignored]) {
-        saved.add(change.path)
-      }
-    }
-    return [...saved].toSorted(byText)
-  }
-
-  /**
-   * Records a turn's end: the end capture, the ignored files it changed and
-   * the tools' copies, from the record as it was read (only this window
-   * ends its turns). A record deleted meanwhile (archived, or dropped by
-   * another window's cleanup) is left gone.
-   */
-  private async finishTurn(
-    setup: Setup,
-    start: OpenTurn,
-    endedAt: number,
-    copies: ReadonlyMap<string, TurnCopy>,
-  ): Promise<void> {
-    const record = setup.records.checkpoints.find((candidate) => candidate.id === start.id)
-    const keep = setup.keeps.get(start.id)
-    if (record === undefined || keep === undefined || record.endedAt !== undefined) {
-      this.pendingEnds.delete(start.id)
-      return
-    }
-    const pending = this.pendingEnds.get(start.id)
-    if (pending !== undefined) {
-      await this.persistEnd(setup, pending)
-      return
-    }
-    const capture = await this.captureNow(setup, false)
-    if (!capture.ok) {
-      this.deps.log.warn(`Checkpoint at the end of turn ${record.turnId}: ${capture.detail}`)
-    }
-    const ended = capture.ok ? capture.snapshot : undefined
-    const scanned = ended === undefined ? [] : ignoredChanges(start.inventory, ended.inventory)
-    const changes = await this.withToolCopies(setup, record, scanned, copies)
-    const kept = changes.slice(0, CHECKPOINT_IGNORED_CHANGES_MAX)
-    const preImages = kept.flatMap((change) =>
-      change.preImage === undefined || change.preImage === null ? [] : [change.preImage],
-    )
-    const isScanWhole =
-      ended !== undefined && !start.inventory.isPartial && !ended.inventory.isPartial
-    const userSaves = await this.userSavesOf(
-      setup.shadow,
-      record,
-      start,
-      { at: endedAt, tree: ended?.tree },
-      kept,
-    )
-    const updated: CheckpointRecord = {
-      ...record,
-      ...(ended !== undefined && {
-        end: { tree: ended.tree, coverage: storedCoverage(ended.coverage) },
-      }),
-      endedAt,
-      endSequence: nextTurnNumber(setup.records.checkpoints, record.sessionId),
-      ignored: { changes: [...kept], isComplete: isScanWhole && kept.length === changes.length },
-      ...(userSaves.length > 0 && { userSaves }),
-    }
-    const trees = [
-      { name: 'start', tree: record.start.tree },
-      ...(ended === undefined ? [] : [{ name: 'end', tree: ended.tree }]),
-    ]
-    const ending = {
-      record: updated,
-      startedAt: start.startedAt,
-      kept: { trees, blobs: preImages },
-      previous: keep,
-      pin: `${this.pinPrefix}end-${start.id}`,
-      copies,
-    }
-    this.pendingEnds.set(start.id, ending)
-    await this.persistEnd(setup, ending)
-  }
-
-  private async persistEnd(setup: Setup, pending: PendingEnd): Promise<void> {
-    // Reimport frozen staged bytes if an earlier pin write itself failed.
-    // The record's end time, end tree and stats remain the original boundary.
-    await this.withToolCopies(
-      setup,
-      pending.record,
-      pending.record.ignored?.changes ?? [],
-      pending.copies,
-    )
-    const held = await keepTree(setup.shadow, pending.record, pending.kept)
-    if (!(await didWriteRef(setup.shadow, pending.pin, held, undefined))) {
-      throw new Error(UI_TEXT.checkpointFailed)
-    }
-    const written = await writeRecord(setup.shadow, pending.record, pending.kept, pending.previous)
-    if (written === undefined) {
-      throw new Error(UI_TEXT.checkpointFailed)
-    }
-    await this.deleteRefs(setup.shadow, [pending.pin])
-    this.pendingEnds.delete(pending.record.id)
-    this.runningTurns.delete(turnKey(pending.record.sessionId, pending.record.turnId))
-    await this.retain(setup)
-  }
-
-  /** Read afresh across awaits; a closing window can change this during file IO. */
-  private isStopped(): boolean {
-    return this.stopping.signal.aborted
-  }
-
-  /**
-   * A single CAS ref admits one restore/redo across independent windows.
-   * Captures and record writes remain independent. A crashed owner's
-   * reservation is removed only from the value that was read.
+   * A single CAS ref admits one restore/Redo across independent windows. A
+   * crashed owner's reservation is removed only from the value that was read.
+   * Its record keeps the M72 restore shape, so a 0.10.0 window reads its owner.
    */
   private async withRestore(
     setup: Setup,
     isAllowed: () => boolean,
     task: (fresh: Setup) => Promise<RestoreOutcome>,
   ): Promise<RestoreOutcome> {
-    if (!isAllowed()) {
-      return { ok: false, reason: 'backendUnsupported' }
-    }
     const { shadow } = setup
-    const acquire = async () => {
-      const keep = await keepTree(
-        shadow,
-        {
-          kind: 'restore',
-          top: setup.top,
-          prefix: setup.prefix,
-          id: this.instance,
-          sessionId: '',
-          createdAt: this.deps.now(),
-          owner: this.instance,
-          entries: [],
-        },
-        {
-          trees: [],
-          blobs: [],
-        },
-      )
-      return (await didWriteRef(shadow, RESTORE_REF, keep, undefined)) ? keep : undefined
-    }
-    let keep = await acquire()
-    if (keep === undefined) {
-      const previous = await refValue(shadow, RESTORE_REF)
-      if (previous !== undefined) {
-        const lease = parseRecord(
-          await shadow.text(['cat-file', 'blob', `${previous}:record.json`]),
-        )
-        const owner = lease?.owner
-        const live = await this.presence.liveWindows()
-        // Its own lease while no restore runs here (they are serial) is a leftover
-        // of a release that failed; a gone window's lease is taken over as well.
-        if (owner !== undefined && (owner === this.instance || !live.has(owner))) {
-          try {
-            await shadow.run(['update-ref', '-d', RESTORE_REF, previous])
-          } catch (error: unknown) {
-            if (!isGitExitError(error)) {
-              throw error
-            }
-          }
-          keep = await acquire()
-        }
-      }
-    }
+    const keep = await this.lease.acquire(setup)
     if (keep === undefined) {
       return { ok: false, reason: 'turnElsewhere' }
     }
@@ -2247,68 +1770,13 @@ export class CheckpointStore {
         return { ok: false, reason: 'backendUnsupported' }
       }
       const blocking = this.turnBlocking(fresh)
-      if (blocking !== undefined) {
-        return { ok: false, reason: blocking }
-      }
-      const pinned = await keepTree(
-        shadow,
-        {
-          kind: 'restore',
-          top: fresh.top,
-          prefix: fresh.prefix,
-          id: this.instance,
-          sessionId: '',
-          createdAt: this.deps.now(),
-          owner: this.instance,
-          entries: [],
-        },
-        {
-          trees: Array.from(fresh.keeps.values(), (tree, index) => ({
-            name: `r${String(index)}`,
-            tree,
-          })),
-          blobs: [],
-        },
-      )
-      if (!(await didWriteRef(shadow, RESTORE_REF, pinned, keep))) {
-        throw new Error(UI_TEXT.restoreFailed)
-      }
-      keep = pinned
-      return await task(fresh)
+      return blocking === undefined ? await task(fresh) : { ok: false, reason: blocking }
     } finally {
-      await this.releaseRestoreLease(shadow, keep)
+      await this.lease.release(shadow, keep)
     }
   }
 
-  /**
-   * Lets go of this window's restore lease. It runs after the files were
-   * restored, so a failure here (a ref lock held for a moment) must not replace
-   * the restore's outcome with a failure and hide its Redo: it is tried once
-   * more, then logged. A lease this window still holds is taken over by its next
-   * restore (see `withRestore`).
-   */
-  private async releaseRestoreLease(shadow: ShadowGit, keep: string): Promise<void> {
-    const release = () =>
-      shadow.run(['update-ref', '-d', RESTORE_REF, keep], { signal: new AbortController().signal })
-    try {
-      await release()
-      return
-    } catch {
-      // Tried once more below.
-    }
-    await new Promise<undefined>((resolve) => {
-      setTimeout(() => {
-        resolve(undefined)
-      }, CHECKPOINT_PUBLISH_RETRY_MS)
-    })
-    try {
-      await release()
-    } catch (error: unknown) {
-      this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
-    }
-  }
-
-  /** Shared serial/backend/CAS admission for both destructive operations. */
+  /** Shared serial/backend/fence/CAS admission for both destructive operations. */
   private restoreAdmitted(
     request: RestoreRequest | RedoRequest,
     work: (setup: Setup, isAllowed: () => boolean) => Promise<RestoreOutcome>,
@@ -2319,11 +1787,10 @@ export class CheckpointStore {
         return { ok: false, reason: 'backendUnsupported' }
       }
       const initial = await this.ready()
-      return await this.withRestore(
-        initial,
-        isAllowed,
-        async (setup) => await work(setup, isAllowed),
-      )
+      const blocking = this.turnBlocking(initial)
+      return blocking === undefined
+        ? await this.withRestore(initial, isAllowed, async (setup) => await work(setup, isAllowed))
+        : { ok: false, reason: blocking }
     })
   }
 
@@ -2337,15 +1804,9 @@ export class CheckpointStore {
     }
   }
 
-  /**
-   * Shares this window's saves with the folder's other windows, whose turns'
-   * ends read them. Before the shadow repository exists no turn has a start
-   * capture a save could follow, so nothing is written.
-   */
-  private async shareSaves(): Promise<void> {
-    if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) !== undefined) {
-      await this.presence.writeSaves()
-    }
+  /** This window's instance: the owner of every unit and write it records. */
+  public get instance(): string {
+    return this.ownInstance
   }
 
   /** Native/process uncertainty in this window or a freshly observed peer. */
@@ -2353,71 +1814,36 @@ export class CheckpointStore {
     return this.hasUnprovedLocalWork() || this.isPeerUnsafe
   }
 
-  /** A turn of this window has its start recorded and its end not yet: its end takes the tools' copies. */
-  public get hasOpenTurn(): boolean {
-    return this.openTurns.size > 0
-  }
-
-  /**
-   * The user saved a file in this window: VS Code's save writes the user's own
-   * bytes (the tools write files directly and save no document). While a turn
-   * runs here the file is the user's, not the turn's: the turn's end record
-   * names it, and a restore leaves it as it is. A save from the moment a
-   * turn's start capture begins (the capture may have read the file before
-   * it) to the turn's record counts for that turn too. Every save is shared
-   * with the other windows on the folder (this one may run no turn at all),
-   * stamped by the wall clock they share; a write that fails is logged,
-   * never the caller's.
-   */
-  public noteUserSave(absolutePath: string): void {
-    const relative = this.relativeOf(absolutePath)
-    if (relative === undefined) {
-      return
-    }
-    const at = this.deps.now()
-    if (!this.stopping.signal.aborted) {
-      this.presence.noteSave(relative, at)
-      void this.shareSaves().catch((error: unknown) => {
-        this.deps.log.warn(`A save was not shared with the other windows: ${failureForLog(error)}`)
-      })
-    }
-    const since = Math.min(Infinity, ...this.runningSince())
-    if (since === Infinity) {
-      return
-    }
-    for (const turn of this.openTurns.values()) {
-      turn.userSaves.add(relative)
-    }
-    // Only what a turn not yet recorded could still need is kept.
-    this.recentSaves = [
-      ...this.recentSaves.filter((save) => save.at >= since),
-      { relative, at: this.monotonicNow() },
-    ]
-  }
-
   /** Actual I/O completion did not prove every workspace-capable descendant stopped. */
   public async markUnprovenProcess(): Promise<void> {
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
+    this.runningTurns.add(CHECKPOINT_NATIVE_WINDOW)
     this.startHeartbeat()
     await this.presence.publish(this.publishedTurns())
   }
 
   /**
    * Before a workspace-capable native process starts, even with checkpoints off.
-   * Presence precedes the reservation check, without invoking Git. A packed
+   * Presence precedes the reservation check. Trusted startup recovers abandoned leases;
+   * Restricted Mode only checks reservation files, without invoking Git. A packed
    * ref file is conservatively refused too; this implementation never packs refs.
    */
-  public async markNativeBackend(): Promise<void> {
+  public async markNativeBackend(canRunGit = false): Promise<void> {
     if (this.stopping.signal.aborted) {
       throw new Error(UI_TEXT.sendMarkFailed)
     }
     // A fence an earlier start set stays: only the one this call sets is withdrawn.
     const isFirstStart = !this.runningTurns.has(CHECKPOINT_NATIVE_WINDOW)
-    this.runningTurns.set(CHECKPOINT_NATIVE_WINDOW, this.monotonicNow())
+    this.runningTurns.add(CHECKPOINT_NATIVE_WINDOW)
     this.startHeartbeat()
     try {
       await this.presence.publish(this.publishedTurns())
-      if (await this.hasReservedFiles()) {
+      if (canRunGit) {
+        await this.serial(async () => {
+          const opened = await this.openIfUsable()
+          if (opened !== undefined) await this.lease.recoverAbandoned(opened)
+        })
+      }
+      if (await this.lease.isReserved()) {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
@@ -2436,110 +1862,12 @@ export class CheckpointStore {
     }
   }
 
-  /** A capture of the workspace now, with the folders it holds no file of, pinned until `record` or `release`. */
-  public capture(): Promise<CaptureResult> {
-    return this.serial(async (): Promise<CaptureResult> => {
-      let setup: Setup
-      try {
-        setup = await this.ready()
-      } catch (error: unknown) {
-        return captureFailure(error)
-      }
-      const result = await this.captureNow(setup, true)
-      if (!result.ok) {
-        return result
-      }
-      const pin = `${this.pinPrefix}${this.deps.newId()}`
-      await setup.shadow.run(['update-ref', pin, result.snapshot.tree])
-      return { ok: true, snapshot: { ...result.snapshot, pin } }
-    })
-  }
-
-  /** A capture no turn took: its pin goes. */
-  public release(snapshot: Snapshot): Promise<void> {
-    return this.serial(async () => {
-      const { pin } = snapshot
-      if (pin === undefined) {
-        return
-      }
-      const { opened } = await this.open()
-      await this.deleteRefs(opened.shadow, [pin])
-    })
-  }
-
-  /**
-   * Ties a capture to the turn it precedes (one ref, created only if absent),
-   * unless the turn has one already (another window's) or its conversation
-   * was archived since the capture. The turn is open here only once its
-   * record exists; the capture's pin goes whatever happens.
-   */
-  public record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void> {
-    return this.serial(async () => {
-      const { opened } = await this.open()
-      try {
-        const setup = await this.ready()
-        if (
-          this.find(setup, sessionId, turnId) !== undefined ||
-          isArchived(setup.archives, sessionId, snapshot.createdAt)
-        ) {
-          return
-        }
-        const id = `checkpoint-${createHash('sha256')
-          .update(JSON.stringify([sessionId, turnId]))
-          .digest('hex')}`
-        const record: CheckpointRecord = {
-          kind: 'checkpoint',
-          top: setup.top,
-          prefix: setup.prefix,
-          id,
-          sessionId,
-          turnId,
-          createdAt: snapshot.createdAt,
-          sequence: nextTurnNumber(setup.records.checkpoints, sessionId),
-          start: {
-            tree: snapshot.tree,
-            coverage: storedCoverage(snapshot.coverage),
-            ...(snapshot.folders !== undefined && { folders: [...snapshot.folders] }),
-          },
-          owner: this.instance,
-        }
-        const keep = await writeRecord(
-          setup.shadow,
-          record,
-          { trees: [{ name: 'start', tree: snapshot.tree }], blobs: [] },
-          undefined,
-        )
-        if (keep === undefined) {
-          return
-        }
-        this.openTurns.set(turnKey(sessionId, turnId), {
-          id,
-          startedAt: snapshot.startedAt,
-          startedWallAt: snapshot.startedWallAt,
-          inventory: snapshot.inventory,
-          // Saved since its start capture began, before this record existed.
-          userSaves: new Set(
-            this.recentSaves
-              .filter((save) => save.at >= snapshot.startedAt)
-              .map((save) => save.relative),
-          ),
-        })
-        await this.presence.publish(this.publishedTurns())
-        await this.retain(setup)
-      } finally {
-        if (snapshot.pin !== undefined) {
-          await this.deleteRefs(opened.shadow, [snapshot.pin])
-        }
-      }
-    })
-  }
-
   /**
    * A turn (or a message about to start one, under its own key) begins or
    * stops running in this window. It is published at once in the window's
    * presence file, with no lock, so another window refuses a restore
    * meanwhile; this resolves once the file says so. A failed write is tried
-   * again soon. When a mark ends, tool copies no turn needs any more go.
+   * again soon.
    */
   public async markTurn(key: string, isRunning: boolean, canRunGit = true): Promise<void> {
     if (key === CHECKPOINT_NATIVE_WINDOW || key === CHECKPOINT_FENCED_WINDOW) {
@@ -2550,17 +1878,22 @@ export class CheckpointStore {
     }
     this.runningTurns.delete(key)
     if (isRunning) {
-      this.runningTurns.set(key, this.monotonicNow())
+      this.runningTurns.add(key)
     }
     this.startHeartbeat()
     try {
       await this.presence.publish(this.publishedTurns())
       if (isRunning && canRunGit) {
+        // Share first setup outside the queue, as the first conversation read does.
         const opened = await this.openIfUsable()
-        if (opened !== undefined && (await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
-          throw new Error(UI_TEXT.restoreTurnElsewhere)
-        }
-      } else if (isRunning && (await this.hasReservedFiles())) {
+        await this.serial(async () => {
+          if (opened === undefined) return
+          await this.lease.recoverAbandoned(opened)
+          if (await this.lease.isReserved(opened.shadow)) {
+            throw new Error(UI_TEXT.restoreTurnElsewhere)
+          }
+        })
+      } else if (isRunning && (await this.lease.isReserved())) {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
@@ -2571,41 +1904,61 @@ export class CheckpointStore {
       }, CHECKPOINT_PUBLISH_RETRY_MS).unref()
       throw error
     }
-    if (!isRunning) {
-      await this.trimJournal()
-    }
   }
 
   /**
-   * The turn ended: its end is recorded (end capture, ignored changes, the
-   * tools' copies). The turn stays open here until that is done, so no
-   * trim can take a copy its end still needs.
+   * A unit starts (spec 2, 5.1): its number taken and its record made, before
+   * any write of it. The owner's instance must be this window's.
    */
-  public async endTurn(sessionId: string, turnId: string): Promise<void> {
-    const key = turnKey(sessionId, turnId)
-    const start = this.openTurns.get(key)
-    if (start === undefined) {
-      return
-    }
-    const endedAt = this.deps.now()
-    const copies = await this.copiesSince(start.startedAt)
-    await this.serial(async () => {
-      await this.finishTurn(await this.ready(), start, endedAt, copies)
+  public startUnit(owner: Owner): Promise<{ readonly sequence: number }> {
+    return this.serial(async () => {
+      if (owner.instance !== this.ownInstance) {
+        throw new Error(UI_TEXT.checkpointFailed)
+      }
+      return await this.startUnitNow(await this.ready(), owner)
     })
-    if (this.openTurns.get(key) === start) {
-      this.openTurns.delete(key)
-    }
-    await this.trimJournal()
-    await this.presence.publish(this.publishedTurns())
   }
 
-  /** The turns of a conversation that have a checkpoint. */
+  /**
+   * A unit ended (its owner io drained first): its writes folded into its
+   * record, the journal sealed, then its running mark withdrawn. A unit this
+   * window did not start has nothing to end. A failure is the caller's, and
+   * the end is tried again before the next operation, its mark kept until then.
+   */
+  public endUnit(owner: Owner, end: { readonly ranProcesses: boolean }): Promise<void> {
+    const unit = this.openUnits.get(ownerKey(owner))
+    if (unit === undefined) {
+      return Promise.resolve()
+    }
+    const pending: PendingEnd = { unit, endedAt: this.deps.now(), ranProcesses: end.ranProcesses }
+    this.pendingEnds.set(ownerKey(owner), pending)
+    this.openUnits.delete(ownerKey(owner))
+    return this.serial(async () => {
+      const { opened } = await this.open()
+      if (this.pendingEnds.has(ownerKey(owner))) {
+        await this.sealUnit(opened.shadow, pending)
+      }
+      await this.retain()
+    })
+  }
+
+  /** The turns of a conversation that have a record: each offers a restore. */
   public turns(sessionId: string): Promise<readonly string[]> {
     return this.serial(async () => {
       const setup = await this.ready()
-      return setup.records.checkpoints
-        .filter((record) => record.sessionId === sessionId)
-        .map((record) => record.turnId)
+      return setup.units.flatMap((unit) =>
+        unit.record?.owner.sessionId === sessionId && unit.record.owner.unitKind === 'turn'
+          ? [unit.record.owner.unitId]
+          : [],
+      )
+    })
+  }
+
+  /** The turns of a conversation an earlier version recorded: listed, never restored. */
+  public legacyTurns(sessionId: string): Promise<readonly string[]> {
+    return this.serial(async () => {
+      const setup = await this.ready()
+      return setup.legacy.filter((turn) => turn.sessionId === sessionId).map((turn) => turn.turnId)
     })
   }
 
@@ -2618,194 +1971,74 @@ export class CheckpointStore {
     )
   }
 
-  /**
-   * The extension is about to write `absolutePath` for a running turn (the
-   * Model API's tools, the image tools): what is there is copied first, once
-   * per turn, into this window's staging folder, with no lock, so a restore
-   * can put an ignored file back. A copy that cannot be made fails the
-   * write: nothing is written without it.
-   */
-  public async beforeToolWrite(absolutePath: string): Promise<void> {
-    if (this.isStopped()) {
-      throw new Error(UI_TEXT.checkpointFailed)
-    }
-    if (!this.isAnyTurnRunning()) {
-      return
-    }
-    const relative = this.relativeOf(absolutePath)
-    if (relative === undefined) {
-      return
-    }
-    const latestStart = Math.max(...this.runningSince())
-    const entries = this.journal.get(relative) ?? []
-    if ((entries.at(-1)?.at ?? -1) >= latestStart) {
-      return
-    }
-    let copy: Omit<JournalEntry, 'at'>
-    try {
-      copy = await this.stage(relative)
-    } catch (error: unknown) {
-      this.deps.log.warn(`A checkpoint copy could not be kept: ${failureForLog(error)}`)
-      throw new Error(UI_TEXT.checkpointFailed, { cause: error })
-    }
-    if (this.isStopped()) {
-      if (typeof copy.staged === 'string') {
-        await rm(copy.staged, { force: true })
-      }
-      throw new Error(UI_TEXT.checkpointFailed)
-    }
-    this.journal.set(relative, [...entries, { at: this.monotonicNow(), ...copy }])
-  }
-
-  /** Puts the workspace's files back as they were before the turn. */
+  /** Reverses the model's own writes from the turn on, where each file still holds what they left. */
   public restore(request: RestoreRequest): Promise<RestoreOutcome> {
     return this.restoreAdmitted(request, async (setup, isAllowed) => {
-      const checkpoint = this.find(setup, request.sessionId, request.turnId)
-      if (checkpoint === undefined) {
-        return { ok: false, reason: 'noCheckpoint' }
-      }
-      const blocking = this.turnBlocking(setup)
-      if (blocking !== undefined) {
-        return { ok: false, reason: blocking }
-      }
-      // The checkpoint's turn and every turn that started after it, in the
-      // conversation's own order: the clock can give an earlier turn the
-      // same millisecond, or a later one an earlier time.
-      const ordered = inTurnOrder(
-        setup.records.checkpoints.filter((record) => record.sessionId === request.sessionId),
-      )
-      const selected = ordered.findIndex((turn) => turn.record.id === checkpoint.id)
-      // A turn another window numbered at once with the checkpoint's (the
-      // same `sequence`) may have started first, whatever order the refs list
-      // them in: it is never undone with the checkpoint's turn, only blamed,
-      // as an earlier turn still running is.
-      const target = ordered[selected]
-      const isTied = (turn: TurnSpan) =>
-        turn !== target &&
-        turn.isNumbered &&
-        target?.isNumbered === true &&
-        turn.start === target.start
-      const turns = ordered.slice(selected).filter((turn) => !isTied(turn))
-      const earlier = [
-        ...ordered.slice(0, selected),
-        ...ordered.slice(selected).filter((turn) => isTied(turn)),
-      ]
-      const capture = await this.captureNow(setup, false)
-      if (!capture.ok) {
-        return {
-          ok: false,
-          reason: 'captureFailed',
-          captureRefusal: capture.reason,
-          detail: capture.detail,
-        }
-      }
-      const current = capture.snapshot
-      const changes = await this.diff(setup.shadow, checkpoint.start.tree, current.tree)
-      const outside = await this.changedOutside(setup, earlier, turns, current.tree)
-      const ignoredTurns = turns.map((turn) => turn.record.ignored?.changes ?? [])
-      const currentStat = new Map<string, FileStat | null>()
-      for (const change of ignoredTurns.flat()) {
-        const stat = await regularFileStat(this.absoluteOf(change.path))
-        currentStat.set(change.path, stat ?? null)
-      }
-      const isUnsaved = this.unsavedTest(request.unsavedPaths)
-      const plan = planRestore({
-        changes,
-        changedOutsideTurns: outside.changed,
-        uncertain: outside.uncertain,
-        ignoredTurns,
-        coverage: { checkpoint: checkpoint.start.coverage, current: current.coverage },
-        currentStat,
-        isUnsaved,
-      })
-      const inCurrent = new Map<string, BlobRef>()
-      for (const change of changes) {
-        if (change.after !== undefined) {
-          inCurrent.set(change.path, change.after)
-        }
-      }
-      const { planned, refused } = await this.plannedSteps(setup, plan.steps, inCurrent)
-      const wasFolderThere = await this.wasFolderThere(setup.shadow, checkpoint.start)
-      const applied = await this.runRecorded(
-        setup,
-        request.sessionId,
-        planned,
-        wasFolderThere,
-        isUnsaved,
+      const found = await this.recovered(setup)
+      return await this.restoreRange(
+        found.setup,
+        found.journals,
+        {
+          sessionId: request.sessionId,
+          from: { unitKind: 'turn', unitId: request.turnId },
+          mode: 'restore',
+          transcriptTurnIds: request.transcriptTurnIds,
+          transcript: { fromTurnId: request.turnId, turnIds: request.transcriptTurnIds },
+          isUnsaved: this.unsavedTest(request.unsavedPaths),
+        },
         isAllowed,
       )
-      const changed = applied.entries.map((entry) => entry.path)
-      return {
-        ok: true,
-        restoreId: applied.restoreId,
-        changed,
-        refused: [...plan.refused, ...refused, ...applied.refused],
-        unsure: plan.unsure.filter((unsurePath) => changed.includes(unsurePath)),
-        isIgnoredIncomplete: turns.some((turn) => turn.record.ignored?.isComplete !== true),
-        isRedoSpent: false,
-      }
     })
   }
 
   /**
-   * Puts back what a restore (or a redo) replaced, file by file where each
-   * is still as the restore left it; the redo can be redone in turn, and
-   * what it could not do stays in the record for another try.
+   * Puts back what a restore (or a Redo) replaced, path by path where each
+   * still holds what it left and no later unit wrote it; the Redo is a batch
+   * of its own, which can be redone in turn. It must come from the batch's
+   * own conversation.
    */
   public redo(request: RedoRequest): Promise<RestoreOutcome> {
     return this.restoreAdmitted(request, async (setup, isAllowed) => {
-      const record = setup.records.restores.find((candidate) => candidate.id === request.restoreId)
-      const keep = setup.keeps.get(request.restoreId)
-      if (record === undefined || keep === undefined) {
+      const found = await this.recovered(setup)
+      const batch = found.setup.units.find(
+        (unit) =>
+          unit.record?.owner.unitKind === 'batch' && unit.record.owner.unitId === request.restoreId,
+      )
+      if (batch?.record?.owner.sessionId !== request.sourceSessionId) {
+        if (batch !== undefined) {
+          this.deps.log.warn('A Redo was asked for from another conversation than its own')
+        }
         return { ok: false, reason: 'redoGone' }
       }
-      const blocking = this.turnBlocking(setup)
-      if (blocking !== undefined) {
-        return { ok: false, reason: blocking }
+      const anchor = batch.record.transcript
+      const current =
+        anchor === undefined ? undefined : await request.transcriptTurnIds?.(anchor.fromTurnId)
+      if (current === undefined || anchor === undefined) {
+        return { ok: false, reason: 'writesIncomplete' }
       }
-      const steps: PlannedStep[] = record.entries.map((entry) => {
-        const expect: Expectation =
-          entry.after === null
-            ? { kind: 'absent' }
-            : { kind: 'blob', oid: entry.after.oid, mode: entry.after.mode }
-        return {
-          path: entry.path,
-          target: entry.before,
-          expect,
-          before: entry.after,
-          isIgnoreChecked: false,
-        }
-      })
-      const applied = await this.runRecorded(
-        setup,
-        record.sessionId,
-        steps,
-        undefined,
-        this.unsavedTest(request.unsavedPaths),
+      const earlier = new Set([
+        ...anchor.turnIds,
+        ...found.setup.units.flatMap((unit) =>
+          unit.record?.owner.sessionId === request.sourceSessionId &&
+          unit.sequence < batch.sequence &&
+          unit.record.owner.unitKind === 'turn'
+            ? [unit.record.owner.unitId]
+            : [],
+        ),
+      ])
+      return await this.restoreRange(
+        found.setup,
+        found.journals,
+        {
+          sessionId: request.sourceSessionId,
+          from: { unitKind: 'batch', unitId: request.restoreId },
+          mode: 'redo',
+          transcriptTurnIds: current.filter((id) => !earlier.has(id)),
+          transcript: { fromTurnId: anchor.fromTurnId, turnIds: current },
+          isUnsaved: this.unsavedTest(request.unsavedPaths),
+        },
         isAllowed,
       )
-      const donePaths = new Set(applied.entries.map((entry) => entry.path))
-      let isStillKept = true
-      try {
-        isStillKept = await this.trimRestore(
-          setup,
-          record,
-          keep,
-          record.entries.filter((entry) => !donePaths.has(entry.path)),
-          new AbortController().signal,
-        )
-      } catch (error: unknown) {
-        this.deps.log.warn(`A redo's original record could not be trimmed: ${failureForLog(error)}`)
-      }
-      return {
-        ok: true,
-        restoreId: applied.restoreId,
-        changed: applied.entries.map((entry) => entry.path),
-        refused: applied.refused,
-        unsure: [],
-        isIgnoredIncomplete: false,
-        isRedoSpent: !isStillKept,
-      }
     })
   }
 
@@ -2821,7 +2054,6 @@ export class CheckpointStore {
       sessionId,
       at: this.deps.now(),
     })
-    this.dropOpenTurns(sessionId)
     await this.serial(async () => {
       await this.tidy(await this.ready(), true)
     })
@@ -2829,10 +2061,9 @@ export class CheckpointStore {
 
   /**
    * The conversation was unarchived: its archive files go, so its new
-   * checkpoints are kept again whatever the clock did meanwhile (an archive
+   * records are kept again whatever the clock did meanwhile (an archive
    * hides what was made at or before its time). Plain files, no lock and no
-   * git, as the archive itself; records it hid and no window deleted yet are
-   * listed again with their conversation.
+   * git, as the archive itself.
    */
   public async unforgetSession(sessionId: string): Promise<void> {
     const archives = await readArchives(this.deps.storageDir)
@@ -2845,51 +2076,46 @@ export class CheckpointStore {
 
   /**
    * The conversation was archived while no git may run (Restricted Mode):
-   * the archive is written to its own file (no git), even before any
-   * checkpoint exists; the records and copies go the next time a window that
-   * may run git cleans up.
+   * the archive is written to its own file (no git); the records and copies
+   * go the next time a window that may run git cleans up.
    */
   public async queueForget(sessionId: string): Promise<void> {
     await writeArchive(this.deps.storageDir, this.deps.newId(), {
       sessionId,
       at: this.deps.now(),
     })
-    this.dropOpenTurns(sessionId)
   }
 
   /**
    * The window opened (or the workspace was trusted): when checkpoints were
-   * ever taken here, what no one needs any more goes and the retention
-   * bounds apply, whether or not checkpoints are on now.
+   * ever taken here, the journals of windows that are gone are folded into
+   * their records, what no one needs any more goes and the retention bounds
+   * apply, whether or not checkpoints are on now.
    */
   public async maintain(): Promise<void> {
     if ((await lstatOrUndefined(path.join(this.deps.storageDir, SHADOW_HEAD))) === undefined) {
       return
     }
     await this.serial(async () => {
-      await this.tidy(await this.ready(), true)
+      const { setup } = await this.recovered(await this.ready())
+      await this.tidy(setup, true)
     })
   }
 
   /**
    * The window is closing: every git still running is ended, nothing new
    * starts (a restore under way stops before its next file), and the
-   * window's presence and staged copies go.
+   * window's presence goes (unless it must stay; windowPresence.ts). Its
+   * journal stays for another window to fold what it did not seal.
    */
   public dispose(): void {
     this.stopping.abort()
-    void this.queue.then(() => {
+    void this.queue.then(async () => {
+      await this.copies.close()
       clearInterval(this.heartbeat)
       this.presenceStopping.abort()
       if (!this.hasUnprovedLocalWork()) {
         this.presence.leave()
-      }
-      if (!this.hasUnprovedLocalWork()) {
-        try {
-          rmSync(this.stagingDir, { recursive: true, force: true })
-        } catch {
-          // Its folder goes with the next window's cleanup.
-        }
       }
     })
   }
