@@ -39,7 +39,7 @@ describe("the extension's own browser check question (M81)", () => {
     const beyond = await ask('http://intranet:8080/', 'intranet', 0)
     expect(beyond.options).toEqual({
       modal: true,
-      detail: `intranet is not this computer. Allowing lets this one check reach it.\n\n${UI_TEXT.browserCheckConfirmDetail}`,
+      detail: `intranet is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).\n\n${UI_TEXT.browserCheckConfirmDetail}`,
     })
   })
 

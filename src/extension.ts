@@ -156,7 +156,6 @@ import {
   CHECKPOINT_STORE_BUNDLE_FILE,
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
-  BROWSER_RUNTIME_DOWNLOAD_COMMAND,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -1120,7 +1119,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
   context.subscriptions.push(
-    vscode.commands.registerCommand(BROWSER_RUNTIME_DOWNLOAD_COMMAND, async () => {
+    vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
   )

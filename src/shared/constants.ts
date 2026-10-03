@@ -49,6 +49,8 @@ export const COMMAND_IDS = {
   // stops every background task of the conversation.
   moveToBackground: 'museSpark.moveToBackground',
   stopBackgroundTasks: 'museSpark.stopBackgroundTasks',
+  // M81 A1: the browser check's runtime, prepared ahead of a check.
+  downloadBrowserCheckRuntime: 'museSpark.downloadBrowserCheckRuntime',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).

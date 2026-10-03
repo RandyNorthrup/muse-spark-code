@@ -28,7 +28,6 @@ export const BROWSER_RUNTIME_BUNDLE_FILE = 'browserRuntime.js'
 // asking (consent to every later pin), or no browser check at all.
 export const BROWSER_RUNTIME_MODES = ['ask', 'download', 'off'] as const
 export type BrowserRuntimeMode = (typeof BROWSER_RUNTIME_MODES)[number]
-export const BROWSER_RUNTIME_DOWNLOAD_COMMAND = 'museSpark.downloadBrowserCheckRuntime'
 // The resolver rule (spec §3.5): every name the browser would resolve fails
 // before any lookup, except the exact numeric proxy endpoint and the IPv6
 // loopback literal. No name, suffix or 127.* exclusion: the owned proxy
