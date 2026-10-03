@@ -134,8 +134,13 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page), the
-                      browser check's processes, policy reads and bundle entry
-                      (dist/browserCheck.js, loaded on the first check),
+                      browser check's processes (the verified pinned runtime
+                      only, behind its own proxy; no system browser, no
+                      policy reads) and bundle entry (dist/browserCheck.js,
+                      loaded on the first check), its runtime's acquisition
+                      and verification (dist/browserRuntime.js: the pin,
+                      download, bounded ZIP reader, store; loaded only to
+                      prepare a runtime) and the runtime's consent and command,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

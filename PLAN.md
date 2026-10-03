@@ -211,19 +211,20 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
-| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                               |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
-| `dist/browserCheck.js`    | ≤ 50 KiB (M81: the browser check's pipe, run and processes, loaded on the first check; 37.8 KiB plus 15%, rounded up to 25 KiB) |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                              |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                  |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                         |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                     |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                   |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                               |
+| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                                                            |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                            |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                              |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                         |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                |
+| `dist/browserCheck.js`    | ≤ 50 KiB (M81: the browser check's pipe, run and processes, loaded on the first check; 37.8 KiB plus 15%, rounded up to 25 KiB; A1 holds it there: 49.8 KiB) |
+| `dist/browserRuntime.js`  | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)       |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
@@ -255,6 +256,23 @@ English table 74.7 KiB ([`docs/certification/m81.md`](docs/certification/m81.md)
 After the RV81 fixes (the policy reads, the target watch, the bounds) the
 browser bundle is 44.5 KiB of its unchanged 50, extension 531.2, Model API
 336.8.
+
+**Amendment (M81 A1, 2026-10-02): the runtime's acquisition is a second
+lazy bundle.** Design spec v4 §9.1 holds `dist/browserCheck.js` at its 50
+KiB with the owned proxy, the canaries and the two lifetimes (49.8 KiB),
+and moves the runtime's acquisition (the pin's schema, the download, the
+bounded ZIP reader, hashing, staging and publication) into
+`dist/browserRuntime.js`, required by the activation bundle's adapter only
+when a runtime is prepared or verified, for a check and for the Download
+command alike. Measured 37.2 KiB minified; its cap is
+25 × ceil(1.15 × 37.2 / 25) = 50 KiB. The split gate requires the
+acquisition modules in that bundle and in no other, and neither browser
+bundle may carry or load the English table (both return closed failures
+only). To fit, the browser check's tunables that `constants.ts` declared
+with initializers esbuild cannot drop moved to
+`src/shared/browserCheckConstants.ts` (no imports), which `constants.ts`
+re-exports: one source of truth still, imported directly by the browser
+modules.
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -9335,7 +9353,28 @@ independent review and the full candidate gates remain required.**
 
 ### M81 — Browser check (D49)
 
-**Status 2026-10-01: built and certified** (`docs/certification/m81.md`),
+**Status 2026-10-02: lane A1 of design spec v4 built on
+`feature/m81-browser`** (`docs/certification/m81.md`, "v4: lane A1"). The
+owner reversed "no bundled browser": the check runs Google's Chrome for
+Testing headless shell, pinned per release, behind an owned proxy (D-B1(b)).
+Built: the closed failure union (lead ruling v4-M1, first commit); the
+proxy boundary (plain HTTP to implicit loopback or explicit hosts, CONNECT
+only to explicit hosts, auth stripping, bounds); the resolver map; the
+canaries in three phases with the restart tripwire; the two lifetimes
+(preparation 15 minutes, check 60 seconds); the runtime store in
+`dist/browserRuntime.js` (pin, consent from the host, download, bounded ZIP,
+hashes, receipt, publication, verified winner, per-check recheck); the
+`browserCheckRuntime` setting and the Download command; release and weekly
+pin checks. Captured on the Kubuntu, Mac mini (Intel) and Win11 rigs,
+including the forced network-service restart; drilled guard by guard.
+Open, the lead's: A2 (Linux namespace, a later lane); the disposable-CI
+controls of spec §7 (planted policy, synthetic identities, mTLS, DoH, the
+G2 N/N calibration, Windows ambient-auth calibration); a mac-arm64 run (the
+Mac mini is Intel); the Download command's VS Code UI run; the aggregate
+quality gate on the final tree. The record that follows is the superseded
+system-browser design, kept as history.
+
+**Status 2026-10-01 (superseded by A1): built and certified** (`docs/certification/m81.md`),
 ported from the 2026-09-28 draft (`b51c5f4c`) and largely rebuilt on the
 release candidate; the independent review RV81 (one P1, four P2) fixed the
 same day, each with a test and a red drill. Decisions taken while building:
@@ -9413,13 +9452,18 @@ same day, each with a test and a red drill. Decisions taken while building:
 
 - **Goal.** The model sees its web change working.
 - **Scope.**
-  - A tool that opens a local URL in a headless browser: the system
-    Chrome or Edge over CDP, with no bundled browser.
+  - A tool that opens a local URL in a headless browser over CDP:
+    amended 2026-10-02 (design spec v4, the owner's decision reversing "no
+    bundled browser"), Google's Chrome for Testing headless shell pinned
+    per release and downloaded after consent, not the system Chrome or
+    Edge.
     - CDP over `--remote-debugging-pipe`, never an open port, and a
-      temporary profile, never the user's.
-    - Requests to anything but loopback are blocked, so a page cannot
-      reach the intranet or a metadata address and hand back what it
-      found.
+      fresh private profile, never the user's.
+    - All traffic goes to the check's own proxy, which passes plain HTTP
+      to loopback and widened hosts only, so a page cannot reach the
+      intranet or a metadata address and hand back what it found;
+      `https`/WebSocket tunnels only to a widened host (opaque: residual
+      in §9).
   - It returns a screenshot (image input), the console errors and failed
     requests.
   - It can click or type through a small action list.
@@ -9431,9 +9475,15 @@ same day, each with a test and a red drill. Decisions taken while building:
   gets the console and failed requests as text.
 - **Acceptance.** No debugging port is opened; a request beyond loopback
   is blocked unless the user widened it; the user's profile is never used.
+  A1 (spec v4): the runtime is the pin's, verified; every canary phase
+  holds or the check refuses; a network-service restart refuses; open
+  until captured on disposable CI: spec §7's unsafe positive controls.
 - **Tests.** A local fixture page with a console error and a failed
-  request; drills for the loopback block and the pipe.
-- **Size.** M.
+  request; drills for the loopback block and the pipe. A1: the proxy, the
+  canaries, the lifetimes, the store and ZIP reader on real folders, the
+  live suite on the pinned runtime, one red drill per guard
+  (`docs/certification/m81.md`).
+- **Size.** M (A1: L).
 
 ### M82 — Awareness and budgets (D49)
 
@@ -10354,26 +10404,28 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
 
-| File                                     | Construct                                                                | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
-| ---------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)       | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)       | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)                | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                            | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`           | `catch { }` in the join statement each Windows command starts with       | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                 | `as unknown as Selection` (four stubs)                                   | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`             | `nosemgrep` on `spawn` (`detect-child-process`)                          | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                       | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)            | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                          | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                          | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`    | `nosemgrep` on `spawn` (`detect-child-process`)                          | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`     | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)         | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts` | `Reflect.get(edit, '_allEntries')`, an undocumented member               | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                          | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| `src/host/browser/browserProcess.ts`     | `nosemgrep` on `spawn` (`detect-child-process`)                          | The browser check (M81, D49) starts the system Chrome or Edge by an absolute path from its well-known places or an absolute PATH entry (D24), as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, a fresh temporary profile, and a proxy bypass list of loopback plus plain hosts `browserPolicy.widenedHost` checked (no `*`, `;` or `<`). The model's URL and steps go over the CDP pipe, never on the command line.                                                                                                                                      | 2026-10-01 |
-| `src/host/browser/browserChecks.ts`      | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate) | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
-| -------------------------------------    | ------------------------------------------------------------------       | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                                   | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
+| File                                     | Construct                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ---------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)           | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)           | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)                    | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`           | `catch { }` in the join statement each Windows command starts with           | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                 | `as unknown as Selection` (four stubs)                                       | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`             | `nosemgrep` on `spawn` (`detect-child-process`)                              | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                       | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                              | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                              | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`    | `nosemgrep` on `spawn` (`detect-child-process`)                              | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`     | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)             | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts` | `Reflect.get(edit, '_allEntries')`, an undocumented member                   | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                              | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+| `src/host/browser/browserProcess.ts`     | `nosemgrep` on `spawn` (`detect-child-process`)                              | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`     | `nosemgrep` on `execFile` (`detect-child-process`)                           | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
+| `src/host/browser/browserChecks.ts`      | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)     | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
+| `src/host/browser/browserChecks.ts`      | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate) | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
+| -------------------------------------    | ------------------------------------------------------------------           | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                                       | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -10406,27 +10458,29 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.
-- The browser check (M81, D49) runs the page's own code in a headless system
-  Chrome or Edge, over the debugging pipe, in a temporary profile. Its
-  requests beyond loopback and the widened hosts are failed by the
-  browser-wide Fetch gate, and everything else that leaves the browser goes
-  to a proxy that does not exist; a machine whose administrator's policy
-  could replace that proxy (a proxy policy, a cloud enrollment token, or a
-  policy location that cannot be read) is refused before any browser
-  starts, and a WebSocket or WebTransport beyond loopback from any frame or
-  worker stops the check. Residual risk: a proxy the check cannot see
-  (cloud policy from an enrollment whose token was removed afterwards, a
-  policy-installed extension's proxy setting, which outranks the command
-  line, though extensions are disabled and a fresh profile has none to
-  load) would carry a WebSocket's handshake (its URL and query) and a
-  preconnect's TCP connection out: the stop comes when the browser reports
-  the socket, about a millisecond before it connects (probed), so the
-  bytes sent before the kill cannot be taken back, and a preconnect is
-  never reported at all. HTTP requests stay failed by Fetch either way. A
-  window that dies mid-check leaves its profile folder in the OS temporary
-  folder (the browser itself exits with its pipe). The page runs as any
-  page in a browser does; the check does not make the user's dev server
-  safer.
+- The browser check (M81 A1, D49; design spec v4) runs the page's own code
+  in Google's Chrome for Testing headless shell, the version this release
+  pins, downloaded only after consent, verified by length and SHA-256 with a
+  bounded ZIP reader and checked again before each check, over the
+  debugging pipe, in a fresh private profile. Its traffic goes to the
+  check's own proxy on 127.0.0.1 (the command line's, Chrome's implicit
+  loopback bypass subtracted, and the private context's): plain HTTP only to
+  loopback or a widened host, sign-in challenges and credentials stripped
+  both ways, CONNECT only to a widened host. The browser's resolver rule
+  fails every name but the loopback literals (traced on Linux: no query for
+  a page's, an ICE server's or a `.local` name; the same names queried with
+  the rule removed). The check's canaries, in default, page and audit
+  phases, must show the route, the stripping, WebRTC and WebTransport held,
+  and a network-service restart refuses the check. Residual risk: `https`
+  and WebSocket tunnels to a widened host are opaque to the proxy, and the
+  site there may use the machine's account (Windows integrated sign-in
+  especially); this is the browser's own construction checked at runtime,
+  not an OS or kernel boundary (A2, a Linux namespace, is a later lane);
+  the network service runs with the pin's own sandbox settings. A window
+  that dies mid-check leaves its check folder under the extension's
+  storage, swept by a later check once its owner process is gone. The page
+  runs as any page in a browser does; the check does not make the user's
+  dev server safer.
 - The `ide` server's browser check widens to a host beyond loopback only
   with the user's answer in the extension's modal; a Model API check only
   with a card for that host (Bypass included) or an "always" chosen on one.

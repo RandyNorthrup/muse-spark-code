@@ -10,27 +10,47 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - **Browser check** (M81, PLAN.md D49). After a web change the model can
-  open a page of your local dev server in a headless system Chrome or
-  Edge, optionally click and type through up to eight steps, and read back
-  the console errors and the failed requests; on the Model API backend it
-  also sees a screenshot (`browser_check`). Muse Code gets the same check
-  as text through the extension's `ide` server (`mcp__ide__browserCheck`),
-  confirmed in the extension's own dialog before every call. The browser
-  runs over its debugging pipe, never a network port, in a temporary
-  profile that is deleted afterwards, and every request beyond this
-  computer is blocked: by the browser's request interception for pages,
-  frames, workers and redirects, and by a proxy that does not exist for
-  everything else; every frame and worker is watched from its first line,
-  and a WebSocket or an answer from beyond stops the check. Where an
-  administrator's policy sets a proxy or cloud management for Chrome or
-  Edge (registry, managed policy files, managed preferences), or cannot be
-  read, the check refuses to start. Only you widen it, in the
-  machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
-  dialog for one check; never the model. No Chrome or Edge installed: the
-  check says so.
-- The browser check's runner ships as a bundle of its own,
-  `dist/browserCheck.js` (budget 50 KiB, 44.5 KiB when built), loaded on
-  the first check.
+  open a page of your local dev server in a headless browser, optionally
+  click and type through up to eight steps, and read back the console
+  errors and the failed requests; on the Model API backend it also sees a
+  screenshot (`browser_check`). Muse Code gets the same check as text
+  through the extension's `ide` server (`mcp__ide__browserCheck`),
+  confirmed in the extension's own dialog before every call.
+  - **The browser** is Google's Chrome for Testing headless shell, one
+    version pinned by each release (154.0.8037.92, r1689415), for Windows
+    x64, Linux x64 and macOS (Intel and Apple silicon). The first check asks
+    before downloading it (about 100 to 120 MB from
+    `storage.googleapis.com`) into the extension's storage; the new
+    machine-scoped `museSpark.browserCheckRuntime` (`ask`, `download`,
+    `off`) can download it without asking or turn the check off. The
+    archive and the browser are checked against the pin's lengths and
+    SHA-256 by a bounded ZIP reader before anything runs, and the browser
+    again before each check; getting it ready has its own 15 minutes, the
+    check its 60 seconds after. A pin serves for 45 days after Google
+    published it; then the check refuses until an update pins a newer one,
+    and the release and a weekly job fail when the pin is past that, or
+    more than 14 days behind the newest Stable. A **Download Browser Check
+    Runtime** command is contributed for getting it ahead of a check.
+  - **Where a page may go.** All its traffic goes to the check's own proxy
+    on 127.0.0.1, Chrome's loopback exception removed, the same proxy on
+    the page's private context: plain `http` to this computer and to the
+    hosts you widened, with sign-in challenges and credentials taken out;
+    `https` and WebSockets only to a widened host, passed encrypted and
+    unread (a site there may sign in with this computer's account, which
+    the card and the setting now say). The browser looks up no names
+    itself. The check's own tests run before, between and after the page
+    in the same browser (routing, sign-in stripping, WebRTC, WebTransport,
+    and a network-service restart), and any that fails returns nothing from
+    the page. Over the debugging pipe, never a network port, in a fresh
+    private profile deleted afterwards. Only you widen it, in the
+    machine-scoped `museSpark.browserCheckExtraHosts` or on a card or in the
+    dialog for one check; never the model. Every failure is one of a fixed
+    set of reasons, in your language.
+- The browser check ships as two bundles of its own: `dist/browserCheck.js`
+  (the pipe, the run, the proxy and its tests; budget 50 KiB, 49.8 KiB when
+  built), loaded on the first check, and `dist/browserRuntime.js` (getting
+  and verifying the browser; 37.2 KiB, budget 50 KiB: measured plus 15%,
+  rounded up to 25 KiB), loaded only to prepare it.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every

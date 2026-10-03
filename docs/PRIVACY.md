@@ -116,22 +116,37 @@ security notes for contributors are in `PLAN.md` §9.
   outcome, never the path, the query or the page.
 - **Browser check (both backends, M81).** When the model asks to check a
   page (`browser_check` on the Model API backend, `mcp__ide__browserCheck`
-  on Muse Code), the extension opens it in your installed Chrome or Edge,
-  headless, in a temporary profile that is deleted afterwards (never your
-  profile, cookies or passwords). The page's console errors, its failed and
-  blocked requests and where it ended up go to the model like any other
-  tool output, and on the Model API backend so does a screenshot of the
-  page, sent to Meta with the next request. The page reaches only this
-  computer, plus the hosts you list in `museSpark.browserCheckExtraHosts`
-  or allow for one check; host names are never looked up. Before starting
-  the browser the extension reads where an administrator's policy for
-  Chrome or Edge is kept (the registry's policy keys on Windows, the
-  managed policy folders on Linux, the managed preferences on macOS), only
-  to see whether a proxy or cloud management is set; it refuses the check
-  if one is, and the refusal the model reads names only where the policy
-  is and the policy's name, never its value. The browser talks to
-  the extension over a pipe, never a network port, and is told to send no
-  background, sync or update traffic. The check is free.
+  on Muse Code), the extension opens it in Google's Chrome for Testing
+  headless shell, the one version this extension release pins. Before the
+  first check the extension asks to download it (about 100 to 120 MB) from
+  Google's `storage.googleapis.com`; that request goes to Google like any
+  download and carries nothing of yours. Answering Download, or setting
+  `museSpark.browserCheckRuntime` to `download`, agrees to that download now
+  and, with the setting, for every later pinned version; `off` downloads
+  nothing and offers no check. The download is kept in the extension's own
+  storage, checked against the pinned length and SHA-256 before anything
+  runs, and the browser's file is checked again before each check. Each
+  check uses a fresh private profile under that storage, deleted afterwards
+  (never your profile, cookies or passwords). The page's console errors,
+  its failed and blocked requests and where it ended up go to the model
+  like any other tool output, and on the Model API backend so does a
+  screenshot of the page, sent to Meta with the next request. All of the
+  page's traffic goes to the extension's own proxy on 127.0.0.1 (local
+  connections between the browser, the proxy and your dev server): it passes
+  plain `http` to this computer and to the hosts you list in
+  `museSpark.browserCheckExtraHosts` or allow for one check, taking sign-in
+  challenges and credentials out, and refuses the rest. The browser looks up
+  no host names itself (its resolver rule fails every name except the
+  loopback addresses, as traced on Linux); the proxy looks up a name only
+  when you widened it. `https` and WebSockets to a widened host pass through
+  the proxy encrypted and unread, so what the page sends there, and any
+  sign-in a site there asks of this computer's account (on Windows in
+  particular), is between the page and that site. This is a browser and a
+  proxy, not an operating-system sandbox: it does not stop software outside
+  the browser. The browser talks to the extension over a pipe, never a
+  network port, and is told to send no background, sync, update, reliability
+  or crash-report traffic. The log says how many other switches the browser
+  reported, never their names or values. The check is free.
 - **Hooks on the Model API backend (off by default).** With
   `museSpark.modelApiHooks` on, the hook commands in Muse Code's settings
   run on your machine as you, outside the agent's sandbox. That means your
