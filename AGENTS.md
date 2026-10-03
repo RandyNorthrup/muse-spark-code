@@ -41,7 +41,13 @@ them, the milestone plan, and the certification checklist.
    - **"Label: detail" and "Label (id)"** may stay spliced when the detail is
      technical.
    - **Text the model or Meta reads** is `MODEL_TEXT` in constants.ts and
-     stays English.
+     stays English. A feature that only a lazily loaded bundle reads has a
+     block of its own beside it (`REVIEW_MODEL_TEXT`), so the activation
+     bundle does not carry it.
+   - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
+     Each bundle keeps its own installed-language state; lazy factories install
+     the caller's table before use. Browser and integration-test bundles keep
+     their inline fallback.
    - **Adding or changing a key** means every table in `l10n/` gets it too,
      or `npm run check:l10n` fails.
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
@@ -132,6 +138,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
                       when that backend first starts), the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
+                      the review's (dist/review.js: git's material, the turn
+                      text, the Plan-mode hold and edit review, loaded the
+                      first time one is used),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,
@@ -147,7 +156,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
-                      public-address checks and HTML converter, the verify
+                      public-address checks and HTML converter, review (its
+                      git material, prompt and Plan-mode hold), the verify
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,

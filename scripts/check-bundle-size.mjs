@@ -15,6 +15,10 @@ const BUDGETS = [
   // The Model API backend, loaded when it first starts (M57): 295.6 KiB when
   // split out, plus about a third for the Model API work already planned.
   { path: 'dist/modelApi.js', budgetKiB: 400 },
+  // The review (M70): git's material, the review turn's text, the Plan-mode
+  // hold and edit review, loaded the first time one is used: 40.6 KiB when
+  // split out, plus room (PLAN.md D6).
+  { path: 'dist/review.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },

@@ -10,14 +10,22 @@
 // (goal, skill, verify) that run after it, whose loops vary from turn to turn.
 // The budget below is that reality with headroom, so a regression past it
 // fails the drill rather than the owner's plan.
+// M70 adds a review turn held in Plan mode: 37 model attempts on
+// 2026-09-28 (Muse Code 1.4.0), within the same budget.
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import { PlanModeHold, type PlanModeRestore } from '../../src/core/review/planModeHold'
+import { reviewTurnText } from '../../src/core/review/reviewPrompt'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
-import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import {
+  CONTRIBUTOR_MODEL_SUFFIX,
+  DEFAULT_MODEL_ID,
+  REVIEW_FINDINGS_LANGUAGE,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
@@ -70,9 +78,9 @@ function countAttempts(log: string): number {
   return log.match(ATTEMPT_LINE)?.length ?? 0
 }
 
-/** One turn on the real CLI: the session id and the streamed reply text. */
-async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
-  const backend = new MuseCodeBackendManager({
+/** The real CLI as the extension starts it, found on this machine, in the drill's workspace. */
+function liveBackend(workspaceRoot: string): MuseCodeBackendManager {
+  return new MuseCodeBackendManager({
     // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.
     beforeWorkspaceHostStart: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
@@ -86,6 +94,11 @@ async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; tex
     isWorkspaceTrusted: () => true,
     getProxySettings: () => ({ proxy: '', noProxy: [] }),
   })
+}
+
+/** One turn on the real CLI: the session id and the streamed reply text. */
+async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
+  const backend = liveBackend(workspaceRoot)
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
@@ -139,4 +152,85 @@ describe.skipIf(!IS_ENABLED)('live Muse Code conversation (MUSE_LIVE_E2E=1)', ()
     },
     TURN_TIMEOUT_MS,
   )
+
+  // M70 (PLAN.md D49): `/review` on Muse Code is its own turn held in Plan
+  // mode, the text Muse Code gets, and the session's mode set back after it.
+  it(
+    'runs a review turn in Plan mode on the real CLI and sets the mode back after it (M70)',
+    async () => {
+      writeFileSync(
+        path.join(workspaceRoot, 'sum.ts'),
+        'export function sum(a: number, b: number) {\n  return a + b + 1\n}\n',
+      )
+      const { sessionId, text, modes, restored } = await runReviewDrill(workspaceRoot)
+      const attempts = countAttempts(await sessionLog(sessionId))
+      process.stderr.write(
+        `live e2e review: modes ${JSON.stringify(modes)}; restored ${JSON.stringify(restored)}; reply ${JSON.stringify(text.slice(0, REVIEW_REPLY_SHOWN_CHARS))}; model attempts ${String(attempts)}\n`,
+      )
+      expect(restored).toEqual([{ ok: true, isAfterTurn: true }])
+      expect(text).toContain(REVIEW_FINDINGS_LANGUAGE)
+      expect(attempts).toBeGreaterThan(0)
+      expect(attempts).toBeLessThanOrEqual(ATTEMPT_BUDGET)
+    },
+    TURN_TIMEOUT_MS,
+  )
 })
+
+const REVIEW_REPLY_SHOWN_CHARS = 400
+
+/** One review turn in Plan mode on the real CLI (M70): the modes it went through, and the reply. */
+async function runReviewDrill(workspaceRoot: string) {
+  const backend = liveBackend(workspaceRoot)
+  const events: AgentEvent[] = []
+  const restored: PlanModeRestore[] = []
+  try {
+    const host = await backend.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot,
+      modelId: LIVE_MODEL_ID,
+      approvalMode: 'promptUnmatched',
+    })
+    const hold = new PlanModeHold({
+      planMode: 'denyUnmatched',
+      restoreMode: () => 'promptUnmatched',
+      onRestored: (outcome) => {
+        restored.push(outcome)
+      },
+    })
+    const done = new Promise<AgentEvent>((resolve) => {
+      session.onEvent((event) => {
+        events.push(event)
+        if (event.type !== 'turnCompleted') {
+          return
+        }
+        hold.turnEnded(event.turnId)
+        resolve(event)
+      })
+    })
+    const reviewText = reviewTurnText({
+      request: { scope: 'custom', focus: 'general', instructions: 'the file sum.ts' },
+      material: undefined,
+      isRoleIncluded: true,
+      newMarker: () => 'unused',
+    })
+    await hold.send(
+      session,
+      [{ type: 'text', text: reviewText }],
+      '/review the file sum.ts',
+      () => true,
+    )
+    expect(await done).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    const deadline = Date.now() + LOG_WAIT_MS
+    while (restored.length === 0 && Date.now() < deadline) {
+      await sleep(LOG_POLL_MS)
+    }
+    return {
+      sessionId: session.sessionId,
+      text: events.flatMap((event) => (event.type === 'textDelta' ? [event.delta] : [])).join(''),
+      modes: events.flatMap((event) => (event.type === 'approvalModeChanged' ? [event.mode] : [])),
+      restored,
+    }
+  } finally {
+    await backend.dispose()
+  }
+}

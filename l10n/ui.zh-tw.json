@@ -572,6 +572,7 @@
   "noEditorForApply": "請開啟文字編輯器，才能將程式碼套用到其中。",
   "diffTitleSuffix": "Muse 編輯",
   "editNotRebuildable": "無法重建 {path}：此編輯之後檔案已變更。",
+  "editUnsavedChanges": "無法還原 {path}：請儲存或捨棄編輯器中尚未儲存的變更，然後重試。",
   "editPathRefused": "已拒絕 {path}：編輯的路徑位於工作區之外。",
   "editNoPatch": "此編輯未留下修補文件。",
   "historyLabel": "歷程記錄",
@@ -1410,6 +1411,95 @@
   "checkpointsModelApiOnly": "檔案還原和重做需要已連線的 Model API 工作階段。Muse Code 檢查點僅供讀取。",
   "checkpointsNativeUnsafe": "原生工作區處理程序或未知視窗可能仍在編輯檔案，因此檔案還原和重做無法使用。尚未證明處理程序已完全停止；需要經確認的復原處理。",
   "checkpointsLegacyReadOnly": "此訊息具有舊檢查點。已儲存的記錄仍可讀取；檔案還原需要目前受到安全保護的快照。",
+  "groupReview": "檢閱",
+  "reviewItem": "/review",
+  "reviewItemDetail": "檢閱未認可的變更、某個分支、某個認可，或您描述的內容",
+  "reviewUncommittedItem": "檢閱未認可的變更",
+  "reviewUncommittedDetail": "已暫存與未暫存的變更，與最近一次認可比較",
+  "reviewBranchItem": "檢閱此分支…",
+  "reviewBranchDetail": "自您選擇的基準分支分出以來的所有變更",
+  "reviewCommitItem": "檢閱某個認可…",
+  "reviewCommitDetail": "從最近的認可中選擇一個",
+  "reviewSecurityItem": "安全性檢閱",
+  "reviewSecurityDetail": "檢查未認可的變更中的注入、秘密資訊、驗證及不安全 API 問題",
+  "reviewChangesItem": "檢閱此對話中的變更",
+  "reviewChangesDetail": "逐一接受或還原變更，並可對某一行留言",
+  "reviewPickBase": "要與此分支比較的分支",
+  "reviewPickCommit": "要檢閱的認可",
+  "reviewDefaultBase": "預設基準",
+  "reviewBusy": "目前回合結束後才會開始檢閱。",
+  "reviewRestricted": "檢閱 git 的變更需要 git，而 git 不會在限制模式下執行。請信任此工作區，或說明要檢閱的內容：/review <要查看的內容>。",
+  "reviewNotRepository": "此資料夾不在 git 存放庫中，因此沒有可檢閱的 git 變更。請改為說明要檢閱的內容：/review <要查看的內容>。",
+  "reviewNoChanges": "沒有可檢閱的變更。",
+  "reviewOnlyPrivate": "只有可能包含秘密資訊的檔案（環境檔案、金鑰、憑證）有變更，這些檔案不會送交檢閱。",
+  "reviewNoBase": "找不到可比較的基準分支。請指定一個：/review branch <基準>。",
+  "reviewUnknownRevision": "git 無法將 {revision} 識別為分支或認可。",
+  "reviewNoCommits": "此存放庫還沒有可檢閱的認可。",
+  "reviewGitFailed": "git 無法讀取要檢閱的變更。",
+  "reviewCancelled": "檢閱已取消。",
+  "reviewUnavailable": "無法載入檢閱，因此無法開始任何檢閱；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
+  "reviewInstructionsTooLong": "要檢閱的內容說明太長，超出單次檢閱的限制；請簡短描述。",
+  "reviewTruncatedNotice": "差異內容較長，因此只隨檢閱送出開頭部分；檢閱者會自行讀取已變更檔案的其餘部分。",
+  "reviewPrivateLeftOut": {
+    "other": "{count} 個可能包含秘密資訊的已變更檔案僅列出名稱，未送交檢閱。"
+  },
+  "reviewPlanModeNotice": "此檢閱會在規劃模式下執行，結束後會恢復您原本的權限模式。Muse Code 在規劃模式下也會套用自己的允許規則，因此在該模式下進行的檢閱並非嚴格唯讀。",
+  "reviewModeRestored": "檢閱已結束：權限模式已恢復為「{mode}」。",
+  "reviewModeNotRestored": "檢閱結束後無法恢復權限模式，因此對話仍處於規劃模式",
+  "reviewAlreadyReverted": "此變更已還原。",
+  "reviewPaneTitle": "此對話中的變更",
+  "reviewPaneLoading": "正在讀取變更…",
+  "reviewPaneEmpty": "此對話尚未變更任何檔案。",
+  "reviewPaneFiles": {
+    "other": "{count} 個檔案"
+  },
+  "reviewPaneHunks": {
+    "other": "{count} 處變更"
+  },
+  "reviewPaneAccepted": {
+    "other": "已接受 {count} 處"
+  },
+  "reviewPaneReverted": {
+    "other": "已還原 {count} 處"
+  },
+  "reviewPaneOmitted": {
+    "other": "有 {count} 處編輯未在此列出（數量太多無法顯示，或無法讀取其變更）；仍可從對話記錄中的對應項目開啟。"
+  },
+  "reviewHunkLines": "第 {index} 處變更，第 {start}–{end} 行",
+  "reviewHunkLine": "第 {index} 處變更，第 {start} 行",
+  "reviewHunkName": "{path} 的第 {index} 處變更",
+  "reviewAccept": "接受",
+  "reviewAccepted": "已接受",
+  "reviewRevert": "還原",
+  "reviewReverting": "正在還原…",
+  "reviewReverted": "已還原",
+  "reviewNotReverted": "未還原",
+  "reviewComment": "對某一行留言…",
+  "reviewCommentLine": "行",
+  "reviewCommentLabel": "留言",
+  "reviewCommentPlaceholder": "代理程式需要在這裡了解或變更什麼？",
+  "reviewSendSteer": "傳送至進行中的回合",
+  "reviewSendNext": "作為下一則訊息傳送",
+  "reviewCommentCancel": "取消",
+  "reviewLineOption": "第 {line} 行：{text}",
+  "reviewRemovedLineOption": "已移除的第 {line} 行：{text}",
+  "reviewOpenFile": "開啟檔案",
+  "reviewCommentSent": "留言已傳送給代理程式",
+  "reviewAnnounceReverted": "已還原 {name}",
+  "reviewAnnounceNotReverted": "無法還原 {name}：{reason}",
+  "reviewFindingsLabel": "檢閱結果",
+  "reviewFindingsHeading": {
+    "other": "{count} 項發現"
+  },
+  "reviewNoFindings": "檢閱未發現需要回報的問題。",
+  "reviewSeverities": {
+    "critical": "嚴重",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "info": "資訊"
+  },
+  "reviewOpenFinding": "開啟 {location}",
   "verifyErrors": {
     "other": "{count} 個錯誤"
   },

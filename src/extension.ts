@@ -61,7 +61,7 @@ import {
   withTerminalOverrides,
 } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { EditReview } from './host/editor/editReview'
+import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
@@ -92,6 +92,7 @@ import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { lazyReview } from './host/review/reviewBundle'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
@@ -149,6 +150,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
   CHECKPOINT_STORE_BUNDLE_FILE,
@@ -1208,34 +1210,49 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     )
   }
 
-  const editReview = new EditReview({
-    platform: process.platform,
-    workspaceRoot,
-    readFile: readTextFile,
-    realPath: canonicalPath,
-    // A Revert the user pressed, a write or a delete: the file is theirs from then on.
-    writeFile: async (fsPath, content) => {
-      await writeUserFile(backend.workspaceActionGuard(nativeStarts.signal), fsPath, content)
-    },
-    deleteFile: async (fsPath) => {
-      const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await withCheckpointEdit(
-        checkpoints,
-        check,
-        asUserEdit(checkpoints, fsPath, async () => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        }),
-      )
-    },
-    openDiff: async (beforeUri, fsPath, title) => {
-      await vscode.commands.executeCommand(
-        VSCODE_COMMANDS.diff,
-        vscode.Uri.parse(beforeUri),
-        vscode.Uri.file(fsPath),
-        title,
-      )
-    },
+  // Edit review (M5) and `/review` (M70: git's changes in the workspace folder,
+  // with the pickers for a base branch or a commit the request did not name,
+  // the review turn's text and the pane's hunks) come from the review's own
+  // bundle, loaded the first time one of them is used.
+  const review = lazyReview({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REVIEW_BUNDLE_FILE).fsPath,
     log,
+    workspaceRoot,
+    runGit,
+    pickOne: showPickOne,
+    editReview: {
+      platform: process.platform,
+      workspaceRoot,
+      readFile: readTextFile,
+      realPath: canonicalPath,
+      hasUnsavedChanges: (fsPath) => toolIo.hasUnsavedChanges(fsPath),
+      beginEdit: (file) => modelApi.beginExternalEdit(undefined, [file]),
+      // A Revert the user pressed is one operation under the restore lease
+      // (M72): read, rebuilt, checked and published there, by the guarded
+      // conditional writes, so a save or a swap meanwhile refuses it. A
+      // change that lands makes the file the user's.
+      withAdmission: async (work) => {
+        const check = backend.workspaceActionGuard(nativeStarts.signal)
+        return await withCheckpointEdit(checkpoints, check, async () => await work(check))
+      },
+      io: createRevertIo({
+        io: toolIo,
+        checkpoints,
+        platform: process.platform,
+        trash: async (fsPath) => {
+          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+        },
+      }),
+      openDiff: async (beforeUri, fsPath, title) => {
+        await vscode.commands.executeCommand(
+          VSCODE_COMMANDS.diff,
+          vscode.Uri.parse(beforeUri),
+          vscode.Uri.file(fsPath),
+          title,
+        )
+      },
+      log,
+    },
   })
 
   const mentions = new MentionIndex({
@@ -1711,7 +1728,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
           return isApplied
         },
-        editReview,
+        editReview: review.editReview,
+        review,
         openDocument,
         openFile,
         readToolImage: async (imagePath) =>
@@ -1928,7 +1946,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       editorContext.update(editorSnapshot)
     }),
     vscode.workspace.registerTextDocumentContentProvider(MUSE_EDIT_SCHEME, {
-      provideTextDocumentContent: (uri) => editReview.provide(uri.path),
+      provideTextDocumentContent: (uri) => review.editReview.provide(uri.path),
     }),
     fileWatcher.onDidCreate(() => {
       mentions.invalidate()

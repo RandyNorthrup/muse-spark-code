@@ -1,17 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { renameSync, writeFileSync } from 'node:fs'
-import { link, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises'
+import { link, readFile, readdir, utimes } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyImportWrites, type ImportWrite } from '../../src/core/import/agentImport'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import {
-  asUserEdit,
-  type CheckpointPort,
-  withCheckpointEdit,
-} from '../../src/host/checkpoints/checkpointHost'
+import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { EditReview } from '../../src/host/editor/editReview'
 import { fileImportWriter } from '../../src/host/importIo'
+import { wiredRevert } from './helpers/activationReview'
 import { createPlanIo, type PlanIoOptions } from '../../src/host/planFeatures'
 import { ATOMIC_TEMPORARY_SUFFIX, PLAN_STAGE_STALE_MS, UI_TEXT } from '../../src/shared/constants'
 import {
@@ -61,7 +58,7 @@ function editLease(h: Harness, signal: AbortSignal, cwd?: string, isTrusted = ()
       await work(check)
     })
   }
-  return { manager, port, edit }
+  return { manager, port, edit, signal }
 }
 
 function planIo(h: Harness, edit: PlanIoOptions['edit'], options: Partial<PlanIoOptions> = {}) {
@@ -150,7 +147,7 @@ async function importFile(
 async function startEdit(
   h: Harness,
   family: EditFamily,
-  { port, edit }: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
+  { manager, port, edit, signal }: ReturnType<typeof editLease>,
 ) {
   if (family === 'import create' || family === 'import append') {
     await importFile(h, family, { port, edit })
@@ -174,20 +171,12 @@ async function startEdit(
     platform: process.platform,
     readFile: async (file) => await readFile(file, 'utf8'),
     realPath: canonicalPath,
-    writeFile: async (file, content) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await writeFile(file, content)
-        }),
-      )
-    },
-    deleteFile: async (file) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await rm(file)
-        }),
-      )
-    },
+    hasUnsavedChanges: () => false,
+    ...wiredRevert({
+      checkpoints: port,
+      guard: (lifetime) => manager.workspaceActionGuard(lifetime),
+      signal,
+    }),
     openDiff: () => Promise.resolve(),
     log: h.log,
   })

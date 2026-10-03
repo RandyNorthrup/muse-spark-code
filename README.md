@@ -1043,6 +1043,91 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
+## Review
+
+Review what the agent did before it lands, on both backends.
+
+- **`/review`** reviews the uncommitted changes (staged and unstaged,
+  against the last commit). `/review branch [base]` reviews the branch
+  against its base since they diverged, `/review commit [revision]` one
+  commit, and `/review <what to look at>` anything you describe, with no
+  git at all. Leave out the base or the commit and a picker asks, the
+  repository's default branch first. A word after `branch` or `commit`
+  that cannot be a revision (it starts with `-` or is longer than 256
+  characters) makes the whole line text to review. Put `security` first
+  (`/review security`, or **Security review** in the `/` menu) to look for
+  injection, secrets, authentication and unsafe APIs.
+- **What goes with it.** The extension reads the changes with git and sends
+  them marked as untrusted data: text in a diff, a file name or a commit
+  message that tries to give the reviewer orders is reported, not
+  followed. Environment files, keys and credentials are left out and only
+  named. A very long diff is cut, and the reviewer reads the rest of the
+  files itself. In Restricted Mode git does not run, so the git presets say
+  so; `/review <what to look at>` still works.
+  Review runs git the way the prompt's git facts do (no fsmonitor hook, no
+  signature program, and `--no-replace-objects`, so a replace ref in the
+  repository cannot show you other commits than history holds); fsmonitor
+  is disabled with an empty value, which also works with older Git that
+  treats `false` as a hook pathname. Configured clean and process filters
+  do not run during review: working-tree diffs compare saved file text
+  directly with stored Git text, without those conversions. Ordinary Git
+  operations keep their own filter configuration.
+- **On the Model API** the review is the Reviewer's turn in your
+  conversation: its own prompt, and tools that only read (read, search,
+  list files, VS Code's Problems). It cannot edit, run commands or reach
+  the network, in any permission mode. It is part of your own turn, so it
+  asks nothing extra; the model can also start the Reviewer as a subagent
+  (role `reviewer`, with no custom agent named), which is a paid child task
+  like any other.
+  The review turn uses no external MCP server and is not blocked by one
+  being unavailable. Configured servers still start when the conversation
+  opens; ordinary turns keep their required-server checks.
+- **On Muse Code** the review turn runs in Plan mode and your permission
+  mode comes back when it ends (pick another mode meanwhile and that one
+  stays). Muse Code applies its own allow rules in Plan mode, so a review
+  there is not strictly read-only. Choosing a mode while Plan mode is being
+  set cancels that pending review; your latest choice takes effect after any
+  outstanding review mode change finishes.
+  Turning Bypass off invalidates an earlier pending confirmation, even if
+  turned on again. If it is revoked while a review restores the mode, the
+  backend is set to Manual before another turn starts. A refused safe
+  fallback retires that conversation's session; it cannot retire a newer
+  conversation that replaced it.
+- **Findings** end the reply as a list: severity, what is wrong, and the
+  file and line, which opens the file there.
+- **The review pane** (`/changes`, or **Review this conversation’s
+  changes**) lists every file this conversation changed, its agents'
+  included, change by change. **Accept** marks a change; **Revert** takes
+  that one change out of the file as it is now, or says why it cannot (the
+  file changed since, or its editor has unsaved changes). Save or discard
+  unsaved changes before trying Revert again. A Revert is one step under
+  turn checkpoints' file-edit lease (another window on the folder refuses a
+  file restore meanwhile): it reads the saved file, rebuilds it, checks the
+  path and the editor again, and writes the file (or moves a file Muse
+  created to the trash) only while it still holds what was read, at the
+  same path with no link or junction on the way. A save, an editor turning
+  dirty (a linked buffer included) or a swapped folder meanwhile makes it
+  refuse rather than overwrite. If the backend restarts while a Revert or
+  the pane's list waits, the pane says so, and a Revert that wrote nothing
+  can be pressed again; one that wrote stays done, even when releasing the
+  lease fails afterwards (the log says so). Overlapping reverts of the same
+  file run in order and rebuild from its latest saved bytes. The pane lists
+  at most 200 edits and 20,000 diff lines, counting
+  omitted edits even when the first patch exceeds the limit. Unreadable stored
+  patches count toward that omission notice. **Comment on a
+  line** sends your comment to the agent with that line and the lines
+  around it: into the running turn, or as your next message.
+- **A review is a turn.** It is marked running and takes its turn
+  checkpoint like a message, so another window refuses a file restore while
+  it runs. A message you send while a review is starting waits for it and
+  then goes into the review turn, and only one review starts at a time.
+  Clearing the conversation while a review is starting lets the new
+  conversation's review or message start at once.
+  A pending permission-mode request settles before review admission; a refused
+  request refuses that review instead of trusting the panel's optimistic label.
+  A review reply arriving after you clear or switch conversations cannot mark
+  the current conversation running or accept the old turn checkpoint.
+
 ## Scheduled prompts (Model API)
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
@@ -1378,17 +1463,18 @@ palette with a filter box of its own. Its groups:
   servers, hooks, memory, settings, keybindings.
 - **Account & usage** (with the paid features' toggles where the backend can
   use them), **Skills** (the session's own, plus Manage and Import on the CLI
-  backend), **Slash commands** and **Support**.
+  backend), **Slash commands**, **Review** (the review presets and the review
+  pane) and **Support**.
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
-commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
-`/memory`, `/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API
-backend), and the session's skills. Names that start with your letters come
-first. Up and Down move, `Enter` runs a command (a skill, `/goal` or
-`/handoff` is completed so you can add what follows it), `Tab` completes
-the name and `Esc` closes the list. With nothing matching, `Enter` sends
-the text as it is.
+commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
+`/config`, `/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
+`/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/security-review`, `/usage`, `/loop` (Model API backend),
+and the session's skills. Names that start with your letters come first. Up
+and Down move, `Enter` runs a command (a skill, `/goal`, `/review` or `/handoff`
+is completed so you can add what follows it), `Tab` completes the name and
+`Esc` closes the list. With nothing matching, `Enter` sends the text as it is.
 
 **Transcript.**
 
@@ -2362,6 +2448,13 @@ stopped and the next message resumes the same session.
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
   removing that directory deletes them all. The History dialog archives, it
   does not delete.
+- A `/review` of git's changes sends their diff, the changed files' names
+  and, for one commit, its message with the review turn, as a message would
+  send them; environment files, keys and credentials are left out of the
+  diff and only named. Reviewer system instructions omit git metadata; the
+  review turn carries that material inside its untrusted markers. Date and
+  workspace rules remain in the system prompt. The review pane and its Revert
+  stay on this machine.
 - The log records what happened (sessions, turns and their times, approvals,
   failures) and never your prompts, files, dictated words or the model's
   output; keys are redacted.
@@ -2597,21 +2690,24 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 **Stack.** TypeScript 6.0.3 (pinned: `typescript-eslint` does not yet
 support TS 7); the extension host bundled with esbuild to CommonJS, with the
 Model API backend as a second bundle (`dist/modelApi.js`) that loads when
-that backend first starts, and the plan reader (the panel's Markdown
+that backend first starts, the plan reader (the panel's Markdown
 parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
-action; the webview is React 19 bundled to one IIFE with
+action, and the review (git's material for `/review`, its turn text, the
+Plan-mode hold and edit review, `dist/review.js`) as a fourth that loads the
+first time one is used; Node bundles require the shared English fallback
+(`dist/uiText.js`) and each keeps its own installed-language state; the webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
 | Command                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. The README's screenshots are these renders, copied from `harness-shots/` into `media/readme/`: `tools` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, and the Languages section's is `usage --lang=de` (as `languages.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided, and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, or web fetch's page converter (parse5 and its parts), are in the activation bundle (`scripts/check-bundle-split.mjs`) or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `npm run notices`                         | Regenerates `THIRD_PARTY_NOTICES.txt` from the production bundles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, and PSScriptAnalyzer 1.25.0 over `native/windows` (Windows only; a reported skip elsewhere)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |

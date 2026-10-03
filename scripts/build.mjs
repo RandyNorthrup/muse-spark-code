@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Bundles the extension host entry, the Model API backend, the search worker,
+// Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
 // import from other agents (M83: the scan, the converters, the file access and
@@ -17,6 +17,10 @@
 // bundle requires it the first time that backend starts. Nothing it bundles
 // may import `vscode` (src/core must not), so `vscode` is not external there
 // and a stray import fails this build.
+//
+// The review (M70) is a third, dist/review.js: git's material for `/review`,
+// its turn text and the Plan-mode hold, required the first time a review
+// starts. Its factory installs the activation bundle's display language before use.
 //
 // A production build also writes each shipped bundle's esbuild metafile to
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
@@ -49,6 +53,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
+const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -115,6 +121,17 @@ const modelApiOptions = {
   plugins: [sharedUiText],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const reviewOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [REVIEW_ENTRY],
+  outfile: REVIEW_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -235,6 +252,7 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
+    esbuild.context(reviewOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -249,6 +267,7 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
+    review: esbuild.build(reviewOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -276,6 +295,7 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
+  reportSize(REVIEW_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

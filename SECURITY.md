@@ -339,6 +339,38 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Webview.** `default-src 'none'`, a per-load script nonce, no remote
   origins, no inline styles; every message between the host and the
   webview is validated against a schema.
+- **Review (M70).** A review's git material (diffs, file names, branch
+  name, commit message) reaches the model between random markers under
+  a sentence that calls it untrusted data; a marker the material already
+  holds is replaced. Git runs for a review only in a trusted workspace, as
+  the prompt's git facts do: no `core.fsmonitor` hook (an empty value, which
+  older Git reads as disabled too), no signature program, no replace refs
+  (`--no-replace-objects`), no external diff driver or text conversion
+  (`--no-ext-diff`, `--no-textconv`), and every configured clean and
+  process filter program and its required flag overridden for each call
+  (their names are read, never their commands; the working-tree diff
+  compares saved text). A revision the user names can never read as a git
+  option. Each request is bound to its folder's physical identity (canonical
+  path, device and inode), so a link or junction retargeted while a picker
+  is open or git runs cancels the request before foreign material is
+  returned; the last check before the turn is sent is synchronous and does
+  not exclude an unrelated replacement after it (the residual every
+  path-then-act check has). Files that may hold secrets are left out of every
+  diff. Repository branch names and recent commit subjects are omitted from
+  Reviewer system instructions: git material belongs in the untrusted turn
+  block. The date and trusted workspace rules remain. On the Model API the
+  Reviewer has only tools that read, and any
+  other call is refused in every mode, Bypass included; on Muse Code the
+  review turn runs in Plan mode, which Muse Code's own allow rules still
+  apply to, so it is not claimed strictly read-only, and the mode the user
+  had comes back when it ends (Bypass only while its setting still allows
+  it). The review pane's Revert writes back through the same workspace
+  confinement as Edit Review (canonical path, links and junctions), refuses
+  a file whose editor has unsaved changes, serializes writes to one file,
+  and runs as a checkpointed edit like any other explicit edit. Its writer and
+  deletion adapter invoke the original/canonical dirty-buffer predicate inside
+  that admission, immediately before I/O; a buffer dirtied during the wait
+  refuses the operation and releases the activity lease.
 - **Prompt injection.** Workspace files, rules, skills and custom agents
   reach the model by design in a trusted workspace, and so do fetched web
   pages (marked as untrusted content); the permission modes and the approval

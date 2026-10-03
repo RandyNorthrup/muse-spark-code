@@ -3,6 +3,7 @@
 !dist/modelApi.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/review.js
 !dist/agentImport.js
 !dist/uiText.js
 !dist/searchWorker.js

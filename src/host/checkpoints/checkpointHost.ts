@@ -338,10 +338,12 @@ export async function withCheckpointEditAt<T>(
 
 /**
  * `work` as a write or delete the extension makes in the user's name (a
- * command they ran, a Revert they pressed): once it is done its path is the
- * user's, as their own save is. `workspace.fs` saves no document, so VS
- * Code's save event never sees these writes; noted here, a turn running
- * meanwhile neither takes the file for its own nor undoes it on a restore.
+ * command they ran, a file they export): once it is done its path is the
+ * user's, as their own save is (a Revert, whose change may be refused, is
+ * the user's only once it lands: `createRevertIo`). `workspace.fs` saves no
+ * document, so VS Code's save event never sees these writes; noted here, a
+ * turn running meanwhile neither takes the file for its own nor undoes it on
+ * a restore.
  * The model's writes (its tools, its memory) never come through here: they
  * are the turn's, and its restore puts them back.
  */

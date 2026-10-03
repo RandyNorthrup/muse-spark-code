@@ -35,6 +35,8 @@ import {
   WEBVIEW_ERROR_STACK_MAX_CHARS,
 } from './constants'
 import { paidStateSchema } from './paid'
+import { patchHunkSchema } from './patchDocument'
+import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'
 import { sessionRowSchema } from './sessions'
 import { accountFactsSchema, subscriptionUsageSchema, usageInsightsSchema } from './usage'
@@ -75,6 +77,23 @@ const rewindConversationSchema = z.object({
   imageCount: z.number(),
   attachmentEpoch: z.optional(z.number()),
 })
+
+const indexSchema = z.int().check(z.gte(0))
+
+/**
+ * One file of one edit as the review pane lists it (M70): the edit's item
+ * and patch, the file's place in the patch, its workspace-relative path and
+ * its hunks. `refusal` says why its hunks cannot be reverted here.
+ */
+const reviewFileSchema = z.object({
+  itemId: z.string(),
+  outputRef: z.string(),
+  fileIndex: indexSchema,
+  path: z.string(),
+  refusal: z.optional(z.string()),
+  hunks: z.array(patchHunkSchema),
+})
+export type ReviewFile = z.infer<typeof reviewFileSchema>
 
 // What the host reads from VS Code's webview state (`setState`): the
 // session the panel shows, so a panel rebuilt after a window reload resumes
@@ -413,6 +432,28 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
       }),
     ),
   }),
+  // `/review …` or a palette review row (M70): the card the webview already
+  // shows is `localId`, reading `text`; answered by turnAccepted or sendFailed.
+  z.object({
+    type: z.literal('startReview'),
+    localId: z.string(),
+    text: z.string(),
+    request: reviewRequestSchema,
+  }),
+  // The review pane opened (M70): the conversation's edits, oldest first.
+  z.object({
+    type: z.literal('readReviewChanges'),
+    requestId: z.string(),
+    edits: z.array(editRefSchema),
+  }),
+  // The review pane's Revert on one hunk (M70).
+  z.object({
+    type: z.literal('revertReviewHunk'),
+    itemId: z.string(),
+    outputRef: z.string(),
+    fileIndex: indexSchema,
+    hunkIndex: indexSchema,
+  }),
   rewindConversationSchema,
   // "Restore files to here" (M72): the workspace's files back to the
   // checkpoint before this turn; with `rewind`, the conversation rewinds as
@@ -740,6 +781,25 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // The host did not move or stop this task (M46): the row's button is free again.
   z.object({ type: z.literal('taskRefused'), itemId: z.string() }),
+  // The review pane's files and hunks (answer to readReviewChanges, M70).
+  // `omittedEdits` counts the edits past the pane's limits or unreadable;
+  // `reason` says why there is nothing to list at all.
+  z.object({
+    type: z.literal('reviewChanges'),
+    requestId: z.string(),
+    files: z.array(reviewFileSchema),
+    omittedEdits: z.number(),
+    reason: z.optional(z.string()),
+  }),
+  // What became of a hunk's Revert (M70); `reason` when it was not reverted.
+  z.object({
+    type: z.literal('reviewHunkResult'),
+    itemId: z.string(),
+    fileIndex: indexSchema,
+    hunkIndex: indexSchema,
+    isReverted: z.boolean(),
+    reason: z.optional(z.string()),
+  }),
   // A `!` command that did not run (M46): why, and the command, which goes
   // back into an empty prompt.
   z.object({ type: z.literal('userShellRefused'), command: z.string(), reason: z.string() }),

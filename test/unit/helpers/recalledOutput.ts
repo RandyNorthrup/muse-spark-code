@@ -2,7 +2,7 @@
 // output and its tool, the frame's fresh marker, and the slice between the
 // markers exactly as the store returned it.
 
-import { MODEL_TEXT } from '../../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT } from '../../../src/shared/constants'
 import { fill } from '../../../src/shared/l10n/text'
 
 const RECALLED_OPEN = /^<<<recalled output ([0-9a-f]+)>>>$/mu
@@ -24,7 +24,7 @@ export function recalledParts(text: string): RecalledParts {
   if (open === null || marker === undefined) {
     throw new Error('the recalled output has no opening marker')
   }
-  const close = `\n${fill(MODEL_TEXT.packRecalledClose, { marker })}`
+  const close = `\n${fill(MODEL_API_MODEL_TEXT.packRecalledClose, { marker })}`
   if (!text.endsWith(close)) {
     throw new Error('the recalled output does not end with its closing marker')
   }

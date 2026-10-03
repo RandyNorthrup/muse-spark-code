@@ -12,7 +12,7 @@ import type { EditedFile } from '../../src/core/verify/diagnosticsReport'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { type HookDefinition, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
-import { MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT, MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import {
   type FakeServiceOptions,
@@ -409,7 +409,9 @@ describe('code intelligence on the Model API backend', () => {
     expect(await cardFor(auto.events)).toMatchObject({ isProtectedWrite: true })
     const plan = await start({ approvalMode: 'denyUnmatched', service: GREET_EVERYWHERE })
     await plan.turn([RENAME])
-    expect(outputs(plan.api)[0]).toBe(`Error: rename_symbol ${MODEL_TEXT.toolRefusedByMode}`)
+    expect(outputs(plan.api)[0]).toBe(
+      `Error: rename_symbol ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
+    )
     expect(plan.io.files.get(A)).toBe(FILES['src/a.ts'])
     // Refused before the language service is asked for anything.
     expect(plan.service?.asked.some((call) => call.startsWith('rename'))).toBe(false)
@@ -743,12 +745,16 @@ describe('code intelligence on the Model API backend', () => {
       expect(
         t.api
           .responseBodies()
-          .some((body) => JSON.stringify(body['input']).includes(MODEL_TEXT.subagentObjective)),
+          .some((body) =>
+            JSON.stringify(body['input']).includes(MODEL_API_MODEL_TEXT.subagentObjective),
+          ),
       ).toBe(true)
     })
     const child = t.api
       .responseBodies()
-      .find((body) => JSON.stringify(body['input']).includes(MODEL_TEXT.subagentObjective))
+      .find((body) =>
+        JSON.stringify(body['input']).includes(MODEL_API_MODEL_TEXT.subagentObjective),
+      )
     expect(String(child?.['instructions'])).toContain('src/a.ts\n  1: function greet')
     expect(t.service?.asked.filter((call) => call === 'workspace greet')).toHaveLength(1)
   })

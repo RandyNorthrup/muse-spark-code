@@ -6,11 +6,7 @@ import { describeEnvironment } from '../../src/host/backend/environment'
 import { withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { processGitRunner } from '../../src/host/git'
 import { posixQuoted } from '../../src/core/shellQuote'
-import {
-  GIT_FILTER_NAME_MAX_CHARS,
-  GIT_FILTER_NAMES_MAX,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import {
   changedFileTurn,
   checkpointPort,
@@ -25,6 +21,7 @@ import {
   runGit,
   write,
 } from './helpers/checkpointHarness'
+import { hostileFilterListings } from './helpers/gitFilterNames'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 
 afterEach(removeCheckpointFolders)
@@ -279,15 +276,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 
-  it.each([
-    'filter.bad=name.clean\u{0}',
-    `filter.${'x'.repeat(GIT_FILTER_NAME_MAX_CHARS)}.clean\u{0}`,
-    Array.from(
-      { length: GIT_FILTER_NAMES_MAX + 1 },
-      (_, index) => `filter.p${String(index)}.clean\u{0}`,
-    ).join(''),
-    Object.assign(new Error('unreadable /arbitrary/profile/path'), { code: 'EACCES' }),
-  ])(
+  it.each(hostileFilterListings('unreadable /arbitrary/profile/path'))(
     'refuses malformed/excessive/unreadable names without status or raw error logs',
     async (names) => {
       const h = await harness()

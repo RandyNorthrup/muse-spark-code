@@ -221,6 +221,7 @@ quality`) and as a CI job.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
 | `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                          |
+| `dist/review.js`          | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                               |
 | `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
 | `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
 | `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
@@ -239,7 +240,8 @@ mirrors both scripts and changes with them, with a CHANGELOG entry.
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
 The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
 emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
-the Model API backend, the checkpoint store, the import bundle and the ACP agent require it
+the Model API backend, the review, the checkpoint store, the import bundle
+and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
 The browser and integration-test bundles retain their inline fallback. The
 development build writes the table beside the extension, so the integration
@@ -248,6 +250,10 @@ ACP packager and both CI member lists include it. Existing bundle caps stay
 unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
 and every before/after size are in
 [`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
+M70c also keeps `dist/review.js` lazy with its 50 KiB cap and checks its shared
+table import. Current M70c build: extension 522.6/600 KiB, Model API 331.9/400,
+review 41.0/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
+focused proof in `docs/certification/m70.md`.
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and
@@ -321,6 +327,42 @@ entry or any file of the parser's packages (`micromark*`, `mdast-util-*`,
 `dist/planMarkdown.js` stops carrying the reader. Since PR #53's third review
 the reader also writes the brief (`mdast-util-to-markdown`, the version
 remark-gfm's writer resolves to): 139.0 KiB.
+
+**Amendment (M70, 2026-09-30): the review is a bundle of its own.** At the M72 candidate
+(`1fd98aaf`) `dist/extension.js` was 591.6 KiB of its 600 and
+`dist/modelApi.js` 398.4 of its 400. M70 as first ported added 30.1 KiB to
+the activation bundle and 9.9 KiB to the Model API bundle: the review's code
+(about 10 KiB in each of the host's two halves), its 70 strings (4.6 KiB in
+every bundle that carries the English table) and its model text (3.5 KiB in
+every bundle that carries `MODEL_TEXT`).
+
+- **`dist/review.js`** (budget 50 KiB, 40.8 KiB measured) is built from
+  `src/host/review/reviewEntry.ts` and required by `lazyReview`
+  (`reviewBundle.ts`) the first time a review, an Open diff or a Revert
+  needs it: the git collector, the material readers and the review turn's
+  text, the Plan-mode hold, and edit review (`EditReview`, which the pane's
+  hunks share a write lane with, so one instance serves both). Only types
+  and the loader stay at activation. A module that cannot be loaded refuses
+  with `reviewUnavailable` and the log has the cause; the next use tries
+  again. `check-bundle-split.mjs` fails when any of those files is in
+  `dist/extension.js`, `dist/modelApi.js` or `dist/acp.js`, or missing from
+  `dist/review.js`; `reviewBundle.test.ts` builds the real entry and loads it
+  with Node's `require`.
+- **`REVIEW_MODEL_TEXT`** is the review's model text as a block of its own
+  beside `MODEL_TEXT`, so a bundle that never reviews does not carry it (a
+  single object cannot be tree-shaken by key).
+- **Session-only model text** is `MODEL_API_MODEL_TEXT`, a separate block
+  beside `MODEL_TEXT`: 57 existing keys used only by `ModelApiHost` (one is
+  also read by the lazy MCP pool), with every word unchanged. Activation
+  and the ACP loader can discard this unused object. The split gate rejects
+  the session text's return to either loader. This repairs M70's initial
+  603.7 KiB activation overflow without raising any cap.
+- **Measured** (lane production build, after merging M72 candidate `54a1eaf5`):
+  `dist/extension.js` 599.4/600 KiB, `dist/modelApi.js` 331.8/400,
+  `dist/review.js` 40.8/50, `dist/checkpointStore.js` 190.3/225,
+  `dist/acp.js` 788.8/850, `dist/webview/main.js` 799.5/900.
+  These focused measurements do not certify the full aggregate or platforms.
+
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
 D62) builds a `ModelApiBackendManager` per folder, which since M57 needs a
@@ -8484,6 +8526,130 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Main reconciliation (MG69, 2026-10-02).** Finish the inherited merge of
+  `origin/main` `0e9546e0` into `544c16c2`, preserving M70 review/Revert,
+  M84 session transfer and M83 imports, including both lazy bundles and
+  checkpoint edit tests. Regenerate the host API record and notices from
+  merged source on Kubuntu. Keep Unreleased milestones under Added and
+  released changelog sections byte-identical to main. Run required owning
+  suites, static gates and build on the rig; commit with configured hooks,
+  no push. Evidence: `docs/certification/mg69.md`. Full quality remains
+  the lead's gate under the lane brief.
+- **Second main reconciliation (M70m2, 2026-10-02).** Complete the inherited
+  merge of `e66263f1` (M73 packing, M74 handoff and the charset repair) into
+  `c48bf6bd`, keeping both features' commands, turn admission and source.
+  The handoff waits for the review pane as for the other modals. Reviewer
+  requests retain whole observations because its existing read-only tool
+  set has no `recall_output`; ordinary requests still pack. Keep packing's
+  model text in the existing lazy Model API block. Run the owning suites
+  and static gates on Kubuntu, regenerate the host API record there, and
+  retain released changelog sections byte-for-byte from `origin/main`.
+  No push; configured hooks and all gates remain unchanged. Evidence goes
+  in `docs/certification/m70m2.md`.
+- **Main reconciliation (M70m, 2026-10-02).** Finish the inherited merge of
+  `9f35526d` in `4debea77`, merge `origin/main` `2a03a79b` (0.10.1) in
+  `90c1a0c4`, then include the newer docs-audit head `2067d2f9` (PR #74).
+  Keep the review/Revert implementation and main's session transfer and
+  evaluation intact, including all tests and harness scenarios; regenerate
+  the host API record on Kubuntu. Focused rig proof and the browser capture
+  limitation are recorded in `docs/certification/m70m.md`. Full quality and
+  PR acceptance remain the lead's gates, as the lane brief requires.
+- **Revert restructured (M70e, RV69, 2026-10-02).** The fourth review round
+  on Revert ends the patching: the lead's decision is one operation under
+  checkpoint admission, in order: take the lease, read the saved bytes,
+  rebuild from those bytes, re-resolve the canonical target inside the
+  workspace, check no editor is dirty, then publish only while the file
+  still holds those bytes, through the guarded conditional writes the
+  model's tools use (`ToolIo.writeFileIfUnchanged`; a created file's trash
+  through `fsAtomic.deleteFileIfUnchanged`, which compares the bytes, the
+  canonical path and the file's identity just before the removal; a file
+  absent when read through the absence-conditional write a restore uses),
+  then let the lease go. No raw `workspace.fs` write or delete is left in
+  Revert; `createRevertIo` notes the file as the user's only once a change
+  lands. (1) A save during admission is now read and rebuilt from; one after
+  the read refuses the publication. (2) A folder swapped for a link during
+  admission is refused by the re-resolve, and after it by the writers'
+  bound-path checks. (3) A `/review` start barrier belongs to the
+  conversation generation that set it: `dropSession` drops it and an old
+  `finally` never clears a newer one. (4) A Revert that changed the file
+  stays reverted (and its once-only hold kept) when the lease release fails
+  afterwards; the failure is logged, as a turn's failed release is (no
+  user-visible notice exists for it). Proof in `docs/certification/m70.md`.
+- **Independent review follow-up (M70d, 2026-10-01).** Four code-reading
+  findings, each confirmed before repair, after merging main's shared
+  English table (PR #67). (1) The changed-file list carried git's
+  `--name-status` lines; it now holds paths (a rename as `old → new`) read
+  from `-z` output, which also keeps git's quoting out of the privacy
+  check. (2) The cut never mid-line in practice (git's diff opens with a
+  short line), but a line break exactly at the cap kept 200,001
+  characters; the cut is now within the cap and the docs say how it falls.
+  (3) A pane press or read overtaken by a restart, a crash, the host
+  closing the session or a sign-in check returned silently: the pane
+  waited forever and an unwritten hunk stayed "already reverted". It is
+  answered while the panel still shows that conversation, and a press
+  releases only its own hold. (4) A revision word over 256 characters
+  parsed as git and was refused as "too long"; the parser now applies the
+  wire schema itself, so such a word is custom text. Also: the activation
+  review-admission fixture lacked M72's `asUserEdit`, so its four cases
+  timed out since the main merge. Proof in `docs/certification/m70.md`.
+- **Shared-table decision (M70c, 2026-10-01).** Remove the lane's empty-table
+  build workaround in its own commit, then merge approved `build/shared-ui-text`
+  (`44d920fd`). Every Node bundle loads `dist/uiText.js`; review stays lazy
+  with its unchanged 50 KiB cap. No other build-layout change. Build before
+  further fixes; stop and report if any cap is exceeded.
+- **Independent review follow-up (M70b, 2026-10-01).** Reproduce RV70 findings
+  1–5 before fixing: wait for ordinary mode admission; fence late review
+  acknowledgements to their submitted session/generation; recheck dirty buffers
+  inside checkpoint write/delete admission; omit git metadata from Reviewer
+  system instructions; report unreadable pane patches as omitted edits.
+  Reuse existing mode settlement, session fences, dirty predicate, date text
+  and pane omission path. One commit per finding, guard drills with
+  byte-exact SHA-256 restoration. Run the two reported failing suites alone and
+  resolve any isolated failures without changing deadlines. No M72 merge this
+  round; full quality and installed-editor checks remain the lead's gates.
+- **RV70 finding 1 verified (M70c).** Reviews await the existing ordinary
+  mode-settlement lane, including refusal. Controller guard drill: 329 green,
+  two intended failures, 329 restored with matching SHA-256. Isolated native
+  controller fixtures now arrange held admission before the retarget action;
+  retained Model API checkpoint test waits for actual admission (331 pass).
+  Deadlines and assertions unchanged; proof in `docs/certification/m70.md`.
+- **RV70 finding 2 verified (M70c).** Track the submitted session, including
+  owned resume recovery, and apply the current session/generation fence after
+  acknowledgement before accepting its capture/turn. Clear and retire cases
+  fail without the guard; full controller file passes 331 tests after exact
+  restoration. M57's real bundle fixture is built in its existing setup hook,
+  retaining its deadline and goal-refusal assertions.
+- **RV70 finding 3 verified (M70c).** Revert binds its existing
+  dirty-buffer predicate to both original and canonical paths and passes it
+  to the write/delete adapter. The adapter invokes it after checkpoint
+  admission, immediately before I/O. This port argument is needed because
+  the adapter receives only the canonical target and cannot otherwise recheck
+  a dirty buffer opened through a link. No new option or helper module.
+  All four regression cases failed before repair. Predicate/write/delete
+  guard drills each restored all 32 owning tests with matching SHA-256.
+- **RV70 finding 4 verified (M70c).** Omit git metadata from
+  Reviewer system instructions; repository material belongs only in its
+  untrusted turn block. Keep the existing date text in a date-only
+  `REVIEW_MODEL_TEXT` template: the ordinary environment formatter always
+  adds git facts, and passing it undefined git would falsely suggest that
+  the repository is absent or unavailable. Ordinary-turn formatting stays.
+  Commit-subject regression fails before repair and when system metadata is
+  reintroduced; 22 owning tests pass after SHA-256-exact restoration.
+- **RV70 finding 5 verified (M70c).** Unreadable descriptions throw the
+  existing localized refusal, entering the pane's existing omission path.
+  Sole and mixed corrupt patches are counted honestly; the real bundle test
+  now requires refusal. Four before/mutated failures, 372 restored owning
+  tests, byte-exact SHA-256. No new UI key or parser shape.
+- **M70c closure.** All five RV70 findings reproduced, repaired and drilled;
+  nine source/compiled guard mutations rejected with exact SHA-256 restoration
+  (two shared-table checks; mode wait, session fence, dirty predicate and its
+  two I/O callers; system metadata; malformed description). Required static gates/build pass,
+  plus passing evidence for all 840 tests in 11 owning files. The combined
+  run's native-picker timeout and UI worker startup failure are retained;
+  complete material/UI files pass alone after bounded fixture preparation.
+  No timeout, threshold, ignore, rule level or name filter changed. Full
+  quality, installed-editor/rig certification and the new M72 merge remain
+  the lead's work. Detailed receipts in `docs/certification/m70.md`.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:
@@ -8517,6 +8683,146 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 - **Tests.** The fake Model API and the fake `muse serve`; the pane in the
   harness and the accessibility gate.
 - **Size.** L.
+- **As built** (`feature/m70-review`; written 2026-09-28, resumed and joined
+  to the M72 candidate `1fd98aaf` on 2026-09-30; `docs/certification/m70.md`).
+  - **`/review` grammar.** `/review` (uncommitted), `/review branch [base]`,
+    `/review commit [revision]`, `/review <text>` (custom, no git), each
+    with an optional leading `security`. A keyword counts only with at most
+    one revision word after it, so `/review branch naming in utils` is
+    custom text. A revision is one word of at most 256 characters that
+    never starts with `-`: the parser applies the wire schema itself, so any
+    other word there makes the line custom text, and a leading `-` is
+    refused again before git sees it. The palette's Review
+    group has the presets, **Security review** (`/security-review`, Claude
+    Code's name) and the pane (`/changes`); a missing base or commit is
+    picked in a quick pick, the base suggested from `origin/HEAD`, else
+    `main` or `master`.
+  - **The material** comes from the extension's own git
+    (`src/core/review/reviewMaterial.ts`, `src/host/review/reviewCollector.ts`)
+    run as the prompt's git facts run: `GIT_METADATA_OPTIONS` (no fsmonitor
+    hook, disabled with an empty value because Git 2.25 and 2.35 read
+    `false` as a hook pathname; no signature program; `--no-replace-objects`,
+    so a replace ref cannot show other commits than history holds), every
+    configured clean and process filter overridden for the call (names read
+    with the shared `gitFilterOptions`, never commands; the working-tree
+    diff compares saved text), `--no-ext-diff`, `--no-textconv` and
+    `--relative`. It covers the uncommitted changes against `HEAD` (staged,
+    then unstaged, before a first commit), a branch from its merge base, and
+    one commit against its first parent (a root commit whole). Files that
+    may hold secrets (M54's attachment rule, now `shared/privateFiles.ts`)
+    are left out of every diff by pathspec and only named. The changed files
+    are listed by path (a rename as `old → new`), read from git's `-z`
+    output so no path arrives quoted. The diff is cut after its last whole
+    line within 200,000 characters (git's diff opens with a short
+    `diff --git` line, so one always fits), and the reviewer is told so.
+    Everything git said, the branch name and commit message included, goes
+    between random markers under a sentence that calls it untrusted data
+    (D49's untrusted content); a marker the material already holds is
+    replaced, three tries. Restricted Mode refuses the git presets with the
+    reason; custom instructions still run.
+    The branch scope's base and merge-base facts also live inside those
+    markers: a base chosen from git's picker is repository data too.
+  - **A request owns its folder.** Each git request is bound to the
+    folder's canonical path and its device and inode
+    (`src/host/workspaceIdentity.ts`, shared with the ACP agent's Model API
+    hosts): git runs only at that canonical cwd, the lexical and canonical
+    path are compared before and after every call, after a picker and
+    before the material is released, and trust is re-read each time. A link
+    or junction retargeted, or a directory replaced, cancels the request;
+    once lost it stays lost. The last synchronous comparison before the
+    turn is sent does not exclude an unrelated replacement after it (the
+    residual every path-then-act check has).
+  - **The Model API's Reviewer** (`reviewer.ts`) is the conversation's own
+    turn run with its prompt (role, workspace, environment, the review
+    method, the workspace rules) and only `read_file`, `search`,
+    `list_files` and `mcp__ide__getDiagnostics`: no write, shell, memory,
+    MCP, subagent, image or web search, and a call to anything else is
+    refused in every mode, Bypass included. It performs no additional external MCP startup
+    during the review turn and is not stopped by an unavailable server;
+    configured servers can still start when the conversation opens; the next ordinary turn
+    keeps its required-server check. No payment is asked: it is the user's
+    own turn (D49). A child task whose role is `reviewer` runs the same way
+    and stays a paid child task (D45, D48); one that names an M76 custom
+    agent runs as that agent, whose own prompt, tools and mode govern it.
+  - **Muse Code** gets the same text with the role and the method at its
+    head, as the turn's text (`REVIEW_MODEL_TEXT`), no skill. The turn runs
+    in Plan mode (`denyUnmatched`) and `PlanModeHold` puts the user's mode
+    back when that turn ends. Muse Code applies its own allow rules in Plan
+    mode, so the review is not claimed strictly read-only (D46; the owner's
+    ruling). The mode logic is the careful part:
+    - a mode the user picks while the hold is being set cancels that
+      pending review; one picked during the review wins and nothing is put
+      back; the newest choice follows every outstanding mode request, and
+      a new turn waits for them rather than trusting the panel's label;
+    - Bypass comes back only while its setting still allows it (D24): a
+      restore revoked while it was in flight is corrected to Manual before
+      it is reported, off and on again does not revive an earlier pending
+      remote confirmation, and a fallback the backend refuses retires only
+      the session that owned the unsafe request, never a replacement;
+    - the session going releases the hold, and a review whose Plan
+      admission was refused after a revocation retires the old Bypass owner
+      rather than relabelling it Manual.
+  - **A review is a turn for checkpoints (M72, D51).** It is marked
+    running and takes the pre-turn capture before it is sent (released with
+    the mark when its turn cannot be sent), as a message does, because a
+    Plan-mode turn on Muse Code is not strictly read-only. One review starts
+    at a time, and a message sent while one starts waits for it, then goes
+    into the review turn as a steer. That wait belongs to the conversation
+    generation that started the review: a cleared or replaced conversation
+    drops it, so the old review's outstanding command neither holds up nor
+    refuses the next conversation, and its end never clears a newer one.
+  - **Findings**: the review ends with a fenced `muse-review` JSON block
+    (the extension's own format, parsed with zod); the reply shows it as a
+    list with severity, title, detail and a `file:line` that opens the file
+    at those lines. A model-chosen severity is shown as it came; a location
+    outside the workspace is text, never opened. A block that does not
+    parse stays a code block.
+  - **The review pane** (`/changes`) lists the conversation's edits, its
+    agents' included, in the order they landed, file by file and hunk by
+    hunk (at most 200 edits and 20,000 diff lines, the first patch
+    included; the rest are counted). Accept marks a hunk; Revert takes that
+    one hunk out of the file as it is now (M36's exact reverse-apply), once,
+    or says why it could not. A comment on a line quotes the file, the line
+    and three lines around it as a `chat_reference` from `diff`, and goes as
+    a steer into the running turn or as the next message. Revert is an
+    explicit file edit of edit review, serialized per file so overlapping
+    reverts rebuild from each other's bytes, and each one is one operation
+    under the checkpointed edit lease (another window refuses a restore
+    meanwhile): read the saved bytes, rebuild from them, re-resolve the
+    canonical target inside the workspace (links and junctions), refuse an
+    editor with unsaved changes, then publish only while the file still
+    holds those bytes at that path with no link on the way (the tools'
+    `writeFileIfUnchanged`; a created file emptied goes to the trash through
+    `deleteFileIfUnchanged`; a file absent when read is written only while
+    still absent). A refused publication says why (changed since, or
+    unsaved changes). It is announced to live verification without an own
+    edit round of the agent's (`beginExternalEdit`) and is the user's once
+    it lands. A Revert that changed the file stays reverted when the lease
+    release fails afterwards (logged). A press or a pane read that a restart, a
+    crash, the host closing the session or a sign-in check overtakes is
+    answered while the panel still shows that conversation (attached, or
+    the one the next message resumes); a press that wrote nothing gives its
+    hunk back, and only its own hold. A cleared or other conversation hears
+    nothing of it.
+  - **Bundles** (D6 amendment): the review's code is `dist/review.js`, and
+    the Model API and review bundles carry no English table.
+    The lane's budget repair splits the existing model text used only by
+    `ModelApiHost` into `MODEL_API_MODEL_TEXT` beside the shared block,
+    following `REVIEW_MODEL_TEXT`. Its words and callers' behaviour stay
+    identical; activation can discard that unused object. The bundle-split
+    gate must reject its return to activation or the ACP loader. This is
+    required to fit M70 under the unchanged 600 KiB activation cap.
+  - **Wire evidence** (AGENTS.md rule 13): nothing new is read from Muse
+    Code or Meta. `session/setApprovalMode` and `session/approvalModeChanged`
+    are M4's captured shapes; the findings block is the extension's own
+    format and is parsed as untrusted model output.
+  - **Left to the owner** (not settled here): widening the list of files
+    that may hold secrets beyond M54's (`.npmrc`, `.netrc`, cloud
+    credential folders); offering the read-only code intelligence tools
+    (M67) to the Reviewer; whether Muse Code's review should refuse to run
+    at all while its Plan mode is not strictly read-only. The safest
+    default is built: the narrowest tool list, the current list of names,
+    and the honest notice.
 
 ### M71 — Git and pull requests (D49)
 
@@ -12261,6 +12567,36 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
+files (2,056 tests; two existing Windows-only cases platform-skipped), all
+five compiler projects and every required static gate. Both review and import
+bundles remain lazy and within unchanged caps; host API and notices are
+regenerated there. Released changelog bytes match main. Full quality remains
+the lead's gate under the lane brief. See `docs/certification/mg69.md` and
+`mg69-gates.json` for snapshots and conflict resolutions.
+
+**M70m2 merged-source proof (2026-10-02).** Kubuntu passed 1,989 tests in
+45 owning/merged files, every required static gate and the production
+build under unchanged caps. Both new integration guards fail when removed;
+after SHA-256-exact restoration, their two complete files pass 28 tests.
+The host API record is generated from the merged source on the rig.
+Full quality and installed-editor/browser acceptance remain the lead's
+work, as the lane brief requires. See `docs/certification/m70m2.md`.
+
+**M70m merged-source proof (2026-10-02).** The lane brief requires focused
+rig checks and forbids this lane from running full quality. Kubuntu passed
+1,407 focused tests and the required static gates/build; Windows 11 passed
+425 Revert, atomic-file and controller tests. Real Chrome execution of the
+harness's axe checks passed 20 pages. The separate standard CLI accessibility
+attempt returned no DOM on all 20 pages (a one-page reproduction exited 0
+with empty stdout), so that invocation cannot certify accessibility. At an actual 320px viewport, review passes and neither dialog overflows once
+the harness's fixed 690px html/body widths are overridden in the driver;
+share has a `scrollable-region-focusable` violation in main's unchanged
+CodeBlock tool-output pre. Preserve that inherited behavior in this merge
+lane and hand it to the lead. No gate, rule or deadline is weakened; the
+standard capture, the narrow share keyboard-access fix and full four-machine,
+installed-editor and hosted acceptance remain the lead's work. See
+`docs/certification/m70m.md` for exact snapshots and conflict resolutions.
 **M76b lane boundary (2026-10-01):** the owner's `common.md` explicitly
 forbids a full `npm run quality` or full unit run in this shared lane and
 assigns aggregate quality, coverage, accessibility, editor/platform and
@@ -12535,10 +12871,20 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
+M70's `src/host/review/reviewBundle.ts` uses the type predicate
+`isReviewBundle` the same way: the required module is unknown; its
+`createReviewFeatures` must be a function, whose signature is trusted because
+entry, loader and package come from one source/build. `reviewBundle.test.ts`
+builds that actual entry (without the English table, as the production build
+does), loads it with Node require, and proves the activation table is the one
+it reads, the single load, and the refusal of a missing or malformed module
+before a repaired one loads (2026-09-30).
+
 | File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
 | ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
 | `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
+| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                   | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -12659,7 +13005,11 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
   into a file that no longer has a name. On Windows the rename is refused
   while another program holds the file without sharing delete, and each
   retry compares again; a change saved and closed between the last
-  comparison and the rename is still replaced. The verify ledger knows a
+  comparison and the rename is still replaced. A Revert's removal of a
+  file Muse created (`fsAtomic.deleteFileIfUnchanged`, M70) has the same
+  kind of gap: the bytes, the canonical path and the file's identity are
+  checked last, then the file moves to the trash; a change saved between
+  that check and the move goes with it, into the trash. The verify ledger knows a
   file by its real path: two hard links to one file are two files there,
   so an edit through one does not make a run over the other stale.
 
