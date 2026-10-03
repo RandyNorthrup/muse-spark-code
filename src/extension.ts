@@ -193,6 +193,7 @@ import type { AccountFacts } from './shared/usage'
 const packageManifestSchema = z.object({ version: z.string() })
 // `workspaceState` values are whatever an earlier version stored.
 const archivedIdsSchema = z.array(z.string())
+const damagedIdsSchema = z.array(z.string())
 const lastSessionSchema = z.object({ sessionId: z.string(), at: z.number() })
 
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
@@ -694,6 +695,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
+    // The watchdog (CLI recovery): a Muse Code that answers nothing is
+    // restarted, at once when no turn runs on it, else when the user says
+    // with the Restart of the notice its panel shows.
+    unresponsive: {
+      isTurnRunning: () => {
+        for (const controller of controllers.values()) {
+          if (controller.isTurnRunningOn('museCode')) {
+            return true
+          }
+        }
+        return false
+      },
+      restart: () => restartBackend('Muse Code stopped answering', false, true),
+      sayRestarted: () => {
+        for (const controller of controllers.values()) {
+          controller.museCodeStoppedAnswering(true)
+        }
+      },
+      offerRestart: () => {
+        for (const controller of controllers.values()) {
+          controller.museCodeStoppedAnswering(false)
+        }
+      },
+    },
     log,
     extensionVersion: version,
     getConfiguredBinaryPath: () => currentSettings().museBinaryPath,
@@ -740,6 +765,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       isConversationEnding,
       isMuseCodeOnly,
     )
+  }
+  /**
+   * Muse Code alone, afresh (CLI recovery): a notice's Restart (a fault's,
+   * the watchdog's) and "Muse Spark: Restart Muse Code". A running turn is
+   * stopped; the new host starts at once, and each conversation resumes
+   * with its next message.
+   */
+  const restartMuseCode = async (reason: string): Promise<void> => {
+    await restartBackend(reason, false, true)
+    for (const controller of controllers.values()) {
+      controller.warmUp()
+    }
   }
   /**
    * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
@@ -1497,6 +1534,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     setArchivedIds: async (ids) => {
       await context.workspaceState.update(WORKSPACE_STATE_KEYS.archivedSessions, [...ids])
     },
+    // Sessions whose Muse Code event log failed (CLI recovery); a value
+    // that does not validate reads as none, as above.
+    damagedIds: () => {
+      const parsed = damagedIdsSchema.safeParse(
+        context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.damagedSessions) ?? [],
+      )
+      return parsed.success ? parsed.data : []
+    },
+    setDamagedIds: async (ids) => {
+      await context.workspaceState.update(WORKSPACE_STATE_KEYS.damagedSessions, [...ids])
+    },
     lastSession: () => {
       const stored = context.workspaceState.get<unknown>(WORKSPACE_STATE_KEYS.lastSession)
       const parsed = lastSessionSchema.safeParse(stored)
@@ -1617,9 +1665,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         break
       }
       case 'restartMuseCode': {
-        // A Muse Code fault's notice (D26): the next message starts it afresh
-        // and continues the conversation (D25).
-        await restartBackend('asked for from the panel after a Muse Code fault', false, true)
+        // A notice's Restart (a D26 fault, or Muse Code not answering): the
+        // next message continues the conversation (D25).
+        await restartMuseCode('asked for from a notice in the panel')
         break
       }
     }
@@ -2198,6 +2246,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
+    }),
+    // A fresh `muse serve` without a window reload (CLI recovery): a running
+    // turn is stopped, and each conversation resumes with its next message.
+    registerLoggedCommand(log, COMMAND_IDS.restartMuseCode, async () => {
+      await restartMuseCode('asked for from the command palette')
+      // Said in VS Code: the palette may run it with no panel open.
+      void vscode.window.showInformationMessage(UI_TEXT.museCodeRestarted)
     }),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),

@@ -12,7 +12,7 @@ import {
   type ModelApiHostDeps,
   ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import { type CommandTimeouts, MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
 import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
@@ -34,10 +34,13 @@ import type { PickedTransferFile } from '../../src/host/conversation/sessionImpo
 import {
   type CheckpointAvailability,
   CHOICE_STEERING_NOTE,
+  DAMAGED_SESSIONS_KEPT,
+  type EffortLevel,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
+  MSP_READ_OUTPUT_CONCURRENCY,
   PLAN_FILE_MAX_BYTES,
   PLAN_STEP_MAX_CHARS,
   type GoalCommandVerb,
@@ -59,6 +62,11 @@ import type {
   MentionItem,
 } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
+import {
+  EVENT_LOG_SUBMIT_MESSAGE,
+  EVENT_LOG_TURN_REASON,
+  eventLogFault,
+} from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
 import { ledgerFault, REPLAY_FAULT_MESSAGE, replayFault } from './helpers/stageRaceCapture'
 import {
@@ -95,6 +103,7 @@ import {
   fakeMspHost,
   goalRefusal,
   refusalOf,
+  rejectionFor,
   settle,
 } from './helpers/fakeMsp'
 import {
@@ -324,6 +333,10 @@ function setup(
     exportPreviewChoice?: ExportPreviewChoice
     /** The import preview's answer (M84); confirmed unless the test says otherwise. */
     confirmImport?: boolean
+    /** Sessions already marked damaged in this workspace (CLI recovery). */
+    damagedIds?: readonly string[]
+    /** The Muse Code host's command deadlines (CLI recovery: a steer that times out). */
+    timeouts?: CommandTimeouts
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -412,6 +425,7 @@ function setup(
       },
     },
     log,
+    options.timeouts,
   )
   const auth = fakeAuth(options.status)
   const surface = fakeSurface('s', options.isSideChat)
@@ -451,12 +465,18 @@ function setup(
   }
   const memory = {
     archivedIds: [...(options.archivedIds ?? [])] as readonly string[],
+    damagedIds: [...(options.damagedIds ?? [])] as readonly string[],
     lastSession: options.lastSession,
   }
   const sessions: SessionMemory = {
     archivedIds: () => memory.archivedIds,
     setArchivedIds: (ids) => {
       memory.archivedIds = ids
+      return Promise.resolve()
+    },
+    damagedIds: () => memory.damagedIds,
+    setDamagedIds: (ids) => {
+      memory.damagedIds = ids
       return Promise.resolve()
     },
     lastSession: () => memory.lastSession,
@@ -942,12 +962,13 @@ describe('ConversationController.sendMessage', () => {
       input: [{ type: 'text', text: 'also this' }, NOTE],
     })
     expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
-    t.server.handle('turn/steer', () => {
-      throw new Error('turn t1 is not running')
-    })
+    // Muse Code found no turn to take it (CLI recovery: only that falls back).
+    t.server.handle('turn/steer', rejectionFor('invalid_target'))
     await t.send('l3', 'late')
     expect(t.server.requestsFor('turn/start')).toHaveLength(2)
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('turn/steer failed'))
+    expect(t.log.info).toHaveBeenCalledWith(
+      'turn/steer was refused with nothing taken; submitting as a new turn',
+    )
     t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
     await settle()
     await t.send('l4', 'fresh')
@@ -6444,9 +6465,10 @@ async function activeGoalForGap(t: ReturnType<typeof setup>): Promise<void> {
 
 /** A steer fake that only lets the running parent turn t1 be steered (M48). */
 function steerOnlyParentTurn(t: ReturnType<typeof setup>): void {
+  const notRunning = rejectionFor('invalid_target')
   t.server.handle('turn/steer', (params) => {
     if (params['expectedTurnId'] !== 't1') {
-      throw new Error(`turn ${String(params['expectedTurnId'])} is not running`)
+      notRunning()
     }
     return { turnId: 't1', status: 'accepted', commandId: params['commandId'] }
   })
@@ -10412,5 +10434,333 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       text: `${UI_TEXT.handoffFailed}: ${UI_TEXT.handoffNoBrief}`,
     })
     expect(empty.t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+  })
+})
+
+// CLI recovery: requests held by a silenced fake, answered by hand.
+interface Held {
+  readonly id?: number | string
+  readonly params?: Record<string, unknown>
+}
+
+/** Answers one held request as Muse Code would, late. */
+function answerHeld(t: ReturnType<typeof setup>, request: Held | undefined, result: unknown): void {
+  t.server.incoming.push(`${JSON.stringify({ jsonrpc: '2.0', id: request?.id, result })}\n`)
+}
+
+/** Refuses one held request with an `internal` error Muse Code wrote. */
+function refuseHeld(t: ReturnType<typeof setup>, request: Held | undefined): void {
+  t.server.incoming.push(
+    `${JSON.stringify({
+      jsonrpc: '2.0',
+      id: request?.id,
+      error: { code: -32_603, message: 'busy', data: { kind: 'internal' } },
+    })}\n`,
+  )
+}
+
+/** A turn of session s1 that ended on its event log, as 1.4.2 ended one. */
+async function failOnEventLog(t: ReturnType<typeof setup>): Promise<void> {
+  t.server.notify('turn/completed', {
+    sessionId: 's1',
+    turnId: 't1',
+    terminal: 'failed',
+    reason: EVENT_LOG_TURN_REASON,
+    error: { kind: 'logError', message: EVENT_LOG_TURN_REASON },
+  })
+  await settle()
+}
+
+/** The ack Muse Code sends a held command. */
+function acceptedAck(request: Held | undefined): Record<string, unknown> {
+  return { status: 'accepted', commandId: request?.params?.['commandId'] }
+}
+
+/**
+ * Effort steps sent at once while the session's `setReasoningEffort` is held
+ * (CLI recovery): exactly two reach Muse Code, each settled by `settleOne`.
+ */
+async function effortBurst(
+  steps: readonly EffortLevel[],
+  settleOne: (t: ReturnType<typeof setup>, request: Held | undefined) => void,
+) {
+  const t = setup()
+  await t.send('l1', 'hi')
+  const before = t.server.requestsFor('session/setReasoningEffort').length
+  t.server.silence('session/setReasoningEffort')
+  const changes = steps.map((effort) => t.controller.handle({ type: 'setEffort', effort }))
+  const efforts = () => t.server.requestsFor('session/setReasoningEffort').slice(before)
+  for (let sent = 1; sent <= 2; sent += 1) {
+    await vi.waitFor(() => {
+      expect(efforts()).toHaveLength(sent)
+    })
+    await settle()
+    expect(efforts()).toHaveLength(sent)
+    settleOne(t, efforts()[sent - 1])
+  }
+  await Promise.all(changes)
+  await settle()
+  return { t, efforts: efforts() }
+}
+
+describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recovery, 2026-10-03)', () => {
+  const damagedNotice = {
+    type: 'notice',
+    level: 'warning',
+    text: UI_TEXT.sessionLogDamaged,
+    actions: ['newConversation'],
+  }
+
+  it('sends no second copy when a steer gets no answer: the draft comes back with why', async () => {
+    const t = setup({ timeouts: { normalMs: 50, longMs: 50 } })
+    await t.send('l1', 'hi')
+    t.server.silence('turn/steer')
+    await t.send('l2', 'are you stuck?')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'l2',
+      reason: UI_TEXT.steerUnconfirmed,
+      attachmentsKept: true,
+    })
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'turnAccepted', localId: 'l2' }),
+    )
+  })
+
+  it.each(['invalid_target', 'missing_run', 'already_terminal'])(
+    'sends the message as a new turn when Muse Code says %s: no turn took the steer',
+    async (reason) => {
+      const t = setup()
+      await t.send('l1', 'hi')
+      t.server.handle('turn/steer', rejectionFor(reason))
+      await t.send('l2', 'late')
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+      expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
+    },
+  )
+
+  it('sends nothing more when Muse Code refuses a steer for any other reason', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('turn/steer', rejectionFor('policy_rejected'))
+    await t.send('l2', 'late')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'l2',
+      reason: 'command rejected: policy_rejected',
+      attachmentsKept: true,
+    })
+  })
+
+  it('refuses the next message of a session whose turn failed on its event log, before Muse Code hears of it', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await failOnEventLog(t)
+    expect(t.memory.damagedIds).toEqual(['s1'])
+    const sent = t.server.requests.length
+    await t.send('l2', 'go on')
+    expect(t.server.requests).toHaveLength(sent)
+    expect(t.surface.posted.slice(-2)).toEqual([
+      {
+        type: 'sendFailed',
+        localId: 'l2',
+        reason: UI_TEXT.sessionLogDamaged,
+        attachmentsKept: true,
+      },
+      damagedNotice,
+    ])
+    // Its New conversation takes messages again, in a session of its own.
+    t.server.handle('session/start', (params) => ({
+      session: { sessionId: 's2', modelId: params['modelId'], status: 'idle' },
+      viewCursor: '',
+    }))
+    await t.controller.handle({ type: 'clearConversation' })
+    await t.send('l3', 'fresh')
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'turnAccepted', localId: 'l3' }),
+    )
+    expect(t.memory.damagedIds).toEqual(['s1'])
+  })
+
+  it('marks the session damaged when Muse Code refuses a message with its event log failure', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.finishTurn()
+    await settle()
+    t.server.handle('turn/start', eventLogFault)
+    await t.send('l2', 'again')
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'l2',
+      reason: EVENT_LOG_SUBMIT_MESSAGE,
+      attachmentsKept: true,
+    })
+    expect(t.memory.damagedIds).toEqual(['s1'])
+    await t.send('l3', 'and again')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toEqual(damagedNotice)
+  })
+
+  it('keeps the newest damaged sessions only, at most DAMAGED_SESSIONS_KEPT', async () => {
+    const older = Array.from(
+      { length: DAMAGED_SESSIONS_KEPT },
+      (_, index) => `old-${String(index)}`,
+    )
+    const t = setup({ damagedIds: older })
+    await t.send('l1', 'hi')
+    await failOnEventLog(t)
+    expect(t.memory.damagedIds).toHaveLength(DAMAGED_SESSIONS_KEPT)
+    expect(t.memory.damagedIds.at(-1)).toBe('s1')
+    expect(t.memory.damagedIds).not.toContain('old-0')
+  })
+
+  it('never resumes a damaged session by itself after a restart', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    await failOnEventLog(t)
+    await t.controller.backendStopping(false)
+    await t.send('l2', 'after the restart')
+    // A `!` command opens the session without a message's check: still no resume.
+    await t.controller.handle({ type: 'runUserShell', command: 'ls' })
+    expect(t.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'l2',
+      reason: UI_TEXT.sessionLogDamaged,
+      attachmentsKept: true,
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'ls',
+      reason: `${UI_TEXT.userShellFailed}: ${UI_TEXT.sessionLogDamaged}`,
+    })
+  })
+
+  it('does not reopen a damaged last session when the sidebar opens', async () => {
+    const t = setup({
+      damagedIds: ['old'],
+      lastSession: { sessionId: 'old', at: NOW },
+      isRestorable: true,
+    })
+    await t.controller.restoreRecentSession()
+    await t.controller.restoreSession('old')
+    expect(t.server.requestsFor('session/resume')).toHaveLength(0)
+    expect(t.memory.lastSession).toBeUndefined()
+  })
+
+  it('sends at most two effort changes for eight quick steps, the last one applied', async () => {
+    const steps: readonly EffortLevel[] = [
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+      'minimal',
+      'low',
+      'medium',
+    ]
+    const { t, efforts } = await effortBurst(steps, (held, request) => {
+      answerHeld(held, request, acceptedAck(request))
+    })
+    expect(efforts.map((request) => request.params?.['reasoningEffort'])).toEqual(['low', 'medium'])
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'medium',
+    })
+  })
+
+  it('says a failed burst of effort changes once, and shows the effort the session kept', async () => {
+    const { t, efforts } = await effortBurst(['low', 'medium', 'max'], refuseHeld)
+    expect(efforts).toHaveLength(2)
+    const warnings = t.surface.posted.filter(
+      (message) => message.type === 'notice' && message.text.startsWith(UI_TEXT.effortNotApplied),
+    )
+    expect(warnings).toHaveLength(1)
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      effort: 'high',
+    })
+  })
+
+  it('reads at most four stored outputs at once, in order, and never sends one for a conversation gone', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.silence('item/readOutput')
+    const reads = Array.from({ length: 10 }, (_, index) =>
+      t.controller.handle({
+        type: 'readOutput',
+        itemId: `edit-${String(index)}`,
+        outputRef: `ref-${String(index)}`,
+        offsetBytes: 0,
+      }),
+    )
+    const sent = () => t.server.requestsFor('item/readOutput')
+    await vi.waitFor(() => {
+      expect(sent()).toHaveLength(MSP_READ_OUTPUT_CONCURRENCY)
+    })
+    await settle()
+    expect(sent().map((request) => request.params?.['itemId'])).toEqual([
+      'edit-0',
+      'edit-1',
+      'edit-2',
+      'edit-3',
+    ])
+    const page = {
+      content: '{}',
+      encoding: 'utf8',
+      mediaType: 'application/json',
+      offsetBytes: 0,
+      byteLen: 2,
+      eof: true,
+    }
+    answerHeld(t, sent()[0], page)
+    await vi.waitFor(() => {
+      expect(sent()).toHaveLength(MSP_READ_OUTPUT_CONCURRENCY + 1)
+    })
+    expect(sent().at(-1)?.params?.['itemId']).toBe('edit-4')
+    // A new conversation: the five still waiting are never sent.
+    await t.controller.handle({ type: 'clearConversation' })
+    for (const request of sent().slice(1)) {
+      answerHeld(t, request, page)
+    }
+    await Promise.all(reads)
+    expect(sent()).toHaveLength(MSP_READ_OUTPUT_CONCURRENCY + 1)
+    const pages = t.surface.posted.flatMap((message) =>
+      message.type === 'outputPage' ? [message.itemId] : [],
+    )
+    expect(pages).toEqual(['edit-0'])
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'notice', level: 'warning' }),
+    )
+  })
+
+  it('offers the restart where a turn runs on a Muse Code that stopped answering, and says a restart', async () => {
+    const t = setup()
+    t.controller.museCodeStoppedAnswering(false)
+    expect(t.surface.posted).not.toContainEqual(expect.objectContaining({ type: 'notice' }))
+    await t.send('l1', 'hi')
+    expect(t.controller.isTurnRunningOn('museCode')).toBe(true)
+    expect(t.controller.isTurnRunningOn('modelApi')).toBe(false)
+    t.controller.museCodeStoppedAnswering(false)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.museCodeUnresponsiveTurn,
+      actions: ['restartMuseCode'],
+    })
+    // Its Restart runs the extension's restart of Muse Code.
+    await t.controller.handle({ type: 'hostAction', action: 'restartMuseCode' })
+    expect(t.hostActions).toEqual(['restartMuseCode'])
+    t.finishTurn()
+    await settle()
+    expect(t.controller.isTurnRunningOn('museCode')).toBe(false)
+    t.controller.museCodeStoppedAnswering(true)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.museCodeRestartedUnresponsive,
+    })
   })
 })

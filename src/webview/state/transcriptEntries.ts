@@ -272,6 +272,11 @@ const noticeEntrySchema = z.object({
   isRedoUsed: z.optional(z.boolean()),
   /** A Muse Code fault's way on (D26): its buttons. */
   actions: z.optional(z.readonly(z.array(z.enum(NOTICE_ACTIONS)))),
+  /**
+   * How many times the same notice was said (D26), set from the second: the
+   * repeats are this one row. Optional, so a snapshot saved before it reads.
+   */
+  repeatCount: z.optional(z.number()),
 })
 
 export const transcriptEntrySchema = z.discriminatedUnion('kind', [
