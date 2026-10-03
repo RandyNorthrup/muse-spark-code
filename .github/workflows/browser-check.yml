@@ -10,8 +10,9 @@
 # - The restart capture (scripts/browser-check-restart.mjs) kills the check's
 #   own network service mid-page and requires restartObserved, every request
 #   through the owned proxy, no challenge at the page and nothing left.
-# - The live suite (test/unit/browserCheckLive.test.ts) must run all of its
-#   tests here, none skipped.
+# - The live suite (test/unit/browserCheckLive.test.ts) and the R51 control
+#   (test/unit/browserCheckR51.test.ts) must run all of their tests here,
+#   none skipped.
 # - Ubuntu's default kernel refuses unprivileged user namespaces to an
 #   unconfined program, so the browser's sandbox cannot start. Where it does,
 #   the capture first requires a closed refusal; then this throwaway runner
@@ -28,6 +29,7 @@ on:
       - 'src/shared/browserCheckConstants.ts'
       - 'scripts/browser-check-restart.mjs'
       - 'test/unit/browserCheckLive.test.ts'
+      - 'test/unit/browserCheckR51.test.ts'
       - 'test/unit/helpers/browserProcesses.ts'
       - 'test/fixtures/browser-check.html'
       - '.github/workflows/browser-check.yml'
@@ -88,10 +90,10 @@ jobs:
         shell: bash
         run: node scripts/browser-check-restart.mjs dist "$MUSE_TEST_BROWSER_STORAGE" | tee restart.json
 
-      - name: live suite on the pinned runtime
+      - name: live suite and R51 on the pinned runtime
         shell: bash
         run: |
-          npx vitest run test/unit/browserCheckLive.test.ts --coverage.enabled=false --reporter=default --reporter=json --outputFile.json=live.json
+          npx vitest run test/unit/browserCheckLive.test.ts test/unit/browserCheckR51.test.ts --coverage.enabled=false --reporter=default --reporter=json --outputFile.json=live.json
           node -e "const r = require('./live.json'); console.log(r.numPassedTests + ' passed, ' + r.numPendingTests + ' skipped, ' + r.numFailedTests + ' failed'); process.exit(r.numPassedTests > 0 && r.numPendingTests === 0 && r.numTodoTests === 0 && r.numFailedTests === 0 ? 0 : 1)"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

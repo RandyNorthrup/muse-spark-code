@@ -64,6 +64,50 @@ export async function processesNaming(text: string): Promise<number[]> {
   return found
 }
 
+/** The processes whose parent is one of `parents` and whose command line contains `text`. */
+export async function childrenNaming(parents: readonly number[], text: string): Promise<number[]> {
+  const parentSet = new Set(parents)
+  const table: { pid: number; ppid: number; command: string }[] = []
+  if (process.platform === 'win32') {
+    const stdout = await powerShell(
+      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }',
+    )
+    for (const line of stdout.split(/\r?\n/)) {
+      const match = /^(\d+)\s+(\d+)\s?(.*)$/.exec(line.trim())
+      if (match !== null) {
+        table.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] ?? '' })
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    const { stdout } = await run('ps', ['-axww', '-o', 'pid=,ppid=,command='])
+    for (const line of stdout.split('\n')) {
+      const match = /^(\d+)\s+(\d+)\s?(.*)$/.exec(line.trim())
+      if (match !== null) {
+        table.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] ?? '' })
+      }
+    }
+  } else {
+    const entries = await readdir('/proc')
+    for (const entry of entries) {
+      if (!DIGITS.test(entry)) {
+        continue
+      }
+      try {
+        const stat = await readFile(`/proc/${entry}/stat`, 'utf8')
+        // The parent follows the state, after the parenthesised name.
+        const ppid = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ', 2)[1])
+        const command = await readFile(`/proc/${entry}/cmdline`, 'utf8')
+        table.push({ pid: Number(entry), ppid, command })
+      } catch {
+        // The process ended while the table was read.
+      }
+    }
+  }
+  return table
+    .filter((row) => parentSet.has(row.ppid) && row.command.includes(text))
+    .map((row) => row.pid)
+}
+
 /** The TCP listeners the processes own, as `address:port` (empty: none). */
 export async function tcpListenersOf(pids: readonly number[]): Promise<string[]> {
   if (pids.length === 0) {
