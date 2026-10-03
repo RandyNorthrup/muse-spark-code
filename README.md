@@ -366,6 +366,22 @@ This setup follows JetBrains' documentation and has not been tested here yet.
 Add `"--backend", "modelApi"` to `args` in either editor to use the Model
 API backend instead of Muse Code.
 
+**On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
+which some editors cannot start. If the editor says it cannot find or start
+the agent, use `node` as the command and the agent's script as the first
+argument, before any others. `<npm root -g>` is the folder `npm root -g`
+prints, usually `%APPDATA%\npm\node_modules`. This form works on every
+platform ([docs/acp.md](docs/acp.md#install)).
+
+```json
+{
+  "command": "node",
+  "args": [
+    "C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\muse-spark-code-acp\\dist\\acp.js"
+  ]
+}
+```
+
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
 which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
