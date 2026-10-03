@@ -53,7 +53,13 @@ const distDir = __dirname
 const packageRoot = path.dirname(distDir)
 
 /** Standalone headless commands own their process, including wedged late setup. */
-function exitHeadless(code: number): never {
+function exitHeadless(code: number, shouldForce = false): never {
+  if (shouldForce && process.platform === 'win32') {
+    // Self-SIGKILL bypasses a blocked libuv pipe worker after bounded cleanup.
+    // Windows reports exit 1; queued output is best effort (PLAN.md M80Bw).
+    process.kill(process.pid, 'SIGKILL')
+    throw new Error(UI_TEXT.execInterrupted)
+  }
   // eslint-disable-next-line unicorn/no-process-exit -- Headless deadlines and closed/stalled pipes require a bounded final process exit after async writes (PLAN.md M80, §8).
   process.exit(code)
 }
@@ -237,8 +243,8 @@ async function main(): Promise<number> {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
     })
     stderr.write(`${redactWhole(command.reason, [])}\n`)
-    await stderr.flush(EXEC_FORCE_WRITE_MS)
-    exitHeadless(EXEC_EXIT.usage)
+    const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
+    exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
   if (command.command === 'exec' || command.command === 'scan-secrets') {
     const closed = () => {
@@ -266,7 +272,7 @@ async function main(): Promise<number> {
       forceFinish: () => {
         void Promise.all([stdout.flush(EXEC_FORCE_WRITE_MS), stderr.flush(EXEC_FORCE_WRITE_MS)])
       },
-      exit: exitHeadless,
+      exit: (code) => exitHeadless(code, true),
     })
     const log = createExecLogger({
       stderr,
@@ -335,8 +341,16 @@ async function main(): Promise<number> {
       headlessCode = command.command === 'scan-secrets' ? EXEC_EXIT.usage : EXEC_EXIT.internal
       return headlessCode
     } finally {
+      if (command.command === 'scan-secrets')
+        await Promise.all([
+          stdout.flush(lifecycle.remainingGraceMs()),
+          stderr.flush(lifecycle.remainingGraceMs()),
+        ])
       lifecycle.dispose()
-      exitHeadless(headlessCode)
+      exitHeadless(
+        headlessCode,
+        stdout.isClosed || stderr.isClosed || stdout.queuedBytes > 0 || stderr.queuedBytes > 0,
+      )
     }
   }
   const log = stderrLogger((line) => {

@@ -2523,8 +2523,12 @@ via PayPal. Thank you!
 ### M80 headless execution (lanes A and B)
 
 The headless engine and command dispatch are implemented on this branch.
-Windows blocked-pipe force exit remains an open certification blocker; this
-branch does not claim that Windows lifecycle bound. See the evidence below.
+Windows forced exit uses self-SIGKILL after bounded cleanup/output grace,
+including a distinct second signal's 300 ms grace. It reports process exit 1
+and may lose buffered stdout/stderr. Any delivered result keeps its first-stop
+status, signal and logical exit code (130 for SIGINT, 143 for SIGTERM).
+Normal drained Windows exits and POSIX behavior retain the existing codes.
+See the targeted platform evidence below; full M80 certification remains open.
 One turn runs through the existing ACP engine, with Plan as the default and
 Accept edits as the only other mode. Every ordinary approval is denied;
 questions are declined. A Model API run remains untrusted, so it starts no

@@ -250,6 +250,7 @@ function builtCommand(
   elapsed: number,
   shouldHangTable = false,
   shouldBlockStderr = false,
+  shouldDrainStderr = false,
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const bootstrap = path.join(folder(), 'bootstrap.cjs')
   const trace = `${bootstrap}.trace`
@@ -291,7 +292,7 @@ ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reje
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString()
     })
-    if (shouldBlockStderr)
+    if (shouldBlockStderr && !shouldDrainStderr)
       child.once('exit', () => {
         child.stderr.destroy()
       })
@@ -315,7 +316,7 @@ ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reje
 }
 
 describe('M80 real runtime → ACP → manager → client → tools', () => {
-  it('D29 async stderr with 4MiB unread output keeps force timers and first signal code alive', async () => {
+  it.each([false, true])('D29 4MiB stderr keeps bounded exit; drained=%s', async (isDrained) => {
     const r = await builtCommand(
       [
         'exec',
@@ -332,8 +333,9 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       0,
       false,
       true,
+      isDrained,
     )
-    expect(r.code).toBe(130)
+    expect(r.code).toBe(!isDrained && process.platform === 'win32' ? 1 : 130)
     expect(validateResult(JSON.parse(r.stdout))).toMatchObject({
       status: 'cancelled',
       signal: 'SIGINT',

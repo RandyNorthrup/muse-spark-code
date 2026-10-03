@@ -9252,7 +9252,20 @@ independent review and the full candidate gates remain required.**
 
 ### M80 — Headless and CI (D49)
 
-**Lane B, implemented with Windows certification blocked, 2026-10-02:** deliver only frozen v4 §5.2/§5.3/§9:
+**M80Bw follow-up, platform verified 2026-10-02:** the lead authorizes a
+new Windows termination path after the existing bounded cleanup/flush grace.
+Use self-SIGKILL rather than waiting for `process.exit()` to join a blocked
+native pipe writer. Windows forced termination reports process exit 1 and may
+lose buffered output; any delivered result retains its first-stop status/code.
+Normal drained exits and POSIX behavior retain the existing exit table. Keep
+D29's two-second parent bound unchanged. Three consecutive complete A+B runs
+passed on both Win11 and Kubuntu (439/439 each). Win11 self-kill and scanner
+flush red drills fired and restored byte-exact. Self-kill holds; no worker-thread
+change is needed. Kubuntu static/build gates passed at `128d9aac`; the
+certification record binds the source/test bytes and receipts.
+Full quality and C/D/L/LA/LR remain lead-owned.
+
+**Lane B baseline, Windows certification initially blocked, 2026-10-02:** deliver only frozen v4 §5.2/§5.3/§9:
 the existing ACP engine's one-turn client/tap, integer micro-USD ledger,
 streaming transport, lifecycle, bounded untrusted inputs, headless paid policy,
 runtime/CLI/scanner wiring and D1–D30/P1–P10/L1–L12 tests. Reuse lane A at
@@ -10061,7 +10074,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**M80B Windows force-exit blocker (2026-10-02).** The implementation and
+**M80Bw Windows force-exit resolution (2026-10-02).** The lead's new
+self-termination path passes D29 and three consecutive complete A+B runs on
+both Win11 and Kubuntu (439/439 each). Windows forced process exit is 1;
+buffered output may be lost, while any delivered result preserves first-stop
+status and its logical exit code. Drained exits retain their original codes.
+The two-second test bound, all gates and existing synchronous key cleanup
+remain intact. Two Win11 guard drills failed as intended and restored exact
+SHA-256 bytes. See `docs/certification/m80.md`; full quality/C/D/L/LA/LR remain
+open for the lead.
+
+**M80B Windows force-exit blocker (historical, superseded by M80Bw).** The implementation and
 76 guard drills are present; Kubuntu A+B passed 437/437. Win11 passed
 436/437, failing D29's unread-stderr force-exit fixture. Test-owned timestamps
 show SIGINT at 624 ms, SIGTERM at 639 ms and exit 130 requested at 945 ms;

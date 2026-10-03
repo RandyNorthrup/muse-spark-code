@@ -132,6 +132,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M80 Windows bounded headless exit:** after bounded cleanup and output
+  grace, a forced exit terminates the owned process without waiting for a
+  blocked native pipe writer. Windows reports process exit 1 and may lose
+  buffered output; any delivered result keeps its first-stop status and logical
+  exit code. Normal drained exits and POSIX behavior retain their existing codes.
+
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
