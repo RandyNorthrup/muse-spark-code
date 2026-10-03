@@ -163,8 +163,16 @@ export function placeBrowserCall(
 ): BrowserCallPlacement {
   const parsed = argsSchema.safeParse(args)
   if (!parsed.success) {
-    const reason = `invalid arguments: ${z.prettifyError(parsed.error)}`
-    return { ok: false, model: reason, user: reason }
+    // Fixed words: the parser's own text quotes what it was given back.
+    return {
+      ok: false,
+      model: fill(MODEL_TEXT.browserCheckInvalidArguments, {
+        actions: String(BROWSER_CHECK_MAX_ACTIONS),
+        selector: String(BROWSER_CHECK_SELECTOR_MAX_CHARS),
+        text: String(BROWSER_CHECK_TYPE_TEXT_MAX_CHARS),
+      }),
+      user: UI_TEXT.browserCheckInvalidArguments,
+    }
   }
   const placement = placeBrowserUrl(parsed.data.url, extraHosts)
   if (placement.kind === 'refused') {

@@ -455,6 +455,7 @@
     "other": "bu bilgisayarın dışına giden {count} istek engellendi"
   },
   "browserCheckUrlRefused": "Yalnızca basit bir ana bilgisayar adı veya IP adresi içeren, kullanıcı adı ya da parola içermeyen bir http:// veya https:// adresi açılabilir.",
+  "browserCheckInvalidArguments": "Tarayıcı denetimi geçersiz bağımsız değişkenlerle istendi, bu yüzden hiçbir şey açılmadı.",
   "browserCheckRuntimeMissing": "Tarayıcı denetiminin tarayıcısı yüklü değil ve şu anda indirilemedi. Bağlantıyı denetleyip yeniden deneyin.",
   "browserCheckRuntimeUnsupported": "Tarayıcı denetimi bu bilgisayarda kullanılamaz. Windows x64, Linux x64 ve macOS desteklenir.",
   "browserCheckRuntimeOutdated": "Tarayıcı denetiminin tarayıcısı 45 günden eski. Tarayıcı denetimini yeniden kullanmak için Muse Spark Code’u güncelleyin.",

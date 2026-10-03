@@ -211,20 +211,20 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                  |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                         |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                     |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                   |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                               |
-| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                                                            |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                            |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                              |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                         |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                |
-| `dist/browserCheck.js`    | ≤ 50 KiB (M81: the browser check's pipe, run and processes, loaded on the first check; 37.8 KiB plus 15%, rounded up to 25 KiB; A1 holds it there: 49.8 KiB) |
-| `dist/browserRuntime.js`  | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)       |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                    |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                                           |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                                       |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                     |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                 |
+| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                                                                              |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                              |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                           |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                  |
+| `dist/browserCheck.js`    | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB) |
+| `dist/browserRuntime.js`  | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                         |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
@@ -273,6 +273,18 @@ with initializers esbuild cannot drop moved to
 `src/shared/browserCheckConstants.ts` (no imports), which `constants.ts`
 re-exports: one source of truth still, imported directly by the browser
 modules.
+
+**Amendment (M81 A1 review round 1, 2026-10-02): `dist/browserCheck.js`
+gets the repo's rule.** The round's fixes (each canary phase on fixture
+ports of its own, the admitted-CONNECT record, the loopback-aware negative
+probes, the upstream answer's head bound, lifetime ends keeping their kind)
+built it to 50.5 KiB (51,671 bytes), over the 50 KiB spec v4 §9.1 had held
+it to. No module in it is off the check's path (the pipe, the run, the
+proxy, the canaries, the page and the processes, the leftover sweep
+included, all run on every check), so there was no honest split; the cap
+is set by the rule: 25 × ceil(1.15 × 50.5 / 25) = 75 KiB. No code was
+minified or moved to fit ([`docs/certification/m81.md`](docs/certification/m81.md),
+"v4 A1: review round 1").
 
 **Amendment (M57, 2026-09-27): the Model API backend is a bundle of its own.**
 At 0.9.0 `dist/extension.js` was 596.8 KiB of its 600 KiB, and

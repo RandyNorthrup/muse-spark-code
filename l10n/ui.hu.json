@@ -455,6 +455,7 @@
     "other": "{count} letiltott kérés a számítógépen kívülre"
   },
   "browserCheckUrlRefused": "Csak egyszerű gazdagépnevet vagy IP-címet tartalmazó, felhasználónév és jelszó nélküli http:// vagy https:// cím nyitható meg.",
+  "browserCheckInvalidArguments": "A böngészős ellenőrzést érvénytelen argumentumokkal kérték, ezért semmi sem nyílt meg.",
   "browserCheckRuntimeMissing": "A böngészős ellenőrzés böngészője nincs telepítve, és most nem sikerült letölteni. Ellenőrizze a kapcsolatot, és próbálja újra.",
   "browserCheckRuntimeUnsupported": "A böngészős ellenőrzés ezen a számítógépen nem érhető el. Támogatott rendszerek: Windows x64, Linux x64 és macOS.",
   "browserCheckRuntimeOutdated": "A böngészős ellenőrzés böngészője 45 napnál régebbi. A böngészős ellenőrzés további használatához frissítse a Muse Spark Code-ot.",

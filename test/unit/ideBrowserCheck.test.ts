@@ -159,7 +159,7 @@ describe('the ide server browser check (M81)', () => {
       MODEL_TEXT.browserCheckUrlRefused,
     )
     await expect(refused.call({ url: 'http://localhost/', actions: 'click' })).rejects.toThrow(
-      'invalid arguments',
+      'the arguments are not valid, so nothing was opened',
     )
     expect(refused.asked).toEqual([])
     expect(refused.checked).toEqual([])

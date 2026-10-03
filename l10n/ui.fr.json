@@ -468,6 +468,7 @@
     "other": "{count} requêtes bloquées hors de cet ordinateur"
   },
   "browserCheckUrlRefused": "Seule une adresse http:// ou https:// avec un simple nom d’hôte ou une adresse IP, sans nom d’utilisateur ni mot de passe, peut être ouverte.",
+  "browserCheckInvalidArguments": "La vérification dans le navigateur a été demandée avec des arguments non valides, rien n’a donc été ouvert.",
   "browserCheckRuntimeMissing": "Le navigateur de la vérification dans le navigateur n’est pas installé et n’a pas pu être téléchargé pour l’instant. Vérifiez la connexion, puis réessayez.",
   "browserCheckRuntimeUnsupported": "La vérification dans le navigateur n’est pas disponible sur cet ordinateur. Elle prend en charge Windows x64, Linux x64 et macOS.",
   "browserCheckRuntimeOutdated": "Le navigateur de la vérification dans le navigateur a plus de 45 jours. Mettez à jour Muse Spark Code pour utiliser à nouveau la vérification dans le navigateur.",

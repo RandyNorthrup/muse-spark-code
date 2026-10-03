@@ -442,6 +442,7 @@
     "other": "このコンピューター外へのリクエスト {count} 件をブロック"
   },
   "browserCheckUrlRefused": "開けるのは、単純なホスト名または IP アドレスで、ユーザー名やパスワードを含まない http:// または https:// のアドレスだけです。",
+  "browserCheckInvalidArguments": "ブラウザー チェックが無効な引数で要求されたため、何も開いていません。",
   "browserCheckRuntimeMissing": "ブラウザー チェック用のブラウザーがインストールされておらず、現在ダウンロードできませんでした。接続を確認してから、もう一度お試しください。",
   "browserCheckRuntimeUnsupported": "このコンピューターではブラウザー チェックを利用できません。対応しているのは Windows x64、Linux x64、macOS です。",
   "browserCheckRuntimeOutdated": "ブラウザー チェック用のブラウザーは 45 日以上前のものです。ブラウザー チェックを再び使うには Muse Spark Code を更新してください。",

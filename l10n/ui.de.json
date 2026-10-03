@@ -455,6 +455,7 @@
     "other": "{count} Anfragen außerhalb dieses Computers blockiert"
   },
   "browserCheckUrlRefused": "Geöffnet werden kann nur eine http://- oder https://-Adresse mit einem einfachen Hostnamen oder einer IP-Adresse und ohne Benutzername oder Passwort.",
+  "browserCheckInvalidArguments": "Die Browserprüfung wurde mit ungültigen Argumenten angefordert, daher wurde nichts geöffnet.",
   "browserCheckRuntimeMissing": "Der Browser der Browserprüfung ist nicht installiert und konnte gerade nicht heruntergeladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
   "browserCheckRuntimeUnsupported": "Die Browserprüfung ist auf diesem Computer nicht verfügbar. Sie unterstützt Windows x64, Linux x64 und macOS.",
   "browserCheckRuntimeOutdated": "Der Browser der Browserprüfung ist älter als 45 Tage. Aktualisieren Sie Muse Spark Code, um die Browserprüfung wieder zu nutzen.",

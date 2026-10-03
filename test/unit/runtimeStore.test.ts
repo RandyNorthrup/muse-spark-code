@@ -17,6 +17,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs'
@@ -483,6 +484,98 @@ describe('the runtime store (M81 A1)', () => {
     expect(
       readdirSync(path.join(dir, 'browser-runtime')).filter((name) => name.startsWith('.stage-')),
     ).toEqual([])
+  })
+
+  it('hashes the winner of a publication race, so a corrupt one with a matching receipt is refused (A1-6)', async () => {
+    const test = pin()
+    for (const isCorrupt of [false, true]) {
+      const dir = storage()
+      const executable = path.join(finalDir(dir), ...EXECUTABLE.split('/'))
+      let winnerExecutable = ''
+      // Held after its absence check, at the consent: another window publishes
+      // first; corrupt, its bytes change at the same length and its receipt
+      // is made to name the new mtime, so only the forced hash can tell.
+      const held = request(dir, {
+        consent: async () => {
+          const other = await prepareRuntime(request(dir), deps(test).store)
+          winnerExecutable = other.ok ? other.runtime.executable : ''
+          if (isCorrupt) {
+            const tampered = Buffer.from(SHELL)
+            tampered[tampered.length - 2] = 0x21
+            writeFileSync(executable, tampered)
+            const receiptFile = path.join(finalDir(dir), '.muse-receipt.json')
+            const receipt = JSON.parse(readFileSync(receiptFile, 'utf8')) as Record<string, unknown>
+            receipt['executableMtimeMs'] = statSync(executable).mtimeMs
+            writeFileSync(receiptFile, JSON.stringify(receipt))
+          }
+          return 'download'
+        },
+      })
+      const { store, fetch } = deps(test)
+      const result = await prepareRuntime(held, store)
+      // It downloaded and unpacked its own copy, and lost the rename.
+      expect(fetch, String(isCorrupt)).toHaveBeenCalledTimes(1)
+      expect(winnerExecutable, String(isCorrupt)).not.toBe('')
+      if (isCorrupt) {
+        expect(result).toEqual({ ok: false, reason: 'runtimeIntegrity' })
+        // Refused, never overwritten.
+        expect(readFileSync(executable)).not.toEqual(SHELL)
+      } else {
+        expect(result).toMatchObject({ ok: true, runtime: { executable: winnerExecutable } })
+      }
+      expect(
+        readdirSync(path.join(dir, 'browser-runtime')).filter((name) => name.startsWith('.stage-')),
+        String(isCorrupt),
+      ).toEqual([])
+    }
+  })
+
+  it('reads the pin’s freshness again before it returns a ready runtime, however it became ready (A1-4)', async () => {
+    const expiry = PUBLISHED + 45 * DAY
+    // The cutoff passes while the preparation runs: fresh at its start, not after.
+    const crossing = (): (() => number) => {
+      let reads = 0
+      return () => {
+        reads += 1
+        return reads === 1 ? expiry - 1 : expiry
+      }
+    }
+    const test = pin()
+
+    // Installed: verified, then found past the cutoff.
+    const installed = storage()
+    expect(await prepareRuntime(request(installed), deps(test).store)).toMatchObject({ ok: true })
+    expect(
+      await prepareRuntime(request(installed), deps(test, undefined, { now: crossing() }).store),
+    ).toEqual({ ok: false, reason: 'runtimeOutdated' })
+    // A millisecond before the cutoff all along: ready.
+    expect(
+      await prepareRuntime(
+        request(installed),
+        deps(test, undefined, { now: () => expiry - 1 }).store,
+      ),
+    ).toMatchObject({ ok: true })
+
+    // Downloaded and published by this preparation.
+    const fresh = storage()
+    expect(
+      await prepareRuntime(request(fresh), deps(test, undefined, { now: crossing() }).store),
+    ).toEqual({ ok: false, reason: 'runtimeOutdated' })
+    // Published all the same; the next check finds it, and its age.
+    expect(existsSync(path.join(finalDir(fresh), '.muse-receipt.json'))).toBe(true)
+
+    // Another window's winner, verified after the lost rename.
+    const raced = storage()
+    const held = request(raced, {
+      consent: async () => {
+        await prepareRuntime(request(raced), deps(test).store)
+        return 'download'
+      },
+    })
+    expect(await prepareRuntime(held, deps(test, undefined, { now: crossing() }).store)).toEqual({
+      ok: false,
+      reason: 'runtimeOutdated',
+    })
   })
 
   it('refuses a corrupt winner and never overwrites or merges it', async () => {

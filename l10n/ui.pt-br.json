@@ -468,6 +468,7 @@
     "other": "{count} solicitações bloqueadas fora deste computador"
   },
   "browserCheckUrlRefused": "Só é possível abrir um endereço http:// ou https:// com um nome de host simples ou um endereço IP, sem nome de usuário nem senha.",
+  "browserCheckInvalidArguments": "A verificação no navegador foi pedida com argumentos inválidos, então nada foi aberto.",
   "browserCheckRuntimeMissing": "O navegador da verificação no navegador não está instalado e não pôde ser baixado agora. Verifique a conexão e tente novamente.",
   "browserCheckRuntimeUnsupported": "A verificação no navegador não está disponível neste computador. Ela é compatível com Windows x64, Linux x64 e macOS.",
   "browserCheckRuntimeOutdated": "O navegador da verificação no navegador tem mais de 45 dias. Atualize o Muse Spark Code para usar a verificação no navegador de novo.",

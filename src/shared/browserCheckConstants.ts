@@ -192,9 +192,9 @@ export const BROWSER_CANARY_SOCKET_WAIT_MS = 3000
 // After the probe page's script: how long its last proxy records may take to land.
 export const BROWSER_CANARY_SETTLE_MS = 1000
 // The link-local address a canary asks for: never contacted, the proxy
-// refuses it.
+// refuses it. Asked for at the phase's own fixture port, so its refusal is
+// that phase's alone.
 export const BROWSER_CANARY_LINK_LOCAL = '169.254.77.77'
-export const BROWSER_CANARY_LINK_LOCAL_PORT = 8080
 // The network service's process type in SystemInfo.getProcessInfo at the
 // pin: a new id during the check is a restart.
 export const BROWSER_NETWORK_SERVICE_TYPE = 'network.mojom.NetworkService'

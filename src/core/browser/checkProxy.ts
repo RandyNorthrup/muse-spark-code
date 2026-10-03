@@ -17,16 +17,20 @@
 //   WWW-Authenticate and Proxy-Authenticate field (duplicates, any case);
 //   its trailers and informational heads are never relayed, so a sign-in
 //   challenge cannot reach the browser over plain HTTP.
-// - Heads are bounded (16 KiB; a request head within 3 s), connections too
-//   (64), and bodies stream with backpressure; the check's deadline bounds
-//   the rest. The proxy never answers 407 and never sends a credential.
+// - Heads are bounded (16 KiB; a request head within 3 s, an upstream
+//   answer's head within 3 s of its first byte), connections too (64), and
+//   bodies stream with backpressure; the check's deadline bounds the rest.
+//   The proxy never answers 407 and never sends a credential.
 // - `localhost` connects to fixed loopback literals; a numeric host
 //   connects as written; a widened name is looked up once, after approval,
 //   and that answer is connected without a second lookup.
 //
 // Observations (form, host, port, forwarded, challenge stripped) are for
 // the check's canaries only: no path, query, header, body or raw error.
-// Opaque tunnels to widened hosts are not inspected (spec §3.4).
+// `forwarded: false` is a refusal before any lookup or connection, and only
+// that: an admitted destination is recorded as forwarded even when its
+// lookup or connection then fails. Opaque tunnels to widened hosts are not
+// inspected (spec §3.4).
 
 import { lookup } from 'node:dns/promises'
 import {
@@ -64,6 +68,7 @@ export interface ProxyObservation {
   readonly form: ProxyForm
   readonly host: string
   readonly port: number
+  /** Admitted and tried; false only for a refusal before any lookup or connection. */
   readonly forwarded: boolean
   readonly challengeStripped: boolean
 }
@@ -331,8 +336,31 @@ export async function startCheckProxy(
       setHost: false,
       maxHeaderSize: BROWSER_PROXY_HEAD_MAX_BYTES,
     })
+    // The answer's final head completes within 3 s of its first byte, or the
+    // exchange ends both ways (a server may take its time to start answering;
+    // the check's deadline bounds that).
+    let headTimer: ReturnType<typeof setTimeout> | undefined
+    let isHeadDone = false
+    let isExpired = false
+    const headDone = (): void => {
+      isHeadDone = true
+      clearTimeout(headTimer)
+    }
+    upstream.once('socket', (used) => {
+      used.once('data', () => {
+        if (!isHeadDone) {
+          headTimer = setTimeout(() => {
+            isExpired = true
+            note('http', destination, true)
+            response.destroy()
+            upstream.destroy()
+          }, BROWSER_PROXY_HEAD_TIMEOUT_MS)
+        }
+      })
+    })
+    upstream.once('close', headDone)
     upstream.on('error', () => {
-      if (response.headersSent) {
+      if (isExpired || response.headersSent) {
         response.destroy()
         return
       }
@@ -345,6 +373,7 @@ export async function startCheckProxy(
       response.destroy()
     })
     upstream.on('response', (answer) => {
+      headDone()
       const status = answer.statusCode ?? 0
       if (status < STATUS_FIRST_FINAL) {
         answer.destroy()
@@ -371,6 +400,9 @@ export async function startCheckProxy(
       client.end(DENIED)
       return
     }
+    // Admitted, so recorded as such before any lookup: one that then fails
+    // is never a refusal.
+    note('connect', destination, true)
     void tunnel(client, head, destination)
   }
 
@@ -379,11 +411,9 @@ export async function startCheckProxy(
     try {
       upstream = await connectFirst(destination)
     } catch {
-      note('connect', destination, false)
       client.end(DENIED)
       return
     }
-    note('connect', destination, true)
     client.write(TUNNEL_OPEN)
     if (head.length > 0) {
       upstream.write(head)

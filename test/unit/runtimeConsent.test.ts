@@ -90,15 +90,20 @@ function notCancelled(): void {
   // Until the progress is cancelled, nothing is.
 }
 
+/** Native progress the user never cancels. */
+function uncancelledProgress(): void {
+  withProgress.mockImplementation(async (_options, task) => {
+    const token = {
+      isCancellationRequested: false,
+      onCancellationRequested: () => ({ dispose: () => undefined }),
+    }
+    return await task({ report: () => undefined }, token)
+  })
+}
+
 describe('the Download command (M81 A1)', () => {
   it('prepares under native, cancellable progress and says when the browser is ready', async () => {
-    withProgress.mockImplementation(async (_options, task) => {
-      const token = {
-        isCancellationRequested: false,
-        onCancellationRequested: () => ({ dispose: () => undefined }),
-      }
-      return await task({ report: () => undefined }, token)
-    })
+    uncancelledProgress()
     const prepared = checks({ ok: true, runtime: { version: '154.0.8037.92' } })
     await downloadBrowserRuntime(prepared, () => true)
     expect(withProgress.mock.calls[0]?.[0]).toMatchObject({
@@ -108,7 +113,7 @@ describe('the Download command (M81 A1)', () => {
     expect(showInformation).toHaveBeenCalledWith(expect.stringContaining('154.0.8037.92'))
   })
 
-  it('cancels the preparation when the user cancels the progress, and words a refusal in the user’s language', async () => {
+  it('cancels a preparation under way when the user cancels the progress, and says it stopped (P3-3)', async () => {
     const progress = { cancel: notCancelled }
     withProgress.mockImplementation(async (_options, task) => {
       const token = {
@@ -120,10 +125,39 @@ describe('the Download command (M81 A1)', () => {
       }
       return await task({ report: () => undefined }, token as never)
     })
-    const refused = checks({ ok: false, reason: 'runtimeIntegrity' })
-    await downloadBrowserRuntime(refused, () => true)
+    // A download that runs until its signal aborts, and only then ends, cancelled.
+    const signals: AbortSignal[] = []
+    const downloading = {
+      prepareOnly: async (signal: AbortSignal) => {
+        signals.push(signal)
+        return await new Promise((resolve) => {
+          signal.addEventListener('abort', () => {
+            resolve({ ok: false, reason: 'cancelled' })
+          })
+        })
+      },
+    } as unknown as BrowserChecks
+    let isSettled = false
+    const command = (async (): Promise<void> => {
+      await downloadBrowserRuntime(downloading, () => true)
+      isSettled = true
+    })()
+    await vi.waitFor(() => {
+      expect(signals).toHaveLength(1)
+    })
+    // Still under way until the user cancels.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(isSettled).toBe(false)
+    expect(signals[0]?.aborted).toBe(false)
     progress.cancel()
-    expect(refused.calls[0]?.aborted).toBe(true)
+    expect(signals[0]?.aborted).toBe(true)
+    await command
+    expect(showWarning).toHaveBeenCalledWith(UI_TEXT.toolStopped)
+  })
+
+  it('words a refused preparation in the user’s language', async () => {
+    uncancelledProgress()
+    await downloadBrowserRuntime(checks({ ok: false, reason: 'runtimeIntegrity' }), () => true)
     expect(showWarning).toHaveBeenCalledWith(UI_TEXT.browserCheckRuntimeIntegrity)
   })
 

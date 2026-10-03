@@ -3026,6 +3026,8 @@ export const MODEL_TEXT = {
     'The screenshot the browser check took of {url} was not delivered because that tool round ended early.',
   browserCheckUrlRefused:
     'only an http:// or https:// URL whose host is a plain name or IP address, with no user name or password, can be opened, such as http://localhost:3000/',
+  browserCheckInvalidArguments:
+    'the arguments are not valid, so nothing was opened: url is a string, and actions, when given, is a list of at most {actions} steps, each with kind click or type and a CSS selector of 1 to {selector} characters, a type step also with the text it types (at most {text} characters)',
   // The closed failures (M81 A1, browserRun.ts): the runtime's preparation.
   browserCheckRuntimeMissing:
     "the browser check's browser runtime is not installed and could not be downloaded now; nothing was opened",

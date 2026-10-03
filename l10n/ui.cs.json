@@ -481,6 +481,7 @@
     "other": "{count} zablokovaných požadavků mimo tento počítač"
   },
   "browserCheckUrlRefused": "Otevřít lze jen adresu http:// nebo https:// s prostým názvem hostitele nebo IP adresou a bez uživatelského jména či hesla.",
+  "browserCheckInvalidArguments": "Kontrola v prohlížeči byla vyžádána s neplatnými argumenty, proto se nic neotevřelo.",
   "browserCheckRuntimeMissing": "Prohlížeč pro kontrolu v prohlížeči není nainstalovaný a teď ho nebylo možné stáhnout. Zkontrolujte připojení a zkuste to znovu.",
   "browserCheckRuntimeUnsupported": "Kontrola v prohlížeči není na tomto počítači k dispozici. Podporuje Windows x64, Linux x64 a macOS.",
   "browserCheckRuntimeOutdated": "Prohlížeč pro kontrolu v prohlížeči je starší než 45 dní. Chcete-li kontrolu v prohlížeči znovu používat, aktualizujte Muse Spark Code.",

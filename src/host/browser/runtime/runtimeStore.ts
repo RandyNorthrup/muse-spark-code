@@ -19,6 +19,8 @@
 //   folder to the final one, which is never created first. When another
 //   window published first, that winner is verified like any installed
 //   runtime and used only if it passes.
+// - The pin's 45 days are read on the clock again just before a ready
+//   runtime is returned, whichever way it became ready.
 // - Every step is refused once the lifetime has ended or admission is gone;
 //   a late answer, download or verification starts nothing. An attempt
 //   removes only its own stage; a stage another process left is swept only
@@ -489,6 +491,20 @@ async function install(
   }
 }
 
+/**
+ * A runtime ready to return, if the pin is still fresh now: verifying,
+ * asking or downloading can carry a preparation past the pin's cutoff.
+ */
+function ready(
+  manifest: RuntimeManifest,
+  deps: RuntimeStoreDeps,
+  runtime: VerifiedRuntime,
+): RuntimePreparation {
+  return isPinFresh(manifest.publication.publishedAtMs, deps.now())
+    ? { ok: true, runtime }
+    : { ok: false, reason: 'runtimeOutdated' }
+}
+
 /** Refuses once the lifetime has ended or admission (trust, mode, posture, setting, scope) is gone. */
 function admitted(request: RuntimePrepareRequest): void {
   if (request.lifetime.signal.aborted) {
@@ -530,7 +546,7 @@ export async function prepareRuntime(
     )
     admitted(request)
     if (installed !== 'absent') {
-      return { ok: true, runtime: installed }
+      return ready(manifest, deps, installed)
     }
     const answer = await within(
       request,
@@ -545,7 +561,7 @@ export async function prepareRuntime(
     const runtime = await install(request, deps, pin, root, final)
     // Published even if the preparation ended meanwhile; nothing is launched then.
     admitted(request)
-    return { ok: true, runtime }
+    return ready(manifest, deps, runtime)
   } catch (error: unknown) {
     if (error instanceof Stop) {
       return { ok: false, reason: error.reason }

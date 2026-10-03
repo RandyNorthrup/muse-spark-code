@@ -47,10 +47,10 @@ happened, not what was planned; superseded entries are kept.
     dialog for one check; never the model. Every failure is one of a fixed
     set of reasons, in your language.
 - The browser check ships as two bundles of its own: `dist/browserCheck.js`
-  (the pipe, the run, the proxy and its tests; budget 50 KiB, 49.8 KiB when
-  built), loaded on the first check, and `dist/browserRuntime.js` (getting
-  and verifying the browser; 37.2 KiB, budget 50 KiB: measured plus 15%,
-  rounded up to 25 KiB), loaded only to prepare it.
+  (the pipe, the run, the proxy and its tests; 50.5 KiB, budget 75 KiB),
+  loaded on the first check, and `dist/browserRuntime.js` (getting and
+  verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
+  it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every

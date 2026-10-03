@@ -481,6 +481,7 @@
     "other": "{count} zablokowanego żądania poza ten komputer"
   },
   "browserCheckUrlRefused": "Można otworzyć tylko adres http:// lub https:// z prostą nazwą hosta lub adresem IP, bez nazwy użytkownika i hasła.",
+  "browserCheckInvalidArguments": "Kontrolę w przeglądarce zlecono z nieprawidłowymi argumentami, więc nic nie zostało otwarte.",
   "browserCheckRuntimeMissing": "Przeglądarka do kontroli w przeglądarce nie jest zainstalowana i nie udało się jej teraz pobrać. Sprawdź połączenie i spróbuj ponownie.",
   "browserCheckRuntimeUnsupported": "Kontrola w przeglądarce nie jest dostępna na tym komputerze. Obsługuje Windows x64, Linux x64 i macOS.",
   "browserCheckRuntimeOutdated": "Przeglądarka do kontroli w przeglądarce ma ponad 45 dni. Zaktualizuj Muse Spark Code, aby znów korzystać z kontroli w przeglądarce.",

@@ -442,6 +442,7 @@
     "other": "已阻止 {count} 个发往本计算机以外的请求"
   },
   "browserCheckUrlRefused": "只能打开使用简单主机名或 IP 地址、且不含用户名或密码的 http:// 或 https:// 地址。",
+  "browserCheckInvalidArguments": "浏览器检查的请求参数无效，因此未打开任何内容。",
   "browserCheckRuntimeMissing": "浏览器检查所用的浏览器尚未安装，且现在无法下载。请检查网络连接后重试。",
   "browserCheckRuntimeUnsupported": "此计算机上无法使用浏览器检查。它支持 Windows x64、Linux x64 和 macOS。",
   "browserCheckRuntimeOutdated": "浏览器检查所用的浏览器已超过 45 天。请更新 Muse Spark Code 以再次使用浏览器检查。",

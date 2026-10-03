@@ -64,7 +64,7 @@ import { CdpConnection, CdpError, type PipeReader, type PipeWriter } from './cdp
 import type { CheckProxy, FrozenScope, ProxyObservation } from './checkProxy'
 import { PageCheck } from './pageCheck'
 import type { RuntimePreparation, RuntimePrepareRequest, VerifiedRuntime } from './runtimeTypes'
-import { type BoundedLifetime, createLifetime } from './workLifetime'
+import { type BoundedLifetime, createLifetime, LifetimeEndedError } from './workLifetime'
 
 /** One click or type step, as the call's arguments gave it. */
 export interface BrowserAction {
@@ -322,14 +322,17 @@ function fail(kind: PreparationFailure | ConfinementFailure | PageEnd): never {
   throw new CheckFailure({ kind })
 }
 
-/** `work`'s value, or the check ends with `kind` when it rejects. */
+/** `work`'s value, or the check ends with `kind` when it rejects; the lifetime's end passes as it is. */
 async function orFail<T>(
   work: Promise<T>,
   kind: PreparationFailure | ConfinementFailure | PageEnd,
 ): Promise<T> {
   try {
     return await work
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof LifetimeEndedError) {
+      throw error
+    }
     return fail(kind)
   }
 }
@@ -433,7 +436,8 @@ async function networkServiceId(page: PageCheck): Promise<number | undefined> {
 interface CheckContext {
   readonly page: PageCheck
   readonly fixture: ProbeFixture
-  readonly observations: readonly ProxyObservation[]
+  /** Where the proxy's records go from now on: a phase's own list, or nowhere. */
+  readonly collect: (into: ProxyObservation[] | undefined) => void
   readonly request: BrowserCheckRequest
   readonly deps: BrowserRunDeps
   readonly timings: BrowserTimings
@@ -441,8 +445,9 @@ interface CheckContext {
 
 /**
  * One canary phase on its own probe target (in the private context when
- * one is given): fresh nonces, exceptions bound to that frame and revoked
- * when it ends, then the verdict. Throws the confinement failure it finds.
+ * one is given): fresh nonces and fixture ports, exceptions bound to that
+ * frame and revoked when it ends, then the verdict on its own records only.
+ * Throws the confinement failure it finds.
  */
 async function runPhase(
   context: CheckContext,
@@ -450,13 +455,14 @@ async function runPhase(
   browserContextId: string | undefined,
   ms: number,
 ): Promise<void> {
-  const { page, fixture, observations, request, deps } = context
-  const plan = phasePlan(
-    phase,
-    deps.randomHex(BROWSER_CANARY_NONCE_BYTES),
-    fixture,
-    request.allowedHosts,
+  const { page, fixture, request, deps } = context
+  const target = await orFail(
+    fixture.open(deps.randomHex(BROWSER_CANARY_NONCE_BYTES)),
+    'unverifiable',
   )
+  const plan = phasePlan(phase, target, request.allowedHosts)
+  const observations: ProxyObservation[] = []
+  context.collect(observations)
   let isOver = false
   let report: ProbeReport | undefined
   const run = async (): Promise<void> => {
@@ -501,6 +507,7 @@ async function runPhase(
     isOver = true
     clearTimeout(timer)
     page.bind(undefined)
+    context.collect(undefined)
   }
 }
 
@@ -632,16 +639,20 @@ async function check(
     proxyPort: Number(new URL(proxy.endpoint).port),
     end: hooks.endWith,
   })
-  const observations: ProxyObservation[] = []
+  // A phase reads only what arrived while it ran (and only what names it).
+  let records: ProxyObservation[] | undefined
   proxy.observe((observation) => {
-    if (observations.length < BROWSER_PROXY_MAX_OBSERVATIONS) {
-      observations.push(observation)
+    if (records !== undefined && records.length < BROWSER_PROXY_MAX_OBSERVATIONS) {
+      records.push(observation)
     }
     page.poke()
   })
   const serviceId = await holdToContract(page, runtime, args, options)
   await page.setup()
-  const canary: CheckContext = { page, fixture, observations, request, deps, timings }
+  const collect = (into: ProxyObservation[] | undefined): void => {
+    records = into
+  }
+  const canary: CheckContext = { page, fixture, collect, request, deps, timings }
   const initialEnd = performance.now() + timings.initialCanaryMs
   const remaining = (): number => Math.min(timings.phaseMs, initialEnd - performance.now())
   await runPhase(canary, 'default', undefined, remaining())
@@ -742,6 +753,14 @@ export async function runBrowserCheck(
         isGraceful: () => isGraceful,
       })
     } catch (error: unknown) {
+      // Once the check has ended (a stop, admission, the deadline, a found
+      // end), whatever that end rejected reports the end's own kind.
+      if (lifetime.endedBy !== undefined) {
+        return {
+          ok: false,
+          failure: failure ?? endedFailure(lifetime, request, options, 'timedOut'),
+        }
+      }
       return {
         ok: false,
         failure: error instanceof CheckFailure ? error.failure : { kind: 'browserFailed' },

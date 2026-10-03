@@ -442,6 +442,7 @@
     "other": "已封鎖 {count} 個傳送到本電腦以外的要求"
   },
   "browserCheckUrlRefused": "只能開啟使用簡單主機名稱或 IP 位址、且不含使用者名稱或密碼的 http:// 或 https:// 位址。",
+  "browserCheckInvalidArguments": "瀏覽器檢查的要求引數無效，因此未開啟任何內容。",
   "browserCheckRuntimeMissing": "瀏覽器檢查所用的瀏覽器尚未安裝，且目前無法下載。請檢查網路連線後再試一次。",
   "browserCheckRuntimeUnsupported": "此電腦無法使用瀏覽器檢查。它支援 Windows x64、Linux x64 和 macOS。",
   "browserCheckRuntimeOutdated": "瀏覽器檢查所用的瀏覽器已超過 45 天。請更新 Muse Spark Code 以再次使用瀏覽器檢查。",

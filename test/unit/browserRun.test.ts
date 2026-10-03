@@ -95,6 +95,16 @@ interface Network {
   /** The probe page's report overrides. */
   readonly report: Partial<{ wt: string; ice: string; candidates: string[]; open: boolean }>
   readonly closed: string[]
+  /** Every phase on one fixture port (no real fixture does that): only each phase's own records tell them apart. */
+  readonly isPortShared: boolean
+  /**
+   * The audit's own loopback answers reach the fixture (its hits and
+   * challenges are there) but not through the proxy as built: no record of
+   * forwarding, or answers whose challenge was not stripped.
+   */
+  readonly audit: 'unforwarded' | 'unstripped' | undefined
+  /** The page phase's records arrive again during the audit, as late answers to its probes would. */
+  readonly isPageLate: boolean
 }
 
 function network(overrides: Partial<Network> = {}): Network {
@@ -109,6 +119,9 @@ function network(overrides: Partial<Network> = {}): Network {
     dropped: undefined,
     report: {},
     closed: [],
+    isPortShared: false,
+    audit: undefined,
+    isPageLate: false,
     ...overrides,
   }
 }
@@ -137,6 +150,15 @@ function reject(): Promise<never> {
   return Promise.reject(new Error('EACCES /secret'))
 }
 
+function idle(): void {
+  // Nothing comes of it.
+}
+
+/** A setup step that never answers. */
+function pending(): Promise<never> {
+  return new Promise<never>(idle)
+}
+
 class FakeBrowser implements BrowserProcess {
   private exit: () => void = () => undefined
   private targets = 0
@@ -152,6 +174,8 @@ class FakeBrowser implements BrowserProcess {
   public commandLine: readonly string[] = []
   public serviceIds = [41, 41]
   public pageSession = ''
+  /** What each phase's probes left at the proxy, in order. */
+  public readonly phaseRecords: ProxyObservation[][] = []
 
   public kill: () => Promise<void> = () => {
     this.kills += 1
@@ -230,15 +254,31 @@ class FakeBrowser implements BrowserProcess {
     this.phase += 1
     const input = JSON.parse(expression.slice(at + 2, -1)) as ProbeInput
     const nonce = /c1-([\da-f]+)\.invalid/.exec(input.get[0] ?? '')?.[1] ?? ''
+    // The phase's own fixture port, as its loopback probes name it.
+    const fixturePort = Number(/http:\/\/localhost:(\d+)\//.exec(input.get.join(' '))?.[1])
     const { net } = this
+    const isAudit = this.phase === 2
+    const send = (record: ProxyObservation): void => {
+      for (const listener of net.observations) {
+        listener(record)
+      }
+    }
+    const pagePhaseRecords = this.phaseRecords[1] ?? []
+    if (isAudit && net.isPageLate) {
+      for (const late of pagePhaseRecords) {
+        send(late)
+      }
+    }
     const isDropped = (host: string): boolean =>
       net.dropped !== undefined && this.phase >= net.dropped.phase && host === net.dropped.host
+    const left: ProxyObservation[] = []
+    this.phaseRecords.push(left)
     const record = (record: ProxyObservation): void => {
-      if (!isDropped(record.host)) {
-        for (const listener of net.observations) {
-          listener(record)
-        }
+      if (isDropped(record.host)) {
+        return
       }
+      left.push(record)
+      send(record)
     }
     const hits = net.hits.get(nonce) ?? []
     for (const raw of input.get) {
@@ -248,13 +288,15 @@ class FakeBrowser implements BrowserProcess {
         if (!isDropped(host)) {
           hits.push(url.pathname.split('/').slice(2).join('/'))
         }
-        record({
-          form: 'http',
-          host,
-          port: Number(url.port),
-          forwarded: true,
-          challengeStripped: false,
-        })
+        if (!(isAudit && net.audit === 'unforwarded')) {
+          record({
+            form: 'http',
+            host,
+            port: Number(url.port),
+            forwarded: true,
+            challengeStripped: false,
+          })
+        }
       } else {
         const isTls = url.protocol === 'https:'
         record({
@@ -283,9 +325,9 @@ class FakeBrowser implements BrowserProcess {
         record({
           form: 'http',
           host: 'localhost',
-          port: FIXTURE_PORT,
+          port: fixturePort,
           forwarded: true,
-          challengeStripped: true,
+          challengeStripped: !(isAudit && net.audit === 'unstripped'),
         })
       }
     }
@@ -402,22 +444,31 @@ function fakeProxy(net: Network): CheckProxy {
 }
 
 function fakeFixture(net: Network): ProbeFixture {
+  let opened = 0
   return {
-    port: FIXTURE_PORT,
-    loopbackHosts: ['localhost', '127.0.0.1', '[::1]'],
-    get own() {
-      return net.own
-    },
-    admit: (nonce) => {
+    open: (nonce) => {
+      // A port of its own per phase, as the real fixture opens one.
+      const port = net.isPortShared ? FIXTURE_PORT : FIXTURE_PORT + 10 * opened
+      opened += 1
       net.hits.set(nonce, [])
+      return Promise.resolve({
+        nonce,
+        port,
+        loopbackHosts: ['localhost', '127.0.0.1', '[::1]'],
+        own: net.own,
+        get hits() {
+          return net.hits.get(nonce) ?? []
+        },
+        get challenges() {
+          return net.challenges.get(nonce) ?? 0
+        },
+        get tcpConnections() {
+          return net.tcpConnections
+        },
+      })
     },
-    hits: (nonce) => net.hits.get(nonce) ?? [],
-    challenges: (nonce) => net.challenges.get(nonce) ?? 0,
     get authorizations() {
       return net.authorizations
-    },
-    get tcpConnections() {
-      return net.tcpConnections
     },
     get datagrams() {
       return net.datagrams
@@ -1073,6 +1124,109 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
     restarted.serviceIds = [41, 77]
     expect(await run(setup(restarted))).toEqual({ ok: false, failure: { kind: 'restartObserved' } })
   }, 15_000)
+
+  it('fails the audit on its own records alone: the page phase’s, early or late, never stand in for them (A1-1)', async () => {
+    const cases: Partial<Network>[] = [
+      { isPortShared: true, audit: 'unstripped' },
+      { isPortShared: true, audit: 'unforwarded' },
+      { isPageLate: true, audit: 'unstripped' },
+      { isPageLate: true, audit: 'unforwarded' },
+    ]
+    for (const faults of cases) {
+      const browser = new FakeBrowser(network(faults))
+      const name = JSON.stringify(faults)
+      expect(await run(setup(browser)), name).toEqual({
+        ok: false,
+        failure: { kind: 'auditFailed' },
+      })
+      // The page phase held: the model's page ran, and its results were discarded.
+      expect(browser.calls('Page.captureScreenshot'), name).toHaveLength(1)
+    }
+    // The audit's own records intact: the same runs pass.
+    for (const faults of [{ isPortShared: true }, { isPageLate: true }]) {
+      expect(
+        await run(setup(new FakeBrowser(network(faults)))),
+        JSON.stringify(faults),
+      ).toMatchObject({ ok: true })
+    }
+  }, 30_000)
+
+  it('ends with the end’s own kind when a stop, admission or the deadline comes during setup (P3-1)', async () => {
+    const holds: [
+      string,
+      (browser: FakeBrowser, reached: () => void) => Partial<BrowserRunDeps>,
+    ][] = [
+      [
+        'folder',
+        (_browser, reached) => ({
+          createFolder: () => {
+            reached()
+            return pending()
+          },
+        }),
+      ],
+      [
+        'executable',
+        (_browser, reached) => ({
+          statExecutable: () => {
+            reached()
+            return pending()
+          },
+        }),
+      ],
+      [
+        'private context',
+        (browser, reached) => {
+          browser.on('Target.createBrowserContext', () => {
+            reached()
+            return HOLD
+          })
+          return {}
+        },
+      ],
+    ]
+    const ends = [
+      ['stop', 'cancelled'],
+      ['admission', 'scopeChanged'],
+      ['deadline', 'timedOut'],
+    ] as const
+    for (const [where, hold] of holds) {
+      for (const [end, kind] of ends) {
+        const browser = new FakeBrowser(network())
+        const stop = new AbortController()
+        const trigger = { fire: idle }
+        const t = setup(browser, {
+          ...hold(browser, () => {
+            setTimeout(() => {
+              trigger.fire()
+            }, 10)
+          }),
+          timings: {
+            preparationMs: 2000,
+            checkMs: end === 'deadline' ? 400 : 5000,
+            loadMs: 200,
+            settleMs: 10,
+            closeGraceMs: 50,
+            phaseMs: 400,
+            initialCanaryMs: 1000,
+          },
+        })
+        if (end === 'stop') {
+          trigger.fire = () => {
+            stop.abort()
+          }
+        } else if (end === 'admission') {
+          trigger.fire = () => {
+            t.admission.abort('scopeChanged')
+          }
+        }
+        expect(await run(t, { signal: stop.signal }), `${where} ${end}`).toEqual({
+          ok: false,
+          failure: { kind },
+        })
+      }
+    }
+  }, 30_000)
 
   it('reads a probe page that never loaded (its route not the one built) as the phase’s own failure', async () => {
     // As on the pinned shell with the proxy or its loopback subtraction gone:

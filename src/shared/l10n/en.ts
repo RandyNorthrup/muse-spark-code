@@ -569,6 +569,8 @@ export const EN = {
   // Why a check did not happen or did not finish.
   browserCheckUrlRefused:
     'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+  browserCheckInvalidArguments:
+    'The browser check was asked for with arguments that are not valid, so nothing was opened.',
   // The runtime's preparation (M81 A1): why no verified browser was ready.
   browserCheckRuntimeMissing:
     'The browser check’s browser is not installed and could not be downloaded now. Check the connection and try again.',

@@ -468,6 +468,7 @@
     "other": "{count} richieste bloccate oltre questo computer"
   },
   "browserCheckUrlRefused": "Si può aprire solo un indirizzo http:// o https:// con un semplice nome host o un indirizzo IP, senza nome utente né password.",
+  "browserCheckInvalidArguments": "Il controllo nel browser è stato richiesto con argomenti non validi, quindi non è stato aperto nulla.",
   "browserCheckRuntimeMissing": "Il browser del controllo nel browser non è installato e al momento non è stato possibile scaricarlo. Controlla la connessione e riprova.",
   "browserCheckRuntimeUnsupported": "Il controllo nel browser non è disponibile su questo computer. Supporta Windows x64, Linux x64 e macOS.",
   "browserCheckRuntimeOutdated": "Il browser del controllo nel browser ha più di 45 giorni. Aggiorna Muse Spark Code per usare di nuovo il controllo nel browser.",

@@ -442,6 +442,7 @@
     "other": "이 컴퓨터 밖으로 가는 요청 {count}개 차단"
   },
   "browserCheckUrlRefused": "단순한 호스트 이름이나 IP 주소를 쓰고 사용자 이름이나 암호가 없는 http:// 또는 https:// 주소만 열 수 있습니다.",
+  "browserCheckInvalidArguments": "브라우저 검사가 올바르지 않은 인수로 요청되어 아무것도 열지 않았습니다.",
   "browserCheckRuntimeMissing": "브라우저 검사용 브라우저가 설치되어 있지 않고 지금은 다운로드할 수 없습니다. 연결을 확인한 후 다시 시도하세요.",
   "browserCheckRuntimeUnsupported": "이 컴퓨터에서는 브라우저 검사를 사용할 수 없습니다. Windows x64, Linux x64, macOS를 지원합니다.",
   "browserCheckRuntimeOutdated": "브라우저 검사용 브라우저가 45일보다 오래되었습니다. 브라우저 검사를 다시 사용하려면 Muse Spark Code를 업데이트하세요.",

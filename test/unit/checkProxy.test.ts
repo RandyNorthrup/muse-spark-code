@@ -17,6 +17,7 @@ import {
   type ProxyObservation,
   startCheckProxy,
 } from '../../src/core/browser/checkProxy'
+import { rawExchange } from './helpers/proxyExchange'
 
 const servers: (Server | TcpServer)[] = []
 const proxies: CheckProxy[] = []
@@ -62,22 +63,17 @@ async function proxyFor(
 }
 
 /** A raw request on a fresh connection to the proxy; everything it answered until it closed. */
-async function raw(port: number, text: string | Buffer, keepOpenMs = 0): Promise<string> {
-  return await new Promise((resolve) => {
-    const socket = connect(port, '127.0.0.1')
-    const parts: Buffer[] = []
-    socket.on('data', (chunk) => {
-      parts.push(chunk)
-    })
-    socket.on('error', () => undefined)
-    socket.on('close', () => {
-      resolve(Buffer.concat(parts).toString('latin1'))
-    })
-    socket.write(text)
-    if (keepOpenMs > 0) {
-      setTimeout(() => socket.end(), keepOpenMs)
-    }
+const raw = rawExchange
+
+/** A loopback port nothing listens on any more. */
+async function closedPort(): Promise<string> {
+  const closed = createTcpServer()
+  const port = String(await listen(closed))
+  await new Promise((resolve) => {
+    closed.close(resolve)
   })
+  servers.splice(servers.indexOf(closed), 1)
+  return port
 }
 
 /** An upstream that records each request's raw head and answers with sign-in challenges and hop-by-hop fields. */
@@ -324,6 +320,87 @@ describe('the browser check’s proxy (M81 A1)', () => {
     ])
   })
 
+  it('records an admitted CONNECT as admitted when its lookup or its connection then fails, never as a refusal (A1-2)', async () => {
+    const nobody = await closedPort()
+    const failing = vi.fn((_host: string): Promise<string> =>
+      Promise.reject(new Error('ENOTFOUND app.test')),
+    )
+    const { port, seen } = await proxyFor(['app.test', '127.0.0.1'], failing)
+    expect(await raw(port, 'CONNECT app.test:443 HTTP/1.1\r\nHost: app.test:443\r\n\r\n')).toMatch(
+      /^HTTP\/1\.1 403 /,
+    )
+    const authority = `127.0.0.1:${nobody}`
+    expect(await raw(port, `CONNECT ${authority} HTTP/1.1\r\nHost: ${authority}\r\n\r\n`)).toMatch(
+      /^HTTP\/1\.1 403 /,
+    )
+    expect(failing.mock.calls).toEqual([['app.test']])
+    expect(seen).toEqual([
+      { form: 'connect', host: 'app.test', port: 443, forwarded: true, challengeStripped: false },
+      {
+        form: 'connect',
+        host: '127.0.0.1',
+        port: Number(nobody),
+        forwarded: true,
+        challengeStripped: false,
+      },
+    ])
+  })
+
+  it('ends an exchange whose upstream answer’s head does not complete within 3 s of its first byte (A1-5)', async () => {
+    let isUpstreamClosed = false
+    const stalling = createTcpServer((socket) => {
+      socket.on('error', () => undefined)
+      socket.on('close', () => {
+        isUpstreamClosed = true
+      })
+      socket.once('data', () => {
+        socket.write('HTTP/1.1 200 OK\r\nContent-Len')
+      })
+    })
+    const stallPort = String(await listen(stalling))
+    const { port, seen } = await proxyFor()
+    const started = Date.now()
+    // The request's own head is complete: only the answer's bound can end it.
+    const answer = await raw(
+      port,
+      `GET http://127.0.0.1:${stallPort}/ HTTP/1.1\r\nHost: 127.0.0.1:${stallPort}\r\n\r\n`,
+      12_000,
+    )
+    const took = Date.now() - started
+    expect(answer).toBe('')
+    expect(took).toBeGreaterThanOrEqual(2900)
+    expect(took).toBeLessThan(6000)
+    await vi.waitFor(() => {
+      expect(isUpstreamClosed).toBe(true)
+    })
+    expect(seen).toEqual([
+      {
+        form: 'http',
+        host: '127.0.0.1',
+        port: Number(stallPort),
+        forwarded: true,
+        challengeStripped: false,
+      },
+    ])
+  }, 20_000)
+
+  it('lets an upstream take its time before its answer starts: the bound is the head’s own', async () => {
+    const slow = createServer((request, response) => {
+      request.resume()
+      setTimeout(() => {
+        response.writeHead(200, { 'Content-Length': '2' }).end('ok')
+      }, 3500)
+    })
+    const slowPort = String(await listen(slow))
+    const { port } = await proxyFor()
+    const answer = await raw(
+      port,
+      `GET http://127.0.0.1:${slowPort}/ HTTP/1.1\r\nHost: 127.0.0.1:${slowPort}\r\n\r\n`,
+    )
+    expect(answer).toMatch(/^HTTP\/1\.1 200 /)
+    expect(answer.endsWith('ok')).toBe(true)
+  }, 15_000)
+
   it('closes a head past 16 KiB and one that does not complete within its bound', async () => {
     const { port } = await proxyFor()
     const big = await raw(
@@ -360,17 +437,12 @@ describe('the browser check’s proxy (M81 A1)', () => {
   })
 
   it('answers 502 when loopback refuses the connection, and closes every connection with itself', async () => {
-    const closed = createTcpServer()
-    const closedPort = String(await listen(closed))
-    await new Promise((resolve) => {
-      closed.close(resolve)
-    })
-    servers.splice(servers.indexOf(closed), 1)
+    const nobody = await closedPort()
     const { proxy, port, seen } = await proxyFor()
     expect(
       await raw(
         port,
-        `GET http://127.0.0.1:${closedPort}/ HTTP/1.1\r\nHost: 127.0.0.1:${closedPort}\r\n\r\n`,
+        `GET http://127.0.0.1:${nobody}/ HTTP/1.1\r\nHost: 127.0.0.1:${nobody}\r\n\r\n`,
       ),
     ).toMatch(/^HTTP\/1\.1 502 /)
     expect(seen[0]?.forwarded).toBe(true)

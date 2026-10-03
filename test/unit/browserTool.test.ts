@@ -14,7 +14,7 @@ import {
 } from '../../src/core/browser/browserTool'
 import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, setUiText } from '../../src/shared/l10n/text'
 
 const NONE: ReadonlySet<string> = new Set()
 // Plain HTTP to a named host is what these cases test; spelled so the
@@ -32,6 +32,17 @@ const REPORT: BrowserCheckReport = {
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
 })
+
+/** The one refusal for arguments that do not parse, in both readers' words. */
+const INVALID = {
+  ok: false,
+  model: fill(MODEL_TEXT.browserCheckInvalidArguments, {
+    actions: '8',
+    selector: '256',
+    text: '1000',
+  }),
+  user: UI_TEXT.browserCheckInvalidArguments,
+} as const
 
 /** `text` with its first letter capitalized, as its type says. */
 function capitalized<T extends string>(text: T): Capitalize<T> {
@@ -80,9 +91,28 @@ describe('the browser check tool (M81)', () => {
       { url: 'http://localhost/', actions: [{ kind: 'hover', selector: 'a' }] },
     ]) {
       const refused = placeBrowserCall(args, NONE)
-      expect(refused.ok, JSON.stringify(args).slice(0, 80)).toBe(false)
-      expect(refused).toMatchObject({ model: expect.stringContaining('invalid arguments') })
+      expect(refused, JSON.stringify(args).slice(0, 80)).toEqual(INVALID)
     }
+  })
+
+  it('refuses malformed arguments in fixed words, never quoting what they held (P3-2)', () => {
+    const secret = 'hunter2-Sup3rSecret'
+    const refused = placeBrowserCall(
+      {
+        url: 'http://localhost/',
+        actions: [{ kind: 'type', selector: '#password', text: secret, extra: 1 }, { kind: 7 }],
+      },
+      NONE,
+    )
+    expect(refused).toEqual(INVALID)
+    expect(JSON.stringify(refused)).not.toContain(secret)
+    expect(JSON.stringify(refused)).not.toContain('#password')
+    expect(INVALID.model).toContain('at most 8 steps')
+    expect(INVALID.model).toContain('1 to 256 characters')
+    expect(INVALID.model).toContain('at most 1000 characters')
+    // The row's words are the table's, in the display language.
+    setUiText({ ...EN, browserCheckInvalidArguments: 'Ungültig.' }, 'de')
+    expect(placeBrowserCall({}, NONE)).toMatchObject({ user: 'Ungültig.' })
   })
 
   it('refuses a URL it would never open before any card, in the words of each reader', () => {
