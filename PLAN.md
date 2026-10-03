@@ -9019,6 +9019,25 @@ evaluation is authorized by these repairs.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
+**M74fu follow-ups verified, 2026-10-02 (`fix/m74-followups`).** The four
+review findings after PR #71 are fixed: share one conversation-replacing operation
+lock between handoff Start and plan actions (P2-2); explain a deferred
+brief read and retry it after sign-in/key activation completes (P2-1);
+retain a current handoff when its brief read throws while admission is
+closed (P3-4); and refuse a composer send during distillation, keeping its
+draft and attachments, while allowing Start's own brief send (P3-3).
+The composer guard runs before the first auth/session await as well as
+after preparation awaits, so an admission hold cannot lose that draft.
+The existing controller and reducer reuse the busy and sign-in text.
+The four owning suites and the UI-state suite pass 606 tests on Kubuntu;
+nine guard drills fail as intended and restore byte-exact by SHA-256.
+The five TypeScript projects, ESLint, Prettier, dead code, duplication,
+localization, host API and production build pass there too, with unchanged
+caps (extension 552.2/600 KiB, Model API 353.5/400). Evidence and exact
+bindings are in `docs/certification/m74.md`. The full quality gate remains
+the lead's per the lane brief. No origin push,
+live call, new dependency, setting, wire shape or escape hatch.
+
 **Main merge, 2026-10-02 (M74m).** Merge `origin/main` at `2a03a79b`
 (M84, M75 and 0.10.1) into the handoff branch at `aa37274e` (`91329eb8`),
 then include PR #74's documentation audit at `2067d2f9`. Keep both
@@ -9168,7 +9187,12 @@ integration tests, a production build with a real `node_modules` and
     so M79's Implement gets it too. A refusal for admission leaves the
     operation waiting with its dialog intact: Start works again once
     admission returns, and a brief whose read admission put off is read
-    on the next `/handoff` or a rebuilt panel.
+    after sign-in/key activation completes, on the next `/handoff` or a
+    rebuilt panel, with the sign-in reason said while the read waits. A
+    read that throws while admission is closed keeps its operation. Start
+    shares the plan actions' operation lock through the new brief's send,
+    and composer sends cannot steer a submitted distillation, even before
+    its acceptance arrives; refusal restores the exact draft unless edited.
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so
