@@ -66,7 +66,6 @@ happened, not what was planned; superseded entries are kept.
   include the new text. `npm run schema:exec` generates the committed JSON schemas.
   Lane B supplies the `exec` and `scan-secrets` wiring and engine below; Action
   and full M80 acceptance remain pending in the other lanes.
-
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
   commands become skills, compatible agents become M76 agent files, project
   rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
