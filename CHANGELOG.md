@@ -7,16 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Fixed
-
-- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
-  share one decision's eventual result, so a confirmed refusal unlocks
-  both. Stop waits for an in-flight decision and rejects the next waiting
-  stage before cancelling. A fault's Restart now stops only Muse Code;
-  Model API conversations continue. Recovery buttons retire on first use
-  and remain retired in restored panels. The approval dock count uses
-  localized plural forms in every display language.
-
 ### Added
 
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
@@ -187,9 +177,22 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
 
 ### Fixed
 
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
