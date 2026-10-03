@@ -1,0 +1,32 @@
+{
+  "rig": "kubuntu",
+  "snapshot": "e41c622f",
+  "receipts": [
+    {
+      "id": "content-leak",
+      "source": "src/host/checkpoints/writeJournal.ts",
+      "test": "test/unit/checkpointRetention.test.ts",
+      "command": ["npx", "vitest", "run", "test/unit/checkpointRetention.test.ts"],
+      "baseline_exit": 0,
+      "red_exit": 1,
+      "restored_exit": 0,
+      "expected_diagnostic": "private after canary Ω",
+      "before_sha256": "8d8a070870081eaa02f6e4b13abe1684babdb0909b7be92110fb5567ee39483a",
+      "mutated_sha256": "db5c7aac9d185de39437c160683c83ab8cb6ca8db07634e6fad146f825227161",
+      "restored_sha256": "8d8a070870081eaa02f6e4b13abe1684babdb0909b7be92110fb5567ee39483a"
+    },
+    {
+      "id": "absolute-path-leak",
+      "source": "src/host/checkpoints/writeJournal.ts",
+      "test": "test/unit/checkpointRetention.test.ts",
+      "command": ["npx", "vitest", "run", "test/unit/checkpointRetention.test.ts"],
+      "baseline_exit": 0,
+      "red_exit": 1,
+      "restored_exit": 0,
+      "expected_diagnostic": "private-note.txt",
+      "before_sha256": "8d8a070870081eaa02f6e4b13abe1684babdb0909b7be92110fb5567ee39483a",
+      "mutated_sha256": "caef37f9b5ccb410039fa6db4a072dbbb149e2f9a81a72da759586023f5172a0",
+      "restored_sha256": "8d8a070870081eaa02f6e4b13abe1684babdb0909b7be92110fb5567ee39483a"
+    }
+  ]
+}

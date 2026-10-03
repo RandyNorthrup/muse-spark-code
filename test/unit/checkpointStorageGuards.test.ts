@@ -1,28 +1,31 @@
 import { mkdir, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { ShadowPathTooLongError } from '../../src/host/checkpoints/shadowGit'
 import { MODEL_TEXT } from '../../src/shared/constants'
 import {
-  captured,
   checkpointPort,
   harness,
   isPresent,
+  owner,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
 } from './helpers/checkpointHarness'
 
 afterEach(removeCheckpointFolders)
 
-describe('checkpoint storage that git cannot use or the workspace holds (M72)', () => {
+describe('checkpoint storage that git cannot use or the workspace holds (M72, M86)', () => {
   it(
-    'lets a message go ahead when the storage path is too long, and refuses the capture',
+    'lets a message go ahead when the storage path is too long, and refuses the unit',
     async () => {
       const h = await harness()
       const store = h.reopenAt(h.storage, h.root, 20)
       // No store can be opened at this path by any window, so no restore can be
       // running elsewhere: the turn is published and the message is not refused.
       await store.markTurn('pending:first', true, true)
-      expect(await store.capture()).toMatchObject({ ok: false, reason: 'pathTooLong' })
+      await expect(store.startUnit(owner(store, 't1'))).rejects.toBeInstanceOf(
+        ShadowPathTooLongError,
+      )
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -34,7 +37,7 @@ describe('checkpoint storage that git cannot use or the workspace holds (M72)', 
       const inside = path.join(h.root, 'storage', 'checkpoints', 'key')
       const store = h.reopenAt(inside, h.root)
       await store.markTurn('pending:first', true, true)
-      expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
+      await expect(store.startUnit(owner(store, 't1'))).rejects.toThrow()
       expect(await isPresent(inside, 'shadow.git/HEAD')).toBe(false)
     },
     REAL_GIT_TIMEOUT_MS,
@@ -52,7 +55,7 @@ describe('checkpoint storage that git cannot use or the workspace holds (M72)', 
       await symlink(inner, alias, 'junction')
       const store = h.reopenAt(path.join(alias, 'checkpoints', 'key'), h.root)
       await store.markTurn('pending:first', true, true)
-      expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
+      await expect(store.startUnit(owner(store, 't1'))).rejects.toThrow()
       expect(await isPresent(inner, 'checkpoints/key/shadow.git/HEAD')).toBe(false)
     },
     REAL_GIT_TIMEOUT_MS,
@@ -64,7 +67,7 @@ describe('checkpoint storage that git cannot use or the workspace holds (M72)', 
       const h = await harness()
       const store = h.reopenAt(h.storage, path.join(h.storage, 'ws'))
       await store.markTurn('pending:first', true, true)
-      expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
+      await expect(store.startUnit(owner(store, 't1'))).rejects.toThrow()
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -73,24 +76,26 @@ describe('checkpoint storage that git cannot use or the workspace holds (M72)', 
     'keeps working for an ordinary layout',
     async () => {
       const h = await harness()
-      await expect(captured(h.store)).resolves.toBeDefined()
+      await expect(h.store.startUnit(owner(h.store, 't1'))).resolves.toEqual({ sequence: 1 })
     },
     REAL_GIT_TIMEOUT_MS,
   )
 })
 
-describe('a tool writing into the checkpoint storage (M72)', () => {
+describe('a tool writing into the checkpoint storage (M72, M86)', () => {
   it(
-    'still copies and writes workspace files when the storage sits beside the workspace',
+    'still writes workspace files when the storage sits beside the workspace',
     async () => {
       // The layout every store test uses: <base>/storage and <base>/ws. Deriving the
       // storage root from the folder's parent once refused every tool write here.
       const h = await harness()
       const port = checkpointPort(h)
-      await expect(port.beforeToolWrite(path.join(h.root, 'a.txt'))).resolves.toBeUndefined()
-      await expect(
-        port.beforeToolWrite(path.join(h.storage, 'shadow.git', 'config')),
-      ).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
+      expect(() => {
+        port.refuseStorageWrite(path.join(h.root, 'a.txt'))
+      }).not.toThrow()
+      expect(() => {
+        port.refuseStorageWrite(path.join(h.storage, 'shadow.git', 'config'))
+      }).toThrow(MODEL_TEXT.checkpointStorageWrite)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -104,20 +109,25 @@ describe('a tool writing into the checkpoint storage (M72)', () => {
       const port = checkpointPort({
         store: h.reopenAt(path.join(checkpoints, 'key'), undefined, undefined, checkpoints),
       })
+      const refuses = (file: string) => () => {
+        port.refuseStorageWrite(file)
+      }
       const own = path.join(checkpoints, 'key', 'shadow.git', 'config')
       const other = path.join(checkpoints, 'another-key', 'shadow.git', 'info', 'attributes')
-      await expect(port.beforeToolWrite(own)).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
-      await expect(port.beforeToolWrite(other)).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
-      await expect(port.beforeToolWrite(path.join(h.root, 'a.txt'))).resolves.toBeUndefined()
+      expect(refuses(own)).toThrow(MODEL_TEXT.checkpointStorageWrite)
+      expect(refuses(other)).toThrow(MODEL_TEXT.checkpointStorageWrite)
+      // A journal of this version is the storage's too.
+      expect(refuses(path.join(checkpoints, 'key', 'm86', 'x', 'journal.jsonl'))).toThrow(
+        MODEL_TEXT.checkpointStorageWrite,
+      )
+      expect(refuses(path.join(h.root, 'a.txt'))).not.toThrow()
       // Another install's repository anywhere in the workspace (a second VS Code
       // edition whose storage the workspace holds) is refused by its folder name.
-      await expect(
-        port.beforeToolWrite(path.join(h.root, 'Insiders', 'x', 'SHADOW.GIT', 'config')),
-      ).rejects.toThrow(MODEL_TEXT.checkpointStorageWrite)
+      expect(refuses(path.join(h.root, 'Insiders', 'x', 'SHADOW.GIT', 'config'))).toThrow(
+        MODEL_TEXT.checkpointStorageWrite,
+      )
       // A folder that only begins with the same letters is not the storage.
-      await expect(
-        port.beforeToolWrite(path.join(`${checkpoints}-notes`, 'x.txt')),
-      ).resolves.toBeUndefined()
+      expect(refuses(path.join(`${checkpoints}-notes`, 'x.txt'))).not.toThrow()
     },
     REAL_GIT_TIMEOUT_MS,
   )

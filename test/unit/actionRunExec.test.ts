@@ -89,6 +89,13 @@ function outFiles(run: PreparedRun): string[] {
   return readdirSync(run.paths.out).toSorted(byText)
 }
 
+/** A binary patch is withheld before the secret scan: no patch file, no scan. */
+function expectBinaryWithheld(run: PreparedRun, outputs: Record<string, string>): void {
+  expect(outputs).toMatchObject({ 'patch-withheld': 'binary', 'patch-path': '' })
+  expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
+  expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
+}
+
 /** SIGTERM after exec completed: the patch is withheld as cancelled and the step exits 143. */
 async function terminatedAfterExec(run: PreparedRun, running: Promise<ActionRunReport>) {
   run.test.send('SIGTERM')
@@ -642,13 +649,8 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
     })
     const { outputs, code } = await finish(run)
     expect(code).toBe(0)
-    expect(outputs).toMatchObject({
-      status: 'completed',
-      'patch-withheld': 'binary',
-      'patch-path': '',
-    })
-    expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
-    expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
+    expect(outputs).toMatchObject({ status: 'completed' })
+    expectBinaryWithheld(run, outputs)
   })
 
   it('G20 withholds a NUL-bearing file that .gitattributes makes Git diff as text', async () => {
@@ -664,9 +666,7 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
     })
     const { outputs, code } = await finish(run)
     expect(code).toBe(0)
-    expect(outputs).toMatchObject({ 'patch-withheld': 'binary', 'patch-path': '' })
-    expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
-    expect(fakeReports(run.paths).some((line) => line['command'] === 'scan-secrets')).toBe(false)
+    expectBinaryWithheld(run, outputs)
   })
 
   it('G20 withholds on scanner exit 2, malformed or contradictory counts and output overflow', async () => {

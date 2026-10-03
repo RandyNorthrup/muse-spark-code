@@ -7,7 +7,7 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
-import { type Connection, MspError } from '@muse-code/sdk'
+import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -34,15 +34,19 @@ import {
   MSP_RETRY_MAX_DELAY_MS,
   MSP_RETRYABLE_REFUSALS,
   MSP_SESSION_LIST_MAX_LIMIT,
+  MSP_STEER_NO_TURN_REASONS,
+  MSP_UNRESPONSIVE_MISSES,
+  MSP_UNRESPONSIVE_SILENCE_MS,
   MSP_USER_SHELL_CAPABILITY,
   MUSE_APPROVAL_LEDGER_FAULT,
   MUSE_APPROVAL_REPLAY_FAULT,
+  MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
-import { withDeadline } from '../../timeouts'
+import { DeadlineError, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
   type SubscriptionUsage,
@@ -83,6 +87,7 @@ import {
   PromptSettledError,
   type PromptSettledReason,
   SessionNotLoadedError,
+  SteerRefusedError,
 } from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
 import {
@@ -331,11 +336,70 @@ const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 export interface CommandTimeouts {
   readonly normalMs: number
   readonly longMs: number
+  /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
+  readonly unresponsiveSilenceMs?: number
 }
 
 const DEFAULT_TIMEOUTS: CommandTimeouts = {
   normalMs: MSP_COMMAND_TIMEOUT_MS,
   longMs: MSP_LONG_COMMAND_TIMEOUT_MS,
+}
+
+/**
+ * Whether `muse serve` still answers at all (the unresponsive-host watchdog,
+ * CLI recovery 2026-10-03). Every frame from it (an answer, an event, a
+ * server request) is heard here and clears the count. A command that
+ * misses its deadline counts once; at `MSP_UNRESPONSIVE_MISSES` in a row
+ * with nothing heard for the silence, Muse Code is not answering: that is
+ * logged and told once, and new commands fail at once until a frame comes.
+ */
+class HostLiveness {
+  private lastHeardAt = Date.now()
+  private misses = 0
+  private isSilent = false
+
+  public constructor(
+    private readonly silenceMs: number,
+    private readonly log: CoreLogger,
+    private readonly onUnresponsive: () => void,
+  ) {}
+
+  public get isUnresponsive(): boolean {
+    return this.isSilent
+  }
+
+  /** A frame arrived from `muse serve`. */
+  public heard(): void {
+    this.lastHeardAt = Date.now()
+    this.misses = 0
+    if (!this.isSilent) {
+      return
+    }
+    this.isSilent = false
+    this.log.info('Muse Code answers again; commands are sent again')
+  }
+
+  /** A command missed its deadline. */
+  public missed(method: string): void {
+    this.misses += 1
+    const silentMs = Date.now() - this.lastHeardAt
+    if (this.isSilent || this.misses < MSP_UNRESPONSIVE_MISSES || silentMs < this.silenceMs) {
+      return
+    }
+    this.isSilent = true
+    this.log.warn(
+      `Muse Code is not answering: ${String(this.misses)} commands in a row missed their deadline (the last ${method}) and nothing came from it for ${String(Math.round(silentMs / MILLISECONDS_PER_SECOND))} s; new commands fail at once until it answers or restarts`,
+    )
+    this.onUnresponsive()
+  }
+}
+
+/** What every command on one connection shares: its deadlines, its log and its watchdog. */
+interface CommandChannel {
+  readonly connection: Connection
+  readonly timeouts: CommandTimeouts
+  readonly log: CoreLogger
+  readonly liveness: HostLiveness
 }
 
 /** An MSP refusal that admitted nothing, so the same command may be sent again. */
@@ -393,12 +457,12 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
  * is retried with the same id after a short, growing, jittered wait.
  */
 async function sendCommand(
-  connection: Connection,
-  log: CoreLogger,
+  channel: CommandChannel,
   method: string,
   params: Record<string, unknown>,
   commandId: string,
 ): Promise<Record<string, unknown>> {
+  const { log } = channel
   const commandParams = { ...params, commandId }
   // The host drops an oversized frame without answering it (D26).
   const frame = JSON.stringify({ ...FRAME_ENVELOPE, method, params: commandParams })
@@ -407,7 +471,7 @@ async function sendCommand(
   }
   for (let attempt = 1; ; attempt += 1) {
     try {
-      const ack = await connection.request(method, commandParams)
+      const ack = await answered(channel, method, commandParams)
       if (ack['commandId'] !== undefined && ack['commandId'] !== commandId) {
         throw new Error(`${method} ack did not echo its commandId ${commandId}`)
       }
@@ -427,25 +491,71 @@ async function sendCommand(
 }
 
 /**
+ * One request's answer, heard by the watchdog: a result, or an error the
+ * host wrote. A late answer, after its deadline, is heard too.
+ */
+async function answered(
+  channel: CommandChannel,
+  method: string,
+  params: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  try {
+    const answer = await channel.connection.request(method, params)
+    channel.liveness.heard()
+    return answer
+  } catch (error: unknown) {
+    if (error instanceof MspError) {
+      channel.liveness.heard()
+    }
+    throw error
+  }
+}
+
+/**
+ * A request with a deadline, refused at once while Muse Code is not
+ * answering (the watchdog); a missed deadline counts toward that.
+ */
+async function requestWithin<T>(
+  channel: CommandChannel,
+  method: string,
+  timeoutMs: number,
+  request: () => Promise<T>,
+): Promise<T> {
+  if (channel.liveness.isUnresponsive) {
+    channel.log.info(`${method} was not sent: Muse Code is not answering`)
+    throw new Error(UI_TEXT.museCodeNotAnswering)
+  }
+  try {
+    return await withDeadline(
+      request(),
+      timeoutMs,
+      `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
+    )
+  } catch (error: unknown) {
+    if (error instanceof DeadlineError) {
+      channel.liveness.missed(method)
+    }
+    throw error
+  }
+}
+
+/**
  * One MSP command with a deadline. `sessionNotLoaded` (the host evicted or
  * closed the session) becomes a `SessionNotLoadedError` the controller
  * answers by resuming the session.
  */
 async function commandWithin(
-  connection: Connection,
-  timeouts: CommandTimeouts,
-  log: CoreLogger,
+  channel: CommandChannel,
   method: string,
   params: Record<string, unknown>,
-  commandId: string = connection.mintCommandId(),
+  commandId: string = channel.connection.mintCommandId(),
 ): Promise<unknown> {
+  const { log, timeouts } = channel
   const timeoutMs = MSP_LONG_COMMANDS.has(method) ? timeouts.longMs : timeouts.normalMs
   const startedAt = Date.now()
   try {
-    const answer = await withDeadline(
-      sendCommand(connection, log, method, params, commandId),
-      timeoutMs,
-      `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
+    const answer = await requestWithin(channel, method, timeoutMs, () =>
+      sendCommand(channel, method, params, commandId),
     )
     log.trace(`${method} answered in ${String(Date.now() - startedAt)} ms`)
     return answer
@@ -509,29 +619,54 @@ export class MuseSession implements AgentSession {
   /** The surfaces holding this handle (PLAN.md D25): the last release disposes it. */
   private holders = 1
   private isDisposed = false
+  /** Told when Muse Code reports this session's event log failed (CLI recovery). */
+  private readonly logDamagedListeners = new Set<() => void>()
+  private readonly log: CoreLogger
+  private readonly timeouts: CommandTimeouts
 
   public constructor(
     public readonly sessionId: string,
     public readonly modelId: string,
-    private readonly connection: Connection,
+    private readonly channel: CommandChannel,
     private readonly onDispose: () => void,
-    private readonly log: CoreLogger,
     /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
     private readonly canRunUserShell: boolean,
-    private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
-  ) {}
+  ) {
+    this.log = channel.log
+    this.timeouts = channel.timeouts
+  }
 
   /** One MSP command against this session with a freshly minted commandId. */
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.connection, this.timeouts, this.log, method, {
-      sessionId: this.sessionId,
-      ...params,
-    })
+    try {
+      return await commandWithin(this.channel, method, { sessionId: this.sessionId, ...params })
+    } catch (error: unknown) {
+      this.noteLogFault(error)
+      throw error
+    }
+  }
+
+  /**
+   * Muse Code 1.4.2 answers every message of a session whose event log
+   * failed with that failure (the owner's session of 2026-10-02/03): the
+   * conversation is told, which takes no new message in it after this.
+   */
+  private noteLogFault(error: unknown): void {
+    if (!(error instanceof MspError) || !error.message.includes(MUSE_EVENT_LOG_FAULT)) {
+      return
+    }
+    this.log.warn(
+      `Muse Code reported session ${this.sessionId}'s event log failed (${failureForLog(error)}); the session takes no new message`,
+    )
+    for (const listener of this.logDamagedListeners) {
+      listener()
+    }
   }
 
   private finishDispose(): void {
     this.isDisposed = true
     this.listeners.clear()
+    this.logDamagedListeners.clear()
     this.onDispose()
   }
 
@@ -679,6 +814,40 @@ export class MuseSession implements AgentSession {
     })
   }
 
+  /**
+   * What a failed `turn/steer` means for its message (CLI recovery,
+   * 2026-10-03). On 2026-10-02 a steer Muse Code answered after the 60 s
+   * deadline had been taken for a refusal and sent again as a new turn, and
+   * Muse Code applied both. So only a refusal that says no turn was there is
+   * a `SteerRefusedError`; no answer (the deadline, a closed connection) is
+   * said as such; any other refusal keeps its own words.
+   */
+  private steerFailure(expectedTurnId: string, error: unknown): unknown {
+    if (error instanceof MspError) {
+      const reason = error.data['reason']
+      const isNoTurn =
+        typeof reason === 'string' &&
+        error.kind === COMMAND_REJECTED &&
+        MSP_STEER_NO_TURN_REASONS.has(reason)
+      return isNoTurn ? new SteerRefusedError(error.message) : faultOr(error, 'approvalReplay')
+    }
+    if (error instanceof DeadlineError || error instanceof ProtocolError) {
+      this.log.warn(
+        `turn/steer into turn ${expectedTurnId} got no answer (${failureForLog(error)}); it may still reach the turn, so the message is not sent again`,
+      )
+      return new Error(UI_TEXT.steerUnconfirmed, { cause: error })
+    }
+    return error
+  }
+
+  /** Muse Code reported this session's event log failed (`noteLogFault`). */
+  public onLogDamaged(listener: () => void): () => void {
+    this.logDamagedListeners.add(listener)
+    return () => {
+      this.logDamagedListeners.delete(listener)
+    }
+  }
+
   /** One more surface holds this handle (a second panel resumed the same session). */
   public retain(): void {
     this.holders += 1
@@ -751,14 +920,17 @@ export class MuseSession implements AgentSession {
   /**
    * Inject input into the turn believed to be running. The host rejects the
    * steer when that turn is no longer the running one, so input meant for one
-   * turn never leaks into the next; callers fall back to `sendTurn`.
+   * turn never leaks into the next. That refusal is a `SteerRefusedError`,
+   * after which the caller may send the input as a new turn; a steer with no
+   * answer may still reach the turn, and fails in words that say so.
    */
   public async steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
+    const input = mspInput(parts)
     let result: unknown
     try {
-      result = await this.command('turn/steer', { expectedTurnId, input: mspInput(parts) })
+      result = await this.command('turn/steer', { expectedTurnId, input })
     } catch (error: unknown) {
-      throw faultOr(error, 'approvalReplay')
+      throw this.steerFailure(expectedTurnId, error)
     }
     return { turnId: turnSteerResultSchema.parse(result).turnId, disposition: 'steered' }
   }
@@ -949,19 +1121,12 @@ export class MuseSession implements AgentSession {
 
   /** One page of a stored tool output or patch document (`item/readOutput`). */
   public async readOutput(request: OutputPageRequest): Promise<OutputPage> {
-    const result = await commandWithin(
-      this.connection,
-      this.timeouts,
-      this.log,
-      'item/readOutput',
-      {
-        sessionId: this.sessionId,
-        itemId: request.itemId,
-        outputRef: request.outputRef,
-        offsetBytes: request.offsetBytes,
-        lengthBytes: request.lengthBytes,
-      },
-    )
+    const result = await this.command('item/readOutput', {
+      itemId: request.itemId,
+      outputRef: request.outputRef,
+      offsetBytes: request.offsetBytes,
+      lengthBytes: request.lengthBytes,
+    })
     const page = readOutputResultSchema.parse(result)
     if (page.encoding !== BASE64_ENCODING) {
       return page
@@ -988,9 +1153,7 @@ export class MuseSession implements AgentSession {
 
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
-    const result = await commandWithin(this.connection, this.timeouts, this.log, 'skill/list', {
-      sessionId: this.sessionId,
-    })
+    const result = await this.command('skill/list', {})
     return skillListResultSchema.parse(result).skills.map((skill) => ({
       selector: skill.selector,
       displayName: skill.displayName,
@@ -1047,6 +1210,10 @@ export class MuseCodeHost implements AgentHost {
   private readonly unclaimed = new Map<string, MappedNotification[]>()
   /** Methods already logged as unshown or malformed: one line each per host (D26). */
   private readonly loggedMethods = new Set<string>()
+  /** Told once each time Muse Code stops answering (the watchdog, CLI recovery). */
+  private readonly unresponsiveListeners = new Set<() => void>()
+  /** The deadlines, log and watchdog every command on this connection shares. */
+  private readonly channel: CommandChannel
   public readonly info: MuseHostInfo
 
   public constructor(
@@ -1054,6 +1221,20 @@ export class MuseCodeHost implements AgentHost {
     private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
   ) {
+    this.channel = {
+      connection: host.connection,
+      timeouts,
+      log,
+      liveness: new HostLiveness(
+        timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
+        log,
+        () => {
+          for (const listener of this.unresponsiveListeners) {
+            listener()
+          }
+        },
+      ),
+    }
     const parsed = initializeResultSchema.parse(host.initializeResult)
     const serverVersion = parsed.serverInfo.version
     this.info = {
@@ -1080,13 +1261,17 @@ export class MuseCodeHost implements AgentHost {
     // The SDK's connection keeps one handler; a throw inside it would end the
     // read loop and leave the connection deaf without a word (D25).
     host.connection.onNotification((notification) => {
+      this.channel.liveness.heard()
       try {
         this.dispatch(notification)
       } catch (error: unknown) {
         this.log.error(`MSP ${notification.method} could not be handled: ${String(error)}`)
       }
     })
-    host.connection.onServerRequest((request) => this.serverRequest(request))
+    host.connection.onServerRequest((request) => {
+      this.channel.liveness.heard()
+      return this.serverRequest(request)
+    })
     // A dropped or unreadable frame is logged by kind, never with its content.
     host.connection.onProtocolError((error) => {
       this.log.warn(`MSP protocol error: ${error.message}`)
@@ -1206,7 +1391,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
-    return await commandWithin(this.host.connection, this.timeouts, this.log, method, params)
+    return await commandWithin(this.channel, method, params)
   }
 
   /**
@@ -1267,13 +1452,11 @@ export class MuseCodeHost implements AgentHost {
     const handle = new MuseSession(
       record.sessionId,
       modelId,
-      this.host.connection,
+      this.channel,
       () => {
         this.sessions.delete(record.sessionId)
       },
-      this.log,
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
-      this.timeouts,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -1353,15 +1536,13 @@ export class MuseCodeHost implements AgentHost {
   private async goalFromView(sessionId: string): Promise<SessionGoal | null> {
     let cursor: string | undefined
     for (let page = 0; page < GOAL_RECOVERY_MAX_PAGES; page += 1) {
-      const raw = await withDeadline(
-        this.host.connection.request(VIEW_PAGE, {
+      const raw = await requestWithin(this.channel, VIEW_PAGE, this.timeouts.normalMs, () =>
+        answered(this.channel, VIEW_PAGE, {
           sessionId,
           limit: GOAL_RECOVERY_PAGE_LIMIT,
           direction: 'backward',
           ...(cursor !== undefined && { cursor }),
         }),
-        this.timeouts.normalMs,
-        `Muse Code did not answer ${VIEW_PAGE} while recovering the goal`,
       )
       const result = viewPageResultSchema.parse(raw)
       for (const frame of result.events.toReversed()) {
@@ -1394,6 +1575,18 @@ export class MuseCodeHost implements AgentHost {
     this.exitListeners.add(listener)
     return () => {
       this.exitListeners.delete(listener)
+    }
+  }
+
+  /**
+   * Told once each time Muse Code stops answering (the watchdog): commands
+   * missed their deadlines and nothing came from it for a while. It answers
+   * again on its own only if a frame arrives; the window restarts it.
+   */
+  public onUnresponsive(listener: () => void): () => void {
+    this.unresponsiveListeners.add(listener)
+    return () => {
+      this.unresponsiveListeners.delete(listener)
     }
   }
 

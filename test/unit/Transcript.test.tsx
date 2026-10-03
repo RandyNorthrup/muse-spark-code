@@ -398,6 +398,18 @@ function toggle(index: number): HTMLButtonElement {
   return found
 }
 
+/** A finished edit row with a stored patch, open as edit rows start: it has asked for page one. */
+function mountEditRow() {
+  const view = mountTranscript([
+    tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
+  ])
+  expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+  return view
+}
+
+/** That row's whole patch, as the host's one page of it. */
+const WHOLE_PATCH = { 'ed:p': { content: '{"files":[]}', isEof: true, nextOffset: 12 } }
+
 /** The chevron of the nth tool row's header, if it has one. */
 function chevronOf(index: number): Element | null {
   return document.querySelectorAll('.tool-header')[index]?.querySelector('.chevron') ?? null
@@ -653,10 +665,7 @@ describe('Transcript rows (M25)', () => {
   })
 
   it('asks again for a page that never came when its row is collapsed and expanded (D26)', () => {
-    const view = mountTranscript([
-      tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
-    ])
-    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    const view = mountEditRow()
     // A re-render alone asks nothing more of a busy host.
     view.rerender({ isRunning: true })
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
@@ -665,12 +674,22 @@ describe('Transcript rows (M25)', () => {
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
     expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
     // A page that came is not asked for again.
-    view.rerender({
-      outputPages: { 'ed:p': { content: '{"files":[]}', isEof: true, nextOffset: 12 } },
-    })
+    view.rerender({ outputPages: WHOLE_PATCH })
     fireEvent.click(toggle(0))
     fireEvent.click(toggle(0))
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads a collapsed edit row’s patch only once it is expanded, after a resume too (D26)', () => {
+    const view = mountEditRow()
+    view.rerender({ outputPages: WHOLE_PATCH })
+    fireEvent.click(toggle(0))
+    // A resume drops the fetched pages: the collapsed row asks nothing of the host.
+    view.rerender({ outputPages: {} })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
   })
 
   it('offers a fault notice’s way on as buttons (D26)', () => {
@@ -698,6 +717,43 @@ describe('Transcript rows (M25)', () => {
     expect(restart).toBeDisabled()
     expect(screen.getByRole('button', { name: 'New conversation' })).toBeDisabled()
     expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
+  })
+
+  it('shows how many times a notice was said after its text, read out in words (D26)', () => {
+    renderTranscript(
+      [
+        { kind: 'notice', id: 'n1', level: 'warning', text: 'Could not switch model' },
+        {
+          kind: 'notice',
+          id: 'n2',
+          level: 'warning',
+          text: 'Reasoning effort could not be applied',
+          repeatCount: 7,
+        },
+        {
+          kind: 'notice',
+          id: 'n3',
+          level: 'error',
+          text: 'Muse Code refuses every message',
+          actions: ['newConversation'],
+          repeatCount: 2,
+        },
+      ],
+      { onNoticeAction: vi.fn() },
+    )
+    const once = screen.getByText('Could not switch model')
+    expect(once.querySelector('.notice-repeat')).toBeNull()
+    expect(once).toHaveTextContent(/^Could not switch model$/)
+    const repeated = screen.getByText('Reasoning effort could not be applied')
+    const badge = repeated.querySelector('.notice-repeat')
+    expect(badge).toHaveTextContent('7×')
+    // The glyph is hidden from screen readers; the words stand in for it.
+    expect(badge).toHaveAttribute('aria-hidden', 'true')
+    expect(badge).toHaveAttribute('title', 'Shown 7 times')
+    expect(repeated.querySelector('.sr-only')).toHaveTextContent('Shown 7 times')
+    const fault = screen.getByText('Muse Code refuses every message')
+    expect(fault.querySelector('.notice-repeat')).toHaveTextContent('2×')
+    expect(screen.getByRole('button', { name: 'New conversation' })).toBeEnabled()
   })
 
   it('stops fetching a document that never ends at the host page budget', () => {

@@ -82,11 +82,14 @@ describe('createSessionTransferFiles', () => {
   it('bounds growth after the open handle reports its old size', async () => {
     const target = await pick('growing.json', Buffer.from('{}'))
     const handle = await open(target, 'r')
+    // The checked open samples the handle's identity exactly (BigInt), then
+    // its size; the size sample reports the old size while the file grows.
+    const identity = await handle.stat({ bigint: true })
     const original = await handle.stat()
     const held = Promise.withResolvers<undefined>()
     const sampled = Promise.withResolvers<undefined>()
     vi.spyOn(handle, 'stat')
-      .mockResolvedValueOnce(original)
+      .mockResolvedValueOnce(identity)
       .mockImplementationOnce(async () => {
         sampled.resolve(undefined)
         await held.promise

@@ -45,8 +45,9 @@ async function textLength(target: string): Promise<number | undefined> {
 async function growAfterOpenMetadata(target: string, grown: Buffer): Promise<void> {
   await writeFile(target, Buffer.alloc(4, 0x61))
   const handle = await open(target, 'r')
-  const stale = await handle.stat()
-  vi.spyOn(handle, 'stat').mockImplementationOnce(async () => {
+  const realStat = handle.stat.bind(handle)
+  vi.spyOn(handle, 'stat').mockImplementationOnce(async (options) => {
+    const stale = await realStat(options)
     await writeFile(target, grown)
     return stale
   })

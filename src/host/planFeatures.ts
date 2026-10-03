@@ -3,8 +3,9 @@
 // commands/planCommands.ts, the files in core/plans/planStore.ts, and what a
 // plan does in the conversation in conversation/conversationController.ts.
 
-import { lstat, rm } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
+import { lstatIdentity } from '../core/fs/fileIdentity'
 import type { PlanMarkdown } from '../core/plans/planDocument'
 import { isSamePath } from '../core/paths'
 import {
@@ -64,11 +65,6 @@ export interface PlanIoOptions {
   readonly publish?: (stage: string, target: string) => Promise<void>
   /** The extension's actual-promise checkpoint lease for workspace mutations. */
   readonly edit?: (work: (assertCanWrite?: () => void) => Promise<void>) => Promise<void>
-  /**
-   * A file this plan action (the user's) published or removed: a turn running
-   * meanwhile does not own it, and its restore leaves it as it is (M72).
-   */
-  readonly noteUserWrite?: (absolutePath: string) => void
   /** Existing no-clobber stage boundary, injectable for live-owner regressions. */
   readonly staged?: () => Promise<void>
 }
@@ -101,7 +97,6 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
             ...(options.staged !== undefined && { staged: options.staged }),
             ...(assertCanWrite !== undefined && { assertCanWrite }),
           })
-          options.noteUserWrite?.(absolutePath)
         })
         return true
       } catch (error: unknown) {
@@ -125,8 +120,8 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
           }
           const stage = path.join(absolutePath, entry.name)
           try {
-            const stats = await lstat(stage)
-            if (stats.isFile() && options.now() - stats.mtimeMs > PLAN_STAGE_STALE_MS) {
+            const stats = await lstatIdentity(stage)
+            if (stats.isFile() && options.now() - Number(stats.mtimeMs) > PLAN_STAGE_STALE_MS) {
               if (
                 !isSamePath(await canonicalPath(stage), stage, process.platform) ||
                 !(await isOwnedFile(stage, stats))
@@ -135,7 +130,6 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
               }
               assertCanWrite?.()
               await rm(stage, { force: true })
-              options.noteUserWrite?.(stage)
               removed += 1
             }
           } catch (error: unknown) {

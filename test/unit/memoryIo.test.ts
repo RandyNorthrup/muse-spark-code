@@ -42,14 +42,67 @@ async function readIfPresent(absolutePath: string): Promise<string | undefined> 
 function fileTools(hasUnsavedChanges: (absolutePath: string) => boolean = () => false) {
   return {
     readFile: readIfPresent,
-    writeFile: (absolutePath: string, content: string) =>
-      writeFileAtomically(absolutePath, content, { sleep: () => Promise.resolve() }),
+    // As the tool io writes: bound to the canonical path it is given (M86 W).
+    writeFile: (absolutePath: string, content: string, expectedCanonicalPath?: string) =>
+      writeFileAtomically(absolutePath, content, {
+        sleep: () => Promise.resolve(),
+        ...(expectedCanonicalPath !== undefined && {
+          expectedCanonicalPath,
+          platform: process.platform,
+        }),
+      }),
     realPath: canonicalPath,
     hasUnsavedChanges,
   }
 }
 
 const io = createMemoryIo(fileTools(), { warn: () => undefined })
+
+/**
+ * A note located in a workspace of its own, whose notes folder is then
+ * swapped for a junction to a folder outside before the note is written.
+ */
+async function locatedThenSwapped(
+  name: string,
+  note: string,
+  files: { readonly inside?: string; readonly outside?: string } = {},
+) {
+  const workspace = path.join(paths.root, `${name}-ws`)
+  const notes = path.join(workspace, '.agents', 'memory', 'notes')
+  const elsewhere = path.join(paths.root, `${name}-elsewhere`)
+  await mkdir(notes, { recursive: true })
+  await mkdir(elsewhere, { recursive: true })
+  if (files.inside !== undefined) {
+    await writeFile(path.join(notes, note), files.inside)
+  }
+  if (files.outside !== undefined) {
+    await writeFile(path.join(elsewhere, note), files.outside)
+  }
+  const store = new MemoryStore({
+    io,
+    platform: process.platform,
+    dataRoot: () => paths.data,
+    workspaceRoot: workspace,
+    systemPath,
+    warn: () => undefined,
+  })
+  const place = await store.locate('project', `notes/${note}`)
+  if (!place.ok) {
+    throw new Error(place.reason)
+  }
+  // Located and checked; then the folder is swapped for a junction.
+  await rename(notes, `${notes}-moved`)
+  await symlink(elsewhere, notes, 'junction')
+  return {
+    store,
+    place: place.value,
+    notes,
+    elsewhere,
+    unswap: async () => {
+      await rm(notes, { force: true })
+    },
+  }
+}
 
 beforeAll(async () => {
   paths.root = realpathSync.native(await mkdtemp(path.join(tmpdir(), 'muse-memory-')))
@@ -211,34 +264,40 @@ describe('MemoryStore on the file system', () => {
   })
 
   it('refuses a new note whose folder was swapped for a junction after it was checked', async () => {
-    const workspace = path.join(paths.root, 'swap-ws')
-    const notes = path.join(workspace, '.agents', 'memory', 'notes')
-    const elsewhere = path.join(paths.root, 'swap-elsewhere')
-    await mkdir(notes, { recursive: true })
-    await mkdir(elsewhere, { recursive: true })
-    const store = new MemoryStore({
-      io,
-      platform: process.platform,
-      dataRoot: () => paths.data,
-      workspaceRoot: workspace,
-      systemPath,
-      warn: () => undefined,
-    })
-    const place = await store.locate('project', 'notes/x.md')
-    if (!place.ok) {
-      throw new Error(place.reason)
-    }
-    // Checked; then the folder is swapped for a junction before the note is written.
-    await rename(notes, `${notes}-moved`)
-    await symlink(elsewhere, notes, 'junction')
+    const swapped = await locatedThenSwapped('swap', 'x.md')
     try {
-      await expect(store.add(place.value, { content: 'private' })).resolves.toMatchObject({
-        ok: false,
-        reason: expect.stringMatching(/now leads elsewhere/),
-      })
-      expect(await readdir(elsewhere)).toEqual([])
+      await expect(swapped.store.add(swapped.place, { content: 'private' })).resolves.toMatchObject(
+        {
+          ok: false,
+          reason: expect.stringMatching(/now leads elsewhere/),
+        },
+      )
+      expect(await readdir(swapped.elsewhere)).toEqual([])
     } finally {
-      await rm(notes, { force: true })
+      await swapped.unswap()
+    }
+  })
+
+  it('refuses to replace a note whose folder was swapped for a junction after it was located (M86 W)', async () => {
+    const swapped = await locatedThenSwapped('swap-edit', 'w.md', {
+      inside: 'deploy on Fridays',
+      outside: 'deploy on Fridays, outside',
+    })
+    try {
+      await expect(
+        swapped.store.edit(swapped.place, { old_str: 'Fridays', new_str: 'Mondays' }),
+      ).resolves.toEqual({
+        ok: false,
+        reason: 'path changed after approval; request a new approval',
+      })
+      expect(await readFile(path.join(swapped.elsewhere, 'w.md'), 'utf8')).toBe(
+        'deploy on Fridays, outside',
+      )
+      expect(await readFile(path.join(`${swapped.notes}-moved`, 'w.md'), 'utf8')).toBe(
+        'deploy on Fridays',
+      )
+    } finally {
+      await swapped.unswap()
     }
   })
 

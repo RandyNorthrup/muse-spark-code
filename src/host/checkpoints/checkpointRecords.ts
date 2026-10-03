@@ -1,40 +1,90 @@
-// The checkpoint store's records (M72, PLAN.md D51): which checkpoint
-// belongs to which conversation and turn, what each capture left out, the
-// ignored files each turn changed, and what each restore can redo. Each
-// record is its own JSON blob in the shadow repository, under a ref of its
-// own (recordRefs.ts), parsed with zod when read (rule 7); a record that
-// does not parse is dropped.
+// The checkpoint store's records (M72, M86; PLAN.md D51, D63). Each record
+// is its own JSON blob in the shadow repository, under a ref of its own
+// (recordRefs.ts), parsed with zod when read (rule 7); a record that does not
+// parse is dropped (a unit whose record does not parse refuses any range it
+// is in).
+//
+// - A unit record (M86): one turn of a conversation, or one restore or Redo
+//   of it (a batch), with its number in the conversation and every write its
+//   tools journaled, each with how it ended (toolWrites.ts).
+// - M72 records, read only: a turn's checkpoint, which is listed as legacy
+//   (no file restore), and a restore's redo record, which is not redoable.
+// - The restore reservation (`CHECKPOINT_RESERVATION_REF`) holds a record of the M72 restore
+//   shape naming its window, so a 0.10.0 window still reads its owner.
 
 import * as z from 'zod/mini'
+import type { UnitRecord } from '../../core/checkpoints/toolWrites'
 
-const blobRefSchema = z.object({ mode: z.string(), oid: z.string() })
-const statSchema = z.object({ size: z.number(), mtimeMs: z.number() })
-const coverageSchema = z.object({
-  skipped: z.array(z.string()),
-  repositories: z.array(z.string()),
+const contentStateSchema = z.object({
+  present: z.boolean(),
+  oid: z.optional(z.string()),
+  mode: z.optional(z.string()),
 })
-const captureSchema = z.object({
-  tree: z.string(),
-  coverage: coverageSchema,
-  /**
-   * The folders the capture holds no file of (empty, or only ignored or
-   * left-out content), a folder listed whole standing for everything below
-   * it; absent when unknown (over the limit), and then a restore removes no
-   * folder.
-   */
-  folders: z.optional(z.array(z.string())),
+
+const ownerSchema = z.object({
+  instance: z.string(),
+  sessionId: z.string(),
+  unitKind: z.enum(['turn', 'batch']),
+  unitId: z.string(),
 })
-const ignoredChangeSchema = z.object({
+
+const foldedWriteSchema = z.object({
+  id: z.string(),
+  instance: z.string(),
+  seq: z.number(),
+  owner: ownerSchema,
   path: z.string(),
-  kind: z.enum(['created', 'changed', 'deleted']),
-  preImage: z.optional(z.nullable(blobRefSchema)),
-  startStat: z.nullable(statSchema),
-  endStat: z.nullable(statSchema),
+  before: contentStateSchema,
+  after: contentStateSchema,
+  createdFolders: z.array(z.string()),
+  isKept: z.boolean(),
+  outcome: z.enum(['done', 'aborted', 'unsettled']),
 })
 
-// Every record names the work tree and the workspace's place in it: a record
-// of another place (the workspace moved) is not this workspace's.
-const checkpointRecordSchema = z.object({
+const unitRecordSchema = z.object({
+  kind: z.literal('unit'),
+  owner: ownerSchema,
+  sequence: z.number(),
+  createdAt: z.number(),
+  endedAt: z.optional(z.number()),
+  status: z.enum(['complete', 'incomplete']),
+  ranProcesses: z.boolean(),
+  /**
+   * Its journal says writes may exist that no intent describes: the unit
+   * passed its intent budget, or a journal line of it could not be read. Any
+   * range that holds it is refused whole.
+   */
+  isMarkedIncomplete: z.boolean(),
+  /** Retention keeps identity/sequence only, so old journal owners are explained. */
+  isRetired: z.optional(z.boolean()),
+  transcript: z.optional(z.object({ fromTurnId: z.string(), turnIds: z.array(z.string()) })),
+  writes: z.array(foldedWriteSchema),
+})
+
+/** A unit's record as stored: the shared shape and what the store adds. */
+export type StoredUnit = UnitRecord & {
+  readonly kind: 'unit'
+  readonly isMarkedIncomplete: boolean
+  readonly isRetired?: boolean | undefined
+  readonly transcript?:
+    { readonly fromTurnId: string; readonly turnIds: readonly string[] } | undefined
+}
+
+/** A unit record from its JSON; undefined when it does not parse. */
+export function parseUnit(text: string): StoredUnit | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  const result = unitRecordSchema.safeParse(parsed)
+  return result.success ? result.data : undefined
+}
+
+// Every M72 record names the work tree and the workspace's place in it: a
+// record of another place (the workspace moved) is not this workspace's.
+const legacyCheckpointSchema = z.object({
   kind: z.literal('checkpoint'),
   top: z.string(),
   prefix: z.string(),
@@ -42,47 +92,12 @@ const checkpointRecordSchema = z.object({
   sessionId: z.string(),
   turnId: z.string(),
   createdAt: z.number(),
-  /**
-   * Where the turn's start falls among its conversation's turns: one count
-   * numbers every start and end the conversation's records hold, so their
-   * order never rests on the clock, which can repeat a millisecond or go
-   * back. Absent in a record a 0.10.0 candidate wrote.
-   */
+  /** Its start's number among its conversation's starts and ends; absent in a 0.10.0 candidate's. */
   sequence: z.optional(z.number()),
-  start: captureSchema,
-  /** The capture at the turn's end; absent while it runs, or when the end was not seen. */
-  end: z.optional(captureSchema),
-  /** When the turn's end was seen (with or without a capture): other conversations' overlap. */
-  endedAt: z.optional(z.number()),
-  /** Where the turn's end was seen, on the count `sequence` is on; absent when `endedAt` is. */
   endSequence: z.optional(z.number()),
-  /**
-   * The files the user saved in any window on the folder while the turn ran
-   * (every file the turn changed, when another window's saves were not all
-   * known): the user's bytes, which a restore leaves alone. Absent when there
-   * were none, and in a record a 0.10.0 candidate wrote.
-   */
-  userSaves: z.optional(z.array(z.string())),
-  /** The store (one per window) that recorded it: only it ends the turn. */
-  owner: z.optional(z.string()),
-  /**
-   * The ignored files the turn changed. `isComplete` is false when the turn's
-   * start scan was not at hand (a window reload mid-turn) or the list was cut.
-   */
-  ignored: z.optional(z.object({ changes: z.array(ignoredChangeSchema), isComplete: z.boolean() })),
 })
-export type CheckpointRecord = z.infer<typeof checkpointRecordSchema>
 
-const restoreEntrySchema = z.object({
-  path: z.string(),
-  /** What the restore replaced (put back by a redo); `null`: nothing was there. */
-  before: z.nullable(blobRefSchema),
-  /** What the restore left; `null`: it deleted the file. */
-  after: z.nullable(blobRefSchema),
-})
-export type RestoreEntry = z.infer<typeof restoreEntrySchema>
-
-const restoreRecordSchema = z.object({
+const legacyRestoreSchema = z.object({
   kind: z.literal('restore'),
   top: z.string(),
   prefix: z.string(),
@@ -91,23 +106,16 @@ const restoreRecordSchema = z.object({
   createdAt: z.number(),
   /** The window owning a transient restore reservation, when present. */
   owner: z.optional(z.string()),
-  entries: z.array(restoreEntrySchema),
+  entries: z.array(z.unknown()),
 })
-export type RestoreRecord = z.infer<typeof restoreRecordSchema>
 
 const storedRecordSchema = z.discriminatedUnion('kind', [
-  checkpointRecordSchema,
-  restoreRecordSchema,
+  legacyCheckpointSchema,
+  legacyRestoreSchema,
 ])
 export type StoredRecord = z.infer<typeof storedRecordSchema>
 
-/** A workspace's records, as the retention bounds see them. */
-export interface CheckpointRecords {
-  readonly checkpoints: readonly CheckpointRecord[]
-  readonly restores: readonly RestoreRecord[]
-}
-
-/** A record from its JSON; undefined when it does not parse. */
+/** An M72 record (or the restore reservation) from its JSON; undefined when it does not parse. */
 export function parseRecord(text: string): StoredRecord | undefined {
   let parsed: unknown
   try {
