@@ -264,7 +264,13 @@ happened, not what was planned; superseded entries are kept.
 - The conversation's Git adapter ships in its own checked bundle, keeping
   the merged activation bundle below its unchanged 600 KiB cap. Its
   construction, consent, trust checks and installed display language stay
-  the same.
+  the same. The window's git and pull request features (VS Code's git
+  extension adapter, the GitHub client and sign-in, the pull request
+  checkout and its untrusted git lane, the draft prompts' words) load there
+  too, with the first conversation or pull request command, so M71 adds
+  7.8 KiB to activation instead of 32.1 KiB. When that bundle cannot load,
+  "Open a pull request in a conversation…" is refused with Git's
+  unavailable error, and the next try loads it again.
 - The merged credential redactor retains M71's complete Slack tokens,
   including `xoxe-` and long suffixes, and complete legacy encrypted PEM
   blocks with their header lines.

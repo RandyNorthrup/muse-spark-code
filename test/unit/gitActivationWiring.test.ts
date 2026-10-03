@@ -18,13 +18,22 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
   })
 
   it('gives the window the folder as selected, and its own closing as its activation', () => {
-    expect(source).toMatch(/createGitWindow\(\{\s*workspaceRoot,/)
+    // Made in the conversation Git bundle from these primitives (PLAN.md D6).
+    expect(source).toMatch(/gitFeaturesLoader\(conversationGit,\s*\{\s*workspaceRoot,/)
     expect(source).toMatch(/const workspaceRoot = firstFolderPath\(\)/)
     expect(source).toMatch(
       /holdFor\(\s*workspaceRoot === undefined \? \[\] : pathSpellings\(workspaceRoot\),/,
     )
     expect(source).toMatch(/isCurrent:\s*\(\)\s*=>\s*!nativeStarts\.signal\.aborted,/)
     expect(source).not.toContain('isClosing')
+  })
+
+  it('builds every conversation adapter and the pull request command over the one lazy window', () => {
+    expect(source).toMatch(/createGit:\s*conversationGitFactory\(conversationGit,\s*gitFeatures\),/)
+    // The panel's action and the palette command take the same refusal path.
+    expect(
+      source.match(/openPullRequestInConversation\(gitFeatures,\s*gitPopups\.showError\)/g),
+    ).toHaveLength(2)
   })
 
   it('carries a worktree command’s last check through the admission to Git', () => {

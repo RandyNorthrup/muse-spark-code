@@ -10,6 +10,7 @@ import { ConversationGit } from '../../src/host/git/conversationGit'
 import { captureGitOwner, type GitRepository } from '../../src/host/git/gitExtension'
 import { createHeldCheckout } from '../../src/host/git/heldCheckout'
 import { openPullRequestInConversation } from '../../src/host/git/pullRequestCheckout'
+import { untrustedGitRunner } from '../../src/host/git/untrustedGit'
 import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import { UI_TEXT } from '../../src/shared/constants'
 import { checkoutNotices, fakeGitWindow, fakeRepository, memoryMemento } from './helpers/fakeGit'
@@ -27,7 +28,7 @@ const gitEnv = {
   GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
 }
 const git = processGitRunner({ env: gitEnv })
-const safeGit = processGitRunner({ env: gitEnv, isUntrustedCheckout: true })
+const safeGit = untrustedGitRunner(gitEnv)
 
 async function link(target: string, selected: string) {
   await symlink(target, selected, process.platform === 'win32' ? 'junction' : 'dir')

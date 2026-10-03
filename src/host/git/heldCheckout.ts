@@ -34,13 +34,14 @@ import { fill, formatBytes } from '../../shared/l10n/text'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
-import { type GitProcess, quietGitEnvironment, UNTRUSTED_CHECKOUT_OPTIONS } from '../git'
+import { type GitProcess, quietGitEnvironment } from '../git'
 import type { Logger } from '../logger'
 import { GitUnavailableError } from './gitExtension'
+import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 
 export interface HeldCheckoutDeps {
   readonly platform: NodeJS.Platform
-  /** The extension's git in its untrusted lane (git.ts, `isUntrustedCheckout`). */
+  /** The extension's git in its untrusted lane (untrustedGit.ts). */
   readonly runGit: (
     args: readonly string[],
     cwd: string,

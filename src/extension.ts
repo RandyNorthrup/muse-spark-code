@@ -92,15 +92,15 @@ import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
-import { GitHubClient, GitHubError } from './core/git/github'
-import { GitUnavailableError } from './host/git/gitExtension'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
-import { conversationGitLoader } from './host/git/conversationGitBundle'
-import { githubTokenReader } from './host/git/githubSession'
-import { createGitWindow } from './host/git/gitWindow'
-import { createHeldCheckout } from './host/git/heldCheckout'
-import { PullRequestLinks } from './host/git/pullRequestLinks'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
 import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
+import { loggedPopups } from './host/popups'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
@@ -1502,30 +1502,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Its own bundle, loaded when this backend first starts (M57, PLAN.md D6).
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
   })
-  // Git and pull requests (M71): VS Code's git extension and GitHub sign-in.
+  // Git and pull requests (M71): VS Code's git extension and GitHub sign-in,
+  // made in the conversation Git bundle with the first conversation or the
+  // first pull request command (PLAN.md D6), from these primitives.
   // The selected folder as given, not its canonical form: an own pull request's worktree
   // sits beside it and its record names it (the owner capture resolves links itself).
-  const gitFeatures = createGitWindow({
+  const gitFeatures = gitFeaturesLoader(conversationGit, {
     workspaceRoot,
     storageRoot,
     hold: windowHold,
     registry: worktreeRegistry,
-    links: new PullRequestLinks(context.workspaceState),
-    github: new GitHubClient({
-      fetch: liveFetch,
-      userAgent: `${EXTENSION_NAME}/${version}`,
-      log,
-    }),
-    githubToken: githubTokenReader(log),
+    workspaceState: context.workspaceState,
+    fetch: liveFetch,
+    userAgent: `${EXTENSION_NAME}/${version}`,
     runGit,
     // Someone else's pull request: no git checkout; the extension writes its files (M71).
-    checkOutHeld: createHeldCheckout({
-      platform: process.platform,
-      runGit: processGitRunner({ isUntrustedCheckout: true }),
-      gitProcess: processGitProcess(),
-      env: process.env,
-      log,
-    }),
+    gitProcess: processGitProcess(),
+    env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
@@ -1537,6 +1530,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     log,
   })
+  // The pull request command's refusal when its bundle cannot load.
+  const gitPopups = loggedPopups(log)
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
@@ -1706,7 +1701,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         break
       }
       case 'openPullRequestInConversation': {
-        await gitFeatures.openPullRequestInConversation()
+        await openPullRequestInConversation(gitFeatures, gitPopups.showError)
         break
       }
       case 'restartMuseCode': {
@@ -1869,17 +1864,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
         isWorkspaceTrusted: () => vscode.workspace.isTrusted,
         isWorktreeHeld: () => windowHold.isHeld,
-        createGit: (gitSurface) =>
-          conversationGit().createConversationGit(
-            gitFeatures.window,
-            gitSurface,
-            UI_TEXT,
-            uiLocale(),
-            {
-              GitHubError,
-              GitUnavailableError,
-            },
-          ),
+        createGit: conversationGitFactory(conversationGit, gitFeatures),
         onForegroundTasksChanged: refreshTaskContext,
         isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
         confirmScheduledRun: async (job, modelId) =>
@@ -2314,7 +2299,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.newWorktree, () => worktrees.newWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.removeWorktree, () => worktrees.removeWorktree()),
     registerLoggedCommand(log, COMMAND_IDS.openPullRequestInConversation, () =>
-      gitFeatures.openPullRequestInConversation(),
+      openPullRequestInConversation(gitFeatures, gitPopups.showError),
     ),
     registerLoggedCommand(log, COMMAND_IDS.exportConversation, async () => {
       const surface = registry.active

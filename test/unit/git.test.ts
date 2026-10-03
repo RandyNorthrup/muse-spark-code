@@ -2,7 +2,8 @@ import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { worktreeAddHeldArgs } from '../../src/core/worktrees'
-import { createGitRunner, UNTRUSTED_CHECKOUT_OPTIONS } from '../../src/host/git'
+import { createGitRunner } from '../../src/host/git'
+import { UNTRUSTED_CHECKOUT_OPTIONS, untrustedCheckoutArgs } from '../../src/host/git/untrustedGit'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
   const calls: { file: string; args: readonly string[]; options: ExecFileOptions }[] = []
@@ -25,7 +26,7 @@ function safeRunner(reply: (args: readonly string[]) => Promise<string>) {
     platform: 'linux',
     env: { PATH: '/usr/bin' },
     fileExists: () => true,
-    isUntrustedCheckout: true,
+    argsBefore: untrustedCheckoutArgs(),
     execFile: (_file, args) => {
       calls.push(args)
       return reply(args)

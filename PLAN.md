@@ -230,7 +230,7 @@ quality`) and as a CI job.
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
 | `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
 | `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
-| `dist/conversationGit.js` | ≤ 100 KiB (M71: checked synchronous factory; measured 74.7 KiB plus 15%, rounded up to 25 KiB)                                                                |
+| `dist/conversationGit.js` | ≤ 150 KiB (M71: the Git adapter and the window's git and pull request features; measured 127.4 KiB plus 15%, rounded up to 25 KiB)                            |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -8567,6 +8567,20 @@ The host API record is regenerated from this newer tree. Released
 changelog bytes remain identical to the newer main. The current and initial
 join proofs are both in `mg78-gates.json`; full quality/editor/hosted gates
 remain the lead's.
+
+**Activation headroom (2026-10-03).** After joining main `bb9649bd`,
+activation built 598.2/600 KiB, with about 13 KiB more queued ahead of
+#78; main alone builds 566.0 KiB. The window's git and pull request
+features (VS Code's git adapter, the GitHub client and sign-in, the pull
+request links, the checkout and its untrusted git lane, the prompt words)
+now ship in `dist/conversationGit.js`, made there with the first
+conversation or pull request command from activation's primitives; the
+adapter recognises its own window's errors, and a bundle that cannot load
+refuses the command with `gitUnavailable`. Activation: 573.8/600 KiB, M71's
+share 7.8 KiB (the hold, the protocol's Git schemas, the controller port,
+wiring and loader stay). The Git bundle measures 127.4 KiB; its cap becomes
+150 KiB by this decision's rule. Evidence: `docs/certification/m71.md`,
+"Activation headroom".
 
 **Main join, M71m, 2026-10-02 (bounded verification complete; lead gates
 open).** Merge `a08bd8d4` joins main `2a03a79b` (M84 and 0.10.1) into M71

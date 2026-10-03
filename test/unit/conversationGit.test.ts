@@ -3,7 +3,7 @@ import { ConversationGit } from '../../src/host/git/conversationGit'
 import type { GitSurface } from '../../src/host/conversation/conversationController'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { GIT_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   CAPTURED_ALREADY_EXISTS,
   CAPTURED_CHECKS_FAILED,
@@ -1151,7 +1151,7 @@ describe('drafts inside the user’s own turn (M71)', () => {
     const repository = fakeRepository({ indexChanges: [change('src/a.ts')] })
     const t = setup({ repository })
     const prompt = await t.git.promptFor('commitMessage')
-    expect(prompt).toContain(MODEL_TEXT.gitUntrustedData)
+    expect(prompt).toContain(GIT_MODEL_TEXT.gitUntrustedData)
     expect(prompt).toContain('Staged files:\n- src/a.ts')
     expect(repository.calls.find((call) => call.method === 'diff')?.args).toEqual([true])
   })

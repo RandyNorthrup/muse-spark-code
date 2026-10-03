@@ -2742,7 +2742,10 @@ that backend first starts, and the plan reader (the panel's Markdown
 parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
 action. The conversation's Git adapter loads from `dist/conversationGit.js`
 at its existing construction point; its window and surface ports stay the
-same, and the factory receives the installed language table. The importer
+same, and the factory receives the installed language table. The window's
+git and pull request features (VS Code's git extension adapter, the GitHub
+client and sign-in, the checkout) are made in the same bundle with the
+first conversation or "Open a pull request in a conversation…". The importer
 loads its UI adapter only on the first import. The webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.

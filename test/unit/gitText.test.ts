@@ -6,7 +6,7 @@ import {
   pullRequestPrompt,
   pullRequestTextFrom,
 } from '../../src/core/git/gitText'
-import { GIT_PROMPT_DIFF_MAX_CHARS, MODEL_TEXT } from '../../src/shared/constants'
+import { GIT_MODEL_TEXT, GIT_PROMPT_DIFF_MAX_CHARS } from '../../src/shared/constants'
 
 // Built at run time so the repository's secret scan sees no token shape.
 const TOKEN = `ghp_${'0'.repeat(36)}`
@@ -19,7 +19,7 @@ describe('the generation prompts (M71)', () => {
       files: ['src/a.ts', 'README.md'],
       diff: 'diff --git a/src/a.ts b/src/a.ts\n+const x = "```"\n+````y',
     })
-    const dataLine = prompt.indexOf(MODEL_TEXT.gitUntrustedData)
+    const dataLine = prompt.indexOf(GIT_MODEL_TEXT.gitUntrustedData)
     expect(dataLine).toBeGreaterThan(0)
     expect(prompt.indexOf('diff --git')).toBeGreaterThan(dataLine)
     expect(prompt).toContain('Branch: feature')

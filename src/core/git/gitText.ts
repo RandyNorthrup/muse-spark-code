@@ -14,7 +14,7 @@ import {
   GIT_PROMPT_COMMITS_MAX,
   GIT_PROMPT_DIFF_MAX_CHARS,
   GIT_PROMPT_FILES_MAX,
-  MODEL_TEXT,
+  GIT_MODEL_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { redactSecrets } from '../redact'
@@ -69,14 +69,14 @@ function fenced(text: string, language = ''): string {
 function bounded(text: string, max: number): string {
   return text.length <= max
     ? text
-    : `${text.slice(0, max)}\n${fill(MODEL_TEXT.gitPromptTruncated, { count: String(text.length - max) })}`
+    : `${text.slice(0, max)}\n${fill(GIT_MODEL_TEXT.gitPromptTruncated, { count: String(text.length - max) })}`
 }
 
 function listed(items: readonly string[], max: number): string {
   const shown = items.slice(0, max).map((item) => `- ${item}`)
   const rest = items.length - shown.length
   return rest > 0
-    ? [...shown, fill(MODEL_TEXT.gitPromptMore, { count: String(rest) })].join('\n')
+    ? [...shown, fill(GIT_MODEL_TEXT.gitPromptMore, { count: String(rest) })].join('\n')
     : shown.join('\n')
 }
 
@@ -92,7 +92,7 @@ export function newFileDiff(label: string, bytes: Uint8Array, size: number): str
   const lines = new TextDecoder().decode(bytes).replace(TRAILING_BREAK, '').split(LINE_BREAK)
   const cut =
     bytes.length < size
-      ? [fill(MODEL_TEXT.gitPromptTruncated, { count: String(size - bytes.length) })]
+      ? [fill(GIT_MODEL_TEXT.gitPromptTruncated, { count: String(size - bytes.length) })]
       : []
   return [header, ...lines.map((line) => `+${line}`), ...cut].join('\n')
 }
@@ -100,10 +100,10 @@ export function newFileDiff(label: string, bytes: Uint8Array, size: number): str
 /** What the model gets beside the user's own "write a commit message" message. */
 export function commitMessagePrompt(facts: CommitPromptFacts): string {
   return [
-    fill(MODEL_TEXT.gitCommitInstructions, { max: String(COMMIT_SUBJECT_MAX_CHARS) }),
-    MODEL_TEXT.gitUntrustedData,
-    `${MODEL_TEXT.gitBranchLabel} ${facts.branch ?? MODEL_TEXT.gitDetachedHead}`,
-    `${facts.scope === 'staged' ? MODEL_TEXT.gitStagedFilesLabel : MODEL_TEXT.gitChangedFilesLabel}\n${listed(facts.files, GIT_PROMPT_FILES_MAX)}`,
+    fill(GIT_MODEL_TEXT.gitCommitInstructions, { max: String(COMMIT_SUBJECT_MAX_CHARS) }),
+    GIT_MODEL_TEXT.gitUntrustedData,
+    `${GIT_MODEL_TEXT.gitBranchLabel} ${facts.branch ?? GIT_MODEL_TEXT.gitDetachedHead}`,
+    `${facts.scope === 'staged' ? GIT_MODEL_TEXT.gitStagedFilesLabel : GIT_MODEL_TEXT.gitChangedFilesLabel}\n${listed(facts.files, GIT_PROMPT_FILES_MAX)}`,
     fenced(bounded(facts.diff, GIT_PROMPT_DIFF_MAX_CHARS), 'diff'),
   ].join('\n\n')
 }
@@ -112,16 +112,16 @@ export function commitMessagePrompt(facts: CommitPromptFacts): string {
 export function pullRequestPrompt(facts: PullRequestPromptFacts): string {
   const commits =
     facts.commits === undefined
-      ? `${MODEL_TEXT.gitCommitsUnavailable} ${facts.commitsUnavailable ?? ''}`.trim()
-      : `${MODEL_TEXT.gitCommitsLabel}\n${fenced(listed(facts.commits, GIT_PROMPT_COMMITS_MAX))}`
+      ? `${GIT_MODEL_TEXT.gitCommitsUnavailable} ${facts.commitsUnavailable ?? ''}`.trim()
+      : `${GIT_MODEL_TEXT.gitCommitsLabel}\n${fenced(listed(facts.commits, GIT_PROMPT_COMMITS_MAX))}`
   const files =
     facts.files === undefined
       ? []
-      : [`${MODEL_TEXT.gitChangedFilesLabel}\n${listed(facts.files, GIT_PROMPT_FILES_MAX)}`]
+      : [`${GIT_MODEL_TEXT.gitChangedFilesLabel}\n${listed(facts.files, GIT_PROMPT_FILES_MAX)}`]
   return [
-    fill(MODEL_TEXT.gitPullRequestInstructions, { max: String(COMMIT_SUBJECT_MAX_CHARS) }),
-    MODEL_TEXT.gitUntrustedData,
-    `${MODEL_TEXT.gitBranchLabel} ${facts.head} → ${facts.base}`,
+    fill(GIT_MODEL_TEXT.gitPullRequestInstructions, { max: String(COMMIT_SUBJECT_MAX_CHARS) }),
+    GIT_MODEL_TEXT.gitUntrustedData,
+    `${GIT_MODEL_TEXT.gitBranchLabel} ${facts.head} → ${facts.base}`,
     commits,
     ...files,
   ].join('\n\n')

@@ -37,6 +37,7 @@ import {
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  GIT_MODEL_TEXT,
   MODEL_TEXT,
   PLAN_FILE_MAX_BYTES,
   PLAN_STEP_MAX_CHARS,
@@ -8172,7 +8173,7 @@ describe('ConversationController: git and pull requests (M71)', () => {
       { type: 'text', text: UI_TEXT.gitAskCommitMessage },
       {
         type: 'text',
-        text: expect.stringContaining(MODEL_TEXT.gitUntrustedData) as unknown,
+        text: expect.stringContaining(GIT_MODEL_TEXT.gitUntrustedData) as unknown,
       },
       NOTE,
     ])

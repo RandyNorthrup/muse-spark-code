@@ -19,9 +19,9 @@ import {
   type GitProcess,
   processGitProcess,
   processGitRunner,
-  UNTRUSTED_CHECKOUT_OPTIONS,
 } from '../../src/host/git'
 import { createHeldCheckout } from '../../src/host/git/heldCheckout'
+import { UNTRUSTED_CHECKOUT_OPTIONS } from '../../src/host/git/untrustedGit'
 import {
   HELD_CHECKOUT_MAX_BYTES,
   HELD_CHECKOUT_MAX_ENTRIES,

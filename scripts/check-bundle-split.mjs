@@ -20,8 +20,9 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
-// - the conversation Git implementation (M71) leaks back into activation
-//   or is missing from its checked factory bundle.
+// - the conversation Git implementation or the window's git and pull request
+//   features (M71) leak back into activation, dist/modelApi.js or
+//   dist/acp.js, or are missing from their checked factory bundle.
 //
 // Exits 1 on any problem.
 //
@@ -301,8 +302,30 @@ for (const prefix of IMPORT_ONLY) {
   }
 }
 
+// M71: the conversations' Git adapter and the window's git and pull request
+// features (VS Code's git extension adapter, the GitHub client and sign-in,
+// the pull request links, the checkout and its untrusted git lane, the
+// prompts) load with the first conversation or pull request command.
+// Activation keeps the hold, the worktree records and the checked loader.
+const GIT_ONLY = [
+  'src/host/git/conversationGit.ts',
+  'src/host/git/conversationGitEntry.ts',
+  'src/host/git/gitWindow.ts',
+  'src/host/git/gitExtension.ts',
+  'src/host/git/githubSession.ts',
+  'src/host/git/heldCheckout.ts',
+  'src/host/git/pullRequestCheckout.ts',
+  'src/host/git/pullRequestLinks.ts',
+  'src/host/git/untrustedGit.ts',
+  'src/core/git/github.ts',
+  'src/core/git/githubRemote.ts',
+  'src/core/git/gitText.ts',
+  'src/core/git/heldTree.ts',
+  'src/core/git/pullRequestRef.ts',
+  'src/core/git/pushPlan.ts',
+]
 const conversationGit = inputsOf(CONVERSATION_GIT)
-for (const file of ['src/host/git/conversationGit.ts', 'src/host/git/conversationGitEntry.ts']) {
+for (const file of GIT_ONLY) {
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
     if (inputsOf(bundle).has(file)) {
       problems.push(
@@ -360,5 +383,5 @@ console.log(
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 console.log(
-  'ok   dist/conversationGit.js: carries the Git adapter; activation keeps its checked loader',
+  `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
 )

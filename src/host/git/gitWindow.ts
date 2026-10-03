@@ -1,6 +1,9 @@
 // The VS Code side of M71 (PLAN.md D49), built once per window: the push
 // modal, the remote pick, the pull request number box, the confirmations,
-// the new window, and the pieces every conversation's git shares.
+// the new window, and the pieces every conversation's git shares. It ships
+// in dist/conversationGit.js (PLAN.md D6) and is built there, the first time
+// a conversation or the pull request command asks, from activation's
+// primitives (`createGitFeatures`).
 
 import { existsSync } from 'node:fs'
 import { constants as fsConstants } from 'node:fs'
@@ -9,11 +12,16 @@ import { lstat, open, readlink } from 'node:fs/promises'
 import * as vscode from 'vscode'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import type { GitHubClient } from '../../core/git/github'
+import { GitHubClient, type GitHubClientDeps } from '../../core/git/github'
 import { newFileDiff } from '../../core/git/gitText'
+import type { GitProcess } from '../git'
 import type { Logger } from '../logger'
 import { loggedPopups } from '../popups'
 import { newWindowActions } from '../worktreeFeatures'
+import { githubTokenReader } from './githubSession'
+import { createHeldCheckout } from './heldCheckout'
+import { type LinkMemento, PullRequestLinks } from './pullRequestLinks'
+import { untrustedGitRunner } from './untrustedGit'
 import type {
   CommitConfirmation,
   GitWindow,
@@ -32,7 +40,6 @@ import {
   openPullRequestInConversation,
   type PullRequestCheckoutDeps,
 } from './pullRequestCheckout'
-import type { PullRequestLinks } from './pullRequestLinks'
 import type { WindowHold, WorktreeRegistry } from './worktreeRegistry'
 
 export interface GitWindowDeps {
@@ -59,6 +66,47 @@ export interface GitWindowDeps {
 export interface GitWindowFeatures {
   readonly window: GitWindow
   openPullRequestInConversation(): Promise<void>
+}
+
+/**
+ * What activation hands the bundle for the window's git and pull requests:
+ * its own primitives only. The GitHub client, the sign-in reader, the
+ * pull request links and the held checkout are made here, beside the code
+ * that throws and checks their errors.
+ */
+export interface GitFeaturesDeps extends Omit<
+  GitWindowDeps,
+  'links' | 'github' | 'githubToken' | 'checkOutHeld'
+> {
+  /** The workspace state the conversations' pull request links are kept in. */
+  readonly workspaceState: LinkMemento
+  /** VS Code's proxy-aware fetch, as it stands at each request (M56, D43). */
+  readonly fetch: GitHubClientDeps['fetch']
+  /** `muse-spark-code/<version>`: GitHub refuses a request without one. */
+  readonly userAgent: string
+  /** git with binary stdout (git.ts `createGitProcess`), for the held checkout. */
+  readonly gitProcess: GitProcess
+  /** What the held checkout's git runs with, its untrusted lane too: the window's environment. */
+  readonly env: NodeJS.ProcessEnv
+}
+
+/** The window's git features from activation's primitives (M71). */
+export function createGitFeatures(deps: GitFeaturesDeps): GitWindowFeatures {
+  const { workspaceState, fetch, userAgent, gitProcess, env, ...windowDeps } = deps
+  return createGitWindow({
+    ...windowDeps,
+    links: new PullRequestLinks(workspaceState),
+    github: new GitHubClient({ fetch, userAgent, log: deps.log }),
+    githubToken: githubTokenReader(deps.log),
+    // Someone else's pull request: no git checkout; the extension writes its files (M71).
+    checkOutHeld: createHeldCheckout({
+      platform: process.platform,
+      runGit: untrustedGitRunner(env),
+      gitProcess,
+      env,
+      log: deps.log,
+    }),
+  })
 }
 
 /** Git diff omits new files; fingerprint their content without loading whole files into memory. */

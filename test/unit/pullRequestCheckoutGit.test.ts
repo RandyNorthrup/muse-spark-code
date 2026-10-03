@@ -23,6 +23,7 @@ import { processGitProcess, processGitRunner } from '../../src/host/git'
 import { captureGitOwner, type GitRepository } from '../../src/host/git/gitExtension'
 import { createHeldCheckout } from '../../src/host/git/heldCheckout'
 import { openPullRequestInConversation } from '../../src/host/git/pullRequestCheckout'
+import { untrustedGitRunner } from '../../src/host/git/untrustedGit'
 import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { checkoutNotices, memoryMemento } from './helpers/fakeGit'
@@ -240,7 +241,7 @@ async function checkout(storageName: string, options: CheckoutOptions = {}) {
     runGit: processGitRunner({ env }),
     checkOutHeld: createHeldCheckout({
       platform: process.platform,
-      runGit: processGitRunner({ isUntrustedCheckout: true, env }),
+      runGit: untrustedGitRunner(env),
       gitProcess: processGitProcess(),
       env,
       log: new FakeLogOutputChannel(),

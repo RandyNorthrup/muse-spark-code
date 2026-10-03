@@ -19,7 +19,6 @@ import {
   GIT_STDERR_MAX_CHARS,
   GIT_TIMEOUT_MS,
   UI_TEXT,
-  UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
 } from '../shared/constants'
 
 const GIT = 'git'
@@ -29,23 +28,6 @@ const CONFIG_OPTION = '-c'
 const OPTION_MARK = '-'
 const FILTER_SEPARATOR = '\u{0}'
 const FILTER_KEY = /^filter\.([^=\p{Cc}]+)\.(?:clean|process|required)$/u
-const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
-/**
- * Every git a held pull request's checkout runs (heldCheckout.ts) runs with
- * these: no hooks, no fsmonitor, no replacement objects, no automatic
- * maintenance or garbage collection.
- */
-export const UNTRUSTED_CHECKOUT_OPTIONS: readonly string[] = [
-  '--no-replace-objects',
-  '-c',
-  'core.hooksPath=/dev/null',
-  '-c',
-  'core.fsmonitor=false',
-  '-c',
-  'maintenance.auto=false',
-  '-c',
-  'gc.auto=0',
-]
 const filterKeys = z
   .array(z.string().check(z.maxLength(GIT_FILTER_NAME_MAX_CHARS), z.regex(FILTER_KEY)))
   .check(z.maxLength(GIT_FILTER_NAMES_MAX))
@@ -129,10 +111,13 @@ export interface GitRunnerDeps {
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
   /**
-   * Only the git that lists, adds and indexes someone else's pull request
-   * before its separate trust confirmation (heldCheckout.ts).
+   * Arguments put before each command's own once the runner found git:
+   * only the untrusted lane that lists, adds and indexes someone else's
+   * pull request before its separate trust confirmation (git/untrustedGit.ts,
+   * heldCheckout.ts). It may run git itself with the call's options, and
+   * calls `beforeRun` where a check must precede a process.
    */
-  readonly isUntrustedCheckout?: boolean
+  readonly argsBefore?: GitArgsBefore | undefined
   /** `execFile` as a promise of stdout; rejects on a failure, a timeout or a non-zero exit. */
   readonly execFile: (
     file: string,
@@ -141,86 +126,16 @@ export interface GitRunnerDeps {
   ) => Promise<string>
 }
 
-type ExecFile = GitRunnerDeps['execFile']
+/** `execFile` as the runner calls it. */
+export type GitExecFile = GitRunnerDeps['execFile']
 
-/** An old git, or a configured name the overrides cannot spell: the checkout is refused. */
-function checkoutRefusal(): Error {
-  // Configuration keys and exec errors may contain private details.
-  return new Error(UI_TEXT.openPullRequestFiltersUnavailable)
-}
-
-/** The per-command overrides that turn off hooks and fsmonitor need Git 2.36 or newer. */
-async function requireCheckoutSafeGit(
-  execFile: ExecFile,
+/** What `argsBefore` is handed: the runner's `execFile`, the git it found, the call's options and check. */
+export type GitArgsBefore = (
+  execFile: GitExecFile,
   git: string,
   options: ExecFileOptions,
-): Promise<void> {
-  let output: string
-  try {
-    output = await execFile(git, ['--version'], options)
-  } catch {
-    throw checkoutRefusal()
-  }
-  const version = /^git version (\d+)\.(\d+)/u.exec(output)
-  const major = Number(version?.[1])
-  const minor = Number(version?.[2])
-  if (
-    !Number.isSafeInteger(major) ||
-    !Number.isSafeInteger(minor) ||
-    major < 2 ||
-    (major === 2 && minor < UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)
-  ) {
-    throw checkoutRefusal()
-  }
-}
-
-/**
- * The options that keep the untrusted lane's git from running programs: the
- * fixed ones above, and every named hook the configuration where it runs
- * defines switched off (hook commands are never read). The lane never
- * checks a tree out (heldCheckout.ts writes the files), so no filter needs
- * switching off.
- */
-async function checkoutOverrides(
-  execFile: ExecFile,
-  git: string,
-  options: ExecFileOptions,
-  check?: () => void,
-): Promise<readonly string[]> {
-  check?.()
-  let configuration: string
-  try {
-    configuration = await execFile(
-      git,
-      [...UNTRUSTED_CHECKOUT_OPTIONS, 'config', '--null', '--name-only', '--list'],
-      options,
-    )
-  } catch {
-    throw checkoutRefusal()
-  }
-  check?.()
-  // New Git can configure named hooks independently of core.hooksPath.
-  const hooks = new Set(
-    configuration.split('\0').flatMap((name) => {
-      const hook = CHECKOUT_HOOK_KEY.exec(name)?.[1]
-      return hook === undefined ? [] : [hook]
-    }),
-  )
-  // -c splits at its first '='; such subsection names cannot be represented
-  // by these per-command overrides. Never guess an escape.
-  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
-    throw checkoutRefusal()
-  }
-  return [
-    ...UNTRUSTED_CHECKOUT_OPTIONS,
-    ...[...hooks].flatMap((hook) => [
-      '-c',
-      `hook.${hook}.enabled=false`,
-      '-c',
-      `hook.${hook}.event=`,
-    ]),
-  ]
-}
+  beforeRun?: () => void,
+) => Promise<readonly string[]>
 
 /**
  * A git runner; rejects when git is not on the absolute PATH. A call that
@@ -236,8 +151,6 @@ export function createGitRunner(
 ) => Promise<string> {
   const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
-  // The git whose version was accepted; a failed read is asked again next time.
-  let supportedGit: string | undefined
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, beforeRun) => {
     const git = gitPath()
     if (git === undefined) {
@@ -251,17 +164,10 @@ export function createGitRunner(
       windowsHide: true,
     }
     beforeRun?.()
-    let invocation = args
-    if (deps.isUntrustedCheckout === true) {
-      // The owner's last check runs outside each lookup's catch: a lost
-      // owner is reported as it is, never as a missing Git feature.
-      if (supportedGit !== git) {
-        await requireCheckoutSafeGit(deps.execFile, git, options)
-        supportedGit = git
-      }
-      beforeRun?.()
-      invocation = [...(await checkoutOverrides(deps.execFile, git, options, beforeRun)), ...args]
-    }
+    const invocation =
+      deps.argsBefore === undefined
+        ? args
+        : [...(await deps.argsBefore(deps.execFile, git, options, beforeRun)), ...args]
     // Metadata discovery awaits; current trust/ownership checks directly precede process entry.
     beforeRun?.()
     return await deps.execFile(git, invocation, options)
@@ -275,7 +181,10 @@ const execFileAsync = promisify(execFile)
  * one the extension uses, and the one tests use to drive real git (M32).
  */
 export function processGitRunner(
-  given: { readonly isUntrustedCheckout?: boolean; readonly env?: NodeJS.ProcessEnv } = {},
+  given: {
+    readonly argsBefore?: GitArgsBefore | undefined
+    readonly env?: NodeJS.ProcessEnv | undefined
+  } = {},
 ): (
   args: readonly string[],
   cwd: string,
@@ -285,7 +194,7 @@ export function processGitRunner(
   return createGitRunner({
     platform: process.platform,
     env: given.env ?? process.env,
-    isUntrustedCheckout: given.isUntrustedCheckout === true,
+    argsBefore: given.argsBefore,
     fileExists: existsSync,
     execFile: async (file, args, options) => {
       const { stdout } = await execFileAsync(file, [...args], { ...options, encoding: 'utf8' })
