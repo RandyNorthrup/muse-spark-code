@@ -27,7 +27,6 @@ happened, not what was planned; superseded entries are kept.
   the review comment keeps its cap with long file lists; apply refuses
   unexpected or oversized artifact files unread. The hosted matrix and the
   live receipts L, LA and LR are still open.
-
 - **M80 headless engine and CLI (lane B):** one-turn execution uses the existing
   ACP engine in Plan or Accept edits, denying approvals and declining questions.
   Model API calls share an integer micro-USD context-window ledger: streaming
@@ -38,13 +37,11 @@ happened, not what was planned; superseded entries are kept.
   their flag, edits mode and budget. Bounded file resources preserve every input
   character, and the scanner has a process-wide deadline. Action, packaging,
   hosted acceptance and live receipts remain with lanes C/D and the lead.
-
 - **M80 Windows bounded headless exit:** after bounded cleanup and output
   grace, a forced exit terminates the owned process without waiting for a
   blocked native pipe writer. Windows reports process exit 1 and may lose
   buffered output; any delivered result keeps its first-stop status and logical
   exit code. Normal drained exits and POSIX behavior retain their existing codes.
-
 - **M80 packaging and CI integration contract (lane D):** ACP package now
   ships both generated event/result schemas and the headless guide. A separate
   private fake-only test tarball preserves production stage/digest and changes
@@ -59,7 +56,6 @@ happened, not what was planned; superseded entries are kept.
   explicit. D64/rules 8/12 name exec **and** scanner stdin readers and initial-env
   residuals. Engine/Action integration, operational recipes and L/LA/LR remain
   pending; this entry makes no certification or registry-support claim.
-
 - **M80 headless contract foundation (lane A):** independent argument parsing,
   versioned result/event validation, text/JSON/JSONL output, bounded async fd
   writers, cancellable stdin key/prompt readers and a counts-only secret scanner.
@@ -70,7 +66,6 @@ happened, not what was planned; superseded entries are kept.
   include the new text. `npm run schema:exec` generates the committed JSON schemas.
   Lane B supplies the `exec` and `scan-secrets` wiring and engine below; Action
   and full M80 acceptance remain pending in the other lanes.
-
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
