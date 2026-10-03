@@ -3,6 +3,8 @@
 // spelled differently) and to script the fake Model API's correct runs.
 
 import type { EvalTask } from '../../../src/core/eval/tasks'
+import { MODEL_API_TOOLS } from '../../../src/shared/constants'
+import type { ScriptedReply } from '../helpers/fakeModelApi'
 
 export interface EvalFix {
   readonly path: string
@@ -78,6 +80,10 @@ export const EVAL_CANONICAL_FIXES: Readonly<Record<string, readonly EvalFix[]>> 
       content:
         "import { writeFile } from 'node:fs/promises'\n\nexport async function saveSettings(path, settings) {\n  await writeFile(path, JSON.stringify(settings))\n}\n",
     },
+  ],
+  'accept-long-middle-value': [{ path: 'answer.js', content: 'export const answer = 314159\n' }],
+  'heldout-long-middle-rule': [
+    { path: 'transform.js', content: 'export const transform = (value) => value * 7 + 11\n' },
   ],
 }
 
@@ -156,6 +162,15 @@ export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
         "import { writeFile } from 'node:fs/promises'\n\nexport function saveSettings(path, settings) {\n  return writeFile(path, JSON.stringify(settings))\n}\n",
     },
   ],
+  'accept-long-middle-value': [
+    { path: 'answer.js', content: 'const value = 314_159\n\nexport { value as answer }\n' },
+  ],
+  'heldout-long-middle-rule': [
+    {
+      path: 'transform.js',
+      content: 'export function transform(value) {\n  return 11 + 7 * value\n}\n',
+    },
+  ],
 }
 
 /** The task's fixture files with the given fixes applied. */
@@ -176,4 +191,43 @@ export function fixesFor(
     throw new Error(`no fix for eval task ${task.id}`)
   }
   return fixes
+}
+
+/** A reply that reads one file. */
+export function readReply(path: string, callId: string): ScriptedReply {
+  return { calls: [{ name: 'read_file', arguments: JSON.stringify({ path }), callId }] }
+}
+
+/**
+ * A long-output task as the phases direct: read the evidence, then each
+ * phase file in a request of its own, then recall the middle (or read the
+ * evidence again without packing), then write the canonical fix.
+ */
+export function longTaskReplies(
+  task: EvalTask,
+  isPacking: boolean,
+  offset: number,
+): ScriptedReply[] {
+  const [fix] = fixesFor(EVAL_CANONICAL_FIXES, task)
+  if (fix === undefined) {
+    throw new Error(`no canonical fix for ${task.id}`)
+  }
+  return [
+    readReply('evidence.txt', 'evidence'),
+    readReply('phase-one.txt', 'phase-one'),
+    readReply('phase-two.txt', 'phase-two'),
+    isPacking
+      ? {
+          calls: [
+            {
+              name: MODEL_API_TOOLS.recallOutput,
+              arguments: JSON.stringify({ id: 'evidence', offset }),
+              callId: 'recall',
+            },
+          ],
+        }
+      : readReply('evidence.txt', 'reread'),
+    { calls: [{ name: 'write_file', arguments: JSON.stringify(fix) }] },
+    { text: 'Recovered and fixed.' },
+  ]
 }

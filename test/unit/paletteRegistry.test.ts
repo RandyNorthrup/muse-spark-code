@@ -274,6 +274,7 @@ describe('buildPalette', () => {
     expect(slash?.items.map((item) => item.label)).toEqual([
       '/agents',
       '/compact',
+      '/handoff',
       '/goal',
       '/export',
       'Export session log…',
@@ -284,6 +285,12 @@ describe('buildPalette', () => {
       '/usage',
       '/cost',
     ])
+    // M74: /handoff readies the prompt for the new conversation's goal.
+    expect(slash?.items.find((item) => item.id === 'handoff')).toMatchObject({
+      label: '/handoff',
+      detail: 'Distil this conversation into a brief for a fresh one',
+      action: { type: 'startHandoff' },
+    })
     expect(slash?.items.at(-2)?.action).toEqual({ type: 'openUsage' })
     expect(slash?.items.at(-1)?.action).toEqual({ type: 'openUsage' })
     expect(filterPalette(groups, '/cost').flatMap((group) => group.items.map((i) => i.id))).toEqual(
@@ -308,6 +315,7 @@ describe('buildPalette', () => {
       'ctrlEnter',
       'mcpServers',
       'hooks',
+      'importFromAgents',
       'memory',
       'settings',
       'keybindings',
@@ -323,12 +331,27 @@ describe('buildPalette', () => {
       'ctrlEnter',
       'mcpServers',
       'hooks',
+      'importFromAgents',
       'memory',
       'settings',
       'keybindings',
     ])
     expect(mcpDetailOn('modelApi')).toBe(EN.mcpItemDetailModelApi)
     expect(mcpDetailOn('museCode')).toBe(EN.mcpItemDetail)
+  })
+
+  it('offers the import from other agents on both backends and signed out (M83)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const row = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'customize')
+        ?.items.find((item) => item.id === 'importFromAgents')
+      expect(row, String(backend)).toEqual({
+        id: 'importFromAgents',
+        label: EN.agentImportItem,
+        detail: EN.agentImportDetail,
+        action: { type: 'importFromAgents' },
+      })
+    }
   })
 
   it('offers the Memory view on both backends, which share one memory (M49)', () => {
@@ -452,6 +475,7 @@ describe('slashCommandsOf', () => {
       'acme:deploy',
       'agents',
       'compact',
+      'handoff',
       'goal',
       'export',
       'clear',

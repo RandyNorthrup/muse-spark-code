@@ -9,7 +9,7 @@ import { MODEL_API_BUNDLE_FILE, PAGE_WORKER_FILE } from '../../../src/shared/con
 
 // Mirror the approved shared fallback in scripts/build.mjs; installed tables
 // remain local to the backend, and the fallback is a real adjacent module.
-const sharedUiText: Plugin = {
+export const sharedUiText: Plugin = {
   name: 'shared-ui-text',
   setup(pluginBuild) {
     pluginBuild.onResolve({ filter: /\/en$/ }, (args) =>

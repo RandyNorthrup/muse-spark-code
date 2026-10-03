@@ -29,14 +29,13 @@ import type { ApprovalMode } from '../../src/shared/permissionModes'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { installGerman, restoreEnglish } from './helpers/germanTable'
 import {
-  FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
   fakeModelApiClient,
   type ScriptedCall,
   type ScriptedReply,
 } from './helpers/fakeModelApi'
-import { memoryContextIo } from './helpers/fakeContextIo'
 import { memoryStoreOver } from './helpers/fakeMemoryIo'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
 import { logLines } from './helpers/logText'
 
@@ -174,36 +173,12 @@ function setup(options: SetupOptions = {}) {
       return await (options.format?.(absolutePath, text) ?? Promise.resolve(undefined))
     },
   }
-  let ids = 0
-  let clock = 1_000_000
   const host = new ModelApiHost({
-    client: fakeModelApiClient(api, log),
-    workspaceRoot: ROOT,
+    ...fakeModelApiHostDeps({ client: fakeModelApiClient(api, log), workspaceRoot: ROOT, io, log }),
     platform: options.platform ?? 'linux',
-    io,
-    contextIo: memoryContextIo(io.files),
-    newId: () => {
-      ids += 1
-      return `id${String(ids)}`
-    },
-    now: () => {
-      clock += 1000
-      return clock
-    },
-    log,
-    personalSkillsRoot: undefined,
-    personalAgentsRoot: undefined,
     isWorkspaceTrusted: () => options.isTrusted ?? true,
-    isConfidentialWorkspace: () => false,
-    confirmContributorModel: () => Promise.resolve(false),
-    getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
-    describeEnvironment: () => Promise.resolve({ git: undefined }),
     isPaidFeatureOn: (feature) => options.hasSubagents === true && feature === 'subagents',
-    notePaidUse: () => undefined,
-    promptCacheRetention: () => 'in_memory',
     allowsPaidUse: () => Promise.resolve(options.hasSubagents === true),
-    isPaidUseRemembered: () => false,
-    noteSubagentUsage: () => undefined,
     memory: options.memory,
     ...(options.hasVerify !== false && { verify }),
     ...(hooks !== undefined && { loadHooks: () => Promise.resolve(hooks) }),

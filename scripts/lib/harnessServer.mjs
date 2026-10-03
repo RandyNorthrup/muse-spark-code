@@ -105,6 +105,7 @@ export const SCENARIOS = [
   'plan',
   'plan-brief',
   'plan-narrow',
+  'handoff',
   'code-intel',
 ]
 const CONTENT_TYPES = {

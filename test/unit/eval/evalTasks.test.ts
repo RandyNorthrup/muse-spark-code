@@ -69,10 +69,13 @@ function probeTask(verify: string, files = [{ path: 'a.js', content: 'export con
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
-  it('holds six accept and four held-out tasks', () => {
-    expect(evalTasksOfSplit('accept')).toHaveLength(6)
-    expect(evalTasksOfSplit('heldout')).toHaveLength(4)
-    expect(EVAL_TASKS).toHaveLength(10)
+  it('holds seven accept and five held-out tasks, one of each with a long output (M73)', () => {
+    expect(evalTasksOfSplit('accept')).toHaveLength(7)
+    expect(evalTasksOfSplit('heldout')).toHaveLength(5)
+    expect(EVAL_TASKS).toHaveLength(12)
+    expect(
+      EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.split),
+    ).toEqual(['accept', 'heldout'])
   })
 
   it('has unique ids, complete definitions and safe paths', () => {
@@ -87,7 +90,7 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
     }
   })
 
-  it('runs on the contributor model, with floors of five of six and three of four', () => {
+  it('runs on the contributor model, with floors of six of seven and four of five', () => {
     expect(modelApiPaidTier(EVAL_MODEL_ID)).toBe('contributor')
     expect(EVAL_FLOOR_ACCEPT_PASS_RATE).toBe(0.75)
     expect(EVAL_FLOOR_HELDOUT_PASS_RATE).toBe(0.75)

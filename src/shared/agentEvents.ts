@@ -310,6 +310,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // The session's totals on both backends (PLAN.md D26): prompt tokens counted
   // once and output tokens. Cached and reasoning totals only where the
   // backend can sum them honestly (the Model API: one provider's convention).
+  // `packedTokensAvoided` is the extension's own estimate (M73): the tokens
+  // observation packing left out of the requests, defined only while it runs.
   z.object({
     type: z.literal('tokenUsage'),
     inputTokens: z.number(),
@@ -317,6 +319,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     cachedTokens: z.optional(z.number()),
     reasoningTokens: z.optional(z.number()),
     modelId: z.optional(z.string()),
+    packedTokensAvoided: z.optional(z.number()),
   }),
   z.object({
     type: z.literal('contextUsage'),

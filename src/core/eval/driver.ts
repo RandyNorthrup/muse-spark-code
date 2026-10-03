@@ -20,8 +20,10 @@ import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
 import {
   EVAL_APPROVAL_MODE,
   EVAL_MODEL_ID,
+  EVAL_TURN_COMPLETED,
   EVAL_TURN_TIMED_OUT,
   EVAL_TURN_TIMEOUT_MS,
+  MODEL_API_TOOLS,
   MODEL_TEXT,
   SETTING_DEFAULTS,
 } from '../../shared/constants'
@@ -66,6 +68,13 @@ export interface EvalTurnOutcome {
   readonly paidUses: number
   /** What the stand-in panel could not do (a card it could not answer). */
   readonly problems: readonly string[]
+  /** The packing ledger's last total (M73); absent when no session packed. */
+  readonly packedTokensAvoided?: number
+  /**
+   * What each `recall_output` call that succeeded returned (M73), for the
+   * packing arm's own check; never copied into a report.
+   */
+  readonly recalledOutputs: readonly string[]
 }
 
 type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
@@ -121,6 +130,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
   const problems: string[] = []
   const items: ItemSnapshot[] = []
   const finished: TurnCompleted[] = []
+  let packedTokensAvoided: number | undefined
   let wake: (() => void) | undefined
 
   const hostDeps: ModelApiHostDeps = {
@@ -187,6 +197,11 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
           items.push(event.item)
           break
         }
+        case 'tokenUsage': {
+          // A session total: the last one is the turn's.
+          packedTokensAvoided = event.packedTokensAvoided ?? packedTokensAvoided
+          break
+        }
         case 'turnCompleted': {
           finished.push(event)
           wake?.()
@@ -217,15 +232,24 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     if (turn === undefined) {
       await session.cancel()
     }
+    const calls = items.filter((item) => item.turnId === turnId && item.kind === 'toolCall')
     return {
       terminal: turn?.terminal ?? EVAL_TURN_TIMED_OUT,
       reason: turn?.reason,
-      tools: items
-        .filter((item) => item.turnId === turnId && item.kind === 'toolCall')
-        .map((item) => item.tool ?? item.kind),
+      tools: calls.map((item) => item.tool ?? item.kind),
       ...counts,
       // A copy: a card answered after the turn cannot change the outcome.
       problems: [...problems],
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      recalledOutputs: calls.flatMap((item) =>
+        item.tool === MODEL_API_TOOLS.recallOutput &&
+        // An item completes with the same word a turn does.
+        item.status === EVAL_TURN_COMPLETED &&
+        item.failureReason === undefined &&
+        item.visibleOutput !== undefined
+          ? [item.visibleOutput]
+          : [],
+      ),
     }
   } finally {
     await host.close()

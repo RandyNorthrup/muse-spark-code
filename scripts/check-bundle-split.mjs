@@ -17,6 +17,9 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the import from other agents (M83: the scan, the converters, the file
+//   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
+//   or dist/acp.js, or missing from dist/agentImport.js.
 //
 // Exits 1 on any problem.
 //
@@ -58,6 +61,8 @@ const LAZY_ONLY = [
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',
+  // M73: observation packing's store, its placeholder and recall_output.
+  'observationPack.ts',
   'permissions.ts',
   'promptCache.ts',
   'subagentTools.ts',
@@ -213,11 +218,18 @@ const checkpointStore = inputsOf(CHECKPOINT_STORE)
 // The English fallback is shared; installed-language state stays in each bundle.
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
+const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
-for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CHECKPOINT_STORE]) {
+for (const bundle of [
+  BUNDLES.activation,
+  BUNDLES.modelApi,
+  BUNDLES.acp,
+  CHECKPOINT_STORE,
+  AGENT_IMPORT,
+]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
     problems.push(`${bundle.output} duplicates ${ENGLISH_TABLE}`)
@@ -239,6 +251,16 @@ for (const file of CHECKPOINT_ONLY) {
     problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
   }
 }
+// M83: the import from other agents loads on the first import.
+const IMPORT_ONLY = [
+  'src/host/agentImportEntry.ts',
+  'src/host/commands/agentImportCommands.ts',
+  'src/host/importIo.ts',
+  'src/core/import/agentImport.ts',
+  'src/core/import/importConvert.ts',
+  'node_modules/smol-toml/',
+]
+const agentImport = inputsOf(AGENT_IMPORT)
 function hasPrefix(inputs, prefix) {
   for (const input of inputs.keys()) {
     if (input.startsWith(prefix)) {
@@ -257,6 +279,17 @@ for (const prefix of CONVERTER_ONLY) {
   }
   if (!hasPrefix(pageWorker, prefix)) {
     problems.push(`${PAGE_WORKER.output} no longer carries ${prefix}`)
+  }
+}
+
+for (const prefix of IMPORT_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (hasPrefix(inputsOf(bundle), prefix)) {
+      problems.push(`${bundle.output} carries ${prefix}, which loads only with the import`)
+    }
+  }
+  if (!hasPrefix(agentImport, prefix)) {
+    problems.push(`${AGENT_IMPORT.output} no longer carries ${prefix}`)
   }
 }
 
@@ -299,5 +332,8 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
