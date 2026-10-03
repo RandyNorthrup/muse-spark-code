@@ -131,8 +131,12 @@ happened, not what was planned; superseded entries are kept.
   refused with the reason; a refused `/handoff` stays in the prompt with
   its goal. While a new API key is being activated, a Start is refused
   before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
+  still works, and a deferred brief read says why and retries when sign-in
+  or key activation completes, including a read that failed while admission
+  was held. Start shares the plan actions' operation lock: either refuses
+  while the other runs. A composer send during distillation is refused,
+  keeping its exact draft and images without replacing newer typing.
+  No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
@@ -373,6 +377,32 @@ happened, not what was planned; superseded entries are kept.
 - Project context files are read through the canonical path confinement.
   Replacing an agent/skill/rules alias with an outside link between check and
   read no longer redirects the read outside the workspace.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
+
+### Release infrastructure
+
+- Release assets now include SHA-256 checksums, package provenance attestations
+  and CycloneDX inventories limited to the actual bundled dependencies, plus
+  the ACP package's native runtime dependencies. npm publication requests
+  provenance and retains token authentication.
+- Registry publishing retries only transient network failures with a bounded
+  20/60-second backoff. Existing versions require matching VSIX SHA-256 or
+  tarball SHA-512 integrity; GitHub reruns verify existing assets and add only
+  missing files. A final summary reports all channel outcomes and fails any
+  failed channel. The release guide documents partial publication and npm EOTP.
+- Packaging checks every ACP locale and enforces a measured universal VSIX
+  size budget. M80 schema-upload and fully-published `v0` tag hooks are prepared
+  and remain inert until their source directories exist.
 
 ## [0.10.1] - 2026-10-02
 

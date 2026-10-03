@@ -25,7 +25,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['test/unit/**/*.test.{ts,tsx}', 'test/e2e/**/*.test.ts'],
+    include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
     environment: 'node',
     setupFiles: ['test/unit/setup.ts'],
     // Windows MCP process suites start PowerShell job helpers. On the small

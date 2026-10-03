@@ -158,6 +158,35 @@ describe('the saved conversation (M25)', () => {
     expect(webviewStateOf(shown, false)).toEqual({ sessionId: 's1' })
   })
 
+  it('keeps the pending send draft across a reload, so a handoff refusal restores it (PR #84)', () => {
+    const submitted = uiReducer(
+      { ...initialUiState, draft: '  keep me  ', draftRevision: 3 },
+      {
+        type: 'submitted',
+        localId: 'l9',
+        text: 'keep me',
+        attachments: [],
+        contextLabel: undefined,
+      },
+    )
+    expect(submitted.pendingSendDraft).toEqual({
+      localId: 'l9',
+      text: '  keep me  ',
+      revision: 4,
+    })
+    const restored = restoredUiState(throughJson(webviewStateOf(submitted, true)))
+    expect(restored.pendingSendDraft).toEqual(submitted.pendingSendDraft)
+    expect(restored.draftRevision).toBe(4)
+    const refused = fromHost(restored, {
+      type: 'sendFailed',
+      localId: 'l9',
+      reason: UI_TEXT.handoffBusy,
+      attachmentsKept: true,
+    })
+    expect(refused.draft).toBe('  keep me  ')
+    expect(refused.pendingSendDraft).toBeUndefined()
+  })
+
   it('starts empty for state that is not ours, and keeps a sound session id', () => {
     for (const raw of [undefined, null, 'old', { sessionId: 7 }]) {
       expect(restoredUiState(raw)).toBe(initialUiState)
