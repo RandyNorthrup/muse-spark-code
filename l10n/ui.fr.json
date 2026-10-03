@@ -1469,6 +1469,12 @@
   "redoAction": "Rétablir",
   "redoLabel": "Rétablir : remettre les fichiers que cette restauration a remplacés",
   "redoGone": "Cette restauration ne peut plus être rétablie.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Affiché {count} fois",
+    "many": "Affiché {count} de fois",
+    "other": "Affiché {count} fois"
+  },
   "restoreRefusedUnsaved": "Laissés tels quels, avec des modifications non enregistrées : {files}",
   "restoreRefusedChanged": "Laissés tels quels, modifiés entre-temps par autre chose : {files}",
   "restoreRefusedNotCovered": "Laissés tels quels, absents du point de contrôle : {files}",

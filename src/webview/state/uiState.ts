@@ -767,6 +767,23 @@ function withInsert(state: UiState, text: string): UiState {
   }
 }
 
+/** A notice that says the same as one about to be raised: a restore's keeps its own row (its Redo). */
+function isSameNotice(entry: TranscriptEntry, level: NoticeLevel, text: string): boolean {
+  return (
+    entry.kind === 'notice' &&
+    entry.level === level &&
+    entry.text === text &&
+    entry.redoRestoreId === undefined
+  )
+}
+
+/**
+ * A notice at the end of the transcript. One said again (the same level and
+ * text, D26: a busy Muse Code fails the same way many times) replaces the
+ * earlier row rather than stacking: that row goes, and this one, at the end,
+ * counts how many times it was said. A new id, so a spent button comes back
+ * for the new failure.
+ */
 function withNotice(
   state: UiState,
   level: NoticeLevel,
@@ -775,11 +792,19 @@ function withNotice(
   actions?: readonly NoticeAction[],
 ): UiState {
   const localSequence = state.localSequence + 1
+  const repeatIndex =
+    redoRestoreId === undefined
+      ? state.transcript.findLastIndex((entry) => isSameNotice(entry, level, text))
+      : -1
+  const repeated = state.transcript[repeatIndex]
+  const repeatCount = repeated?.kind === 'notice' ? (repeated.repeatCount ?? 1) + 1 : undefined
+  const transcript =
+    repeated === undefined ? state.transcript : state.transcript.toSpliced(repeatIndex, 1)
   return {
     ...state,
     localSequence,
     transcript: [
-      ...state.transcript,
+      ...transcript,
       {
         kind: 'notice',
         id: `notice:${String(localSequence)}`,
@@ -787,6 +812,7 @@ function withNotice(
         text,
         ...(redoRestoreId !== undefined && { redoRestoreId }),
         ...(actions !== undefined && actions.length > 0 && { actions }),
+        ...(repeatCount !== undefined && { repeatCount }),
       },
     ],
   }

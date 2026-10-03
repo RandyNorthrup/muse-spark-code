@@ -1262,6 +1262,23 @@ describe('App palette', () => {
     )
   })
 
+  it('shows a notice said again as one row with its count, and a different one apart (D26)', () => {
+    renderReady()
+    const timeout =
+      'Could not load the output: Muse Code did not answer item/readOutput within 60 s'
+    for (let index = 0; index < 5; index += 1) {
+      deliver({ type: 'notice', level: 'warning', text: timeout })
+    }
+    deliver({ type: 'notice', level: 'warning', text: 'Reasoning effort could not be applied' })
+    const notices = screen
+      .getByRole('list', { name: 'Conversation' })
+      .querySelectorAll(':scope > li.notice')
+    expect([...notices].map((notice) => notice.textContent)).toEqual([
+      `${timeout} 5×Shown 5 times`,
+      'Reasoning effort could not be applied',
+    ])
+  })
+
   it('retires a fault notice on first use and keeps it retired after restoration (D26)', () => {
     const store = createUiStore({ ...initialUiState, sessionId: 's1' })
     const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()

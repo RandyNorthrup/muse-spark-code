@@ -820,6 +820,10 @@ export const EN = {
   redoAction: 'Redo',
   redoLabel: 'Redo: put back the files this restore replaced',
   redoGone: 'This restore can no longer be redone.',
+  // PLAN.md D26: a notice said again is one row with a count, not a new row.
+  // {count}: how many times it was said in all (2 or more).
+  noticeRepeatBadge: '{count}×',
+  noticeRepeated: forms({ one: 'Shown {count} time', other: 'Shown {count} times' }),
   restoreRefusedUnsaved: 'Left as they are, with unsaved changes: {files}',
   restoreRefusedChanged: 'Left as they are, changed by something else in the meantime: {files}',
   restoreRefusedNotCovered: 'Left as they are, not in the checkpoint: {files}',

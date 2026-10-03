@@ -1510,6 +1510,13 @@
   "redoAction": "Повторить",
   "redoLabel": "Повторить: вернуть файлы, замененные этим восстановлением",
   "redoGone": "Это восстановление больше нельзя повторить.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Показано {count} раз",
+    "few": "Показано {count} раза",
+    "many": "Показано {count} раз",
+    "other": "Показано {count} раза"
+  },
   "restoreRefusedUnsaved": "Оставлены как есть, с несохраненными изменениями: {files}",
   "restoreRefusedChanged": "Оставлены как есть, за это время изменены чем-то другим: {files}",
   "restoreRefusedNotCovered": "Оставлены как есть, нет в контрольной точке: {files}",

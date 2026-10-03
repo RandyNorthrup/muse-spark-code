@@ -1428,6 +1428,11 @@
   "redoAction": "Yinele",
   "redoLabel": "Yinele: bu geri yüklemenin değiştirdiği dosyaları geri getir",
   "redoGone": "Bu geri yükleme artık yinelenemez.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "{count} kez gösterildi",
+    "other": "{count} kez gösterildi"
+  },
   "restoreRefusedUnsaved": "Olduğu gibi bırakıldı, kaydedilmemiş değişiklikler var: {files}",
   "restoreRefusedChanged": "Olduğu gibi bırakıldı, bu arada başka bir şey değiştirdi: {files}",
   "restoreRefusedNotCovered": "Olduğu gibi bırakıldı, denetim noktasında yok: {files}",

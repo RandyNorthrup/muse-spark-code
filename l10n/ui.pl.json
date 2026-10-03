@@ -1510,6 +1510,13 @@
   "redoAction": "Ponów",
   "redoLabel": "Ponów: przywróć pliki zastąpione przez to przywracanie",
   "redoGone": "Tego przywracania nie można już ponowić.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Wyświetlono {count} raz",
+    "few": "Wyświetlono {count} razy",
+    "many": "Wyświetlono {count} razy",
+    "other": "Wyświetlono {count} razy"
+  },
   "restoreRefusedUnsaved": "Pozostawiono bez zmian, z niezapisanymi zmianami: {files}",
   "restoreRefusedChanged": "Pozostawiono bez zmian, zmienione w międzyczasie przez coś innego: {files}",
   "restoreRefusedNotCovered": "Pozostawiono bez zmian, nie ma ich w punkcie kontrolnym: {files}",

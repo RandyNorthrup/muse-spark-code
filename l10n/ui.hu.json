@@ -1428,6 +1428,11 @@
   "redoAction": "Újra",
   "redoLabel": "Újra: a visszaállítás által lecserélt fájlok visszahozása",
   "redoGone": "Ez a visszaállítás már nem ismételhető meg.",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "one": "Megjelenítve {count} alkalommal",
+    "other": "Megjelenítve {count} alkalommal"
+  },
   "restoreRefusedUnsaved": "Változatlanul hagyva, mentetlen módosításokkal: {files}",
   "restoreRefusedChanged": "Változatlanul hagyva, közben mástól módosult: {files}",
   "restoreRefusedNotCovered": "Változatlanul hagyva, nincs az ellenőrzőpontban: {files}",
