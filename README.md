@@ -29,7 +29,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0101) ·
+**Contents:** [What's new](#whats-new-in-0110) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -43,7 +43,48 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.10.1
+## What's new in 0.11.0
+
+- **Recovers when Muse Code stops answering.** If Muse Code goes silent,
+  the panel says so once and stops waiting out each action's deadline.
+  With no turn running in the window it restarts Muse Code by itself;
+  during a turn, the notice offers **Restart now**. **Muse Spark: Restart
+  Muse Code** does the same at any time. When Muse Code does not confirm
+  that a message reached the running turn, the panel no longer sends it
+  again by itself: the send fails, keeps your text and says it may still
+  arrive. A conversation whose Muse Code log is damaged (a Muse Code 1.4.2
+  bug) is marked and offers a new conversation.
+- **Approvals you can't miss.** The oldest waiting approval docks above
+  the message box, with a count of the rest. Each approval step takes one
+  decision, and its buttons stay locked until Muse Code has applied it.
+- **Calmer notices.** A notice said again in a row shows once, with a
+  count, and error notices are readable in light and dark themes.
+- **Turn checkpoints are on by default** (Model API turns in a trusted
+  workspace with Git). Restore and Redo are rebuilt on the model's own file
+  writes, journaled per turn; commands and other tools active in a turn are
+  noted, never undone.
+- **Custom agents** (Model API backend): agents with their own prompt,
+  tools, model and permissions. Two are built in (`explore` and
+  `second-opinion`); yours live in `.agents/agents/` in the workspace or
+  `~/.config/muse/agents/` for every workspace. An agent can only narrow
+  what the session may do.
+- **Handoff** (Model API backend): `/handoff` asks the model for a brief
+  that you review and edit before it starts a fresh conversation with the
+  open todo items.
+- **Import from Claude Code, Codex and Cursor:** commands (as skills),
+  compatible agents, project rules (appended to `AGENTS.md`) and MCP
+  servers, plus Claude Code and Codex hooks. MCP servers and hooks open as
+  unsaved edits for you to review.
+- **Session export, import and share** as a file. A shared file opens
+  read-only in the panel; an imported conversation resumes on the Model API
+  backend in Manual (or Plan).
+- **Observation packing** (off by default, Model API backend): a long tool
+  output goes to the model whole twice, then as a short placeholder it can
+  recall; the transcript always keeps all of it.
+- **Muse Code 1.4.2** support, and checksums, SBOMs and build attestations
+  on the release assets.
+
+### Earlier in 0.10.1
 
 - **A slow Muse Code start is waited for.** On a busy machine Muse Code
   gets up to two minutes to start while its process runs, and a failed
@@ -215,7 +256,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.10.1.vsix
+   code --install-extension muse-spark-code-0.11.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -317,7 +358,7 @@ Get it from the
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.10.1.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.11.0.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -326,7 +367,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.10.1/muse-spark-code-acp-0.10.1.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.11.0/muse-spark-code-acp-0.11.0.tgz
 muse-spark-code-acp --version
 ```
 
