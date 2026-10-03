@@ -289,7 +289,11 @@ describe('packaging (M26)', () => {
       '${{ secrets.VSCE_PAT }}',
     ])
     expect(release).toMatch(
-      /run: npm ci --ignore-scripts --no-audit\n.*\n.*\n.*\n {10}VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\n {8}run: \.\/node_modules\/\.bin\/vsce publish/,
+      /run: npm ci --ignore-scripts --no-audit\n.*\n.*\n.*\n.*\n {10}VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\n {8}run: node scripts\/publish-registry\.mjs marketplace /,
+    )
+    // That step's script publishes with the locked vsce just installed.
+    expect(read('scripts', 'publish-registry.mjs')).toContain(
+      "marketplace: ['./node_modules/.bin/vsce', ['publish'",
     )
     expect(release).toContain('git merge-base --is-ancestor "${GITHUB_SHA}" origin/main')
   })
