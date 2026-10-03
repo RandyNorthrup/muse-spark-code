@@ -450,7 +450,8 @@ async function removeStage(
 }
 
 /**
- * Creates `absolutePath` with `content` (UTF-8), its folder made, and never
+ * Creates `absolutePath` with `content` (text as UTF-8, or bytes as they
+ * are: a held pull request's files, M71), its folder made, and never
  * replaces a file already there: the content goes to a hidden stage beside
  * it, which a hard link then publishes under the target name. A taken name
  * is a `NameTakenError` (see `isNameTaken`), so a reader never sees half a
@@ -466,7 +467,7 @@ async function removeStage(
  */
 export async function createFileExclusively(
   absolutePath: string,
-  content: string,
+  content: string | Uint8Array,
   options: NewFileOptions,
 ): Promise<void> {
   const platform = options.platform ?? process.platform
@@ -498,7 +499,9 @@ export async function createFileExclusively(
       const held = await handle.stat()
       stageIdentity = { dev: held.dev, ino: held.ino }
       options.assertCanWrite?.()
-      await handle.writeFile(content, 'utf8')
+      await (typeof content === 'string'
+        ? handle.writeFile(content, 'utf8')
+        : handle.writeFile(content))
       await handle.sync()
     } finally {
       await handle.close()

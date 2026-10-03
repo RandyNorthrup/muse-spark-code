@@ -54,6 +54,20 @@ import type { ScheduleView } from '../../shared/schedule'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
+import {
+  type GitFormEdit,
+  type GitUiState,
+  initialGitUiState,
+  withCommitForm,
+  withDone,
+  withDraft,
+  withFormBusy,
+  withFormEdit,
+  withGeneration,
+  withGitState,
+  withPullRequestForm,
+  withSendFailed,
+} from './gitState'
 import { backgroundRun } from '../toolDetails'
 import type {
   ChildTranscript,
@@ -277,6 +291,8 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** Git and pull requests (M71): the host's cards and the open form. */
+  readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
@@ -368,6 +384,17 @@ export type UiAction =
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
   | { readonly type: 'attachmentsReleased'; readonly ids: readonly string[] }
+  /** The user typed in the git form (M71). */
+  | { readonly type: 'gitFormEdited'; readonly edit: GitFormEdit }
+  | { readonly type: 'gitFormClosed' }
+  /** Commit or Create pressed: the form waits for the host's `gitDone`. */
+  | { readonly type: 'gitFormBusy' }
+  /**
+   * "Write with Muse" pressed: the user's own message asking for the draft
+   * goes in the transcript (the composer's draft stays as it is), and the
+   * form waits for the reply.
+   */
+  | { readonly type: 'gitDraftRequested'; readonly localId: string; readonly text: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
 
@@ -430,6 +457,7 @@ export const initialUiState: UiState = {
   todos: [],
   goal: undefined,
   schedules: [],
+  git: initialGitUiState,
   outputPages: {},
   toolImages: {},
   localSequence: 0,
@@ -1777,6 +1805,8 @@ function clearedConversation(state: UiState): UiState {
     todos: [],
     goal: undefined,
     schedules: [],
+    // A new conversation starts without a form; the host says what else stays.
+    git: { ...state.git, form: undefined },
     outputPages: {},
     toolImages: {},
     share: undefined,
@@ -2264,6 +2294,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return announce(
         {
           ...state,
+          git: withSendFailed(state.git, message.localId),
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2370,6 +2401,21 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       const restored =
         state.draft === '' ? { ...state, draft: `${USER_SHELL_PREFIX}${message.command}` } : state
       return announce(withNotice(restored, 'warning', message.reason), message.reason)
+    }
+    case 'gitState': {
+      return { ...state, git: withGitState(state.git, message.state) }
+    }
+    case 'gitCommitForm': {
+      return { ...state, git: withCommitForm(state.git, message.form) }
+    }
+    case 'gitPullRequestForm': {
+      return { ...state, git: withPullRequestForm(state.git, message.form) }
+    }
+    case 'gitDraft': {
+      return { ...state, git: withDraft(state.git, message.draft) }
+    }
+    case 'gitDone': {
+      return { ...state, git: withDone(state.git, message.form, message.ok) }
     }
     case 'toolImage': {
       const image: ToolImageState =
@@ -2560,6 +2606,33 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
+    }
+    case 'gitFormEdited': {
+      return { ...state, git: withFormEdit(state.git, action.edit) }
+    }
+    case 'gitFormClosed': {
+      return { ...state, git: { ...state.git, form: undefined } }
+    }
+    case 'gitFormBusy': {
+      return { ...state, git: withFormBusy(state.git) }
+    }
+    case 'gitDraftRequested': {
+      return {
+        ...state,
+        git: withGeneration(state.git, action.localId),
+        sequence: state.sequence + 1,
+        transcript: [
+          ...state.transcript,
+          {
+            kind: 'user',
+            id: action.localId,
+            seq: state.sequence + 1,
+            text: action.text,
+            status: 'pending',
+            attachments: [],
+          },
+        ],
+      }
     }
     case 'shareClosed': {
       return { ...state, share: undefined }

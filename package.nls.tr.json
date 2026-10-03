@@ -31,6 +31,7 @@
   "command.memory.title": "Bellek",
   "command.newWorktree.title": "Yeni Çalışma Ağacı…",
   "command.removeWorktree.title": "Çalışma Ağacını Kaldır…",
+  "command.openPullRequestInConversation.title": "Bir Çekme İsteğini Konuşmada Aç…",
   "command.moveToBackground.title": "Çalışan Komutu Arka Plana Taşı",
   "command.stopBackgroundTasks.title": "Arka Plan Görevlerini Durdur",
   "config.title": "Muse Spark",

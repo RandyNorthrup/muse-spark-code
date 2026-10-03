@@ -7,6 +7,7 @@ import { window } from 'vscode'
 import type { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import * as memoryIo from '../../src/host/backend/memoryIo'
 import { processGitRunner } from '../../src/host/git'
+import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
 import { createWorktreeFeatures } from '../../src/host/worktreeFeatures'
 import { UI_TEXT } from '../../src/shared/constants'
 import { posixQuoted } from '../../src/core/shellQuote'
@@ -21,6 +22,7 @@ import {
   runGit,
   write,
 } from './helpers/checkpointHarness'
+import { memoryMemento } from './helpers/fakeGit'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { confirmModal, inform, pickOne } from './helpers/vscodeViews'
 
@@ -57,15 +59,23 @@ async function repository(): Promise<Harness> {
 }
 
 function featuresOver(h: Harness, manager: MuseCodeBackendManager, signal: AbortSignal) {
-  const mutation = vi.fn(async (args: readonly string[], cwd: string, timeoutMs?: number) => {
-    expect(h.store.isNativeUnsafe).toBe(true)
-    return await realGit(args, cwd, timeoutMs)
-  })
+  const mutation = vi.fn(
+    async (args: readonly string[], cwd: string, timeoutMs?: number, beforeRun?: () => void) => {
+      expect(h.store.isNativeUnsafe).toBe(true)
+      return await realGit(args, cwd, timeoutMs, beforeRun)
+    },
+  )
   const features = createWorktreeFeatures({
     workspaceRoot: h.root,
+    isWorkspaceTrusted: () => true,
     runGit: realGit,
-    mutationGit: (args, cwd, timeoutMs) =>
-      manager.startWorktreeMutation(cwd, (ownedCwd) => mutation(args, ownedCwd, timeoutMs), signal),
+    mutationGit: (args, cwd, timeoutMs, beforeRun) =>
+      manager.startWorktreeMutation(
+        cwd,
+        (ownedCwd) => mutation(args, ownedCwd, timeoutMs, beforeRun),
+        signal,
+      ),
+    registry: new WorktreeRegistry(memoryMemento(), process.platform, () => true),
     log: h.log,
   })
   return { features, mutation }

@@ -1,3 +1,4 @@
+import { WindowHold } from '../../src/host/git/worktreeRegistry'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -206,6 +207,45 @@ describe('MuseCodeBackendManager: the sandbox network (M56)', () => {
         '--disable-sandbox',
         '--trust-workspace',
       ])
+    } finally {
+      rmSync(installDir, { recursive: true, force: true })
+    }
+  })
+})
+
+// M71: a window held on someone else's pull request starts `muse serve`
+// without the project's configuration, whatever VS Code trusts, until the
+// user trusts the worktree in the card.
+describe("MuseCodeBackendManager: a window held on someone else's pull request (M71)", () => {
+  it('leaves --trust-workspace out while held, even in a folder VS Code trusts', () => {
+    const installDir = mkdtempSync(path.join(tmpdir(), 'muse-held-'))
+    try {
+      const binary = path.join(
+        installDir,
+        process.platform === 'win32' ? 'muse-bin-1.3.0.exe' : 'muse',
+      )
+      writeFileSync(binary, '')
+      const hold = new WindowHold({ folder: '/held/51-abc', pullRequest: undefined })
+      const manager = managerWith([], VS_CODE_PROXY, new FakeLogOutputChannel(), {
+        getConfiguredBinaryPath: () => binary,
+        // VS Code trusts the folder (a trusted parent, or trust switched off).
+        isWorkspaceTrusted: () => hold.allowsProjectConfiguration(true),
+      })
+      const held = manager.resolveLaunch()
+      expect(held.ok && held.launch.serveArgs).toEqual([
+        'serve',
+        '--disable-sandbox',
+        '--disable-shell',
+      ])
+      hold.release()
+      const trusted = manager.resolveLaunch()
+      expect(trusted.ok && trusted.launch.serveArgs).toEqual([
+        'serve',
+        '--disable-sandbox',
+        '--trust-workspace',
+      ])
+      // Restricted Mode applies as well once it is let go.
+      expect(hold.allowsProjectConfiguration(false)).toBe(false)
     } finally {
       rmSync(installDir, { recursive: true, force: true })
     }

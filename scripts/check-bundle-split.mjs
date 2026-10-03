@@ -20,6 +20,8 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - the conversation Git implementation (M71) leaks back into activation
+//   or is missing from its checked factory bundle.
 //
 // Exits 1 on any problem.
 //
@@ -219,6 +221,10 @@ const checkpointStore = inputsOf(CHECKPOINT_STORE)
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const CONVERSATION_GIT = {
+  output: 'dist/conversationGit.js',
+  metafile: 'dist/meta/conversationGit.json',
+}
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -229,6 +235,7 @@ for (const bundle of [
   BUNDLES.acp,
   CHECKPOINT_STORE,
   AGENT_IMPORT,
+  CONVERSATION_GIT,
 ]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
@@ -254,6 +261,7 @@ for (const file of CHECKPOINT_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
+  'src/host/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -290,6 +298,20 @@ for (const prefix of IMPORT_ONLY) {
   }
   if (!hasPrefix(agentImport, prefix)) {
     problems.push(`${AGENT_IMPORT.output} no longer carries ${prefix}`)
+  }
+}
+
+const conversationGit = inputsOf(CONVERSATION_GIT)
+for (const file of ['src/host/git/conversationGit.ts', 'src/host/git/conversationGitEntry.ts']) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(
+        `${bundle.output} carries ${file}, which belongs to the conversation Git bundle`,
+      )
+    }
+  }
+  if (!conversationGit.has(file)) {
+    problems.push(`${CONVERSATION_GIT.output} no longer carries ${file}`)
   }
 }
 
@@ -337,3 +359,6 @@ console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+console.log(
+  'ok   dist/conversationGit.js: carries the Git adapter; activation keeps its checked loader',
+)

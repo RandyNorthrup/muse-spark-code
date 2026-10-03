@@ -2839,6 +2839,113 @@
           document.body.style.maxWidth = '300px'
           steps.schedules()
         },
+        // --- M71: someone else's pull request, held, with its status and checks ---
+        'git-held': () => {
+          // The host holds the conversation in Plan until the worktree is trusted.
+          send({
+            type: 'composerState',
+            effort: 'high',
+            isThinkingEnabled: true,
+            permissionMode: 'plan',
+          })
+          send({
+            type: 'gitState',
+            state: {
+              hold: {
+                isRestricted: false,
+                pullRequest: {
+                  repository: 'RandyNorthrup/muse-spark-code',
+                  number: 51,
+                  title: 'test: lock Android/Termux P0 behavior for launch and voice',
+                  author: 'Piangpi1997',
+                  url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+                },
+              },
+              worktree: {
+                repositoryRoot: 'C:\\Users\\me\\src\\muse-spark-code',
+                pullRequestNumber: 51,
+              },
+            },
+          })
+        },
+        // --- M71: the commit form with a drafted message, and the linked pull request ---
+        'git-commit': () => {
+          send({
+            type: 'gitState',
+            state: {
+              worktree: { repositoryRoot: '/home/me/src/app', branch: 'feature/parser' },
+              pullRequest: {
+                repository: 'RandyNorthrup/muse-spark-code',
+                number: 56,
+                title: 'README: how this extension is built',
+                url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+                state: 'open',
+                isDraft: false,
+                isMerged: false,
+                checks: {
+                  passed: 5,
+                  failed: 1,
+                  running: 1,
+                  skipped: 0,
+                  cancelled: 0,
+                  failedNames: ['build / quality (macos-latest)'],
+                  other: [],
+                  notRead: 0,
+                },
+                checkedAt: Date.now(),
+              },
+            },
+          })
+          send({
+            type: 'gitCommitForm',
+            form: {
+              branch: 'feature/parser',
+              staged: 2,
+              unstaged: 1,
+              files: [
+                { path: 'src/parser.ts', isStaged: true },
+                { path: 'test/parser.test.ts', isStaged: true },
+                { path: 'README.md', isStaged: false },
+              ],
+              moreFiles: 0,
+            },
+          })
+          send({
+            type: 'gitDraft',
+            draft: {
+              kind: 'commitMessage',
+              message: 'Parse ?? and || with the right precedence\n\nAdds the missing tests.',
+            },
+          })
+          later(60, () => document.querySelector('.git-files summary')?.click())
+        },
+        // --- M71: the pull request form, a first push to a fork's parent ---
+        'git-pr': () => {
+          send({
+            type: 'gitPullRequestForm',
+            form: {
+              repository: 'RandyNorthrup/muse-spark-code',
+              headRepository: 'Piangpi1997/muse-spark-code',
+              remote: 'origin',
+              remoteUrl: 'https://[redacted]@github.com/Piangpi1997/muse-spark-code.git',
+              head: 'android-termux-p0-tests',
+              base: 'main',
+              push: 'needed',
+            },
+          })
+          send({
+            type: 'gitDraft',
+            draft: {
+              kind: 'pullRequest',
+              title: 'Lock Android/Termux behavior for launch and voice',
+              body: '## What and why\n\nRegression coverage for Termux.',
+            },
+          })
+        },
+        'git-pr-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['git-pr']()
+        },
         // --- M68: an edit with then_run, the automatic check after it, and its card ---
         verify: () => {
           window.harnessSilent = true

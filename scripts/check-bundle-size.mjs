@@ -25,6 +25,8 @@ const BUDGETS = [
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // M71: 74.7 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/conversationGit.js', budgetKiB: 100 },
   // Shared English fallback; existing host budgets stay unchanged.
   { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },

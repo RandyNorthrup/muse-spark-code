@@ -138,9 +138,10 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
 }
 
 describe('buildPalette', () => {
-  it('lays out the seven Claude Code groups in order', () => {
+  it('lays out the seven Claude Code groups in order, with git and pull requests (M71)', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',
+      'Git and pull requests',
       'Model',
       'Customize',
       'Account & usage',
@@ -239,7 +240,10 @@ describe('buildPalette', () => {
       ...context,
       currentModel: { modelId: 'm', contextLimit: undefined },
     })
-    expect(noLimit[1]?.items[0]?.widget).toEqual({ kind: 'value', text: 'm' })
+    expect(noLimit.find((group) => group.id === 'model')?.items[0]?.widget).toEqual({
+      kind: 'value',
+      text: 'm',
+    })
   })
 
   it('offers Resume in the Context group, opening the History dialog', () => {
@@ -305,6 +309,20 @@ describe('buildPalette', () => {
         ?.items.filter((item) => item.id.endsWith('Worktree'))
         .map((item) => item.action)
       expect(rows, String(backend)).toEqual([{ type: 'newWorktree' }, { type: 'removeWorktree' }])
+    }
+  })
+
+  it('offers commit, push and pull requests on both backends (M71)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const rows = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'git')
+        ?.items.map((item) => item.action)
+      expect(rows, String(backend)).toEqual([
+        { type: 'gitAction', action: 'openCommit' },
+        { type: 'gitAction', action: 'push' },
+        { type: 'gitAction', action: 'openPullRequest' },
+        { type: 'openPullRequestInConversation' },
+      ])
     }
   })
 
@@ -465,6 +483,10 @@ describe('slashCommandsOf', () => {
     const names = commands.map((command) => command.name)
     expect(names).toEqual([
       'resume',
+      'commit',
+      'push',
+      'pr',
+      'checkout-pr',
       'model',
       'permissions',
       'mcp',

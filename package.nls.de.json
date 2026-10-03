@@ -31,6 +31,7 @@
   "command.memory.title": "Gedächtnis",
   "command.newWorktree.title": "Neuer Worktree…",
   "command.removeWorktree.title": "Worktree entfernen…",
+  "command.openPullRequestInConversation.title": "Pull Request in einer Unterhaltung öffnen…",
   "command.moveToBackground.title": "Laufenden Befehl in den Hintergrund verschieben",
   "command.stopBackgroundTasks.title": "Hintergrundaufgaben anhalten",
   "config.title": "Muse Spark",

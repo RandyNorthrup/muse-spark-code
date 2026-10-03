@@ -92,6 +92,7 @@ function setup(
     modelApiMcp: () => undefined,
     modelApiHooks: () => undefined,
     openLog: () => undefined,
+    isProjectTrusted: () => true,
     openDocument: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
   })

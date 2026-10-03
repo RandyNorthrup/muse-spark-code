@@ -20,7 +20,8 @@ import {
   importFromAgents,
   runAgentImport as bundledAgentImport,
 } from '../../src/host/agentImportEntry'
-import { type AgentImportHostDeps, runAgentImport } from '../../src/host/agentImportHost'
+import type { AgentImportHostDeps } from '../../src/host/agentImportHost'
+import { runAgentImport } from '../../src/host/agentImportBundle'
 import { fileImportWriter, isPathPresent } from '../../src/host/importIo'
 import { AGENT_IMPORT_PATHS, ATOMIC_TEMPORARY_SUFFIX, UI_TEXT } from '../../src/shared/constants'
 import { fakeModelApi } from './helpers/fakeModelApi'

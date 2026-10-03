@@ -31,6 +31,7 @@
   "command.memory.title": "Memória",
   "command.newWorktree.title": "Új munkafa…",
   "command.removeWorktree.title": "Munkafa eltávolítása…",
+  "command.openPullRequestInConversation.title": "Lekéréses kérelem megnyitása beszélgetésben…",
   "command.moveToBackground.title": "Futó parancs áthelyezése a háttérbe",
   "command.stopBackgroundTasks.title": "Háttérfeladatok leállítása",
   "config.title": "Muse Spark",

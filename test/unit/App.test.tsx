@@ -1070,6 +1070,11 @@ describe('App palette', () => {
     fireEvent.change(textarea(), { target: { value: '' } })
     run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
+    deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+    run('Import session…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'importSession' })
+    run('Open share file…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'openShareFile' })
     // The CLI's own rows (M30) need the Muse Code backend.
     deliver({ type: 'authState', status: 'signedIn', backend: 'museCode' })
     deliver({
@@ -2144,6 +2149,34 @@ function showGoal() {
   return screen.getByRole('region', { name: 'Session goal' })
 }
 
+describe('App: handoff command routing (M74)', () => {
+  it('sends the goal as a host command once and keeps it available after refusal', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: '/handoff Ship release' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:1',
+      goal: 'Ship release',
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    expect(textarea().value).toBe('/handoff Ship release')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'requestHandoff'),
+    ).toHaveLength(1)
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:1', accepted: false })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:2',
+      goal: 'Ship release',
+    })
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:2', accepted: true })
+    expect(textarea().value).toBe('')
+  })
+})
+
 describe('App: the session goal (M45)', () => {
   it('keeps the exact inline edit through refusal, then closes on acceptance', () => {
     const postMessage = renderReady()
@@ -2737,5 +2770,207 @@ describe('App turn checkpoints (M72)', () => {
     expect(
       screen.getByRole('menuitem', { name: UI_TEXT.checkpointsLegacyReadOnly }),
     ).toHaveAttribute('aria-disabled', 'true')
+  })
+})
+
+/** Filters the palette to one row and runs it. */
+function runPaletteRow(filterText: string) {
+  const filter = openPalette()
+  fireEvent.change(filter, { target: { value: filterText } })
+  fireEvent.keyDown(filter, { key: 'Enter' })
+}
+
+// M71 (PLAN.md D49): the git panel, its forms and the drafts asked for in a turn.
+describe('App: git and pull requests (M71)', () => {
+  const commitForm = {
+    type: 'gitCommitForm',
+    form: {
+      branch: 'feature',
+      staged: 1,
+      unstaged: 2,
+      files: [
+        { path: 'src/a.ts', isStaged: true },
+        { path: 'README.md', isStaged: false },
+      ],
+      moreFiles: 0,
+    },
+  } satisfies HostToWebviewMessage
+  const pullRequestForm = {
+    type: 'gitPullRequestForm',
+    form: {
+      repository: 'RandyNorthrup/muse-spark-code',
+      remote: 'origin',
+      remoteUrl: 'https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
+      head: 'docs/how-its-built',
+      base: 'main',
+      push: 'needed',
+      commits: 2,
+    },
+  } satisfies HostToWebviewMessage
+
+  it('routes the palette rows to the host', () => {
+    const postMessage = renderReady()
+    const run = runPaletteRow
+    run('Commit…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openCommit' })
+    run('Push…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'push' })
+    run('Open a pull request…')
+    expect(postMessage).toHaveBeenCalledWith({ type: 'gitAction', action: 'openPullRequest' })
+    run('in a conversation')
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'hostAction',
+      action: 'openPullRequestInConversation',
+    })
+  })
+
+  it('cancels the host operation when the busy commit form is closed', () => {
+    const postMessage = renderReady()
+    deliver(commitForm)
+    const form = screen.getByRole('form', { name: 'Commit' })
+    expect(form).toHaveTextContent(
+      'Git may run repository hooks, signing programs or credential helpers.',
+    )
+    fireEvent.change(within(form).getByLabelText('Commit message'), { target: { value: 'Fix' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
+    expect(within(form).getByLabelText('Commit message')).toBeDisabled()
+    fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'cancel' })
+    expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
+  })
+
+  it('passes the edited PR base when requesting a generated description', () => {
+    const postMessage = renderReady()
+    deliver(pullRequestForm)
+    const form = screen.getByRole('form', { name: 'Pull request' })
+    fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'Write the title and description of a pull request for this branch.',
+      attachmentIds: [],
+      gitDraft: 'pullRequest',
+      gitDraftBase: 'release',
+    })
+  })
+
+  it('commits what the form shows, and asks the model only when the user presses Write', () => {
+    const postMessage = renderReady()
+    deliver(commitForm)
+    const form = screen.getByRole('form', { name: 'Commit' })
+    expect(within(form).getByRole('button', { name: 'Commit' })).toBeDisabled()
+    // Something is staged: the unstaged box starts off.
+    expect(within(form).getByRole('checkbox')).not.toBeChecked()
+    fireEvent.click(within(form).getByRole('button', { name: 'Write with Muse' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'sendMessage',
+      localId: 'local-1',
+      text: 'Write a commit message for my changes.',
+      attachmentIds: [],
+      gitDraft: 'commitMessage',
+    })
+    expect(within(form).getByRole('button', { name: 'Writing…' })).toBeDisabled()
+    // The user's message is in the transcript like any other.
+    expect(screen.getByText('Write a commit message for my changes.')).toBeInTheDocument()
+    deliver({ type: 'gitDraft', draft: { kind: 'commitMessage', message: 'Add the parser' } })
+    expect(within(form).getByLabelText('Commit message')).toHaveValue('Add the parser')
+    fireEvent.click(within(form).getByRole('checkbox'))
+    fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitCommit',
+      message: 'Add the parser',
+      includeUnstaged: true,
+    })
+    expect(within(form).getByRole('button', { name: 'Committing…' })).toBeDisabled()
+    deliver({ type: 'gitDone', form: 'commit', ok: true })
+    expect(screen.queryByRole('form', { name: 'Commit' })).toBeNull()
+  })
+
+  it('shows every part of a pull request before it goes, and sends what was edited', () => {
+    const postMessage = renderReady()
+    deliver(pullRequestForm)
+    const form = screen.getByRole('form', { name: 'Pull request' })
+    expect(form).toHaveTextContent(
+      'origin https://[redacted]@github.com/RandyNorthrup/muse-spark-code.git',
+    )
+    expect(form).toHaveTextContent('docs/how-its-built')
+    expect(form).toHaveTextContent('2 commits go to origin first; you will be asked.')
+    expect(within(form).getByRole('checkbox', { name: 'Open as a draft' })).toBeChecked()
+    fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'README' } })
+    fireEvent.change(within(form).getByLabelText('Description'), { target: { value: 'Why' } })
+    fireEvent.change(within(form).getByLabelText('Into'), { target: { value: 'release' } })
+    fireEvent.click(within(form).getByRole('button', { name: 'Create draft pull request' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitCreatePullRequest',
+      head: 'docs/how-its-built',
+      base: 'release',
+      title: 'README',
+      body: 'Why',
+      isDraft: true,
+    })
+    // A refusal gives the button back with the text as it was.
+    deliver({ type: 'gitDone', form: 'pullRequest', ok: false })
+    expect(within(form).getByLabelText('Title')).toHaveValue('README')
+    expect(within(form).getByRole('button', { name: 'Create draft pull request' })).toBeEnabled()
+    // The host's masking replaces the text the user must see again.
+    deliver({ type: 'gitDraft', draft: { kind: 'pullRequest', title: 'T', body: '[redacted]' } })
+    expect(within(form).getByLabelText('Description')).toHaveValue('[redacted]')
+  })
+
+  it('shows the held card and the status of a pull request, and routes their buttons', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'gitState',
+      state: {
+        hold: {
+          isRestricted: false,
+          pullRequest: {
+            repository: 'RandyNorthrup/muse-spark-code',
+            number: 51,
+            title: 'test: lock Android/Termux P0 behavior',
+            author: 'Piangpi1997',
+            url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/51',
+          },
+        },
+        pullRequest: {
+          repository: 'RandyNorthrup/muse-spark-code',
+          number: 56,
+          title: 'README: how this extension is built',
+          url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+          state: 'open',
+          isDraft: true,
+          isMerged: false,
+          checks: {
+            passed: 5,
+            failed: 1,
+            running: 0,
+            skipped: 0,
+            cancelled: 0,
+            failedNames: ['build / quality (macos-latest)'],
+            other: [],
+            notRead: 0,
+          },
+        },
+      },
+    })
+    const card = screen.getByRole('region', { name: 'Held pull request worktree' })
+    expect(card).toHaveTextContent('Pull request #51 by Piangpi1997: held until you trust it')
+    expect(card).toHaveTextContent('Other extensions follow VS Code’s own workspace trust')
+    fireEvent.click(within(card).getByRole('button', { name: 'Trust this worktree…' }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'gitAction', action: 'trustWorktree' })
+    const strip = screen.getByRole('region', { name: 'This conversation’s pull request' })
+    expect(strip).toHaveTextContent('Draft')
+    expect(strip).toHaveTextContent('Checks: 1 failed · 5 passed')
+    fireEvent.click(within(strip).getByRole('button', { name: 'Refresh' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'gitAction',
+      action: 'refreshPullRequest',
+    })
+    fireEvent.click(within(strip).getByRole('button', { name: /#56/ }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'openExternal',
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+    })
   })
 })

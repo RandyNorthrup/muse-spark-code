@@ -1,6 +1,6 @@
 // The VS Code side of "Import from other agents" (M83, PLAN.md D49): the
 // pickers, the read-only preview, the modals, unsaved target edits.
-// Activation retains only `runAgentImport`, the loader shim. The UI entry
+// Activation uses `agentImportBundle.ts`'s loader shim. The UI entry
 // and the scan, plan and writes load together through `agentImportEntry.ts`
 // in the existing import bundle on the first import.
 
@@ -99,12 +99,6 @@ function mergedConfig(
   } catch {
     return { reason: 'unreadable' }
   }
-}
-
-export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
-  // Only this shim is retained by activation; the existing UI implementation
-  // is exported to the import bundle and is tree-shaken from the shim's caller.
-  await deps.bundle().runAgentImport(deps, UI_TEXT, uiLocale())
 }
 
 export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void> {

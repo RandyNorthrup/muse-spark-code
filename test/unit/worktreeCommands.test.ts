@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,10 +13,16 @@ import {
 import { processGitRunner } from '../../src/host/git'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+import { UI_TEXT } from '../../src/shared/constants'
 
 // The real git, as the extension runs it (git.ts): these tests make and
 // remove real worktrees in a throwaway repository.
-const realGit = processGitRunner()
+const gitEnv = {
+  ...process.env,
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+}
+const realGit = processGitRunner({ env: gitEnv })
 const REAL_GIT_TIMEOUT_MS = 60_000
 
 // realpath: macOS's tmpdir is a symlink, and git reports resolved paths.
@@ -29,6 +35,7 @@ function git(args: readonly string[], cwd = repo): string {
   return execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@e.x', ...args], {
     cwd,
     encoding: 'utf8',
+    env: gitEnv,
   })
 }
 
@@ -61,6 +68,8 @@ function harness(options: HarnessOptions = {}) {
   const shownPicks: (readonly PickItem[])[] = []
   const confirmations: [string, string, string][] = []
   const opened: string[] = []
+  // The worktrees remembered for the window that opens on them (M71).
+  const recorded: [string, string, string][] = []
   const information: string[] = []
   const warnings: string[] = []
   const errors: string[] = []
@@ -93,6 +102,10 @@ function harness(options: HarnessOptions = {}) {
       opened.push(fsPath)
       return Promise.resolve()
     },
+    recordWorktree: (folder, branch, repositoryRoot) => {
+      recorded.push([folder, branch, repositoryRoot])
+      return Promise.resolve()
+    },
     showInformation: (message) => {
       information.push(message)
     },
@@ -110,6 +123,7 @@ function harness(options: HarnessOptions = {}) {
     shownPicks,
     confirmations,
     opened,
+    recorded,
     information,
     warnings,
     errors,
@@ -126,6 +140,36 @@ function pickDirty(items: readonly PickItem[]): string {
 // Each flow runs git several times; a loaded Windows machine needs longer
 // than the default 5 s, as the other real-process suites do (toolIo, processTree).
 describe('newWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
+  it.each(['trust', 'window'] as const)(
+    'creates no branch or folder after %s authority ends during its base picker',
+    async (change) => {
+      let isTrusted = true
+      let isActive = true
+      const entered = Promise.withResolvers<undefined>()
+      const selected = Promise.withResolvers<string | undefined>()
+      const branch = `revoked-${change}`
+      const t = harness({ branch })
+      const creating = newWorktree({
+        ...t.deps,
+        isWorkspaceTrusted: () => isTrusted && isActive,
+        pick: () => {
+          entered.resolve(undefined)
+          return selected.promise
+        },
+      })
+      await entered.promise
+      if (change === 'trust') isTrusted = false
+      else isActive = false
+      selected.resolve('HEAD')
+      await creating
+      expect(git(['branch', '--list', branch])).toBe('')
+      expect(existsSync(path.join(worktreesFolder(), branch))).toBe(false)
+      expect(t.recorded).toEqual([])
+      expect(t.opened).toEqual([])
+      expect(t.warnings).toContain(UI_TEXT.worktreeUntrusted)
+    },
+  )
+
   it('creates the branch in a folder beside the repository and opens it', async () => {
     const t = harness({ branch: 'feature/login', picks: ['release'] })
     await newWorktree(t.deps)
@@ -137,6 +181,9 @@ describe('newWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT_MS
     const folder = path.join(worktreesFolder(), 'feature-login')
     expect(t.errors).toEqual([])
     expect(t.opened).toEqual([folder])
+    // Remembered before the window opens, so a conversation there knows its worktree (M71).
+    // The repository as git names it (macOS resolves /var to /private/var).
+    expect(t.recorded).toEqual([[folder, 'feature/login', expect.any(String)]])
     expect(git(['rev-parse', '--abbrev-ref', 'HEAD'], folder).trim()).toBe('feature/login')
     expect(git(['rev-parse', 'feature/login']).trim()).toBe(git(['rev-parse', 'release']).trim())
   })
@@ -198,6 +245,36 @@ describe('newWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT_MS
 })
 
 describe('removeWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
+  it('preserves real dirty bytes when trust is revoked during discard confirmation', async () => {
+    const folder = path.join(worktreesFolder(), 'late-trust-discard')
+    git(['worktree', 'add', '-b', 'late-trust-discard', folder, 'HEAD'])
+    const ownedFile = path.join(folder, 'a.txt')
+    await writeFile(ownedFile, 'uncommitted owned bytes\n')
+    let isTrusted = true
+    let confirmations = 0
+    const entered = Promise.withResolvers<undefined>()
+    const discarded = Promise.withResolvers<boolean>()
+    const t = harness({ picks: [folder] })
+    const removing = removeWorktree({
+      ...t.deps,
+      isWorkspaceTrusted: () => isTrusted,
+      confirm: () => {
+        confirmations += 1
+        if (confirmations === 1) return Promise.resolve(true)
+        entered.resolve(undefined)
+        return discarded.promise
+      },
+    })
+    await entered.promise
+    isTrusted = false
+    discarded.resolve(true)
+    await removing
+    expect(confirmations).toBe(2)
+    expect(existsSync(folder)).toBe(true)
+    expect(await readFile(ownedFile, 'utf8')).toBe('uncommitted owned bytes\n')
+    expect(t.warnings).toContain(UI_TEXT.worktreeUntrusted)
+  })
+
   it('lists every linked worktree but this window’s, and removes one after a yes', async () => {
     git(['worktree', 'add', '-q', '-b', 'to-remove', path.join(worktreesFolder(), 'to-remove')])
     const folder = path.join(worktreesFolder(), 'to-remove')

@@ -59,6 +59,8 @@ import type {
 } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { change, type FakeGitWindowOptions, fakeGitWindow, fakeRepository } from './helpers/fakeGit'
+import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -312,6 +314,10 @@ function setup(
     restoreOutcome?: RestoreOutcome
     /** The answer to the file restore / code rewind confirmation (M72). */
     confirmsFileAction?: boolean
+    /** The window is held on someone else's pull request (M71). */
+    isWorktreeHeld?: boolean
+    /** Git and GitHub as the fakes play them (M71). */
+    git?: FakeGitWindowOptions
     /** A revert that refuses (a stale patch): it answers with a warning. */
     refusesRevert?: boolean
     /** A picked session-transfer file's text (M84); undefined dismisses the dialog. */
@@ -412,6 +418,8 @@ function setup(
     log,
   )
   const auth = fakeAuth(options.status)
+  const gitFake = fakeGitWindow(options.git)
+  const worktreeHold = { isHeld: options.isWorktreeHeld ?? false }
   const surface = fakeSurface('s', options.isSideChat)
   surface.takeRestoredSessionId.mockReturnValue(options.sideSessionId)
   const openExternal = vi.fn<(url: string) => void>()
@@ -539,6 +547,8 @@ function setup(
     },
     setPaidFeature: vi.fn(() => Promise.resolve()),
     isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
+    isWorktreeHeld: () => worktreeHold.isHeld,
+    createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
@@ -723,6 +733,8 @@ function setup(
     ...handle,
     host,
     auth,
+    gitFake,
+    worktreeHold,
     surface,
     controller,
     deps,
@@ -7871,6 +7883,123 @@ describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () =>
   })
 })
 
+/** A staged change, and the user's own message asking for its commit message (M71). */
+async function askedForCommitMessage() {
+  const t = setup({ git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) } })
+  await t.controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: UI_TEXT.gitAskCommitMessage,
+    attachmentIds: [],
+    gitDraft: 'commitMessage',
+  })
+  await settle()
+  return t
+}
+
+// M71 (PLAN.md D49): a window held on someone else's pull request, and the
+// drafts the user asks for inside their own turn.
+describe('ConversationController: git and pull requests (M71)', () => {
+  it("holds a conversation on someone else's pull request in Plan mode, whatever the setting says", async () => {
+    const t = setup({
+      isWorktreeHeld: true,
+      initialPermissionMode: 'acceptEdits',
+      hasApprovalUi: true,
+    })
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+    )
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.worktreeHeldPlanOnly,
+    })
+    await t.send('l1', 'review this')
+    await settle()
+    // Plan is MSP's denyUnmatched: nothing outside the plan runs.
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'denyUnmatched',
+    })
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+  })
+
+  it('runs no `!` command while held, and leaves Plan only after the card lets go', async () => {
+    const t = setup({ grantedCapabilities: ['userShell'], isWorktreeHeld: true })
+    await t.controller.handle({ type: 'runUserShell', command: 'npm test' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'userShellRefused',
+      command: 'npm test',
+      reason: UI_TEXT.worktreeHeldShell,
+    })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    t.worktreeHold.isHeld = false
+    t.controller.worktreeHoldReleased()
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'acceptEdits' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'composerState',
+      permissionMode: 'acceptEdits',
+    })
+  })
+
+  it('asks for a commit message as the user’s own turn and fills the form from the reply', async () => {
+    const t = await askedForCommitMessage()
+    const input = t.server.requestsFor('turn/start')[0]?.params?.['input']
+    expect(input).toEqual([
+      { type: 'text', text: UI_TEXT.gitAskCommitMessage },
+      {
+        type: 'text',
+        text: expect.stringContaining(MODEL_TEXT.gitUntrustedData) as unknown,
+      },
+      NOTE,
+    ])
+    expect(JSON.stringify(input)).toContain('- src/a.ts')
+    t.server.notify('item/completed', {
+      sessionId: 's1',
+      item: {
+        itemId: 'a1',
+        kind: 'agentMessage',
+        status: 'completed',
+        turnId: 't1',
+        text: 'Add the parser',
+      },
+    })
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'completed' })
+    await settle()
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'commitMessage', message: 'Add the parser' },
+    })
+  })
+
+  it('gives the form its button back when a restart ends the turn that asked', async () => {
+    const t = await askedForCommitMessage()
+    await t.controller.backendStopping(false)
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'failed', forKind: 'commitMessage' },
+    })
+  })
+
+  it('gives the form its button back when the draft cannot be asked for', async () => {
+    const t = setup({ isWorkspaceTrusted: false })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'l1',
+      text: UI_TEXT.gitAskCommitMessage,
+      attachmentIds: [],
+      gitDraft: 'commitMessage',
+    })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'gitDraft',
+      draft: { kind: 'failed', forKind: 'commitMessage' },
+    })
+    expect(t.surface.posted).toContainEqual(expect.objectContaining({ type: 'sendFailed' }))
+  })
+})
+
 const REPLY_ID = PLAN_REPLY_COMPLETED.item.itemId
 const SAVE = { type: 'savePlan', sourceSessionId: 's1', itemId: REPLY_ID } as const
 const IMPLEMENT = { type: 'implementPlan', sourceSessionId: 's1', itemId: REPLY_ID } as const
@@ -8395,6 +8524,35 @@ describe('ConversationController: plans as files (M79)', () => {
     expect(remote.server.requestsFor('session/start')[1]?.params).toMatchObject({
       approvalMode: 'promptUnmatched',
     })
+  })
+
+  it.each(['auto', 'bypassPermissions'] as const)(
+    'keeps a held PR approved plan in Plan mode despite starting mode %s',
+    async (initialPermissionMode) => {
+      const t = await museCodePlan({ initialPermissionMode, isWorktreeHeld: true })
+      await t.controller.handle(IMPLEMENT)
+      expect(t.server.requestsFor('session/start')).toHaveLength(2)
+      expect(t.server.requestsFor('session/start')[1]?.params).toMatchObject({
+        approvalMode: 'denyUnmatched',
+      })
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+      )
+    },
+  )
+
+  it('keeps a saved plan in a held PR in Plan mode until its trust card is accepted', async () => {
+    const t = setup({ initialPermissionMode: 'auto', isWorktreeHeld: true, hasApprovalUi: true })
+    t.planFiles.files.set(`/ws/${FILE_PATH}`, '# Review\n\n1. Review the patch.')
+    chooses(t, 'implement')
+    await t.controller.handle({ type: 'showPlans' })
+    expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'denyUnmatched',
+    })
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'composerState', permissionMode: 'plan' }),
+    )
   })
 
   it('implements a plan on the Model API with its steps as the todo list before the first request, and tells the model what they are', async () => {

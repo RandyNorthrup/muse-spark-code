@@ -64,6 +64,12 @@ import { memoryDataRoot } from '../../src/core/memory/memoryLocation'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { pdfPageCount } from '../../src/core/pdf'
+import {
+  commitMessageFrom,
+  commitMessagePrompt,
+  pullRequestPrompt,
+  pullRequestTextFrom,
+} from '../../src/core/git/gitText'
 import { planBody } from '../../src/core/plans/planDocument'
 import { listItems } from '../../src/core/plans/planMarkdown'
 import { estimateCostUsd } from '../../src/core/usage/insights'
@@ -79,6 +85,8 @@ import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendMa
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { processGitRunner } from '../../src/host/git'
+import { ConversationGit } from '../../src/host/git/conversationGit'
+import { fakeGitWindow } from '../unit/helpers/fakeGit'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
 import { ConversationController } from '../../src/host/conversation/conversationController'
@@ -948,6 +956,7 @@ interface LivePanel {
  */
 function livePanel(rig: Rig): LivePanel {
   const allowed: string[] = []
+  const git = fakeGitWindow({ isTrusted: false, isSignedOut: true })
   const surface = fakeSurface('live')
   const holder: { controller?: ConversationController } = {}
   const signedIn: AuthSnapshot = { status: 'signedIn', detail: undefined, backend: 'modelApi' }
@@ -1061,6 +1070,8 @@ function livePanel(rig: Rig): LivePanel {
     }),
     setPaidFeature: unreached,
     isWorkspaceTrusted: () => true,
+    isWorktreeHeld: () => false,
+    createGit: (gitSurface) => new ConversationGit(git.window, gitSurface),
     onForegroundTasksChanged: () => undefined,
     allowsPaidUse: () => Promise.resolve(false),
     forgetPaidUse: unreached,
@@ -2164,6 +2175,64 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
         rig.notes.push(
           `rows ${[...toolsRun(asked), ...toolsRun(stopped)].join(' ')}`,
           `replies ${JSON.stringify(asked.reply)} ${JSON.stringify(resumed.reply)}`,
+        )
+      })
+    },
+    CASE_MS,
+  )
+
+  it(
+    'case21 git drafts: a commit message and a pull request, each as the user’s own turn (M71)',
+    async () => {
+      const name = 'case21 git drafts'
+      await runCase(name, {}, async (rig) => {
+        const driver = await startSession(rig)
+        const commit = await send(driver, [
+          { type: 'text', text: 'Write a commit message for my changes.' },
+          {
+            type: 'text',
+            text: commitMessagePrompt({
+              branch: 'fix/precedence',
+              scope: 'staged',
+              files: ['src/parser.ts'],
+              diff: [
+                'diff --git a/src/parser.ts b/src/parser.ts',
+                '@@ -10,3 +10,3 @@',
+                "-const PRECEDENCE = ['||', '??']",
+                "+const PRECEDENCE = ['??', '||']",
+              ].join('\n'),
+            }),
+          },
+        ])
+        expectCompleted(commit)
+        const message = commitMessageFrom(commit.reply)
+        expect(message).toBeDefined()
+        const subject = message?.split('\n', 1)[0] ?? ''
+        expect(subject.length).toBeGreaterThan(0)
+        expect(subject.length).toBeLessThanOrEqual(72)
+        const pullRequest = await send(driver, [
+          {
+            type: 'text',
+            text: 'Write the title and description of a pull request for this branch.',
+          },
+          {
+            type: 'text',
+            text: pullRequestPrompt({
+              head: 'fix/precedence',
+              base: 'main',
+              commits: ['Parse ?? before || in the precedence table'],
+              files: ['src/parser.ts'],
+            }),
+          },
+        ])
+        expectCompleted(pullRequest)
+        const text = pullRequestTextFrom(pullRequest.reply)
+        expect(text?.title).toBeTruthy()
+        expect(text?.body).toBeTruthy()
+        rig.notes.push(
+          `commit reply ${JSON.stringify(commit.reply)}`,
+          `draft subject ${JSON.stringify(subject)}`,
+          `pull request title ${JSON.stringify(text?.title)} body ${String(text?.body.length)} chars`,
         )
       })
     },

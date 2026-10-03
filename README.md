@@ -841,6 +841,136 @@ worktree with uncommitted changes is removed only after a second
 confirmation that says the changes will be lost. Both commands need a
 trusted workspace, since git does not run in Restricted Mode.
 
+## Git and pull requests
+
+From finished work to an open pull request without leaving the panel, on
+both backends. The **Git and pull requests** group of the `/` palette
+(`/commit`, `/push`, `/pr`, `/checkout-pr`) opens each step above the
+composer.
+
+Open the repository or worktree root for these actions; an ancestor
+repository returned for a workspace subfolder is refused. Git actions are
+also unavailable while a pull request worktree is held.
+
+- **Commit.** The form lists the staged and unstaged files and commits
+  through VS Code's own Git, with **Include unstaged changes and new files**
+  when you want everything. A final dialog shows the message, branch, file
+  scope and Git execution consequences before committing. The form and
+  consent are checked against the current branch, staged/unstaged diffs and
+  new-file bytes; changed input requires reopening the form. No post-commit
+  command runs.
+- **A message written for you, only when you ask.** **Write with Muse** in
+  the commit or pull request form sends your own message ("Write a commit
+  message for my changes.") in the conversation, with the staged diff, or
+  the branch's commits against its base, marked as data for the model. It
+  is an ordinary turn of your conversation: nothing is written on its own
+  and nothing is billed beyond your turn. The reply fills the form; you edit
+  it and press the button.
+  A pull request draft uses the base you edited in the form and the fetch
+  remote for its destination repository. For a fork this is its parent,
+  never the fork's older base. A missing base is fetched through checkpoint
+  admission and verified; no matching remote or unresolved ref refuses
+  generation. Cancelling, reopening or successfully committing retires the
+  old form's generation, so its reply cannot fill a later form.
+- **Push.** Always asks, in a dialog naming the remote, its address (any
+  credential in it masked), the branch and how many commits go up. It goes
+  through VS Code's Git, so your credential helpers and VS Code's sign-in
+  prompts apply. It never force-pushes: a branch behind its upstream is
+  refused (pull first), and so is a branch or remote whose name git would
+  read as an option or a force.
+- **Open a pull request** on github.com, with VS Code's GitHub sign-in
+  (VS Code asks for it the first time). The form is the confirmation: the
+  repository, the remote, the branch, the base, the title and the
+  description are all shown and editable, and the pull request opens as a
+  draft unless you untick it. A branch not yet pushed is pushed first,
+  asking as above. From a fork it opens on the repository the fork came
+  from. A credential-shaped string in the title, description or commit
+  message is masked and sent back to the form, so nothing goes out that you
+  have not seen. GitHub only: VS Code has no built-in sign-in for other
+  forges.
+  The destination is bound to the form you saw: a changed remote, fork
+  parent or branch stops creation instead of sending its body elsewhere.
+- **Cancellation and changes.** Busy forms freeze their editable fields;
+  **Cancel** closes the form and stops later steps. Repository, conversation
+  and trust changes are checked after dialogs and sign-in. Git may run
+  repository hooks, signing programs or credential helpers, as the consent
+  explains. A Git or GitHub call already started may finish; cancellation
+  does not undo a completed commit, push or pull request.
+  If GitHub completes a pull request while Cancel waits, the panel reports
+  success with its URL and stops subsequent linking and status reads.
+  Each operation captures the physical repository before lookup and rechecks
+  its original and canonical directory identities before Git entry. A
+  junction or symbolic link that changes during consent stops the operation,
+  even with identical cached HEAD and remotes. Native checkout uses the
+  captured canonical directory; an observed loss never revives old consent.
+  An own-PR sibling folder keeps the selected workspace alias in its name
+  and record; canonical execution does not rename that destination.
+  Root checks also accept genuine Windows short names when the
+  Git API spells the same directory with its long name.
+  Commit, push, PR fetch and checkout also wait for the window's checkpoint
+  process admission. A restore reservation refuses their start; once Git
+  starts, file restore remains unavailable because its helpers may write
+  files or leave a process running.
+- **Linked to the conversation.** The pull request shows above the composer
+  with its state and checks (passed, failed by name, running), refreshed
+  when the conversation opens and when you press **Refresh**, and again
+  whenever you resume that conversation.
+- **A conversation in a worktree.** A worktree made with **New worktree…**
+  or **Open a pull request in a conversation…** opens in its own window,
+  where both backends run with the worktree as their root, so the
+  conversation there cannot reach the main checkout. The panel says which
+  branch or pull request the window is on.
+- **Open a pull request in a conversation…** (a number, like `51`, or the
+  pull request's address) fetches its head through VS Code's Git and checks
+  it out, detached, in a worktree of its own, in a new window:
+  - The fetched `FETCH_HEAD` must match the head GitHub showed; an old commit
+    merely present locally does not qualify. Git checkout hooks are disabled
+    while creating the worktree, so a relative hook path cannot execute code
+    supplied by the untrusted pull request before its trust card.
+  - **Yours:** beside the repository, as `<repository>.worktrees/pr-<n>`.
+  - **Someone else's:** under the extension's own storage, and held. That
+    window keeps the conversation in Plan mode with the worktree's project
+    rules, skills, hooks and MCP servers off (Muse Code starts without
+    `--trust-workspace`, the Model API backend reads none of them), and
+    runs no `!` command, until you press **Trust this worktree…** in the
+    card above the composer, whatever VS Code's own workspace trust says.
+    Other extensions follow VS Code's trust, which this extension cannot
+    lower, and the card says so.
+    Git never checks it out. The worktree is added with `--no-checkout`, its
+    index is filled from the commit with `git read-tree` (which touches no
+    file and runs no filter), and the extension writes every file itself,
+    byte for byte as the commit stores it, from one `git cat-file --batch`.
+    So no clean, smudge or process filter, hook or conversion runs, wherever
+    your Git configuration defines it (a conditional include that applies
+    only inside the new worktree, an attributes file it names, or the pull
+    request's own `.gitattributes`). The confirmation says what this means:
+    LFS files stay pointers and line endings stay as committed; a symbolic
+    link becomes a file holding its target (as Git writes one where links
+    are off), and a submodule an empty folder. Trusting the worktree does
+    not rewrite them. Every Git command of this checkout runs with hooks,
+    fsmonitor, replacement objects and automatic maintenance off (Git 2.36
+    or newer); none runs in the worktree once a byte of the pull request is
+    in it, and nothing of the extension runs Git there while it is held.
+    The pull request is refused whole, before anything is written, when a
+    path would leave the worktree, name `.git` (in any case, or as `.git.`,
+    `.git ` or `GIT~1`), use a name Windows cannot hold (on Windows), or
+    collide with another path where letter case does not count (Windows and
+    macOS); or when it has more than 20,000 files and folders or 250 MB.
+    Each file is created without replacing anything, in a folder whose
+    canonical path must be the worktree's: a link or junction on the way
+    refuses the checkout, and the half-written worktree is removed.
+- **Held PR ceiling.** Implementing an approved reply or a saved plan cannot lift a held PR
+  worktree out of Plan mode. Worktree Git actions and IDE web fetch also
+  honor this extension's hold until its trust card is accepted.
+  The backend's first workspace folder decides project trust. A confirmed
+  worktree in another folder never releases that first folder's hold, and
+  a confirmed folder above a pull request's worktree never releases it:
+  the deepest record decides.
+  Worktree creation/removal rechecks trust and the owning activation after
+  pickers, discard confirmations and native metadata waits.
+- **Restricted Mode.** None of this runs there, and the panel says why:
+  git can run programs a repository's configuration names.
+
 ## Code intelligence
 
 The agent finds its way around code the way the editor does: from VS Code's
@@ -1272,6 +1402,8 @@ palette with a filter box of its own. Its groups:
 
 - **Context:** attach, mention, clear, resume, new and remove worktree, and
   Continue a Claude Code or Codex session (CLI backend).
+- **Git and pull requests:** commit, push, open a pull request, and open a
+  pull request in a conversation.
 - **Model:** switch model, effort (Left and Right step it), thinking.
 - **Customize:** permission mode, Focus view, Send with Ctrl+Enter, MCP
   servers, hooks, memory, settings, keybindings.
@@ -2057,19 +2189,20 @@ What stays in English:
 | Muse Spark: Memory                                  | —                                                                                    | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                |
 | Muse Spark: New Worktree…                           | —                                                                                    | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                       |
 | Muse Spark: Remove Worktree…                        | —                                                                                    | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                           |
+| Muse Spark: Open a Pull Request in a Conversation…  | —                                                                                    | Check a GitHub pull request out in a worktree of its own and open it in a new window; someone else's is held in Plan mode, its project configuration off, until you trust it there                |
 | Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command        | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                               |
 | Muse Spark: Stop Background Tasks                   | —                                                                                    | Stop every background task of the conversation in view                                                                                                                                            |
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                                                                   |
 | (composer) Run a shell command                      | Start the message with `!`                                                           | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                        |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Eleven commands appear in the
+which is why its two shortcuts add `Alt`. Twelve commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
 open, Toggle Thinking, Export Conversation, Import Session, Open Share File
 and Stop Background Tasks with a Muse panel in view, Move Running Command
 to Background while one runs, Set Up Shell Sandbox on Windows (or in a
-remote window), Create AGENTS.md and the two worktree commands with a folder
-open.
+remote window), Create AGENTS.md, the two worktree commands and Open a Pull
+Request in a Conversation with a folder open.
 
 ## Settings
 
@@ -2185,7 +2318,8 @@ stopped and the next message resumes the same session.
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions, worktrees and the
   Model API prompt's git facts (optional; VS Code's file search is used
-  without it). The extension runs git only in a trusted workspace and only
+  without it). Commit, push and pull requests use VS Code's built-in Git
+  extension, and pull requests VS Code's built-in GitHub sign-in. The extension runs git only in a trusted workspace and only
   from an absolute `PATH` entry, never a copy inside the workspace.
 - Voice dictation: Windows, or macOS with Dictation or Siri enabled, in a
   local window.
@@ -2280,6 +2414,13 @@ stopped and the next message resumes the same session.
   command runs in, through a small helper the extension compiles once into
   its own storage with PowerShell's `Add-Type` (where policy forbids that,
   the log says so and a sweep of the process table stands in).
+- Git and pull requests: commits and pushes go through VS Code's own Git;
+  a push always asks and never forces. A pull request goes to
+  `api.github.com` with the token of VS Code's GitHub sign-in, read for
+  each call and never stored or logged; it carries only the title,
+  description and branch names the form showed you, credential-shaped text
+  masked. Someone else's pull request opens held: Plan mode, no project
+  configuration, until you trust that worktree in the panel's card.
 - The webview runs under a strict CSP (`default-src 'none'`, per-load script
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.
@@ -2459,7 +2600,10 @@ support TS 7); the extension host bundled with esbuild to CommonJS, with the
 Model API backend as a second bundle (`dist/modelApi.js`) that loads when
 that backend first starts, and the plan reader (the panel's Markdown
 parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
-action; the webview is React 19 bundled to one IIFE with
+action. The conversation's Git adapter loads from `dist/conversationGit.js`
+at its existing construction point; its window and surface ports stay the
+same, and the factory receives the installed language table. The importer
+loads its UI adapter only on the first import. The webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
@@ -2528,6 +2672,7 @@ and stays English. Escape hatches
 (`eslint-disable`, `@ts-expect-error`, casts) need an inline reason and a row
 in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension, 400 KiB for the
 Model API backend's own bundle, 225 KiB for the checkpoint store, 100 KiB for
+the conversation's Git adapter, 125 KiB for the importer, 100 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
 web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
@@ -2549,8 +2694,8 @@ as Meta documents); the extension never sets it. The tooling also reads
 
 ```
 src/extension.ts            activation: the view, the panel, the commands, the output and file openers
-src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side and the ide image tools
-src/core/                   backend-agnostic logic, no `vscode` import: MSP host, Model API client and tools, the MCP client, rules/skills/memory, export, worktrees, usage insights, dictation driver, PDF and text attachments, the paid gate, Muse Voice, network failures
+src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side and the ide image tools, git and pull requests through VS Code's Git extension and GitHub sign-in
+src/core/                   backend-agnostic logic, no `vscode` import: MSP host, Model API client and tools, the MCP client, rules/skills/memory, export, worktrees and held pull request worktrees, git and GitHub, usage insights, dictation driver, PDF and text attachments, the paid gate, Muse Voice, network failures
 src/shared/                 constants + zod message protocol shared with the webview
 src/shared/l10n/            the English table (en.ts), the fill, plural and Intl helpers, and the table checks
 l10n/                       the translated tables (ui.<language>.json) and the gate's list of names left in English
