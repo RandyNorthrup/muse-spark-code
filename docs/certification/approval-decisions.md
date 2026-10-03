@@ -116,12 +116,17 @@ Every new test uses the captured shapes
 All runs were on the Kubuntu rig (`rig-test.sh` / `rig-npm.sh`); nothing
 ran on the shared host.
 
-| Run                                                                                                            | Result                                                     |
-| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| The seven touched files (promptLedger, MuseCodeHost, cards, uiState, Transcript, conversationController, App)  | 718 passed                                                 |
-| `npm run test:unit` (with coverage, e2e included)                                                              | 275 files passed, 3 skipped; 4605 tests passed, 52 skipped |
-| `format:check`, `lint`, `typecheck`, `check:l10n`, `deadcode`, `cycles`, `duplication`, `build` (with budgets) | all exit 0 (`dist/extension.js` 559.8 KiB of 600)          |
-| Full `npm run quality` on the final HEAD                                                                       | see below                                                  |
+| Run                                                                                                            | Result                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| The seven touched files (promptLedger, MuseCodeHost, cards, uiState, Transcript, conversationController, App)  | 718 passed                                                                                                                               |
+| `npm run test:unit` (with coverage, e2e included)                                                              | 275 files passed, 3 skipped; 4605 tests passed, 52 skipped                                                                               |
+| `format:check`, `lint`, `typecheck`, `check:l10n`, `deadcode`, `cycles`, `duplication`, `build` (with budgets) | all exit 0 (`dist/extension.js` 559.8 KiB of 600)                                                                                        |
+| Full `npm run quality` on HEAD `88e4e99d`                                                                      | exit 0: 276 files, 4619 tests passed (52 skipped); a11y 400 pages (100 scenarios × 4 themes), 0 violations; no leaks; semgrep 0 findings |
+
+On `2aabdde1` the same gate had failed once, in `checkpointStoreGuards.test.ts`
+(M72, untouched here): "names the restored files a turn with no recorded end
+may not have changed itself". It passed three runs out of three alone and
+in the full run on `88e4e99d`. It is load-sensitive, and recorded here.
 
 ## Red drills
 
