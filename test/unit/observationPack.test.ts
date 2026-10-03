@@ -342,6 +342,37 @@ describe('ObservationPack.recall', () => {
     )
   })
 
+  it.each([
+    {
+      count: 8,
+      known: 'call_00, call_01, call_02, call_03, call_04, call_05, call_06, call_07',
+    },
+    {
+      count: 9,
+      known: 'call_01, call_02, call_03, call_04, call_05, call_06, call_07, call_08, and 1 more',
+    },
+    {
+      count: 40,
+      known: 'call_32, call_33, call_34, call_35, call_36, call_37, call_38, call_39, and 32 more',
+    },
+  ])(
+    'lists at most the last eight packed ids for an unknown recall ($count outputs)',
+    ({ count, known }) => {
+      const pack = new ObservationPack()
+      const outputs = Array.from({ length: count }, (_, index) =>
+        whole(`call_${String(index).padStart(2, '0')}`),
+      )
+      for (let send = 0; send <= OBS_PACK_WHOLE_SENDS; send += 1) {
+        pack.noteSent(pack.project(outputs))
+      }
+      const unknown = recallAt(pack, 0, 'call_missing')
+      expect(unknown.output).toBe(
+        `Error: unknown packed output id "call_missing" (packed outputs in this session: ${known})`,
+      )
+      expect(unknown.failureReason).toBe(fill(UI_TEXT.packRecallUnknownId, { id: 'call_missing' }))
+    },
+  )
+
   it('refuses an offset outside the original', () => {
     const { pack } = packedStore()
     for (const offset of [-1, 1.5, BIG.length, BIG.length + 1]) {

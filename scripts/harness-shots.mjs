@@ -19,7 +19,13 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
-import { HARNESS_PATH, LOOPBACK, SCENARIOS, serveRepo } from './lib/harnessServer.mjs'
+import {
+  HARNESS_PATH,
+  LOOPBACK,
+  SCENARIOS,
+  serveRepo,
+  withNarrowPage,
+} from './lib/harnessServer.mjs'
 
 const OUT_DIR = 'harness-shots'
 const BUNDLE_PATH = 'dist/webview/main.js'
@@ -31,6 +37,13 @@ const repoRoot = process.cwd()
 async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
+  if (scenario === 'share-narrow') {
+    await withNarrowPage(chrome, profileDir, url, async (page) => {
+      await page.getByRole('dialog').waitFor()
+      await page.screenshot({ path: file })
+    })
+    return file
+  }
   await execFileAsync(chrome, [
     '--headless=new',
     '--disable-gpu',
