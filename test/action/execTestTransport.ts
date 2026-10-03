@@ -175,8 +175,8 @@ export function wReport(input: {
     envSha256: Object.fromEntries(
       Object.entries(input.env)
         .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
-        .map(([name, value]) => [name, sha256(value)])
-        .toSorted(([left], [right]) => left.localeCompare(right)),
+        .toSorted(([left], [right]) => left.localeCompare(right))
+        .map(([name, value]) => [name, sha256(value)]),
     ),
     requests: transport.requests,
     billableRequests: transport.requests.filter(

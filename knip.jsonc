@@ -73,7 +73,8 @@
   // gitleaks (winget/brew) is a system binary, not an npm package: the
   // pre-commit hook and security:secrets call it. semgrep (pip) is started by
   // scripts/sast.mjs, which knip reads as code, not as a binary call.
-  "ignoreBinaries": ["gitleaks"],
+  // System programs the tests start by name (mkfifo: the M80 stuck-output entry test).
+  "ignoreBinaries": ["gitleaks", "mkfifo"],
 
   "ignoreExportsUsedInFile": true,
 

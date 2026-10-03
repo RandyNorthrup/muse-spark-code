@@ -181,21 +181,42 @@ export function fixtureRepo(
   deleted = 'plain line',
   context = 'context line',
 ): FixtureRepo {
+  return originRepo(
+    layout,
+    (source) => {
+      writeFileSync(path.join(source, 'notes.txt'), 'first\n')
+      writeFileSync(path.join(source, 'old.txt'), `${deleted}\n`)
+      writeFileSync(path.join(source, 'context.txt'), `${context}\nsecond\n`)
+    },
+    (source) => {
+      writeFileSync(path.join(source, 'notes.txt'), 'first\nsecond\n')
+    },
+  )
+}
+
+/**
+ * A bare origin built with plain Git: `writeBase` lays out the base commit on
+ * main, `writeHead` the head commit on `feature` (every change staged).
+ */
+export function originRepo(
+  layout: TempLayout,
+  writeBase: (source: string) => void,
+  writeHead: (source: string) => void,
+): FixtureRepo {
   const source = path.join(
     layout.root,
     `source-${String(Date.now())}-${String(Math.random()).slice(2)}`,
   )
   mkdirSync(source)
   plainGit(layout, source, ['init', '--quiet', '--initial-branch=main'])
-  writeFileSync(path.join(source, 'notes.txt'), 'first\n')
-  writeFileSync(path.join(source, 'old.txt'), `${deleted}\n`)
-  writeFileSync(path.join(source, 'context.txt'), `${context}\nsecond\n`)
+  writeBase(source)
   plainGit(layout, source, ['add', '--all'])
   plainGit(layout, source, ['commit', '--quiet', '-m', 'base'])
   const base = plainGit(layout, source, ['rev-parse', 'HEAD'])
   plainGit(layout, source, ['checkout', '--quiet', '-b', 'feature'])
-  writeFileSync(path.join(source, 'notes.txt'), 'first\nsecond\n')
-  plainGit(layout, source, ['commit', '--quiet', '--all', '-m', 'head'])
+  writeHead(source)
+  plainGit(layout, source, ['add', '--all'])
+  plainGit(layout, source, ['commit', '--quiet', '-m', 'head'])
   const head = plainGit(layout, source, ['rev-parse', 'HEAD'])
   const bare = `${source}.git`
   plainGit(layout, layout.root, ['clone', '--quiet', '--bare', source, bare])

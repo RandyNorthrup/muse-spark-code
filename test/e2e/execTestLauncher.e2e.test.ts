@@ -34,7 +34,7 @@ import {
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import {
   ACTION_DIR,
-  plainGit,
+  originRepo,
   preparedRun,
   readOutputs,
   tempLayout,
@@ -110,22 +110,17 @@ async function packageTree(): Promise<void> {
 
 /** A gated origin: base commit holds the W fixture and the repository's real ignore rules. */
 function wRepo(layout: TempLayout): FixtureRepo {
-  const source = mkdtempSync(path.join(layout.root, 'w-source-'))
-  mkdirSync(path.join(source, path.dirname(W_FIXTURE_FILE)), { recursive: true })
-  plainGit(layout, source, ['init', '--quiet', '--initial-branch=main'])
-  cpSync(path.join(ROOT, W_FIXTURE_FILE), path.join(source, W_FIXTURE_FILE))
-  cpSync(path.join(ROOT, '.gitignore'), path.join(source, '.gitignore'))
-  plainGit(layout, source, ['add', '--all'])
-  plainGit(layout, source, ['commit', '--quiet', '-m', 'base'])
-  const base = plainGit(layout, source, ['rev-parse', 'HEAD'])
-  plainGit(layout, source, ['checkout', '--quiet', '-b', 'feature'])
-  writeFileSync(path.join(source, 'notes.txt'), 'W head change\n')
-  plainGit(layout, source, ['add', '--all'])
-  plainGit(layout, source, ['commit', '--quiet', '-m', 'head'])
-  const head = plainGit(layout, source, ['rev-parse', 'HEAD'])
-  const bare = `${source}.git`
-  plainGit(layout, layout.root, ['clone', '--quiet', '--bare', source, bare])
-  return { bare, base, head }
+  return originRepo(
+    layout,
+    (source) => {
+      mkdirSync(path.join(source, path.dirname(W_FIXTURE_FILE)), { recursive: true })
+      cpSync(path.join(ROOT, W_FIXTURE_FILE), path.join(source, W_FIXTURE_FILE))
+      cpSync(path.join(ROOT, '.gitignore'), path.join(source, '.gitignore'))
+    },
+    (source) => {
+      writeFileSync(path.join(source, 'notes.txt'), 'W head change\n')
+    },
+  )
 }
 
 type Scenario = 'review' | 'text' | 'image' | 'low-budget'
