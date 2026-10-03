@@ -3426,7 +3426,8 @@ rationale survives without the research transcript.
   `FingerprintWarning` type. The raw connection supplies commands,
   notifications and server-request handlers; the spawned handshake supplies
   `initialize({clientInfo, capabilities})`. The extension does not import
-  `SessionFold` or `checkServedFingerprint` (tests use the latter).
+  `SessionFold` or `checkServedFingerprint`; tests reference only
+  `EXPECTED_SCHEMA_FINGERPRINT`.
 - Wire vocabulary (from the package's `msp.d.ts`, authoritative over the
   summarised docs): methods `session/start|resume|fork|list|read|compact|
 setModel|rename|setReasoningEffort|setApprovalMode|userShell`,
