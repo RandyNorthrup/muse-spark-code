@@ -24,6 +24,13 @@ updates:
       # on (22); a major ahead breaks the type-aware lint's module resolution.
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # TypeScript stays on 6.0.x until typescript-eslint declares support for 7 (AGENTS.md,
+      # toolchain pins): its peer range is `>=4.8.4 <6.1.0`, and a compiler outside that range
+      # silently disables every type-aware lint rule. 6.0.3 is the last 6.x release, so 7 is the
+      # only update there is. Remove this entry when `npm info typescript-eslint
+      # peerDependencies` admits 7, so the grouped pull request can bump it with its tests.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   # The semgrep CLI the CI `sast` job pins (.github/semgrep/requirements.txt).
   - package-ecosystem: pip
     directory: /.github/semgrep

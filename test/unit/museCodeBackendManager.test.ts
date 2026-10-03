@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
-import type { EnvironmentVariable } from '../../src/shared/constants'
+import { MSP_KNOWN_SCHEMA_FINGERPRINTS, type EnvironmentVariable } from '../../src/shared/constants'
 import type {
   MuseCodeBackendManager,
   BackendManagerDeps,
@@ -12,7 +12,7 @@ import { readProxySettings } from '../../src/host/networkPosture'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 
-// Real SDK exports, with one fake spawn boundary that creates no native child.
+// Real SDK exports; each test controls the spawn boundary.
 vi.mock('@muse-code/sdk', async (importOriginal) => ({
   ...(await importOriginal<typeof sdk>()),
 }))
@@ -30,7 +30,7 @@ const PROXY_NAMES = [
   'no_proxy',
 ]
 
-/** A manager whose child environment is built from these settings; it spawns nothing. */
+/** A manager with test-owned settings and startup dependencies. */
 function managerWith(
   configured: readonly EnvironmentVariable[],
   proxy = VS_CODE_PROXY,
@@ -51,6 +51,76 @@ function valuesOf(env: NodeJS.ProcessEnv, name: string): readonly (string | unde
     .filter(([key]) => key.toLowerCase() === name.toLowerCase())
     .map(([, value]) => value)
 }
+
+/** The real handshake and manager against the existing test-owned fake CLI. */
+async function startWithFingerprint(fingerprint: string): Promise<FakeLogOutputChannel> {
+  const spawn = sdk.spawnMspConnection
+  vi.spyOn(sdk, 'spawnMspConnection').mockImplementation((options) =>
+    spawn({
+      ...options,
+      args: [path.resolve('test/e2e/fake-muse/serve.mjs')],
+      env: {
+        MUSE_FAKE_FINGERPRINT: fingerprint,
+        XDG_CONFIG_HOME: path.resolve('test/fixtures/workspace/no-muse-config'),
+      },
+    }),
+  )
+  const log = new FakeLogOutputChannel()
+  const manager = managerWith([], '', log, { getConfiguredBinaryPath: () => process.execPath })
+  // This fixture has no sign-in; never read the developer's credential file.
+  vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+  try {
+    await manager.ensureHost()
+  } finally {
+    await manager.dispose()
+  }
+  return log
+}
+
+describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each([
+    ['sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2', '1.4.2-R4684.1'],
+  ])('recognizes %s as %s without a mismatch warning', async (fingerprint, build) => {
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBe(build)
+    const log = await startWithFingerprint(fingerprint)
+    expect(log.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('MSP schema fingerprint mismatch'),
+    )
+    expect(log.info).toHaveBeenCalledWith(
+      `MSP schema ${fingerprint} is Muse Code ${build}'s, an additive successor of the SDK's ${sdk.EXPECTED_SCHEMA_FINGERPRINT}`,
+    )
+  })
+
+  it('keeps the 1.3.0-R3401.1 SDK pin outside the successor map and logs no mismatch', async () => {
+    expect(sdk.EXPECTED_SCHEMA_FINGERPRINT).toBe(
+      'sha256:7469c9e352e67def4a59df7e439984d7194fa351e1c8b7abb34060fd977ced81',
+    )
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[sdk.EXPECTED_SCHEMA_FINGERPRINT]).toBeUndefined()
+    const log = await startWithFingerprint(sdk.EXPECTED_SCHEMA_FINGERPRINT)
+    expect(log.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('MSP schema fingerprint mismatch'),
+    )
+    expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
+  })
+
+  // 1.4.1-R4503.1 never reached npm and no live frame of it was captured,
+  // so its manifest fingerprint is not trusted as a known successor.
+  it.each([
+    'sha256:unknown-build',
+    'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f',
+  ])('still warns for %s', async (fingerprint) => {
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBeUndefined()
+    const log = await startWithFingerprint(fingerprint)
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('MSP schema fingerprint mismatch'),
+    )
+    expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
+  })
+})
 
 describe('MuseCodeBackendManager: checkpoint native startup admission (M72)', () => {
   afterEach(() => {

@@ -1708,6 +1708,10 @@ reaches a session. It shows 200 items at a time, with **Show more** for the
 next, and an item that cannot be rendered says so in its place while the
 rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
+At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
+with the theme's focus border; Escape closes the view and focuses the composer.
+For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
+captures both widths; `share-narrow` also runs in all four accessibility themes.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -2483,13 +2487,16 @@ stopped and the next message resumes the same session.
   on 1.3.0 the first command also takes about half a minute) cannot enter
   folders under `C:\Users\<you>`
   ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  This sandbox issue was not retested on 1.4.2 in the October 2 probes;
+  the workaround remains until a fix is verified.
   With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
   without the sandbox for such workspaces: commands run directly as you, in
   the project, still gated by the approval cards, and the panel says so once
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
-  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0
-  and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
+  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
+  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore
