@@ -125,3 +125,22 @@ observe its schema/major-tag hooks. See [the guide](../RELEASING.md).
 
 Pinned attestation reference was checked against the official
 [v4.2.2 commit](https://github.com/actions/attest-build-provenance/commit/4d101475d8b20a2381f78447822ac1eab6504dd8).
+
+## Lead review (2026-10-02)
+
+- **Registry identity.** 0.10.1's VSIX as downloaded from the Marketplace
+  gallery `vspackage` URL and from Open VSX's `files.download` hashes to the
+  GitHub Release asset (`dbc969bb35f9db41…`), so the rerun's byte comparison
+  matches a real published package.
+- **Failure reasons.** A failed registry step now prints one fixed reason:
+  network, npm one-time password (EOTP), 401, 403, 404, artifact mismatch, or
+  publication refused. It never prints the tool's output. Before this change,
+  0.10.1's EOTP would have shown only "publication or integrity check
+  refused". New tests cover each reason, and one plants a token in the CLI
+  text and asserts no label carries it.
+  - Drill: the EOTP pattern was broken on the rig copy (`python3
+rel-drill.py`). The EOTP case failed (1 failed, 7 passed). The file was
+    restored byte-exact (SHA-256 `44c22707cf93` before and after), and the
+    case went green again.
+- Kubuntu: `releasePublish` and `releaseIntegrity`, 68 passed; ESLint clean;
+  actionlint 1.7.12 with shellcheck clean on release.yml and build.yml.

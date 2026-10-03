@@ -81,6 +81,13 @@ rebuilt ZIP timestamps or changed build tools can produce different hashes.
 If artifacts have expired or hashes differ, stop for owner review and prepare
 a new version rather than replacing a published version.
 
+A failed registry step prints one fixed reason and never the tool's own
+output, which can carry a token. The reasons are: network attempts
+exhausted; npm asks for a one-time password (EOTP); the token was refused
+(401); the token lacks permission (403); not found (404); the published
+artifact does not match the release; and publication refused, for anything
+else.
+
 | State                                                                       | Recovery                                                                                                                                                                                                                                                                                          |
 | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GitHub job failed before creating the Release                               | Fix permissions, attestation, or network cause; rerun failed jobs. Creation requires a definite not-found response.                                                                                                                                                                               |

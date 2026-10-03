@@ -29,6 +29,24 @@ function diagnostic(error) {
     : ''
 }
 
+// A failed publish is reported by one of these fixed labels, never by the
+// CLI's own text (which may carry credentials); the first match wins.
+const FAILURE_REASONS = [
+  [/differs from the release|must use HTTPS/, 'the published artifact does not match the release'],
+  [/\bEOTP\b|one-time pass/i, 'npm asks for a one-time password (EOTP): see docs/RELEASING.md'],
+  [/\bENEEDAUTH\b|\bE401\b|\b401\b|Unauthorized/i, 'the token was refused (401)'],
+  [/\bE403\b|\b403\b|Forbidden/i, 'the token lacks permission (403)'],
+  [/\bE404\b|\b404\b/, 'the registry answered not found (404)'],
+]
+
+/** The fixed label for why a publish failed. */
+export function failureReason(error) {
+  const text = diagnostic(error)
+  return NETWORK_ERROR.test(text)
+    ? 'network attempts exhausted'
+    : (FAILURE_REASONS.find(([pattern]) => pattern.test(text))?.[1] ?? 'publication refused')
+}
+
 export async function retryNetwork(action, sleep = setTimeout) {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -160,11 +178,8 @@ if (
     appendFileSync(process.env.GITHUB_OUTPUT, 'outcome=published\n')
     console.log(`${channel}: published (existing versions require matching integrity)`)
   } catch (error) {
-    // CLI diagnostics may contain credentials. Print classifications only.
-    const kind = NETWORK_ERROR.test(diagnostic(error))
-      ? 'network attempts exhausted'
-      : 'publication or integrity check refused'
-    console.error(`${channel}: ${kind}; see docs/RELEASING.md`)
+    // CLI diagnostics may contain credentials. Print a fixed label only.
+    console.error(`${channel}: ${failureReason(error)}; see docs/RELEASING.md`)
     process.exitCode = 1
   }
 }

@@ -5,7 +5,12 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import path from 'node:path'
 import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { publishRegistry, retryNetwork, verifyPublished } from '../../scripts/publish-registry.mjs'
+import {
+  failureReason,
+  publishRegistry,
+  retryNetwork,
+  verifyPublished,
+} from '../../scripts/publish-registry.mjs'
 import { releaseSummary } from '../../scripts/release-summary.mjs'
 
 const manifest = { publisher: 'RandyNorthrup', name: 'muse-spark-code', version: '0.10.1' }
@@ -229,6 +234,41 @@ describe('registry recovery', () => {
       }),
     ).rejects.toThrow('HTTP 403')
     expect(run).not.toHaveBeenCalled()
+  })
+})
+
+/** A CLI failure as execFileSync throws it, with output in its stderr. */
+function cliFailure(stderr) {
+  return Object.assign(new Error('Command failed'), { stderr })
+}
+
+describe('publish failure labels', () => {
+  it.each([
+    ['npm error code EOTP\nnpm error This operation requires a one-time password', 'EOTP'],
+    ['npm error code E401\nnpm error 401 Unauthorized', '(401)'],
+    ['ERROR  Failed request: (403) Forbidden', '(403)'],
+    ['npm error code E404\nnpm error 404 Not Found', '(404)'],
+    ['read ECONNRESET', 'network attempts exhausted'],
+    ['something unexpected', 'publication refused'],
+  ])('labels %j as %s', (stderr, label) => {
+    expect(failureReason(cliFailure(stderr))).toContain(label)
+  })
+
+  it('labels a mismatch from our own check, not from the CLI', () => {
+    expect(
+      failureReason(new Error('npm published integrity differs from the release tarball')),
+    ).toBe('the published artifact does not match the release')
+  })
+
+  it('never carries the CLI text, so a token in it cannot reach the log', () => {
+    const token = 'npm_PLANTEDsecretTOKEN1234567890'
+    for (const stderr of [
+      `npm error code EOTP //registry.npmjs.org/:_authToken=${token}`,
+      `401 Unauthorized ${token}`,
+      `unknown failure ${token}`,
+    ]) {
+      expect(failureReason(cliFailure(stderr))).not.toContain(token)
+    }
   })
 })
 
