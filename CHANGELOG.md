@@ -212,6 +212,14 @@ happened, not what was planned; superseded entries are kept.
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
 
 ## [0.10.1] - 2026-10-02
 
