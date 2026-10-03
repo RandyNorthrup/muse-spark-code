@@ -374,6 +374,7 @@ export function phasePlan(
     }
     const c5w = unwidenedLoopback(target.loopbackHosts, widened)
     refused.push(['connect', c5w, port])
+    // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket -- canary C5w (design spec v4 §7): a plain ws:// attempt to a loopback host the user did not widen, which must arrive as a refused CONNECT at the check's own proxy; nothing is ever sent over it (PLAN.md §8).
     ws['c5w'] = `ws://${c5w}:${String(port)}${base}w`
   }
   const own = isFull ? target.own : undefined
