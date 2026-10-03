@@ -154,3 +154,10 @@ rel-drill.py`). The EOTP case failed (1 failed, 7 passed). The file was
     `action/`.
   - P3: run outside Actions, a successful publish no longer reports failure
     for want of `GITHUB_OUTPUT`.
+- **PR #86 review threads (2026-10-03).** Fixed by a Muse lane (f01a3c0f), then reviewed and tested by the lead:
+  - an unexpected asset on the Release is refused before any upload;
+  - a draft left by an interrupted create is published once every asset matches;
+  - bundled packages ship with `scope: required`;
+  - ENOTFOUND is retried as transient DNS.
+  - The lead replaced Muse's random SBOM serial with one derived from the content. npm's own random serial and its `metadata.timestamp` had made the SBOMs differ on every rebuild; the earlier review's "deterministic" check missed that npm writes both. A test rebuilds with a new serial and a later time and asserts identical bytes. Drill: keeping the timestamp fails it; restored byte-exact (`663a794fe428`).
+  - Kubuntu: 75 tests passed; ESLint, actionlint and check:host-api clean.

@@ -1,7 +1,7 @@
 // npm's full locked CycloneDX inventory, restricted to actual shipped esbuild inputs.
 // --omit=dev alone is wrong here: zod, React and the Muse/ACP SDKs are bundled devDeps.
 import { execFileSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -128,13 +128,29 @@ export function shippedBom(document, included, name, required = included) {
     ref: root['bom-ref'],
     dependsOn: [...refs].toSorted((a, b) => a.localeCompare(b, 'en')),
   })
+  // npm writes a random serial number and the current time. Both are replaced
+  // so a rebuild of the same inputs gives the same bytes (SHA256SUMS and the
+  // rerun's byte comparison depend on it): the serial is a UUID derived from
+  // the document's content, unique per product and inventory, and the
+  // optional timestamp is left out.
+  const { timestamp: _timestamp, ...metadata } = bom.metadata
+  const identity = JSON.stringify({ root, components, dependencies })
   return {
     ...bom,
-    serialNumber: `urn:uuid:${randomUUID()}`,
-    metadata: { ...bom.metadata, component: root },
+    serialNumber: contentUuid(identity),
+    metadata: { ...metadata, component: root },
     components,
     dependencies,
   }
+}
+
+/** An RFC 9562 version-8 UUID URN from SHA-256 of `text`: the same text, the same UUID. */
+function contentUuid(text) {
+  const bytes = createHash('sha256').update(text).digest().subarray(0, 16)
+  bytes[6] = (bytes[6] & 0x0f) | 0x80
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = bytes.toString('hex')
+  return `urn:uuid:${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 if (

@@ -189,6 +189,19 @@ describe('bundled extension and ACP CycloneDX inventories', () => {
     expect(first.serialNumber).toMatch(/^urn:uuid:[0-9a-f-]{36}$/)
     expect(second.serialNumber).toMatch(/^urn:uuid:[0-9a-f-]{36}$/)
     expect(second.serialNumber).not.toBe(first.serialNumber)
+    // The same inputs, rebuilt with npm's random serial and a later time,
+    // give the same bytes: SHA256SUMS and a rerun's comparison rely on it.
+    const rebuilt = shippedBom(
+      {
+        ...source,
+        serialNumber: 'urn:uuid:11111111-1111-4111-8111-111111111111',
+        metadata: { ...source.metadata, timestamp: '2026-10-03T15:47:42.794Z' },
+      },
+      new Set(['zod@4.6.5']),
+      'muse-spark-code',
+    )
+    expect(JSON.stringify(rebuilt)).toBe(JSON.stringify(first))
+    expect(rebuilt.metadata).not.toHaveProperty('timestamp')
     expect(second.metadata.component).toEqual({
       type: 'application',
       name: 'muse-spark-code-acp',
