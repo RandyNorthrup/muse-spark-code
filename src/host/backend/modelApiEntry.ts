@@ -3,8 +3,9 @@
 // time that backend starts, so the host, its tools, hooks and MCP client stay
 // out of the bundle VS Code loads at activation. The bundle carries its own
 // copy of every module it shares with dist/extension.js, the display
-// language's table among them, so the factory installs the activation
-// bundle's table before it builds anything.
+// language's state among them, so the factory installs the activation
+// bundle's table before it builds anything. The English fallback remains
+// available when this backend is loaded outside the extension.
 
 import { ModelApiClient } from '../../core/backends/modelapi/client'
 import { loadHookDefinitions } from '../../core/backends/modelapi/hooks'

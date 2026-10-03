@@ -536,6 +536,12 @@ In a trusted workspace the agent follows the same files Muse Code does:
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
   matter keeps a skill out of the palette.
+- **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
+  workspace (project scope) and the personal root `~/.config/muse/agents`
+  (`$XDG_CONFIG_HOME/muse/agents` when set), plus the built-in `explore` and
+  `second-opinion`. The folder is this extension's own: the Muse Code CLI
+  names none. The model runs one through `subagent_spawn` with `agent` set to
+  its id; see [Custom agents](#custom-agents).
 - **Memory:** Markdown notes the agent keeps for later conversations, in
   Muse Code's three places, on both backends; see [Memory](#memory).
 
@@ -549,23 +555,24 @@ it with `--trust-workspace`), plus its bundled skills and your user rules.
 On the Model API backend the extension loads the files above and nothing
 else:
 
-- **Sizes:** a rules file or a `SKILL.md` over 64 KB is skipped with a
-  warning in the log; the rules together are cut at 256 KB, and each
-  scope's `MEMORY.md` at 200 lines or 32 KB.
+- **Sizes:** a rules file, a `SKILL.md` or an `AGENT.md` over 64 KB is
+  skipped with a warning in the log (a skill or agent file is read only up to
+  that size, and only when it is a regular file); the rules together are cut
+  at 256 KB, and each scope's `MEMORY.md` at 200 lines or 32 KB.
 - **Encodings:** UTF-8, or UTF-16 with a byte-order mark; a file that is not
   text is skipped with a line in the log. Memory notes are UTF-8 only, as
   Muse Code reads them.
-- **Links:** a skill folder may be a symbolic link or junction. In the
-  workspace it must lead to a place inside it or it is skipped; links in the
-  personal root are followed wherever they lead.
+- **Links:** a skill or agent folder may be a symbolic link or junction. In
+  the workspace it must lead to a place inside it or it is skipped; links in
+  the personal root are followed wherever they lead.
 - **The system prompt** also carries the date, the git branch, the number of
   changed files and the latest commit subjects at session start (metadata
   only), and a short set of working rules (read before editing, no commits
   unless asked, `path:line` references).
 
 In VS Code's **Restricted Mode** (an untrusted folder), neither backend loads
-rules or skills. The Model API backend loads no memory, offers no memory
-tools, starts no MCP servers and runs no hooks. No shell command or `git`
+rules or skills. The Model API backend loads no custom agents or memory,
+offers no memory tools, starts no MCP servers and runs no hooks. No shell command or `git`
 runs (git reads
 the repository's own config, which can name programs to run): `@` mentions
 come from VS Code's file search and the prompt carries no git facts. Trust
@@ -626,6 +633,93 @@ lock, so two agents updating the same note or index in the same instant could
 lose one of the writes.
 The `.muse-memory.lock` file can remain after its owner exits; its presence
 or stored PID alone does not show that a write is in progress.
+
+### Custom agents
+
+On the Model API backend the model can run specialised agents, each with its
+own prompt, tools, model or effort, and permissions: the built-in `explore`
+(read-only reconnaissance: it reads, searches and lists, and reports back with
+`path:line` references) and `second-opinion` (a high-effort consult that
+advises without acting), plus your own. A custom agent is an `AGENT.md` with
+front matter above a Markdown prompt:
+
+```md
+---
+name: reviewer
+description: Reviews a change for risks
+tools: read_file, edit_file
+permission-mode: plan
+---
+
+You are a reviewer. Read the change, then report ...
+```
+
+Put it in `.agents/agents/<id>/AGENT.md` in the workspace (project scope) or
+`~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
+set), following the skill layout; the folder name is the agent's id, and a
+file agent shadows a built-in or personal one with the same id. Agents load
+once, when the conversation starts. Each folder loads on its own: one that
+cannot be read is named in the log and the others still load. An agent that
+folder might define, or that a file there defines but was skipped (unreadable,
+too large, refused), is refused by name with the folder or file it names,
+never replaced by a personal or built-in agent of the same id; fix or remove
+it and start a new conversation.
+
+- **Front matter.** `name` and `description` are required (at most 64 and 240
+  characters). `tools` is a comma-separated allowlist of tool names,
+  `model` a model id, `effort` one of `minimal`, `low`, `medium`, `high`,
+  `xhigh` or `max`, and `permission-mode` one of `manual`, `acceptEdits`,
+  `plan`, `auto` or `bypassPermissions`; all four are optional. Write each
+  key on one line as `key: value`: a file whose front matter is a list, an
+  indented value or a repeated key, whose `tools` line names no tool, or that
+  holds a control or direction character in a name, description or model is
+  skipped with a line in the log, never guessed at. At most 32 agent files
+  load.
+- **What an agent can do.** It can only narrow what the session already has.
+  A tool outside its `tools` list is not offered and, if the model names it
+  anyway, refused, memory tools included. A refused call's row, and the line
+  under an edit whose `then_run` it refused, use the installed display
+  language; the model is told in English, as is the body of a **Check edits**
+  row, which shows the note the model read. Automatic check commands need
+  `run_checks` or the platform shell in the list, and `then_run` (which
+  runs any command line) needs the shell. A
+  `permission-mode` wider than the session's gets the session's, and a mode
+  switch later keeps the ceiling. A child's writes are answered under the
+  less automatic of your mode and its own (Plan, Manual, Edit automatically,
+  Auto, Bypass permissions, in that order): a child defined as `manual` still
+  asks before ordinary writes when its parent uses Edit automatically, a
+  child defined as `acceptEdits` cannot automate writes under a Manual
+  parent, and keeps its automation under an Auto or Bypass parent. A
+  protected, replayed or escalated write always asks.
+  This policy survives saving, resuming and forking. Admission uses the tools
+  the child can actually use: questions, todos/goals and subagent controls
+  belong to the parent. A list with no usable child tool fails the spawn
+  before the paid-use popup or the contributor question asks, so nothing is
+  asked or billed for it.
+- **What it costs.** The run is a paid child task like any subagent (off
+  unless paid subagents are on, asking in the paid-use popup before each use,
+  Plan refuses it). An agent's `model` goes through the same checks as your
+  own choice, and the popup names it: contributor models are blocked while
+  `museSpark.confidentialWorkspace` is on and otherwise ask once for each
+  spawn, and a model other than the session's asks in the popup even when
+  subagents are allowed always here. Whatever a question's wait changes
+  (trust, a confidential workspace, the key, the model, the agent's tools)
+  is checked before the next question and again before the child starts, so
+  no popup follows a spawn that can no longer run. A retry under the same
+  `command_id` answers with its child before any of this.
+- **Whose words.** The model sees each agent's source (`project`,
+  `personal` or `built-in`) in the catalogue, and a child's role below the
+  workspace rules, labelled with its source and id, as text that cannot add
+  tools or permissions, explicitly marked as untrusted text. A repository's
+  files load only in a trusted workspace: a session that loses trust offers
+  no agent, including when trust is revoked during the paid-use popup, and a resumed child's
+  project role is left out while the workspace is untrusted.
+  Project files are read through their approved canonical path, so replacing
+  the original link or junction after confinement does not redirect the read.
+- **The model runs one** through `subagent_spawn` with `agent` set to its id;
+  the catalogue appears in its instructions only while paid subagents are on.
+  On the CLI backend Muse Code reads its own agents and this extension sends
+  it none.
 
 ## Muse Code's own tools
 
@@ -1646,7 +1740,11 @@ tokens, the background tasks, and each agent's own transcript.
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are off by default. Enabling them accepts the published model
   rates; each new child task then asks again before it starts, including in
-  Bypass mode. Plan refuses the task. One approval allows at most four actual
+  Bypass mode. Plan refuses the task. A spawn that would start no child asks
+  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  an earlier spawn's command id for a different task is refused first, and a
+  retry of the same spawn under its command id answers with that child.
+  One approval allows at most four actual
   response requests, including retries and tool rounds. A running note uses
   that same allowance; a follow-up or reopen needs a new approval. This is
   a request limit, not a dollar limit. Failed requests without a usage report

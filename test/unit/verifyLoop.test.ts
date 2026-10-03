@@ -27,6 +27,7 @@ import type { EditedFile, FileDiagnostics } from '../../src/core/verify/diagnost
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import type { ApprovalMode } from '../../src/shared/permissionModes'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
 import {
   fakeModelApi,
   fakeModelApiClient,
@@ -126,6 +127,25 @@ function hookAnswers(
 /** Whether a hook's payload names the shell tool, as a check or then_run does. */
 function isShell(payload: Record<string, unknown>): boolean {
   return payload['tool_name'] === 'bash'
+}
+
+/** A harness whose PreToolUse hook asks for each shell call and rewrites its input to `updatedInput`. */
+function rewritingHookSetup(updatedInput: Record<string, unknown>) {
+  return setup({
+    isDiagnosticsOn: false,
+    hooks: hooksOn('PreToolUse'),
+    runHook: hookAnswers((_event, payload) =>
+      isShell(payload)
+        ? {
+            hookSpecificOutput: {
+              hookEventName: 'PreToolUse',
+              permissionDecision: 'ask',
+              updatedInput,
+            },
+          }
+        : undefined,
+    ),
+  })
 }
 
 function setup(options: SetupOptions = {}) {
@@ -1293,28 +1313,32 @@ describe('the user’s hooks see then_run and the checks as shell calls', () => 
     )
     await second.turn()
     expect(blank.io.shellCalls).toEqual([])
+    // The row says it in the user's words, the model in its own (M76 review).
     expect(completedRows(second.events, 'edit_file').map((row) => row.thenRun)).toEqual([
-      expect.objectContaining({ skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }),
-      expect.objectContaining({ skip: 'hookDenied', detail: MODEL_TEXT.hookInputNoCommand }),
+      expect.objectContaining({ skip: 'hookDenied', detail: UI_TEXT.hookInputNoCommand }),
+      expect.objectContaining({ skip: 'hookDenied', detail: UI_TEXT.hookInputNoCommand }),
     ])
+    expect(outputs(blank.api.responseBodies()[1])[0]).toContain(MODEL_TEXT.hookInputNoCommand)
+  })
+
+  it('says a rewrite without a command in the installed language under the edit (M76 review)', async () => {
+    const t = rewritingHookSetup({ command: '  ' })
+    try {
+      expect(await installGerman(t.log)).toBe('de')
+      const { events } = await editThenTest(t)
+      expect(t.io.shellCalls).toEqual([])
+      expect(completedRows(events, 'edit_file')[0]?.thenRun).toMatchObject({
+        skip: 'hookDenied',
+        detail: 'Die geänderte Eingabe des Hooks nennt keinen Befehl.',
+      })
+      expect(outputs(t.api.responseBodies()[1])[0]).toContain(MODEL_TEXT.hookInputNoCommand)
+    } finally {
+      restoreEnglish()
+    }
   })
 
   it('runs the command a PreToolUse hook rewrote, and asks when the hook says ask', async () => {
-    const t = setup({
-      isDiagnosticsOn: false,
-      hooks: hooksOn('PreToolUse'),
-      runHook: hookAnswers((_event, payload) =>
-        isShell(payload)
-          ? {
-              hookSpecificOutput: {
-                hookEventName: 'PreToolUse',
-                permissionDecision: 'ask',
-                updatedInput: { command: 'npm test -- --bail' },
-              },
-            }
-          : undefined,
-      ),
-    })
+    const t = rewritingHookSetup({ command: 'npm test -- --bail' })
     const { cards, events } = await editThenTest(t)
     expect(cards.map((card) => card.subject)).toEqual([
       { kind: 'shell', command: 'npm test -- --bail' },

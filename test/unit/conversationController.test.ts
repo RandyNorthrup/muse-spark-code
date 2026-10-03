@@ -5251,6 +5251,15 @@ function agentEvents(t: ReturnType<typeof setup>) {
   )
 }
 
+/** A host with no personal roots, full trust, and no contributor-model use (M76). */
+const bareHostDeps = {
+  personalSkillsRoot: undefined,
+  personalAgentsRoot: undefined,
+  isWorkspaceTrusted: () => true,
+  isConfidentialWorkspace: () => false,
+  confirmContributorModel: () => Promise.resolve(false),
+}
+
 /** A controller backed by the in-process Model API, with explicit test I/O. */
 function modelApiController(
   t: ReturnType<typeof setup>,
@@ -5276,8 +5285,7 @@ function modelApiController(
     newId: options.newId ?? (() => 'fixed'),
     now: () => 0,
     log: t.log,
-    personalSkillsRoot: undefined,
-    isWorkspaceTrusted: () => true,
+    ...bareHostDeps,
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
@@ -7823,8 +7831,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       newId: randomUUID,
       now: () => clock.now,
       log: t.log,
-      personalSkillsRoot: undefined,
-      isWorkspaceTrusted: () => true,
+      ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
       isPaidFeatureOn: () => isPaidOn,
@@ -8036,7 +8043,7 @@ describe('ConversationController: the Model API bundle (M57, PLAN.md D6)', () =>
           ids += 1
           return `bundle-${String(ids)}`
         },
-        bundlePath: buildModelApiBundle(bundle.folder),
+        bundlePath: await buildModelApiBundle(bundle.folder),
       }),
     )
     const controller = new ConversationController({

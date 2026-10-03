@@ -1241,8 +1241,11 @@
   "usagePaidSubagentReported": "已报告令牌的估算费用：{cost}",
   "usagePaidTotal": "预估付费总额",
   "usagePaidNote": "根据 Meta 公布的价格（读取于 {date}）估算此窗口自打开以来的费用；实际账单以 dev.meta.ai 仪表板为准。",
+  "agentToolNotOffered": "此工具不在该智能体的允许列表中。请仅使用其指令中提供的工具。",
+  "agentUnloaded": "代理“{id}”未启动：无法加载 {path}，而其中的定义会优先生效。请修复问题或删除该定义，然后开始新对话。",
   "subagentPaidOff": "付费子代理已关闭。启动子任务前请先启用并接受价格。",
   "subagentConsentDeclined": "付费子任务未获批准。",
+  "subagentContributorBlocked": "自定义代理指定了贡献者层级模型，在此工作区处于机密状态时无法运行 (museSpark.confidentialWorkspace)。",
   "subagentRequestLimit": "子任务已达到获批的{limit}次请求上限，包含重试。",
   "subagentKeyChanged": "批准后 Model API 密钥已更改。请批准新的子任务以继续。",
   "subagentModelChanged": "批准后模型已更改。请批准新的子任务以继续。",
@@ -1388,6 +1391,7 @@
   },
   "thenRunLabel": "随后运行",
   "thenRunNotRun": "未运行：{reason}",
+  "hookInputNoCommand": "钩子更新后的输入未指定命令。",
   "thenRunTimedOut": "已在时间限制处停止",
   "checksStoppedNotice": {
     "other": "连续修正 {count} 轮后检查仍然失败，在你发送下一条消息之前不再自动运行检查。"

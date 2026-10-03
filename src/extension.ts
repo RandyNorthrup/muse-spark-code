@@ -11,6 +11,7 @@ import type { AgentHost, BackendKind } from './core/agent/agentBackend'
 import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
 import { confineWorkspacePath } from './core/workspacePath'
 import { readBackendChoice } from './core/backendSelection'
+import { personalAgentsRoot } from './core/context/customAgents'
 import { personalSkillsRoot } from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
@@ -1250,6 +1251,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Muse Code's managed personal skill root, watched alongside the workspace's
   // `.agents/skills` so the palette follows the files (PLAN.md D13).
   const skillsHome = personalSkillsRoot(museConfig())
+  // The managed personal agent root (M76, PLAN.md D13): the extension's own
+  // folder, since the CLI names none.
+  const agentsHome = personalAgentsRoot(museConfig())
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
   // home `muse serve` sees (`museSpark.environmentVariables` included). The
@@ -1293,6 +1297,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           newId: () => crypto.randomUUID(),
           log,
         })
+  // Contributor-tier models let Meta train on the traffic: one explicit yes
+  // before the model is used, for the user's own choice and for a custom
+  // agent's (M76, PLAN.md §9).
+  const isContributorModelAllowed = async (modelId: string): Promise<boolean> =>
+    (await vscode.window.showWarningMessage(
+      `${UI_TEXT.contributorTitle} ${modelId}: ${UI_TEXT.contributorDetail}`,
+      { modal: true },
+      UI_TEXT.contributorConfirm,
+    )) === UI_TEXT.contributorConfirm
   // Plans as files (M79): `.agents/plans/` of the workspace folder, when there is one.
   const plans =
     workspaceRoot === undefined
@@ -1346,7 +1359,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }),
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
+    personalAgentsRoot: agentsHome,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+    isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
+    confirmContributorModel: isContributorModelAllowed,
     hookSettingsPath: museSettingsPath(museConfig()),
     isHooksEnabled: () => currentSettings().modelApiHooks,
     // Sessions survive the window (PLAN.md D14) in the workspace storage
@@ -1661,14 +1677,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             UI_TEXT.bypassRemoteConfirm,
           )) === UI_TEXT.bypassRemoteConfirm,
         isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
-        // Contributor-tier models let Meta train on the traffic: one explicit
-        // yes per conversation before the model switches (PLAN.md §9).
-        confirmContributor: async (modelId) =>
-          (await vscode.window.showWarningMessage(
-            `${UI_TEXT.contributorTitle} ${modelId}: ${UI_TEXT.contributorDetail}`,
-            { modal: true },
-            UI_TEXT.contributorConfirm,
-          )) === UI_TEXT.contributorConfirm,
+        // One explicit yes per conversation before the model switches; the
+        // Model API backend asks the same question for a custom agent's model.
+        confirmContributor: isContributorModelAllowed,
         runHostAction,
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)

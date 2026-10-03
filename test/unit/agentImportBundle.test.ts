@@ -17,6 +17,7 @@ import type { AgentImportHost } from '../../src/host/commands/agentImportCommand
 import { AGENT_IMPORT_BUNDLE_FILE, UI_TEXT } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { sharedUiText } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 import { SYNTHETIC } from './helpers/syntheticTokens'
 
@@ -49,19 +50,7 @@ beforeAll(async () => {
     external: ['vscode'],
     format: 'cjs',
     target: 'node20.18',
-    plugins: [
-      {
-        name: 'shared-ui-text',
-        setup: (builder) => {
-          builder.onResolve({ filter: /\/en$/ }, (args) =>
-            path.resolve(args.resolveDir, `${args.path}.ts`) ===
-            path.resolve('src/shared/l10n/en.ts')
-              ? { path: './uiText.js', external: true }
-              : undefined,
-          )
-        },
-      },
-    ],
+    plugins: [sharedUiText],
     logLevel: 'silent',
   })
 })

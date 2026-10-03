@@ -1757,7 +1757,15 @@ export const EN = {
     'Estimated at Meta’s published prices, read on {date}, for this window since it opened; the dev.meta.ai dashboard is the bill.',
   subagentPaidOff:
     'Paid subagents are off. Enable them and accept the price before starting a child task.',
+  agentToolNotOffered:
+    'This tool is not in this agent’s allowlist. Use only the tools offered in its instructions.',
+  // A custom agent refused because a folder or file of higher precedence did
+  // not load (M76 review); {path} is that folder or file.
+  agentUnloaded:
+    'The agent “{id}” did not start: {path} could not be loaded, and a definition there would take precedence. Fix or remove it, then start a new conversation.',
   subagentConsentDeclined: 'The paid child task was not approved.',
+  subagentContributorBlocked:
+    'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
   subagentRequestLimit:
     'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
@@ -1840,6 +1848,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // After "a hook denied it": the hook rewrote the command into none.
+  hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',
   // The command could not start or ended without an exit code.
   thenRunNoExitCode: 'Failed without an exit code',
