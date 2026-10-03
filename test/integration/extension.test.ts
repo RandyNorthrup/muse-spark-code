@@ -2,7 +2,6 @@
 
 import * as assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
@@ -207,7 +206,12 @@ suite('the Model API bundle', () => {
 // three-argument push that makes a branch on a local bare remote.
 suite('VS Code git extension API (M71)', () => {
   test('commits and pushes through the members the extension calls', async () => {
-    const base = await mkdtemp(path.join(tmpdir(), 'muse-m71-git-'))
+    // Inside the workspace, as the extension's repository always is: VS Code
+    // 1.99 to at least 1.104 open no repository through the API outside the
+    // workspace folders unless `git.openRepositoryInParentFolders` is "always".
+    const folder = vscode.workspace.workspaceFolders?.[0]
+    assert.ok(folder, 'the integration tests open a workspace folder')
+    const base = await mkdtemp(path.join(folder.uri.fsPath, 'muse-m71-git-'))
     const runGit = processGitRunner()
     try {
       const remote = path.join(base, 'remote.git')

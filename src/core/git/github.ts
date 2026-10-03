@@ -114,7 +114,7 @@ export interface ChecksSummary {
   readonly failedNames: readonly string[]
   /** Any check in a state the capture did not show, as `name: state` (D36). */
   readonly other: readonly string[]
-  /** Check runs beyond the one page read. */
+  /** Check runs and commit statuses beyond the one page of each read. */
   readonly notRead: number
 }
 
@@ -306,7 +306,9 @@ function summarizeChecks(
     ...counts,
     failedNames,
     other,
-    notRead: Math.max(runs.total_count - runs.check_runs.length, 0),
+    notRead:
+      Math.max(runs.total_count - runs.check_runs.length, 0) +
+      Math.max(statuses.total_count - statuses.statuses.length, 0),
   }
 }
 
@@ -445,7 +447,7 @@ export class GitHubClient {
     return toPullRequest(this.parse(pullRequestSchema, raw, 'new pull request'))
   }
 
-  /** The check runs (one page) and commit statuses on `sha`, counted. */
+  /** The check runs and commit statuses (one page of each) on `sha`, counted. */
   public async checks(
     token: string,
     repository: GitHubRepository,
@@ -461,7 +463,7 @@ export class GitHubClient {
         'GET',
         `${commit}/check-runs?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`,
       ),
-      this.request(token, 'GET', `${commit}/status`),
+      this.request(token, 'GET', `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`),
     ])
     return summarizeChecks(
       this.parse(checkRunsSchema, runs, 'check runs'),

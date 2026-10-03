@@ -379,9 +379,23 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       let size = 0
       let stderr = ''
       let failure: Error | undefined
+      // A failure (the timeout, the window closing) also ends the wait for a
+      // taker still busy with a chunk after the child closed.
+      // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+      const stopping = new AbortController()
+      const stopped = new Promise<void>((resolveStopped) => {
+        stopping.signal.addEventListener(
+          'abort',
+          () => {
+            resolveStopped()
+          },
+          { once: true },
+        )
+      })
       const fail = (error: Error) => {
         failure ??= error
         child.kill()
+        stopping.abort()
       }
       const timer = setTimeout(() => {
         fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
@@ -438,8 +452,11 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       child.on('error', (error) => {
         fail(error)
       })
+      // The timeout and the abort stay armed until the taker is done.
       const settle = async (code: number | null): Promise<void> => {
-        await taking
+        await Promise.race([taking, stopped])
+        clearTimeout(timer)
+        options.signal?.removeEventListener('abort', onAbort)
         if (failure !== undefined) {
           reject(failure)
         } else if (code === 0) {
@@ -449,8 +466,6 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         }
       }
       child.on('close', (code) => {
-        clearTimeout(timer)
-        options.signal?.removeEventListener('abort', onAbort)
         void settle(code)
       })
       child.stdin.end(options.input ?? '')

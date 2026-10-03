@@ -208,7 +208,12 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   deps.log.info(`git worktree add: ${branch} from ${base} at ${folder}`)
-  await deps.recordWorktree(folder, branch, nativePath(root, deps.platform))
+  try {
+    await deps.recordWorktree(folder, branch, nativePath(root, deps.platform))
+  } catch (error: unknown) {
+    // The worktree is there either way: it is offered, only without its record.
+    deps.log.warn(`The new worktree was not recorded: ${gitMessage(error)}`)
+  }
   if (
     !canContinue(deps) ||
     !(await deps.offerOpen(fill(UI_TEXT.worktreeCreated, { path: folder }))) ||

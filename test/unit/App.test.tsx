@@ -2853,6 +2853,12 @@ describe('App: git and pull requests (M71)', () => {
       gitDraft: 'pullRequest',
       gitDraftBase: 'release',
     })
+    // The title and description the draft replaces wait for it; the base does not.
+    expect(within(form).getByLabelText('Title')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Description')).toHaveAttribute('readonly')
+    expect(within(form).getByLabelText('Into')).not.toHaveAttribute('readonly')
+    deliver({ type: 'gitDraft', draft: { kind: 'failed', forKind: 'pullRequest' } })
+    expect(within(form).getByLabelText('Title')).not.toHaveAttribute('readonly')
   })
 
   it('commits what the form shows, and asks the model only when the user presses Write', () => {
@@ -2871,10 +2877,13 @@ describe('App: git and pull requests (M71)', () => {
       gitDraft: 'commitMessage',
     })
     expect(within(form).getByRole('button', { name: 'Writing…' })).toBeDisabled()
+    // The draft replaces the message, so nothing can be typed there until it comes.
+    expect(within(form).getByLabelText('Commit message')).toHaveAttribute('readonly')
     // The user's message is in the transcript like any other.
     expect(screen.getByText('Write a commit message for my changes.')).toBeInTheDocument()
     deliver({ type: 'gitDraft', draft: { kind: 'commitMessage', message: 'Add the parser' } })
     expect(within(form).getByLabelText('Commit message')).toHaveValue('Add the parser')
+    expect(within(form).getByLabelText('Commit message')).not.toHaveAttribute('readonly')
     fireEvent.click(within(form).getByRole('checkbox'))
     fireEvent.click(within(form).getByRole('button', { name: 'Commit' }))
     expect(postMessage).toHaveBeenLastCalledWith({
@@ -2972,5 +2981,41 @@ describe('App: git and pull requests (M71)', () => {
       type: 'openExternal',
       url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
     })
+  })
+
+  it.each([
+    ['a state it does not count', ['e2e: timed_out'], 0],
+    ['checks it did not read', [], 3],
+  ])('never shows the passed dot beside %s', (_label, other, notRead) => {
+    renderReady()
+    const checks = {
+      passed: 5,
+      failed: 0,
+      running: 0,
+      skipped: 0,
+      cancelled: 0,
+      failedNames: [],
+      other,
+      notRead,
+    }
+    const pullRequest = {
+      repository: 'RandyNorthrup/muse-spark-code',
+      number: 56,
+      title: 'README: how this extension is built',
+      url: 'https://github.com/RandyNorthrup/muse-spark-code/pull/56',
+      state: 'open',
+      isDraft: false,
+      isMerged: false,
+      checks,
+    }
+    deliver({ type: 'gitState', state: { pullRequest } })
+    const strip = screen.getByRole('region', { name: 'This conversation’s pull request' })
+    expect(strip.querySelector('.tool-dot')).not.toBeNull()
+    expect(strip.querySelector('.tool-dot-ok')).toBeNull()
+    deliver({
+      type: 'gitState',
+      state: { pullRequest: { ...pullRequest, checks: { ...checks, other: [], notRead: 0 } } },
+    })
+    expect(strip.querySelector('.tool-dot-ok')).not.toBeNull()
   })
 })

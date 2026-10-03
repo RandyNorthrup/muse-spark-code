@@ -10,10 +10,16 @@ import * as vscode from 'vscode'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { GitHubClient } from '../../core/git/github'
+import { newFileDiff } from '../../core/git/gitText'
 import type { Logger } from '../logger'
 import { loggedPopups } from '../popups'
 import { newWindowActions } from '../worktreeFeatures'
-import type { CommitConfirmation, GitWindow, PushConfirmation } from './conversationGit'
+import type {
+  CommitConfirmation,
+  GitWindow,
+  PushConfirmation,
+  UntrackedFile,
+} from './conversationGit'
 import {
   captureGitOwner,
   GitUnavailableError,
@@ -92,6 +98,64 @@ export async function fingerprintUntracked(
   return hash.digest('hex')
 }
 
+/** Up to `max` bytes from the start of a regular file; undefined for a link or anything else. */
+async function fileStart(
+  file: string,
+  max: number,
+): Promise<{ readonly bytes: Buffer; readonly size: number } | undefined> {
+  const metadata = await lstat(file)
+  if (!metadata.isFile()) {
+    return undefined
+  }
+  const handle = await open(file, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW)
+  try {
+    const bytes = Buffer.alloc(Math.min(max, metadata.size))
+    let filled = 0
+    while (filled < bytes.length) {
+      const { bytesRead } = await handle.read(bytes, filled, bytes.length - filled, filled)
+      if (bytesRead === 0) {
+        break
+      }
+      filled += bytesRead
+    }
+    return { bytes: bytes.subarray(0, filled), size: metadata.size }
+  } finally {
+    await handle.close()
+  }
+}
+
+/**
+ * New files' contents for the commit prompt, at most `maxBytes` read in all.
+ * A file that is gone, unreadable, a link or a folder is left to the file list.
+ */
+export async function untrackedDiff(
+  files: readonly UntrackedFile[],
+  maxBytes: number,
+  check: () => void,
+): Promise<string> {
+  const parts: string[] = []
+  let room = maxBytes
+  for (const file of files) {
+    if (room <= 0) {
+      break
+    }
+    check()
+    let start: Awaited<ReturnType<typeof fileStart>>
+    try {
+      start = await fileStart(file.path, room)
+    } catch {
+      start = undefined
+    }
+    check()
+    if (start === undefined) {
+      continue
+    }
+    room -= start.bytes.length
+    parts.push(newFileDiff(file.label, start.bytes, start.size))
+  }
+  return parts.join('\n')
+}
+
 async function isModalConfirmed(message: string, detail: string, action: string): Promise<boolean> {
   return (
     (await vscode.window.showWarningMessage(message, { modal: true, detail }, action)) === action
@@ -157,6 +221,7 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     confirmPush: isPushConfirmed,
     confirmCommit: isCommitConfirmed,
     untrackedFingerprint: fingerprintUntracked,
+    untrackedDiff,
     pickRemote: async (names) =>
       await vscode.window.showQuickPick([...names], {
         title: UI_TEXT.gitPickRemoteTitle,

@@ -45,6 +45,7 @@ export interface PullRequestText {
 const BACKTICK_RUN = /`+/g
 const MIN_FENCE = 3
 const LINE_BREAK = /\r?\n/
+const TRAILING_BREAK = /\r?\n$/
 // A reply the model wrapped whole in a fence: ```lang\n…\n```.
 const WHOLE_FENCE = /^(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\1\s*$/
 // "# Title", "Title: …" or "**Title**" in front of a pull request's title.
@@ -77,6 +78,23 @@ function listed(items: readonly string[], max: number): string {
   return rest > 0
     ? [...shown, fill(MODEL_TEXT.gitPromptMore, { count: String(rest) })].join('\n')
     : shown.join('\n')
+}
+
+/**
+ * A new file as `git diff` shows one, for the commit prompt: `bytes` are
+ * its start, `size` its length, and a file cut short or binary says so.
+ */
+export function newFileDiff(label: string, bytes: Uint8Array, size: number): string {
+  const header = `diff --git a/${label} b/${label}\nnew file\n--- /dev/null\n+++ b/${label}`
+  if (bytes.includes(0)) {
+    return `${header}\nBinary file`
+  }
+  const lines = new TextDecoder().decode(bytes).replace(TRAILING_BREAK, '').split(LINE_BREAK)
+  const cut =
+    bytes.length < size
+      ? [fill(MODEL_TEXT.gitPromptTruncated, { count: String(size - bytes.length) })]
+      : []
+  return [header, ...lines.map((line) => `+${line}`), ...cut].join('\n')
 }
 
 /** What the model gets beside the user's own "write a commit message" message. */

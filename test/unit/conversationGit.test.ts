@@ -387,6 +387,26 @@ describe('push (M71): always asks, never forces', () => {
     expect(t.pushConfirmations).toHaveLength(2)
   })
 
+  it.each(['commit', 'pullRequest'] as const)(
+    'answers a %s press ignored during a push as failed, so the form comes back',
+    async (form) => {
+      const t = setup({ repository: aheadRepository() })
+      const pushing = t.git.handleAction('push')
+      await (form === 'commit'
+        ? t.git.commit('Fix', false)
+        : t.git.createPullRequest({
+            head: 'docs/how-its-built',
+            base: 'main',
+            title: 'T',
+            body: '',
+            isDraft: true,
+          }))
+      expect(t.ofType('gitDone')).toEqual([{ type: 'gitDone', form, ok: false }])
+      await pushing
+      expect(t.repository.calls.some((call) => call.method === 'commit')).toBe(false)
+    },
+  )
+
   it('pushes nothing when the user says no', async () => {
     const repository = aheadRepository()
     const t = setup({ repository, confirmsPush: false })

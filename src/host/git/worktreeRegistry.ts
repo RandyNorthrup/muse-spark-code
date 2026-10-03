@@ -72,6 +72,22 @@ export class WorktreeRegistry {
     })
   }
 
+  /** The checkout that put the record made of `createdAt` finished: it is pending no more. */
+  public complete(folder: string, createdAt: number): Promise<void> {
+    return this.write(async () => {
+      const records = this.stored()
+      const current = recordFor(records, folder, this.platform)
+      if (current?.createdAt !== createdAt) {
+        return
+      }
+      const { isCheckoutPending: _pending, ...completed } = current
+      await this.memento.update(
+        GLOBAL_STATE_KEYS.worktreeConversations,
+        withRecord(records, completed, this.platform),
+      )
+    })
+  }
+
   /** A failed publication rolls back only its own record, preserving a concurrent checkout. */
   public remove(folder: string, createdAt?: number, previous?: WorktreeRecord): Promise<void> {
     return this.write(async () => {

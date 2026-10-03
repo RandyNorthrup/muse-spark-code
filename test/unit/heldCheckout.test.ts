@@ -4,7 +4,9 @@
 // this uses runs real `git cat-file --batch` at the end.
 
 import { Buffer } from 'node:buffer'
-import { execFile } from 'node:child_process'
+import { execFile, type spawn } from 'node:child_process'
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
 import { existsSync, lstatSync, mkdtempSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -13,6 +15,7 @@ import { promisify } from 'node:util'
 import { afterAll, describe, expect, it } from 'vitest'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import {
+  createGitProcess,
   type GitProcess,
   processGitProcess,
   processGitRunner,
@@ -397,5 +400,38 @@ describe('createGitProcess handing stdout to a taker (M71)', () => {
     })
     await expect(refused).rejects.toThrow('the taker refused')
     expect(chunks).toBe(1)
+    // Real git, a megabyte and a timer per chunk: a loaded runner needs more
+    // than the default five seconds; its own commands allow thirty.
+  }, 30_000)
+
+  it('keeps the timeout armed while a taker is still busy after git closed', async () => {
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      stdin: new PassThrough(),
+      kill: () => true,
+    })
+    const stalled = createGitProcess({
+      platform: 'linux',
+      env: { PATH: '/usr/bin' },
+      fileExists: () => true,
+      spawn: (() => child) as unknown as typeof spawn,
+    })
+    const running = stalled(['cat-file', '--batch'], {
+      cwd: base,
+      env: {},
+      timeoutMs: 100,
+      // A final write that never ends.
+      onStdout: () =>
+        new Promise<void>(() => {
+          // Never settles.
+        }),
+    })
+    child.stdout.write(Buffer.from('last chunk'))
+    await new Promise((resolve) => {
+      setImmediate(resolve)
+    })
+    child.emit('close', 0)
+    await expect(running).rejects.toThrow('git cat-file timed out after 100 ms')
   })
 })

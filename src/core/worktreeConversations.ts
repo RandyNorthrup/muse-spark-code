@@ -55,6 +55,11 @@ const worktreeRecordSchema = z.object({
    * thing that lets a window under the held folder go.
    */
   trustConfirmedAt: z.optional(z.number()),
+  /**
+   * A pull request checkout recorded before its folder exists and not yet
+   * finished: its folder is never offered as a checkout, even after a crash.
+   */
+  isCheckoutPending: z.optional(z.boolean()),
 })
 
 export type WorktreeRecord = z.infer<typeof worktreeRecordSchema>

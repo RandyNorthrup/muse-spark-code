@@ -448,7 +448,7 @@ describe('Open a pull request in a conversation (M71)', () => {
     })
     expect(record?.trustConfirmedAt).toBeUndefined()
     // Recorded before the folder exists: no window ever opens on it unrecorded.
-    expect(t.recordsAtAdd[0]).toEqual([record])
+    expect(t.recordsAtAdd[0]).toEqual([{ ...record, isCheckoutPending: true }])
     expect(t.opened).toEqual([HELD_FOLDER])
     expect(t.messages.at(-1)?.[1]).toContain('held until you trust it')
     // The window that opens there is held, whatever VS Code trusts.
@@ -542,6 +542,26 @@ describe('Open a pull request in a conversation (M71)', () => {
       'error',
       `That folder already exists: ${HELD_FOLDER}`,
     ])
+  })
+
+  it('records a checkout as pending until it finished, and never opens one that did not', async () => {
+    const t = setup()
+    await openPullRequestInConversation(t.deps)
+    expect(t.recordsAtAdd).toMatchObject([[{ folder: HELD_FOLDER, isCheckoutPending: true }]])
+    expect(t.registry.recordFor(HELD_FOLDER)).not.toHaveProperty('isCheckoutPending')
+    // The window closed while the files were written: the folder and its pending record stay.
+    const crashed = setup({ existing: [HELD_FOLDER], confirms: [true, true] })
+    await crashed.registry.put({
+      folder: HELD_FOLDER,
+      repositoryRoot: ROOT,
+      createdAt: 7,
+      isHeld: true,
+      isCheckoutPending: true,
+    })
+    await openPullRequestInConversation(crashed.deps)
+    expect(crashed.opened).toEqual([])
+    expect(crashed.gitCalls.filter((args) => isCheckout(args))).toEqual([])
+    expect(crashed.messages.at(-1)).toEqual(['error', `That folder already exists: ${HELD_FOLDER}`])
   })
 })
 

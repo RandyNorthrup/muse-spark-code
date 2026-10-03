@@ -21,8 +21,16 @@ export function slashOptionId(index: number): string {
 }
 
 export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuProps) {
+  // A long list scrolls: it is a Tab stop of its own, so it scrolls from the
+  // keyboard too (WCAG 2.1.1), and a click on it leaves the focus in the prompt.
   return (
-    <div className="mention-menu slash-menu">
+    <div
+      className="mention-menu slash-menu"
+      tabIndex={0}
+      onMouseDown={(event) => {
+        event.preventDefault()
+      }}
+    >
       <div className="palette-group-title" aria-hidden="true">
         {UI_TEXT.groupSlashCommands}
       </div>

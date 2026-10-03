@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import { EN } from '../../src/shared/l10n/en'
+import { GITHUB_CHECKS_PAGE_SIZE } from '../../src/shared/constants'
 import { setUiText } from '../../src/shared/l10n/text'
 import { loadUiTable } from '../../src/host/l10n'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -297,6 +298,27 @@ describe('checks (M71)', () => {
       other: ['lint: queued', 'e2e: timed_out', 'ci/x: pending'],
       notRead: 148,
     })
+  })
+
+  it('asks for a full page of commit statuses and counts the statuses beyond it as not read', async () => {
+    const t = client()
+    const commit = `/repos/RandyNorthrup/muse-spark-code/commits/${OWN_SHA}`
+    t.github.answer('GET', `${commit}/check-runs`, { status: 200, body: CAPTURED_CHECKS_NONE })
+    t.github.answer('GET', `${commit}/status`, {
+      status: 200,
+      body: {
+        state: 'success',
+        total_count: 130,
+        statuses: [{ state: 'success', context: 'ci/a' }],
+      },
+    })
+    await expect(t.client.checks(FAKE_GITHUB_TOKEN, REPOSITORY, OWN_SHA)).resolves.toMatchObject({
+      passed: 1,
+      notRead: 129,
+    })
+    expect(t.github.requests.map((request) => request.path)).toContain(
+      `${commit}/status?per_page=${String(GITHUB_CHECKS_PAGE_SIZE)}`,
+    )
   })
 
   it('reads a pull request with no runs as no checks', async () => {

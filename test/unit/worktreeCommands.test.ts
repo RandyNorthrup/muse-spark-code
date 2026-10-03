@@ -188,6 +188,20 @@ describe('newWorktree against a real repository', { timeout: REAL_GIT_TIMEOUT_MS
     expect(git(['rev-parse', 'feature/login']).trim()).toBe(git(['rev-parse', 'release']).trim())
   })
 
+  it('still offers a created worktree when recording it fails, and logs why', async () => {
+    const t = harness({ branch: 'unrecorded', picks: ['release'] })
+    const log = new FakeLogOutputChannel()
+    await newWorktree({
+      ...t.deps,
+      log,
+      recordWorktree: () => Promise.reject(new Error('global state is unwritable')),
+    })
+    const folder = path.join(worktreesFolder(), 'unrecorded')
+    expect(t.errors).toEqual([])
+    expect(t.opened).toEqual([folder])
+    expect(String(log.warn.mock.calls.at(-1)?.[0])).toContain('global state is unwritable')
+  })
+
   it('refuses a name git rejects, a branch that exists, and a folder already there', async () => {
     const invalid = harness({ branch: 'bad..name' })
     await newWorktree(invalid.deps)

@@ -253,8 +253,10 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     : heldWorktreeFolder(deps.storageRoot, remote.repository, pullRequest.number, deps.platform)
   if (deps.pathExists(folder)) {
     // Checked out before: offered again as it is. A folder the extension did
-    // not make is never taken over.
-    if (deps.registry.recordFor(folder) === undefined) {
+    // not make, or a checkout that never finished (the window closed while
+    // it wrote), is never taken over or opened.
+    const existing = deps.registry.recordFor(folder)
+    if (existing === undefined || existing.isCheckoutPending === true) {
       deps.showError(`${UI_TEXT.worktreeFolderExists} ${folder}`)
     } else if (
       await deps.confirm(
@@ -324,8 +326,10 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
       isAuthoredByUser: isOwn,
     },
     isHeld: !isOwn,
+    isCheckoutPending: true,
   }
-  // Recorded before the folder exists, so no window ever sees it unrecorded.
+  // Recorded before the folder exists, so no window ever sees it unrecorded;
+  // pending until the checkout finished.
   const previous = await deps.registry.put(record)
   try {
     await deps.admit(async () => {
@@ -345,6 +349,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
           )
         : deps.checkOutHeld(folder, pullRequest.headSha, cwd, check))
     })
+    await deps.registry.complete(folder, record.createdAt)
   } catch (error: unknown) {
     await deps.registry.remove(folder, record.createdAt, previous)
     deps.showFailure(UI_TEXT.worktreeAddFailed, failureText(error))

@@ -22,6 +22,8 @@ import { canonicalPath } from '../canonicalPath'
 
 export interface GitChange {
   readonly uri: { readonly fsPath: string }
+  /** VS Code's `Status`; GIT_STATUS_UNTRACKED is a new file. */
+  readonly status?: number
 }
 
 export interface GitBranch {

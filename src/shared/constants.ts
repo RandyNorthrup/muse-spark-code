@@ -802,8 +802,8 @@ export const GITHUB_API_BASE_URL = 'https://api.github.com'
 export const GITHUB_API_VERSION = '2022-11-28'
 export const GITHUB_MEDIA_TYPE = 'application/vnd.github+json'
 export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
-// One page of check runs is read; a pull request with more says how many
-// were not.
+// One page of check runs and one of commit statuses are read; a pull request
+// with more says how many were not.
 export const GITHUB_CHECKS_PAGE_SIZE = 100
 // GitHub's own limits on a pull request's title and description.
 export const PULL_REQUEST_TITLE_MAX_CHARS = 256
@@ -812,6 +812,8 @@ export const PULL_REQUEST_BODY_MAX_CHARS = 65_536
 export const COMMIT_SUBJECT_MAX_CHARS = 72
 // What a generation prompt carries of the changes: bounded, and said when cut.
 export const GIT_PROMPT_DIFF_MAX_CHARS = 60_000
+/** VS Code's git API `Status.UNTRACKED`: a new file in the working tree's group ("mixed" view). */
+export const GIT_STATUS_UNTRACKED = 7
 export const GIT_PROMPT_COMMITS_MAX = 50
 export const GIT_PROMPT_FILES_MAX = 200
 // The commit form names this many changed files and counts the rest.

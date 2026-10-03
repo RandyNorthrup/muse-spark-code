@@ -28,6 +28,8 @@ import {
   PULL_REQUEST_TITLE_MAX_CHARS,
   GIT_FORM_FILES_SHOWN,
   GIT_PROMPT_COMMITS_MAX,
+  GIT_PROMPT_DIFF_MAX_CHARS,
+  GIT_STATUS_UNTRACKED,
   STDERR_SHOWN_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -127,11 +129,23 @@ export interface GitWindow {
   readonly confirmCommit: (confirmation: CommitConfirmation) => Promise<boolean>
   /** New files are absent from git diff: hash their bytes or link text before commit consent. */
   readonly untrackedFingerprint: (paths: readonly string[], check: () => void) => Promise<string>
+  /** New files' contents for a commit-message prompt, as a diff would show them, within `maxBytes`. */
+  readonly untrackedDiff: (
+    files: readonly UntrackedFile[],
+    maxBytes: number,
+    check: () => void,
+  ) => Promise<string>
   readonly pickRemote: (names: readonly string[]) => Promise<string | undefined>
   /** The held window's "Trust this worktree…": asks, and releases the hold on a yes. */
   readonly confirmWorktreeTrust: () => Promise<void>
   readonly now: () => number
   readonly log: Logger
+}
+
+/** A new file: where it is, and its path as the prompt names it. */
+export interface UntrackedFile {
+  readonly path: string
+  readonly label: string
 }
 
 interface Generation {
@@ -176,6 +190,14 @@ function changedPaths(changes: readonly GitChange[]): readonly string[] {
   return changes
     .map((change) => change.uri.fsPath)
     .toSorted((left, right) => left.localeCompare(right))
+}
+
+/** New files: the untracked group, and in VS Code's default "mixed" view, those among the working tree's. */
+function untrackedOf(state: GitRepository['state']): readonly GitChange[] {
+  return [
+    ...state.untrackedChanges,
+    ...state.workingTreeChanges.filter((change) => change.status === GIT_STATUS_UNTRACKED),
+  ]
 }
 
 function repositoryStamp(repository: GitRepository): string {
@@ -777,6 +799,25 @@ export class ConversationGit implements ConversationGitPort {
       check()
       diff = await repository.diff(isStaged)
       check()
+      if (!isStaged) {
+        // git diff leaves new files out; their contents come from the files themselves.
+        const room = GIT_PROMPT_DIFF_MAX_CHARS - diff.length
+        const added =
+          room > 0
+            ? await this.window.untrackedDiff(
+                untrackedOf(state).map((change) => ({
+                  path: change.uri.fsPath,
+                  label: this.relativePath(repository, change),
+                })),
+                room,
+                check,
+              )
+            : ''
+        check()
+        if (added !== '') {
+          diff = diff === '' || diff.endsWith('\n') ? `${diff}${added}` : `${diff}\n${added}`
+        }
+      }
     } catch (error: unknown) {
       this.window.log.warn(`A draft's diff could not be read (${gitFailureCode(error)})`)
       throw new Error(UI_TEXT.gitUnavailable, { cause: error })
@@ -891,11 +932,15 @@ export class ConversationGit implements ConversationGitPort {
 
   /**
    * Runs `operation` unless another commit, push or pull request operation
-   * is running for this conversation: a second press is ignored.
+   * is running for this conversation: a second press is ignored, and a
+   * form's press is answered as failed, so its buttons come back.
    */
   private async exclusively(operation: () => Promise<void>, form?: GitForm): Promise<void> {
     if (this.isDisposed || this.isOperating) {
       this.window.log.info('A git operation is already running here; the second press is ignored')
+      if (form !== undefined && this.canPost()) {
+        this.surface.post({ type: 'gitDone', form, ok: false })
+      }
       return
     }
     this.isOperating = true

@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { fingerprintUntracked } from '../../src/host/git/gitWindow'
+import { fingerprintUntracked, untrackedDiff } from '../../src/host/git/gitWindow'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
   captureGitOwner,
@@ -12,7 +12,11 @@ import {
 } from '../../src/host/git/gitExtension'
 import { systemPath } from '../../src/host/backend/memoryIo'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
-import { UI_TEXT } from '../../src/shared/constants'
+import {
+  GIT_PROMPT_DIFF_MAX_CHARS,
+  GIT_STATUS_UNTRACKED,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { fakeGitWindow, fakeRepository } from './helpers/fakeGit'
 
@@ -100,6 +104,51 @@ describe('untracked commit bytes on the file system (M71)', () => {
     expect(posted).toContainEqual({ type: 'gitDone', form: 'commit', ok: false })
     git.dispose()
   })
+
+  it.each([
+    ['in the untracked group', 'separate'],
+    ['among the working tree changes', 'mixed'],
+  ] as const)(
+    'gives the commit prompt a new file’s contents %s, bounded and binary-safe',
+    async (_label, view) => {
+      const root = await mkdtemp(path.join(fixture.root, `prompt-${view}-`))
+      const added = path.join(root, 'added.ts')
+      const binary = path.join(root, 'image.bin')
+      const large = path.join(root, 'large.txt')
+      await writeFile(added, 'export const added = 1\n')
+      await writeFile(binary, Buffer.from([1, 0, 2]))
+      await writeFile(large, 'x'.repeat(GIT_PROMPT_DIFF_MAX_CHARS * 2))
+      const changes = [added, binary, large].map((file) => ({
+        uri: { fsPath: file },
+        status: GIT_STATUS_UNTRACKED,
+      }))
+      const repository = {
+        ...fakeRepository(
+          view === 'separate' ? { untrackedChanges: changes } : { workingTreeChanges: changes },
+        ),
+        rootUri: { fsPath: root },
+      }
+      const { window } = fakeGitWindow({ repository })
+      const git = new ConversationGit(
+        {
+          ...window,
+          workspaceRoot: root,
+          platform: process.platform,
+          untrackedDiff,
+          captureGitOwner,
+        },
+        { sessionId: () => 'session', post: () => undefined, notice: noChange, say: noChange },
+      )
+      const prompt = await git.promptFor('commitMessage')
+      expect(prompt).toContain('+++ b/added.ts\n+export const added = 1\n')
+      expect(prompt).toContain('+++ b/image.bin\nBinary file')
+      expect(prompt).toContain('+++ b/large.txt\n+xxx')
+      // At most one diff's worth is read, and the model is told the rest was left out.
+      expect(prompt.length).toBeLessThan(GIT_PROMPT_DIFF_MAX_CHARS + 2000)
+      expect(prompt).toContain('characters of the diff were left out')
+      git.dispose()
+    },
+  )
 
   it('detects different bytes with the same file name and length', async () => {
     const file = path.join(fixture.root, 'new.ts')

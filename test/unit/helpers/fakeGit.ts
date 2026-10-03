@@ -190,6 +190,8 @@ export function fakeGitWindow(options: FakeGitWindowOptions = {}) {
     // Byte-level behavior has its own real-file-system suite; tracked diffs
     // must not also change this independent new-file fingerprint.
     untrackedFingerprint: () => Promise.resolve('fake-untracked-fingerprint'),
+    // New files' contents are read from real files in gitWindowFileSystem.test.ts.
+    untrackedDiff: () => Promise.resolve(''),
     pickRemote: () => Promise.resolve(options.pickRemote),
     confirmWorktreeTrust: () => {
       trustRequests += 1
