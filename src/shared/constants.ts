@@ -2012,7 +2012,6 @@ export const MSP_SESSION_LIST_MAX_LIMIT = 200
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
   'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
-  'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f': '1.4.1-R4503.1',
   'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a

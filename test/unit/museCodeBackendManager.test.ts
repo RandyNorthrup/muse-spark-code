@@ -84,7 +84,6 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
 
   it.each([
     ['sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2', '1.4.2-R4684.1'],
-    ['sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f', '1.4.1-R4503.1'],
   ])('recognizes %s as %s without a mismatch warning', async (fingerprint, build) => {
     expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBe(build)
     const log = await startWithFingerprint(fingerprint)
@@ -108,8 +107,14 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
     expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
   })
 
-  it('still warns for an unknown build', async () => {
-    const log = await startWithFingerprint('sha256:unknown-build')
+  // 1.4.1-R4503.1 never reached npm and no live frame of it was captured,
+  // so its manifest fingerprint is not trusted as a known successor.
+  it.each([
+    'sha256:unknown-build',
+    'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f',
+  ])('still warns for %s', async (fingerprint) => {
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBeUndefined()
+    const log = await startWithFingerprint(fingerprint)
     expect(log.warn).toHaveBeenCalledWith(
       expect.stringContaining('MSP schema fingerprint mismatch'),
     )

@@ -167,7 +167,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Muse Code 1.4.1 and 1.4.2 no longer log a schema fingerprint mismatch at every start.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of

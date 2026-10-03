@@ -3591,10 +3591,11 @@ acceptance criteria. **A milestone is not complete until its checklist passes.**
       `docs/certification/<milestone>.md`.
 - [ ] Commit with a message describing what changed and why.
 
-### SDK142 — Muse Code 1.4.1/1.4.2 fingerprints and documentation (2026-10-02)
+### SDK142 — Muse Code 1.4.2 fingerprint and documentation (2026-10-02)
 
-Scoped maintenance: recognize the captured additive MSP fingerprints for
-1.4.1-R4503.1 and 1.4.2-R4684.1. Keep the SDK at 1.3.0, its own
+Scoped maintenance: recognize the captured additive MSP fingerprint of
+1.4.2-R4684.1. 1.4.1-R4503.1 is not added: it never reached npm and no live
+frame of it was captured, so a 1.4.1 host still warns. Keep the SDK at 1.3.0, its own
 1.3.0-R3401.1 fingerprint outside the successor map, and the existing
 additive-successor log wording. Unknown fingerprints still warn.
 Correct CLI facts from the October 2 research without building features.
