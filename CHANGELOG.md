@@ -9,61 +9,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
-  agents with their own prompt, tools, model or effort, and permissions. The
-  model runs one through `subagent_spawn` with `agent` set to its id, and the
-  run is a paid child task like any subagent (asks in the paid-use popup,
-  off unless paid subagents are on, refused in Plan). The extension ships
-  `explore` (read-only reconnaissance) and `second-opinion` (a high-effort
-  consult); your own are `.agents/agents/<id>/AGENT.md` in the workspace or
-  `~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
-  set), with front matter (`name`, `description`; optional `tools` as a
-  comma-separated allowlist, `model`, `effort`, `permission-mode`) above a
-  Markdown prompt. The CLI names no agent folder, so the folder is this
-  extension's own (PLAN.md D13). On the CLI backend Muse Code reads its own
-  agents. The paired evaluator keeps its isolated defaults: no personal
-  agents and no paid child tasks.
-- **What a custom agent may do.** An agent can only narrow the session: its
-  tool list binds every call (memory tools included), automatic check commands
-  need `run_checks` or the shell in it and `then_run`, which runs any
-  command line, needs the shell, and a mode switch keeps its ceiling. Its
-  `permission-mode` applies as far as your mode allows: under Manual every
-  child asks, a Manual agent always asks, and an Edit automatically agent
-  writes without a card under Edit automatically, Auto and Bypass
-  permissions (a protected write still asks). A model it names
-  passes the checks of your own choice: contributor models are blocked in a
-  confidential workspace and otherwise ask once for each spawn (and for a
-  follow-up this session was never given the yes for), and a model other
-  than the session's asks in the paid-use popup even when subagents are
-  allowed always in the workspace. A spawn is checked again after each
-  question it asks, so no popup follows one that can no longer run (trust
-  withdrawn, the workspace turned confidential), and a retry under the same
-  `command_id` answers with its child even if a new one could not start now.
-- **Agent files are untrusted input.** A file is read only up to 64 KB and only
-  when it is a regular file; a skill file gets the same cap. Front matter
-  the reader cannot take whole (a YAML list, an indented value, a repeated
-  key, a `tools` line that names no tool) skips the file with a log line
-  instead of reading as "every tool"; names, descriptions and models are
-  bounded and free of control and direction characters; at most 32 agent
-  files load. A repository's files load only in a trusted workspace, no agent
-  is offered once it stops being trusted, and a child's role is labelled with
-  its source and sits below the workspace rules that outrank it. Each agent
-  folder loads on its own: one that cannot be read is logged by name and
-  the others still load, and an agent it, or a file in it that was skipped,
-  might define is refused by name rather than replaced by a broader personal
-  or built-in agent of the same id.
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
-  commands become skills, compatible agents become M76 agent files, project
-  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
-  editor edits for review and save. Import preserves source exposure:
-  personal stays personal and git-ignored files never enter tracked targets;
-  target exposure and path guards are checked again at publication/edit.
-  Values stay unchanged; no credential detector or clipboard operation.
-  Preview/picker output shows names, scopes and targets only, logs counts
-  and fixed reasons only. Only active MCP transport fields are copied;
-  inactive/unknown fields are dropped by name. Existing files and running
-  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
-  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -148,20 +93,71 @@ happened, not what was planned; superseded entries are kept.
   refused with the reason; a refused `/handoff` stays in the prompt with
   its goal. While a new API key is being activated, a Start is refused
   before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
+  still works, and a deferred brief read says why and retries when sign-in
+  or key activation completes, including a read that failed while admission
+  was held. Start shares the plan actions' operation lock: either refuses
+  while the other runs. A composer send during distillation is refused,
+  keeping its exact draft and images without replacing newer typing.
+  No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
+- **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
+  agents with their own prompt, tools, model or effort, and permissions. The
+  model runs one through `subagent_spawn` with `agent` set to its id, and the
+  run is a paid child task like any subagent (asks in the paid-use popup,
+  off unless paid subagents are on, refused in Plan). The extension ships
+  `explore` (read-only reconnaissance) and `second-opinion` (a high-effort
+  consult); your own are `.agents/agents/<id>/AGENT.md` in the workspace or
+  `~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
+  set), with front matter (`name`, `description`; optional `tools` as a
+  comma-separated allowlist, `model`, `effort`, `permission-mode`) above a
+  Markdown prompt. The CLI names no agent folder, so the folder is this
+  extension's own (PLAN.md D13). On the CLI backend Muse Code reads its own
+  agents. The paired evaluator keeps its isolated defaults: no personal
+  agents and no paid child tasks.
+- **What a custom agent may do.** An agent can only narrow the session: its
+  tool list binds every call (memory tools included), automatic check commands
+  need `run_checks` or the shell in it and `then_run`, which runs any
+  command line, needs the shell, and a mode switch keeps its ceiling. Its
+  `permission-mode` applies as far as your mode allows: under Manual every
+  child asks, a Manual agent always asks, and an Edit automatically agent
+  writes without a card under Edit automatically, Auto and Bypass
+  permissions (a protected write still asks). A model it names
+  passes the checks of your own choice: contributor models are blocked in a
+  confidential workspace and otherwise ask once for each spawn (and for a
+  follow-up this session was never given the yes for), and a model other
+  than the session's asks in the paid-use popup even when subagents are
+  allowed always in the workspace. A spawn is checked again after each
+  question it asks, so no popup follows one that can no longer run (trust
+  withdrawn, the workspace turned confidential), and a retry under the same
+  `command_id` answers with its child even if a new one could not start now.
+- **Agent files are untrusted input.** A file is read only up to 64 KB and only
+  when it is a regular file; a skill file gets the same cap. Front matter
+  the reader cannot take whole (a YAML list, an indented value, a repeated
+  key, a `tools` line that names no tool) skips the file with a log line
+  instead of reading as "every tool"; names, descriptions and models are
+  bounded and free of control and direction characters; at most 32 agent
+  files load. A repository's files load only in a trusted workspace, no agent
+  is offered once it stops being trusted, and a child's role is labelled with
+  its source and sits below the workspace rules that outrank it. Each agent
+  folder loads on its own: one that cannot be read is logged by name and
+  the others still load, and an agent it, or a file in it that was skipped,
+  might define is refused by name rather than replaced by a broader personal
+  or built-in agent of the same id.
 
 ### Changed
 
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
-- README: an install guide for the most used editors (VS Code, Cursor,
-  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
-  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
-  settings; the README, banner and social preview now name no single editor
-  ("a coding agent in your editor"), and the README links every channel:
-  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -170,17 +166,17 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
   2026-11-01. No fixed release exists, and `braces` reaches only development
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
-- Take the compatible development updates from the grouped Dependabot pull
-  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
-  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
-  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
-  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
-  alone; no file of the extension changes.
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -209,6 +205,14 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
 - **Approval cards are docked above the message box** while they wait,
   as in Claude Code's panel, so scrolling never loses one.
   - The tool's row in the conversation keeps a short "Waiting for your
@@ -225,21 +229,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **A spawn that starts no child asks nothing** (Model API backend). One past
-  the 64 children of a conversation, one asking for worktree isolation, or
-  one reusing an earlier spawn's command id for a different task is refused
-  before the paid-use popup or the contributor question; a retry of the
-  same spawn under its command id answers with that child without asking
-  again. Each used to ask first.
-- When your PreToolUse hook rewrites a `then_run` command into one that
-  names no command, the line under the edit says so in your display
-  language; it was English. The model is still told in English.
-- A skill folder that cannot be read no longer hides the other folder's
-  skills (Model API backend): each loads on its own, and the log names the
-  one that failed.
-- Project context files are read through the canonical path confinement.
-  Replacing an agent/skill/rules alias with an outside link between check and
-  read no longer redirects the read outside the workspace.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
   API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
@@ -260,11 +257,6 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
-- Web fetch decodes a windows-1252 page by the Encoding standard's table on
-  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
-  so the euro sign, curly quotes and dashes of a page in that encoding (and of
-  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
-  windows-1252) came out as invisible control characters there.
 - **A `/goal` refused while a Model API key is activated no longer
   sticks.** While a key was being activated, with the panel still reading
   signed in, a `/goal …` from the prompt or a goal edit was refused with
@@ -284,6 +276,29 @@ happened, not what was planned; superseded entries are kept.
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
 - **Approval decisions and recovery (PR #90, D26):** simultaneous panels
   share one decision's eventual result, so a confirmed refusal unlocks
   both. Stop waits for an in-flight decision and rejects the next waiting
@@ -402,6 +417,21 @@ happened, not what was planned; superseded entries are kept.
   themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
   WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
   with a red edge.
+
+### Release infrastructure
+
+- Release assets now include SHA-256 checksums, package provenance attestations
+  and CycloneDX inventories limited to the actual bundled dependencies, plus
+  the ACP package's native runtime dependencies. npm publication requests
+  provenance and retains token authentication.
+- Registry publishing retries only transient network failures with a bounded
+  20/60-second backoff. Existing versions require matching VSIX SHA-256 or
+  tarball SHA-512 integrity; GitHub reruns verify existing assets and add only
+  missing files. A final summary reports all channel outcomes and fails any
+  failed channel. The release guide documents partial publication and npm EOTP.
+- Packaging checks every ACP locale and enforces a measured universal VSIX
+  size budget. M80 schema-upload and fully-published `v0` tag hooks are prepared
+  and remain inert until their source directories exist.
 
 ## [0.10.1] - 2026-10-02
 

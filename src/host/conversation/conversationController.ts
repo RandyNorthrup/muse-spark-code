@@ -739,6 +739,8 @@ interface PendingHandoff {
   readonly requestId: string
   readonly goal: string | undefined
   turnId: string | undefined
+  /** Submission began; the turn can run before its acceptance arrives. */
+  hasSubmittedTurn: boolean
   session: AgentSession | undefined
   /** The brief, once the distillation turn completed and it was shown. */
   brief: string | undefined
@@ -746,7 +748,11 @@ interface PendingHandoff {
   /** The completed turn's reply being read back as the brief. */
   isReadingBrief: boolean
   isStarting: boolean
-  readonly generation: number
+  /**
+   * The send epoch owning the slot; a resumable restart adopts a waiting
+   * brief into the new one, so the sign-in retry still owns it.
+   */
+  generation: number
 }
 
 /** The composer's effort and Thinking toggle, as a session holds them. */
@@ -962,7 +968,7 @@ export class ConversationController {
    * Plan mode drops them all, since any of them may then act.
    */
   private readonly pendingPlanTurnIds = new Set<string>()
-  /** A plan action (save, implement, Plans…) is running (M79). */
+  /** Plan actions and handoff Start share the conversation-replacing operation lock. */
   private isPlanActionRunning = false
   /** This conversation's turn checkpoints (M72). */
   private readonly checkpoints: ConversationCheckpoints
@@ -3480,9 +3486,9 @@ export class ConversationController {
   }
 
   /**
-   * One plan action at a time: a second press while Save plan, Implement or
-   * Plans… still runs is dropped, and said, so a plan is saved once and
-   * started once.
+   * One plan action or handoff Start at a time: a second press while Save
+   * plan, Implement, Plans… or Start still runs is dropped, and said, so
+   * only one operation can leave and seed a conversation.
    */
   private async onePlanAction(run: () => Promise<void>): Promise<void> {
     if (this.isPlanActionRunning) {
@@ -3884,6 +3890,7 @@ export class ConversationController {
       goal,
       generation,
       turnId: undefined,
+      hasSubmittedTurn: false,
       session: this.session,
       brief: undefined,
       todos: [],
@@ -3983,12 +3990,24 @@ export class ConversationController {
     pending.isReadingBrief = true
     try {
       // While admission is closed the operation waits, its turn done, and
-      // `readWaitingBrief` reads the brief when the panel next asks.
+      // `readWaitingBrief` reads the brief after sign-in/key activation,
+      // or when the panel next asks.
       if (!this.isStillCurrent(pending)) {
         return
       }
       const host = await this.deps.ensureHost()
-      const session = pending.session
+      const hasConversationToResume = this.session !== undefined || this.resumeTarget !== undefined
+      let session = pending.session
+      if (hasConversationToResume && session === undefined) {
+        // Rebound after a resumable restart (M74): the stop dropped the
+        // waiting handoff's session, so the retry reads the brief from the
+        // resumed conversation (the review of PR #84).
+        const resumed = await this.sessionForAction()
+        if (resumed !== undefined && this.pendingHandoff === pending) {
+          pending.session = resumed
+          session = resumed
+        }
+      }
       if (session === undefined || !this.isStillCurrent(pending)) {
         return
       }
@@ -4016,12 +4035,15 @@ export class ConversationController {
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
-      if (this.isCurrentHandoff(pending)) {
+      if (this.isStillCurrent(pending)) {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
       }
     } finally {
       pending.isReadingBrief = false
+      if (this.isCurrentHandoff(pending) && !this.isAuthAdmitted()) {
+        this.notice('warning', UI_TEXT.notSignedInReason)
+      }
     }
   }
 
@@ -4037,6 +4059,9 @@ export class ConversationController {
       pending.brief !== undefined ||
       pending.isReadingBrief ||
       !this.finishedTurns.has(pending.turnId) ||
+      (pending.session === undefined &&
+        this.session === undefined &&
+        this.resumeTarget === undefined) ||
       !this.isStillCurrent(pending)
     ) {
       return false
@@ -4082,6 +4107,11 @@ export class ConversationController {
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       return
     }
+    if (this.isPlanActionRunning) {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.notice('info', UI_TEXT.handoffBusy)
+      return
+    }
     const generation = pending.generation
     if (!this.isCurrentHandoff(pending)) {
       this.pendingHandoff = undefined
@@ -4100,6 +4130,7 @@ export class ConversationController {
       return
     }
     pending.isStarting = true
+    this.isPlanActionRunning = true
     const seeded = handoffBrief(
       brief,
       pending.goal,
@@ -4117,6 +4148,7 @@ export class ConversationController {
       return
     } finally {
       pending.isStarting = false
+      this.isPlanActionRunning = false
     }
     if (started.status === 'changed') {
       this.dropHandoff(pending)
@@ -4398,6 +4430,26 @@ export class ConversationController {
     let checkpoint: PendingCapture | undefined
     let hasSubmittedHandoff = false
     try {
+      // A composer send cannot steer the distillation's reply into a
+      // different brief. Start's own brief send remains admitted. Check
+      // before auth/session preparation too, so its refusal keeps the draft.
+      // The block lasts until the brief and its todo snapshot are both
+      // captured: the reply is read by turn id, but the todos come from the
+      // session-wide list, which a send admitted meanwhile could update
+      // before the read resolves (the review of PR #84).
+      const requireNoDistillation = (): void => {
+        const pending = this.pendingHandoff
+        if (
+          handoff === undefined &&
+          brief === undefined &&
+          pending?.hasSubmittedTurn === true &&
+          pending.brief === undefined &&
+          this.isCurrentHandoff(pending)
+        ) {
+          throw new Error(UI_TEXT.handoffBusy)
+        }
+      }
+      requireNoDistillation()
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
       if (session === undefined) {
@@ -4417,6 +4469,7 @@ export class ConversationController {
         if (handoff !== undefined && !this.isCurrentHandoff(handoff)) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
         }
+        requireNoDistillation()
         // Nor is its request sent once admission closed (M74): refused as
         // the reason its card failed, and the composer keeps the command.
         if (handoff !== undefined && !hasSubmittedHandoff && !this.isAuthAdmitted()) {
@@ -4522,6 +4575,9 @@ export class ConversationController {
           seededSession = current
         }
         hasSubmittedHandoff = handoff !== undefined
+        if (handoff !== undefined) {
+          handoff.hasSubmittedTurn = true
+        }
         return this.submit(
           current,
           parts,
@@ -5899,6 +5955,7 @@ export class ConversationController {
       }
       case 'signIn': {
         await this.deps.auth.signIn(message.method)
+        this.readWaitingBrief()
         void this.warmModels()
         break
       }
@@ -6496,8 +6553,30 @@ export class ConversationController {
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }
+      const waiting = this.pendingHandoff
+      const isWaitingTurnFinished =
+        waiting?.turnId !== undefined &&
+        waiting.brief === undefined &&
+        this.finishedTurns.has(waiting.turnId)
       this.rememberForResume(isConversationEnding ? undefined : session)
       this.dropSession(false)
+      if (
+        !isConversationEnding &&
+        waiting !== undefined &&
+        isWaitingTurnFinished &&
+        this.pendingHandoff === waiting &&
+        waiting.brief === undefined &&
+        waiting.turnId !== undefined
+      ) {
+        // A brief deferred by closed admission (M74) survives the resumable
+        // restart: the stop dropped the session and the finished-turn
+        // record, so the waiting handoff is adopted into the new generation
+        // with its turn, its session rebound when the conversation resumes,
+        // and the sign-in retry reads it (the review of PR #84).
+        waiting.generation = this.sendInvalidationEpoch
+        waiting.session = undefined
+        this.finishedTurns.add(waiting.turnId)
+      }
       this.forgetModels()
       this.listWatch.forget()
       this.usageWatch.forget()

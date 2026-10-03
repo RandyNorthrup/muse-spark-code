@@ -9330,12 +9330,14 @@ async function handoffConversation(
   firstReply?: ScriptedReply,
   beforeEnsureHost?: () => Promise<void>,
   options: Parameters<typeof setup>[0] = {},
+  store?: ModelApiHostDeps['store'],
 ): Promise<HandoffConversation> {
   const t = setup(options)
   let nextId = 0
   const { api, controller, host } = modelApiController(t, {
     newId: () => `id${String(++nextId)}`,
     ...(beforeEnsureHost !== undefined && { beforeEnsureHost }),
+    ...(store !== undefined && { store }),
   })
   api.script(firstReply ?? { text: 'did the thing' })
   await controller.handle({
@@ -9413,6 +9415,55 @@ async function lastModelNotice(
   return notices(t).slice(before).at(-1)?.text
 }
 
+/** A composer send refused with `reason`: no turn starts and no request goes out. */
+async function expectComposerRefused(
+  conversation: HandoffConversation,
+  localId: string,
+  text: string,
+  reason: string,
+) {
+  const { t, api, controller } = conversation
+  const before = api.responseBodies().length
+  await controller.handle({ type: 'sendMessage', localId, text, attachmentIds: [] })
+  expect(t.surface.posted).toContainEqual({
+    type: 'sendFailed',
+    localId,
+    reason,
+    attachmentsKept: true,
+  })
+  expect(
+    t.surface.posted.some((posted) => posted.type === 'turnAccepted' && posted.localId === localId),
+  ).toBe(false)
+  expect(api.responseBodies()).toHaveLength(before)
+  return before
+}
+
+/** The distillation turn completes while admission is closed: no dialog yet. */
+async function completeDistillationUnadmitted(
+  conversation: HandoffConversation,
+  release: PromiseWithResolvers<unknown>,
+) {
+  const { t } = conversation
+  t.auth.isAdmitted = false
+  release.resolve(undefined)
+  await vi.waitFor(() => {
+    expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+  })
+  await settle()
+  expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+}
+
+/** The mocked key sign-in completing: admission returns. */
+async function signInWithKey(conversation: HandoffConversation) {
+  const { t, controller } = conversation
+  vi.spyOn(t.auth.service, 'signIn').mockImplementationOnce(async () => {
+    await Promise.resolve()
+    t.auth.isAdmitted = true
+    return t.auth.snapshot
+  })
+  await controller.handle({ type: 'signIn', method: 'apiKey' })
+}
+
 describe('ConversationController: handoff to a new conversation (M74)', () => {
   const BRIEF =
     '## Goal\nShip it.\n\n## Decisions\nNone.\n\n## Files touched\nNone.\n\n## Open work\nShip it.\n\n## Todo list\n- [ ] Polish the tile'
@@ -9430,11 +9481,15 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   }
 
   /** A handoff `h1` whose distillation turn runs, its reply held until `release`. */
-  async function heldDistillation(goal?: string) {
-    const conversation = await handoffConversation()
+  async function heldDistillation(goal?: string, store?: ModelApiHostDeps['store']) {
+    const conversation = await handoffConversation(undefined, undefined, {}, store)
     const release = Promise.withResolvers<unknown>()
     conversation.api.script({ hold: release.promise, text: BRIEF })
+    const before = conversation.api.responseBodies().length
     await conversation.controller.handle(handoff('h1', goal))
+    await vi.waitFor(() => {
+      expect(conversation.api.responseBodies()).toHaveLength(before + 1)
+    })
     return { conversation, release }
   }
 
@@ -9758,6 +9813,185 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
   })
 
+  it.each([true, false])(
+    'shares the conversation replacement lock with Implement (handoff starts first: %s)',
+    async (isHandoffFirst) => {
+      const gate = holdNextHandoffHost()
+      const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
+      const { t, api, controller } = conversation
+      const saved = await t.planFiles.plans.save({
+        title: 'Implement the tile',
+        savedAt: new Date(t.deps.now()),
+        text: CAPTURED_PLAN_BODY,
+      })
+      t.planFiles.choose.mockImplementationOnce((plans) =>
+        Promise.resolve(
+          plans[0] === undefined ? undefined : { plan: plans[0], action: 'implement' },
+        ),
+      )
+      await distil(conversation, 'h1')
+      const start: ConversationMessage = {
+        type: 'confirmHandoff',
+        requestId: 'h1',
+        brief: EDITED,
+      }
+      const implement: ConversationMessage = { type: 'showPlans' }
+      const before = api.responseBodies().length
+      t.surface.posted.length = 0
+      api.script({ text: 'on it' })
+      gate.hold()
+      const first = controller.handle(isHandoffFirst ? start : implement)
+      try {
+        await gate.entered
+        await controller.handle(isHandoffFirst ? implement : start)
+        expect(notices(t).at(-1)?.text).toBe(
+          isHandoffFirst ? UI_TEXT.planActionBusy : UI_TEXT.handoffBusy,
+        )
+        if (!isHandoffFirst) {
+          expect(t.surface.posted).toContainEqual({
+            type: 'handoffCommandResult',
+            requestId: 'h1',
+            accepted: false,
+          })
+        }
+        expect(t.surface.posted.some((posted) => posted.type === 'conversationCleared')).toBe(false)
+        expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
+        expect(api.responseBodies()).toHaveLength(before)
+      } finally {
+        gate.release()
+      }
+      await first
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(before + 1)
+      })
+      expect(
+        t.surface.posted.filter((posted) => posted.type === 'conversationCleared'),
+      ).toHaveLength(1)
+      expect(t.surface.posted.filter((posted) => posted.type === 'briefSubmitted')).toHaveLength(1)
+      expect(JSON.stringify(api.responseBodies().at(-1)?.['input'])).toContain(
+        isHandoffFirst ? 'Edited by hand.' : saved.relativePath,
+      )
+    },
+  )
+
+  it.each([true, false])(
+    'refuses composer steering during distillation, then accepts Start own brief send (admitted: %s)',
+    async (isAdmitted) => {
+      const { conversation, release } = await heldDistillation()
+      const { t, api } = conversation
+      t.auth.isAdmitted = isAdmitted
+      let before: number
+      try {
+        before = await expectComposerRefused(
+          conversation,
+          'ordinary',
+          'Do this instead',
+          UI_TEXT.handoffBusy,
+        )
+      } finally {
+        release.resolve(undefined)
+        t.auth.isAdmitted = true
+      }
+      await expectBriefReady(t)
+      await confirmEdited(conversation, 'h1')
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(before + 1)
+      })
+      expect(JSON.stringify(api.responseBodies().at(-1)?.['input'])).not.toContain(
+        'Do this instead',
+      )
+    },
+  )
+
+  it('refuses composer steering before the distillation acceptance arrives', async () => {
+    const conversation = await handoffConversation()
+    const { t, api, controller } = conversation
+    const acceptance = Promise.withResolvers<undefined>()
+    const reply = Promise.withResolvers<unknown>()
+    const sent = Promise.withResolvers<undefined>()
+    const sendTurn = ModelApiSession.prototype.sendTurn
+    const sending = vi
+      .spyOn(ModelApiSession.prototype, 'sendTurn')
+      .mockImplementationOnce(async function (this: ModelApiSession, ...args) {
+        const outcome = await sendTurn.apply(this, args)
+        sent.resolve(undefined)
+        await acceptance.promise
+        return outcome
+      })
+    api.script({ hold: reply.promise, text: BRIEF })
+    const requesting = controller.handle(handoff('h1'))
+    try {
+      await sent.promise
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'early',
+        text: 'Pollute the brief',
+        attachmentIds: [],
+      })
+      expect(t.surface.posted).toContainEqual({
+        type: 'sendFailed',
+        localId: 'early',
+        reason: UI_TEXT.handoffBusy,
+        attachmentsKept: true,
+      })
+    } finally {
+      acceptance.resolve(undefined)
+      reply.resolve(undefined)
+      sending.mockRestore()
+    }
+    await requesting
+    await expectBriefReady(t)
+  })
+
+  it.each([true, false])(
+    'refuses a composer send until the distillation brief is read (admitted: %s)',
+    async (isAdmitted) => {
+      const { conversation, release } = await heldDistillation()
+      const { t, api, controller, host } = conversation
+      const entered = Promise.withResolvers<undefined>()
+      const readReleased = Promise.withResolvers<undefined>()
+      const readSession = host.readSession.bind(host)
+      const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => {
+        entered.resolve(undefined)
+        await readReleased.promise
+        return await readSession(sessionId)
+      })
+      try {
+        release.resolve(undefined)
+        await entered.promise
+        t.auth.isAdmitted = isAdmitted
+        // A later turn must not run beside the unread brief: its todos
+        // would reach the dialog and the new conversation (PR #84).
+        await expectComposerRefused(
+          conversation,
+          'ordinary',
+          'continue normally',
+          UI_TEXT.handoffBusy,
+        )
+      } finally {
+        t.auth.isAdmitted = true
+        readReleased.resolve(undefined)
+        reading.mockRestore()
+      }
+      await expectBriefReady(t)
+      // Once the brief and its todos are captured the composer is admitted again.
+      const after = api.responseBodies().length
+      api.script({ text: 'ordinary reply' })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'after',
+        text: 'continue normally',
+        attachmentIds: [],
+      })
+      expect(t.surface.posted).toContainEqual(
+        expect.objectContaining({ type: 'turnAccepted', localId: 'after' }),
+      )
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(after + 1)
+      })
+    },
+  )
+
   it('cancels held preparation without an older completion discarding the newer handoff', async () => {
     const gate = holdNextHandoffHost()
     const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
@@ -10061,26 +10295,28 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
   })
 
   it.each([
-    { trigger: 'the next /handoff', isRebuilt: false },
-    { trigger: 'a rebuilt panel', isRebuilt: true },
+    { trigger: 'the next /handoff', action: 'command' },
+    { trigger: 'a rebuilt panel', action: 'panel' },
+    { trigger: 'completed key activation', action: 'signIn' },
   ])(
     'puts off reading a brief while admission is closed, and reads it for $trigger once it returns',
-    async ({ isRebuilt }) => {
+    async ({ action }) => {
       const { conversation, release } = await heldDistillation()
       const { t, controller } = conversation
       // The distillation turn completes while a key activation holds admission.
-      t.auth.isAdmitted = false
-      release.resolve(undefined)
-      await vi.waitFor(() => {
-        expect(agentEvents(t).filter((event) => event.type === 'turnCompleted')).toHaveLength(2)
+      await completeDistillationUnadmitted(conversation, release)
+      expect(notices(t).at(-1)).toMatchObject({
+        level: 'warning',
+        text: UI_TEXT.notSignedInReason,
       })
-      await settle()
-      expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
-      t.auth.isAdmitted = true
       t.surface.posted.length = 0
-      if (isRebuilt) {
+      if (action === 'signIn') {
+        await signInWithKey(conversation)
+      } else if (action === 'panel') {
+        t.auth.isAdmitted = true
         controller.surfaceReady()
       } else {
+        t.auth.isAdmitted = true
         await controller.handle(handoff('h2'))
         // Answered by the waiting brief's dialog, not run, and not called busy.
         expect(t.surface.posted.filter((posted) => posted.type === 'handoffCommandResult')).toEqual(
@@ -10092,6 +10328,44 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
       expect(t.surface.posted.some((posted) => posted.type === 'briefSubmitted')).toBe(false)
     },
   )
+
+  it('reads a deferred brief after a resumable restart rebinds it (PR #84)', async () => {
+    const { conversation, release } = await heldDistillation(undefined, memorySessionStore())
+    // The distillation turn completes while admission is closed.
+    await completeDistillationUnadmitted(conversation, release)
+    // Key activation restarts the hosts without ending the conversation;
+    // the waiting handoff survives it, and the sign-in retry reads it.
+    await conversation.controller.backendStopping(false)
+    await signInWithKey(conversation)
+    await expectBriefReady(conversation.t)
+    await confirmEdited(conversation, 'h1')
+  })
+
+  it('keeps a brief read that throws while admission is closed, and retries after sign-in', async () => {
+    const { conversation, release } = await heldDistillation()
+    const { t, api, controller, host } = conversation
+    const before = api.responseBodies().length
+    const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(() => {
+      t.auth.isAdmitted = false
+      return Promise.reject(new Error('admission closed during brief read'))
+    })
+    release.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(reading).toHaveBeenCalledOnce()
+      expect(notices(t).at(-1)?.text).toBe(UI_TEXT.notSignedInReason)
+    })
+    expect(notices(t).some((notice) => notice.text.startsWith(UI_TEXT.handoffFailed))).toBe(false)
+    expect(t.surface.posted.some((posted) => posted.type === 'handoffReady')).toBe(false)
+    reading.mockRestore()
+    vi.spyOn(t.auth.service, 'signIn').mockImplementationOnce(() => {
+      t.auth.isAdmitted = true
+      return Promise.resolve(t.auth.snapshot)
+    })
+    await controller.handle({ type: 'signIn', method: 'apiKey' })
+    await expectBriefReady(t)
+    expect(api.responseBodies()).toHaveLength(before)
+    await confirmEdited(conversation, 'h1')
+  })
 
   it('holds no slot and restores no dialog for a brief whose conversation is gone', async () => {
     const restarted = await handoffConversation()
