@@ -1,10 +1,11 @@
-// The permission card under a gated tool call: what Muse wants to do, one
+// The permission card of a gated tool call: what Muse wants to do, one
 // button per host-offered choice (Allow once / Always allow … / Reject), and a
-// feedback box for choices that accept it. The row keys the card by stage,
-// so the feedback box starts empty on every stage of a multi-command line (M25).
+// feedback box for choices that accept it. It waits in the dock above the
+// composer (ApprovalDock), keyed by stage, so the feedback box starts empty on
+// every stage of a multi-command line (M25).
 // A paid call never gets a card: the host's paid-use popup asks (M58).
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT, WEB_FETCH_SUBJECT_KIND } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
@@ -85,6 +86,15 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
   const stage = currentStage(approval)
   // Decided and waiting for the host: no second decision on the same stage.
   const isLocked = approval.decidedSourceIndex === approval.requirementId.sourceIndex
+  // The stage this card sent a decision for. A second click can land before
+  // the locked card renders (both in one frame), so the lock is also kept
+  // here, at once; it is let go only when the host reopens the stage.
+  const sentStage = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (approval.decidedSourceIndex === undefined) {
+      sentStage.current = undefined
+    }
+  }, [approval.decidedSourceIndex])
   const subject = subjectText(approval, toolName)
   // The language places the subject; it is shown as code wherever it lands.
   const title = titleTemplate(approval, stage)
@@ -92,10 +102,13 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
     toolName === MODEL_API_SUBAGENT_TOOLS.spawn ? spawnObjective(approval.rawArgs) : undefined
   return (
     <div
-      className="approval"
+      className={approval.hasMovedOn === true ? 'approval approval-moved' : 'approval'}
       role="group"
       aria-label={fill(title, { action: subject })}
       aria-busy={isLocked}
+      // The dock moves focus here when the card arrives (not onto a choice,
+      // which a stray Enter would then make).
+      tabIndex={-1}
     >
       <div className="approval-title">
         {templateParts(title).map((part, index) =>
@@ -108,6 +121,9 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           </span>
         ) : null}
       </div>
+      {approval.hasMovedOn === true ? (
+        <p className="approval-moved-note">{UI_TEXT.promptMovedOn}</p>
+      ) : null}
       {prompt === undefined ? null : (
         <blockquote className="approval-prompt" dir="auto">
           {prompt}
@@ -143,6 +159,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
             title={choice.rulePreview}
             disabled={isLocked}
             onClick={() => {
+              const { sourceIndex } = approval.requirementId
+              if (sentStage.current === sourceIndex) {
+                return
+              }
+              sentStage.current = sourceIndex
               onDecide({
                 approvalId: approval.approvalId,
                 choiceId: choice.choiceId,

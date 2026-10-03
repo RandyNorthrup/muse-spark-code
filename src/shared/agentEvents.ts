@@ -208,6 +208,12 @@ export const approvalStageSchema = z.object({
   position: z.number(),
   totalStages: z.number(),
   argv: z.array(z.string()),
+  /**
+   * The rule "Always allow in this workspace" would add for this stage; its
+   * `label` is the label and preview Muse Code gives that choice while this
+   * stage is current (captured 2026-10-02, Muse Code 1.4.0 and 1.4.2).
+   */
+  suggestedPrefix: z.optional(z.object({ argvPrefix: z.array(z.string()), label: z.string() })),
 })
 export type ApprovalStage = z.infer<typeof approvalStageSchema>
 

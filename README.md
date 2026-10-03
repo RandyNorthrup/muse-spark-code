@@ -190,7 +190,7 @@ harness:shots`) against a scripted session, so they match the build.
     <td align="center"><img src="media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /clear, /export, /resume, /usage, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/approval.png" alt="An approval card: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject"><br><sub>An approval card with the CLI's own choices</sub></td>
+    <td align="center"><img src="media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject; its row in the conversation says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
     <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out, Explain instead and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel</sub></td>
   </tr>
   <tr>
@@ -1312,12 +1312,30 @@ the text as it is.
   shows a chip for either; × drops it.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
-  multi-step shell lines are approved one step at a time. Question cards
-  stack radio buttons for one answer and checkboxes for several, put
-  multiple questions on tabs, always offer **Other**, and keep **Submit**
-  greyed until every question has an answer; **Cancel** declines the prompt,
-  and **Explain instead** answers in your own words (up to 500 characters)
-  rather than choosing, so the agent reads it and decides again.
+  multi-step shell lines are approved one step at a time.
+  - **The card is docked** just above the message box while it waits, in
+    view wherever you have scrolled. Its row in the conversation says it is
+    waiting, then shows the decision.
+  - **Several approvals** are taken in the order Muse asked: the oldest is
+    docked, with a count of how many wait.
+  - **Focus** moves to an arriving card unless you are typing; it is
+    announced either way.
+  - **Each step takes one decision.** The card locks at your first click and
+    stays locked until Muse Code answers. A step that moved on before your
+    choice arrived shows the step Muse Code now waits on, and says so on the
+    card.
+- If Stop follows a choice immediately, it waits for that decision and
+  rejects the next waiting step before stopping the turn. Panels showing
+  the same session share the decision's result.
+- A Muse Code replay fault offers **Restart now**, which restarts Muse
+  Code and preserves running Model API conversations. A fault notice's
+  recovery buttons can be used once, including after the panel is restored;
+  **New conversation** in the header remains available.
+- Question cards stack radio buttons for one answer and checkboxes for
+  several, put multiple questions on tabs, always offer **Other**, and keep
+  **Submit** greyed until every question has an answer; **Cancel** declines
+  the prompt, and **Explain instead** answers in your own words (up to 500
+  characters) rather than choosing, so the agent reads it and decides again.
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
@@ -2403,11 +2421,25 @@ stopped and the next message resumes the same session.
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore
   files to here** still work, and the Model API backend offers all of them.
-- **A warning that "Muse Code reported an error for the decision (the tool
-  may have run anyway): … approval ledger durability fence …"** — Muse Code
-  on Windows (seen on 1.3.0) sometimes fails its own ledger write after applying your
-  decision ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
-  The tool row shows what happened; nothing needs redoing.
+- **"Muse Code applies your approvals in this conversation but reports an
+  error for each one"** — Muse Code on Windows can fail its own approval
+  ledger after applying a decision ("approval ledger durability fence",
+  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). Since
+  1.4.2 it does this for every decision of a conversation that went through
+  the fault below. The panel says so once. The card follows what Muse Code
+  does next and is never offered again, because the decision applied. **New
+  conversation** avoids the fault.
+- **"Muse Code refuses every message in this conversation"** — Muse Code 1.4
+  ("approval replay failed: decision stage evidence contains an unrecorded
+  human resolution") fails every message of a conversation whose turn
+  stopped while a multi-step command was partly approved. **Restart now**
+  stops Muse Code, and your next message starts it again and continues the
+  conversation. **New conversation** starts afresh. The panel now rejects
+  the waiting step before a Stop, which keeps the conversation usable.
+- **"Could not load the output: Muse Code did not answer item/readOutput
+  within 60 s"** — a busy Muse Code answers stored-output reads one after
+  another. The panel says it once per conversation; the row keeps the diff it
+  already has, and collapsing and expanding the row asks again.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   log says which credential it started with). If the CLI itself holds a

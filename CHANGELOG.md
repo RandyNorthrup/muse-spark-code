@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -32,23 +44,13 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
-  commands become skills, compatible agents become M76 agent files, project
-  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
-  editor edits for review and save. Import preserves source exposure:
-  personal stays personal and git-ignored files never enter tracked targets;
-  target exposure and path guards are checked again at publication/edit.
-  Values stay unchanged; no credential detector or clipboard operation.
-  Preview/picker output shows names, scopes and targets only, logs counts
-  and fixed reasons only. Only active MCP transport fields are copied;
-  inactive/unknown fields are dropped by name. Existing files and running
-  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
-  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Observation packing, off by default** (M73, PLAN.md D49;
   `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
   API backend, a tool output over 8,000 characters rides whole for two
@@ -115,12 +117,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- Take the compatible development updates from the grouped Dependabot pull
-  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
-  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
-  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
-  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
-  alone; no file of the extension changes.
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -129,12 +144,6 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
-- README: an install guide for the most used editors (VS Code, Cursor,
-  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
-  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
-  settings; the README, banner and social preview now name no single editor
-  ("a coding agent in your editor"), and the README links every channel:
-  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
   2026-11-01. No fixed release exists, and `braces` reaches only development
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
@@ -168,9 +177,23 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
 
 ### Fixed
 
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
@@ -196,7 +219,6 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
-- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - **A `/goal` refused while a Model API key is activated no longer
   sticks.** While a key was being activated, with the panel still reading
   signed in, a `/goal …` from the prompt or a goal edit was refused with
@@ -215,6 +237,60 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
+- **One decision per approval step (0.10.0, 0.10.1).** The approval card
+  sent a step's decision again, so one approval got two or three answers
+  and Muse Code refused the extra ones ("That request moved on to its next
+  step…"). Two things re-armed it:
+  - The card reopened after every error for a decision. Muse Code 1.4.2
+    reports its ledger fault for decisions it has applied
+    ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
+  - The card also reopened after every 60-second deadline. On a busy
+    machine Muse Code took one decision in three minutes after it was
+    sent, after two more for the same step.
+
+  Now:
+  - The card locks at the first click and stays locked until Muse Code
+    settles the decision, however fast the clicks come and whatever arrives
+    in between.
+  - The session sends one decision per step whatever the card asks.
+  - A decision that got no answer, or that Muse Code applied while
+    reporting an error, is never offered again. The card reopens only when
+    Muse Code refused the decision and still waits on that very step.
+  - The log names the step each answer was for: a multi-step command
+    decided step by step had read as repeated answers.
+- **A step Muse Code moved without saying so no longer strands its
+  card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
+  show a step its new rule already allows, refuse the decision for it as
+  stale, and never show the step it waits on. The card then waited for
+  ever, and the only way out was Stop. Now the card moves to the step the
+  refusal names, with that step's own "Always allow" label, and says on
+  the card that the request moved on.
+- **A Stop no longer wedges a conversation.** With Muse Code 1.4, stopping
+  a turn while a multi-step command was partly approved left the
+  conversation refusing every message ("approval replay failed: decision
+  stage evidence contains an unrecorded human resolution") until Muse Code
+  restarted. On Windows, every decision then reported the ledger fault.
+  - A Stop now rejects the waiting step first, through Muse Code's own
+    decision, which keeps the conversation usable. It waits 10 s at most,
+    then stops anyway.
+  - A conversation already in that state is named once, in plain words, as
+    a fault in Muse Code. The notice offers **Restart now** (the next
+    message starts Muse Code again and continues the conversation) and
+    **New conversation**.
+  - The ledger fault is named once per conversation the same way, with
+    **New conversation**.
+- **Tool outputs load quietly while Muse Code works (0.10.0, 0.10.1).**
+  An edit row read its stored patch while the edit was still running, and
+  Muse Code answered "item or attached output ref was not found". On a busy
+  Muse Code, which answers reads one after another, each row's read waited
+  60 s and failed, and each failure stacked its own error ("Could not load
+  the output", five at once). Now:
+  - A row reads its patch once the edit has finished.
+  - A read already in flight is joined rather than sent again.
+  - A failure is said once per conversation, as a warning saying how to
+    retry; later ones go to the log until a read succeeds.
+  - Collapsing and expanding the row asks again. The row keeps the diff it
+    already shows, and the turn goes on meanwhile.
 
 ## [0.10.1] - 2026-10-02
 
