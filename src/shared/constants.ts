@@ -269,7 +269,8 @@ export const SETTING_DEFAULTS = {
   allowDangerouslySkipPermissions: false,
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
-  // deleted: MSP has no delete, and "Show archived" brings them back.
+  // deleted: the extension does not call session/delete (available since
+  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -1586,6 +1587,8 @@ export const OBS_PACK_TAIL_LINES = 4
 // A recalled page stays under the threshold, so paging an output back never
 // packs the page itself.
 export const OBS_PACK_PAGE_CHARS = 4000
+// An unknown recall id names only the newest ids, keeping its error bounded.
+export const OBS_PACK_RECALL_ID_LIMIT = 8
 // Random bytes (as hex) in the markers around a recalled page, fresh for
 // each recall, so the original cannot close the untrusted block itself.
 export const OBS_PACK_MARKER_BYTES = 8
@@ -2082,13 +2085,14 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // MSP schema fingerprints Muse Code has served beyond the one
-// `@muse-code/sdk` 1.3.0 pins, each an additive change (1.4.0's schema export
-// diffed against 1.3.0's; Meta's release manifests carry the same values).
+// `@muse-code/sdk` 1.3.0 pins, each an additive change (SDK tarballs, schema
+// exports and release manifests; docs/certification/sdk142.md).
 // Such a host is logged at info with its build; any other mismatch stays a
 // warning (docs/certification/release-0.9.1.md).
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
   'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
+  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -3044,6 +3048,7 @@ export const MODEL_TEXT = {
   packInvalidJson: 'arguments are not valid JSON',
   packInvalidArguments: 'invalid arguments: {detail}',
   packUnknownId: 'unknown packed output id "{id}" (packed outputs in this session: {known})',
+  packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
   // M68 (PLAN.md D49): the verify loop. What follows an edit is data from the
