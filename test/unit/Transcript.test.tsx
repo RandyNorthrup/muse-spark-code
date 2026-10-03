@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
@@ -687,9 +687,16 @@ describe('Transcript rows (M25)', () => {
       ],
       { onNoticeAction },
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Restart now' }))
-    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
-    expect(onNoticeAction.mock.calls).toEqual([['restartMuseCode'], ['newConversation']])
+    const restart = screen.getByRole('button', { name: 'Restart now' })
+    act(() => {
+      // All arrive before React commits the disabled state.
+      fireEvent.click(restart)
+      fireEvent.click(restart)
+      fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    })
+    expect(onNoticeAction.mock.calls).toEqual([['n1', 'restartMuseCode']])
+    expect(restart).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'New conversation' })).toBeDisabled()
     expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
   })
 

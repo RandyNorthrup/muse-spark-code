@@ -1256,6 +1256,11 @@ function stage(sourceIndex: number) {
   return { approvalId: RACE_APPROVAL_ID, sourceIndex }
 }
 
+/** Allow once on one stage of the captured approval. */
+function allowOnce(sourceIndex = 0) {
+  return { approvalId: RACE_APPROVAL_ID, choiceId: 'allow_once', requirementId: stage(sourceIndex) }
+}
+
 /** `approval/decide`'s ack, terminal or with stages to go. */
 function decideAck(isTerminal: boolean) {
   return (params: Record<string, unknown>) => ({
@@ -1286,13 +1291,97 @@ async function raceSession(waiting = 0, options: Parameters<typeof setup>[0] = {
 }
 
 describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02)', () => {
+  it('joins a duplicate caller to a pending decision and its confirmed refusal', async () => {
+    const { server, session } = await raceSession()
+    server.silence('approval/decide')
+    server.handle('approval/listPending', () => ({
+      approvals: [raceRequested(session.sessionId)],
+      userInputs: [],
+    }))
+    const decision = allowOnce()
+    const first = session.decideApproval(decision)
+    const second = session.decideApproval(decision)
+    let isDuplicateDone = false
+    void second
+      .then(() => {
+        isDuplicateDone = true
+      })
+      .catch(() => {
+        isDuplicateDone = true
+      })
+    const results = Promise.allSettled([first, second])
+    try {
+      await settle()
+      expect(isDuplicateDone).toBe(false)
+      expect(decisions(server)).toEqual([[0, 'allow_once']])
+    } finally {
+      const request = server.requestsFor('approval/decide')[0]
+      server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request?.id,
+          error: { code: -32_603, message: 'refused', data: { kind: 'internal' } },
+        })}\n`,
+      )
+    }
+    expect(await results).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ name: 'DecisionNotAppliedError' }) },
+      { status: 'rejected', reason: expect.objectContaining({ name: 'DecisionNotAppliedError' }) },
+    ])
+  })
+
+  it.each(['cancel', 'interrupt'] as const)(
+    'waits for an in-flight decision, then rejects the next stage before %s',
+    async (stop) => {
+      const { server, session } = await raceSession()
+      await session.decideApproval(allowOnce())
+      server.notify('approval/updated', raceUpdated(session.sessionId, 1))
+      await settle()
+      server.silence('approval/decide')
+      const deciding = session.decideApproval(allowOnce(1))
+      const stopping = session[stop]()
+      try {
+        await settle()
+        expect(server.requestsFor(`turn/${stop}`)).toHaveLength(0)
+      } finally {
+        const request = server.requestsFor('approval/decide')[1]
+        server.incoming.push(
+          `${JSON.stringify({
+            jsonrpc: '2.0',
+            id: request?.id,
+            result: decideAck(false)(request?.params ?? {}),
+          })}\n${JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'approval/updated',
+            params: raceUpdated(session.sessionId, 2),
+          })}\n`,
+        )
+        await deciding
+        await settle()
+        const reject = server.requestsFor('approval/decide')[2]
+        if (reject !== undefined) {
+          server.incoming.push(
+            `${JSON.stringify({
+              jsonrpc: '2.0',
+              id: reject.id,
+              result: decideAck(true)(reject.params ?? {}),
+            })}\n`,
+          )
+        }
+        await stopping
+      }
+      expect(decisions(server)).toEqual([
+        [0, 'allow_once'],
+        [1, 'allow_once'],
+        [2, 'abort'],
+      ])
+      expect(server.requestsFor(`turn/${stop}`)).toHaveLength(1)
+    },
+  )
+
   it('sends one decision for a stage however often it is asked', async () => {
     const { server, log, session } = await raceSession()
-    const decision = {
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    }
+    const decision = allowOnce()
     await Promise.all([session.decideApproval(decision), session.decideApproval(decision)])
     await session.decideApproval({ ...decision, choiceId: 'abort' })
     expect(decisions(server)).toEqual([[0, 'allow_once']])
@@ -1369,11 +1458,7 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
   it('names the ledger fault and keeps its stage decided: the decision applied', async () => {
     const { server, session } = await raceSession()
     server.handle('approval/decide', ledgerFault)
-    const decision = {
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    }
+    const decision = allowOnce()
     await expect(session.decideApproval(decision)).rejects.toMatchObject({
       name: 'MuseCodeFaultError',
       fault: 'approvalLedger',
@@ -1390,11 +1475,7 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
       approvals: [raceRequested(session.sessionId)],
       userInputs: [],
     }))
-    const decision = {
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    }
+    const decision = allowOnce()
     await expect(session.decideApproval(decision)).rejects.toMatchObject({
       name: 'DecisionNotAppliedError',
     })
@@ -1422,11 +1503,7 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
 
   it('rejects a part-decided approval through approval/decide before a Stop', async () => {
     const { server, log, session } = await raceSession()
-    await session.decideApproval({
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    })
+    await session.decideApproval(allowOnce())
     server.notify('approval/updated', raceUpdated(session.sessionId, 1))
     await settle()
     server.handle('approval/decide', decideAck(true))
@@ -1450,11 +1527,7 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
       timeouts: { normalMs: 50, longMs: 50 },
     })
     server.silence('approval/decide')
-    const decision = {
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    }
+    const decision = allowOnce()
     let failure: unknown
     try {
       await session.decideApproval(decision)
@@ -1478,11 +1551,7 @@ describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02
     const { server, session, log } = await raceSession(0, {
       timeouts: { normalMs: 50, longMs: 50 },
     })
-    await session.decideApproval({
-      approvalId: RACE_APPROVAL_ID,
-      choiceId: 'allow_once',
-      requirementId: stage(0),
-    })
+    await session.decideApproval(allowOnce())
     server.notify('approval/updated', raceUpdated(session.sessionId, 1))
     await settle()
     server.silence('approval/decide')

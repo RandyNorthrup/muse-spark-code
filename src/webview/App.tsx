@@ -1093,14 +1093,15 @@ export function App({
   // A Muse Code fault's way on (D26): the header's New conversation, or a
   // restart the host runs.
   const onNoticeAction = useCallback(
-    (action: NoticeAction) => {
+    (entryId: string, action: NoticeAction) => {
+      dispatch({ type: 'noticeActionRequested', entryId })
       if (action === 'newConversation') {
         onNewConversation()
         return
       }
       postMessage({ type: 'hostAction', action })
     },
-    [onNewConversation, postMessage],
+    [dispatch, onNewConversation, postMessage],
   )
   const checkpointTurnIds = useMemo(
     () =>

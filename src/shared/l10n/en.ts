@@ -675,7 +675,10 @@ export const EN = {
   // PLAN.md D26: the approvals waiting, docked above the composer.
   approvalDockLabel: 'Waiting for your approval',
   // {count}: how many approvals wait, this one included.
-  approvalDockCount: 'Approvals waiting: {count}',
+  approvalDockCount: forms({
+    one: 'Approval waiting: {count}',
+    other: 'Approvals waiting: {count}',
+  }),
   approvalDockedNote: 'Waiting for your approval, in the card above the message box',
   questionSubmit: 'Submit',
   questionCancel: 'Cancel',

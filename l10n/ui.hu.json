@@ -520,7 +520,10 @@
   "approvalFeedbackPlaceholder": "Írja le, mit tegyen helyette a Muse (nem kötelező)",
   "approvalDecided": "Eldöntve",
   "approvalDockLabel": "Az Ön jóváhagyására vár",
-  "approvalDockCount": "Várakozó jóváhagyások: {count}",
+  "approvalDockCount": {
+    "one": "Várakozó jóváhagyás: {count}",
+    "other": "Várakozó jóváhagyás: {count}"
+  },
   "approvalDockedNote": "Az Ön jóváhagyására vár, az üzenetmező feletti kártyán",
   "questionSubmit": "Küldés",
   "questionCancel": "Mégse",

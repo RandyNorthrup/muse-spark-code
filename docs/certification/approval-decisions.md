@@ -206,3 +206,110 @@ A draft issue for meta-models/muse-code-sdk was written and not filed. It
 covers the replay wedge, the ledger fault's trigger (extending #29), the
 unannounced stage, and the early `patchRef`. It is in the session
 scratchpad: `approval-fix/upstream-issue-draft.md`.
+
+## PR #90 review corrections (FIX90, 2026-10-03)
+
+Reviewed all five threads against the clean worktree at `72cc2e52` on
+`fix/approval-decisions`; every finding was a defect. `origin/main` was
+already merged, and `integrate/m72-on-24ff` is an ancestor. FIX90 and its
+`common.md` constrain this lane to local commits and rig checks: the lead
+owns the full quality run, push, thread resolution and merge. No live model
+or paid calls were made.
+
+Readiness review reused PLAN.md D25, D26 and D33 and the existing suites.
+No new protocol shape, setting, dependency or helper module was needed.
+The existing restart sequence was moved into the controller module as
+`restartConversationBackends` so its tests exercise controller selection
+and both real disposal branches. The canonical plan and this record remain
+the delivery records; no plan-format migration or competing tracker was
+introduced. Scope review found no unresolved owner decision.
+
+| Thread                  | Correction                                                                                                                                                                                                 | Regression proof and red drill                                                                                                                                                                                                                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PRRT_kwDOUkzj5M6olU19` | `MuseSession` tracks each in-flight stage decision. Both cancel and interrupt await those decisions, then evaluate the ledger and reject the newest waiting stage.                                         | `MuseCodeHost.test.ts`: “waits for an in-flight decision, then rejects the next stage before cancel/interrupt”. Removing the wait sends Stop too early and fails both tests (`stop-await`).                                                                                                                                                                  |
+| `PRRT_kwDOUkzj5M6olU2A` | Concurrent callers of one stage await the same wire decision and receive its eventual confirmed refusal; no second wire decision is sent.                                                                  | `MuseCodeHost.test.ts`: “joins a duplicate caller to a pending decision and its confirmed refusal”. Replacing the join with empty success fails the pending/result assertions (`duplicate-join`). Each controller's existing refusal path posts `approvalReopened`.                                                                                          |
+| `PRRT_kwDOUkzj5M6olU2D` | Fault recovery selects only Muse Code controllers and disposes only its manager. General restart still stops both backends.                                                                                | `conversationController.test.ts`: “keeps a running Model API turn through a Muse-Code-only restart”, with a held in-process Model API stream, plus Muse-only and general-restart controls. Removing the controller filter cancels the turn (`recovery-controller`); disposing Model API calls its real host close and fails isolation (`recovery-disposer`). |
+| `PRRT_kwDOUkzj5M6olU2E` | A notice spends all recovery choices synchronously at the first click, disables its buttons, and clears its actions in the saved transcript before dispatch. An old notice cannot restart subsequent work. | `Transcript.test.tsx`: three clicks in one React batch send one action. Removing the ref guard repeats actions (`notice-first-click`); removing disabled state leaves enabled controls (`notice-disabled`). `App.test.tsx`: first use, saved state and restored panel. Retaining the actions fails that test (`notice-persisted`).                           |
+| `PRRT_kwDOUkzj5M6olU2F` | `approvalDockCount` uses `forms` in English and all 14 translations; the dock reads it through `plural`, retaining locale-formatted numbers. Russian, Polish and Czech include their distinct forms.       | `ApprovalDock.test.tsx`: Russian counts 2, 5 and 21 exercise few, many and one. Forcing `other` fails the 5 and 21 assertions (`dock-plural`). `check:l10n` validates every table's form categories and slots.                                                                                                                                               |
+
+Recovery actions intentionally stay spent even if the attempt fails; the
+header's New conversation remains available. This avoids restoring a
+destructive action from an old notice and needs no new wire message. The
+existing command deadlines and bounded reject-before-Stop fallback are
+unchanged. Waiting for an already-sent decision uses that command's normal
+deadline; an unanswered command still has an unknown outcome. These tests
+exercise captured MSP shapes and an in-process fake Model API, not a live
+Muse Code certification.
+
+### Rig receipts
+
+The final code/test snapshot is
+`f1964f30331876b7f01a32eeac1b4f7e0db8de8e`, tree
+`dd2ae1ccf681356c3dfcff798602a4f2ea958027`, in Kubuntu's `~/gates/rt-fix90`.
+Observed runtime: Linux `7.0.0-31-generic` x86_64, Node `v24.18.0`, npm
+`12.0.1`, Vitest `5.0.1`.
+`rig-test.sh kubuntu C:/Users/Randy/Coding/mx-approvals fix90` ran the complete
+files `MuseCodeHost.test.ts`, `conversationController.test.ts`,
+`Transcript.test.tsx`, `ApprovalDock.test.tsx` and `App.test.tsx`: **593/593
+passed** (77 + 349 + 38 + 11 + 118), no filtered or skipped tests.
+
+Over SSH in the same snapshot, sequentially: `npm run typecheck`, ESLint
+`--max-warnings=0` on all 13 changed TS/TSX files, Prettier on all changed
+files, `npm run deadcode`, `npx jscpd`, `npm run check:l10n`,
+`npm run check:host-api`, and `npm run build`: **all exit 0**. Localization:
+14 tables, 106 manifest strings, 347 source files, 0 problems. Host API:
+273 APIs, 18 importing files, 23 Node built-ins, 57 theme variables, 0
+problems. Duplication: 0 clones; the three initial copied test setup blocks
+were replaced by shared fixture use without changing the gate.
+
+Production sizes: extension **561.3 KiB / 600**, Model API **354.1 / 400**,
+checkpoint store **129.0 / 225**, webview **800.5 / 900**. All size, split,
+host-global and third-party-notice checks passed; no cap was changed.
+
+All eight drills ran against that final snapshot, one complete owned test
+file at a time: **green 0 → intended red 1 → restored green 0**. Each
+mutation matched exactly once, each failed assertion was inspected, and a
+`finally` restored the original bytes. Before/after SHA-256 matched:
+
+| Source                                            | Restored SHA-256                                                   | Drills                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------- |
+| `src/core/backends/musecode/MuseCodeHost.ts`      | `f9436710b19885f75303fc1b3453d2d007e22751925c65bd9126d6f1036aff0b` | stop-await, duplicate-join             |
+| `src/host/conversation/conversationController.ts` | `d873d4509974f966a38dc4d6bd5df9977580d4401a35cf21bde38451b22e9160` | recovery-controller, recovery-disposer |
+| `src/webview/components/Transcript.tsx`           | `659a7ebd548da01c1721926bf1aa45dcc6ba35a83a8034c668e92bfdd25e5cc0` | notice-first-click, notice-disabled    |
+| `src/webview/state/uiState.ts`                    | `720d0faf1e88adf769e23234cc26352494930a3f47b91682136c6ea65ca6e577` | notice-persisted                       |
+| `src/webview/components/ApprovalDock.tsx`         | `51c29408be70d86ccb02c56f8306c45ccc38577451e3986e65865e5b50609d35` | dock-plural                            |
+
+Raw commands/results are preserved in this worktree's ignored
+`temp/fix90/`: `green.log`, `gates-final.log`, `environment.log`,
+`drills-final.log`, and `rig-drills/` (24 run logs and `drills.json`, with
+baseline/mutated/restored exits and digests). The initial App regression
+fixture did not subscribe its external store to window messages and failed
+before reaching its assertion; it was corrected to dispatch to that store,
+and only its later passing baseline and intended retirement mutation count
+as evidence.
+
+`rig-a11y.sh kubuntu C:/Users/Randy/Coding/mx-approvals fix90` ran the full
+accessibility gate in `~/gates/ra-fix90`, snapshot
+`07d03939a0292f9455f7dbe5ed02d1e4dde2cb29`, Chrome `150.0.7871.186`:
+**404 pages** (101 scenarios × four VS Code themes), **0 violated rules,
+0 undecided rules, 0 missing results**, 40 existing exemptions. Axe also
+reports contrast it cannot measure for 3,157 obscured/offscreen elements
+and 132 glyph-only elements; the gate's result is not proof of those.
+
+The rig's `harness:shots` rendered `approval-narrow` in Russian and Polish,
+and `approval-several` in Russian. The two 320 px captures were independently
+viewed: the count reads “Ожидают 3 одобрения” / “Oczekują 3 zatwierdzenia”,
+the oldest card stays above the visible composer, the command and choices
+wrap within the panel, and the focused card retains its visible border.
+The fixture's CLI-supplied choice labels stay as captured in English.
+
+- [Russian dock at 320 px](approval-dock-fix90-ru.png)
+- [Polish dock at 320 px](approval-dock-fix90-pl.png)
+
+`temp/fix90/a11y.log` and `screenshots.log` preserve the commands and
+results. A Git comparison and the eight local SHA-256 checks confirmed
+the code, tests and translations match the checked code/test snapshot;
+only documentation and these captures were added afterward. All lane
+checks are complete. Full `npm run quality` and PR publication remain the
+lead's work, as the brief requires. Live/installed VS Code was not exercised
+by this lane; no lane blocker remains.

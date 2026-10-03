@@ -1212,6 +1212,17 @@ Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
     is open; the reducer's live-region announcement covers those cases.
   - The single-decision lock is the card's, so it holds in the dock.
 
+**PR #90 review follow-up (FIX90, 2026-10-03).** Keep this correction within
+D26: join simultaneous callers to the same in-flight decision and its eventual
+failure; Stop waits for those decisions before rejecting the newest waiting
+stage; a fault recovery restarts only Muse Code and its conversations; a
+notice's recovery actions are retired on their first use, including in saved
+webview state; the dock count uses every language's plural forms. Extend the
+existing session, controller, App, Transcript and dock tests, drill each guard,
+and record Kubuntu results in `docs/certification/approval-decisions.md`.
+FIX90 explicitly delegates full quality and publication to the lead; this lane
+runs its focused tests and checks on the rig, with the configured commit hooks.
+
 ### D27 — The audit: editing correctness (2026-09-23)
 
 Section D of the audit (D24): the Model API's file tools, Edit Review and

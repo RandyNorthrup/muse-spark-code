@@ -508,7 +508,9 @@
   "approvalFeedbackPlaceholder": "告诉 Muse 改做什么（可选）",
   "approvalDecided": "已决定",
   "approvalDockLabel": "正在等待你的批准",
-  "approvalDockCount": "等待批准：{count}",
+  "approvalDockCount": {
+    "other": "等待批准：{count}"
+  },
   "approvalDockedNote": "正在等待你的批准，见消息框上方的卡片",
   "questionSubmit": "提交",
   "questionCancel": "取消",

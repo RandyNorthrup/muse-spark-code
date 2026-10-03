@@ -520,7 +520,10 @@
   "approvalFeedbackPlaceholder": "Sagen Sie Muse, was es stattdessen tun soll (optional)",
   "approvalDecided": "Entschieden",
   "approvalDockLabel": "Wartet auf Ihre Genehmigung",
-  "approvalDockCount": "Wartende Genehmigungen: {count}",
+  "approvalDockCount": {
+    "one": "Wartende Genehmigung: {count}",
+    "other": "Wartende Genehmigungen: {count}"
+  },
   "approvalDockedNote": "Wartet auf Ihre Genehmigung, in der Karte über dem Nachrichtenfeld",
   "questionSubmit": "Senden",
   "questionCancel": "Abbrechen",

@@ -1261,6 +1261,55 @@ describe('App palette', () => {
       'Reasoning effort could not be applied',
     )
   })
+
+  it('retires a fault notice on first use and keeps it retired after restoration (D26)', () => {
+    const store = createUiStore({ ...initialUiState, sessionId: 's1' })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    const view = render(<App postMessage={postMessage} store={store} />)
+    act(() => {
+      const messages: readonly HostToWebviewMessage[] = [
+        init,
+        { type: 'authState', status: 'signedIn' },
+        {
+          type: 'notice',
+          level: 'error',
+          text: 'Replay refused',
+          actions: ['restartMuseCode', 'newConversation'],
+        },
+      ]
+      for (const message of messages) {
+        store.dispatch({ type: 'hostMessage', message, at: 1 })
+      }
+    })
+    const restart = screen.getByRole('button', { name: 'Restart now' })
+    fireEvent.click(restart)
+    fireEvent.click(restart)
+    expect(
+      postMessage.mock.calls.filter(
+        ([message]) => message.type === 'hostAction' && message.action === 'restartMuseCode',
+      ),
+    ).toHaveLength(1)
+    expect(store.getState().transcript.at(-1)).toMatchObject({ actions: [] })
+    const restored = restoredUiState(webviewStateOf(store.getState(), true))
+    view.unmount()
+    const restoredStore = createUiStore(restored)
+    render(<App postMessage={postMessage} store={restoredStore} />)
+    act(() => {
+      restoredStore.dispatch({ type: 'hostMessage', message: init, at: 1 })
+      restoredStore.dispatch({
+        type: 'hostMessage',
+        message: { type: 'surfaceState', sessionId: 's1' },
+        at: 1,
+      })
+      restoredStore.dispatch({
+        type: 'hostMessage',
+        message: { type: 'authState', status: 'signedIn' },
+        at: 1,
+      })
+    })
+    expect(screen.getByText('Replay refused')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Restart now' })).toBeNull()
+  })
 })
 
 describe('App editor integration (M5)', () => {

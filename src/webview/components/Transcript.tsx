@@ -86,7 +86,7 @@ export interface TranscriptProps {
   readonly onRestoreBoth?: ((entryId: string) => void) | undefined
   readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
   /** A Muse Code fault's way on (D26): Restart now, New conversation. */
-  readonly onNoticeAction?: ((action: NoticeAction) => void) | undefined
+  readonly onNoticeAction?: ((entryId: string, action: NoticeAction) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -706,8 +706,10 @@ const ActionNotice = memo(function ActionNotice({
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
   readonly actions: readonly NoticeAction[]
-  readonly onAction: (action: NoticeAction) => void
+  readonly onAction: (entryId: string, action: NoticeAction) => void
 }) {
+  const spent = useRef(false)
+  const [isSpent, setIsSpent] = useState(false)
   return (
     <li className={`notice notice-${entry.level}`}>
       {entry.text}
@@ -716,8 +718,14 @@ const ActionNotice = memo(function ActionNotice({
           key={action}
           type="button"
           className="notice-action"
+          disabled={isSpent}
           onClick={() => {
-            onAction(action)
+            if (spent.current) {
+              return
+            }
+            spent.current = true
+            setIsSpent(true)
+            onAction(entry.id, action)
           }}
         >
           {noticeActionLabel(action)}

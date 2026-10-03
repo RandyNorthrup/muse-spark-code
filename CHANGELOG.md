@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
+
 ### Added
 
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):

@@ -532,7 +532,11 @@
   "approvalFeedbackPlaceholder": "Indique a Muse qué hacer en su lugar (opcional)",
   "approvalDecided": "Decidido",
   "approvalDockLabel": "Esperando su aprobación",
-  "approvalDockCount": "Aprobaciones en espera: {count}",
+  "approvalDockCount": {
+    "one": "Aprobación en espera: {count}",
+    "many": "Aprobaciones en espera: {count}",
+    "other": "Aprobaciones en espera: {count}"
+  },
   "approvalDockedNote": "Esperando su aprobación, en la tarjeta sobre el cuadro de mensaje",
   "questionSubmit": "Enviar",
   "questionCancel": "Cancelar",

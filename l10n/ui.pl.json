@@ -544,7 +544,12 @@
   "approvalFeedbackPlaceholder": "Powiedz Muse, co zrobić zamiast tego (opcjonalnie)",
   "approvalDecided": "Zdecydowano",
   "approvalDockLabel": "Oczekuje na Twoje zatwierdzenie",
-  "approvalDockCount": "Oczekujące zatwierdzenia: {count}",
+  "approvalDockCount": {
+    "one": "Oczekuje {count} zatwierdzenie",
+    "few": "Oczekują {count} zatwierdzenia",
+    "many": "Oczekuje {count} zatwierdzeń",
+    "other": "Oczekuje {count} zatwierdzenia"
+  },
   "approvalDockedNote": "Oczekuje na Twoje zatwierdzenie, na karcie nad polem wiadomości",
   "questionSubmit": "Prześlij",
   "questionCancel": "Anuluj",

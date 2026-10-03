@@ -10,7 +10,7 @@
 
 import { useEffect, useRef } from 'react'
 import { DOCK_TYPING_GRACE_MS, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import { plural } from '../../shared/l10n/text'
 import type { WaitingApproval } from '../state/uiState'
 import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 
@@ -71,9 +71,7 @@ export function ApprovalDock({ waiting, onDecide, isInert = false }: ApprovalDoc
       inert={isInert}
     >
       {waiting.length > 1 ? (
-        <p className="approval-dock-count">
-          {fill(UI_TEXT.approvalDockCount, { count: formatNumber(waiting.length) })}
-        </p>
+        <p className="approval-dock-count">{plural(UI_TEXT.approvalDockCount, waiting.length)}</p>
       ) : null}
       <ApprovalCard
         key={stageKey}

@@ -508,7 +508,9 @@
   "approvalFeedbackPlaceholder": "대신 수행할 작업을 Muse에게 알려 주세요(선택 사항)",
   "approvalDecided": "결정됨",
   "approvalDockLabel": "승인을 기다리는 중",
-  "approvalDockCount": "대기 중인 승인: {count}",
+  "approvalDockCount": {
+    "other": "대기 중인 승인: {count}"
+  },
   "approvalDockedNote": "승인을 기다리는 중입니다(메시지 상자 위 카드)",
   "questionSubmit": "제출",
   "questionCancel": "취소",

@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { forms } from '../../src/shared/l10n/forms'
+import { setUiText } from '../../src/shared/l10n/text'
 import { ApprovalDock } from '../../src/webview/components/ApprovalDock'
 import type { PendingApproval, WaitingApproval } from '../../src/webview/state/uiState'
 
@@ -46,6 +49,36 @@ function box() {
 }
 
 describe('ApprovalDock (D26)', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it.each([
+    [2, 'Ожидают 2 одобрения'],
+    [5, 'Ожидают 5 одобрений'],
+    [21, 'Ожидает 21 одобрение'],
+  ])('selects the Russian form for %i waiting approvals', (count, expected) => {
+    setUiText(
+      {
+        ...EN,
+        approvalDockCount: forms({
+          one: 'Ожидает {count} одобрение',
+          few: 'Ожидают {count} одобрения',
+          many: 'Ожидают {count} одобрений',
+          other: 'Ожидают {count} одобрения',
+        }),
+      },
+      'ru',
+    )
+    render(
+      <ApprovalDock
+        waiting={Array.from({ length: count }, (_, index) => pending(`a${String(index)}`))}
+        onDecide={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(expected)).toBeInTheDocument()
+  })
+
   it('shows nothing while no approval waits', () => {
     const { container } = render(<ApprovalDock waiting={[]} onDecide={vi.fn()} />)
     expect(container).toBeEmptyDOMElement()

@@ -1324,6 +1324,13 @@ the text as it is.
     stays locked until Muse Code answers. A step that moved on before your
     choice arrived shows the step Muse Code now waits on, and says so on the
     card.
+- If Stop follows a choice immediately, it waits for that decision and
+  rejects the next waiting step before stopping the turn. Panels showing
+  the same session share the decision's result.
+- A Muse Code replay fault offers **Restart now**, which restarts Muse
+  Code and preserves running Model API conversations. A fault notice's
+  recovery buttons can be used once, including after the panel is restored;
+  **New conversation** in the header remains available.
 - Question cards stack radio buttons for one answer and checkboxes for
   several, put multiple questions on tabs, always offer **Other**, and keep
   **Submit** greyed until every question has an answer; **Cancel** declines

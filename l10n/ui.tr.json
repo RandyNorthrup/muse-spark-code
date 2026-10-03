@@ -520,7 +520,10 @@
   "approvalFeedbackPlaceholder": "Muse'a bunun yerine ne yapması gerektiğini söyleyin (isteğe bağlı)",
   "approvalDecided": "Karar verildi",
   "approvalDockLabel": "Onayınız bekleniyor",
-  "approvalDockCount": "Bekleyen onaylar: {count}",
+  "approvalDockCount": {
+    "one": "Bekleyen onay: {count}",
+    "other": "Bekleyen onay: {count}"
+  },
   "approvalDockedNote": "Onayınız bekleniyor, mesaj kutusunun üstündeki kartta",
   "questionSubmit": "Gönder",
   "questionCancel": "İptal",

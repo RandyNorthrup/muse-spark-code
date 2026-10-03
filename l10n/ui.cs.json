@@ -544,7 +544,12 @@
   "approvalFeedbackPlaceholder": "Řekněte Muse, co má udělat místo toho (volitelné)",
   "approvalDecided": "Rozhodnuto",
   "approvalDockLabel": "Čeká na vaše schválení",
-  "approvalDockCount": "Čekající schválení: {count}",
+  "approvalDockCount": {
+    "one": "Na schválení čeká {count} požadavek",
+    "few": "Na schválení čekají {count} požadavky",
+    "many": "Na schválení čeká {count} požadavku",
+    "other": "Na schválení čeká {count} požadavků"
+  },
   "approvalDockedNote": "Čeká na vaše schválení, na kartě nad polem zprávy",
   "questionSubmit": "Odeslat",
   "questionCancel": "Zrušit",

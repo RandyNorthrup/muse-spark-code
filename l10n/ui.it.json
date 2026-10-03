@@ -532,7 +532,11 @@
   "approvalFeedbackPlaceholder": "Di’ a Muse cosa fare invece (facoltativo)",
   "approvalDecided": "Deciso",
   "approvalDockLabel": "In attesa della tua approvazione",
-  "approvalDockCount": "Approvazioni in attesa: {count}",
+  "approvalDockCount": {
+    "one": "Approvazione in attesa: {count}",
+    "many": "Approvazioni in attesa: {count}",
+    "other": "Approvazioni in attesa: {count}"
+  },
   "approvalDockedNote": "In attesa della tua approvazione, nella scheda sopra la casella del messaggio",
   "questionSubmit": "Invia",
   "questionCancel": "Annulla",

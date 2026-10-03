@@ -19,6 +19,7 @@ import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
 import type { UsageInsights } from '../../src/shared/usage'
 import {
   ConversationController,
+  restartConversationBackends,
   type ConversationDeps,
   type LastSession,
   type PickedFile,
@@ -6112,6 +6113,78 @@ describe('ConversationController: lifecycle (D25)', () => {
     expect(t.surface.posted).toContainEqual(
       expect.objectContaining({ type: 'turnAccepted', localId: 'cli-b' }),
     )
+  })
+
+  it('keeps a running Model API turn through a Muse-Code-only restart (D26)', async () => {
+    const t = setup()
+    const { api, host, controller } = modelApiController(t)
+    const release = Promise.withResolvers<undefined>()
+    api.script({ text: 'Uninterrupted answer', hold: release.promise })
+    await controller.handle({
+      type: 'sendMessage',
+      localId: 'paid',
+      text: 'Continue',
+      attachmentIds: [],
+    })
+    await vi.waitFor(() => {
+      expect(api.responseBodies()).toHaveLength(1)
+    })
+    const before = t.surface.posted.length
+    const museDispose = vi.fn(() => Promise.resolve())
+    const modelDispose = vi.fn(() => host.close())
+    try {
+      await restartConversationBackends(
+        [controller],
+        { dispose: museDispose },
+        { dispose: modelDispose },
+        false,
+        true,
+      )
+      expect(t.surface.posted.slice(before)).toEqual([])
+      expect(museDispose).toHaveBeenCalledOnce()
+      expect(modelDispose).not.toHaveBeenCalled()
+    } finally {
+      release.resolve(undefined)
+    }
+    await vi.waitFor(() => {
+      expect(agentEvents(t)).toContainEqual(
+        expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+      )
+    })
+    expect(agentEvents(t)).not.toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'cancelled' }),
+    )
+    expect(JSON.stringify(t.surface.posted)).toContain('Uninterrupted answer')
+    expect(await host.listSessions({ workspaceRoot: '/ws', limit: 1 })).toMatchObject({
+      sessions: [expect.objectContaining({ sessionId: 'fixed' })],
+    })
+  })
+
+  it('stops a Muse Code turn on a Muse-Code-only restart (D26)', async () => {
+    const t = setup()
+    await t.send('old', 'Continue')
+    await t.controller.backendStopping(false, 'museCode')
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    expect(agentEvents(t)).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'cancelled' }),
+    )
+  })
+
+  it('still stops both backends on a general restart (D25)', async () => {
+    const t = setup()
+    const stopping = vi.spyOn(t.controller, 'backendStopping')
+    const museDispose = vi.fn(() => Promise.resolve())
+    const modelDispose = vi.fn(() => Promise.resolve())
+    await restartConversationBackends(
+      [t.controller],
+      { dispose: museDispose },
+      { dispose: modelDispose },
+      false,
+      false,
+    )
+    expect(stopping).toHaveBeenCalledWith(false, undefined)
+    expect(museDispose).toHaveBeenCalledOnce()
+    expect(modelDispose).toHaveBeenCalledOnce()
   })
 
   it('drops late private output while a sign-out waits for turn cancellation', async () => {

@@ -544,7 +544,12 @@
   "approvalFeedbackPlaceholder": "Скажите Muse, что сделать вместо этого (необязательно)",
   "approvalDecided": "Решение принято",
   "approvalDockLabel": "Ожидает вашего одобрения",
-  "approvalDockCount": "Ожидают одобрения: {count}",
+  "approvalDockCount": {
+    "one": "Ожидает {count} одобрение",
+    "few": "Ожидают {count} одобрения",
+    "many": "Ожидают {count} одобрений",
+    "other": "Ожидают {count} одобрения"
+  },
   "approvalDockedNote": "Ожидает вашего одобрения, в карточке над полем сообщения",
   "questionSubmit": "Отправить",
   "questionCancel": "Отмена",

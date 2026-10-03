@@ -497,6 +497,8 @@ export class MuseSession implements AgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
+  /** A stage's callers share its eventual result, and Stop waits for it. */
+  private readonly decisionsInFlight = new Map<string, Promise<void>>()
   /**
    * What arrived before anyone listened (D26): the events right after
    * `session/resume` (the re-issued prompts, a running turn's stream) land
@@ -541,6 +543,11 @@ export class MuseSession implements AgentSession {
    * 2026-10-02), while one whose approval was rejected first runs on.
    */
   private async rejectPartlyDecided(): Promise<void> {
+    // A click locks the stage before its command settles. Let the host's
+    // answer and stage update land before deciding what Stop must reject.
+    while (this.decisionsInFlight.size > 0) {
+      await Promise.allSettled(this.decisionsInFlight.values())
+    }
     for (const approval of this.prompts.partlyDecided()) {
       await this.rejectWaitingStage(approval.approvalId)
     }
@@ -580,6 +587,27 @@ export class MuseSession implements AgentSession {
           return
         }
       }
+    }
+  }
+
+  /** The single wire decision whose outcome every caller of this stage sees. */
+  private async sendApprovalDecision(decision: ApprovalDecision): Promise<void> {
+    const { approvalId, requirementId } = decision
+    let ack: unknown
+    try {
+      ack = await this.command('approval/decide', {
+        approvalId,
+        choiceId: decision.choiceId,
+        requirementId,
+        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
+      })
+    } catch (error: unknown) {
+      throw await this.decisionFailed(requirementId, error)
+    }
+    // `terminal: true` closed the whole approval; a trailing stage update the
+    // host can still send for it must not reopen the card (the facade's #37538).
+    if (approvalDecideResultSchema.safeParse(ack).data?.terminal === true) {
+      this.prompts.close(approvalId)
     }
   }
 
@@ -781,6 +809,12 @@ export class MuseSession implements AgentSession {
    */
   public async decideApproval(decision: ApprovalDecision): Promise<void> {
     const { approvalId, requirementId } = decision
+    const key = `${approvalId}\u{0}${String(requirementId.sourceIndex)}`
+    const inFlight = this.decisionsInFlight.get(key)
+    if (inFlight !== undefined) {
+      await inFlight
+      return
+    }
     const stage = `approval ${approvalId} stage ${String(requirementId.sourceIndex)}`
     if (this.prompts.isClosed(approvalId)) {
       throw new PromptSettledError('alreadySettled', `${stage}: the approval is closed`)
@@ -798,21 +832,12 @@ export class MuseSession implements AgentSession {
       throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
     }
     this.prompts.markDecided(requirementId)
-    let ack: unknown
+    const pending = this.sendApprovalDecision(decision)
+    this.decisionsInFlight.set(key, pending)
     try {
-      ack = await this.command('approval/decide', {
-        approvalId,
-        choiceId: decision.choiceId,
-        requirementId,
-        ...(decision.feedback !== undefined && { feedback: decision.feedback }),
-      })
-    } catch (error: unknown) {
-      throw await this.decisionFailed(requirementId, error)
-    }
-    // `terminal: true` closed the whole approval; a trailing stage update the
-    // host can still send for it must not reopen the card (the facade's #37538).
-    if (approvalDecideResultSchema.safeParse(ack).data?.terminal === true) {
-      this.prompts.close(approvalId)
+      await pending
+    } finally {
+      this.decisionsInFlight.delete(key)
     }
   }
 

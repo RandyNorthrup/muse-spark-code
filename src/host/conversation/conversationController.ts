@@ -746,6 +746,25 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
+/**
+ * The extension's existing restart sequence (D25/D26), shared with its tests
+ * so a Muse-only recovery proves both controller and host isolation.
+ */
+export async function restartConversationBackends(
+  controllers: Iterable<ConversationController>,
+  museCode: { dispose: () => Promise<void> },
+  modelApi: { dispose: () => Promise<void> },
+  isConversationEnding: boolean,
+  isMuseCodeOnly: boolean,
+): Promise<void> {
+  await Promise.all(
+    Array.from(controllers, (controller) =>
+      controller.backendStopping(isConversationEnding, isMuseCodeOnly ? 'museCode' : undefined),
+    ),
+  )
+  await Promise.all([museCode.dispose(), ...(isMuseCodeOnly ? [] : [modelApi.dispose()])])
+}
+
 export class ConversationController {
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
@@ -6168,11 +6187,22 @@ export class ConversationController {
 
   /**
    * The extension is about to stop the hosts (a restart for a setting, trust
-   * granted, a sign-in or sign-out; PLAN.md D25). A running turn is
+   * granted, a sign-in or sign-out; PLAN.md D25). A fault recovery names
+   * only its backend kind, leaving the other backend's conversations live.
+   * A running turn is
    * cancelled and ended in the webview; unless the conversations end (sign
    * out, shutdown), the session is resumed by the next message.
    */
-  public async backendStopping(isConversationEnding: boolean): Promise<void> {
+  public async backendStopping(
+    isConversationEnding: boolean,
+    onlyKind?: BackendKind,
+  ): Promise<void> {
+    if (
+      onlyKind !== undefined &&
+      (this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== onlyKind
+    ) {
+      return
+    }
     if (isConversationEnding) {
       this.accountStopsInFlight += 1
     }

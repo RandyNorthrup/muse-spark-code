@@ -365,6 +365,8 @@ export type UiAction =
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
   /** A restore notice's Redo was pressed (M72): it waits for the host's answer. */
   | { readonly type: 'redoRequested'; readonly entryId: string }
+  /** A fault notice offers one recovery attempt, kept spent in saved state. */
+  | { readonly type: 'noticeActionRequested'; readonly entryId: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
@@ -2515,6 +2517,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'insertApplied': {
       return { ...state, pendingInsert: undefined }
+    }
+    case 'noticeActionRequested': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.id === action.entryId
+            ? { ...entry, actions: [] }
+            : entry,
+        ),
+      }
     }
     case 'redoRequested': {
       return {
