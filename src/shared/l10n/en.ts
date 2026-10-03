@@ -1464,7 +1464,8 @@ export const EN = {
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
-    '  {command} exec [options] <prompt>  Run one headless turn (M80 wiring pending)',
+    '  {command} exec [options] <prompt>  Run one headless turn',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -1477,7 +1478,7 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),
-  // M80: independently delivered headless contracts; runtime wiring is lane B.
+  // M80 (PLAN.md D64): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',

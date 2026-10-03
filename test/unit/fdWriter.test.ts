@@ -5,6 +5,7 @@ import path from 'node:path'
 import { build } from 'esbuild'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFdWriter } from '../../src/runtime/exec/fdWriter'
+import { EXEC_WRITE_RETRY_MS } from '../../src/shared/constants'
 
 const state = vi.hoisted(() => {
   const callbacks: ((error: Error | null, written: number) => void)[] = []
@@ -56,6 +57,24 @@ describe('M80 async fd writer (A14/A22)', () => {
       expect(await writer.flush(0)).toBe(false)
       expect(writer.isClosed).toBe(true)
       expect(onClosed).toHaveBeenCalledOnce()
+    },
+  )
+  it.each(['EAGAIN', 'EWOULDBLOCK'])(
+    'retries a full non-blocking pipe (%s) instead of closing it (M80 E5)',
+    async (code) => {
+      vi.useFakeTimers()
+      const onClosed = vi.fn()
+      const writer = createFdWriter(1, onClosed)
+      writer.write('data')
+      const pending = writer.flush(1000)
+      state.callbacks.shift()!(Object.assign(new Error(code), { code }), 0)
+      expect(writer.isClosed).toBe(false)
+      expect(state.callbacks).toHaveLength(0)
+      await vi.advanceTimersByTimeAsync(EXEC_WRITE_RETRY_MS)
+      expect(state.callbacks).toHaveLength(1)
+      state.callbacks.shift()!(null, 4)
+      expect(await pending).toBe(true)
+      expect(onClosed).not.toHaveBeenCalled()
     },
   )
   it('rejects queue overflow once, discards pending buffers and tolerates late callbacks', () => {
@@ -123,6 +142,9 @@ describe('M80 async fd writer (A14/A22)', () => {
         })
         await flushed
         expect(stderr).toContain('timer')
+        // A full pipe is not a closed one (M80 E5): Node's child stdio is
+        // non-blocking, so the writer met EAGAIN here and kept its queue.
+        expect(stderr).not.toContain('closed')
         child.stdout.destroy()
         await once(child, 'close')
         expect(stderr.match(/closed/g)).toHaveLength(1)

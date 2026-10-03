@@ -6,7 +6,9 @@ import {
   EXEC_EXIT,
   EXEC_MODES,
   EXEC_PAID_FEATURES,
+  EXEC_PROHIBITED_UPDATE_PATTERN,
   EXEC_PROTOCOL_VERSION,
+  EXEC_RAW_TOOL_FIELDS,
   EXEC_USD_DECIMALS,
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
@@ -207,8 +209,8 @@ const STATUSES = [
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
 const REFUSALS = ['budget', 'requests', 'closed', 'unpriced', 'request_shape'] as const
 const ENDPOINTS = ['responses', 'images.generations', 'images.edits'] as const
-const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
-const RAW_TOOL_FIELDS = new Set(['rawInput', 'rawOutput', 'toolCallId'])
+const PROHIBITED_UPDATE = new RegExp(EXEC_PROHIBITED_UPDATE_PATTERN)
+const RAW_TOOL_FIELDS = new Set<string>(EXEC_RAW_TOOL_FIELDS)
 const counter = z.number().check(z.gte(0), z.int(), z.lte(Number.MAX_SAFE_INTEGER))
 const amount = z.number().check(
   z.gte(0),

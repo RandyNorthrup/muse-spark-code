@@ -9,7 +9,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const { outputFiles } = await esbuild.build({
   stdin: {
     contents:
-      "export * as z from 'zod/mini'; export { execResultSchema, execEventSchema, exitCodeFor } from './src/runtime/exec/execProtocol'",
+      "export * as z from 'zod/mini'; export { execResultSchema, execEventSchema, exitCodeFor } from './src/runtime/exec/execProtocol'; export { EXEC_PROHIBITED_UPDATE_PATTERN, EXEC_RAW_TOOL_FIELDS } from './src/shared/constants'",
     resolveDir: root,
     loader: 'ts',
     sourcefile: 'exec-schema-entry.ts',
@@ -21,7 +21,14 @@ const { outputFiles } = await esbuild.build({
   target: 'node22',
   logLevel: 'silent',
 })
-const { z, execResultSchema, execEventSchema, exitCodeFor } = await import(
+const {
+  z,
+  execResultSchema,
+  execEventSchema,
+  exitCodeFor,
+  EXEC_PROHIBITED_UPDATE_PATTERN,
+  EXEC_RAW_TOOL_FIELDS,
+} = await import(
   `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
 )
 function conditional(ifClause, thenClause) {
@@ -81,12 +88,35 @@ resultJson['x-runtime-invariants'] = [
   'Workspace-relative forward-slash paths are deduplicated; input names are basenames.',
 ]
 const eventJson = z.toJSONSchema(execEventSchema, { unrepresentable: 'any' })
+// The update egress rule as schema, not prose (RVM80A P2-2): no prohibited
+// sessionUpdate and no raw tool field at any depth of an update.
+const allowedSessionUpdate = { type: 'string', not: { pattern: EXEC_PROHIBITED_UPDATE_PATTERN } }
+eventJson.$defs = {
+  ...eventJson.$defs,
+  execSafeUpdateValue: {
+    anyOf: [
+      { type: ['string', 'number', 'boolean', 'null'] },
+      { type: 'array', items: { $ref: '#/$defs/execSafeUpdateValue' } },
+      {
+        type: 'object',
+        propertyNames: { not: { enum: [...EXEC_RAW_TOOL_FIELDS] } },
+        properties: { sessionUpdate: allowedSessionUpdate },
+        additionalProperties: { $ref: '#/$defs/execSafeUpdateValue' },
+      },
+    ],
+  },
+}
 for (const variant of eventJson.anyOf) {
-  if (variant.properties.type.const === 'result') variant.properties.result = resultJson
+  const type = variant.properties.type.const
+  if (type === 'result') variant.properties.result = resultJson
+  else if (type === 'update') {
+    variant.properties.update.properties.sessionUpdate = allowedSessionUpdate
+    variant.properties.update.$ref = '#/$defs/execSafeUpdateValue'
+  }
 }
 eventJson['x-runtime-invariants'] = [
   'Sequence starts at 1 and grows once per event; only one result is emitted per sink.',
-  'ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update.',
+  'ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).',
   'Tool events contain name, status and durationMs only; incomplete message text is withheld whole.',
   'Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD.',
 ]

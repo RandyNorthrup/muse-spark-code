@@ -53,6 +53,9 @@ function readBytes(
           error instanceof Error ? error : new Error(UI_TEXT.execInterrupted, { cause: error }),
         )
       }
+      // The concatenated copy is the caller's; the received pieces held key
+      // bytes too and are zeroed here, not left for the collector (RVM80A P2-1).
+      for (const chunk of chunks) chunk.fill(0)
       chunks.length = 0
     }
     const data = (chunk: unknown) => {
@@ -65,6 +68,7 @@ function readBytes(
       const part = lf === -1 ? raw : raw.subarray(0, lf)
       bytes += part.length
       if (bytes > maxBytes) {
+        part.fill(0)
         finish(undefined, true)
         return
       }
@@ -107,14 +111,21 @@ export async function readKeyLine(
   if (bytes === undefined) return { ok: false, reason: 'tooLong' }
   let key: string
   try {
-    key = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim()
+    // One CRLF line ending is accepted; any other white space or CR is part
+    // of the value and fails validation, as the Action's intake refuses it.
+    const line = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+    key = line.endsWith('\r') ? line.slice(0, -1) : line
   } catch {
     return { ok: false, reason: 'invalid' }
   } finally {
     bytes.fill(0)
   }
   if (key === '') return { ok: false, reason: 'empty' }
-  return isValidModelApiKey(key) ? { ok: true, key } : { ok: false, reason: 'invalid' }
+  // isValidModelApiKey trims for pasted keys; this key is used as read, so
+  // surrounding white space is refused rather than sent.
+  return key === key.trim() && isValidModelApiKey(key)
+    ? { ok: true, key }
+    : { ok: false, reason: 'invalid' }
 }
 
 export async function readPromptStdin(

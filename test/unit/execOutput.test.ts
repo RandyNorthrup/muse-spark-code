@@ -65,7 +65,10 @@ describe('M80 egress (A12–A14, A17, A19, A20)', () => {
       else expect(JSON.parse(out.chunks[0]!)).toMatchObject({ finalMessage: 'answer [redacted]' })
     },
   )
-  it('A13 redacts whole completed items, including keys assembled from character deltas', async () => {
+  // RVM80A P3-6: the sink takes whole items only, so this proves literal-first
+  // redaction of an item assembled before emission; the split across stream
+  // deltas is proved through the real engine by execRun's D15.
+  it('A13 redacts a whole completed item literal-first, the key assembled before emission', async () => {
     const { out, sink, summary } = harness()
     let message = ''
     let thought = ''
@@ -117,6 +120,13 @@ describe('M80 egress (A12–A14, A17, A19, A20)', () => {
         future: { lines: ['[redacted]', 'safe'], extra: 3 },
       },
     })
+  })
+  it('A17 serializes a BigInt leaf of a loose update instead of throwing (RVM80A P3-4)', () => {
+    const { out, sink } = harness()
+    expect(() => {
+      sink.emit({ type: 'update', update: { sessionUpdate: 'future_notice', big: 12n } })
+    }).not.toThrow()
+    expect(JSON.parse(out.chunks[0]!)).toMatchObject({ update: { big: '12' } })
   })
   it.each([
     { type: 'update', update: { sessionUpdate: 'agent_message_chunk', content: KEY } },

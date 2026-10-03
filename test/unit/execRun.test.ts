@@ -28,7 +28,12 @@ import {
 import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { paidGrantsFile, workspaceSessionsFolder } from '../../src/runtime/dataFolder'
 import { memorySecrets } from './helpers/fakes'
-import { fakeModelApi, FAKE_MODEL_API_KEY, type ScriptedReply } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  FAKE_MODEL_API_KEY,
+  streamFor,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -818,6 +823,12 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(0)
     expect(h.out.chunks.join('')).not.toContain(FAKE_MODEL_API_KEY)
+    // RVM80A P3-6: the key really crossed stream deltas on its way in.
+    const deltas = streamFor({ text: `reply ${FAKE_MODEL_API_KEY}` }, 'resp_split')
+      .split('\n\n')
+      .filter((frame) => frame.includes('response.output_text.delta'))
+    expect(deltas.length).toBeGreaterThan(1)
+    expect(deltas.some((frame) => frame.includes(FAKE_MODEL_API_KEY))).toBe(false)
     const cut = await harness([], [{ text: 'LLM|1|se', omitTerminal: true }])
     const ended = await cut.run()
     expect(ended.code).toBe(8)

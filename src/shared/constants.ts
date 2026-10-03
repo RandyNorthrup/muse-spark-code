@@ -1585,6 +1585,12 @@ export const EXEC_DEFAULT_MODE = 'plan'
 export const EXEC_OUTPUTS = ['text', 'json', 'jsonl'] as const
 export const EXEC_DEFAULT_OUTPUT = 'text'
 export const EXEC_PAID_FEATURES = ['imageGeneration'] as const
+// ACP updates exec never emits (message/thought chunks and every tool
+// variant), and raw tool fields refused at any depth of an update (SPEC §2.2).
+// The runtime schema, the generated JSON schema and the Action's mirror all
+// read these (RVM80A P2-2).
+export const EXEC_PROHIBITED_UPDATE_PATTERN = '^(?:agent_(?:message|thought)_chunk|tool)'
+export const EXEC_RAW_TOOL_FIELDS = ['rawInput', 'rawOutput', 'toolCallId'] as const
 export const EXEC_DEFAULT_TIMEOUT_SECONDS = 1800
 export const EXEC_MIN_TIMEOUT_SECONDS = 10
 export const EXEC_MAX_TIMEOUT_SECONDS = 21_600
@@ -1602,6 +1608,8 @@ export const EXEC_MARKER_BYTES = 8
 export const EXEC_STOP_GRACE_MS = 5000
 export const EXEC_SIGNAL_DEDUP_MS = 500
 export const EXEC_FORCE_WRITE_MS = 300
+// The retry interval after EAGAIN on a full non-blocking output pipe.
+export const EXEC_WRITE_RETRY_MS = 10
 export const EXEC_SINK_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_RESPONSE_MAX_BYTES = 33_554_432
 export const EXEC_SSE_FRAME_MAX_BYTES = 16_777_216

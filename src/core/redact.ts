@@ -263,20 +263,11 @@ export const SECRET_RULES: readonly SecretRule[] = [
 export const MAY_HOLD_SECRET =
   /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
 
-function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
+function redactPatterns(text: string, matched?: () => void): string {
+  if (!MAY_HOLD_SECRET.test(text)) {
+    return text
+  }
   let result = text
-  const ordered = [...new Set(literals)]
-    .filter((value) => value !== '')
-    .toSorted((a, b) => b.length - a.length)
-  for (const literal of ordered) {
-    result = result.replaceAll(literal, () => {
-      matched?.()
-      return REDACTED_MARK
-    })
-  }
-  if (!MAY_HOLD_SECRET.test(result)) {
-    return result
-  }
   for (const rule of SECRET_RULES) {
     // A function, so no `$` sequence in the mark is interpreted.
     result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) => {
@@ -288,6 +279,41 @@ function redactWith(text: string, literals: readonly string[], matched?: () => v
     })
   }
   return result
+}
+
+/**
+ * The forms of one exact literal that literal-first redaction replaces (M80,
+ * SPEC §4.2): the literal, its percent-encoded form, and what a pattern-only
+ * pass leaves of it. Text that an earlier step already redacted by pattern
+ * alone (a network error's description) still carries that residue, such as a
+ * legacy key's tail after the `%` its pattern stops at.
+ */
+function literalForms(literal: string): string[] {
+  const forms = [literal]
+  try {
+    forms.push(encodeURIComponent(literal))
+  } catch {
+    // A lone surrogate has no encoded form; the literal itself still applies.
+  }
+  const residue = redactPatterns(literal)
+  if (residue !== literal && residue !== REDACTED_MARK) {
+    forms.push(residue)
+  }
+  return forms
+}
+
+function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
+  let result = text
+  const ordered = [
+    ...new Set(literals.filter((value) => value !== '').flatMap((value) => literalForms(value))),
+  ].toSorted((a, b) => b.length - a.length)
+  for (const literal of ordered) {
+    result = result.replaceAll(literal, () => {
+      matched?.()
+      return REDACTED_MARK
+    })
+  }
+  return redactPatterns(result, matched)
 }
 
 /** Exact run keys precede patterns, including legacy keys containing percent signs. */

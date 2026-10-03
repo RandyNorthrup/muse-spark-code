@@ -13,10 +13,36 @@ describe('M80 key/stdin (A11)', () => {
   ])('refuses %s with %s', async (text, reason) => {
     expect(await readKeyLine(Readable.from([text]), signal())).toEqual({ ok: false, reason })
   })
-  it('refuses TTY input', async () => {
+  it('refuses TTY input without reading it', async () => {
     const input = Object.assign(new PassThrough(), { isTTY: true })
+    input.write(`${KEY}\n`)
     expect(await readKeyLine(input, signal())).toEqual({ ok: false, reason: 'tty' })
     expect(input.destroyed).toBe(true)
+    // RVM80A P3-7: the key typed at a terminal is never consumed.
+    expect(input.readableLength).toBe(KEY.length + 1)
+  })
+  it('zeroes every received piece of a key that arrived in several chunks (RVM80A P2-1)', async () => {
+    const first = Buffer.from(KEY.slice(0, 7))
+    const second = Buffer.from(`${KEY.slice(7)}\nrest`)
+    const input = new Readable({ read: () => undefined })
+    const pending = readKeyLine(input, signal())
+    input.push(first)
+    input.push(second)
+    expect(await pending).toEqual({ ok: true, key: KEY })
+    expect(first.every((byte) => byte === 0)).toBe(true)
+    expect(second.subarray(0, KEY.length - 7).every((byte) => byte === 0)).toBe(true)
+  })
+  it('accepts one CRLF ending only; other white space is part of the value (RVM80A P3-2)', async () => {
+    expect(await readKeyLine(Readable.from([`${KEY}\r\n`]), signal())).toEqual({
+      ok: true,
+      key: KEY,
+    })
+    for (const text of [` ${KEY}\n`, `${KEY} \n`, `${KEY}\t\n`, `${KEY}\r\r\n`, `\r${KEY}\n`]) {
+      expect(await readKeyLine(Readable.from([text]), signal()), JSON.stringify(text)).toEqual({
+        ok: false,
+        reason: 'invalid',
+      })
+    }
   })
   it('returns at LF while the pipe is still open; ignores the rest and destroys it', async () => {
     const input = new PassThrough()

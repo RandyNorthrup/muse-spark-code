@@ -13,6 +13,72 @@ import {
 import * as constants from '../../src/shared/constants'
 import { resultRecord } from './helpers/execContract'
 
+type JsonSchema = Readonly<Record<string, unknown>>
+
+function isJsonType(value: unknown, type: unknown): boolean {
+  switch (type) {
+    case 'object': {
+      return typeof value === 'object' && value !== null && !Array.isArray(value)
+    }
+    case 'array': {
+      return Array.isArray(value)
+    }
+    case 'null': {
+      return value === null
+    }
+    default: {
+      return typeof value === type
+    }
+  }
+}
+
+/**
+ * The few JSON Schema keywords the shipped update rule uses ($ref, anyOf, not,
+ * type, pattern, enum, required, items, propertyNames, properties,
+ * additionalProperties), evaluated against `root`. Test-only: it checks the
+ * committed schema enforces what execEventSchema enforces (RVM80A P2-2).
+ */
+function isMatch(schema: JsonSchema, value: unknown, root: JsonSchema): boolean {
+  const reference = schema['$ref']
+  if (typeof reference === 'string') {
+    const name = reference.replace('#/$defs/', '')
+    const definitions = root['$defs'] as Record<string, JsonSchema>
+    if (!isMatch(definitions[name]!, value, root)) return false
+  }
+  const anyOf = schema['anyOf'] as JsonSchema[] | undefined
+  if (anyOf?.every((option) => !isMatch(option, value, root)) === true) return false
+  const not = schema['not'] as JsonSchema | undefined
+  if (not !== undefined && isMatch(not, value, root)) return false
+  const type = schema['type']
+  if (type !== undefined && [type].flat().every((name) => !isJsonType(value, name))) return false
+  const pattern = schema['pattern']
+  if (
+    typeof pattern === 'string' &&
+    typeof value === 'string' &&
+    !new RegExp(pattern, 'u').test(value)
+  )
+    return false
+  const allowed = schema['enum'] as unknown[] | undefined
+  if (allowed !== undefined && !allowed.includes(value)) return false
+  if (Array.isArray(value)) {
+    const items = schema['items'] as JsonSchema | undefined
+    return items === undefined || value.every((item) => isMatch(items, item, root))
+  }
+  if (!isJsonType(value, 'object')) return true
+  const record = value as Record<string, unknown>
+  const required = (schema['required'] as string[] | undefined) ?? []
+  if (required.some((key) => !Object.hasOwn(record, key))) return false
+  const names = schema['propertyNames'] as JsonSchema | undefined
+  if (names !== undefined && Object.keys(record).some((key) => !isMatch(names, key, root)))
+    return false
+  const properties = (schema['properties'] as Record<string, JsonSchema> | undefined) ?? {}
+  const additional = schema['additionalProperties'] as JsonSchema | undefined
+  return Object.entries(record).every(([key, item]) => {
+    const rule = properties[key] ?? additional
+    return rule === undefined || isMatch(rule, item, root)
+  })
+}
+
 const statuses: [ExecStatus, number][] = [
   ['completed', 0],
   ['internal', 1],
@@ -262,6 +328,58 @@ describe('M80 schemas (A15/A16/F1)', () => {
       expect(raw).toMatchObject({ $schema: 'https://json-schema.org/draft/2020-12/schema' })
     }
   })
+  it('RVM80A P2-2 the shipped event schema itself refuses what execEventSchema refuses in update', async () => {
+    const root = JSON.parse(
+      await readFile('docs/schemas/exec-event-v1.schema.json', 'utf8'),
+    ) as JsonSchema
+    const variants = root['anyOf'] as JsonSchema[]
+    const update = variants.find(
+      (variant) =>
+        (variant['properties'] as Record<string, JsonSchema>)['type']?.['const'] === 'update',
+    )
+    const rule = (update?.['properties'] as Record<string, JsonSchema> | undefined)?.['update']
+    if (rule === undefined) throw new Error('no update variant in the shipped schema')
+    const samples: unknown[] = [
+      { sessionUpdate: 'plan', entries: [{ content: 'x', priority: 1 }] },
+      { sessionUpdate: 'future_non_tool', meta: { deep: [1, 'a', null, true] } },
+      { sessionUpdate: 'agent_message_chunk', content: { text: 'x' } },
+      { sessionUpdate: 'agent_thought_chunk', content: { text: 'x' } },
+      { sessionUpdate: 'tool_call', title: 'x' },
+      { sessionUpdate: 'tool_call_update' },
+      { sessionUpdate: 'x', rawInput: {} },
+      { sessionUpdate: 'x', nested: { rawOutput: 'x' } },
+      { sessionUpdate: 'x', list: [{ toolCallId: '1' }] },
+      { sessionUpdate: 'x', deep: { sessionUpdate: 'tool_call' } },
+      { sessionUpdate: 'x', deep: { sessionUpdate: 5 } },
+      { sessionUpdate: 'x', deep: { sessionUpdate: 'plan' } },
+    ]
+    const outcomes = samples.map((sample) => {
+      const event = {
+        v: 1,
+        seq: 1,
+        time: '2026-10-02T00:00:00.000Z',
+        type: 'update',
+        update: sample,
+      }
+      return [execEventSchema.safeParse(event).success, isMatch(rule, sample, root)]
+    })
+    for (const [index, [runtime, shipped]] of outcomes.entries()) {
+      expect(shipped, JSON.stringify(samples[index])).toBe(runtime)
+    }
+    expect(outcomes.filter(([runtime]) => runtime)).toHaveLength(3)
+  })
+  it('RVM80A P3-1 refuses, never throws on, an amount past toFixed’s fixed-point range', () => {
+    const result = resultRecord()
+    result.usage.costUsd = {
+      settled: 1e21,
+      uncertain: 0,
+      reserved: 0,
+      total: 1e21,
+      isUpperBound: false,
+    }
+    expect(() => execResultSchema.safeParse(result)).not.toThrow()
+    expect(execResultSchema.safeParse(result).success).toBe(false)
+  })
   it('exercises the lane-owned constant contract, including F1 units', () => {
     const owned = Object.fromEntries(
       Object.entries(constants).filter(([name]) => name.startsWith('EXEC_')),
@@ -274,8 +392,11 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_USD_DECIMALS: 6,
       EXEC_MIN_OUTPUT_TOKENS: 16,
       EXEC_SCAN_EXIT_FOUND: 10,
+      EXEC_PROHIBITED_UPDATE_PATTERN: '^(?:agent_(?:message|thought)_chunk|tool)',
+      EXEC_RAW_TOOL_FIELDS: ['rawInput', 'rawOutput', 'toolCallId'],
+      EXEC_WRITE_RETRY_MS: 10,
     })
-    expect(Object.keys(owned)).toHaveLength(40)
+    expect(Object.keys(owned)).toHaveLength(43)
     expect(constants.MODEL_TEXT).toMatchObject({
       execUntrustedOpen: '<<<untrusted {marker}>>>',
       execUntrustedClose: '<<<end untrusted {marker}>>>',

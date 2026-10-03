@@ -1,7 +1,8 @@
-// M80 D: production packaging guards run without B. The built-process rows
-// activate when B's runExec.ts lands; this explicit dependency is not acceptance.
-// Fake fetch/keyring injection lives only in a test-owned Node preload, never
-// in a production loader flag. No request can reach the network in this suite.
+// M80 D: production packaging guards, then the built-process rows E1-E7 against
+// the real built engine (all lanes integrated, so they always run; Windows
+// skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
+// a test-owned Node preload, never in a production loader flag. No request can
+// reach the network in this suite.
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
@@ -31,8 +32,6 @@ const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
-const isEngineReady =
-  INSTALLED !== undefined || existsSync(path.join(ROOT, 'src', 'runtime', 'exec', 'runExec.ts'))
 const TIMEOUT = 30_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
@@ -463,9 +462,8 @@ function result(stdout: string): ExecResult {
   return validateResult(final.result)
 }
 
-// E1-E7 and H2 use the actual production package. B's absence is explicit in
-// test discovery, rather than a passing mock of an engine that does not exist.
-describe.runIf(isEngineReady)('M80 E1-E7 built exec (pending lane B)', { timeout: TIMEOUT }, () => {
+// E1-E7 and H2 use the actual production package and engine.
+describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
       expect(command(path.join(ROOT, 'scripts', 'build.mjs'), ROOT, ['--production']).status).toBe(
@@ -481,31 +479,52 @@ describe.runIf(isEngineReady)('M80 E1-E7 built exec (pending lane B)', { timeout
           import { createHash } from 'node:crypto';
           import { writeFileSync } from 'node:fs';
           import fs from 'node:fs';
-          import { fakeModelApi } from ${JSON.stringify(path.join(ROOT, 'test/unit/helpers/fakeModelApi.ts'))};
+          import { fakeModelApi, FAKE_MODEL_API_KEY } from ${JSON.stringify(path.join(ROOT, 'test/unit/helpers/fakeModelApi.ts'))};
           const key = ${JSON.stringify(KEY)};
           const mode = process.env.M80D_CASE;
-          const load = Module._load;
           const write = fs.write;
           fs.write = function(fd, ...args) {
-            if (fd === 1 && Buffer.isBuffer(args[0]) && args[0].length >= 4 * 1024 * 1024) {
+            // Far beyond any pipe buffer, so the unread stdout really blocks.
+            if (fd === 1 && Buffer.isBuffer(args[0]) && args[0].length >= 256 * 1024) {
               writeFileSync(process.env.M80D_BLOCK_MARKER, 'large async write queued');
             }
             return write.call(this, fd, ...args);
           };
-          Module._load = function(id, parent, isMain) {
-            if (id === '@napi-rs/keyring') {
+          // The agent loads the keyring with a native import(), which
+          // Module._load never sees; a resolve/load hook answers import() and
+          // require() alike, so no real OS store is ever opened here.
+          const FAKE_KEYRING = 'file:///m80-test-owned-keyring.mjs';
+          Module.registerHooks({
+            resolve(specifier, context, nextResolve) {
+              if (specifier === '@napi-rs/keyring') return { url: FAKE_KEYRING, shortCircuit: true };
+              return nextResolve(specifier, context);
+            },
+            load(url, context, nextLoad) {
+              if (url !== FAKE_KEYRING) return nextLoad(url, context);
               if (mode !== 'store') throw new Error('keyring must not load on stdin path');
-              return { AsyncEntry: class { getPassword() { return Promise.resolve(key); } } };
-            }
-            return load.call(this, id, parent, isMain);
-          };
+              return {
+                format: 'module',
+                shortCircuit: true,
+                source: 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
+              };
+            },
+          });
           const api = fakeModelApi();
           api.models = ['muse-spark-1.3-contributor'];
-          api.script({text:mode === 'blocked' ? 'x'.repeat(4 * 1024 * 1024) : 'ok', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // The blocked reply stays inside exec's 32 MiB response cap: the fake
+          // streams text in five-character deltas, so 4 MiB of text would be cut
+          // short and withheld, and nothing large would reach stdout.
+          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
-            return api.fetch(url, init);
+            // The run's own key must arrive; the shared fake then sees its fixed key.
+            const headers = new Headers(init?.headers);
+            if (headers.get('authorization') !== 'Bearer ' + key) {
+              return Promise.resolve(Response.json({ error: { message: 'bad key', type: 'authentication_error' } }, { status: 401 }));
+            }
+            headers.set('authorization', 'Bearer ' + FAKE_MODEL_API_KEY);
+            return api.fetch(url, { ...init, headers: Object.fromEntries(headers) });
           };
           const hash = value => createHash('sha256').update(value).digest('hex');
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
@@ -596,7 +615,7 @@ describe.runIf(isEngineReady)('M80 E1-E7 built exec (pending lane B)', { timeout
       const stopped = performance.now()
       run.child.kill('SIGTERM')
       const output = await run.closed
-      expect(output.code).toBe(143)
+      expect(output.code, output.stderr).toBe(143)
       expect(performance.now() - stopped).toBeLessThan(5400)
     },
   )

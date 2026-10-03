@@ -1,6 +1,11 @@
 // Async libuv writes keep deadline/signal timers running even on a blocked pipe.
 import { write } from 'node:fs'
-import { EXEC_SINK_HIGH_WATER_BYTES } from '../../shared/constants'
+import { EXEC_SINK_HIGH_WATER_BYTES, EXEC_WRITE_RETRY_MS } from '../../shared/constants'
+
+// A full non-blocking pipe (Node's own child stdio, a runner's log pipe)
+// answers EAGAIN: its reader is slow, not gone. The write is retried on a
+// timer; flush deadlines and the high-water mark still bound the wait.
+const RETRY_CODES = new Set(['EAGAIN', 'EWOULDBLOCK'])
 
 export interface FdWriter {
   write(chunk: string): void
@@ -15,6 +20,7 @@ export function createFdWriter(fd: number, onClosed: () => void): FdWriter {
   let queuedBytes = 0
   let isClosed = false
   let isWriting = false
+  let retry: ReturnType<typeof setTimeout> | undefined
   let offset = 0
   const notify = () => {
     for (const waiter of waiters) waiter()
@@ -22,6 +28,8 @@ export function createFdWriter(fd: number, onClosed: () => void): FdWriter {
   const close = () => {
     if (isClosed) return
     isClosed = true
+    clearTimeout(retry)
+    retry = undefined
     queue.length = 0
     queuedBytes = 0
     notify()
@@ -29,12 +37,19 @@ export function createFdWriter(fd: number, onClosed: () => void): FdWriter {
   }
   const pump = () => {
     const buffer = queue[0]
-    if (isClosed || isWriting || buffer === undefined) return
+    if (isClosed || isWriting || retry !== undefined || buffer === undefined) return
     isWriting = true
     try {
       write(fd, buffer, offset, buffer.length - offset, null, (error, written) => {
         isWriting = false
         if (isClosed) return
+        if (error !== null && RETRY_CODES.has(error.code ?? '')) {
+          retry = setTimeout(() => {
+            retry = undefined
+            pump()
+          }, EXEC_WRITE_RETRY_MS)
+          return
+        }
         if (error !== null || written <= 0) {
           close()
           return

@@ -69,9 +69,15 @@
         "type": { "type": "string", "const": "update" },
         "update": {
           "type": "object",
-          "properties": { "sessionUpdate": { "type": "string" } },
+          "properties": {
+            "sessionUpdate": {
+              "type": "string",
+              "not": { "pattern": "^(?:agent_(?:message|thought)_chunk|tool)" }
+            }
+          },
           "required": ["sessionUpdate"],
-          "additionalProperties": {}
+          "additionalProperties": {},
+          "$ref": "#/$defs/execSafeUpdateValue"
         },
         "v": { "type": "number", "const": 1 },
         "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
@@ -785,9 +791,28 @@
       "additionalProperties": false
     }
   ],
+  "$defs": {
+    "execSafeUpdateValue": {
+      "anyOf": [
+        { "type": ["string", "number", "boolean", "null"] },
+        { "type": "array", "items": { "$ref": "#/$defs/execSafeUpdateValue" } },
+        {
+          "type": "object",
+          "propertyNames": { "not": { "enum": ["rawInput", "rawOutput", "toolCallId"] } },
+          "properties": {
+            "sessionUpdate": {
+              "type": "string",
+              "not": { "pattern": "^(?:agent_(?:message|thought)_chunk|tool)" }
+            }
+          },
+          "additionalProperties": { "$ref": "#/$defs/execSafeUpdateValue" }
+        }
+      ]
+    }
+  },
   "x-runtime-invariants": [
     "Sequence starts at 1 and grows once per event; only one result is emitted per sink.",
-    "ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update.",
+    "ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).",
     "Tool events contain name, status and durationMs only; incomplete message text is withheld whole.",
     "Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD."
   ]

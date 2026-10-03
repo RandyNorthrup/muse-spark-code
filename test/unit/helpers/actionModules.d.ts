@@ -238,10 +238,9 @@ declare module '*/action/lib/lifecycle.mjs' {
 
 declare module '*/action/lib/git.mjs' {
   export const GIT_METADATA_OPTIONS: readonly string[]
-  export const GIT_FILTER_NAMES_MAX: number
-  export const GIT_FILTER_NAME_MAX_CHARS: number
-  export const ACTION_FILTER_NAMES_ARGS: readonly string[]
-  export function filterOverrides(output: string): string[]
+  export const INERT_CONFIG_NAMES: ReadonlySet<string>
+  export function checkConfigNames(output: string): void
+  export function remoteProtocol(remote: string): 'https' | 'file'
   export function safeGitOptions(paths: Pick<ActionPaths, 'emptyHooks'>): string[]
   export function subcommandOf(args: readonly string[]): string
   export function gitEnvironment(input: {
@@ -249,6 +248,8 @@ declare module '*/action/lib/git.mjs' {
     paths: Pick<ActionPaths, 'emptyGitConfig'>
     readOnly: boolean
     auth?: { kind: 'checkout' | 'push'; token: string }
+    cwd?: string
+    protocol?: 'https' | 'file'
   }): Record<string, string>
   export function safeGit(input: {
     owner: LauncherOwner
@@ -260,6 +261,7 @@ declare module '*/action/lib/git.mjs' {
     readOnly: boolean
     stdoutPath?: string
     auth?: { kind: 'checkout' | 'push'; token: string }
+    protocol?: 'https' | 'file'
     withinMs?: number
     stdoutMaxBytes?: number
   }): Promise<ActionChildOutcome>
@@ -423,6 +425,9 @@ declare module '*/action/lib/result.mjs' {
   export function exitCodeFor(status: string, signal: string | null): number
   export function microUsd(value: unknown): number | undefined
   export function isExecResult(value: unknown): boolean
+  export function isExecEvent(value: unknown): boolean
+  export const PROHIBITED_UPDATE: RegExp
+  export const RAW_TOOL_FIELDS: readonly string[]
   export function parseEventsText(text: string): ActionResultLike | undefined
   export function extractResult(input: {
     owner: LauncherOwner

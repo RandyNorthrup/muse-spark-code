@@ -39,6 +39,9 @@ export function redactWhole(text: string, literals: readonly string[]): string {
 /** Preserve structure/unknown ACP fields; redact every string leaf before serialization. */
 function redactValue(value: unknown, literals: readonly string[]): unknown {
   if (typeof value === 'string') return redactWhole(value, literals)
+  // JSON has no BigInt: a loose ACP field holding one becomes its decimal
+  // string, so serialization cannot throw after validation (RVM80A P3-4).
+  if (typeof value === 'bigint') return redactWhole(value.toString(), literals)
   if (Array.isArray(value)) return value.map((item: unknown) => redactValue(item, literals))
   if (typeof value !== 'object' || value === null) return value
   return Object.fromEntries(
