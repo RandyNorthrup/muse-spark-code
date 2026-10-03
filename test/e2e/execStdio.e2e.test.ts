@@ -33,6 +33,9 @@ const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
 const TIMEOUT = 30_000
+// The production build and pack before the built rows: about a minute on the
+// Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
+const BUILD_TIMEOUT = 300_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
 // remote host. Native Windows bsdtar accepts them without a shell.
@@ -75,12 +78,13 @@ function command(
   cwd: string,
   args: readonly string[] = [],
   env: NodeJS.ProcessEnv = {},
+  timeout = TIMEOUT,
 ) {
   return spawnSync(process.execPath, [file, ...args], {
     cwd,
     env: { ...process.env, LANG: 'C', LC_ALL: 'C', ...env },
     encoding: 'utf8',
-    timeout: TIMEOUT,
+    timeout,
   })
 }
 
@@ -466,10 +470,22 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
-      expect(command(path.join(ROOT, 'scripts', 'build.mjs'), ROOT, ['--production']).status).toBe(
-        0,
+      const built = command(
+        path.join(ROOT, 'scripts', 'build.mjs'),
+        ROOT,
+        ['--production'],
+        {},
+        BUILD_TIMEOUT,
       )
-      expect(command(path.join(ROOT, 'scripts', 'package-acp.mjs'), ROOT).status).toBe(0)
+      expect(built.status, built.stderr).toBe(0)
+      const packed = command(
+        path.join(ROOT, 'scripts', 'package-acp.mjs'),
+        ROOT,
+        [],
+        {},
+        BUILD_TIMEOUT,
+      )
+      expect(packed.status, packed.stderr).toBe(0)
       cpSync(path.join(ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
     }
     await build({
@@ -542,7 +558,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       target: 'node22',
       logLevel: 'silent',
     })
-  })
+  }, BUILD_TIMEOUT)
 
   it('E1/H4 built help names exec/scanner and package schemas are valid', async () => {
     const run = await start(['--help'], 'store').closed
