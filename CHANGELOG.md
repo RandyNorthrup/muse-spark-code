@@ -112,6 +112,49 @@ happened, not what was planned; superseded entries are kept.
   inactive/unknown fields are dropped by name. Existing files and running
   turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
   1.8.0 in the existing lazy importer bundle. Lead certification pending.
+- **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
+  agents with their own prompt, tools, model or effort, and permissions. The
+  model runs one through `subagent_spawn` with `agent` set to its id, and the
+  run is a paid child task like any subagent (asks in the paid-use popup,
+  off unless paid subagents are on, refused in Plan). The extension ships
+  `explore` (read-only reconnaissance) and `second-opinion` (a high-effort
+  consult); your own are `.agents/agents/<id>/AGENT.md` in the workspace or
+  `~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
+  set), with front matter (`name`, `description`; optional `tools` as a
+  comma-separated allowlist, `model`, `effort`, `permission-mode`) above a
+  Markdown prompt. The CLI names no agent folder, so the folder is this
+  extension's own (PLAN.md D13). On the CLI backend Muse Code reads its own
+  agents. The paired evaluator keeps its isolated defaults: no personal
+  agents and no paid child tasks.
+- **What a custom agent may do.** An agent can only narrow the session: its
+  tool list binds every call (memory tools included), automatic check commands
+  need `run_checks` or the shell in it and `then_run`, which runs any
+  command line, needs the shell, and a mode switch keeps its ceiling. Its
+  `permission-mode` applies as far as your mode allows: under Manual every
+  child asks, a Manual agent always asks, and an Edit automatically agent
+  writes without a card under Edit automatically, Auto and Bypass
+  permissions (a protected write still asks). A model it names
+  passes the checks of your own choice: contributor models are blocked in a
+  confidential workspace and otherwise ask once for each spawn (and for a
+  follow-up this session was never given the yes for), and a model other
+  than the session's asks in the paid-use popup even when subagents are
+  allowed always in the workspace. A spawn is checked again after each
+  question it asks, so no popup follows one that can no longer run (trust
+  withdrawn, the workspace turned confidential), and a retry under the same
+  `command_id` answers with its child even if a new one could not start now.
+- **Agent files are untrusted input.** A file is read only up to 64 KB and only
+  when it is a regular file; a skill file gets the same cap. Front matter
+  the reader cannot take whole (a YAML list, an indented value, a repeated
+  key, a `tools` line that names no tool) skips the file with a log line
+  instead of reading as "every tool"; names, descriptions and models are
+  bounded and free of control and direction characters; at most 32 agent
+  files load. A repository's files load only in a trusted workspace, no agent
+  is offered once it stops being trusted, and a child's role is labelled with
+  its source and sits below the workspace rules that outrank it. Each agent
+  folder loads on its own: one that cannot be read is logged by name and
+  the others still load, and an agent it, or a file in it that was skipped,
+  might define is refused by name rather than replaced by a broader personal
+  or built-in agent of the same id.
 
 ### Changed
 
@@ -162,6 +205,27 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+- Take the compatible development updates from the grouped Dependabot pull
+  request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
+  7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
+  TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
+  until typescript-eslint admits 7. The SDK is bundled into the ACP agent
+  alone; no file of the extension changes.
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
 
 ### Fixed
 
@@ -220,6 +284,97 @@ happened, not what was planned; superseded entries are kept.
   activation's restart: it is read back once the key is active, instead
   of never returning. And a send refused while it waited is kept across
   a panel reload, so the exact draft is still restored.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
+- **One decision per approval step (0.10.0, 0.10.1).** The approval card
+  sent a step's decision again, so one approval got two or three answers
+  and Muse Code refused the extra ones ("That request moved on to its next
+  step…"). Two things re-armed it:
+  - The card reopened after every error for a decision. Muse Code 1.4.2
+    reports its ledger fault for decisions it has applied
+    ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
+  - The card also reopened after every 60-second deadline. On a busy
+    machine Muse Code took one decision in three minutes after it was
+    sent, after two more for the same step.
+
+  Now:
+  - The card locks at the first click and stays locked until Muse Code
+    settles the decision, however fast the clicks come and whatever arrives
+    in between.
+  - The session sends one decision per step whatever the card asks.
+  - A decision that got no answer, or that Muse Code applied while
+    reporting an error, is never offered again. The card reopens only when
+    Muse Code refused the decision and still waits on that very step.
+  - The log names the step each answer was for: a multi-step command
+    decided step by step had read as repeated answers.
+- **A step Muse Code moved without saying so no longer strands its
+  card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
+  show a step its new rule already allows, refuse the decision for it as
+  stale, and never show the step it waits on. The card then waited for
+  ever, and the only way out was Stop. Now the card moves to the step the
+  refusal names, with that step's own "Always allow" label, and says on
+  the card that the request moved on.
+- **A Stop no longer wedges a conversation.** With Muse Code 1.4, stopping
+  a turn while a multi-step command was partly approved left the
+  conversation refusing every message ("approval replay failed: decision
+  stage evidence contains an unrecorded human resolution") until Muse Code
+  restarted. On Windows, every decision then reported the ledger fault.
+  - A Stop now rejects the waiting step first, through Muse Code's own
+    decision, which keeps the conversation usable. It waits 10 s at most,
+    then stops anyway.
+  - A conversation already in that state is named once, in plain words, as
+    a fault in Muse Code. The notice offers **Restart now** (the next
+    message starts Muse Code again and continues the conversation) and
+    **New conversation**.
+  - The ledger fault is named once per conversation the same way, with
+    **New conversation**.
+- **Tool outputs load quietly while Muse Code works (0.10.0, 0.10.1).**
+  An edit row read its stored patch while the edit was still running, and
+  Muse Code answered "item or attached output ref was not found". On a busy
+  Muse Code, which answers reads one after another, each row's read waited
+  60 s and failed, and each failure stacked its own error ("Could not load
+  the output", five at once). Now:
+  - A row reads its patch once the edit has finished.
+  - A read already in flight is joined rather than sent again.
+  - A failure is said once per conversation, as a warning saying how to
+    retry; later ones go to the log until a read succeeds.
+  - Collapsing and expanding the row asks again. The row keeps the diff it
+    already shows, and the turn goes on meanwhile.
+
+### Release infrastructure
+
+- Release assets now include SHA-256 checksums, package provenance attestations
+  and CycloneDX inventories limited to the actual bundled dependencies, plus
+  the ACP package's native runtime dependencies. npm publication requests
+  provenance and retains token authentication.
+- Registry publishing retries only transient network failures with a bounded
+  20/60-second backoff. Existing versions require matching VSIX SHA-256 or
+  tarball SHA-512 integrity; GitHub reruns verify existing assets and add only
+  missing files. A final summary reports all channel outcomes and fails any
+  failed channel. The release guide documents partial publication and npm EOTP.
+- Packaging checks every ACP locale and enforces a measured universal VSIX
+  size budget. M80 schema-upload and fully-published `v0` tag hooks are prepared
+  and remain inert until their source directories exist.
 
 ## [0.10.1] - 2026-10-02
 

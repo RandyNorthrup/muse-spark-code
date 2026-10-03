@@ -6,17 +6,32 @@ import { loaderDeps, memoryContextIo, memoryTree } from './helpers/fakeContextIo
 
 const ROOT = '/ws'
 const USER_ROOT = '/ws/.home/.config/muse/skills'
+const USER_AGENTS_ROOT = '/ws/.home/.config/muse/agents'
 
 const skillFile = (name: string, description: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\nBody of ${name}\n`
+
+const agentFile = (name: string, description: string, extra = '') =>
+  `---\nname: ${name}\ndescription: ${description}\n${extra}---\n\nPrompt of ${name}\n`
 
 const MEMORY: readonly MemoryScopeSnapshot[] = [
   { scope: 'project', index: '- [A](a.md) | hook', notes: [], hasMoreNotes: false },
 ]
 
-function setup(initial: Record<string, string>, isTrusted = true) {
+function setup(
+  initial: Record<string, string>,
+  isTrusted: boolean | (() => boolean) = true,
+  onRead?: (file: string) => void,
+) {
   const files = memoryTree(initial, ROOT)
-  const io = memoryContextIo(files)
+  const inner = memoryContextIo(files)
+  const io = {
+    ...inner,
+    readFile: (file: string, maxBytes?: number) => {
+      onRead?.(file)
+      return inner.readFile(file, maxBytes)
+    },
+  }
   const warnings: string[] = []
   let memoryLoads = 0
   const context = new WorkspaceContext({
@@ -24,7 +39,9 @@ function setup(initial: Record<string, string>, isTrusted = true) {
     workspaceRoot: ROOT,
     platform: 'linux',
     personalSkillsRoot: USER_ROOT,
-    isWorkspaceTrusted: () => isTrusted,
+    personalAgentsRoot: USER_AGENTS_ROOT,
+    hasAgents: true,
+    isWorkspaceTrusted: () => (typeof isTrusted === 'function' ? isTrusted() : isTrusted),
     loadMemory: () => {
       memoryLoads += 1
       return Promise.resolve(MEMORY)
@@ -37,11 +54,13 @@ function setup(initial: Record<string, string>, isTrusted = true) {
 }
 
 describe('WorkspaceContext', () => {
-  it('loads the root rules, the skills and the memory snapshot once', async () => {
+  it('loads the root rules, the skills, the agents and the memory snapshot once', async () => {
     const t = setup({
       'AGENTS.md': 'end with PINEAPPLE\n',
       '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
       '.home/.config/muse/skills/tidy/SKILL.md': skillFile('tidy', 'Tidy up'),
+      '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
+      '.home/.config/muse/agents/helper/AGENT.md': agentFile('helper', 'Helping'),
     })
     await Promise.all([t.context.load(), t.context.load()])
     expect(t.memoryLoads()).toBe(1)
@@ -53,10 +72,53 @@ describe('WorkspaceContext', () => {
       'project:shout',
       'user:tidy',
     ])
+    expect(sections.agents.map((agent) => `${agent.source}:${agent.id}`)).toEqual([
+      'builtin:explore',
+      'builtin:second-opinion',
+      'project:scout',
+      'user:helper',
+    ])
     expect(sections.memory).toBe(MEMORY)
     expect(t.context.skill('tidy')?.body).toBe('Body of tidy')
     expect(t.context.skill('nope')).toBeUndefined()
+    expect(t.context.agent('scout')).toMatchObject({
+      kind: 'found',
+      agent: { body: 'Prompt of scout' },
+    })
+    expect(t.context.agent('nope')).toEqual({ kind: 'unknown' })
     expect(t.warnings).toEqual([])
+  })
+
+  it('reads no agent directory for a child, which cannot spawn (M76)', async () => {
+    const files = memoryTree(
+      { '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting') },
+      ROOT,
+    )
+    const inner = memoryContextIo(files)
+    const touched: string[] = []
+    const context = new WorkspaceContext({
+      io: {
+        ...inner,
+        listDirectory: (directory) => {
+          touched.push(directory)
+          return inner.listDirectory(directory)
+        },
+      },
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      personalSkillsRoot: undefined,
+      personalAgentsRoot: USER_AGENTS_ROOT,
+      hasAgents: false,
+      isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
+      warn: () => undefined,
+    })
+    await context.load()
+    expect(context.sections().agents).toEqual([])
+    expect(context.agent('scout')).toEqual({ kind: 'unknown' })
+    // The skill roots are listed; neither agent root is.
+    expect(touched.length).toBeGreaterThan(0)
+    expect(touched.filter((directory) => directory.endsWith('/agents'))).toEqual([])
   })
 
   it('adds a deeper rules file the first time a path beneath it is touched', async () => {
@@ -104,15 +166,43 @@ describe('WorkspaceContext', () => {
         'AGENTS.md': 'root\n',
         'src/AGENTS.md': 'src\n',
         '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
+        '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
       },
       false,
     )
     await t.context.load()
     await expect(t.context.touch('src/a.ts')).resolves.toBe(false)
     await expect(t.context.refreshSkills()).resolves.toBe(false)
-    expect(t.context.sections()).toEqual({ rules: undefined, skills: [], memory: [] })
+    expect(t.context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
+    expect(t.context.agent('scout')).toEqual({ kind: 'unknown' })
     expect(t.memoryLoads()).toBe(0)
   })
+
+  it.each(['AGENTS.md', '.agents/agents/scout/AGENT.md'])(
+    'keeps no agents after trust is withdrawn while reading %s (M76)',
+    async (revokedAt) => {
+      let isTrusted = true
+      const reads: string[] = []
+      const t = setup(
+        {
+          'AGENTS.md': 'root\n',
+          '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting'),
+        },
+        () => isTrusted,
+        (file) => {
+          reads.push(file)
+          if (file === `${ROOT}/${revokedAt}`) isTrusted = false
+        },
+      )
+      await t.context.load()
+      expect(reads).toContain(`${ROOT}/${revokedAt}`)
+      expect(t.context.sections().agents).toEqual([])
+      expect(t.context.agent('scout')).toEqual({ kind: 'unknown' })
+      if (revokedAt === 'AGENTS.md') {
+        expect(reads.some((file) => file.endsWith('/AGENT.md'))).toBe(false)
+      }
+    },
+  )
 })
 
 describe('WorkspaceContext: failing reads', () => {
@@ -129,6 +219,8 @@ describe('WorkspaceContext: failing reads', () => {
       workspaceRoot: ROOT,
       platform: 'linux',
       personalSkillsRoot: undefined,
+      personalAgentsRoot: undefined,
+      hasAgents: true,
       isWorkspaceTrusted: () => true,
       loadMemory: () => Promise.reject(new Error('EACCES: permission denied')),
       warn: (message) => {
@@ -137,12 +229,78 @@ describe('WorkspaceContext: failing reads', () => {
     })
     await context.load()
     await expect(context.touch('src/a.ts')).resolves.toBe(false)
-    expect(context.sections()).toEqual({ rules: undefined, skills: [], memory: [] })
+    // The project root may hold an agent that narrows a built-in, so no
+    // built-in is offered or run in its place (RV70x); the log names the root.
+    expect(context.sections()).toEqual({ rules: undefined, skills: [], agents: [], memory: [] })
+    expect(context.agent('explore')).toEqual({
+      kind: 'unloaded',
+      hole: { source: 'project', id: undefined, path: '.agents/agents' },
+    })
     expect(warnings).toEqual([
       'loading the rules failed: EACCES: permission denied',
-      'loading the skills failed: EACCES: permission denied',
+      'loading the project skills failed: EACCES: permission denied',
+      'loading the project agents failed: EACCES: permission denied',
       'loading the memory failed: EACCES: permission denied',
       'loading the rules failed: EACCES: permission denied',
+    ])
+  })
+
+  // RV70x finding 1: one root's listing failure rejected the whole catalogue,
+  // and the fallback ran an inheriting built-in for a read-only project agent.
+  it('keeps the project skills and agents when a personal root cannot be listed', async () => {
+    const warnings: string[] = []
+    const files = memoryTree(
+      {
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
+        '.agents/agents/second-opinion/AGENT.md': agentFile(
+          'second-opinion',
+          'A read-only consult',
+          'tools: read_file\npermission-mode: manual\n',
+        ),
+      },
+      ROOT,
+    )
+    const inner = memoryContextIo(files)
+    const personal = new Set([USER_ROOT, USER_AGENTS_ROOT])
+    const context = new WorkspaceContext({
+      io: {
+        ...inner,
+        listDirectory: (directory) =>
+          personal.has(directory)
+            ? Promise.reject(new Error('EACCES: permission denied'))
+            : inner.listDirectory(directory),
+      },
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      personalSkillsRoot: USER_ROOT,
+      personalAgentsRoot: USER_AGENTS_ROOT,
+      hasAgents: true,
+      isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
+      warn: (message) => {
+        warnings.push(message)
+      },
+    })
+    await context.load()
+    expect(context.sections().skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'project:shout',
+    ])
+    expect(context.agent('second-opinion')).toMatchObject({
+      kind: 'found',
+      agent: { source: 'project', tools: ['read_file'], permissionMode: 'manual' },
+    })
+    // Below the unread personal root, a built-in is refused, never run.
+    expect(context.agent('explore')).toMatchObject({
+      kind: 'unloaded',
+      hole: { source: 'user', path: USER_AGENTS_ROOT },
+    })
+    expect(context.sections().agents.map((agent) => `${agent.source}:${agent.id}`)).toEqual([
+      'project:second-opinion',
+    ])
+    expect(warnings).toEqual([
+      'loading the user skills failed: EACCES: permission denied',
+      'loading the user agents failed: EACCES: permission denied',
+      'builtin agent second-opinion skipped: the project agent with the same id takes precedence',
     ])
   })
 
@@ -150,6 +308,8 @@ describe('WorkspaceContext: failing reads', () => {
     const context = new WorkspaceContext({
       ...loaderDeps({}),
       personalSkillsRoot: undefined,
+      personalAgentsRoot: undefined,
+      hasAgents: true,
       isWorkspaceTrusted: () => true,
       loadMemory: undefined,
       warn: () => undefined,
