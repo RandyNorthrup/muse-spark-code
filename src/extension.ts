@@ -86,6 +86,7 @@ import { createWebFetcher } from './host/web/webFetcher'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
+import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
@@ -147,6 +148,7 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
+  AGENT_IMPORT_BUNDLE_FILE,
   CHECKPOINT_STORE_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
@@ -753,7 +755,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Tool outputs open as read-only documents (M15), the tab named through the
   // URI path as Claude Code names its own ("PowerShell tool output (a1b2c3)");
   // the last OUTPUT_DOCUMENTS_KEPT stay readable after their tab is reopened.
-  // An export's preview (M84) opens the same way: read-only, never on disk.
+  // An export's preview (M84) and the import preview (M83) open the same way:
+  // read-only, never on disk.
   const outputDocuments = new OutputDocumentStore()
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(OUTPUT_DOCUMENT_SCHEME, {
@@ -782,6 +785,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         fsPath,
         asUserEdit(checkpoints, fsPath, work),
       ),
+    // Import from other agents (M83): its project writes hold the checkpoint
+    // lease (with a copy before each) under the window's guard for this root,
+    // and count for the session that was live when the import began.
+    agentImport: {
+      isActive: () => !nativeStarts.signal.aborted,
+      currentRoot: firstFolderPath,
+      captureOwner: () => {
+        const active = registry.active
+        return active === undefined
+          ? undefined
+          : controllers
+              .get(active.id)
+              ?.captureExternalEditOwner((session) => modelApi.captureExternalEditOwner(session))
+      },
+      beginEdit: (file, owner) => modelApi.beginExternalEdit(owner, [file]),
+      editProject: async (work) => {
+        const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
+        return await withCheckpointEdit(checkpoints, check, async () => await work(check))
+      },
+      beforeProjectWrite: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
+      // Each published file is the user's, as `asUserEdit` makes the other
+      // explicit writes: a turn running meanwhile neither takes it for its
+      // own nor undoes it on a restore.
+      noteUserWrite: (absolutePath) => {
+        checkpoints.noteUserSave(absolutePath)
+      },
+      bundle: agentImportLoader({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', AGENT_IMPORT_BUNDLE_FILE)
+          .fsPath,
+        log,
+      }),
+    },
     runCli: (args, timeoutMs) => {
       const resolution = backend.resolveLaunch()
       return resolution.ok
@@ -823,6 +858,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     openLog: () => {
       channel.show(true)
     },
+    openDocument,
     log,
   })
   const worktrees = createWorktreeFeatures({
@@ -1129,6 +1165,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })()
     return ideServerStart
   }
+
   // A tool row's path opens the file with the changed lines selected and
   // revealed (M16), as Claude Code's file links do.
   const openFile = async (
@@ -1530,6 +1567,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       case 'importSkills': {
         await cliFeatures.importSkills()
+        break
+      }
+      case 'importFromAgents': {
+        await cliFeatures.importFromAgents()
         break
       }
       case 'showMcpServers': {
@@ -2136,6 +2177,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
+    registerLoggedCommand(log, COMMAND_IDS.importFromAgents, () => cliFeatures.importFromAgents()),
     registerLoggedCommand(log, COMMAND_IDS.mcpServers, () => cliFeatures.showMcpServers()),
     registerLoggedCommand(log, COMMAND_IDS.hooks, () => cliFeatures.showHooks()),
     registerLoggedCommand(log, COMMAND_IDS.memory, () => memoryView.showMemory()),

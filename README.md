@@ -678,9 +678,63 @@ session offers Muse Code's `resume-claude` and `resume-codex` skills, the
 palette's Context group has **Continue a Claude Code session** and
 **Continue a Codex session**.
 
+**Import from other agents…** (Customize group, both backends) moves you
+off Claude Code, Codex or Cursor: their MCP servers, Claude Code hooks,
+custom agents, slash commands and rules files, found where each tool keeps
+them and converted to the formats their destination loads.
+
+| From                                                                              | Becomes                                                                                                                                                                 |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slash commands (`.claude/commands`, `~/.codex/prompts`, `.cursor/commands`)       | Skills: the project's `.agents/skills/<id>/SKILL.md`, or your own `~/.config/muse/skills/<id>`                                                                          |
+| Custom agents (`.claude/agents`, `.cursor/agents`)                                | Compatible M76 agents in `.agents/agents/<id>/AGENT.md`, or your own `~/.config/muse/agents/<id>/AGENT.md`; the directory id is the Model API `subagent_spawn` selector |
+| A project's rules (`CLAUDE.md`, `.cursor/rules/*.mdc`, `.cursorrules`)            | Headed sections appended to the project's `AGENTS.md`                                                                                                                   |
+| Your MCP servers (`~/.claude.json`, `~/.codex/config.toml`, `~/.cursor/mcp.json`) | Unsaved editor edits in Muse Code's `settings.json`                                                                                                                     |
+| Claude Code hooks (your `settings.json`, or the project's)                        | Unsaved editor edits in your `settings.json`, or the project's `.muse/hooks.json`                                                                                       |
+
+Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+
+The read-only preview lists kind, item name, source scope, target path and
+refusals with their reasons. It never shows bodies, commands, arguments,
+environment or header values, or URLs. Picker details show personal or
+project scope, never source paths. Names remain visible as the source tool
+shows them. Nothing is written until you choose Import; an existing file
+is never replaced. Config entries open as unsaved edits in their target
+editor for you to review and save; the importer never uses the clipboard
+or saves Muse Code's settings or hooks files. Values stay unchanged.
+
+Personal means under your home and outside every open workspace. Project
+files are either git-ignored (project-local) or tracked/not ignored
+(project-tracked). A non-repository folder counts as tracked. Project-local
+may go to project-local or personal; project-tracked may go to any of the
+three. Target exposure is checked again at publication or editor edit time.
+An unreadable classification refuses the item. The native-path checks also
+refuse links and junctions below the project root, including dangling ones.
+An arbitrary native writer can still race the final filesystem operation;
+Node has no handle-relative publication API to close that window.
+
+Project sources require workspace trust. Losing trust stops project reads
+and effects; closing activation stops pending prompts. Personal imports
+remain available in Restricted Mode. A repository's MCP servers are listed
+but are not offered for personal settings; personal rules remain Muse Code's
+`/rules import`. Hooks keep supported matchers and restrictions. Unsupported
+events, non-command handlers, narrowing fields (`if`, `args`, `shell`),
+disabled servers, SSE, WebSockets, OAuth and header helpers are listed and
+not converted. MCP conversion copies only the active transport's fields;
+inactive and unknown fields are listed as dropped by name, never by value.
+
+Claude agents and commands retain namespaces up to three levels. Agents
+need M76's supported metadata; runtime admission awaits M76 integration.
+Commands keep supported descriptions and argument hints; unsupported
+restrictions are refused. One import runs at a time. Project publications
+hold the checkpoint lease and count as your own edits, so restoring a turn
+preserves them. Rules appends stop on changed prior text or a result over
+64 KiB. Skipped-file messages and logs contain counts and fixed reasons,
+never item names, paths or content. Only successful publications and config
+edits actually offered count as imported.
+
 **MCP servers and hooks.** Muse Code reads both from its own settings file
 (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`), and project
-hooks from `.muse/hooks.json`. The extension shows them and never edits them:
+hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuration without editing it:
 
 - **MCP servers…** lists each server:
   - Its transport, where it points (a URL is cut to its scheme and host),
@@ -1560,6 +1614,10 @@ reaches a session. It shows 200 items at a time, with **Show more** for the
 next, and an item that cannot be rendered says so in its place while the
 rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
+At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
+with the theme's focus border; Escape closes the view and focuses the composer.
+For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
+captures both widths; `share-narrow` also runs in all four accessibility themes.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -1990,6 +2048,7 @@ What stays in English:
 | Muse Spark: Diagnostics                             | —                                                                                    | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs |
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
+| Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: Import Session                          | —                                                                                    | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
 | Muse Spark: Open Share File                         | —                                                                                    | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
@@ -2330,13 +2389,16 @@ stopped and the next message resumes the same session.
   on 1.3.0 the first command also takes about half a minute) cannot enter
   folders under `C:\Users\<you>`
   ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  This sandbox issue was not retested on 1.4.2 in the October 2 probes;
+  the workaround remains until a fix is verified.
   With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
   without the sandbox for such workspaces: commands run directly as you, in
   the project, still gated by the approval cards, and the panel says so once
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
-  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0
-  and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
+  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
+  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore
