@@ -39,7 +39,9 @@
       "loopItem",
       "namedFilesMore",
       "exportThenRunSkipped",
-      "gitPullRequestName"
+      "gitPullRequestName",
+      "handoffItem",
+      "agentImportSourceCursor"
     ],
     "cs": [
       "groupModel",
@@ -53,7 +55,9 @@
       "agentsCount.one",
       "toolLabels.shell",
       "workflowChildUntitled",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "tr": [
       "groupModel",
@@ -77,7 +81,9 @@
       "agentsCount.one",
       "imageBuyPrompt",
       "workflowChildUntitled",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "de": [
       "groupSkills",
@@ -105,7 +111,9 @@
       "gitCommitFormLabel",
       "gitCommitTitle",
       "gitChangeCounts",
-      "gitCommitAction"
+      "gitCommitAction",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "es": [
       "usagePlan",
@@ -114,7 +122,8 @@
       "toolLabels.shell",
       "goalTokens",
       "verifyErrors.one",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "agentImportKindHook"
     ],
     "pt-br": [
       "agentTokens",
@@ -123,7 +132,8 @@
       "goalTokens",
       "imageBuyPrompt",
       "gitPushBranchLine",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "agentImportKindHook"
     ],
     "fr": [
       "modesTitle",
@@ -142,18 +152,21 @@
       "toolLabels.mcp__ide__generateImage",
       "workflowChildUntitled",
       "gitChangeCounts",
-      "gitPrBodyLabel"
+      "gitPrBodyLabel",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "it": [
       "usageAccount",
       "exportOutputLabel",
       "toolLabels.shell",
       "imageBuyPrompt",
-      "gitChangeCounts"
+      "gitChangeCounts",
+      "agentImportKindHook"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "gitChangeCounts"],
+    "hu": ["toolLabels.shell", "imageBuyPrompt", "gitChangeCounts", "agentImportKindHook"],
     "ko": ["gitChangeCounts"],
     "ru": ["gitChangeCounts"]
   },

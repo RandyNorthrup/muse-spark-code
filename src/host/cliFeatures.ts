@@ -21,6 +21,8 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import type { ProcessResult } from './backend/sandboxSetup'
+import type { AgentImportHostDeps } from './agentImportHost'
+import { runAgentImport } from './agentImportBundle'
 import { type MuseConfigDeps, showHooks, showMcpServers } from './commands/museConfigCommands'
 import { importSkills, manageSkills, type SkillsCliDeps } from './commands/skillsCommands'
 import type { ConversationExports } from './conversation/exportConversation'
@@ -47,6 +49,11 @@ export interface CliFeatureDeps {
    * workspace folder under the checkpoint lease (M72), elsewhere as it is.
    */
   readonly editFile: <T>(fsPath: string, work: () => Promise<T>) => Promise<T>
+  /** What the import from other agents needs of the window (M83). */
+  readonly agentImport: Omit<
+    AgentImportHostDeps,
+    'workspaceRoot' | 'museSettingsPath' | 'openDocument' | 'log'
+  >
   /** A read-only document that is never written to disk: an export's preview (M84). */
   readonly openPreview: (title: string, content: string) => Promise<void>
   /** Stops the hosts; the next message starts them with the new settings (D25). */
@@ -65,12 +72,16 @@ export interface CliFeatureDeps {
    * else's pull request (M71): the project's skills and hooks may be read.
    */
   readonly isProjectTrusted: () => boolean
+  /** Opens text as a read-only document (M15's tool outputs; M83's import preview). */
+  readonly openDocument: (title: string, content: string) => Promise<void>
   readonly log: Logger
 }
 
 export interface CliFeatures {
   manageSkills(): Promise<void>
   importSkills(): Promise<void>
+  /** Import from Claude Code, Codex and Cursor (M83). */
+  importFromAgents(): Promise<void>
   showMcpServers(): Promise<void>
   showHooks(): Promise<void>
   readonly exports: ConversationExports
@@ -241,6 +252,14 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
             { modal: true, detail },
             UI_TEXT.importConfirmAction,
           )) === UI_TEXT.importConfirmAction,
+      }),
+    importFromAgents: () =>
+      runAgentImport({
+        ...deps.agentImport,
+        workspaceRoot: deps.workspaceRoot,
+        museSettingsPath: deps.museSettingsPath,
+        openDocument: deps.openDocument,
+        log: deps.log,
       }),
     exports: {
       saveMarkdown: async (fileName, content) => {

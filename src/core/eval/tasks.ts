@@ -1,6 +1,8 @@
 // The M75 task set (PLAN.md D49): small repository fixtures, each with one
 // planted defect and a verifier, split into accept tasks (mechanism work may
-// tune against these) and held-out tasks (which judge it).
+// tune against these) and held-out tasks (which judge it). Two (M73) read a
+// long file whose middle record is needed after several more requests, so a
+// mechanism for long outputs has something to act on.
 //
 // A verifier is a Node ES module run after the turn, outside the workspace,
 // so the model never sees it. It imports the fixed files and asserts what
@@ -8,7 +10,14 @@
 // the defect is fixed; an assertion or a thrown error fails it.
 
 import * as z from 'zod/mini'
-import { EVAL_SPLITS, type EvalSplit } from '../../shared/constants'
+import {
+  EVAL_LONG_EVIDENCE_LINE_CHARS,
+  EVAL_LONG_EVIDENCE_LINES,
+  EVAL_LONG_EVIDENCE_MIDDLE_LINE,
+  EVAL_LONG_EVIDENCE_RECALL_OFFSET,
+  EVAL_SPLITS,
+  type EvalSplit,
+} from '../../shared/constants'
 
 export const evalFileSchema = z.object({
   path: z.string(),
@@ -24,6 +33,11 @@ export const evalTaskSchema = z.object({
   files: z.array(evalFileSchema),
   /** The verifier's body, after `EVAL_VERIFY_PRELUDE`. */
   verify: z.string(),
+  /**
+   * Built so one tool output is long enough to pack and is needed again
+   * after it would be (M73): a packing arm must engage on it.
+   */
+  isLongOutput: z.optional(z.literal(true)),
 })
 export type EvalTask = z.infer<typeof evalTaskSchema>
 
@@ -53,6 +67,38 @@ export const EVAL_VERIFY_PRELUDE = [
 
 /** Every fixture is an ES module package, as a new Node project is. */
 const PACKAGE_JSON = { path: 'package.json', content: '{\n  "type": "module"\n}\n' }
+
+/**
+ * A long evidence file (M73): numbered records padded to one width, with
+ * the one that matters in the middle, outside the first and last lines a
+ * packed placeholder keeps.
+ */
+function evidenceFile(middle: string): string {
+  const lines = Array.from({ length: EVAL_LONG_EVIDENCE_LINES }, (_, index) =>
+    (index + 1 === EVAL_LONG_EVIDENCE_MIDDLE_LINE
+      ? middle
+      : `record ${String(index + 1)}: ordinary fixture evidence`
+    ).padEnd(EVAL_LONG_EVIDENCE_LINE_CHARS, '.'),
+  )
+  return `${lines.join('\n')}\n`
+}
+
+// Each phase read takes a request of its own, so the evidence has ridden
+// whole twice before the answer is written: a packing arm has packed it.
+const PHASE_FILES = [
+  {
+    path: 'phase-one.txt',
+    content:
+      'Read phase-two.txt next, in a separate response. Do not batch its read with this one.\n',
+  },
+  {
+    path: 'phase-two.txt',
+    content: `Recover line ${String(EVAL_LONG_EVIDENCE_MIDDLE_LINE)} of evidence.txt before writing the fix. If recall_output is offered, call it with the evidence output's id and offset ${String(EVAL_LONG_EVIDENCE_RECALL_OFFSET)}; otherwise read evidence.txt again. Use the record you recovered.\n`,
+  },
+]
+
+const LONG_OUTPUT_PROMPT =
+  'Read evidence.txt entirely first. Then read phase-one.txt and follow its instructions; each phase read must be a separate response. Recover the middle record as phase-two.txt directs, then'
 
 export const EVAL_TASKS: readonly EvalTask[] = [
   {
@@ -266,6 +312,43 @@ export const EVAL_TASKS: readonly EvalTask[] = [
       "assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { theme: 'dark' })",
       "await assert.rejects(saveSettings(join(process.cwd(), 'missing', 'settings.json'), {}))",
     ].join('\n'),
+  },
+  {
+    id: 'accept-long-middle-value',
+    title: 'Recover a value from the middle of a long tool output',
+    split: 'accept',
+    prompt: `${LONG_OUTPUT_PROMPT} create answer.js exporting the record's required value as the number answer. Do not write answer.js before recovering the record.`,
+    files: [
+      PACKAGE_JSON,
+      { path: 'evidence.txt', content: evidenceFile('required_value=314159') },
+      ...PHASE_FILES,
+    ],
+    verify: ["const { answer } = await load('answer.js')", 'assert.equal(answer, 314159)'].join(
+      '\n',
+    ),
+    isLongOutput: true,
+  },
+  {
+    id: 'heldout-long-middle-rule',
+    title: 'Apply a rule from the middle of a long tool output',
+    split: 'heldout',
+    prompt: `${LONG_OUTPUT_PROMPT} create transform.js exporting transform(value), which applies the record's mapping. Do not write transform.js before recovering the record.`,
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'evidence.txt',
+        content: evidenceFile('required mapping: multiply the input by 7, then add 11'),
+      },
+      ...PHASE_FILES,
+    ],
+    verify: [
+      "const { transform } = await load('transform.js')",
+      'assert.equal(transform(-3), -10)',
+      'assert.equal(transform(0), 11)',
+      'assert.equal(transform(2), 25)',
+      'assert.equal(transform(8), 67)',
+    ].join('\n'),
+    isLongOutput: true,
   },
 ]
 

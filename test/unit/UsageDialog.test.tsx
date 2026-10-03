@@ -227,6 +227,16 @@ describe('UsageDialog', () => {
     expect(dialog).not.toHaveTextContent('Cache hits')
   })
 
+  it('shows the packing ledger while packing runs, and hides it otherwise (M73)', () => {
+    const packed = renderDialog({
+      usage: { inputTokens: 30_000, outputTokens: 1200, packedTokensAvoided: 9000 },
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent('Packing saved (estimate)9K')
+    packed.unmount()
+    renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('Packing saved')
+  })
+
   it('explains a key-billed window and an unobserved subscription, and shows empty tokens', () => {
     renderDialog({
       report: {

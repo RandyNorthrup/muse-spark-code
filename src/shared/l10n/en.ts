@@ -201,6 +201,77 @@ export const EN = {
   importConfirmAction: 'Import',
   importInvalid: 'not valid, will be skipped',
   importFailed: 'Muse Code could not import skills',
+  // Import from Claude Code, Codex and Cursor (M83, D49).
+  agentImportItem: 'Import from other agents…',
+  agentImportDetail:
+    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor',
+  agentImportSourceTitle: 'Import from',
+  agentImportSourceAll: 'All three',
+  agentImportSourceCursor: 'Cursor',
+  agentImportPickTitle: 'What to import',
+  agentImportPickPlaceholder: 'Checked entries are previewed before anything is written',
+  // {source}: the tool picked above.
+  agentImportNothing: 'Nothing to import from {source}.',
+  agentImportUntrusted:
+    'This workspace is not trusted, so only your own files were read; grant trust to offer this project’s files.',
+  agentImportConfirm: 'Import what the preview shows?',
+  agentImportConfirmAction: 'Import',
+  agentImportNoneImportable: 'None of the checked entries can be imported; the preview says why.',
+  agentImportPersonalToProject: 'this would copy a personal file into the project',
+  agentImportIgnoredToTracked: 'this would copy a git-ignored file into a tracked file',
+  agentImportEditPrompt:
+    'Open converted entries in {path} as an unsaved edit for you to review and save? Save it only to that path, never to another file.',
+  agentImportEditAction: 'Edit and open the file',
+  agentImportDone: 'Import finished.',
+  agentImportOpenFile: 'Open the file',
+  agentImportKindMcp: 'MCP server',
+  agentImportKindHook: 'Hook',
+  agentImportKindAgent: 'Agent',
+  agentImportKindCommand: 'Command',
+  agentImportKindRules: 'Rules section',
+  agentImportUserFiles: 'your files',
+  agentImportProjectFiles: 'this project',
+  agentImportSkippedExists: 'already exists',
+  agentImportSkippedUnmapped: 'maps to no Muse Code event',
+  agentImportSkippedDuplicate: 'another checked entry goes to the same place',
+  agentImportSkippedDisabled: 'turned off where it came from',
+  agentImportSkippedUnsupported: 'uses something Muse Code does not support',
+  agentImportSkippedProjectServer:
+    'Muse Code reads MCP servers only from your own settings, so a project’s servers are not offered there',
+  agentImportSkippedUserRules: 'your own rules: Muse Code’s `/rules import` brings them in',
+  agentImportSkippedOutside: 'its source or destination is unsafe or leads outside its folder',
+  agentImportSkippedFailed: 'could not be written; the log says why',
+  agentImportSkippedUnreadable:
+    'its source or destination could not be checked, so it is left alone',
+  agentImportSkippedTooLarge: 'it would take AGENTS.md past the size Muse Code loads',
+  agentImportSkippedChanged: 'its folder changed after the preview, so it was not written',
+  // Shown when some of the other agents' files could not be read during the scan.
+  agentImportSkippedFiles: 'Some source files were skipped; the log gives counts and reasons only.',
+  // Shown when the import could not start writing at all.
+  agentImportNotApplied:
+    'Nothing was imported: the window closed, the folder changed after the preview, or the checkpoint could not be kept.',
+  // Shown when an import is asked for while another one waits for its answers.
+  agentImportBusy: 'An import is already open; answer its questions first.',
+  // Shown when the import stopped on an error nothing foresaw.
+  agentImportFailed:
+    'The import stopped on an unexpected error; what was already written stays. The log has a fixed failure reason.',
+  // Shown when the import's own code did not load (a damaged install).
+  agentImportUnavailable:
+    'The import could not be loaded, so nothing can be imported; reinstall the extension and reload the window. The log has the details.',
+  // The read-only preview document, in Markdown.
+  agentImportPreviewTitle: 'Import preview',
+  agentImportPreviewIntro:
+    'Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies. This preview lists names, scopes and targets only. Config entries open unsaved for you to review and save.',
+  // {fields}: field names, comma-separated.
+  agentImportPreviewDropped: 'not carried over: {fields}',
+  agentImportPreviewLegacyKey:
+    'The file uses the legacy `mcp_servers` key. Rename it to `mcpServers` when you add these: Muse Code loads neither when both are there.',
+  agentImportPreviewNotImported: 'Not imported',
+  // {count}: a number.
+  agentImportCountFiles: 'New files: {count}',
+  agentImportCountSections: 'Sections for AGENTS.md: {count}',
+  agentImportCountCopies: 'Entries offered in the editor: {count}',
+  agentImportCountSkipped: 'Not imported: {count}',
   exportNothing: 'There is no conversation to export yet.',
   exportFailed: 'The conversation could not be exported',
   exportSaved: 'Conversation exported to {path}',
@@ -712,6 +783,14 @@ export const EN = {
   webFetchMoved:
     'The page redirected to {location}, on another host. Muse can fetch it in a new call, which asks again.',
   webFetchRestrictedMode: 'Web fetch is off in Restricted Mode. Trust the workspace to use it.',
+  // Observation packing (M73): a recall_output row's heading above the
+  // recalled text (shown as it was), and why a recall read nothing back.
+  packRecalled: 'Recalled characters {start} to {end} of {total} from packed output {id}',
+  packRecallInvalid: 'The recall request was malformed, so nothing was read back.',
+  packRecallUnknownId:
+    'No packed output in this conversation has the id {id}, so nothing was read back.',
+  packRecallBadOffset:
+    'The offset is not a character position in packed output {id} (0 to {last}), so nothing was read back.',
   textFileTooLarge: 'Text files must be 1 MB or smaller.',
   textFilesOverBudget:
     'Attachments fill Muse Code’s message limit. Remove an attachment or shorten the message.',
@@ -969,6 +1048,7 @@ export const EN = {
   usageOutput: 'Output',
   usageCached: 'Cached',
   usageContext: 'Context',
+  usagePackedAvoided: 'Packing saved (estimate)',
   usageNoSession: 'No tokens counted yet in this conversation.',
   usageLoading: 'Reading usage…',
   usageUnavailable: 'Usage could not be read',
@@ -1102,6 +1182,32 @@ export const EN = {
   plansCount: forms({ one: '{count} saved plan', other: '{count} saved plans' }),
   plansNone: 'No saved plans yet. Save one from a reply in Plan mode.',
   plansFailed: 'Could not list the plans',
+  // M74 (PLAN.md D49): `/handoff` to a new conversation. {goal} is the goal
+  // typed after the command; {size} is the brief size limit in KB.
+  handoffItem: '/handoff',
+  handoffDetail: 'Distil this conversation into a brief for a fresh one',
+  handoffRequestCard: 'Hand off to a new conversation.',
+  handoffRequestCardWithGoal: 'Hand off to a new conversation: {goal}.',
+  handoffDialogTitle: 'Hand off to a new conversation',
+  handoffDialogBody:
+    'Review the brief, edit it if you need to, then start the new conversation. Nothing starts until you confirm.',
+  handoffConfirm: 'Start new conversation',
+  handoffUnavailable: 'Handoff runs on the Model API backend only.',
+  handoffEmpty: 'There is nothing to hand off yet.',
+  handoffBusy: 'A handoff is already running.',
+  handoffWaitTurn: 'Wait for the reply to finish, or stop it, first.',
+  handoffSideChat: 'Start a handoff from the main conversation.',
+  handoffInterrupted: 'The handoff request did not finish; nothing was started.',
+  handoffFailed: 'Could not prepare the handoff',
+  // After handoffFailed: the distillation turn ended with no reply text.
+  handoffNoBrief: 'The model returned no brief.',
+  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
+  handoffChangedNotStarted:
+    'The handoff was not started: the conversation changed in the meantime.',
+  // {mode}: the permission mode's name. The model wrote the brief, so it
+  // starts in the starting mode only when the dialog showed all of it.
+  handoffUnshownMode:
+    'The new conversation starts in {mode}: the brief holds a control or format character (such as a direction override or a zero-width character) that the dialog does not show, so you did not see all of it.',
   planOpenFailed: 'Could not open the plan',
   sideChatSessionOnly: 'This side chat can open only side-chat conversations.',
   renameFailed: 'Could not rename the conversation',
@@ -1424,6 +1530,10 @@ export const EN = {
   // {limit} is the maximum objective length, formatted in the user's locale.
   goalObjectiveTooLong: 'Keep the goal objective within {limit} characters.',
   goalCommandFailed: 'The goal command failed',
+  // A goal command the backend already had when a key activation or a
+  // backend restart came: whether it took is not known.
+  goalOutcomeUnknown:
+    'The sign-in changed or the backend restarted while the goal command ran: it may or may not have taken effect. Check the session goal.',
   // Read out when the goal's status changes; {status} is the status in words.
   announceGoalStatus: 'Goal: {status}',
   scheduleOnce: 'Once',

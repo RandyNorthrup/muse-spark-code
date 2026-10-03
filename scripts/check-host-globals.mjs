@@ -16,6 +16,8 @@ const HOST_BUNDLES = [
   'dist/modelApi.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
+  'dist/agentImport.js',
+  'dist/conversationGit.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

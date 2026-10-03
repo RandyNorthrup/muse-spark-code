@@ -123,6 +123,7 @@ export const workspace = {
   // The verify loop (M68): the documents the language servers and the
   // formatter read, and the editor's indentation settings.
   openTextDocument: vi.fn<(uri: vscode.Uri) => Thenable<vscode.TextDocument>>(),
+  applyEdit: vi.fn<typeof vscode.workspace.applyEdit>(),
   getConfiguration:
     vi.fn<
       (section?: string, scope?: vscode.ConfigurationScope | null) => vscode.WorkspaceConfiguration
@@ -147,7 +148,26 @@ export class Position {
   ) {}
 }
 
+export class Range {
+  public constructor(
+    public readonly start: vscode.Position,
+    public readonly end: vscode.Position,
+  ) {}
+}
+
+/** Records the same replacement the host sends to VS Code, without writing a file. */
+export class WorkspaceEdit {
+  private readonly replacements = new Map<string, vscode.TextEdit[]>()
+  public replace(uri: vscode.Uri, range: vscode.Range, text: string): void {
+    this.replacements.set(uri.toString(), [{ range, newText: text }])
+  }
+  public get(uri: vscode.Uri): vscode.TextEdit[] | undefined {
+    return this.replacements.get(uri.toString())
+  }
+}
+
 export const env = {
+  clipboard: { writeText: vi.fn<typeof vscode.env.clipboard.writeText>() },
   openExternal: vi.fn<typeof vscode.env.openExternal>(),
   // Where VS Code is installed (M67: the built-in languages' libraries).
   appRoot: '/vscode/resources/app',

@@ -44,7 +44,7 @@ const JSON_INDENT = 2
 const COMPLETED = 'completed'
 
 /** A code fence longer than any backtick run inside `text`, so the block cannot end early. */
-function fenced(text: string, language = ''): string {
+export function fenced(text: string, language = ''): string {
   // A loop, not `Math.max(...runs)`: a shared file's tool output can hold
   // hundreds of thousands of runs, past the engine's argument limit (a
   // RangeError that took the whole panel down, RV84c C3).

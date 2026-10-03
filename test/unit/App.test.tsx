@@ -1061,6 +1061,13 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
+    // M74: /handoff readies the prompt for the new conversation's goal.
+    run('/handoff')
+    expect(textarea().value).toBe('/handoff ')
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'requestHandoff' }),
+    )
+    fireEvent.change(textarea(), { target: { value: '' } })
     run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
     deliver({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
@@ -2141,6 +2148,34 @@ function showGoal() {
   })
   return screen.getByRole('region', { name: 'Session goal' })
 }
+
+describe('App: handoff command routing (M74)', () => {
+  it('sends the goal as a host command once and keeps it available after refusal', () => {
+    const postMessage = renderReady()
+    fireEvent.change(textarea(), { target: { value: '/handoff Ship release' } })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:1',
+      goal: 'Ship release',
+    })
+    expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
+    expect(textarea().value).toBe('/handoff Ship release')
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(
+      postMessage.mock.calls.filter(([message]) => message.type === 'requestHandoff'),
+    ).toHaveLength(1)
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:1', accepted: false })
+    fireEvent.keyDown(textarea(), { key: 'Enter' })
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'requestHandoff',
+      requestId: 'handoff:local-1:2',
+      goal: 'Ship release',
+    })
+    deliver({ type: 'handoffCommandResult', requestId: 'handoff:local-1:2', accepted: true })
+    expect(textarea().value).toBe('')
+  })
+})
 
 describe('App: the session goal (M45)', () => {
   it('keeps the exact inline edit through refusal, then closes on acceptance', () => {

@@ -35,6 +35,36 @@ describe('bytes as text, as the Encoding standard decodes them (M69)', () => {
     expect(encodingOf('x-no-such-encoding')).toBeUndefined()
   })
 
+  it("decodes windows-1252 by the standard's table, whatever this Node's decoder does", () => {
+    // Bytes 0x80 to 0x9F as the Encoding standard's index has them; the five it leaves
+    // unassigned (0x81, 0x8D, 0x8F, 0x90, 0x9D) are their own C1 controls. Node 20.18 reads
+    // them all as controls.
+    const table = '€\u{81}‚ƒ„…†‡ˆ‰Š‹Œ\u{8D}Ž\u{8F}\u{90}‘’“”•–—˜™š›œ\u{9D}žŸ'
+    const c1 = Uint8Array.from({ length: table.length }, (_, index) => 0x80 + index)
+    expect(decodeIn(c1, 'windows-1252')).toBe(table)
+    // The rest is ISO-8859-1: ASCII, then 0xA0 to 0xFF as U+00A0 to U+00FF.
+    const latin = Uint8Array.from({ length: 0x60 }, (_, index) => 0xa0 + index)
+    expect(decodeIn(latin, 'windows-1252')).toBe(
+      String.fromCodePoint(...Array.from(latin, (byte) => byte)),
+    )
+    expect(decodeIn(new Uint8Array([0x41, 0x7f, 0xe9, 0xff]), 'windows-1252')).toBe('A\u{7F}éÿ')
+    expect(decodeIn(new Uint8Array(), 'windows-1252')).toBe('')
+  })
+
+  it('decodes a windows-1252 view of a larger buffer, and a long page, from the right bytes', () => {
+    const backing = new Uint8Array([0x41, 0x80, 0x93, 0x42])
+    expect(decodeIn(backing.subarray(1, 3), 'windows-1252')).toBe('€“')
+    const long = decodeIn(new Uint8Array(200_000).fill(0x99), 'windows-1252')
+    // Compared as a flag: a 200,000-character diff would be unreadable.
+    expect(long === '™'.repeat(200_000)).toBe(true)
+  })
+
+  it('reads every label of windows-1252, latin1 and ASCII ones included, by that table', () => {
+    for (const label of ['windows-1252', 'latin1', 'iso-8859-1', 'us-ascii', 'cp1252', 'l1']) {
+      expect(encodingOf(label), label).toBe('windows-1252')
+    }
+  })
+
   it('lets a byte order mark decide first', () => {
     const utf8 = new Uint8Array([0xef, 0xbb, 0xbf, ...Buffer.from('é', 'utf8')])
     expect(decodeWithBom(utf8, 'windows-1252')).toBe('é')

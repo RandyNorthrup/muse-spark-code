@@ -28,6 +28,19 @@ happened, not what was planned; superseded entries are kept.
   guards refuse stale operations. Commit, push, PR fetch and checkout use
   checkpoint process admission.
 
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
+
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -57,7 +70,90 @@ happened, not what was planned; superseded entries are kept.
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
 
+- **Observation packing, off by default** (M73, PLAN.md D49;
+  `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
+  API backend, a tool output over 8,000 characters rides whole for two
+  requests, then as a short placeholder (its id, size, and first and last
+  lines) that stays the same on every later request, so the prompt cache
+  breaks once per output; `recall_output(id, offset)` pages the original
+  back, and the conversation itself always keeps the whole output.
+  Account & usage shows the estimated tokens saved. A conversation reads
+  the setting when it starts or is reopened. The evaluation gains the
+  `packing` arm and two long-output tasks (twelve tasks: seven accept,
+  five held-out), and a packing run passes only if it packed on each
+  long-output task. Its M75 run passed before the setting was added: both
+  arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+  engaged on both long-output tasks (39% fewer input tokens there, about
+  the same cost), 111 model calls for $0.0156 in all
+  (`docs/certification/m73-run.md`). The Evidence-Preserving Reducer is
+  not built (PLAN.md §3).
+  - **A recalled page is untrusted tool data.** Each page names the tool
+    that returned it and comes with the untrusted-data notice, between
+    fresh random markers around the unchanged slice, so a page from the
+    middle of a fetched web page keeps its boundary.
+  - **The savings ledger survives a resume.** A saved conversation keeps
+    its total; one saved before the total was kept resumes at zero.
+  - **The recall row speaks the display language.** Its heading and its
+    refusals are in the installed language, with counts in its number
+    format; the recalled text is shown as it was, and the model's text
+    stays English.
+  - **The live report records the packing acceptance.** The report says
+    whether packing engaged on each long-output task, and a run that holds
+    the floors without packing is recorded as failed in both its JSON and
+    its Markdown.
+
+- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
+  optionally with a goal after it, asks the model — as your own turn in the
+  current conversation — for a distilled brief: the goal, the decisions,
+  the files touched, the open work and the todo list. Anything drawn from
+  tool output, fetched pages or imported files is marked `[untrusted]` in
+  the brief, and the new conversation is told what that means. The brief
+  opens in a dialog before anything starts, with the open items the new
+  todo list will hold: review it, edit it, then start the new
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again, and a brief that is ready while Account & usage, the Agent map or a share file
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
+
 ### Changed
+
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
+
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
+
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
 
 - The Command Palette offers the pull-request command alongside session
   import and share-file commands when their workspace or panel context is
@@ -65,9 +161,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Import from other agents loads its UI adapter and configuration schema
+  only on the first import, keeping activation within its existing bundle
+  budget after the milestone merge.
+
+- The conversation's Git adapter ships in its own checked bundle, keeping
+  the merged activation bundle below its unchanged 600 KiB cap. Its
+  construction, consent, trust checks and installed display language stay
+  the same.
+
 - The merged credential redactor retains M71's complete Slack tokens,
   including `xoxe-` and long suffixes, and complete legacy encrypted PEM
   blocks with their header lines.
+
+- Web fetch decodes a windows-1252 page by the Encoding standard's table on
+  every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
+  so the euro sign, curly quotes and dashes of a page in that encoding (and of
+  every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
+  windows-1252) came out as invisible control characters there.
 
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
@@ -75,10 +186,12 @@ happened, not what was planned; superseded entries are kept.
   (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
   `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
   upper-case variable, a header, a JSON field or a URL parameter.
+
 - **A long dotted line no longer stalls the log.** The redactor's URL
   credentials pattern took quadratic time on a long run such as `a.b.c.…`;
   its scheme is now bounded. Text with none of the credential literals
   (most log lines) now skips the patterns in one scan.
+
 - **A conversation no longer opens while the Model API backend closes or
   after you sign out, and an overtaken side chat leaves no Plan mode.**
   Starting, resuming or forking a conversation loaded the hooks, then made
@@ -89,6 +202,26 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
+
+- **A `/goal` refused while a Model API key is activated no longer
+  sticks.** While a key was being activated, with the panel still reading
+  signed in, a `/goal …` from the prompt or a goal edit was refused with
+  only a notice and never answered, so the panel kept waiting for it:
+  Enter on the same command sent nothing and the goal strip's Save stayed
+  disabled, even once the key was active. The same happened when the
+  activation or a backend restart came while the command was starting,
+  before the backend had it. Every such refusal is now answered: the
+  command stays in the prompt, and sending it again works. When the
+  activation or the restart came after the backend had the command, the
+  panel now says it may or may not have taken effect, keeps it in the
+  prompt, and reads the goal back from the backend before the
+  conversation's next action, so the session goal shows where it stands.
+
+- **Implement in a fresh conversation no longer leaves the conversation
+  for nothing.** When a new API key was being activated while a plan's
+  Implement looked up the backend, the current conversation was left
+  before the start was refused. The start is now refused first, with the
+  reason, and the conversation stays.
 
 ## [0.10.1] - 2026-10-02
 
@@ -164,6 +297,10 @@ happened, not what was planned; superseded entries are kept.
   run of dotted words once. A token glued after `_` or a letter
   (`x_eyJ…`), which the old pattern missed, is redacted too, and nothing
   the old pattern redacted is left.
+- Documentation: corrected the Bypass row of the permission-mode table (paid
+  uses still ask), the remote-window Bypass description in the Restricted Mode
+  text, and the Diagnostics, dictation and macOS helper claims in PRIVACY and
+  SECURITY; cited Meta's source for the PDF page limits.
 
 ## [0.10.0] - 2026-10-01
 

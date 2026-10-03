@@ -73,6 +73,12 @@ import {
 } from './gitExtension'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
+/** Preserve activation's error identities when this adapter is built into its own bundle. */
+export interface ConversationGitErrorTypes {
+  readonly GitHubError: typeof GitHubError
+  readonly GitUnavailableError: typeof GitUnavailableError
+}
+
 /** What the push modal names: every part of what goes out. */
 export interface PushConfirmation {
   readonly remote: string
@@ -261,6 +267,7 @@ export class ConversationGit implements ConversationGitPort {
   public constructor(
     private readonly window: GitWindow,
     private readonly surface: GitSurface,
+    private readonly errorTypes: ConversationGitErrorTypes = { GitHubError, GitUnavailableError },
   ) {}
 
   private currentState(): GitState {
@@ -316,11 +323,11 @@ export class ConversationGit implements ConversationGitPort {
         epoch !== this.operationEpoch ||
         sessionId !== this.surface.sessionId()
       ) {
-        throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+        throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
       }
       const reason = this.unavailableReason()
       if (reason !== undefined) {
-        throw new GitUnavailableError(reason)
+        throw new this.errorTypes.GitUnavailableError(reason)
       }
     }
   }
@@ -328,7 +335,7 @@ export class ConversationGit implements ConversationGitPort {
   private checkCurrent(repository?: GitRepository, stamp?: string): void {
     this.checkOperation?.()
     if (repository !== undefined && stamp !== undefined && repositoryStamp(repository) !== stamp) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
   }
 
@@ -547,7 +554,9 @@ export class ConversationGit implements ConversationGitPort {
     if (!this.canPost()) {
       return
     }
-    const text = redactSecrets(error instanceof GitHubError ? error.message : String(error))
+    const text = redactSecrets(
+      error instanceof this.errorTypes.GitHubError ? error.message : String(error),
+    )
     // The client logged the status and its kind; GitHub's words are shown only.
     this.surface.say('error', `${UI_TEXT.gitHubFailed}: ${text}`)
   }
@@ -726,8 +735,11 @@ export class ConversationGit implements ConversationGitPort {
     } catch (error: unknown) {
       settle({
         ...base,
-        problem: redactSecrets(error instanceof GitHubError ? error.message : String(error)),
-        ...(error instanceof GitHubError && error.kind === 'signIn' && { needsSignIn: true }),
+        problem: redactSecrets(
+          error instanceof this.errorTypes.GitHubError ? error.message : String(error),
+        ),
+        ...(error instanceof this.errorTypes.GitHubError &&
+          error.kind === 'signIn' && { needsSignIn: true }),
       })
     }
   }
@@ -788,7 +800,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const comparisonBase = base ?? form.base
     if (!isPlainRefName(comparisonBase)) {
-      throw new GitUnavailableError(UI_TEXT.gitBaseInvalid)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitBaseInvalid)
     }
     const remote = repository.state.remotes.find((candidate) => {
       const url = candidate.fetchUrl
@@ -799,7 +811,7 @@ export class ConversationGit implements ConversationGitPort {
       )
     })
     if (remote === undefined || !isPlainRefName(remote.name)) {
-      throw new GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
     }
     const baseRef = `${remote.name}/${comparisonBase}`
     try {
@@ -830,11 +842,11 @@ export class ConversationGit implements ConversationGitPort {
       })
     } catch (error: unknown) {
       check()
-      if (error instanceof GitUnavailableError) {
+      if (error instanceof this.errorTypes.GitUnavailableError) {
         throw error
       }
       this.window.log.warn(`The branch's commits could not be listed (${gitFailureCode(error)})`)
-      throw new GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitDestinationBaseUnavailable)
     }
   }
 
@@ -942,7 +954,7 @@ export class ConversationGit implements ConversationGitPort {
       this.commitForm !== undefined &&
       JSON.stringify(snapshot) !== JSON.stringify(this.commitForm)
     ) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
     const changes = isUnstagedIncluded
       ? [
@@ -972,7 +984,7 @@ export class ConversationGit implements ConversationGitPort {
     const isCommitted = await this.window.admit(async () => {
       const fresh = await this.commitSnapshot(repository)
       if (JSON.stringify(fresh) !== JSON.stringify(snapshot)) {
-        throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+        throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
       }
       try {
         this.checkCurrent(repository, fresh.stamp)
@@ -1055,7 +1067,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const stamp = repositoryStamp(repository)
     if (stamp !== this.pullRequestStamp) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
     const headCommit = repository.state.HEAD?.commit
     // GitHub first (the sign-in, where it opens), so a declined sign-in or
@@ -1082,7 +1094,7 @@ export class ConversationGit implements ConversationGitPort {
       form.remoteUrl !== target.remoteUrl ||
       form.head !== target.head
     ) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
     // Then the branch goes up, asking as every push does.
     if (target.plan.ok && !(await this.pushWithConfirmation(repository, target.plan))) {
@@ -1102,7 +1114,7 @@ export class ConversationGit implements ConversationGitPort {
       (head.upstream !== undefined &&
         (head.upstream.remote !== target.remote || head.upstream.name !== target.head))
     ) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
     let created
     try {
@@ -1291,12 +1303,12 @@ export class ConversationGit implements ConversationGitPort {
       this.pullRequestForm !== undefined &&
       stamp !== this.pullRequestStamp
     ) {
-      throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+      throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
     }
     const checkDraft = () => {
       checkOwned()
       if (repositoryStamp(repository) !== stamp || this.formEpoch !== formEpoch) {
-        throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
+        throw new this.errorTypes.GitUnavailableError(UI_TEXT.gitOperationChanged)
       }
     }
     const prompt =
