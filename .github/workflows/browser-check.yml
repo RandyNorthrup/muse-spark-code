@@ -1,0 +1,106 @@
+# The browser check on the real pinned runtime, on each hosted OS (M81 A1,
+# design spec v4 §10). The rigs ran the same captures by hand
+# (docs/certification/m81.md); this repeats them on GitHub's throwaway
+# runners, and macos-latest (Apple silicon) gives the pinned mac-arm64
+# archive its install, launch and restart.
+#
+# - The runtime is installed by the store itself (dist/browserRuntime.js,
+#   consent answered "download"): the pinned archive is downloaded, its
+#   length and SHA-256 checked, extracted and verified.
+# - The restart capture (scripts/browser-check-restart.mjs) kills the check's
+#   own network service mid-page and requires restartObserved, every request
+#   through the owned proxy, no challenge at the page and nothing left.
+# - The live suite (test/unit/browserCheckLive.test.ts) must run all of its
+#   tests here, none skipped.
+# - Ubuntu's default kernel refuses unprivileged user namespaces to an
+#   unconfined program, so the browser's sandbox cannot start. Where it does,
+#   the capture first requires a closed refusal; then this throwaway runner
+#   lifts the restriction for the rest of the job.
+#
+# No model is called and no secret is used: every page is a local fixture.
+name: Browser check
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/browser/**'
+      - 'src/host/browser/**'
+      - 'src/shared/browserCheckConstants.ts'
+      - 'scripts/browser-check-restart.mjs'
+      - 'test/unit/browserCheckLive.test.ts'
+      - 'test/unit/helpers/browserProcesses.ts'
+      - 'test/fixtures/browser-check.html'
+      - '.github/workflows/browser-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  captures:
+    name: captures (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: the runtime's storage folder
+        shell: bash
+        run: echo "MUSE_TEST_BROWSER_STORAGE=$RUNNER_TEMP/muse-browser-storage" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Linux user-namespace restriction
+        id: userns
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          value=$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo absent)
+          echo "kernel.apparmor_restrict_unprivileged_userns = $value"
+          echo "restricted=$([ "$value" = 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: restricted kernel, the check refuses closed
+        if: steps.userns.outputs.restricted == 'true'
+        shell: bash
+        run: node scripts/browser-check-restart.mjs dist "$MUSE_TEST_BROWSER_STORAGE" closed | tee restricted.json
+
+      - name: lift the restriction on this throwaway runner
+        if: steps.userns.outputs.restricted == 'true'
+        shell: bash
+        run: |
+          [ "$GITHUB_ACTIONS" = true ] && [ "$RUNNER_ENVIRONMENT" = github-hosted ] || { echo "not a GitHub-hosted runner"; exit 1; }
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: forced network-service restart
+        shell: bash
+        run: node scripts/browser-check-restart.mjs dist "$MUSE_TEST_BROWSER_STORAGE" | tee restart.json
+
+      - name: live suite on the pinned runtime
+        shell: bash
+        run: |
+          npx vitest run test/unit/browserCheckLive.test.ts --coverage.enabled=false --reporter=default --reporter=json --outputFile.json=live.json
+          node -e "const r = require('./live.json'); console.log(r.numPassedTests + ' passed, ' + r.numPendingTests + ' skipped, ' + r.numFailedTests + ' failed'); process.exit(r.numPassedTests > 0 && r.numPendingTests === 0 && r.numTodoTests === 0 && r.numFailedTests === 0 ? 0 : 1)"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: browser-check-${{ matrix.os }}
+          path: |
+            restricted.json
+            restart.json
+            live.json
+          if-no-files-found: ignore
+          retention-days: 14
