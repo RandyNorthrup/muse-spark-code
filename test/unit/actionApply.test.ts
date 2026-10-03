@@ -150,6 +150,9 @@ describe('the apply sub-action (G25)', PROCESS_SUITE, () => {
       ['no patch', 'fix.patch', '', artifactName, /empty/],
       ['other artifact', null, '', 'muse-spark-1-1-x-0000000000000000', /does not belong/],
       ['manifest', 'manifest.json', '{"headSha":"x"}', artifactName, /malformed/],
+      // RVM80CD P2-4: an unrelated or oversized artifact is refused unread.
+      ['extra file', 'payload.bin', 'x', artifactName, /unexpected entry/],
+      ['oversize manifest', 'manifest.json', ' '.repeat(65_537), artifactName, /larger than/],
     ]
     for (const [name, file, content, artifact, expected] of cases) {
       const side = applySide(run.repo, run.paths)

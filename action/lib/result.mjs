@@ -1,13 +1,16 @@
 // Result extraction (M80, SPEC §6.5): after the exec child closes, and before
 // any patch is considered, its JSONL is checked whole: every line a valid
-// v1 envelope with consecutive sequence numbers, exactly one result and that
-// result last, the result valid against a structural mirror of the
-// execResultSchema invariants (parity-tested against lane A's zod schema),
-// and its exit code equal to the child's. Only then is it staged and
-// renamed into out/ while the owner still allows publication.
+// v1 event (envelope and body, each variant against a structural mirror of
+// execEventSchema, including the update egress rule; RVM80CD P2-3) with
+// consecutive sequence numbers, exactly one result and that result last,
+// the result valid against a mirror of the execResultSchema invariants (both
+// parity-tested against lane A's zod schemas), and its exit code equal to
+// the child's. Only then is it staged and renamed into out/ while the owner
+// still allows publication.
 
 import { Buffer } from 'node:buffer'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { renameSync, rmSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { TextDecoder } from 'node:util'
 import {
   ACTION_EVENTS_MAX_BYTES,
@@ -43,20 +46,22 @@ const EXIT_CODES = Object.freeze({
   accounting_unverified: 9,
 })
 const SIGNAL_CODES = Object.freeze({ SIGINT: 130, SIGTERM: 143 })
-const EVENT_TYPES = new Set([
-  'start',
-  'update',
-  'tool',
-  'message',
-  'permission_denied',
-  'question_declined',
-  'attempt',
-  'paid_use',
-  'limit',
-  'signal',
-  'result',
-])
 const REFUSALS = new Set(['budget', 'requests', 'closed', 'unpriced', 'request_shape'])
+const ENDPOINTS = new Set(['responses', 'images.generations', 'images.edits'])
+const LIMIT_KINDS = new Set([
+  'budget',
+  'requests',
+  'timeout',
+  'breach',
+  'request_shape',
+  'unpriced',
+  'accounting',
+])
+const PAID_PHASES = new Set(['admitted', 'returned', 'refunded', 'uncertain', 'refused'])
+// Projections of src/shared/constants.ts EXEC_PROHIBITED_UPDATE_PATTERN and
+// EXEC_RAW_TOOL_FIELDS (parity-tested).
+export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
+export const RAW_TOOL_FIELDS = Object.freeze(['rawInput', 'rawOutput', 'toolCallId'])
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const USD_DECIMALS = 6
 const MAX_BUDGET_USD = 20
@@ -74,10 +79,14 @@ export function exitCodeFor(status, signal) {
   return EXIT_CODES[status]
 }
 
-function isObject(value, keys) {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const own = Object.keys(value)
-  return own.length === keys.length && keys.every((key) => Object.hasOwn(value, key))
+function isObject(value, keys, optional = []) {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    keys.every((key) => Object.hasOwn(value, key)) &&
+    Object.keys(value).every((key) => keys.includes(key) || optional.includes(key))
+  )
 }
 
 const isCounter = (value) => Number.isSafeInteger(value) && value >= 0
@@ -334,6 +343,152 @@ const RESULT_KEYS = [
   'error',
 ]
 
+function isTotals(value) {
+  return (
+    isObject(value, [
+      'capUsd',
+      'settledUsd',
+      'uncertainUsd',
+      'reservedUsd',
+      'remainingUsd',
+      'requests',
+      'tokens',
+      'paid',
+      'breach',
+      'refusal',
+      'lastResponse',
+    ]) &&
+    isCounter(value.requests) &&
+    isObject(value.tokens, ['inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens']) &&
+    Object.values(value.tokens).every((count) => isCounter(count)) &&
+    isPaid(value.paid) &&
+    typeof value.breach === 'boolean' &&
+    (value.refusal === null || REFUSALS.has(value.refusal)) &&
+    (value.lastResponse === null || isLastResponse(value.lastResponse)) &&
+    isSumEqual(value.capUsd, [
+      value.settledUsd,
+      value.uncertainUsd,
+      value.reservedUsd,
+      value.remainingUsd,
+    ])
+  )
+}
+
+/** No prohibited ACP variant and no raw tool field, at any depth of an update. */
+function isSafeUpdate(value) {
+  return Array.isArray(value)
+    ? value.every((item) => isSafeUpdate(item))
+    : typeof value !== 'object' ||
+        value === null ||
+        Object.entries(value).every(
+          ([key, item]) =>
+            !RAW_TOOL_FIELDS.includes(key) &&
+            (key !== 'sessionUpdate' ||
+              (typeof item === 'string' && !PROHIBITED_UPDATE.test(item))) &&
+            isSafeUpdate(item),
+        )
+}
+
+const isTextFields = (value, keys) => keys.every((key) => typeof value[key] === 'string')
+
+/** One event body by its type, field for field against execEventSchema (SPEC §5.1). */
+const EVENT_BODIES = Object.freeze({
+  start: (value) =>
+    isObject(value, [
+      'type',
+      'agent',
+      'backend',
+      'mode',
+      'model',
+      'effort',
+      'sessionId',
+      'ephemeral',
+      'paidFeatures',
+      'limits',
+    ]) &&
+    isObject(value.agent, ['name', 'version']) &&
+    isTextFields(value.agent, ['name', 'version']) &&
+    (value.backend === 'museCode' || value.backend === 'modelApi') &&
+    (value.mode === 'plan' || value.mode === 'acceptEdits') &&
+    isNullableText(value.model) &&
+    isNullableText(value.effort) &&
+    typeof value.sessionId === 'string' &&
+    typeof value.ephemeral === 'boolean' &&
+    Array.isArray(value.paidFeatures) &&
+    value.paidFeatures.every((feature) => feature === 'imageGeneration') &&
+    isLimits(value.limits),
+  update: (value) =>
+    isObject(value, ['type', 'update']) &&
+    typeof value.update === 'object' &&
+    value.update !== null &&
+    !Array.isArray(value.update) &&
+    typeof value.update.sessionUpdate === 'string' &&
+    isSafeUpdate(value.update),
+  tool: (value) =>
+    isObject(value, ['type', 'name', 'status', 'durationMs']) &&
+    isTextFields(value, ['name', 'status']) &&
+    typeof value.durationMs === 'number' &&
+    Number.isFinite(value.durationMs) &&
+    value.durationMs >= 0,
+  message: (value) =>
+    isObject(value, ['type', 'itemId', 'kind', 'text', 'complete']) &&
+    isTextFields(value, ['itemId', 'text']) &&
+    (value.kind === 'agentMessage' || value.kind === 'reasoning') &&
+    typeof value.complete === 'boolean',
+  permission_denied: (value) =>
+    isObject(value, ['type', 'toolCallId', 'title', 'kind', 'paths']) &&
+    isTextFields(value, ['toolCallId', 'title', 'kind']) &&
+    isPathList(value.paths),
+  question_declined: (value) => isObject(value, ['type', 'count']) && isCounter(value.count),
+  attempt: (value) =>
+    isObject(
+      value,
+      ['type', 'n', 'endpoint', 'phase', 'reservedUsd', 'totals'],
+      ['maxOutputTokens', 'outcome', 'chargedUsd', 'terminal'],
+    ) &&
+    isCounter(value.n) &&
+    value.n >= 1 &&
+    ENDPOINTS.has(value.endpoint) &&
+    (value.phase === 'admitted' || value.phase === 'settled') &&
+    (!Object.hasOwn(value, 'maxOutputTokens') || isCounter(value.maxOutputTokens)) &&
+    isAmount(value.reservedUsd) &&
+    (!Object.hasOwn(value, 'outcome') ||
+      value.outcome === 'priced' ||
+      value.outcome === 'full-reservation') &&
+    (!Object.hasOwn(value, 'chargedUsd') || isAmount(value.chargedUsd)) &&
+    (!Object.hasOwn(value, 'terminal') || isNullableText(value.terminal)) &&
+    isTotals(value.totals),
+  paid_use: (value) =>
+    isObject(value, ['type', 'feature', 'n', 'phase', 'units', 'usd'], ['reason']) &&
+    value.feature === 'imageGeneration' &&
+    (value.n === null || (isCounter(value.n) && value.n >= 1)) &&
+    PAID_PHASES.has(value.phase) &&
+    isCounter(value.units) &&
+    isAmount(value.usd) &&
+    (!Object.hasOwn(value, 'reason') || typeof value.reason === 'string'),
+  limit: (value) => isObject(value, ['type', 'limit']) && LIMIT_KINDS.has(value.limit),
+  signal: (value) =>
+    isObject(value, ['type', 'signal']) &&
+    (value.signal === 'SIGINT' || value.signal === 'SIGTERM'),
+  result: (value) => isObject(value, ['type', 'result']) && isExecResult(value.result),
+})
+
+/** One exec event: the v1 envelope and its body (SPEC §2.2, §5.1). */
+export function isExecEvent(value) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const { v, seq, time, ...body } = value
+  return (
+    v === 1 &&
+    isCounter(seq) &&
+    seq >= 1 &&
+    typeof time === 'string' &&
+    ISO_TIME.test(time) &&
+    Number.isFinite(Date.parse(time)) &&
+    Object.hasOwn(EVENT_BODIES, body.type) &&
+    EVENT_BODIES[body.type](body)
+  )
+}
+
 /** The ExecResult v1 invariants, field for field (SPEC §2.1, §2.3). */
 export function isExecResult(value) {
   return (
@@ -377,8 +532,9 @@ export function isExecResult(value) {
 
 /**
  * The single result in exec's JSONL text, or undefined when any line is not a
- * consecutive v1 envelope, the text is cut mid-line, there is no result,
- * more than one, a line after it, or the result is invalid.
+ * valid v1 event with the next sequence number, the text is cut mid-line,
+ * there is no result, more than one, a line after it, or the result is
+ * invalid.
  */
 export function parseEventsText(text) {
   if (text === '' || !text.endsWith('\n')) return
@@ -392,28 +548,12 @@ export function parseEventsText(text) {
     } catch {
       return
     }
-    if (
-      typeof event !== 'object' ||
-      event === null ||
-      event.v !== 1 ||
-      event.seq !== index + 1 ||
-      typeof event.time !== 'string' ||
-      !ISO_TIME.test(event.time) ||
-      !Number.isFinite(Date.parse(event.time)) ||
-      !EVENT_TYPES.has(event.type)
-    ) {
-      return
-    }
+    if (!isExecEvent(event) || event.seq !== index + 1) return
     if (event.type !== 'result') continue
-    if (
-      Buffer.byteLength(line) > ACTION_RESULT_MAX_BYTES ||
-      !isObject(event, ['v', 'seq', 'time', 'type', 'result'])
-    ) {
-      return
-    }
+    if (Buffer.byteLength(line) > ACTION_RESULT_MAX_BYTES) return
     result = event.result
   }
-  return result !== undefined && isExecResult(result) ? result : undefined
+  return result
 }
 
 /**
@@ -444,9 +584,18 @@ export async function extractResult({ owner, paths, execCode }) {
       mode: PRIVATE_FILE,
       signal,
     })
+    // Both moves are synchronous, right after the eligibility check: a stop
+    // cannot interrupt one and leave it to finish after cleanup, and an
+    // abandoned continuation reaches the check stopped (RVM80CD P2-2).
     if (!owner.publicationAllowed) return null
-    await rename(paths.resultTmp, paths.result)
-    await rename(paths.eventsTmp, paths.events)
+    try {
+      renameSync(paths.resultTmp, paths.result)
+      renameSync(paths.eventsTmp, paths.events)
+    } catch (error) {
+      rmSync(paths.result, { force: true })
+      rmSync(paths.events, { force: true })
+      throw error
+    }
     return result
   })
 }

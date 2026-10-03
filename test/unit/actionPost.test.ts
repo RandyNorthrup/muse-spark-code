@@ -121,6 +121,30 @@ describe('the comment body (G11)', () => {
     expect(body({ mode: 'fix' })).toContain('No file changed')
     expect(body()).not.toContain('patch')
   })
+
+  it('keeps the cap with a huge file list, a long model id and a long message (RVM80CD P2-6)', () => {
+    const files = Array.from(
+      { length: 8000 },
+      (_, index) => `src/deep/path/file-${String(index)}.ts`,
+    )
+    const result = {
+      ...resultRecord(),
+      model: 'm'.repeat(5000),
+      filesChanged: files,
+      finalMessage: 'x'.repeat(100_000),
+    }
+    const text = body({ result, mode: 'fix', patchPublished: true })
+    expect(text.length).toBeLessThanOrEqual(ACTION_COMMENT_MAX_CHARS)
+    expect(text).toContain('more. A maintainer reads it before approving the push.')
+    expect(text).toContain('(The message was cut to fit a comment.)')
+    expect(text.endsWith('[run](https://github.com/o/r/actions/runs/1)\n')).toBe(true)
+    const empty = body({
+      result: { ...result, finalMessage: '' },
+      mode: 'fix',
+      patchPublished: true,
+    })
+    expect(empty.length).toBeLessThanOrEqual(ACTION_COMMENT_MAX_CHARS)
+  })
 })
 
 describe('posting', () => {

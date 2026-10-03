@@ -31,26 +31,26 @@ muse-spark-code-acp exec --backend modelApi --allow-contributor-models --model m
 muse-spark-code-acp scan-secrets fix.patch
 ```
 
-Default | Validation |
-|---|---|---|
-| --backend museCode\|modelApi | museCode | Must be an ACP backend. |
-| --cwd <dir> | process.cwd() | Resolve absolute; existing directory. |
-| <prompt>, --prompt-file, - | required | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin. |
-| --untrusted-file <path>, repeatable | none | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files. |
-| --permission-mode plan\|acceptEdits | plan | Refuse auto, manual, bypassPermissions and all other modes. |
-| --model, --effort | backend default | Listed for this run; supported effort. Model API model must also have a known tariff. |
-| --allow-contributor-models | off | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
-| --output text\|json\|jsonl | text | Exact enum. |
-| --max-budget-usd <usd> | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code. |
-| --max-requests <n> | 30 for Model API | Integer 1–500; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code. |
-| --timeout <seconds> | 1800 | Integer 10–21,600; deadline counts from process start. |
-| --image-generation | off | Model API plus acceptEdits plus budget. |
-| --web-search | refused | Exit 2; no hosted-tool allowance. |
-| --fail-on-denial | off | First ordinary approval denial stops if enabled. |
-| --ephemeral | off | Model API only; suppress the session store. |
-| --key-stdin | off | Model API only; non-TTY stdin. |
-| --muse-binary, --shell-sandbox | serve defaults | Muse Code only. |
-| --verbose | off | Trace on redacted stderr. |
+| Exec option                         | Default                | Validation                                                                                                                  |
+| ----------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| --backend museCode\|modelApi        | museCode               | Must be an ACP backend.                                                                                                     |
+| --cwd <dir>                         | process.cwd()          | Resolve absolute; existing directory.                                                                                       |
+| <prompt>, --prompt-file, -          | required               | Exactly one; nonempty UTF-8; at most 262,144 bytes. Stdin prompt conflicts with --key-stdin.                                |
+| --untrusted-file <path>, repeatable | none                   | At most 8 files, 1 MiB each, 2 MiB total, 48 chunks total; readable regular files.                                          |
+| --permission-mode plan\|acceptEdits | plan                   | Refuse auto, manual, bypassPermissions and all other modes.                                                                 |
+| --model, --effort                   | backend default        | Listed for this run; supported effort. Model API model must also have a known tariff.                                       |
+| --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`). |
+| --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                 |
+| --max-budget-usd <usd>              | required for Model API | Finite, 0 < value ≤ 20; must cover the model minimum below before billable dispatch. Refuse on Muse Code.                   |
+| --max-requests <n>                  | 30 for Model API       | Integer 1–500; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.          |
+| --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                      |
+| --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                     |
+| --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                           |
+| --fail-on-denial                    | off                    | First ordinary approval denial stops if enabled.                                                                            |
+| --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
+| --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
+| --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
+| --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
 range 1–20,000,000 micro-USD. Signs, exponents, whitespace, non-ASCII digits
@@ -72,20 +72,20 @@ is refusal/5 before any billable request, naming the model's minimum.
 
 ## Exits, authoritative completion and output
 
-Status | Meaning |
-|---|---|---|
-| 0 | completed | ACP end_turn AND latest Model API response completed at clean EOF with valid usage and priced settlement; or Muse Code tap terminal exactly completed. |
-| 1 | internal | Crash, output closed/stalled, duplicate settlement or wrapper failure when exec itself succeeded. Result is best effort. |
-| 2 | no result | CLI/input usage error; redacted stderr only. |
-| 3 | auth_required / backend_unavailable | Missing/invalid key, HTTP 401/403, CLI signed out, missing CLI/bundle or unavailable store. |
-| 4 | failed | Ordinary backend/transport/HTTP failure after retry policy; explicit response.failed. |
-| 5 | budget_exceeded / request_cap | Pre-dispatch budget/shape/unpriced refusal, request count limit or observed accounting bound breach. |
-| 6 | timeout | Process deadline. |
-| 7 | denied | --fail-on-denial latched. |
-| 8 | incomplete | response.incomplete, clean EOF without terminal (no_completion), or Muse Code terminal other than completed; preserve its word/reason. |
-| 9 | accounting_unverified | Latest response.completed has missing or invalid usage, or accounting validation explicitly stops the run. Never authorizes comment/patch/apply. |
-| 130 | cancelled | SIGINT. |
-| 143 | cancelled | SIGTERM. |
+| Code | Status                              | Meaning                                                                                                                                                |
+| ---- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0    | completed                           | ACP end_turn AND latest Model API response completed at clean EOF with valid usage and priced settlement; or Muse Code tap terminal exactly completed. |
+| 1    | internal                            | Crash, output closed/stalled, duplicate settlement or wrapper failure when exec itself succeeded. Result is best effort.                               |
+| 2    | no result                           | CLI/input usage error; redacted stderr only.                                                                                                           |
+| 3    | auth_required / backend_unavailable | Missing/invalid key, HTTP 401/403, CLI signed out, missing CLI/bundle or unavailable store.                                                            |
+| 4    | failed                              | Ordinary backend/transport/HTTP failure after retry policy; explicit response.failed.                                                                  |
+| 5    | budget_exceeded / request_cap       | Pre-dispatch budget/shape/unpriced refusal, request count limit or observed accounting bound breach.                                                   |
+| 6    | timeout                             | Process deadline.                                                                                                                                      |
+| 7    | denied                              | --fail-on-denial latched.                                                                                                                              |
+| 8    | incomplete                          | response.incomplete, clean EOF without terminal (no_completion), or Muse Code terminal other than completed; preserve its word/reason.                 |
+| 9    | accounting_unverified               | Latest response.completed has missing or invalid usage, or accounting validation explicitly stops the run. Never authorizes comment/patch/apply.       |
+| 130  | cancelled                           | SIGINT.                                                                                                                                                |
+| 143  | cancelled                           | SIGTERM.                                                                                                                                               |
 
 First latched stop wins. Otherwise auth failure precedes incomplete response/EOF,
 then backend/HTTP/transport failure, then completed-with-unverified-accounting.
@@ -106,27 +106,27 @@ Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
 
-Type / meaning |
-|---|---|
-| v | Literal 1. |
-| status, exitCode, signal | Exit table above; signal is SIGINT, SIGTERM or null. |
-| stopReason | ACP reason string or null. |
-| terminal, incompleteReason | Latest response/tap terminal and reason, or null. |
-| backend, mode, model | museCode/modelApi; plan/acceptEdits; selected id or null before selection. |
-| sessionId, ephemeral | string or null; boolean. |
-| finalMessage | Whole redacted released final message or fixed withholding line. |
-| filesChanged | Deduplicated relative paths from edit locations/tap; not a secret-scan claim. |
-| denials | {toolCallId,title,kind,paths:string[]} rows; paths relative. |
-| questionsDeclined | Nonnegative integer. |
-| inputs | {name,bytes,chunks,complete} rows. CLI inputs are complete; Action truncation is separately disclosed. |
-| usage.requests | Admitted billable attempts; null on Muse Code. |
-| usage.inputTokens/outputTokens/cachedTokens/reasoningTokens | Sum valid per-response usage only; null when unavailable. Muse Code uses the latest cumulative snapshot, never a sum. |
-| usage.costUsd | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, pending reservations or forced exit. |
-| usage.paid | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code. |
-| ledger | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits | {budgetUsd:number|null,maxRequests:number|null,timeoutSeconds:number}. |
-| durationMs | Nonnegative finite elapsed time from process start. |
-| error | null for completed; otherwise {kind,message}, whole-redacted. |
+| Field                                                       | Type / meaning                                                                                                                                                                                                                            |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v                                                           | Literal 1.                                                                                                                                                                                                                                |
+| status, exitCode, signal                                    | Exit table above; signal is SIGINT, SIGTERM or null.                                                                                                                                                                                      |
+| stopReason                                                  | ACP reason string or null.                                                                                                                                                                                                                |
+| terminal, incompleteReason                                  | Latest response/tap terminal and reason, or null.                                                                                                                                                                                         |
+| backend, mode, model                                        | museCode/modelApi; plan/acceptEdits; selected id or null before selection.                                                                                                                                                                |
+| sessionId, ephemeral                                        | string or null; boolean.                                                                                                                                                                                                                  |
+| finalMessage                                                | Whole redacted released final message or fixed withholding line.                                                                                                                                                                          |
+| filesChanged                                                | Deduplicated relative paths from edit locations/tap; not a secret-scan claim.                                                                                                                                                             |
+| denials                                                     | {toolCallId,title,kind,paths:string[]} rows; paths relative.                                                                                                                                                                              |
+| questionsDeclined                                           | Nonnegative integer.                                                                                                                                                                                                                      |
+| inputs                                                      | {name,bytes,chunks,complete} rows. CLI inputs are complete; Action truncation is separately disclosed.                                                                                                                                    |
+| usage.requests                                              | Admitted billable attempts; null on Muse Code.                                                                                                                                                                                            |
+| usage.inputTokens/outputTokens/cachedTokens/reasoningTokens | Sum valid per-response usage only; null when unavailable. Muse Code uses the latest cumulative snapshot, never a sum.                                                                                                                     |
+| usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, pending reservations or forced exit.                                                      |
+| usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
+| ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
+| limits                                                      | {budgetUsd:number                                                                                                                                                                                                                         | null,maxRequests:number | null,timeoutSeconds:number}. |
+| durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
+| error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 
 | Event type        | Payload                                                                                                           |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -262,24 +262,24 @@ boundaries do not claim prompt-injection immunity or M78 deny-read profiles.
 
 Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 
-Default | Rule |
-|---|---|---|
-| model-api-key | required | secrets.MUSE_MODEL_API_KEY; only run step gets MUSE_SPARK_MODEL_API_KEY. |
-| max-budget-usd | required | Same CLI budget grammar/range above; includes text and images. |
-| mode | review | review→plan, fix→acceptEdits. |
-| image-generation | false | Exact boolean; true only in fix. |
-| max-requests | 30 | Same CLI request-count bounds above. |
-| timeout-minutes | 20 | Integer; converted into allowed exec seconds. |
-| model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in. |
-| max-diff-bytes | 262144 | Integer 1–1,048,576; truncation reported. |
-| trigger-phrase | @muse-spark | Comment must start with it. |
-| pr-number | empty | Positive integer required for workflow_dispatch. |
-| extra-instructions | empty | Trusted workflow author instruction. |
-| path | . | Relative inside workspace, no .. or symlink escape. |
-| post-comment, upload-artifacts | true, true | Exact booleans. |
-| github-token | github.token | Gate, private checkout, post; no exec/scan/Git-input/patch child inherits it. |
-| https-proxy, no-proxy, extra-ca-certs | empty | Only caller-specified network settings; canonical CA outside workspace; proxy enables NODE_USE_ENV_PROXY=1. |
-| agent-package, agent-package-sha256 | empty | Both or neither; canonical regular tarball outside real workspace; digest verified; candidate is visibly unsigned. |
+| Input                                   | Default             | Rule                                                                                                               |
+| --------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| model-api-key                           | required            | secrets.MUSE_MODEL_API_KEY; only run step gets MUSE_SPARK_MODEL_API_KEY.                                           |
+| max-budget-usd                          | required            | Same CLI budget grammar/range above; includes text and images.                                                     |
+| mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
+| image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
+| max-requests                            | 30                  | Same CLI request-count bounds above.                                                                               |
+| timeout-minutes                         | 20                  | Integer; converted into allowed exec seconds.                                                                      |
+| model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in.                                                        |
+| max-diff-bytes                          | 262144              | Integer 1–1,048,576; truncation reported.                                                                          |
+| trigger-phrase                          | @muse-spark         | Comment must start with it.                                                                                        |
+| pr-number                               | empty               | Positive integer required for workflow_dispatch.                                                                   |
+| extra-instructions                      | empty               | Trusted workflow author instruction.                                                                               |
+| path                                    | .                   | Relative inside workspace, no .. or symlink escape.                                                                |
+| post-comment, upload-artifacts          | true, true          | Exact booleans.                                                                                                    |
+| github-token                            | github.token        | Gate, private checkout, post; no exec/scan/Git-input/patch child inherits it.                                      |
+| https-proxy, no-proxy, extra-ca-certs   | empty               | Only caller-specified network settings; canonical CA outside workspace; proxy enables NODE_USE_ENV_PROXY=1.        |
+| agent-package, agent-package-sha256     | empty               | Both or neither; canonical regular tarball outside real workspace; digest verified; candidate is visibly unsigned. |
 
 Outputs: status, exit-code, out-dir, result-path, events-path, patch-path,
 patch-withheld, artifact-name, requests, cost-usd, cost-is-upper-bound, images,
@@ -348,35 +348,35 @@ One owner covers input diff, exec, extraction, patch Git, scanner and publicatio
 Apply owns its isolated download/checkout/apply/commit/push lifecycle. Pre-run
 steps have bounded owners of their own; no process spans composite steps.
 
-Value | Bound |
-|---|---:|---|
-| ACTION_GATE_MS | 30,000 ms | API gate phase. |
-| ACTION_INSTALL_MS | 300,000 ms | Install plus verifier. |
-| ACTION_CHECKOUT_MS | 120,000 ms | Entire initial checkout phase. |
-| ACTION_INPUT_MS | 30,000 ms | Metadata plus diff. |
-| ACTION_EXEC_OVERHEAD_MS | 10,000 ms | Exec phase wall limit = exec timeout + this. |
-| ACTION_GIT_MS | 30,000 ms | One local Git child; total patch generation also 30 s. |
-| ACTION_SCAN_MS | 30,000 ms | Scanner including key stdin/body/output. |
-| ACTION_EXTRACT_MS | 10,000 ms | Event/result extraction. |
-| ACTION_PUBLISH_MS | 10,000 ms | Atomic result/patch/manifest publication and outputs. |
-| ACTION_DOWNLOAD_MS | 60,000 ms | Apply artifact download. |
-| ACTION_APPLY_MS | 180,000 ms | Apply owner total, excluding caller's tests. |
-| ACTION_PUSH_MS | 60,000 ms | Push network child within apply total. |
-| ACTION_STOP_GRACE_MS | 5,000 ms | Exact signal forwarding, waiting. |
-| ACTION_KILL_AFTER_MS | 7,000 ms | Grace + 2 s; force-kill current child. |
-| ACTION_REAP_MS | 2,000 ms | Bounded wait after force-kill before wrapper error exit. |
-| ACTION_CLEANUP_MS | 5,000 ms | Bounded staging/key-reference final cleanup. |
-| ACTION_STDERR_MAX_BYTES | 1,048,576 | Per phase; stream through redaction; overflow stops phase. |
-| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops phase. |
-| ACTION_EVENTS_MAX_BYTES | 67,108,864 | Exec JSONL; capped while streaming to events file. |
-| ACTION_RESULT_MAX_BYTES | 16,777,216 | One parsed result/final publication. |
-| ACTION_PATCH_MAX_BYTES | 16,777,216 | Exact Git patch and scanner file. |
-| ACTION_SCAN_STDOUT_MAX_BYTES | 65,536 | Scanner's counts-only output. |
-| ACTION_COMMENT_MAX_CHARS | 60,000 | Redacted comment. |
-| ACTION_META_MAX_BYTES | 65,536 | PR metadata. |
-| ACTION_TASK_MAX_CHARS | 4,000 | Collaborator task. |
-| ACTION_DEFAULT_MAX_DIFF_BYTES | 262,144 | Input default; maximum 1,048,576. |
-| ACTION_W_BUDGET_USD | 1.00 | W test fixture cap. |
+| Constant                      |      Value | Bound                                                      |
+| ----------------------------- | ---------: | ---------------------------------------------------------- |
+| ACTION_GATE_MS                |  30,000 ms | API gate phase.                                            |
+| ACTION_INSTALL_MS             | 300,000 ms | Install plus verifier.                                     |
+| ACTION_CHECKOUT_MS            | 120,000 ms | Entire initial checkout phase.                             |
+| ACTION_INPUT_MS               |  30,000 ms | Metadata plus diff.                                        |
+| ACTION_EXEC_OVERHEAD_MS       |  10,000 ms | Exec phase wall limit = exec timeout + this.               |
+| ACTION_GIT_MS                 |  30,000 ms | One local Git child; total patch generation also 30 s.     |
+| ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                   |
+| ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                   |
+| ACTION_PUBLISH_MS             |  10,000 ms | Atomic result/patch/manifest publication and outputs.      |
+| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact download.                                   |
+| ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.               |
+| ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                     |
+| ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                          |
+| ACTION_KILL_AFTER_MS          |   7,000 ms | Grace + 2 s; force-kill current child.                     |
+| ACTION_REAP_MS                |   2,000 ms | Bounded wait after force-kill before wrapper error exit.   |
+| ACTION_CLEANUP_MS             |   5,000 ms | Bounded staging/key-reference final cleanup.               |
+| ACTION_STDERR_MAX_BYTES       |  1,048,576 | Per phase; stream through redaction; overflow stops phase. |
+| ACTION_CHILD_STDOUT_MAX_BYTES | 16,777,216 | Git/install/verifier/download; overflow stops phase.       |
+| ACTION_EVENTS_MAX_BYTES       | 67,108,864 | Exec JSONL; capped while streaming to events file.         |
+| ACTION_RESULT_MAX_BYTES       | 16,777,216 | One parsed result/final publication.                       |
+| ACTION_PATCH_MAX_BYTES        | 16,777,216 | Exact Git patch and scanner file.                          |
+| ACTION_SCAN_STDOUT_MAX_BYTES  |     65,536 | Scanner's counts-only output.                              |
+| ACTION_COMMENT_MAX_CHARS      |     60,000 | Redacted comment.                                          |
+| ACTION_META_MAX_BYTES         |     65,536 | PR metadata.                                               |
+| ACTION_TASK_MAX_CHARS         |      4,000 | Collaborator task.                                         |
+| ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                          |
+| ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                        |
 
 Standalone exec timeout counts from process start, before async localization.
 Grace totals 5000 ms, forced output at most 300 ms; duplicate same signal within

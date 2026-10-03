@@ -24,6 +24,10 @@ const DEFUSED_AT = String.fromCodePoint(0x40, 0x20_0b)
 const CUT_NOTICE = '\n\n(The message was cut to fit a comment.)'
 const COMMENT_PAGES_MAX = 30
 const PER_PAGE = 100
+// The fix notice's file list and the footer's model id are bounded, so the
+// message's room is never negative and the whole body keeps its cap (RVM80CD P2-6).
+export const ACTION_COMMENT_FILES_MAX_CHARS = 4000
+export const ACTION_COMMENT_MODEL_MAX_CHARS = 200
 const WITHHELD = Object.freeze({
   binary:
     'the change includes a binary file (a generated image included), so the whole patch is withheld',
@@ -59,7 +63,7 @@ function footerFor(result, runUrl) {
       ? 'cost n/a'
       : `${usd(cost.settled)} settled, ${usd(cost.uncertain + cost.reserved)} uncertain${cost.isUpperBound ? ' (total is an upper bound)' : ''}`
   return [
-    `Model ${result.model ?? 'n/a'}`,
+    `Model ${result.model === null ? 'n/a' : cut(result.model, ACTION_COMMENT_MODEL_MAX_CHARS)}`,
     `${String(result.usage.requests ?? 'n/a')} requests`,
     costText,
     `images: ${String(paid.imagesReturned)} returned, ${String(paid.imagesUncertain)} uncertain`,
@@ -67,10 +71,27 @@ function footerFor(result, runUrl) {
   ].join(' · ')
 }
 
+/** The changed files, listed until ACTION_COMMENT_FILES_MAX_CHARS, then counted. */
+function fileList(files) {
+  if (files.length === 0) return 'none listed'
+  const listed = []
+  let used = 0
+  for (const file of files) {
+    const added = (listed.length === 0 ? 0 : 2) + file.length
+    if (used + added > ACTION_COMMENT_FILES_MAX_CHARS) break
+    listed.push(file)
+    used += added
+  }
+  const rest = files.length - listed.length
+  if (rest === 0) return listed.join(', ')
+  return listed.length === 0
+    ? `${String(rest)} files`
+    : `${listed.join(', ')} and ${String(rest)} more`
+}
+
 function fixNotice({ result, artifactName, patchWithheld, patchPublished }) {
   if (patchPublished) {
-    const files = result.filesChanged.length === 0 ? 'none listed' : result.filesChanged.join(', ')
-    return `Proposed patch: artifact \`${artifactName}\`; files: ${files}. A maintainer reads it before approving the push.`
+    return `Proposed patch: artifact \`${artifactName}\`; files: ${fileList(result.filesChanged)}. A maintainer reads it before approving the push.`
   }
   return patchWithheld === ''
     ? 'No file changed, so there is no patch.'

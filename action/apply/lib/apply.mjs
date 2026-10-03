@@ -13,14 +13,16 @@
 // Any refusal throws and the step exits nonzero; ready is never false with success.
 
 import { createHash } from 'node:crypto'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { checkoutHead, remoteFor } from '../../lib/checkout.mjs'
-import { gitText, requireGit, safeGit } from '../../lib/git.mjs'
+import { gitText, remoteProtocol, requireGit, safeGit } from '../../lib/git.mjs'
 import {
   ACTION_APPLY_MS,
   ACTION_DOWNLOAD_MS,
+  ACTION_EVENTS_MAX_BYTES,
+  ACTION_META_MAX_BYTES,
   ACTION_PATCH_MAX_BYTES,
   ACTION_PUSH_MS,
   ACTION_RESULT_MAX_BYTES,
@@ -59,6 +61,14 @@ const COMMITTER = Object.freeze([
   'user.email=41898282+github-actions[bot]@users.noreply.github.com',
 ])
 
+// The files a proposal artifact may hold (the run's out/) and each one's bound.
+const ARTIFACT_FILES = new Map([
+  ['manifest.json', ACTION_META_MAX_BYTES],
+  ['fix.patch', ACTION_PATCH_MAX_BYTES],
+  ['result.json', ACTION_RESULT_MAX_BYTES],
+  ['events.jsonl', ACTION_EVENTS_MAX_BYTES],
+])
+
 /** A refused proposal; the message names the failed check only. */
 export class ApplyRefusal extends Error {
   constructor(message) {
@@ -72,8 +82,20 @@ export class ApplyRefusal extends Error {
  * and a nonempty patch whose SHA-256 is the manifest's.
  */
 export async function validateProposal({ directory, artifactName, runId, signal }) {
-  const names = await readdir(directory)
-  if (!names.includes('manifest.json') || !names.includes('fix.patch')) {
+  // Only what out/ can hold, each a regular file within its bound, checked
+  // before anything is read (RVM80CD P2-4): an unrelated or oversized
+  // artifact is refused without being loaded.
+  const entries = await readdir(directory, { withFileTypes: true })
+  for (const entry of entries) {
+    const limit = ARTIFACT_FILES.get(entry.name)
+    if (limit === undefined || !entry.isFile()) {
+      throw new ApplyRefusal('the artifact holds an unexpected entry')
+    }
+    const { size } = await stat(path.join(directory, entry.name))
+    if (size > limit) throw new ApplyRefusal('an artifact file is larger than its bound')
+  }
+  const names = new Set(entries.map((entry) => entry.name))
+  if (!names.has('manifest.json') || !names.has('fix.patch')) {
     throw new ApplyRefusal('the artifact has no patch and manifest')
   }
   const manifest = JSON.parse(
@@ -195,7 +217,11 @@ export async function applyProposal(input) {
         `HEAD:refs/heads/${headRef}`,
         `--force-with-lease=refs/heads/${headRef}:${manifest.headSha}`,
       ],
-      { auth: { kind: 'push', token: input.githubToken }, withinMs: ACTION_PUSH_MS },
+      {
+        auth: { kind: 'push', token: input.githubToken },
+        protocol: remoteProtocol(remote),
+        withinMs: ACTION_PUSH_MS,
+      },
     ),
     'push',
   )

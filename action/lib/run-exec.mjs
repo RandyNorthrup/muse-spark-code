@@ -9,7 +9,8 @@
 
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { renameSync, rmSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -29,12 +30,14 @@ import {
   ACTION_SCAN_STDOUT_MAX_BYTES,
   ACTION_STDERR_MAX_BYTES,
   ActionStopError,
+  BoundError,
   childEnvironment,
   createLauncherOwner,
   isEntry,
   outcomeCode,
   redactLiterals,
   signalExitCode,
+  withinBound,
 } from './lifecycle.mjs'
 import { extractResult } from './result.mjs'
 import {
@@ -214,17 +217,36 @@ async function publishPatch({ owner, paths, staged, bytes, identity }) {
       flag: 'wx',
       mode: PRIVATE_FILE,
     })
+    // Checked, then both moved synchronously (RVM80CD P2-2): no move outlives
+    // a stop, and neither file is published without the other.
+    refuseUnlessAllowed(owner)
     try {
-      refuseUnlessAllowed(owner)
-      await rename(paths.staging, paths.patch)
-      refuseUnlessAllowed(owner)
-      await rename(paths.manifestTmp, paths.manifest)
+      renameSync(paths.staging, paths.patch)
+      renameSync(paths.manifestTmp, paths.manifest)
     } catch (error) {
-      await rm(paths.patch, { force: true })
-      await rm(paths.manifest, { force: true })
+      revokePatch(paths)
       throw error
     }
   })
+}
+
+function revokePatch(paths) {
+  rmSync(paths.patch, { force: true })
+  rmSync(paths.manifest, { force: true })
+}
+
+/**
+ * A stopped or failed wrapper publishes nothing (SPEC §6.1 step 8, RVM80CD
+ * P2-2): whatever reached out/ before the stop is removed, synchronously, and
+ * the report no longer offers a result. Ordinary exec failures keep theirs.
+ */
+function revokeIfStopped(report, owner, paths) {
+  if (!owner.stopped && !report.wrapperFailed) return
+  rmSync(paths.result, { force: true })
+  rmSync(paths.events, { force: true })
+  revokePatch(paths)
+  report.result = null
+  report.patchPublished = false
 }
 
 /** The withholding reason for a run that stopped before the patch was decided. */
@@ -316,6 +338,7 @@ export async function runProposal(input) {
     }
   }
   if (report.execCode === 0 && report.result === null) report.wrapperFailed = true
+  revokeIfStopped(report, owner, paths)
   return report
 }
 
@@ -379,7 +402,8 @@ function summaryFor(report, outputs) {
 
 async function run(env, held) {
   const paths = actionPaths(invocationFromEnv(env), env.MUSE_CHECKOUT ?? '')
-  const inputs = await readActionInputs(paths)
+  // Read before the owner exists (its total depends on the inputs): bounded on its own.
+  const inputs = await withinBound(readActionInputs(paths), ACTION_INPUT_MS, 'reading the inputs')
   const node = env.MUSE_NODE ?? ''
   const owner = createLauncherOwner({
     paths,
@@ -426,10 +450,17 @@ async function run(env, held) {
   } finally {
     await owner.cleanup()
   }
+  // A stop that landed after runProposal returned still withholds everything.
+  revokeIfStopped(report, owner, paths)
   const outputs = outputsFor(report, owner, paths)
-  await writeOutputs(env.GITHUB_OUTPUT, outputs)
+  // The owner is gone; each final write keeps its own publication bound (RVM80CD P2-5).
+  await withinBound(writeOutputs(env.GITHUB_OUTPUT, outputs), ACTION_PUBLISH_MS, 'the step outputs')
   if (env.GITHUB_STEP_SUMMARY) {
-    await writeFile(env.GITHUB_STEP_SUMMARY, summaryFor(report, outputs), { flag: 'a' })
+    await withinBound(
+      writeFile(env.GITHUB_STEP_SUMMARY, summaryFor(report, outputs), { flag: 'a' }),
+      ACTION_PUBLISH_MS,
+      'the step summary',
+    )
   }
   if (owner.cleanupFailed) {
     process.stderr.write(
@@ -450,9 +481,17 @@ async function main() {
   try {
     process.exitCode = await run(process.env, held)
   } catch (error) {
-    const message = error instanceof InputError ? error.message : 'the run failed'
+    const message =
+      error instanceof InputError || error instanceof BoundError ? error.message : 'the run failed'
     process.stderr.write(`::error::${message}\n`)
     process.exitCode = 1
+    if (error instanceof BoundError) {
+      held.key = undefined
+      // A stuck step file operation holds a libuv worker that process.exit
+      // would wait for at teardown; the wrapper ends itself instead, as exec
+      // does on Windows (PLAN.md M80Bw). The runner records a failed step.
+      process.kill(process.pid, 'SIGKILL')
+    }
   } finally {
     held.key = undefined
   }

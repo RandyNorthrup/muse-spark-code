@@ -12,10 +12,18 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   ActionStopError,
+  ACTION_PUBLISH_MS,
   ACTION_STOP_GRACE_MS,
   ACTION_KILL_AFTER_MS,
 } from '../../action/lib/lifecycle.mjs'
-import { extractResult, isExecResult, parseEventsText } from '../../action/lib/result.mjs'
+import {
+  extractResult,
+  isExecEvent,
+  isExecResult,
+  parseEventsText,
+  PROHIBITED_UPDATE,
+  RAW_TOOL_FIELDS,
+} from '../../action/lib/result.mjs'
 import {
   exitCodeFor,
   INVALID_KEY_MESSAGE,
@@ -28,8 +36,10 @@ import {
   statusFor,
   takeModelApiKey,
 } from '../../action/lib/run-exec.mjs'
-import { validateResult } from '../../src/runtime/exec/execProtocol'
+import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
 import {
+  EXEC_PROHIBITED_UPDATE_PATTERN,
+  EXEC_RAW_TOOL_FIELDS,
   EXEC_STOP_GRACE_MS,
   MODEL_API_KEY_PATTERN as SOURCE_KEY_PATTERN,
 } from '../../src/shared/constants'
@@ -85,7 +95,9 @@ async function terminatedAfterExec(run: PreparedRun, running: Promise<ActionRunR
   const report = await running
   await run.test.owner.cleanup()
   expect(report).toMatchObject({ execCode: 0, patchWithheld: 'cancelled', patchPublished: false })
-  expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
+  // RVM80CD P2-2: a stopped wrapper publishes nothing, not even the result.
+  expect(outFiles(run)).toEqual([])
+  expect(report.result).toBeNull()
   expect(exitCodeFor(report, run.test.owner)).toBe(143)
 }
 
@@ -245,6 +257,133 @@ describe('G21 result extraction', () => {
     }
   })
 
+  it('mirrors the lane A event schema on every variant, valid and invalid (parity, RVM80CD P2-3)', () => {
+    const base = resultRecord()
+    const last = base.ledger!.lastResponse!
+    const totals = {
+      capUsd: 1,
+      settledUsd: 0.000002,
+      uncertainUsd: 0,
+      reservedUsd: 0,
+      remainingUsd: 0.999998,
+      requests: 1,
+      tokens: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 0 },
+      paid: base.usage.paid,
+      breach: false,
+      refusal: null,
+      lastResponse: last,
+    }
+    const limits = { budgetUsd: 1, maxRequests: 30, timeoutSeconds: 1800 }
+    const valid: Record<string, unknown>[] = [
+      {
+        type: 'start',
+        agent: { name: 'muse-spark-code-acp', version: '0.10.1' },
+        backend: 'modelApi',
+        mode: 'plan',
+        model: 'muse-spark-1.3-contributor',
+        effort: null,
+        sessionId: 's',
+        ephemeral: true,
+        paidFeatures: [],
+        limits,
+      },
+      { type: 'update', update: { sessionUpdate: 'plan', entries: [{ content: 'x' }] } },
+      { type: 'update', update: { sessionUpdate: 'future_non_tool', meta: { deep: [1, 'a'] } } },
+      { type: 'tool', name: 'read_file', status: 'completed', durationMs: 3 },
+      { type: 'message', itemId: 'm', kind: 'agentMessage', text: 'hi', complete: true },
+      { type: 'permission_denied', toolCallId: 't', title: 'Write', kind: 'edit', paths: ['a'] },
+      { type: 'question_declined', count: 1 },
+      {
+        type: 'attempt',
+        n: 1,
+        endpoint: 'responses',
+        phase: 'settled',
+        maxOutputTokens: 32_768,
+        reservedUsd: 0.108135,
+        outcome: 'priced',
+        chargedUsd: 0.000002,
+        terminal: 'completed',
+        totals,
+      },
+      {
+        type: 'attempt',
+        n: 2,
+        endpoint: 'images.generations',
+        phase: 'admitted',
+        reservedUsd: 0.01,
+        totals,
+      },
+      {
+        type: 'paid_use',
+        feature: 'imageGeneration',
+        n: 1,
+        phase: 'returned',
+        units: 1,
+        usd: 0.01,
+      },
+      {
+        type: 'paid_use',
+        feature: 'imageGeneration',
+        n: null,
+        phase: 'refused',
+        units: 1,
+        usd: 0,
+        reason: 'x',
+      },
+      { type: 'limit', limit: 'budget' },
+      { type: 'signal', signal: 'SIGTERM' },
+      { type: 'result', result: base },
+    ]
+    const invalid: Record<string, unknown>[] = [
+      { type: 'tool', rawOutput: 'UNVALIDATED TOOL CONTENT' },
+      { type: 'tool', name: 'read_file', status: 'completed', durationMs: 3, rawOutput: 'x' },
+      { type: 'tool', name: 'read_file', status: 'completed', durationMs: -1 },
+      { type: 'update', update: { sessionUpdate: 'agent_message_chunk', content: { text: 'x' } } },
+      { type: 'update', update: { sessionUpdate: 'tool_call_update' } },
+      { type: 'update', update: { sessionUpdate: 'x', nested: { rawOutput: 'x' } } },
+      { type: 'update', update: { sessionUpdate: 'x', list: [{ toolCallId: '1' }] } },
+      { type: 'update', update: { sessionUpdate: 'x', deep: { sessionUpdate: 'tool_call' } } },
+      { type: 'update', update: [] },
+      { type: 'message', itemId: 'm', kind: 'thought', text: 'hi', complete: true },
+      { type: 'permission_denied', toolCallId: 't', title: 'W', kind: 'edit', paths: ['/abs'] },
+      { type: 'question_declined', count: 1.5 },
+      { type: 'attempt', n: 0, endpoint: 'responses', phase: 'admitted', reservedUsd: 0.1, totals },
+      { type: 'attempt', n: 1, endpoint: 'count', phase: 'admitted', reservedUsd: 0.1, totals },
+      {
+        type: 'attempt',
+        n: 1,
+        endpoint: 'responses',
+        phase: 'admitted',
+        reservedUsd: 0.1,
+        totals: { ...totals, remainingUsd: 0.5 },
+      },
+      { type: 'paid_use', feature: 'webSearch', n: 1, phase: 'returned', units: 1, usd: 0.01 },
+      { type: 'limit', limit: 'tokens' },
+      { type: 'signal', signal: 'SIGKILL' },
+      { type: 'start', agent: { name: 'a', version: 'b' } },
+      { type: 'chunk' },
+    ]
+    const event = (body: Record<string, unknown>) => ({
+      v: 1,
+      seq: 1,
+      time: '2026-10-02T00:00:00.000Z',
+      ...body,
+    })
+    for (const [index, body] of valid.entries()) {
+      expect(execEventSchema.safeParse(event(body)).success, `valid ${String(index)}`).toBe(true)
+      expect(isExecEvent(event(body)), `valid ${String(index)}`).toBe(true)
+    }
+    for (const [index, body] of invalid.entries()) {
+      expect(execEventSchema.safeParse(event(body)).success, `invalid ${String(index)}`).toBe(false)
+      expect(isExecEvent(event(body)), `invalid ${String(index)}`).toBe(false)
+    }
+    expect(isExecEvent({ ...event(valid[3]!), seq: 0 })).toBe(false)
+    expect(PROHIBITED_UPDATE.source).toBe(EXEC_PROHIBITED_UPDATE_PATTERN)
+    expect(RAW_TOOL_FIELDS).toEqual(EXEC_RAW_TOOL_FIELDS)
+    const leaked = envelope(1, { type: 'tool', rawOutput: 'UNVALIDATED TOOL CONTENT' })
+    expect(parseEventsText(`${leaked}\n${resultLine(2)}\n`)).toBeUndefined()
+  })
+
   describe('extractResult', PROCESS_SUITE, () => {
     let layout: TempLayout
     beforeEach(() => {
@@ -270,6 +409,18 @@ describe('G21 result extraction', () => {
       await run.test.owner.cleanup()
     })
 
+    it('an extraction abandoned by a stop publishes nothing when it resumes (RVM80CD P2-2)', async () => {
+      const run = await preparedRun(layout, { mode: 'review' })
+      writeFileSync(run.paths.eventsTmp, `${resultLine(1)}\n`)
+      const extracting = extractResult({ owner: run.test.owner, paths: run.paths, execCode: 0 })
+      run.test.send('SIGTERM')
+      await expect(extracting).rejects.toBeInstanceOf(ActionStopError)
+      // The phase returned at once; its operation keeps going in the background.
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      expect(outFiles(run)).toEqual([])
+      await run.test.owner.cleanup()
+    })
+
     it('publishes nothing once the owner has stopped', async () => {
       const run = await preparedRun(layout, { mode: 'review' })
       writeFileSync(run.paths.eventsTmp, `${resultLine(1)}\n`)
@@ -281,6 +432,50 @@ describe('G21 result extraction', () => {
       await run.test.owner.cleanup()
     })
   })
+})
+
+describe('the entry after cleanup (RVM80CD P2-5)', PROCESS_SUITE, () => {
+  let layout: TempLayout
+  beforeEach(() => {
+    layout = tempLayout()
+  })
+  afterEach(() => {
+    layout.cleanup()
+  })
+
+  it.runIf(isPosix)(
+    'a step output file that never opens cannot hold the step past its publication bound',
+    async () => {
+      const run = await preparedRun(layout, { mode: 'review' })
+      const fifo = path.join(layout.root, 'github-output')
+      expect(spawnSync('mkfifo', [fifo]).status).toBe(0)
+      const started = Date.now()
+      const entry = spawnSync(NODE, [path.join(ACTION_DIR, 'lib', 'run-exec.mjs')], {
+        env: {
+          PATH: process.env['PATH'],
+          MUSE_SPARK_MODEL_API_KEY: TEST_KEY,
+          MUSE_INVOCATION: run.paths.invocation,
+          MUSE_CHECKOUT: run.paths.checkout,
+          MUSE_NODE: NODE,
+          MUSE_GIT: run.input.git,
+          MUSE_AGENT_JS: run.input.agentJs,
+          RUNNER_TEMP: layout.runnerTemp,
+          GITHUB_WORKSPACE: layout.workspace,
+          GITHUB_OUTPUT: fifo,
+          GITHUB_RUN_ID: '4242',
+          GITHUB_RUN_ATTEMPT: '1',
+        },
+        encoding: 'utf8',
+        timeout: ACTION_PUBLISH_MS + 20_000,
+      })
+      // process.exit would wait at teardown for the worker stuck opening the
+      // FIFO; the wrapper ends itself with SIGKILL after its error line.
+      expect(entry.signal, entry.stderr).toBe('SIGKILL')
+      expect(entry.stderr).toContain('::error::the step outputs did not finish in time')
+      expect(entry.stderr).not.toContain(TEST_KEY)
+      expect(Date.now() - started).toBeLessThan(ACTION_PUBLISH_MS + 15_000)
+    },
+  )
 })
 
 describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
@@ -530,7 +725,9 @@ describe('the owner run (G18, G20, G24)', PROCESS_SUITE, () => {
     const report = await runProposal({ ...run.input, owner: watched })
     await owner.cleanup()
     expect(report.patchWithheld).toBe('cancelled')
-    expect(outFiles(run)).toEqual(['events.jsonl', 'result.json'])
+    // RVM80CD P2-2: the cancelled wrapper withholds the result and events too.
+    expect(outFiles(run)).toEqual([])
+    expect(report.result).toBeNull()
     expect(statusFor(report, owner)).toBe('cancelled')
     expect(exitCodeFor(report, owner)).toBe(143)
   })

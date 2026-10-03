@@ -71,6 +71,35 @@ export function outcomeCode(outcome) {
   return outcome.code === null ? signalExitCode(outcome.signal ?? 'SIGTERM') : outcome.code
 }
 
+/** Step I/O outside the owner that did not finish within its bound (RVM80CD P2-5). */
+export class BoundError extends Error {
+  constructor(what) {
+    super(`${what} did not finish in time`)
+    this.name = 'BoundError'
+  }
+}
+
+/**
+ * `operation` settled within `withinMs`, or a BoundError: for the step's own
+ * input read before the owner exists and its outputs after cleanup. A stuck
+ * file operation cannot hold the step open.
+ */
+export async function withinBound(operation, withinMs, what) {
+  let timer
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reject(new BoundError(what))
+        }, withinMs)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** A latched stop refuses every later phase and child. */
 export class ActionStopError extends Error {
   constructor(stop) {

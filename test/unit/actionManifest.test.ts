@@ -270,7 +270,7 @@ describe('the main manifest (G17)', () => {
     }
     expect(step(main, 'gate').condition).toBeUndefined()
     expect(step(main, 'upload').condition).toBe(
-      `always() && ${ALLOWED} && inputs.upload-artifacts == 'true'`,
+      `always() && ${ALLOWED} && inputs.upload-artifacts == 'true' && steps.run.outputs.status != '' && steps.run.outputs.status != 'unknown' && steps.run.outputs.status != 'cancelled'`,
     )
     expect(step(main, 'post').condition).toBe(
       `${ALLOWED} && steps.run.outputs.status == 'completed' && inputs.post-comment == 'true'`,
