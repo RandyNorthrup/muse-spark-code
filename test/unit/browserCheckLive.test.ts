@@ -11,8 +11,7 @@
 // elsewhere, saying why in its name. No model is called.
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { createServer as createTcpServer, type Server, type Socket } from 'node:net'
-import { networkInterfaces } from 'node:os'
+import { createServer as createTcpServer } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   type BrowserCheckRequest,
@@ -25,6 +24,7 @@ import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import manifest from '../../src/host/browser/runtime/browserRuntime.json'
 import { prepareRuntime } from '../../src/host/browser/runtime/runtimeStore'
 import { processesNaming, tcpListenersOf } from './helpers/browserProcesses'
+import { LiveServers, OWN_ADDRESS } from './helpers/liveBrowser'
 
 const STORAGE = process.env['MUSE_TEST_BROWSER_STORAGE']
 const SUITE =
@@ -32,9 +32,7 @@ const SUITE =
     ? 'the browser check on the pinned runtime (skipped: MUSE_TEST_BROWSER_STORAGE names no installed runtime here)'
     : 'the browser check on the pinned runtime'
 // This machine's own address on its network: a page must never reach it.
-const OUTSIDE_ADDRESS = Object.values(networkInterfaces())
-  .flat()
-  .find((entry) => entry?.family === 'IPv4' && !entry.internal)?.address
+const OUTSIDE_ADDRESS = OWN_ADDRESS
 const FIXTURE = readFileSync(new URL('../fixtures/browser-check.html', import.meta.url), 'utf8')
 const LIVE_TIMEOUT_MS = 120_000
 const SLOW_MS = 4000
@@ -50,8 +48,7 @@ const live = {
   outsideConnections: 0,
   authorizations: 0,
 }
-const sockets = new Set<Socket>()
-const servers: Server[] = []
+const servers = new LiveServers()
 
 function html(response: ServerResponse, body: string): void {
   response.writeHead(200, { 'content-type': 'text/html' }).end(body)
@@ -156,22 +153,6 @@ function serve(request: IncomingMessage, response: ServerResponse): void {
       response.writeHead(404).end()
     }
   }
-}
-
-async function listen(server: Server, host: string): Promise<string> {
-  servers.push(server)
-  server.on('connection', (socket: Socket) => {
-    sockets.add(socket)
-    socket.on('close', () => sockets.delete(socket))
-  })
-  await new Promise<void>((resolve) => {
-    server.listen(0, host, resolve)
-  })
-  const address = server.address()
-  if (address === null || typeof address === 'string') {
-    throw new Error('no address')
-  }
-  return String(address.port)
 }
 
 interface Watched {
@@ -284,7 +265,7 @@ function report(result: BrowserCheckResult) {
 
 describe.skipIf(STORAGE === undefined)(SUITE, () => {
   beforeAll(async () => {
-    live.pagePort = await listen(createServer(serve), '127.0.0.1')
+    live.pagePort = String(await servers.listen(createServer(serve), '127.0.0.1'))
     live.page = `127.0.0.1:${live.pagePort}`
     if (OUTSIDE_ADDRESS === undefined) {
       return
@@ -293,22 +274,12 @@ describe.skipIf(STORAGE === undefined)(SUITE, () => {
       live.outsideConnections += 1
       socket.end('HTTP/1.1 200 OK\r\ncontent-length: 6\r\n\r\nsecret')
     })
-    live.outsidePort = await listen(counter, OUTSIDE_ADDRESS)
+    live.outsidePort = String(await servers.listen(counter, OUTSIDE_ADDRESS))
     live.outside = `${OUTSIDE_ADDRESS}:${live.outsidePort}`
   })
 
   afterAll(async () => {
-    for (const socket of sockets) {
-      socket.destroy()
-    }
-    await Promise.all(
-      servers.map(
-        (server) =>
-          new Promise((resolve) => {
-            server.close(resolve)
-          }),
-      ),
-    )
+    await servers.closeAll()
   })
 
   it(

@@ -448,6 +448,8 @@ describe('the browser check’s proxy (M81 A1)', () => {
     expect(seen[0]?.forwarded).toBe(true)
 
     const held: Socket = connect(port, '127.0.0.1')
+    // The proxy's close resets it (ECONNRESET on macOS): that is the point.
+    held.on('error', () => undefined)
     await new Promise((resolve) => held.once('connect', resolve))
     const gone = new Promise((resolve) => held.once('close', resolve))
     await proxy.close()

@@ -64,6 +64,15 @@ export async function processesNaming(text: string): Promise<number[]> {
   return found
 }
 
+/** `pid ppid command` lines, as Windows PowerShell and `ps` print them. */
+function processRows(stdout: string): { pid: number; ppid: number; command: string }[] {
+  return stdout
+    .split(/\r?\n/)
+    .map((line) => /^(\d+)\s+(\d+)\s?(.*)$/.exec(line.trim()))
+    .filter((match) => match !== null)
+    .map((match) => ({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] ?? '' }))
+}
+
 /** The processes whose parent is one of `parents` and whose command line contains `text`. */
 export async function childrenNaming(parents: readonly number[], text: string): Promise<number[]> {
   const parentSet = new Set(parents)
@@ -72,20 +81,10 @@ export async function childrenNaming(parents: readonly number[], text: string): 
     const stdout = await powerShell(
       'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CommandLine)" }',
     )
-    for (const line of stdout.split(/\r?\n/)) {
-      const match = /^(\d+)\s+(\d+)\s?(.*)$/.exec(line.trim())
-      if (match !== null) {
-        table.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] ?? '' })
-      }
-    }
+    table.push(...processRows(stdout))
   } else if (process.platform === 'darwin') {
     const { stdout } = await run('ps', ['-axww', '-o', 'pid=,ppid=,command='])
-    for (const line of stdout.split('\n')) {
-      const match = /^(\d+)\s+(\d+)\s?(.*)$/.exec(line.trim())
-      if (match !== null) {
-        table.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] ?? '' })
-      }
-    }
+    table.push(...processRows(stdout))
   } else {
     const entries = await readdir('/proc')
     for (const entry of entries) {

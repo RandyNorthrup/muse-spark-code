@@ -82,6 +82,7 @@ setInterval(() => {
   if (n % 3 === 0) document.getElementById('f').src = '/auth-frame-' + n
   fetch('http://c1-' + n + '.invalid/x', { mode: 'no-cors' }).catch(() => {})
   fetch('https://c3-' + n + '.invalid/x', { mode: 'no-cors' }).catch(() => {})
+  // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket -- canary C2's attempt in the restart capture: a plain ws:// to a reserved .invalid name that must arrive refused at the check's own proxy; nothing is ever sent over it (PLAN.md §8).
   try { new WebSocket('ws://c2-' + n + '.invalid/w') } catch {}
   try { new WebSocket('wss://c2s-' + n + '.invalid/w') } catch {}
 }, ${String(PAGE_EVERY_MS)})

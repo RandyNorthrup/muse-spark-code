@@ -159,7 +159,9 @@ describe('the runtime store (M81 A1)', () => {
       runtime: {
         version: '154.0.8037.92',
         platform: 'linux64',
-        executable: path.join(realpathSync(finalDir(dir)), ...EXECUTABLE.split('/')),
+        // The store resolves with fs.promises.realpath, the native resolver:
+        // on Windows it gives the folder's letter case as it is on disk.
+        executable: path.join(realpathSync.native(finalDir(dir)), ...EXECUTABLE.split('/')),
         manifestDigest: expect.stringMatching(/^[\da-f]{64}$/),
         executableDigest: sha256(SHELL),
         executableBytes: SHELL.length,
