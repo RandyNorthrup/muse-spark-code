@@ -149,7 +149,8 @@ function AttemptRow({
             {UI_TEXT.bestOfNTake}
           </button>
         ) : null}
-        {attempt.status === 'queued' ? null : (
+        {/* Only a folder `git worktree add` made can open (an early cancel has none). */}
+        {attempt.status === 'queued' || attempt.hasWorktree !== true ? null : (
           <button
             type="button"
             className="button-secondary"

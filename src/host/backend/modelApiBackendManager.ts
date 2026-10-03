@@ -32,7 +32,13 @@ import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
-import { MODEL_API_BASE_URL, type PromptCacheRetention, UI_TEXT } from '../../shared/constants'
+import { unstartedShell } from '../../core/shellResult'
+import {
+  MODEL_API_BASE_URL,
+  MODEL_TEXT,
+  type PromptCacheRetention,
+  UI_TEXT,
+} from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
@@ -321,7 +327,11 @@ export class ModelApiBackendManager {
    * own conversations, confined to it. No durable sessions, no schedules, no
    * MCP servers, no hooks, no memory and no paid tools: an attempt's billed
    * surface is exactly the run's quoted token rates, and nothing in it can
-   * open the paid-use popup. Closed by the run when the attempt settles.
+   * open the paid-use popup. No shell either, so no configured checks: a
+   * command's working folder confines nothing, and in Bypass or under a
+   * standing rule a command (or a check running files the model wrote)
+   * could change the main checkout (the review of PR #89). Closed by the
+   * run when the attempt settles.
    */
   public async buildAttemptHost(
     worktreeRoot: string,
@@ -335,7 +345,9 @@ export class ModelApiBackendManager {
       throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
     }
     const generation = this.generation
-    const verify = this.deps.createAttemptVerify?.(worktreeRoot)
+    const attemptVerify = this.deps.createAttemptVerify?.(worktreeRoot)
+    const verify =
+      attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
     try {
       return await this.createHost({
         verify,
@@ -346,7 +358,11 @@ export class ModelApiBackendManager {
         webFetch: undefined,
         codeIntel: undefined,
         isRepoMapInPrompt: undefined,
-        io: { ...this.deps.io, listFiles: () => this.deps.listAttemptFiles(worktreeRoot) },
+        io: {
+          ...this.deps.io,
+          listFiles: () => this.deps.listAttemptFiles(worktreeRoot),
+          runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
+        },
         noteResponseUsage: (modelId, usage) => {
           if (generation === this.generation) noteUsage?.(modelId, usage)
         },

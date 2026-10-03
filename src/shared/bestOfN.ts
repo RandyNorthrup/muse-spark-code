@@ -34,6 +34,8 @@ export const bestOfNAttemptSchema = z.object({
   attemptId: z.string(),
   branch: z.string(),
   worktreePath: z.string(),
+  /** True once `git worktree add` made the folder and until a failed start removed it. */
+  hasWorktree: z.optional(z.boolean()),
   sessionId: z.optional(z.string()),
   status: z.enum(BEST_OF_N_ATTEMPT_STATUSES),
   /** Completed model requests; the run cancels the attempt past its ceiling. */

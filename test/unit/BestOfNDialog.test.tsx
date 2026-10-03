@@ -164,6 +164,27 @@ describe('BestOfNDialog', () => {
     expect(screen.queryByLabelText('Prompt')).toBeNull()
   })
 
+  it('offers Open only for an attempt whose worktree was made', () => {
+    const props = renderDialog({
+      run: runWith({
+        status: 'cancelled',
+        runAttempts: [
+          // Declined consent or a failed setup cancels attempts before `git worktree add`.
+          attempt({ attemptId: '0', status: 'cancelled' }),
+          attempt({ attemptId: '1', status: 'failed', failureReason: 'no host' }),
+          attempt({ attemptId: '2', status: 'cancelled', hasWorktree: false }),
+          attempt({ attemptId: '3', status: 'cancelled', hasWorktree: true }),
+        ],
+      }),
+    })
+    const opens = screen.getAllByRole('button', { name: /^Open in New Window:/ })
+    expect(opens.map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Open in New Window: best-of-n/bon-1/3',
+    ])
+    fireEvent.click(opens[0]!)
+    expect(props.onOpen).toHaveBeenCalledWith('3')
+  })
+
   it('marks the taken branch and closes with Escape', () => {
     const props = renderDialog({
       run: runWith({ status: 'completed', takenBranch: 'best-of-n/bon-1/0' }),

@@ -12,7 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
-  denials, and malformed profiles deny access. Reviewer consent binds account,
+  denials, and malformed profiles deny access. Files a profile hides spend
+  none of the repo map's 1,000-file cap: it reads on to readable files.
+  Reviewer consent binds account,
   model, turn and policy, uses its own M82 claim, and falls back to asking on
   failure or its circuit breaker. It cannot allow a forbid, an ask rule,
   a protected write or another paid call. Attempt editors stay rooted in their
@@ -38,7 +40,6 @@ happened, not what was planned; superseded entries are kept.
   - **Automatic checks respect revoked file access.** A verification round keeps
     the original edited-file policy fence even after denied files are filtered
     out of lookup. It withholds diagnostics and refuses checks after revocation.
-
 - **Awareness and budgets** (M82, PLAN.md D49).
   - While the VS Code window is unfocused, a VS Code notification says when
     a turn of a minute or more ends, or a turn waits for your approval or
@@ -104,9 +105,9 @@ happened, not what was planned; superseded entries are kept.
     journal, with its original consent account/context fenced before every
     send. A later finite cap stops authentication, audio and end sends;
     unshared window usage remains an estimate.
-
 - **Session board and best-of-N** (M77, PLAN.md D49). The header's board
-  button lists every conversation in the window, on either backend, with its
+  button lists every conversation open in the window, on either backend, and
+  the saved conversations of the backend the window runs on, with its
   state, branch, changed files and waiting approvals; typing filters and
   Enter resumes. The board queries the known worktree roots and includes the
   attempts of a running best-of-N. Its git reads run as the prompt's git
@@ -118,7 +119,10 @@ happened, not what was planned; superseded entries are kept.
     prompt, the published token rates, the attempt count and the per-attempt
     request ceiling, and the subscription never pays. Each attempt works on
     its own `best-of-n/<run>/<index>` branch; attempts that would ask are
-    declined and counted. Needs a trusted workspace with a folder open. The
+    declined and counted. Attempts run no shell command and no configured
+    check, in any mode, Bypass included: a working folder confines no
+    process. **Open** appears only for an attempt whose worktree was made.
+    Needs a trusted workspace with a folder open. The
     form stays open after **Start** until the run begins, so a start that is
     refused keeps its prompt and numbers beside the reason, ready to retry.
   - Successful attempts compare side by side, and **Apply and stage** takes
@@ -139,7 +143,6 @@ happened, not what was planned; superseded entries are kept.
   - A missing or damaged board/best-of-N bundle gives a translated refusal
     with reinstall guidance; its cause goes to the log. Closing the panel
     during the first best-of-N load suppresses stale failure notices.
-
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -170,7 +173,6 @@ happened, not what was planned; superseded entries are kept.
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
   disk.
-
 - **Observation packing, off by default** (M73, PLAN.md D49;
   `museSpark.modelApiObservationPacking`, machine-scoped). On the Model
   API backend, a tool output over 8,000 characters rides whole for two
@@ -206,7 +208,6 @@ happened, not what was planned; superseded entries are kept.
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
-
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -235,7 +236,6 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
   commands become skills, compatible agents become M76 agent files, project
   rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
@@ -248,7 +248,6 @@ happened, not what was planned; superseded entries are kept.
   inactive/unknown fields are dropped by name. Existing files and running
   turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
   1.8.0 in the existing lazy importer bundle. Lead certification pending.
-
 - Defer the session board and best-of-N execution to their first action, and
   Auto reviewer execution until paid consent. Each loads its own bundle with
   the installed language, retaining current policy and budget admission.
@@ -260,7 +259,6 @@ happened, not what was planned; superseded entries are kept.
 
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
-
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -269,14 +267,12 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
-
 - README: an install guide for the most used editors (VS Code, Cursor,
   Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
   Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
   settings; the README, banner and social preview now name no single editor
   ("a coding agent in your editor"), and the README links every channel:
   the VS Code Marketplace, Open VSX, npm and GitHub Releases.
-
 - The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
   2026-11-01. No fixed release exists, and `braces` reaches only development
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
@@ -291,19 +287,16 @@ happened, not what was planned; superseded entries are kept.
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
   every `latin1`, `iso-8859-1` and `us-ascii` page, which the standard reads as
   windows-1252) came out as invisible control characters there.
-
 - **The log redacts more credential shapes.** The output channel's
   redactor (`src/core/redact.ts`) also removes GitHub, GitLab, npm, Google
   API and Slack tokens, AWS access key ids and `~/.aws/credentials` lines
   (in any case), an Azure connection string's `AccountKey=`, `.npmrc`'s
   `_authToken=`, PEM private keys, `sk-` style keys and secrets named by an
   upper-case variable, a header, a JSON field or a URL parameter.
-
 - **A long dotted line no longer stalls the log.** The redactor's URL
   credentials pattern took quadratic time on a long run such as `a.b.c.…`;
   its scheme is now bounded. Text with none of the credential literals
   (most log lines) now skips the patterns in one scan.
-
 - **A conversation no longer opens while the Model API backend closes or
   after you sign out, and an overtaken side chat leaves no Plan mode.**
   Starting, resuming or forking a conversation loaded the hooks, then made
@@ -314,7 +307,6 @@ happened, not what was planned; superseded entries are kept.
   opening overtook (a second conversation opened before the first had
   loaded) still switched the panel to Plan; only the opening that lands
   sets the mode now.
-
 - **A `/goal` refused while a Model API key is activated no longer
   sticks.** While a key was being activated, with the panel still reading
   signed in, a `/goal …` from the prompt or a goal edit was refused with
@@ -328,7 +320,6 @@ happened, not what was planned; superseded entries are kept.
   panel now says it may or may not have taken effect, keeps it in the
   prompt, and reads the goal back from the backend before the
   conversation's next action, so the session goal shows where it stands.
-
 - **Implement in a fresh conversation no longer leaves the conversation
   for nothing.** When a new API key was being activated while a plan's
   Implement looked up the backend, the current conversation was left

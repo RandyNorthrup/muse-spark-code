@@ -11,6 +11,7 @@ import { fingerprint } from '../../src/core/verify/fingerprint'
 import type { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { FileDiagnostics } from '../../src/core/verify/diagnosticsReport'
 import { MODEL_TEXT } from '../../src/shared/constants'
+import { shellToolFor } from '../../src/core/backends/modelapi/tools'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
@@ -377,7 +378,7 @@ describe('production trial verification uses its own root (M77/M68)', () => {
     },
   )
 
-  it('formats and checks native trial bytes, reports trial diagnostics and leaves the parent alone', async () => {
+  it('formats native trial bytes, reports trial diagnostics, runs no check and leaves the parent alone', async () => {
     const t = await setup()
     const parentAdded = vi.spyOn(t.manager.workspaceEdits, 'add')
     const r = await trial(t)
@@ -399,7 +400,8 @@ describe('production trial verification uses its own root (M77/M68)', () => {
         fingerprint: fingerprint('const answer = 3;\n'),
       },
     ])
-    expect(t.shell.mock.calls[0]?.[1]).toBe(t.trialRoot)
+    // The configured check does not run: an attempt has no shell (the review of PR #89).
+    expect(t.shell).not.toHaveBeenCalled()
     expect(t.parentFormat).not.toHaveBeenCalled()
     expect(t.parentDiagnostics).not.toHaveBeenCalled()
     const listed = await r.host.listSessions({ workspaceRoot: t.trialRoot, limit: 1 })
@@ -548,31 +550,53 @@ describe('production trial verification uses its own root (M77/M68)', () => {
     )
   })
 
-  it('applies configured command forbids to automatic checks before hooks, cards or process entry', async () => {
+  it('runs no shell command or configured check in an attempt, even in Bypass under an allow rule', async () => {
     const t = await setup()
     t.settings.format = false
     t.settings.diagnostics = false
-    t.settings.commandRules = [
-      { pattern: ['npm', 'test'], decision: 'forbid', match: ['npm test'] },
-    ]
-    const r = await trial(t)
-    await sendTrial(r)
-    expect(t.shell).not.toHaveBeenCalled()
-    expect(
-      r.events.filter(
-        (event) => event.type === 'approvalRequested' && event.subject.kind === 'shell',
-      ),
-    ).toEqual([])
-    expect(r.events).toContainEqual(
-      expect.objectContaining({
-        type: 'itemCompleted',
-        item: expect.objectContaining({
-          tool: 'verify_edits',
-          verifySummary: expect.objectContaining({
-            checks: [{ name: 'lint', outcome: 'notRun', skip: 'refused' }],
-          }),
-        }),
-      }),
+    t.settings.commandRules = [{ pattern: ['npm', 'test'], decision: 'allow', match: ['npm test'] }]
+    const host = await t.manager.buildAttemptHost(t.trialRoot, () => undefined)
+    hosts.push(host)
+    const session = await host.startSession({
+      workspaceRoot: t.trialRoot,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const events: AgentEvent[] = []
+    session.onEvent((event) => {
+      events.push(event)
+    })
+    t.api.script(
+      {
+        calls: [
+          {
+            name: shellToolFor(process.platform).name,
+            arguments: JSON.stringify({ command: 'npm test' }),
+          },
+        ],
+      },
+      { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: 'source.ts' }) }] },
+      {
+        calls: [
+          {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: 'source.ts', content: 'const answer = 2;\n' }),
+          },
+        ],
+      },
+      { text: 'done' },
     )
+    await session.sendTurn([{ type: 'text', text: 'fix the trial' }])
+    await finishedTurn(events)
+    // The parent's adapter, the one shell that could leave the worktree, never starts.
+    expect(t.shell).not.toHaveBeenCalled()
+    expect(JSON.stringify(t.api.responseBodies())).toContain(MODEL_TEXT.shellBestOfNAttempt)
+    await expectNativeFiles(t, 'const answer = 1;\n', 'const answer = 2;\n')
+    const checks = events.flatMap((event) =>
+      event.type === 'itemCompleted' && event.item.tool === 'verify_edits'
+        ? (event.item.verifySummary?.checks ?? [])
+        : [],
+    )
+    expect(checks).toEqual([])
   })
 })

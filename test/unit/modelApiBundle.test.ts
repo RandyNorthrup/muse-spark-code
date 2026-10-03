@@ -6,7 +6,7 @@
 // classes and its localization state are copies of this file's, which is
 // what the error guards and the table handoff are for.
 
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -42,7 +42,10 @@ const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
 
 beforeAll(() => {
-  built.folder = mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-'))
+  // Node keys its module cache by real path: macOS's temporary folder is
+  // /var/folders, a link to /private/var/folders, so the cache checks below
+  // look the reviewer bundle up by the folder's real path.
+  built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-')))
   built.file = buildModelApiBundle(built.folder)
 })
 

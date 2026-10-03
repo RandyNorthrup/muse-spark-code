@@ -655,6 +655,7 @@ export class BestOfNRunner {
           undefined,
           true,
         )
+        entry.attempt = { ...entry.attempt, hasWorktree: false }
       } catch {
         this.deps.log.warn('A best-of-N worktree stayed behind after a failed start')
       }
@@ -766,6 +767,7 @@ export class BestOfNRunner {
           worktreeAddArgs(entry.attempt.worktreePath, entry.attempt.branch, run.baseRef),
           repositoryRoot,
         )
+        entry.attempt = { ...entry.attempt, hasWorktree: true }
         created.push(entry)
         this.requireCurrent(run)
         await this.deps.validateWorktree(entry.attempt.worktreePath)

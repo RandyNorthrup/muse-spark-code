@@ -412,8 +412,33 @@ describe('BestOfNRunner guards', () => {
     await expect(t.runner.start(START)).rejects.toMatchObject({ refusal: 'worktreeFailed' })
     const removes = t.gitCalls.filter((call) => call.args[1] === 'remove')
     expect(removes).toHaveLength(2)
+    // The removed folders, and the one git never made, have nothing to open.
+    expect(t.updates.at(-1)?.runAttempts.map((attempt) => attempt.hasWorktree)).toEqual([
+      false,
+      false,
+      undefined,
+    ])
     // The failed start leaves no run behind: a retry may start.
     await t.runner.start(START)
+  })
+
+  it('marks only the attempts whose worktree git made as owning one', async () => {
+    const declined = runnerWith({ allowsPaidUse: false })
+    await expect(declined.runner.start(START)).rejects.toMatchObject({
+      refusal: 'consentDeclined',
+    })
+    expect(
+      declined.updates
+        .at(-1)
+        ?.runAttempts.map((attempt) => [attempt.status, attempt.hasWorktree === true]),
+    ).toEqual([
+      ['cancelled', false],
+      ['cancelled', false],
+      ['cancelled', false],
+    ])
+    const started = runnerWith()
+    const run = await started.runner.start(START)
+    expect(run.runAttempts.map((attempt) => attempt.hasWorktree)).toEqual([true, true, true])
   })
 })
 

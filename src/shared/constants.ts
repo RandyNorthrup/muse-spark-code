@@ -2804,6 +2804,9 @@ export const MODEL_TEXT = {
   toolRefusedByMode: 'refused by the permission mode',
   shellRestrictedMode:
     'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
+  // M77: a working folder is not a confinement, so a best-of-N attempt runs no process.
+  shellBestOfNAttempt:
+    'shell commands do not run in a best-of-N attempt: nothing confines a process to its worktree; use the file tools',
   toolRejectedByUser: 'rejected by the user',
   toolRejectedByHook: 'rejected by a hook',
   // PLAN.md D26: what the model is told when Stop cuts a tool short.

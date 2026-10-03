@@ -1119,8 +1119,9 @@ Code does not send (an ask for Meta, PLAN.md M68).
 
 ## Session board and best-of-N
 
-The header's board button lists every conversation in the window, on either
-backend. Each row names its state (**Running** or **Idle**), branch, changed
+The header's board button lists every conversation open in the window, on
+either backend, and the saved conversations of the backend this window runs
+on (the ones it can resume). Each row names its state (**Running** or **Idle**), branch, changed
 files and waiting approvals, running conversations first. Type to filter,
 press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
 open their owned worktree instead: they have no saved conversation to resume.
@@ -1137,6 +1138,9 @@ Automatic worktree creation, capture and apply require Git 2.36 or newer.
 They suppress repository hooks, fsmonitor, replacement refs and automatic
 maintenance, and refuse configured filter or hook programs. File tools list
 the attempt's actual worktree, including its new and uncommitted files.
+Attempts run no shell command and no configured check, in any mode: a
+command's working folder confines nothing, so one could change your own
+checkout.
 
 Each attempt works on its own `best-of-n/<run>/<index>` branch in a folder
 beside the repository, like a worktree of your own. An attempt that would ask

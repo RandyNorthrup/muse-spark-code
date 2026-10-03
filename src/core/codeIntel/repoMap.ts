@@ -337,11 +337,20 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     return { ranked: [], notes: [MODEL_TEXT.repoMapNoFiles] }
   }
   const listed = found.toSorted((a, b) => compareText(a, b))
-  const placed = await inBatches(listed.slice(0, REPO_MAP_MAX_FILES), limits, async (path) => ({
-    path,
-    file: await query.place(path),
-  }))
-  const files = placed.flatMap((entry) => (entry.file === undefined ? [] : [entry.path]))
+  // The cap counts readable files: a file the permission profile hides
+  // spends none of it, so the scan goes on past it (the review of PR #89).
+  const files: string[] = []
+  let scanned = 0
+  while (files.length < REPO_MAP_MAX_FILES && scanned < listed.length) {
+    const pending = listed.slice(scanned, scanned + REPO_MAP_MAX_FILES - files.length)
+    const placed = await inBatches(pending, limits, async (path) => ({
+      path,
+      file: await query.place(path),
+    }))
+    scanned += placed.length
+    files.push(...placed.flatMap((entry) => (entry.file === undefined ? [] : [entry.path])))
+    if (placed.length < pending.length) break
+  }
   if (files.length === 0 && query.hasDeniedResults) throw query.policyRefusal()
   const { uses, read } = await readUses(query, files, limits)
   const names = candidates(uses)
@@ -376,7 +385,7 @@ async function buildWithin(query: CodeIntelQuery, limits: Limits): Promise<Built
     ...(looked < names.length
       ? [fill(MODEL_TEXT.repoMapPartial, { done: String(looked), total: String(names.length) })]
       : []),
-    ...(listed.length > REPO_MAP_MAX_FILES
+    ...(files.length >= REPO_MAP_MAX_FILES && scanned < listed.length
       ? [
           fill(MODEL_TEXT.repoMapFilesCapped, {
             count: String(REPO_MAP_MAX_FILES),
