@@ -44,11 +44,22 @@
     // intelligence integration test (M67); main.ts imports the rest.
     "test/fixtures/workspace/code-intel/main.ts",
     "test/hosts/*.mjs",
+    // The GitHub Action's scripts (M80): each composite step runs one by path.
+    "action/lib/*.mjs",
+    "action/apply/lib/*.mjs",
+    // The Action tests' fake agent, fake npm and Git sentinel, started by path.
+    "test/action/*.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],
 
-  "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "test/**/*.mjs", "scripts/**/*.mjs"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "test/**/*.{ts,tsx}",
+    "test/**/*.mjs",
+    "scripts/**/*.mjs",
+    "action/**/*.mjs"
+  ],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by
