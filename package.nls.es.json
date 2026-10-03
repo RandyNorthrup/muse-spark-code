@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "Abrir tutorial",
   "command.manageSkills.title": "Administrar aptitudes",
   "command.importSkills.title": "Importar aptitudes de Claude Code o Codex",
+  "command.importFromAgents.title": "Importar desde otros agentes",
   "command.exportConversation.title": "Exportar conversación",
   "command.importSession.title": "Importar sesión",
   "command.openShareFile.title": "Abrir archivo compartido",

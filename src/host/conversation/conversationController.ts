@@ -6540,6 +6540,13 @@ export class ConversationController {
     await this.updateEffort(this.effort, !this.isThinkingEnabled)
   }
 
+  /** Capture a host write's exact owner without opening a session or exposing a later replacement. */
+  public captureExternalEditOwner(
+    capture: (session: AgentSession) => WorkspaceEditRecorder | undefined,
+  ): WorkspaceEditRecorder | undefined {
+    return this.isDisposed || this.session === undefined ? undefined : capture(this.session)
+  }
+
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0

@@ -40,6 +40,7 @@
       "pdfLabel",
       "loopItem",
       "namedFilesMore",
+      "agentImportSourceCursor",
       "exportThenRunSkipped"
     ],
     "cs": [
@@ -53,7 +54,9 @@
       "agentRole",
       "agentsCount.one",
       "toolLabels.shell",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "tr": ["groupModel", "usageModel", "modelPillLabel", "exportModelLine", "usagePlan"],
     "pl": [
@@ -69,7 +72,9 @@
       "exportSubagentNoRole",
       "agentsCount.one",
       "imageBuyPrompt",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "de": [
       "groupSkills",
@@ -91,7 +96,9 @@
       "workflowChildUntitled",
       "workflowsLabel",
       "toolLabels.find_definition",
-      "toolLabels.mcp__ide__findDefinition"
+      "toolLabels.mcp__ide__findDefinition",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
     "es": [
       "usagePlan",
@@ -99,6 +106,7 @@
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
+      "agentImportKindHook",
       "verifyErrors.one"
     ],
     "pt-br": [
@@ -106,7 +114,8 @@
       "permissionModes.manual",
       "toolLabels.shell",
       "goalTokens",
-      "imageBuyPrompt"
+      "imageBuyPrompt",
+      "agentImportKindHook"
     ],
     "fr": [
       "modesTitle",
@@ -123,12 +132,20 @@
       "toolLabels.shell",
       "toolLabels.image_generation",
       "toolLabels.mcp__ide__generateImage",
-      "workflowChildUntitled"
+      "workflowChildUntitled",
+      "agentImportKindHook",
+      "agentImportKindAgent"
     ],
-    "it": ["usageAccount", "exportOutputLabel", "toolLabels.shell", "imageBuyPrompt"],
+    "it": [
+      "usageAccount",
+      "exportOutputLabel",
+      "toolLabels.shell",
+      "imageBuyPrompt",
+      "agentImportKindHook"
+    ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt"]
+    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

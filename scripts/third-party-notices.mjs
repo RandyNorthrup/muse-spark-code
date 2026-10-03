@@ -56,7 +56,7 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointStore.js,
+dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointStore.js, dist/agentImport.js,
 dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js and
 dist/webview/main.css)
