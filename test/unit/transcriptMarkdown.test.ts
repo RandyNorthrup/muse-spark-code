@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   exportFileName,
+  fenced,
   renderTranscriptMarkdown,
   type TranscriptExport,
   transcriptItemMarkdown,
@@ -177,6 +178,14 @@ describe('renderTranscriptMarkdown', () => {
     expect(render([item({ kind: 'toolCall', tool: 't', visibleOutput: longest })])).toContain(
       `${'`'.repeat(8)}\n${longest}\n${'`'.repeat(8)}`,
     )
+  })
+})
+
+describe('fenced', () => {
+  // RV83d #8: spreading every run's length into Math.max overflowed the stack.
+  it('fences a text of 128,000 backtick runs, longer than its longest', () => {
+    const text = `${'`a'.repeat(128_000)}\`\`\`\``
+    expect(fenced(text, 'json')).toBe(`\`\`\`\`\`json\n${text}\n\`\`\`\`\``)
   })
 })
 

@@ -1,4 +1,4 @@
-# M80 W (SPEC §7.5, PLAN.md D64): the GitHub Action under review, run for real
+# M80 W (SPEC §7.5, PLAN.md D65): the GitHub Action under review, run for real
 # on the three hosted runners against the fake-only test package. No model
 # key exists here: the Action gets a fabricated key, the test package's
 # launcher answers Meta's origin with a scripted fake, and nothing is spent.

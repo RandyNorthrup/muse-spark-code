@@ -66,7 +66,7 @@ them, the milestone plan, and the certification checklist.
      The agent takes every credential variable (`*_API_KEY` and the named
      ones hooks never get) out of its own environment at start, so no
      shell command, hook, git or helper it starts sees one.
-   - **The exception: headless runs in CI (M80, PLAN D64).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
+   - **The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
    - **The CLI's credential file.** The extension reads only its structure
      (`src/core/backends/musecode/credentialFile.ts`): the schema version,
      which providers are named (only `meta` speaks for the sign-in), each
@@ -114,7 +114,7 @@ them, the milestone plan, and the certification checklist.
     user's own TypeSafe key instead of the Model API key; every other part
     of this rule applies to it unchanged.
 
-- **Headless exception (M80, D64):** interactive popup policy above stays.
+- **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
   `acceptEdits`, a hard USD budget, and per-use admission/settlement tally;
   refuse before unaffordable dispatch. Protected paths and

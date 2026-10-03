@@ -1,4 +1,4 @@
-# Muse Spark Code (Unofficial): apply a proposal (M80, PLAN.md D64).
+# Muse Spark Code (Unofficial): apply a proposal (M80, PLAN.md D65).
 # prepare (contents: read, no secrets) checks the proposal artifact out and
 # applies it for the caller's own tests; push (environment muse-apply with
 # maintainer reviewers, contents: write) applies it again and pushes it to

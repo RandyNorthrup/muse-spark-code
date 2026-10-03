@@ -201,6 +201,77 @@ export const EN = {
   importConfirmAction: 'Import',
   importInvalid: 'not valid, will be skipped',
   importFailed: 'Muse Code could not import skills',
+  // Import from Claude Code, Codex and Cursor (M83, D49).
+  agentImportItem: 'Import from other agents…',
+  agentImportDetail:
+    'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor',
+  agentImportSourceTitle: 'Import from',
+  agentImportSourceAll: 'All three',
+  agentImportSourceCursor: 'Cursor',
+  agentImportPickTitle: 'What to import',
+  agentImportPickPlaceholder: 'Checked entries are previewed before anything is written',
+  // {source}: the tool picked above.
+  agentImportNothing: 'Nothing to import from {source}.',
+  agentImportUntrusted:
+    'This workspace is not trusted, so only your own files were read; grant trust to offer this project’s files.',
+  agentImportConfirm: 'Import what the preview shows?',
+  agentImportConfirmAction: 'Import',
+  agentImportNoneImportable: 'None of the checked entries can be imported; the preview says why.',
+  agentImportPersonalToProject: 'this would copy a personal file into the project',
+  agentImportIgnoredToTracked: 'this would copy a git-ignored file into a tracked file',
+  agentImportEditPrompt:
+    'Open converted entries in {path} as an unsaved edit for you to review and save? Save it only to that path, never to another file.',
+  agentImportEditAction: 'Edit and open the file',
+  agentImportDone: 'Import finished.',
+  agentImportOpenFile: 'Open the file',
+  agentImportKindMcp: 'MCP server',
+  agentImportKindHook: 'Hook',
+  agentImportKindAgent: 'Agent',
+  agentImportKindCommand: 'Command',
+  agentImportKindRules: 'Rules section',
+  agentImportUserFiles: 'your files',
+  agentImportProjectFiles: 'this project',
+  agentImportSkippedExists: 'already exists',
+  agentImportSkippedUnmapped: 'maps to no Muse Code event',
+  agentImportSkippedDuplicate: 'another checked entry goes to the same place',
+  agentImportSkippedDisabled: 'turned off where it came from',
+  agentImportSkippedUnsupported: 'uses something Muse Code does not support',
+  agentImportSkippedProjectServer:
+    'Muse Code reads MCP servers only from your own settings, so a project’s servers are not offered there',
+  agentImportSkippedUserRules: 'your own rules: Muse Code’s `/rules import` brings them in',
+  agentImportSkippedOutside: 'its source or destination is unsafe or leads outside its folder',
+  agentImportSkippedFailed: 'could not be written; the log says why',
+  agentImportSkippedUnreadable:
+    'its source or destination could not be checked, so it is left alone',
+  agentImportSkippedTooLarge: 'it would take AGENTS.md past the size Muse Code loads',
+  agentImportSkippedChanged: 'its folder changed after the preview, so it was not written',
+  // Shown when some of the other agents' files could not be read during the scan.
+  agentImportSkippedFiles: 'Some source files were skipped; the log gives counts and reasons only.',
+  // Shown when the import could not start writing at all.
+  agentImportNotApplied:
+    'Nothing was imported: the window closed, the folder changed after the preview, or the checkpoint could not be kept.',
+  // Shown when an import is asked for while another one waits for its answers.
+  agentImportBusy: 'An import is already open; answer its questions first.',
+  // Shown when the import stopped on an error nothing foresaw.
+  agentImportFailed:
+    'The import stopped on an unexpected error; what was already written stays. The log has a fixed failure reason.',
+  // Shown when the import's own code did not load (a damaged install).
+  agentImportUnavailable:
+    'The import could not be loaded, so nothing can be imported; reinstall the extension and reload the window. The log has the details.',
+  // The read-only preview document, in Markdown.
+  agentImportPreviewTitle: 'Import preview',
+  agentImportPreviewIntro:
+    'Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies. This preview lists names, scopes and targets only. Config entries open unsaved for you to review and save.',
+  // {fields}: field names, comma-separated.
+  agentImportPreviewDropped: 'not carried over: {fields}',
+  agentImportPreviewLegacyKey:
+    'The file uses the legacy `mcp_servers` key. Rename it to `mcpServers` when you add these: Muse Code loads neither when both are there.',
+  agentImportPreviewNotImported: 'Not imported',
+  // {count}: a number.
+  agentImportCountFiles: 'New files: {count}',
+  agentImportCountSections: 'Sections for AGENTS.md: {count}',
+  agentImportCountCopies: 'Entries offered in the editor: {count}',
+  agentImportCountSkipped: 'Not imported: {count}',
   exportNothing: 'There is no conversation to export yet.',
   exportFailed: 'The conversation could not be exported',
   exportSaved: 'Conversation exported to {path}',
@@ -1478,7 +1549,7 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),
-  // M80 (PLAN.md D64): the headless exec and scan-secrets commands.
+  // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
