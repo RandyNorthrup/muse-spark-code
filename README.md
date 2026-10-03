@@ -46,31 +46,41 @@ two.
 ## What's new in 0.11.0
 
 - **Recovers when Muse Code stops answering.** If Muse Code goes silent,
-  the panel says so once and stops waiting a minute per action. With
-  nothing running it restarts Muse Code by itself; during a turn, the
-  notice offers **Restart now**. **Muse Spark: Restart Muse Code** does
-  the same at any time. A message sent to a running turn is never sent
-  twice, and a conversation whose Muse Code log is damaged (a Muse Code
-  1.4.2 bug) is marked and offers a new conversation.
-- **Approvals you can't miss.** Waiting approval cards dock above the
-  message box, each approval step takes one decision, and its buttons stay
-  locked until Muse Code has applied it.
+  the panel says so once and stops waiting out each action's deadline.
+  With no turn running in the window it restarts Muse Code by itself;
+  during a turn, the notice offers **Restart now**. **Muse Spark: Restart
+  Muse Code** does the same at any time. When Muse Code does not confirm
+  that a message reached the running turn, the panel no longer sends it
+  again by itself: the send fails, keeps your text and says it may still
+  arrive. A conversation whose Muse Code log is damaged (a Muse Code 1.4.2
+  bug) is marked and offers a new conversation.
+- **Approvals you can't miss.** The oldest waiting approval docks above
+  the message box, with a count of the rest. Each approval step takes one
+  decision, and its buttons stay locked until Muse Code has applied it.
 - **Calmer notices.** A notice said again in a row shows once, with a
   count, and error notices are readable in light and dark themes.
-- **Turn checkpoints are on again.** Restore and Redo are rebuilt on the
-  model's own file writes, journaled per turn; commands and other tools
-  active in a turn are noted, never undone.
+- **Turn checkpoints are on by default** (Model API turns in a trusted
+  workspace with Git). Restore and Redo are rebuilt on the model's own file
+  writes, journaled per turn; commands and other tools active in a turn are
+  noted, never undone.
 - **Custom agents** (Model API backend): agents with their own prompt,
-  tools, model and permissions; two are built in, and yours live in
-  `.agents/agents/`. An agent can only narrow what the session may do.
-- **Handoff.** `/handoff` asks the model for a brief that you review and
-  edit before it starts a fresh conversation with the open todo items.
-- **Import from Claude Code, Codex and Cursor:** commands, agents, project
-  rules, MCP servers and hooks; MCP servers and hooks open as unsaved edits
-  for you to review.
-- **Session export, import and share** as a file, opened read-only.
-- **Observation packing** (off by default) keeps long tool output out of
-  the model's context until it asks for it.
+  tools, model and permissions. Two are built in (`explore` and
+  `second-opinion`); yours live in `.agents/agents/` in the workspace or
+  `~/.config/muse/agents/` for every workspace. An agent can only narrow
+  what the session may do.
+- **Handoff** (Model API backend): `/handoff` asks the model for a brief
+  that you review and edit before it starts a fresh conversation with the
+  open todo items.
+- **Import from Claude Code, Codex and Cursor:** commands (as skills),
+  compatible agents, project rules (appended to `AGENTS.md`) and MCP
+  servers, plus Claude Code and Codex hooks. MCP servers and hooks open as
+  unsaved edits for you to review.
+- **Session export, import and share** as a file. A shared file opens
+  read-only in the panel; an imported conversation resumes on the Model API
+  backend in Manual (or Plan).
+- **Observation packing** (off by default, Model API backend): a long tool
+  output goes to the model whole twice, then as a short placeholder it can
+  recall; the transcript always keeps all of it.
 - **Muse Code 1.4.2** support, and checksums, SBOMs and build attestations
   on the release assets.
 
