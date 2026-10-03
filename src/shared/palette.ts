@@ -53,6 +53,8 @@ export type PaletteAction =
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
   | { readonly type: 'compact' }
+  /** `/handoff …` in the prompt, for the new conversation's goal (M74). */
+  | { readonly type: 'startHandoff' }
   | { readonly type: 'manageSkills' }
   | { readonly type: 'importSkills' }
   | { readonly type: 'importFromAgents' }
@@ -528,6 +530,13 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.compactItem,
           detail: UI_TEXT.compactDetail,
           action: { type: 'compact' },
+        },
+        // A fresh conversation from this one's distilled brief (M74).
+        {
+          id: 'handoff',
+          label: UI_TEXT.handoffItem,
+          detail: UI_TEXT.handoffDetail,
+          action: { type: 'startHandoff' },
         },
         // The session goal (M45, PLAN.md D38), on both backends.
         {
