@@ -117,9 +117,7 @@ describe('loadSkills', () => {
       'project skill Bad Id skipped: the directory name is not a valid skill id',
       'project skill broken skipped: front matter is missing',
       'project skill empty skipped: SKILL.md is missing',
-      expect.stringMatching(
-        /^project skill huge skipped: SKILL\.md is \d+ bytes, over the \d+ byte limit$/,
-      ),
+      `project skill huge skipped: SKILL.md is over the ${String(SKILL_FILE_MAX_BYTES)} byte limit`,
       'project skill renamed: front matter name other-name differs from the directory; the directory name is the selector',
     ])
   })
