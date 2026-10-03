@@ -86,6 +86,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid

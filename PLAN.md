@@ -10250,6 +10250,19 @@ raised. Main's M57 took the Model API backend out of both: the extension is
 `dist/modelApi.js`, 713.2 KiB, whose budget is now 850 KiB (D6 amendments;
 `docs/certification/pr32-integration.md`).
 
+**Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
+high).** The advisory turned the dependency audit red on every branch.
+`braces` 3.0.3 and earlier overflow the stack on deeply nested brace
+patterns, and no fixed release exists. It reaches only development
+tooling: stylelint's micromatch and fast-glob, and secretlint under
+`@vscode/vsce` and `ovsx`. Nothing in the VSIX or the ACP package imports
+braces, micromatch, fast-glob or globby. Those tools expand only patterns
+from this repository's own configuration, never input from a user or a
+model. The exception lives in `.github/audit-exceptions.json`, and
+`scripts/audit.mjs` fails again once it expires. Remove it when braces
+publishes a fix (then update or override), or when npm stops reporting the
+advisory.
+
 Aggregates: `quality:gates` = format:check, lint, typecheck, check:l10n, check:host-api, deadcode, cycles, duplication, test:unit, build, security:audit; `quality` = quality:gates + test:a11y + security:secrets + security:sast; `quality:ci` = quality:gates + test:a11y + test:integration (secrets and SAST are separate CI jobs). Integration tests run only in CI or via `npm run test:integration`.
 
 The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
