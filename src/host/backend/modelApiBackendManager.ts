@@ -48,7 +48,13 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly random: () => number
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
+  /** The managed personal agent root (M76). */
+  readonly personalAgentsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
+  /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
+  readonly isConfidentialWorkspace: () => boolean
+  /** One explicit yes before a contributor-tier agent model is used (M76). */
+  readonly confirmContributorModel: (modelId: string) => Promise<boolean>
   /** Sessions between windows (PLAN.md D14); undefined without workspace storage. */
   readonly store: SessionStore | undefined
   readonly scheduleStore?: ScheduleStore | undefined
@@ -194,7 +200,10 @@ export class ModelApiBackendManager {
         now: this.deps.now,
         log: this.deps.log,
         personalSkillsRoot: this.deps.personalSkillsRoot,
+        personalAgentsRoot: this.deps.personalAgentsRoot,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
+        isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
+        confirmContributorModel: this.deps.confirmContributorModel,
         store: this.deps.store,
         scheduleStore: this.deps.scheduleStore,
         getAccountId: async () => {

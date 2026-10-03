@@ -50,7 +50,7 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   stderr) is logged in fixed words, by its kind, or by its length, never
   as sent.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
-  workspace rules, skills or memory, runs no shell commands, and the
+  workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs
   git runs, such as `core.fsmonitor`). With `museSpark.modelApiHooks` on,
   hook commands (yours, your administrator's and the project's) run only in
@@ -376,10 +376,26 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Webview.** `default-src 'none'`, a per-load script nonce, no remote
   origins, no inline styles; every message between the host and the
   webview is validated against a schema.
-- **Prompt injection.** Workspace files, rules and skills reach the model by
-  design in a trusted workspace, and so do fetched web pages (marked as
-  untrusted content); the permission modes and the approval cards are the
-  control, and the Diagnostics report and the log show what ran.
+- **Prompt injection.** Workspace files, rules, skills and custom agents
+  reach the model by design in a trusted workspace, and so do fetched web
+  pages (marked as untrusted content); the permission modes and the approval
+  cards are the control, and the Diagnostics report and the log show what ran.
+- **Custom agents (Model API backend, M76).** An `AGENT.md` is input someone
+  else may have written: it is read only up to 64 KB and only as a regular
+  file, parsed with a schema, and refused when its front matter cannot be
+  read whole (so a list or a repeated key never reads as "every tool"); its
+  fields are bounded and free of control and direction characters. It can
+  only narrow the session: its tool list binds every call, its permission
+  mode never exceeds the session's (and survives a mode switch), and a model
+  it names passes the contributor-tier checks of your own choice.
+  Contributor models are blocked in a confidential workspace
+  (`museSpark.confidentialWorkspace`); a model different from the parent's
+  asks the paid-use popup even when subagents are allowed always. The agent's
+  prompt is explicitly labelled as untrusted, with its source, below the workspace rules; in
+  an untrusted workspace no agent is offered and a project file's prompt is
+  left out of a resumed child's instructions. A model writing an agent file
+  is a protected write (`.agents/**`) and asks in every mode but Bypass.
+
 - **Imported sessions (M84).** A session-export file may come from anyone.
   Parser failures do not quote the file, and field names are scrubbed before
   bounded validation details reach notices or logs. Export scrubbing covers

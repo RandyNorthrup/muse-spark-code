@@ -7,14 +7,25 @@
 // trailing stage update (the SDK facade's #37538 note). The ledger lets one
 // card through per prompt and per stage, none once the approval closed, and
 // keeps the open ones so a surface that starts listening late sees them too.
+//
+// It also holds the decisions sent: one per stage (a second one for the
+// same stage is never sent, whichever card or surface it comes from), so a
+// Stop knows which approvals are part decided (MuseSession.cancel).
 
-import type { AgentEvent } from '../../../shared/agentEvents'
+import type { AgentEvent, RequirementRef } from '../../../shared/agentEvents'
 
 type ApprovalRequested = Extract<AgentEvent, { type: 'approvalRequested' }>
+type ApprovalUpdated = Extract<AgentEvent, { type: 'approvalUpdated' }>
 type QuestionRequested = Extract<AgentEvent, { type: 'questionRequested' }>
 
-function stageKey(requirementId: ApprovalRequested['requirementId']): string {
+function stageKey(requirementId: RequirementRef): string {
   return `${requirementId.approvalId}\u{0}${String(requirementId.sourceIndex)}`
+}
+
+/** The stage's own "Always allow" label, when the subject lists stages. */
+function prefixLabel(approval: ApprovalRequested, sourceIndex: number): string | undefined {
+  return approval.subject.stages?.find((stage) => stage.requirementId.sourceIndex === sourceIndex)
+    ?.suggestedPrefix?.label
 }
 
 export class PromptLedger {
@@ -23,6 +34,8 @@ export class PromptLedger {
   private readonly questions = new Map<string, QuestionRequested>()
   /** Approvals the host closed: on our terminal decision, or `alreadyTerminal`. */
   private readonly closed = new Set<string>()
+  /** Stages a decision was sent for (in flight or accepted), by `stageKey`. */
+  private readonly decided = new Set<string>()
 
   /** An approval request arriving: new, the next stage of one shown, or a repeat. */
   private requested(event: ApprovalRequested): AgentEvent | undefined {
@@ -47,7 +60,7 @@ export class PromptLedger {
     }
   }
 
-  private updated(event: Extract<AgentEvent, { type: 'approvalUpdated' }>): AgentEvent | undefined {
+  private updated(event: ApprovalUpdated): AgentEvent | undefined {
     if (this.closed.has(event.approvalId)) {
       return undefined
     }
@@ -63,9 +76,102 @@ export class PromptLedger {
     return event
   }
 
+  private forget(approvalId: string): void {
+    this.approvals.delete(approvalId)
+    for (const key of this.decided) {
+      if (key.startsWith(`${approvalId}\u{0}`)) {
+        this.decided.delete(key)
+      }
+    }
+  }
+
   /** The host closed this approval; any later stage for it is stale. */
   public close(approvalId: string): void {
     this.closed.add(approvalId)
+  }
+
+  public isClosed(approvalId: string): boolean {
+    return this.closed.has(approvalId)
+  }
+
+  /** An open approval as its card reads now (its current stage and choices); undefined when none. */
+  public pending(approvalId: string): ApprovalRequested | undefined {
+    return this.closed.has(approvalId) ? undefined : this.approvals.get(approvalId)
+  }
+
+  /** Whether a decision was already sent for this stage. */
+  public isDecided(requirementId: RequirementRef): boolean {
+    return this.decided.has(stageKey(requirementId))
+  }
+
+  public markDecided(requirementId: RequirementRef): void {
+    this.decided.add(stageKey(requirementId))
+  }
+
+  /** The decision did not apply (the host still waits on this stage): it may be made again. */
+  public unmarkDecided(requirementId: RequirementRef): void {
+    this.decided.delete(stageKey(requirementId))
+  }
+
+  /**
+   * The card moved to the stage a stale refusal named (MSP's
+   * `currentRequirementId`), when Muse Code announces none itself: after an
+   * "Always allow" rule, 1.4.2 can resolve the stage it shows by that rule
+   * and wait on the next one without an `approval/updated` (captured
+   * 2026-10-02). A choice tied to the old stage's rule takes the new stage's
+   * label, or goes when that stage suggests no rule. The update is admitted
+   * like the host's own (`admit`), which moves the ledger with the card.
+   */
+  public advanceTo(requirementId: RequirementRef): ApprovalUpdated | undefined {
+    const shown = this.approvals.get(requirementId.approvalId)
+    if (
+      shown === undefined ||
+      this.closed.has(requirementId.approvalId) ||
+      stageKey(shown.requirementId) === stageKey(requirementId)
+    ) {
+      return undefined
+    }
+    const oldLabel = prefixLabel(shown, shown.requirementId.sourceIndex)
+    const newLabel = prefixLabel(shown, requirementId.sourceIndex)
+    const availableChoices = shown.availableChoices.flatMap((choice) => {
+      const isStageRule =
+        oldLabel !== undefined && (choice.label === oldLabel || choice.rulePreview === oldLabel)
+      if (!isStageRule) {
+        return [choice]
+      }
+      return newLabel === undefined ? [] : [{ ...choice, label: newLabel, rulePreview: newLabel }]
+    })
+    return {
+      type: 'approvalUpdated',
+      approvalId: requirementId.approvalId,
+      requirementId,
+      subject: shown.subject,
+      availableChoices,
+    }
+  }
+
+  /**
+   * Open approvals with a stage already decided and the current one not:
+   * stopping the turn under one of them leaves Muse Code 1.4.2 unable to run
+   * the session again (the `approvalReplay` fault), so a Stop rejects them
+   * first.
+   */
+  public partlyDecided(): readonly ApprovalRequested[] {
+    const decidedApprovals = new Set<string>()
+    for (const key of this.decided) {
+      decidedApprovals.add(key.slice(0, key.indexOf('\u{0}')))
+    }
+    const waiting: ApprovalRequested[] = []
+    for (const approval of this.approvals.values()) {
+      if (
+        decidedApprovals.has(approval.approvalId) &&
+        !this.closed.has(approval.approvalId) &&
+        !this.decided.has(stageKey(approval.requirementId))
+      ) {
+        waiting.push(approval)
+      }
+    }
+    return waiting
   }
 
   /** The event to show for one arriving from the host, or undefined for a repeat. */
@@ -78,7 +184,7 @@ export class PromptLedger {
         return this.updated(event)
       }
       case 'approvalResolved': {
-        this.approvals.delete(event.approvalId)
+        this.forget(event.approvalId)
         this.closed.delete(event.approvalId)
         return event
       }

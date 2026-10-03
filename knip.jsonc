@@ -32,7 +32,7 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
-    "test/unit/**/*.test.{ts,tsx}",
+    "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.

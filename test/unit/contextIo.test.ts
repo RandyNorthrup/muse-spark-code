@@ -9,15 +9,31 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { WorkspaceContext } from '../../src/core/context/workspaceContext'
+import { AGENT_FILE_MAX_BYTES } from '../../src/shared/constants'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { encoded } from './helpers/fakeContextIo'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const paths = { workspace: '', outside: '', skills: '', personal: '' }
+const paths = {
+  workspace: '',
+  outside: '',
+  skills: '',
+  personal: '',
+  agents: '',
+  personalAgents: '',
+}
 const links: string[] = []
 
 const skillFile = (name: string) =>
   `---\nname: ${name}\ndescription: The ${name} skill\n---\n\nBody\n`
+
+const agentFile = (name: string) =>
+  `---\nname: ${name}\ndescription: The ${name} agent\n---\n\nRole of ${name}\n`
+
+async function writeAgent(directory: string, name: string): Promise<void> {
+  await mkdir(directory, { recursive: true })
+  await writeFile(path.join(directory, 'AGENT.md'), agentFile(name))
+}
 
 async function writeSkill(directory: string, name: string): Promise<void> {
   await mkdir(directory, { recursive: true })
@@ -47,6 +63,22 @@ beforeAll(async () => {
   await link(path.join(paths.workspace, 'vendor', 'kept'), path.join(paths.skills, 'kept'))
   await link(path.join(paths.outside, 'escape'), path.join(paths.skills, 'escape'))
   await link(path.join(paths.outside, 'dotfiles', 'dot'), path.join(paths.personal, 'dot'))
+  paths.agents = path.join(paths.workspace, '.agents', 'agents')
+  paths.personalAgents = path.join(paths.outside, 'home', 'agents')
+  await writeAgent(path.join(paths.agents, 'plain'), 'plain')
+  await writeAgent(path.join(paths.workspace, 'vendor', 'kept-agent'), 'kept')
+  await writeAgent(path.join(paths.outside, 'escape-agent'), 'escape')
+  await writeAgent(path.join(paths.outside, 'dotfiles', 'dot-agent'), 'dot')
+  await mkdir(path.join(paths.agents, 'dirfile', 'AGENT.md'), { recursive: true })
+  await mkdir(path.join(paths.agents, 'huge'), { recursive: true })
+  await writeFile(path.join(paths.agents, 'huge', 'AGENT.md'), Buffer.alloc(1_000_000, 0x61))
+  await mkdir(paths.personalAgents, { recursive: true })
+  await link(path.join(paths.workspace, 'vendor', 'kept-agent'), path.join(paths.agents, 'kept'))
+  await link(path.join(paths.outside, 'escape-agent'), path.join(paths.agents, 'escape'))
+  await link(
+    path.join(paths.outside, 'dotfiles', 'dot-agent'),
+    path.join(paths.personalAgents, 'dot'),
+  )
 })
 
 afterAll(async () => {
@@ -89,6 +121,8 @@ describe('fileContextIo', () => {
       workspaceRoot: paths.workspace,
       platform: process.platform,
       personalSkillsRoot: paths.personal,
+      personalAgentsRoot: paths.personalAgents,
+      hasAgents: true,
       isWorkspaceTrusted: () => true,
       loadMemory: undefined,
       warn: (message) => {
@@ -103,10 +137,40 @@ describe('fileContextIo', () => {
       'project:plain',
       'user:dot',
     ])
+    // The agents: a link that leaves the workspace, a folder where the file
+    // should be and a file over its cap are each refused by name; the personal
+    // root is the user's own and follows its link (M76).
+    expect(sections.agents.map((agent) => `${agent.source}:${agent.id}`)).toEqual([
+      'builtin:explore',
+      'builtin:second-opinion',
+      'project:kept',
+      'project:plain',
+      'user:dot',
+    ])
     expect(warnings).toEqual([
       expect.stringMatching(
         /^project skill escape skipped: SKILL\.md is refused: path .+ leads outside the workspace through a link$/,
       ),
+      expect.stringMatching(
+        /^project agent dirfile skipped: AGENT\.md could not be read: .+ is not a regular file$/,
+      ),
+      expect.stringMatching(
+        /^project agent escape skipped: AGENT\.md is refused: path .+ leads outside the workspace through a link$/,
+      ),
+      `project agent huge skipped: AGENT.md is over the ${String(AGENT_FILE_MAX_BYTES)} byte limit`,
     ])
+  })
+
+  it('reads a capped file to one byte past its cap, and only a regular file (M76)', async () => {
+    const big = path.join(paths.workspace, 'capped.bin')
+    await writeFile(big, Buffer.alloc(1000, 0x61))
+    await expect(fileContextIo.readFile(big, 10)).resolves.toHaveLength(11)
+    await expect(fileContextIo.readFile(big, 1000)).resolves.toHaveLength(1000)
+    await expect(fileContextIo.readFile(big, 5000)).resolves.toHaveLength(1000)
+    await expect(fileContextIo.readFile(big)).resolves.toHaveLength(1000)
+    await expect(fileContextIo.readFile(paths.skills, 10)).rejects.toThrow(/not a regular file/)
+    await expect(
+      fileContextIo.readFile(path.join(paths.workspace, 'none.md'), 10),
+    ).resolves.toBeUndefined()
   })
 })
