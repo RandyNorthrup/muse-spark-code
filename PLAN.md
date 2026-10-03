@@ -3903,6 +3903,55 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     window's reset) gets no timer: a timed send could only go before it
     lifts. The row says when it lifts instead.
 
+### D68 — Bundled skills: high-quality-projects in the box (M89, 2026-10-03)
+
+The owner asked to bundle his skill package
+([high-quality-projects-skill](https://github.com/RandyNorthrup/high-quality-projects-skill),
+MIT, © Randy Northrup) so every user of the extension has it. It holds three
+workflows (`project_setup`, `feature_delivery`, `quality_retrofit`) that depend
+on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
+`templates/` and references, so a skill is never shipped as a lone `SKILL.md`.
+
+- **The owner's answers (2026-10-03).** Both backends, Muse Code by opt-in;
+  on by default.
+- **A pinned, vendored release.** `vendor/high-quality-projects-skill/` holds
+  the files of one tagged release (v0.7.0 first), copied by
+  `scripts/sync-bundled-skills.mjs` from the release archive after its SHA-256
+  matches the release's `SHA256SUMS.txt`. `VENDOR.json` records the tag, the
+  archive's SHA-256 and the copied paths. Builds stay offline and
+  reproducible; nothing is downloaded at run time. A newer tag is taken by
+  rerunning the script in a PR, with its CHANGELOG entry. Only what the
+  workflows read ships: `skills/`, `scripts/` (not `build-release.ps1`),
+  `templates/`, `AGENTS.md`, `LICENSE`, `README.md` and the `docs/` pages the
+  skills cite; never `tests/`, `docs/assets/`, `docs/evaluations/` or the
+  package's own CI files. The licence is listed in `THIRD_PARTY_NOTICES.txt`.
+- **Model API backend: a third skill source.** `SKILL_SOURCES` gains
+  `bundled`, the lowest precedence: a project or personal skill with the same
+  id shadows it, so a user's own copy always wins. Its root is the vendored
+  `skills/` folder inside the installed extension, read through the same
+  bounded loader as the others. `museSpark.bundledSkills` (machine-scoped
+  boolean, default `true`) turns the source off. When the model reads a
+  bundled skill (`read_skill` or a typed `/id`), the body is preceded by one
+  line naming the package root, so the skill's `SKILL_ROOT` resolves to the
+  vendored package; its scripts still run only through the shell tool, under
+  the session's permission mode, like any other command.
+- **Muse Code backend: an explicit install.** Muse Code reads only its own
+  skill folders, so **Muse Spark: Install Bundled Skills for Muse Code** copies
+  the vendored package to `<config home>/muse/skill-sources/high-quality-projects-skill/`
+  and links each workflow into Muse Code's personal skills folder
+  (`<config home>/muse/skills/<id>`): a junction on Windows, a directory symlink
+  elsewhere, as the package's own install guide prescribes. An id that already
+  exists there is left alone and named in the result. A marker file in the
+  copied package records the installed tag, and only folders carrying it are
+  ever replaced or removed. The install is offered once (a panel notice with
+  **Install** and **Not now**, the first time a Muse Code conversation starts
+  with the setting on). When the extension ships a newer vendored tag than an
+  installed one, the panel offers **Update** once. **Muse Spark: Remove Bundled
+  Skills from Muse Code** removes exactly what the install made. Nothing is
+  written to the user's config folder without one of these actions.
+- **Requirements stay the package's.** The delivery helpers need Python 3;
+  the README says so, and a missing Python is the script's own error.
+
 ## 3. Open questions (need the owner)
 
 - **CLI recovery, the steer refusal's reason:** which `commandRejected`
@@ -12044,6 +12093,58 @@ usage window gives has never been captured (§3).
 - [ ] The four M88 answers of 2026-10-03 in §3 applied as D67 states
       them.
 - [ ] Hosted CI green on the milestone PR's exact head.
+
+### M89 — Bundled skills (D68)
+
+- **Goal.** The high-quality-projects workflows work out of the box on the
+  Model API backend and, after one click, on Muse Code.
+- **Scope.** D68: the vendored release and its sync script; the `bundled` skill
+  source and its setting; the Muse Code install, update offer and removal;
+  strings in all 14 tables; README, PRIVACY (the files the install writes),
+  CHANGELOG, this plan and `docs/certification/m89.md`.
+- **Lanes and file ownership.** One integration branch
+  (`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
+  then W. Region-owned files follow M87's lane rules (constants, styles,
+  harness).
+
+| Lane      | Owns                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Strings | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (setting and command titles)                                                                                                                                                           |
+| V Vendor  | `scripts/sync-bundled-skills.mjs`, `vendor/high-quality-projects-skill/**`, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`, `scripts/check-vsix-size.mjs` only if the budget needs it; tests `bundledSkillsVendor.test.ts` |
+| S Source  | `src/core/context/skills.ts`, `src/core/context/catalogFiles.ts` (if needed), the `bundled` constants region, the Model API `read_skill`/`/id` path; tests `skills.test.ts`                                                                                  |
+| I Install | the new `src/host/skills/bundledSkillsInstall.ts`, its command registration region in `src/extension.ts`, the controller's one-time offer; tests `bundledSkillsInstall.test.ts`                                                                              |
+| W Wiring  | `package.json` (setting, commands), README, PRIVACY, CHANGELOG, PLAN, `docs/certification/m89.md`, the full gate                                                                                                                                             |
+
+- **Acceptance.**
+  1. A fresh install on the Model API backend lists `project_setup`,
+     `feature_delivery` and `quality_retrofit` in the slash menu and the
+     model's catalogue; turning `museSpark.bundledSkills` off removes them.
+  2. A project or personal skill with one of those ids shadows the bundled one.
+  3. A bundled skill's body names the package root, and its `SKILL_ROOT`
+     resolves inside the installed extension.
+  4. The VSIX carries exactly the vendored paths in `VENDOR.json`, and the
+     sync script refuses an archive whose SHA-256 differs from `SHA256SUMS.txt`.
+  5. Install for Muse Code creates the package copy, the marker and the three
+     links; an existing same-id folder is left alone and reported; Remove
+     deletes only marked folders and links; both work on Windows (junctions),
+     macOS and Linux (symlinks).
+  6. The offer appears once; Not now is remembered; a newer vendored tag
+     offers Update once.
+  7. The VSIX stays within its D6 budget.
+- **Tests.** Unit tests for each lane (fakes, temp folders, no network), with
+  a red drill for every guard recorded in `docs/certification/m89.md`; the
+  install on all three rigs.
+- **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
+- **Security.** Vendored files are fixed at build time and checksum-verified;
+  nothing downloads at run time; the install writes only under the user's
+  Muse config home, only on a click, and only removes what it marked; links
+  never point outside the copied package.
+- **Certification checklist.**
+  - [ ] Lane 0's keys in all 14 tables.
+  - [ ] Every acceptance item above, with its test and drill.
+  - [ ] VSIX size within budget, measured.
+  - [ ] Install and remove proven on Windows, macOS and Linux.
+  - [ ] README, PRIVACY, CHANGELOG and this record updated.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
