@@ -130,8 +130,12 @@ happened, not what was planned; superseded entries are kept.
   refused with the reason; a refused `/handoff` stays in the prompt with
   its goal. While a new API key is being activated, a Start is refused
   before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
+  still works, and a deferred brief read says why and retries when sign-in
+  or key activation completes, including a read that failed while admission
+  was held. Start shares the plan actions' operation lock: either refuses
+  while the other runs. A composer send during distillation is refused,
+  keeping its exact draft and images without replacing newer typing.
+  No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
   commands become skills, compatible agents become M76 agent files, project
@@ -191,6 +195,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The host API compatibility record is regenerated from the combined source.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -199,7 +204,6 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
-- The host API compatibility record is regenerated from the combined source.
 - README: an install guide for the most used editors (VS Code, Cursor,
   Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
   Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
@@ -239,14 +243,14 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
   TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
   until typescript-eslint admits 7. The SDK is bundled into the ACP agent
   alone; no file of the extension changes.
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
 - **Approval cards are docked above the message box** while they wait,
   as in Claude Code's panel, so scrolling never loses one.
   - The tool's row in the conversation keeps a short "Waiting for your
@@ -282,6 +286,9 @@ happened, not what was planned; superseded entries are kept.
 - The Reviewer retains whole tool observations when observation packing is
   enabled, because its read-only tools cannot recall packed output. The
   next ordinary request still uses the same packed placeholder.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
@@ -326,6 +333,14 @@ happened, not what was planned; superseded entries are kept.
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
 - **A spawn that starts no child asks nothing** (Model API backend). One past
   the 64 children of a conversation, one asking for worktree isolation, or
   one reusing an earlier spawn's command id for a different task is refused

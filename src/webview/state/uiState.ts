@@ -280,6 +280,9 @@ export interface UiState {
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
+  /** The latest pending send's exact draft, restored only on a handoff refusal. */
+  readonly pendingSendDraft:
+    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -468,6 +471,7 @@ export const initialUiState: UiState = {
   childOwners: {},
   strayItems: {},
   unsentAttachments: {},
+  pendingSendDraft: undefined,
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -1861,6 +1865,7 @@ function clearedConversation(state: UiState): UiState {
     strayItems: {},
     pendingReplayTurns: {},
     unsentAttachments: {},
+    pendingSendDraft: undefined,
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2305,6 +2310,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDraft:
+          state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user'
             ? {
@@ -2386,9 +2393,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         unsent.every((chip) => chip.id !== attachment.id),
       )
       const isKept = message.attachmentsKept === true
+      // A composer send refused during handoff distillation keeps its
+      // text too. Never replace a newer draft the user already typed.
+      const pending = state.pendingSendDraft
+      const shouldRestoreDraft =
+        isKept &&
+        message.reason === UI_TEXT.handoffBusy &&
+        pending?.localId === message.localId &&
+        pending.revision === state.draftRevision
       return announce(
         {
           ...state,
+          draft: shouldRestoreDraft ? pending.text : state.draft,
+          pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2646,6 +2663,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           ...state,
           draft: '',
           draftRevision: state.draftRevision + 1,
+          pendingSendDraft: {
+            localId: action.localId,
+            text: state.draft,
+            revision: state.draftRevision + 1,
+          },
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
           attachments: [],
