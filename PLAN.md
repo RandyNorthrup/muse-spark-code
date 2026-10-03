@@ -8739,6 +8739,23 @@ evaluation is authorized by these repairs.
 
 ### M73 — Observation packing (D49)
 
+- **Follow-ups, 2026-10-02 (M73f, RV73b P3-1/P3-2).** Keep the existing
+  session schema, host and pack store. A present but invalid
+  `packedTokensAvoided` must load as absent and restart the packing ledger
+  at zero, preserving the conversation. An unknown recall id must name
+  only the last eight packed ids, plus the omitted count in English.
+  Regressions belong in `modelApiPacking.test.ts` and
+  `observationPack.test.ts`; each guard gets a byte-exact restored red
+  drill in `docs/certification/m73.md`. The lane brief limits checks to
+  owning suites, the unit type project and changed-file lint/formatting
+  on Kubuntu; full quality remains the lead's gate. Fold both behaviors
+  into the existing Unreleased Added entry, with no new setting or API.
+  Both findings are verified: 57 tests across the three owning files,
+  unit typecheck and scoped lint/formatting passed on Kubuntu. Three red
+  drills failed as intended and restored byte-exact; the results and
+  hashes are in `docs/certification/m73.md`. No lane blocker remains;
+  review and aggregate quality belong to the lead before integration.
+
 - **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
   regression and red drills (`docs/certification/m73.md`):
   - A recalled page is framed as untrusted tool data (D49 "Untrusted
