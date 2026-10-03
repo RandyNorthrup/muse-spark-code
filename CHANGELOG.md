@@ -9,63 +9,54 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **M80 integration (lanes A–D) and the W workflow:** the four lanes are
-  merged. `.github/workflows/action-check.yml` runs the composite Action on
-  Linux, macOS and Windows against a private, unsigned, fake-only test package
-  whose launcher answers only Meta's origin with a scripted fake: W-review,
-  W-text (a scanned text patch is published), W-image (the whole binary patch
-  is withheld), a below-minimum budget refused before any billable call, and
-  the gate, apply and local rehearsal suites. No key and no spend. Fixed while
-  integrating: `--help` names `scan-secrets` and no longer says the wiring is
-  pending, in all 15 tables; a legacy key's tail could survive in a network
-  error's description on stderr; exec closed stdout and exited 1 when a pipe
-  reader fell behind (EAGAIN); the Action's Git runner now refuses any Git
-  configuration a fresh repository does not carry (URL rewrites, includes,
-  ssh commands, upload-pack and credential helpers among them) and pins the
-  remote's transport; every event line is validated, not only the result; a
-  stopped wrapper publishes nothing; the step's final outputs are bounded;
-  the review comment keeps its cap with long file lists; apply refuses
-  unexpected or oversized artifact files unread. The hosted matrix and the
-  live receipts L, LA and LR are still open.
-- **M80 headless engine and CLI (lane B):** one-turn execution uses the existing
-  ACP engine in Plan or Accept edits, denying approvals and declining questions.
-  Model API calls share an integer micro-USD context-window ledger: streaming
-  pass-through preserves the client's idle watchdog; retries and uncertain
-  responses/images retain their full reservation. Latest response accounting
-  controls completion, including exit 9 for unverified accounting. Stdin keys
-  stay in memory without loading a native keyring; headless paid images require
-  their flag, edits mode and budget. Bounded file resources preserve every input
-  character, and the scanner has a process-wide deadline. Action, packaging,
-  hosted acceptance and live receipts remain with lanes C/D and the lead.
-- **M80 Windows bounded headless exit:** after bounded cleanup and output
-  grace, a forced exit terminates the owned process without waiting for a
-  blocked native pipe writer. Windows reports process exit 1 and may lose
-  buffered output; any delivered result keeps its first-stop status and logical
-  exit code. Normal drained exits and POSIX behavior retain their existing codes.
-- **M80 packaging and CI integration contract (lane D):** ACP package now
-  ships both generated event/result schemas and the headless guide. A separate
-  private fake-only test tarball preserves production stage/digest and changes
-  only the test bin; it is never released. Built-process and installed-host tests
-  cover help/refusal, stdin/store auth, scanner and POSIX cancellation when B
-  lands. Build/host workflows run these fake-only checks; npm publish alone gets
-  OIDC permission and `--provenance`.
-  The guide specifies strict same-repository CI gates, opt-in bounded images,
-  context-window streamed accounting/idle protection, conservative settlement,
-  verified npm bundle/signer identity, sanitized Git and separate test/apply jobs.
-  Tool text/incomplete prose and whole binary/image/secret-patch limitations are
-  explicit. D65/rules 8/12 name exec **and** scanner stdin readers and initial-env
-  residuals. Engine/Action integration, operational recipes and L/LA/LR remain
-  pending; this entry makes no certification or registry-support claim.
-- **M80 headless contract foundation (lane A):** independent argument parsing,
-  versioned result/event validation, text/JSON/JSONL output, bounded async fd
-  writers, cancellable stdin key/prompt readers and a counts-only secret scanner.
-  Budget strings parse directly into integer micro-USD; cut-short messages are
-  withheld whole, tool text is refused and exact run keys are scrubbed before
-  patterns, including structured credential fields before JSON serialization.
-  GitHub/Slack token patterns now cover long tokens. All 14 UI tables
-  include the new text. `npm run schema:exec` generates the committed JSON schemas.
-  Lane B supplies the `exec` and `scan-secrets` wiring and engine below; Action
-  and full M80 acceptance remain pending in the other lanes.
+- **Headless runs and a GitHub Action** (M80, PLAN.md D65):
+  `muse-spark-code-acp exec` runs one turn on a workspace without an editor.
+  The prompt comes as an argument, from `--prompt-file` or from stdin, with
+  up to eight `--untrusted-file` inputs marked as untrusted data. Plan is the
+  default and Accept edits the only other mode; workspace trust, bypass and
+  hosted web search are refused, every approval request is denied and every
+  question declined, and a Model API run starts no shell, check, hook, MCP,
+  Git or web-fetch process. Output is plain text, one JSON result or JSONL
+  events; the exit code names the outcome (0 completed, 2 usage, 3 sign-in,
+  4 failed, 5 budget or request cap, 6 timeout, 7 denied, 8 incomplete,
+  9 accounting unverified, 130/143 interrupted). Tool output text never
+  leaves exec, and a reply cut short is withheld whole. On Windows a forced
+  stop exits 1 and may lose buffered output.
+  - **Budgets and refusals:** the Model API needs `--max-budget-usd` (up to
+    $20, six decimals) and caps billable requests with `--max-requests`
+    (every attempt, retries included). Each request reserves the most its
+    context window could cost before it is sent: at least $0.108135 on the
+    contributor model and $1.409024 on standard, one cent more with images.
+    A request whose cost is lost or uncertain keeps its whole reservation,
+    and a budget below the minimum is refused before any billable call.
+    Images need `--image-generation` with Accept edits and are tallied per use.
+  - **Keys:** a local run uses the key in your OS credential store;
+    `--key-stdin` reads one line from a pipe and keeps it in memory only.
+    No environment variable is read. Every output removes the run's exact key
+    first, also in its percent-encoded form, then known token shapes.
+  - **Results and schemas:** the result and events are versioned (v1) and
+    validated, and their JSON Schemas ship in the package's `schemas/`;
+    `npm run schema:exec` regenerates them. `muse-spark-code-acp
+    scan-secrets <file>` counts likely secrets in one file and prints only
+    the number.
+  - **The Action:** `action/` reviews, or proposes a fix for, a
+    same-repository pull request on GitHub-hosted runners under the same hard
+    budget. Forks, bots, `pull_request_target` and commenters outside the
+    repository's members are refused before anything is installed; the agent
+    is installed before checkout and verified against its npm provenance (a
+    candidate tarball is pinned by digest and labelled unsigned); the key
+    reaches only exec and the secret scanner, over stdin. It posts one sticky
+    review comment within GitHub's size limit and uploads the validated
+    result; a fix is published as a patch only after a clean secret scan of
+    its exact bytes, and any binary change (a generated image included) or
+    detected secret withholds the whole patch. A stopped or failed run
+    publishes nothing. `action/apply` applies the patch for your own
+    secret-free tests, then pushes it after maintainer approval with a lease
+    on the exact reviewed head, refusing an unexpected or oversized artifact.
+    Every Git step runs with no hooks, filters, fsmonitor, signer or
+    credential helper, and refuses any repository configuration a fresh
+    clone does not carry. npm releases now carry provenance.
+  - Acceptance on hosted runners and with a real key is still pending.
 - **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
   commands become skills, compatible agents become M76 agent files, project
   rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target

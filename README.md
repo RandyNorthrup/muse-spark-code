@@ -2431,10 +2431,10 @@ stopped and the next message resumes the same session.
 The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
 `scan-secrets` command and versioned JSON/JSONL schemas. `action/` is a
 same-repository GitHub review and fix Action, with an `action/apply`
-sub-action. All four implementation lanes are integrated and pass their
-fake-only tests on Linux, macOS and Windows. M80 is **not certified yet**: the
-hosted `action-check.yml` matrix and the live receipts L, LA and LR are open,
-and the npm-registry Action path is unsupported until LR passes.
+sub-action. Their fake-only tests pass on Linux, macOS and Windows; acceptance
+on hosted runners and with a real key is still pending, so this is **not
+certified yet**, and the Action's npm-registry install is supported only from
+a release published with provenance.
 [The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
 
 ```text
