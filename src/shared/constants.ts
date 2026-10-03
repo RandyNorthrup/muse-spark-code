@@ -37,6 +37,7 @@ export const COMMAND_IDS = {
   openWalkthrough: 'museSpark.openWalkthrough',
   manageSkills: 'museSpark.manageSkills',
   importSkills: 'museSpark.importSkills',
+  importFromAgents: 'museSpark.importFromAgents',
   exportConversation: 'museSpark.exportConversation',
   importSession: 'museSpark.importSession',
   openShareFile: 'museSpark.openShareFile',
@@ -274,7 +275,8 @@ export const SETTING_DEFAULTS = {
   allowDangerouslySkipPermissions: false,
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
-  // deleted: MSP has no delete, and "Show archived" brings them back.
+  // deleted: the extension does not call session/delete (available since
+  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -1409,6 +1411,119 @@ export const SKILL_SOURCES = ['project', 'user'] as const
 // What the extension watches so the palette follows skill files (D13).
 export const PROJECT_SKILLS_GLOB = '**/.agents/skills/**'
 export const PERSONAL_SKILLS_GLOB = '*/SKILL.md'
+// Import from Claude Code, Codex and Cursor (M83, PLAN.md D49): the other
+// agents' MCP servers, hooks, custom agents, slash commands and rules files,
+// converted to Muse Code's shapes. Where each tool keeps them is its own
+// documentation's (read 2026-09-28) and Muse Code 1.4.0-R4302.1's bundled
+// `migrate` skill's; the converted MCP entry is that skill's. Custom agents
+// land in Markdown beside the skills, in the folders M76 loads:
+// `.agents/agents/<id>.md` in the workspace (project scope) and
+// `<config>/muse/agents/<id>.md` (user scope), no name of Muse Code's own
+// (PLAN.md D13). Config entries open as unsaved target editor edits
+// (D17, D30, D64), with values unchanged. An entry
+// whose target would be more exposed is refused (D64).
+export const AGENT_IMPORT_SOURCES = ['claudeCode', 'codex', 'cursor'] as const
+export type AgentImportSource = (typeof AGENT_IMPORT_SOURCES)[number]
+export const AGENT_IMPORT_KINDS = ['mcpServer', 'hook', 'agent', 'command', 'rules'] as const
+export type AgentImportKind = (typeof AGENT_IMPORT_KINDS)[number]
+export const PROJECT_AGENTS_DIR_SEGMENTS = ['.agents', 'agents'] as const
+export const PERSONAL_AGENTS_DIR_SEGMENTS = ['muse', 'agents'] as const
+/** The tools' own folders and files, by their documentation. */
+export const AGENT_IMPORT_PATHS = {
+  claudeCode: {
+    /** `CLAUDE_CONFIG_DIR` replaces `~/.claude`, and holds `.claude.json` in place of `~`. */
+    configDirVariable: 'CLAUDE_CONFIG_DIR',
+    dir: '.claude',
+    /** User and local-scope MCP servers (`mcpServers`, `projects[<root>].mcpServers`). */
+    stateFile: '.claude.json',
+    /** The user's settings; a repository adds its own local one. */
+    userSettingsFile: 'settings.json',
+    projectSettingsFiles: ['settings.json', 'settings.local.json'],
+    agentsDir: 'agents',
+    commandsDir: 'commands',
+    rulesFile: 'CLAUDE.md',
+    /** Project-scope MCP servers, at the repository's root. */
+    projectMcpFile: '.mcp.json',
+  },
+  codex: {
+    /** `CODEX_HOME` replaces `~/.codex` when absolute; empty means unset. */
+    homeVariable: 'CODEX_HOME',
+    dir: '.codex',
+    configFile: 'config.toml',
+    /** Custom prompts: the home folder's own, top level only (no project prompts). */
+    promptsDir: 'prompts',
+    rulesFile: 'AGENTS.md',
+  },
+  cursor: {
+    dir: '.cursor',
+    mcpFile: 'mcp.json',
+    agentsDir: 'agents',
+    commandsDir: 'commands',
+    rulesDir: 'rules',
+    legacyRulesFile: '.cursorrules',
+  },
+} as const
+export const AGENT_IMPORT_MARKDOWN_EXTENSION = '.md'
+export const AGENT_IMPORT_CURSOR_RULE_EXTENSION = '.mdc'
+/** A foreign command, agent, settings, MCP or rules file over this is skipped unread. */
+export const AGENT_IMPORT_FILE_MAX_BYTES = 64 * 1024
+/** Git reports a non-repository with this exit code; other failures refuse classification. */
+export const AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT = 128
+/** Claude Code's `.claude.json` also holds its usage and project history, so it may be larger. */
+export const AGENT_IMPORT_CLAUDE_STATE_MAX_BYTES = 16 * 1024 * 1024
+/** How many directory entries of one foreign folder are read; the rest are skipped. */
+export const AGENT_IMPORT_DIR_MAX_ENTRIES = 200
+/** How deep Claude Code's agent folders and namespaced command folders (`frontend/component.md`) are followed. */
+export const AGENT_IMPORT_FOLDER_MAX_DEPTH = 3
+/** A skill id or agent file name made from a foreign file name is cut here. */
+export const AGENT_IMPORT_ID_MAX_CHARS = 64
+/**
+ * Claude Code's hook events (its hooks reference, 2026-09-28) that Muse Code
+ * also has, by the same name (M51's vocabulary); anything else is shown,
+ * never converted.
+ */
+export const AGENT_IMPORT_HOOK_EVENTS: readonly string[] = [
+  'SessionStart',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PostToolBatch',
+  'Notification',
+  'SubagentStart',
+  'SubagentStop',
+  'Stop',
+  'StopFailure',
+  'PreCompact',
+  'PostCompact',
+  'SessionEnd',
+]
+/**
+ * Events Claude Code fires whatever the matcher says, and for which Muse
+ * Code refuses or ignores one: the converted group carries none.
+ */
+export const AGENT_IMPORT_HOOK_EVENTS_WITHOUT_MATCHER: readonly string[] = [
+  'UserPromptSubmit',
+  'PostToolBatch',
+  'Stop',
+]
+/** Muse Code's `mcpServers` entry never blocks startup when it fails (the migrate skill's rule). */
+export const MUSE_MCP_OPTIONAL_MODE = 'optional'
+/** How many broken links in a row M83's confinement follows before it refuses (Linux's MAXSYMLINKS). */
+export const LINK_FOLLOW_MAX_HOPS = 40
+/** The error code an import write refuses with when the workspace folder is not the previewed one any more. */
+export const AGENT_IMPORT_ROOT_CHANGED_CODE = 'EMUSEROOT'
+/** The import's own bundle, loaded on the first import (PLAN.md D6, M83). */
+export const AGENT_IMPORT_BUNDLE_FILE = 'agentImport.js'
+// The agent file an import writes (M83; M76's custom agents read the same
+// layout, PLAN.md D49): `<root>/<id>/AGENT.md` with front matter. The CLI
+// names no agent folder (`muse --help`, `muse skills --help` and `muse serve
+// --help` list none, verified 2026-09-28), so the `.agents/agents` project
+// folder and the managed `muse/agents` personal folder are the extension's
+// own (PLAN.md D13).
+export const AGENT_FILE_NAME = 'AGENT.md'
+export const AGENT_FILE_MAX_BYTES = 64 * 1024
 // Memory (M49, PLAN.md D41, found on disk and in a live capture 2026-09-25):
 // Muse Code keeps Markdown notes in three scopes. `project` is the
 // repository's `.agents/memory`; `personal` is `<data>/muse/memory/personal`
@@ -1498,6 +1613,8 @@ export const OBS_PACK_TAIL_LINES = 4
 // A recalled page stays under the threshold, so paging an output back never
 // packs the page itself.
 export const OBS_PACK_PAGE_CHARS = 4000
+// An unknown recall id names only the newest ids, keeping its error bounded.
+export const OBS_PACK_RECALL_ID_LIMIT = 8
 // Random bytes (as hex) in the markers around a recalled page, fresh for
 // each recall, so the original cannot close the untrusted block itself.
 export const OBS_PACK_MARKER_BYTES = 8
@@ -1913,13 +2030,14 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // MSP schema fingerprints Muse Code has served beyond the one
-// `@muse-code/sdk` 1.3.0 pins, each an additive change (1.4.0's schema export
-// diffed against 1.3.0's; Meta's release manifests carry the same values).
+// `@muse-code/sdk` 1.3.0 pins, each an additive change (SDK tarballs, schema
+// exports and release manifests; docs/certification/sdk142.md).
 // Such a host is logged at info with its build; any other mismatch stays a
 // warning (docs/certification/release-0.9.1.md).
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
   'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
+  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -2871,6 +2989,7 @@ export const MODEL_TEXT = {
   packInvalidJson: 'arguments are not valid JSON',
   packInvalidArguments: 'invalid arguments: {detail}',
   packUnknownId: 'unknown packed output id "{id}" (packed outputs in this session: {known})',
+  packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
   // M68 (PLAN.md D49): the verify loop. What follows an edit is data from the
@@ -3086,6 +3205,17 @@ export const MODEL_TEXT = {
   browserCheckCancelled: 'cancelled: the call was stopped before the check finished',
   browserCheckNotOffered:
     'the browser check is no longer offered here (the workspace lost its trust, the permission mode refuses it, museSpark.sandboxNetwork is restricted, or museSpark.browserCheckRuntime is off); nothing was opened',
+  // M83: an imported rules file's section in AGENTS.md, which the model reads.
+  importedRulesHeading: 'Imported from {source} ({path})',
+  importedRulesWhen: 'When it applies: {description}',
+  importedRulesFiles: 'Files it applies to: {globs}',
+} as const
+
+/** The other agents' names as the imported rules sections give them (M83); the model reads them. */
+export const AGENT_IMPORT_SOURCE_NAMES = {
+  claudeCode: 'Claude Code',
+  codex: 'Codex',
+  cursor: 'Cursor',
 } as const
 
 // --- Paired efficiency evaluation (M75, PLAN.md D49) ---

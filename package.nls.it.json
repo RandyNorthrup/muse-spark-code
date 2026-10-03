@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "Apri procedura dettagliata",
   "command.manageSkills.title": "Gestisci competenze",
   "command.importSkills.title": "Importa competenze da Claude Code o Codex",
+  "command.importFromAgents.title": "Importa da altri agenti",
   "command.exportConversation.title": "Esporta conversazione",
   "command.importSession.title": "Importa sessione",
   "command.downloadBrowserCheckRuntime.title": "Scarica il runtime del controllo nel browser",

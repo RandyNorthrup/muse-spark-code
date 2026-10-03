@@ -51,6 +51,18 @@ happened, not what was planned; superseded entries are kept.
   loaded on the first check, and `dist/browserRuntime.js` (getting and
   verifying the browser; 37.2 KiB, budget 50 KiB), loaded only to prepare
   it. Each budget is the measured size plus 15%, rounded up to 25 KiB.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -74,7 +86,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -101,26 +115,19 @@ happened, not what was planned; superseded entries are kept.
     fresh random markers around the unchanged slice, so a page from the
     middle of a fetched web page keeps its boundary.
   - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
   - **The recall row speaks the display language.** Its heading and its
     refusals are in the installed language, with counts in its number
     format; the recalled text is shown as it was, and the model's text
     stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
   - **The live report records the packing acceptance.** The report says
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
-
-### Changed
-
-- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
-  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
-  tentative; HTML meta declarations still win or trigger a later reparse. Valid
-  transport encodings without a runtime decoder remain explicit errors. Version
-  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
-  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
-  extension's floor), now in the integration run's `minimum` label too
-  (`docs/certification/pr60-sniffer7.md`).
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -150,8 +157,31 @@ happened, not what was planned; superseded entries are kept.
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
+### Changed
+
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
+- Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
+  and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
+  tentative; HTML meta declarations still win or trigger a later reparse. Valid
+  transport encodings without a runtime decoder remain explicit errors. Version
+  7 declares Node 22.13 or later, but the page worker bundles it: the shipped
+  bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
+  extension's floor), now in the integration run's `minimum` label too
+  (`docs/certification/pr60-sniffer7.md`).
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
+
 ### Fixed
 
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of

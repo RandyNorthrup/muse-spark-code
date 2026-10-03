@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "Exemplarische Vorgehensweise öffnen",
   "command.manageSkills.title": "Skills verwalten",
   "command.importSkills.title": "Skills aus Claude Code oder Codex importieren",
+  "command.importFromAgents.title": "Aus anderen Agents importieren",
   "command.exportConversation.title": "Unterhaltung exportieren",
   "command.importSession.title": "Sitzung importieren",
   "command.downloadBrowserCheckRuntime.title": "Runtime der Browserprüfung herunterladen",

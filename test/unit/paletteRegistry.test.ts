@@ -315,6 +315,7 @@ describe('buildPalette', () => {
       'ctrlEnter',
       'mcpServers',
       'hooks',
+      'importFromAgents',
       'memory',
       'settings',
       'keybindings',
@@ -330,12 +331,27 @@ describe('buildPalette', () => {
       'ctrlEnter',
       'mcpServers',
       'hooks',
+      'importFromAgents',
       'memory',
       'settings',
       'keybindings',
     ])
     expect(mcpDetailOn('modelApi')).toBe(EN.mcpItemDetailModelApi)
     expect(mcpDetailOn('museCode')).toBe(EN.mcpItemDetail)
+  })
+
+  it('offers the import from other agents on both backends and signed out (M83)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const row = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'customize')
+        ?.items.find((item) => item.id === 'importFromAgents')
+      expect(row, String(backend)).toEqual({
+        id: 'importFromAgents',
+        label: EN.agentImportItem,
+        detail: EN.agentImportDetail,
+        action: { type: 'importFromAgents' },
+      })
+    }
   })
 
   it('offers the Memory view on both backends, which share one memory (M49)', () => {

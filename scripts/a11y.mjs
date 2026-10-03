@@ -21,15 +21,20 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
-import { HARNESS_PATH, LOOPBACK, SCENARIOS, serveRepo } from './lib/harnessServer.mjs'
+import {
+  HARNESS_PATH,
+  LOOPBACK,
+  PAGE_TIMEOUT_MS,
+  SCENARIOS,
+  serveRepo,
+  withNarrowPage,
+} from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
 const WINDOW_SIZE = '690,760'
 // Virtual time: the scenario plays, the harness waits 5 s, axe runs.
 const VIRTUAL_TIME_BUDGET_MS = 30_000
-// Real time for one page, far above what a page takes; a hung Chrome fails.
-const PAGE_TIMEOUT_MS = 120_000
 const MAX_WORKERS = 6
 // Windows headless Chrome stalled on the long transcript plus jump button
 // with four concurrent pages (M46); two workers passed twice with all rules.
@@ -54,6 +59,13 @@ function decodeEntities(text) {
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
+    if (page.scenario === 'share-narrow') {
+      return await withNarrowPage(chrome, profileDir, url, async (tab) => {
+        const result = tab.locator('#axe-result')
+        await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
+        return JSON.parse(await result.textContent())
+      })
+    }
     const { stdout } = await execFileAsync(
       chrome,
       [
