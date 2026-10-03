@@ -405,7 +405,7 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       let isReleaseRefused = true
       let previous = ''
       let replacement = ''
-      let hasSwapped = false
+      let swappedBefore: 'release' | 'takeover' | undefined
       let isOwnerAlive = true
       const h = await harness({
         isProcessAlive: () => isOwnerAlive,
@@ -416,11 +416,11 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
             }
             if (
               !isReleaseRefused &&
-              !hasSwapped &&
+              swappedBefore === undefined &&
               (args.at(-1) === previous || args.length === args.indexOf('update-ref') + 3)
             ) {
               shadowGit(h.storage, ['update-ref', ref, replacement, previous])
-              hasSwapped = true
+              swappedBefore = args.includes('-d') ? 'release' : 'takeover'
             }
           }
           return await realGit(args, options)
@@ -432,7 +432,8 @@ describe('M86 pre-merge fixes', { timeout: REAL_GIT_TIMEOUT_MS }, () => {
       isReleaseRefused = false
       isOwnerAlive = recovery === 'same instance'
       await (recovery === 'same instance' ? h.store : h.reopen()).maintain()
-      expect(hasSwapped).toBe(true)
+      // The owed release and the gone owner's takeover are different CAS writes.
+      expect(swappedBefore).toBe(recovery === 'same instance' ? 'release' : 'takeover')
       expect(shadowRefs(h.storage)).toContain(ref)
       expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(replacement)
     },

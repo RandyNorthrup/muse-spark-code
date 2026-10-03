@@ -16,6 +16,17 @@ import tseslint from 'typescript-eslint'
 import unicorn from 'eslint-plugin-unicorn'
 import reactHooks from 'eslint-plugin-react-hooks'
 
+// M57 (PLAN.md D6): the Model API host runs from a bundle of its own with its
+// own copies of the errors a host throws to the conversation controller, so
+// `instanceof` misses one it threw. The `is…` guards in
+// src/core/agent/agentBackend.ts read the name and the field instead.
+const BUNDLE_SAFE_ERRORS = {
+  selector:
+    "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError|MuseCodeFaultError|DecisionNotAppliedError)$/]",
+  message:
+    'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError or isDecisionNotAppliedError (src/core/agent/agentBackend.ts).',
+}
+
 export default tseslint.config(
   js.configs.recommended,
 
@@ -122,26 +133,14 @@ export default tseslint.config(
   },
 
   {
-    // M57 (PLAN.md D6): the Model API host runs from a bundle of its own with
-    // its own copies of the errors a host throws to the conversation
-    // controller, so `instanceof` misses one it threw. The `is…` guards in
-    // src/core/agent/agentBackend.ts read the name and the field instead.
     files: ['src/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError|MuseCodeFaultError|DecisionNotAppliedError)$/]",
-          message:
-            'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError or isDecisionNotAppliedError (src/core/agent/agentBackend.ts).',
-        },
-      ],
-    },
+    rules: { 'no-restricted-syntax': ['error', BUNDLE_SAFE_ERRORS] },
   },
 
   {
-    // R1: native identity reads belong only to the exact BigInt sampler.
+    // R1: native identity reads belong only to the exact BigInt sampler. A
+    // later block's rule value replaces an earlier one's, so the M57 entry is
+    // repeated here or every file but fileIdentity.ts would lose it.
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/core/fs/fileIdentity.ts'],
     rules: {
@@ -153,12 +152,7 @@ export default tseslint.config(
           message:
             'Native file identity belongs to src/core/fs/fileIdentity.ts; use its exact BigInt samples and sameFile.',
         },
-        {
-          selector:
-            "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError)$/]",
-          message:
-            'Use the shared bundle-safe host error guards in src/core/agent/agentBackend.ts.',
-        },
+        BUNDLE_SAFE_ERRORS,
       ],
     },
   },

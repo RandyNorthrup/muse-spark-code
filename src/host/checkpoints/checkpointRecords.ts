@@ -9,7 +9,7 @@
 //   tools journaled, each with how it ended (toolWrites.ts).
 // - M72 records, read only: a turn's checkpoint, which is listed as legacy
 //   (no file restore), and a restore's redo record, which is not redoable.
-// - The restore reservation (`RESTORE_REF`) holds a record of the M72 restore
+// - The restore reservation (`CHECKPOINT_RESERVATION_REF`) holds a record of the M72 restore
 //   shape naming its window, so a 0.10.0 window still reads its owner.
 
 import * as z from 'zod/mini'

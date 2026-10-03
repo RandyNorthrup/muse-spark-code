@@ -4,6 +4,7 @@
 import type { Dir } from 'node:fs'
 import { opendir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { Owner, WriteRecord } from '../../core/checkpoints/toolWrites'
 import { lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
@@ -14,6 +15,7 @@ import {
   CHECKPOINT_WRITES_DIR,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
+import type { Logger } from '../logger'
 import { WriteJournal } from './writeJournal'
 
 interface CopyFolder {
@@ -44,7 +46,10 @@ export class CheckpointCopies {
   private root: Dir | undefined
   private current: CopyFolder | undefined
 
-  public constructor(private readonly storageDir: string) {}
+  public constructor(
+    private readonly storageDir: string,
+    private readonly log: Logger,
+  ) {}
 
   private async marked(
     instance: string,
@@ -133,7 +138,10 @@ export class CheckpointCopies {
           await rm(file, { force: true })
         }
       } catch (error: unknown) {
-        if (!isMissingPath(error)) throw error
+        // A locked copy (an antivirus scan on Windows, say) stays for a later
+        // pass; it must not hold back the rest of this one.
+        if (!isMissingPath(error))
+          this.log.warn(`A checkpoint copy could not be removed yet: ${failureForLog(error)}`)
       }
     }
   }

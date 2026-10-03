@@ -8,6 +8,7 @@ import {
   CHECKPOINT_COPY_SWEEP_MAX_FILES,
   CHECKPOINT_COPY_SWEEP_MAX_MS,
 } from '../../src/shared/constants'
+import { FakeLogOutputChannel } from './helpers/fakes'
 
 const folders: string[] = []
 const sweepers: CheckpointCopies[] = []
@@ -23,7 +24,8 @@ async function setup() {
   folders.push(storage)
   const blobs = path.join(storage, 'm86', 'one', 'blobs')
   await mkdir(blobs, { recursive: true })
-  const sweeper = new CheckpointCopies(storage)
+  const log = new FakeLogOutputChannel()
+  const sweeper = new CheckpointCopies(storage, log)
   sweepers.push(sweeper)
   const copy = async (name: string) => {
     const file = path.join(blobs, name)
@@ -31,7 +33,7 @@ async function setup() {
     await utimes(file, 0, 0)
     return file
   }
-  return { storage, blobs, sweeper, copy }
+  return { storage, blobs, log, sweeper, copy }
 }
 
 async function copyCount(folder: string): Promise<number> {
@@ -80,6 +82,20 @@ it('sweeps a crash-left stage but preserves every copy behind an unexplained jou
   await writeFile(journal, '')
   await t.sweeper.sweep([], [])
   expect(await readdir(t.blobs)).toEqual([])
+})
+
+it('keeps sweeping past a copy it cannot remove yet', async () => {
+  const t = await setup()
+  const locked = await t.copy('a-locked')
+  await t.copy('b-orphan')
+  const sample = identity.lstatIdentity
+  vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (target) => {
+    if (target === locked) throw Object.assign(new Error('locked'), { code: 'EPERM' })
+    return await sample(target)
+  })
+  await t.sweeper.sweep([], [])
+  expect(await readdir(t.blobs)).toEqual(['a-locked'])
+  expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('could not be removed yet'))
 })
 
 it.each(['ino', 'dev'] as const)(

@@ -513,7 +513,7 @@ export class CheckpointStore {
   public constructor(private readonly deps: CheckpointStoreDeps) {
     this.ownInstance = deps.instance
     this.ownJournal = deps.journal
-    this.copies = new CheckpointCopies(deps.storageDir)
+    this.copies = new CheckpointCopies(deps.storageDir, deps.log)
     this.presence = new WindowPresence({
       storageDir: deps.storageDir,
       instance: this.ownInstance,
