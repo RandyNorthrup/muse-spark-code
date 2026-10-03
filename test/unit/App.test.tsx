@@ -626,6 +626,33 @@ describe('App conversation', () => {
     expect(document.querySelector('[aria-live]')).toHaveTextContent('Open a folder first')
   })
 
+  it.each([undefined, 'Newer typing', ''])(
+    'keeps the composer draft and image on handoff refusal, respecting newer edit %s',
+    (newer) => {
+      const postMessage = renderReady()
+      deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 'distillation' } })
+      addTestImage()
+      const draft = '  Do this instead\n'
+      send(draft)
+      expect(postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'sendMessage', text: 'Do this instead' }),
+      )
+      if (newer !== undefined) {
+        fireEvent.change(textarea(), { target: { value: 'Newer typing' } })
+        fireEvent.change(textarea(), { target: { value: newer } })
+      }
+      deliver({
+        type: 'sendFailed',
+        localId: 'local-1',
+        reason: UI_TEXT.handoffBusy,
+        attachmentsKept: true,
+      })
+      expect(textarea().value).toBe(newer ?? draft)
+      expect(screen.getByLabelText('Remove shot.png')).toBeInTheDocument()
+      expect(document.querySelector('[aria-live]')).toHaveTextContent(UI_TEXT.handoffBusy)
+    },
+  )
+
   it('labels the model pill with model and effort, like the Claude Code pill', () => {
     renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
