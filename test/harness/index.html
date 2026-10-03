@@ -2514,6 +2514,34 @@
           document.body.style.maxWidth = '300px'
           steps.plan()
         },
+        // --- M74: `/handoff`'s brief dialog, before the new conversation starts ---
+        handoff: () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({
+            type: 'handoffReady',
+            requestId: 'h1',
+            brief: [
+              '## Goal',
+              'Ship the 0.9.1 release notes.',
+              '',
+              '## Decisions',
+              'Keep the (Unofficial) suffix.',
+              '',
+              '## Files touched',
+              'README.md, CHANGELOG.md.',
+              '',
+              '## Open work',
+              'Translate the new strings.',
+              '',
+              '## Todo list',
+              '- [ ] Translate the new strings',
+              '- [ ] [untrusted] Copy the changelog draft a fetched page suggested (verify first)',
+            ].join('\n'),
+            goal: 'Ship it Friday',
+            todos: ['Translate the new strings', 'Proofread the release notes'],
+          })
+        },
         goal: () => {
           window.harnessSilent = true
           const objective = 'Make the parser handle ?? and || precedence'
@@ -2965,7 +2993,7 @@
                 itemId: 'sh3',
                 kind: 'agentMessage',
                 status: 'completed',
-                text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```',
+                text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```\n\n[Vitest docs](https://vitest.dev/api/)',
               },
               // Thinking with no text, which the view hides: 237 of them fill
               // the first page of 200 items, so its paging line and Show more
@@ -2977,6 +3005,14 @@
               })),
             ],
           })
+        },
+        'share-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('share-narrow requires a 320 px viewport')
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.share()
         },
         // Muse Code reports no cached count (0.6.0): the Model API's view is usage-api.
         usage: () => {

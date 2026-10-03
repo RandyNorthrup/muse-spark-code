@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { restoredUiState, webviewStateOf } from '../../src/webview/state/snapshot'
@@ -1061,6 +1061,13 @@ describe('App palette', () => {
     expect(postMessage).toHaveBeenCalledWith({ type: 'signOut' })
     run('/compact')
     expect(postMessage).toHaveBeenCalledWith({ type: 'compact' })
+    // M74: /handoff readies the prompt for the new conversation's goal.
+    run('/handoff')
+    expect(textarea().value).toBe('/handoff ')
+    expect(postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'requestHandoff' }),
+    )
+    fireEvent.change(textarea(), { target: { value: '' } })
     run('/export')
     expect(postMessage).toHaveBeenCalledWith({ type: 'exportConversation', format: 'markdown' })
     // The CLI's own rows (M30) need the Muse Code backend.
@@ -2429,7 +2436,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.applyCode })).toBeInTheDocument()
   })
 
-  it('renders a share file read-only, code copyable but never applied, and closes it (M84)', () => {
+  it('renders a share file read-only with keyboard order, trapping and Escape focus return (M84f)', () => {
     const postMessage = renderReady()
     deliver({
       type: 'sharePreview',
@@ -2452,8 +2459,13 @@ describe('App: Model API scheduled prompts (M52)', () => {
           itemId: 'a1',
           kind: 'agentMessage',
           status: 'completed',
-          text: 'Run this:\n\n```sh\nrm -rf build\n```',
+          text: 'Run this:\n\n```sh\nrm -rf build\n```\n\n[Guide](https://example.test/guide)',
         },
+        ...Array.from({ length: SHARE_VIEW_PAGE_ITEMS }, (_, index) => ({
+          itemId: `thinking-${String(index)}`,
+          kind: 'reasoning',
+          status: 'completed',
+        })),
       ],
     })
     const dialog = screen.getByRole('dialog', { name: 'Shared over' })
@@ -2474,10 +2486,37 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.insertCode })).toEqual([])
     expect(within(dialog).queryAllByRole('button', { name: UI_TEXT.applyCode })).toEqual([])
     expect(within(dialog).queryByRole('button', { name: 'Send' })).toBeNull()
+    const close = within(dialog).getByRole('button', { name: UI_TEXT.usageClose })
+    const more = within(dialog).getByRole('button', { name: UI_TEXT.shareShowMore })
+    const guide = within(dialog).getByRole('link', { name: 'Guide' })
+    const bodies = [...dialog.querySelectorAll<HTMLElement>('.code-block-body')]
+    // jsdom has no native Tab navigation: check the rendered tab order and
+    // the real modal's wrap handlers here; the browser drill presses Tab.
+    expect([...dialog.querySelectorAll('button, a[href], [tabindex="0"]')]).toEqual([
+      close,
+      copies[0],
+      bodies[0],
+      copies[1],
+      bodies[1],
+      copies[2],
+      bodies[2],
+      guide,
+      more,
+    ])
+    expect(document.activeElement).toBe(close)
+    expect(fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(document.activeElement).toBe(more)
+    expect(fireEvent.keyDown(more, { key: 'Tab' })).toBe(false)
+    expect(document.activeElement).toBe(close)
+    const output = bodies[1]!
+    output.focus()
+    expect(document.activeElement).toBe(output)
+    expect(fireEvent.keyDown(output, { key: 'Tab' })).toBe(true)
     fireEvent.click(copies[2]!)
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'rm -rf build' })
-    fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.usageClose }))
+    fireEvent.keyDown(output, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: 'Shared over' })).toBeNull()
+    expect(textarea()).toHaveFocus()
   })
 })
 

@@ -1671,6 +1671,7 @@ body {
 .steps-toggle:focus-visible,
 .tool-more:focus-visible,
 .code-block-button:focus-visible,
+.code-block-body:focus-visible,
 .question-option:focus-visible,
 .approval-feedback:focus-visible,
 .question-input:focus-visible {
@@ -1903,6 +1904,30 @@ body {
   gap: 6px;
   margin: 8px 0 4px;
   padding-right: 52px;
+}
+
+/* The handoff dialog's editable brief (M74) and its Start/Cancel row. */
+.handoff-label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.handoff-edit {
+  box-sizing: border-box;
+  resize: vertical;
+  width: 100%;
+}
+
+.handoff-todos {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
 }
 
 /* The Agent map's owner controls and note box (M18). */
@@ -2647,6 +2672,11 @@ body {
   color: var(--vscode-textLink-foreground);
   line-height: 24px;
   overflow-wrap: anywhere;
+}
+
+.markdown a:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 /* --- background work, the user's `!` commands, explanations (M46) --- */

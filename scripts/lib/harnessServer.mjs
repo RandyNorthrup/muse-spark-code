@@ -5,9 +5,12 @@
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { chromium } from 'playwright-core'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
+// Real time for one page; a hung browser fails rather than producing an empty result.
+export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
   'empty',
@@ -101,10 +104,12 @@ export const SCENARIOS = [
   'schedules',
   'schedules-narrow',
   'share',
+  'share-narrow',
   'verify',
   'plan',
   'plan-brief',
   'plan-narrow',
+  'handoff',
   'code-intel',
 ]
 const CONTENT_TYPES = {
@@ -140,4 +145,22 @@ export function serveRepo(repoRoot) {
       resolve({ server, port: server.address().port })
     })
   })
+}
+
+/** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
+export async function withNarrowPage(chrome, profileDir, url, run) {
+  const browser = await chromium.launchPersistentContext(profileDir, {
+    ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
+    viewport: { width: 320, height: 760 },
+    timeout: PAGE_TIMEOUT_MS,
+  })
+  try {
+    const page = await browser.newPage()
+    page.setDefaultTimeout(PAGE_TIMEOUT_MS)
+    page.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+    await page.goto(url)
+    return await run(page)
+  } finally {
+    await browser.close()
+  }
 }

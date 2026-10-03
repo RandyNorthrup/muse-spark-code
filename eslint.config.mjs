@@ -171,8 +171,9 @@ export default tseslint.config(
   {
     // Plain-JS tooling files are not in any TypeScript project, so type-aware
     // rules cannot run on them. They are Node CLIs: console output and
-    // process.exit are their job.
-    files: ['**/*.mjs'],
+    // process.exit are their job. The declaration a tooling module hands the
+    // unit tests (scripts/lib/lazyBundleTable.d.mts, M83) is one of them.
+    files: ['**/*.mjs', '**/*.d.mts'],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
       // fetch and WebSocket are Node 22 globals (scripts/capture-themes.mjs).
