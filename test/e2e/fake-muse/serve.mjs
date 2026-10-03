@@ -24,7 +24,10 @@
 // the handshake, the spawn-failure drill), =silent (read the handshake and
 // never answer it, the wedged-CLI drill of PLAN.md D25), =slow (answer it
 // after MUSE_FAKE_START_MS) or =dying (never answer it, and exit 1 after
-// MUSE_FAKE_START_MS). Node built-ins
+// MUSE_FAKE_START_MS). MUSE_FAKE_WEDGE=<method>: from the first request
+// for that method on, it answers nothing at all and stays up (the wedged
+// `muse serve` of 2026-10-03, one core busy and not a frame written; the
+// watchdog drill of the CLI recovery). Node built-ins
 // only: the file is copied beside the executable the resolver spawns.
 //
 // The credential file under XDG_CONFIG_HOME (never the developer's own) is
@@ -133,6 +136,8 @@ const fingerprint = env['MUSE_FAKE_FINGERPRINT'] ?? 'sha256:fake'
 const sessions = new Map()
 const state = {
   clientName: 'unknown',
+  /** MUSE_FAKE_WEDGE's method arrived: nothing is answered from then on. */
+  isWedged: false,
   /** The client asked for the experimental methods (account/*). */
   isExperimental: false,
   usage: undefined,
@@ -903,6 +908,7 @@ const startMode = env['MUSE_FAKE_START']
 const startDelayMs = Number(env['MUSE_FAKE_START_MS'] ?? '0')
 const isSilent = startMode === 'silent' || startMode === 'dying'
 const isAccountReadSilentAfterStart = env['MUSE_FAKE_ACCOUNT_READ'] === 'silentAfterStart'
+const wedgeMethod = env['MUSE_FAKE_WEDGE']
 
 if (startMode === 'dying') {
   setTimeout(() => {
@@ -911,7 +917,10 @@ if (startMode === 'dying') {
 }
 
 function handle(frame) {
-  if (isSilent || frame.id === undefined) {
+  if (wedgeMethod !== undefined && frame.method === wedgeMethod) {
+    state.isWedged = true
+  }
+  if (isSilent || state.isWedged || frame.id === undefined) {
     // `initialized` and any other client notification need no answer; a
     // silent host answers nothing at all.
     return

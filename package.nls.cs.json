@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "Odebrat pracovní strom…",
   "command.moveToBackground.title": "Přesunout běžící příkaz na pozadí",
   "command.stopBackgroundTasks.title": "Zastavit úlohy na pozadí",
+  "command.restartMuseCode.title": "Restartovat Muse Code",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Kde se otevírají nové konverzace.",
   "config.preferredLocation.enumDescriptions.sidebar": "Otevírat nové konverzace v zobrazení Muse Spark na bočním panelu.",

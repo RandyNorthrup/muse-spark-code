@@ -17,7 +17,11 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
-import { MuseCodeHost, type MspHost } from '../../core/backends/musecode/MuseCodeHost'
+import {
+  type CommandTimeouts,
+  MuseCodeHost,
+  type MspHost,
+} from '../../core/backends/musecode/MuseCodeHost'
 import {
   buildChildEnvironment,
   credentialFilePath,
@@ -66,9 +70,30 @@ export interface ProxySettings {
   readonly noProxy: readonly string[]
 }
 
+/**
+ * What the window does when Muse Code stops answering (the watchdog, CLI
+ * recovery 2026-10-03): whether a turn runs on Muse Code in any of its
+ * conversations, Muse Code's own restart (the conversations hear it first,
+ * then the next message resumes them), and what the panels on it say.
+ */
+export interface UnresponsiveHostDeps {
+  readonly isTurnRunning: () => boolean
+  readonly restart: () => Promise<void>
+  /** Restarted, no turn having run: a plain notice. */
+  readonly sayRestarted: () => void
+  /** A turn runs: the notice whose Restart (D26's action) the user may choose. */
+  readonly offerRestart: () => void
+}
+
 export interface BackendManagerDeps {
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
+  /**
+   * The window's answer to a Muse Code that stopped answering. The ACP agent
+   * has none (its editor owns its lifetime): there, while Muse Code answers
+   * nothing, commands fail at once and the log says why.
+   */
+  readonly unresponsive?: UnresponsiveHostDeps
   readonly log: Logger
   readonly extensionVersion: string
   readonly getConfiguredBinaryPath: () => string
@@ -88,6 +113,8 @@ export interface BackendManagerDeps {
   readonly handshakeTimeoutMs?: number
   /** The whole wait for a slow start whose process still runs; likewise. */
   readonly slowHandshakeTimeoutMs?: number
+  /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
+  readonly commandTimeouts?: CommandTimeouts
 }
 
 const [IDE_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -279,7 +306,7 @@ export class MuseCodeBackendManager {
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log)
+      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()
@@ -293,7 +320,37 @@ export class MuseCodeBackendManager {
         this.hostPromise = undefined
       }
     })
+    const { unresponsive } = this.deps
+    if (unresponsive !== undefined) {
+      host.onUnresponsive(() => {
+        if (this.generation === generation) {
+          void this.hostUnresponsive(unresponsive)
+        }
+      })
+    }
     return host
+  }
+
+  /**
+   * Muse Code stopped answering (the watchdog, CLI recovery), told once an
+   * episode: new commands already fail at once. With no turn running in any
+   * conversation of this window, it is restarted now and that is said;
+   * while one runs, its panel offers the restart, which stops that turn.
+   */
+  private async hostUnresponsive(unresponsive: UnresponsiveHostDeps): Promise<void> {
+    if (unresponsive.isTurnRunning()) {
+      this.deps.log.warn('Muse Code is not answering while a turn runs: its panel offers a restart')
+      unresponsive.offerRestart()
+      return
+    }
+    this.deps.log.warn('Muse Code is not answering and no turn runs: restarting it')
+    try {
+      await unresponsive.restart()
+    } catch (error: unknown) {
+      this.deps.log.warn(`Restarting the unanswering Muse Code failed: ${failureForLog(error)}`)
+      return
+    }
+    unresponsive.sayRestarted()
   }
 
   /** A spawn that frees the slot when it fails, unless a newer attempt holds it. */

@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "Munkafa eltávolítása…",
   "command.moveToBackground.title": "Futó parancs áthelyezése a háttérbe",
   "command.stopBackgroundTasks.title": "Háttérfeladatok leállítása",
+  "command.restartMuseCode.title": "Muse Code újraindítása",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Hol nyíljanak meg az új beszélgetések.",
   "config.preferredLocation.enumDescriptions.sidebar": "Az új beszélgetések megnyitása a Muse Spark oldalsávnézetében.",

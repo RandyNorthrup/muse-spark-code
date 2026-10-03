@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "Remove Worktree…",
   "command.moveToBackground.title": "Move Running Command to Background",
   "command.stopBackgroundTasks.title": "Stop Background Tasks",
+  "command.restartMuseCode.title": "Restart Muse Code",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Where new conversations open.",
   "config.preferredLocation.enumDescriptions.sidebar": "Open new conversations in the Muse Spark sidebar view.",
