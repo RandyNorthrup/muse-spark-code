@@ -4,12 +4,14 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   EVAL_BUDGET_USD,
+  EVAL_LONG_EVIDENCE_RECALL_OFFSET,
   EVAL_MODEL_ID,
   EVAL_REPORT_VERSION,
   EVAL_TURN_NOT_RUN,
   EVAL_ROOT_MASK,
   SETTING_DEFAULTS,
 } from '../../../src/shared/constants'
+import { OBSERVATION_PACKING_ARM } from '../../../src/core/eval/mechanisms'
 import { runPairedEval, type EvalArm, type EvalRunDeps } from '../../../src/core/eval/runner'
 import { EVAL_TASKS, evalTasksOfSplit, type EvalTask } from '../../../src/core/eval/tasks'
 import { listWorkspaceFiles } from '../../../src/core/eval/workspace'
@@ -25,7 +27,13 @@ import {
 import { FakeLogOutputChannel } from '../helpers/fakes'
 import { logLines } from '../helpers/logText'
 import { removeFolder } from '../helpers/temporaryFolders'
-import { EVAL_CANONICAL_FIXES, EVAL_OTHER_FIXES, fixesFor, type EvalFix } from './evalFixes'
+import {
+  EVAL_CANONICAL_FIXES,
+  EVAL_OTHER_FIXES,
+  fixesFor,
+  longTaskReplies,
+  type EvalFix,
+} from './evalFixes'
 
 // Made when the suite starts, so a run that skips every test leaves no folder.
 const temporary = { scratch: '' }
@@ -151,15 +159,15 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
       expect(arm.results.every((result) => result.terminal === 'completed')).toBe(true)
       // One read, one write, one answer per task: three model calls each.
       expect(arm.summaries).toMatchObject([
-        { split: 'accept', tasks: 6, passed: 6, passRate: 1, attempts: 18, requests: 18 },
-        { split: 'heldout', tasks: 4, passed: 4, passRate: 1, attempts: 12, requests: 12 },
+        { split: 'accept', tasks: 7, passed: 7, passRate: 1, attempts: 21, requests: 21 },
+        { split: 'heldout', tasks: 5, passed: 5, passRate: 1, attempts: 15, requests: 15 },
       ])
       expect(arm.results[0]).toMatchObject({ toolCalls: 2, approvals: 0, inputTokens: 30 })
     }
-    expect(api.responseBodies()).toHaveLength(60)
+    expect(api.responseBodies()).toHaveLength(72)
     expect(report.floors.every((floor) => floor.held)).toBe(true)
     // Every run had its own folder, and none is left.
-    expect(new Set(roots).size).toBe(20)
+    expect(new Set(roots).size).toBe(24)
     expect(roots.some((root) => existsSync(root))).toBe(false)
     expect(logLines(log)).toContain(
       'Evaluation baseline accept-off-by-one: passed after 3 attempts',
@@ -203,7 +211,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(one.verdict).toBe('incomplete')
     expect(
       one.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
-    ).toMatchObject({ tasks: 4, passRate: 0.75, held: true })
+    ).toMatchObject({ tasks: 5, passRate: 0.8, held: true })
     expect(one.floors.find((floor) => floor.split === 'accept')).toMatchObject({
       tasks: 0,
       held: false,
@@ -212,7 +220,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     expect(two.verdict).toBe('fail')
     expect(
       two.floors.find((floor) => floor.arm === 'mechanism' && floor.split === 'heldout'),
-    ).toMatchObject({ passRate: 0.5, held: false })
+    ).toMatchObject({ passRate: 0.6, held: false })
   })
 
   it('lets the arms take turns going first, so no arm inherits the cache another warmed', async () => {
@@ -402,5 +410,37 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     const report = await runPairedEval([], [BASELINE], deps)
     expect(report.verdict).toBe('incomplete')
     expect(report.floors.every((floor) => floor.tasks === 0 && !floor.held)).toBe(true)
+  })
+
+  it('records the packing ledger and the recalls of the long-output tasks (M73)', async () => {
+    const { api, deps } = rig()
+    const tasks = EVAL_TASKS.filter((task) => task.isLongOutput === true)
+    api.script(
+      ...tasks.flatMap((task, index) => {
+        const plain = longTaskReplies(task, false, EVAL_LONG_EVIDENCE_RECALL_OFFSET)
+        const packed = longTaskReplies(task, true, EVAL_LONG_EVIDENCE_RECALL_OFFSET)
+        // The arms take turns going first: the second task starts with packing.
+        return index % 2 === 0 ? [...plain, ...packed] : [...packed, ...plain]
+      }),
+    )
+    const report = await runPairedEval(tasks, [BASELINE, OBSERVATION_PACKING_ARM], deps)
+    expect(report.verdict).toBe('pass')
+    const [baseline, packing] = report.arms
+    expect(
+      baseline?.results.map((result) => [
+        result.passed,
+        result.packedTokensAvoided,
+        result.recalls,
+      ]),
+    ).toEqual([
+      [true, undefined, 0],
+      [true, undefined, 0],
+    ])
+    const packedResults = packing?.results ?? []
+    expect(packedResults).toHaveLength(2)
+    for (const result of packedResults) {
+      expect(result).toMatchObject({ passed: true, recalls: 1 })
+      expect(result.packedTokensAvoided).toBeGreaterThan(0)
+    }
   })
 })

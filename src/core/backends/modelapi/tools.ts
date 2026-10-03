@@ -68,6 +68,7 @@ import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
 import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
@@ -401,6 +402,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_TOOLS.getGoal]: 'interactive',
   [MODEL_API_TOOLS.updateGoal]: 'interactive',
   [MODEL_API_TOOLS.reportProgress]: 'interactive',
+  // M73 (PLAN.md D49): reading a packed output back is a read of the
+  // session's own earlier output: no card, in any mode.
+  [MODEL_API_TOOLS.recallOutput]: 'read',
   // M68: the call itself asks nothing; each check it runs takes the shell
   // tool's permission path, one command at a time.
   [VERIFY_TOOLS.runChecks]: 'interactive',
@@ -471,6 +475,8 @@ export interface ToolDefinitionOptions {
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
   readonly hasMemory?: boolean
+  /** `recall_output` (M73): true only while the session packs observations. */
+  readonly hasPackedRecall?: boolean
   /** The user's check commands (M68): `run_checks` is offered with the shell while there are any. */
   readonly checks?: readonly CheckCommandSetting[]
   /** Web fetch, trusted workspaces only, when the host has a fetch (M69, PLAN.md D49). */
@@ -676,6 +682,9 @@ export function toolDefinitions(
           define(tool.name, tool.description, tool.properties, tool.required),
         )
       : []),
+    // M73 (PLAN.md D49): pages a packed output back. The host runs it
+    // against the session's store, so it is not in `executeTool`.
+    ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
       ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
       : []),
