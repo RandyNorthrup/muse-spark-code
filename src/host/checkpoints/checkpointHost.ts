@@ -1,17 +1,26 @@
-// What the conversations see of turn checkpoints (M72, PLAN.md D51): one
-// store per window over the first workspace folder. New checkpoints are
-// taken and offered only while the workspace is trusted, git is on PATH and
-// `museSpark.turnCheckpoints` is on. Restricted Mode runs no git (D24), so
-// it has none, and the panel says so; so does a window with no folder, no
-// git or the setting off. What is already under way still finishes with the
-// setting off (a turn's end, a Redo), and cleanup runs whatever the
-// posture: an archived conversation's checkpoints go at once when git may
-// run, and at the next trusted opening otherwise.
+// What the conversations see of turn checkpoints (M72, M86; PLAN.md D51,
+// D63): one store per window over the first workspace folder. A turn of the
+// Model API backend records its unit (and its tools' writes, writeRecorder.ts)
+// only while the workspace is trusted, git is on PATH and
+// `museSpark.turnCheckpoints` is on; a child turn records when its top turn
+// does. Restricted Mode runs no git (D24), so it has none, and the panel says
+// so; so does a window with no folder, no git or the setting off. What is
+// already under way still finishes with the setting off (a unit's end, a
+// Redo), and cleanup runs whatever the posture: an archived conversation's
+// records go at once when git may run, and at the next trusted opening
+// otherwise.
 
-import type { FileReservation, ShellResult, ToolIo } from '../../core/backends/modelapi/tools'
+import type {
+  ShellResult,
+  ToolIo,
+  TopTurn,
+  TurnCheckpoint,
+  TurnEnd,
+} from '../../core/backends/modelapi/tools'
 import { refusedShellEntry, ShellEntryError } from '../../core/shellResult'
 import { randomUUID } from 'node:crypto'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import type { Owner } from '../../core/checkpoints/toolWrites'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckpointAvailability,
@@ -19,36 +28,37 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import type { TurnRecorder } from './writeRecorder'
 import { turnKey } from '../../core/checkpoints/turnKey'
 import { isBelow } from '../../core/workspacePath'
 import { pathModule } from '../../core/workspaceRoot'
 import type {
-  CaptureResult,
   CheckpointStore,
   RedoRequest,
   RestoreOutcome,
   RestoreRequest,
-  Snapshot,
 } from './checkpointStore'
 
 export interface CheckpointPort {
-  /** Native uncertainty persists independently of the capture setting. */
+  /** Native uncertainty persists independently of the recording setting. */
   isNativeUnsafe(): boolean
   markNativeBackend(): Promise<void>
   markUnprovenProcess(): Promise<void>
   availability(): CheckpointAvailability
-  /** A capture of the workspace; undefined while checkpoints are not on. */
-  capture(): Promise<CaptureResult | undefined>
-  /** A capture no turn took. */
-  release(snapshot: Snapshot): Promise<void>
-  record(sessionId: string, turnId: string, snapshot: Snapshot): Promise<void>
   /**
    * A turn (or a message about to start one) begins or stops running in the
    * window, published at once with no lock or git: no restore runs meanwhile,
    * here or in another current window in the canonical-root storage namespace.
    */
   markTurn(key: string, isRunning: boolean): Promise<void>
-  endTurn(sessionId: string, turnId: string): Promise<void>
+  /**
+   * A turn's unit starts: its record is made before any of its writes. The
+   * owner its writes are recorded under; undefined while checkpoints are not
+   * on, unless `isInherited` (a child turn whose top turn records).
+   */
+  startTurnUnit(sessionId: string, turnId: string, isInherited: boolean): Promise<Owner | undefined>
+  /** A unit ended (its owner io drained): folded and sealed, whatever the setting. */
+  endUnit(owner: Owner, end: { readonly ranProcesses: boolean }): Promise<void>
   turns(sessionId: string): Promise<readonly string[]>
   legacyTurns(sessionId: string): Promise<readonly string[]>
   restore(request: RestoreRequest): Promise<RestoreOutcome>
@@ -56,40 +66,40 @@ export interface CheckpointPort {
   forgetSession(sessionId: string): Promise<void>
   /** The conversation was unarchived: its archives go, whatever the setting. */
   unforgetSession(sessionId: string): Promise<void>
-  /** The window opened or was trusted: cleanup and retention, whatever the setting. */
+  /** The window opened or was trusted: recovery, cleanup and retention, whatever the setting. */
   maintain(): Promise<void>
-  /** Copies a file the extension's tools are about to write; a failed copy fails the write. */
-  beforeToolWrite(absolutePath: string): Promise<void>
-  /** The user saved a file in this window: while a turn runs, a restore leaves it alone. */
-  noteUserSave(absolutePath: string): void
+  /**
+   * Refuses a tool's write into the checkpoint storage of any namespace,
+   * whatever the setting: a filter planted in the repository's configuration
+   * would run as the user. It records nothing (M86): a turn's own io does.
+   */
+  refuseStorageWrite(absolutePath: string): void
 }
 
 /** What the port uses of the store. */
 export type CheckpointStoreApi = Pick<
   CheckpointStore,
-  | 'capture'
-  | 'release'
-  | 'record'
+  | 'instance'
+  | 'startUnit'
+  | 'endUnit'
   | 'markTurn'
-  | 'endTurn'
   | 'turns'
+  | 'legacyTurns'
   | 'restore'
   | 'redo'
   | 'forgetSession'
   | 'unforgetSession'
   | 'queueForget'
   | 'maintain'
-  | 'beforeToolWrite'
-  | 'noteUserSave'
   | 'isStoragePath'
   | 'isNativeUnsafe'
-  | 'hasOpenTurn'
   | 'markNativeBackend'
   | 'markUnprovenProcess'
 >
 
 export interface CheckpointHostDeps {
   readonly isNamespaceKnown: () => boolean
+  /** The turns a retired implementation recorded in the workspace's own storage. */
   readonly legacyTurns?: (sessionId: string) => Promise<readonly string[]>
   readonly onAvailabilityChanged?: () => void
   /** Undefined without a confirmed canonical first-folder namespace. */
@@ -102,6 +112,7 @@ export interface CheckpointHostDeps {
 
 const UNAVAILABLE: RestoreOutcome = { ok: false, reason: 'unavailable' }
 const UNSUPPORTED: RestoreOutcome = { ok: false, reason: 'backendUnsupported' }
+const OFF: TurnCheckpoint = { kind: 'off' }
 
 export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
   const backendOf = (request: RestoreRequest | RedoRequest) =>
@@ -120,7 +131,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     }
     return deps.isEnabled() ? 'on' : 'off'
   }
-  /** The store while new checkpoints are taken and offered. */
+  /** The store while new units are recorded and offered. */
   const onStore = (): CheckpointStoreApi | undefined =>
     availability() === 'on' ? deps.store : undefined
   /** The store while git may run, whatever the setting. */
@@ -128,13 +139,6 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     const posture = availability()
     return posture === 'on' || posture === 'off' ? deps.store : undefined
   }
-  /**
-   * The store while the tools' copies are taken: with the setting on, or while
-   * a turn recorded before it went off is still open, since that turn's end
-   * (which runs whatever the setting) needs them to put ignored files back.
-   */
-  const copyStore = (): CheckpointStoreApi | undefined =>
-    onStore() ?? (gitStore()?.hasOpenTurn === true ? deps.store : undefined)
   return {
     isNativeUnsafe: () => deps.store?.isNativeUnsafe === true,
     markNativeBackend: async () => {
@@ -142,7 +146,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
         throw new Error(UI_TEXT.checkpointsNativeUnsafe)
       }
       try {
-        await deps.store?.markNativeBackend()
+        await deps.store?.markNativeBackend(gitStore() !== undefined)
       } finally {
         deps.onAvailabilityChanged?.()
       }
@@ -158,16 +162,6 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       }
     },
     availability,
-    capture: async () => await onStore()?.capture(),
-    release: async (snapshot) => {
-      await gitStore()?.release(snapshot)
-    },
-    record: async (sessionId, turnId, snapshot) => {
-      const store = onStore()
-      await (store === undefined
-        ? gitStore()?.release(snapshot)
-        : store.record(sessionId, turnId, snapshot))
-    },
     markTurn: async (key, isRunning) => {
       if (isRunning && !deps.isNamespaceKnown()) {
         throw new Error(UI_TEXT.checkpointsNativeUnsafe)
@@ -180,12 +174,27 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
         }
       }
     },
-    endTurn: async (sessionId, turnId) => {
-      await gitStore()?.endTurn(sessionId, turnId)
+    startTurnUnit: async (sessionId, turnId, isInherited) => {
+      const store = isInherited ? gitStore() : onStore()
+      if (store === undefined) {
+        return
+      }
+      const owner: Owner = { instance: store.instance, sessionId, unitKind: 'turn', unitId: turnId }
+      await store.startUnit(owner)
+      return owner
+    },
+    endUnit: async (owner, end) => {
+      await gitStore()?.endUnit(owner, end)
     },
     turns: async (sessionId) => (await onStore()?.turns(sessionId)) ?? [],
-    legacyTurns: async (sessionId) =>
-      availability() === 'on' ? ((await deps.legacyTurns?.(sessionId)) ?? []) : [],
+    legacyTurns: async (sessionId) => {
+      const store = onStore()
+      if (store === undefined) {
+        return []
+      }
+      const older = (await deps.legacyTurns?.(sessionId)) ?? []
+      return [...new Set([...older, ...(await store.legacyTurns(sessionId))])]
+    },
     restore: async (request) => {
       if (request.backend?.() !== 'modelApi') {
         return UNSUPPORTED
@@ -226,64 +235,93 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     maintain: async () => {
       await gitStore()?.maintain()
     },
-    // Whatever the setting: a turn already under way still finishes its checkpoint.
-    noteUserSave: (absolutePath) => {
-      deps.store?.noteUserSave(absolutePath)
-    },
-    beforeToolWrite: async (absolutePath) => {
-      // The store's own files (the repository's configuration among them) are never a
-      // tool's to write, whatever the setting: a filter planted there runs as the user.
+    refuseStorageWrite: (absolutePath) => {
       if (deps.store?.isStoragePath(absolutePath) === true) {
         throw new Error(MODEL_TEXT.checkpointStorageWrite)
       }
-      await copyStore()?.beforeToolWrite(absolutePath)
     },
   }
 }
 
-/** Model API turns await their preimage/record before hooks or edits, including queued turns. */
+/** Where turns get their own recorded writes (M86): the window's `TurnRecorder`. */
+type TurnRecorderApi = Pick<TurnRecorder, 'start' | 'end'>
+
+/**
+ * A Model API turn (or child turn) is about to run: it is published as
+ * running, then its unit's record is made, before hooks or edits (queued and
+ * scheduled turns included), and its tools get their own writes, recorded
+ * until it ends. A child turn inherits its top turn's decision (spec 3.2): it
+ * records even if the setting went off meanwhile, and not at all when its top
+ * turn does not; one whose record cannot be made does not run (a rejection).
+ * With no recorder nothing is recorded.
+ */
 export async function prepareCheckpointTurn(
   port: CheckpointPort,
+  recorder: TurnRecorderApi | undefined,
   sessionId: string,
   turnId: string,
   log: Logger,
-): Promise<void> {
+  top?: TopTurn,
+): Promise<TurnCheckpoint> {
   await port.markTurn(turnKey(sessionId, turnId), true)
-  if (port.availability() !== 'on') {
-    return
+  if (top?.checkpoint?.kind === 'off' || top?.recordsFiles === false) {
+    return OFF
   }
-  let captured: Snapshot | undefined
+  if (recorder === undefined) {
+    if (top !== undefined) {
+      throw new Error(UI_TEXT.childCheckpointFailed)
+    }
+    return OFF
+  }
+  if (top !== undefined && top.checkpoint === undefined && top.recordsFiles === undefined) {
+    throw new Error(UI_TEXT.childCheckpointFailed)
+  }
+  let owner: Owner | undefined
   try {
-    const recorded = await port.turns(sessionId)
-    if (recorded.includes(turnId)) {
-      return
-    }
-    const result = await port.capture()
-    if (result === undefined) {
-      log.warn('No pre-turn checkpoint was captured: unavailable')
-      return
-    }
-    if (!result.ok) {
-      log.warn(`No pre-turn checkpoint was captured: ${result.reason}`)
-      return
-    }
-    captured = result.snapshot
-    await port.record(sessionId, turnId, captured)
+    // A top turn that records (or tried to) passes its decision on.
+    owner = await port.startTurnUnit(sessionId, turnId, top !== undefined)
   } catch (error: unknown) {
-    log.warn(`No pre-turn checkpoint was recorded: ${failureForLog(error)}`)
-    if (captured !== undefined) {
-      try {
-        await port.release(captured)
-      } catch (releaseError: unknown) {
-        log.warn(`A refused pre-turn capture could not be released: ${failureForLog(releaseError)}`)
-      }
+    log.warn(`No turn record was made: ${failureForLog(error)}`)
+    if (top !== undefined) {
+      throw new Error(UI_TEXT.checkpointFailed, { cause: error })
     }
+    return { kind: 'failed' }
   }
+  if (top !== undefined && owner === undefined) {
+    throw new Error(UI_TEXT.childCheckpointFailed)
+  }
+  return owner === undefined ? OFF : { kind: 'recording', owner, writes: recorder.start(owner) }
 }
 
-/** An explicit local file edit owns admission until its actual I/O settles. */
+/**
+ * A Model API turn ended (Stop and cancellation alike): its writes settle
+ * first (no new one is admitted, those under way finish), then its unit is
+ * folded and sealed when it recorded, and only then is its running mark
+ * withdrawn. A unit that could not be sealed keeps the mark until it is.
+ */
+export async function finishCheckpointTurn(
+  port: CheckpointPort,
+  recorder: TurnRecorderApi | undefined,
+  sessionId: string,
+  turnId: string,
+  end: TurnEnd,
+): Promise<void> {
+  const { checkpoint } = end
+  if (checkpoint?.kind === 'recording') {
+    await recorder?.end(checkpoint.owner)
+    await port.endUnit(checkpoint.owner, { ranProcesses: end.ranProcesses })
+  }
+  await port.markTurn(turnKey(sessionId, turnId), false)
+}
+
+/**
+ * An explicit local file edit owns admission until its actual I/O settles.
+ * A lease that cannot be let go is logged, never the edit's failure: the
+ * edit is done, and the mark left behind keeps restores closed (CC-M9c).
+ */
 export async function withCheckpointEdit<T>(
   checkpoints: CheckpointPort,
+  log: Pick<Logger, 'warn'>,
   check: () => void,
   work: () => Promise<T>,
 ): Promise<T> {
@@ -294,7 +332,11 @@ export async function withCheckpointEdit<T>(
     check()
     return await work()
   } finally {
-    await checkpoints.markTurn(key, false)
+    try {
+      await checkpoints.markTurn(key, false)
+    } catch (error: unknown) {
+      log.warn(`An edit's checkpoint lease could not be let go: ${failureForLog(error)}`)
+    }
   }
 }
 
@@ -318,6 +360,7 @@ export interface EditWorkspace {
  */
 export async function withCheckpointEditAt<T>(
   checkpoints: CheckpointPort,
+  log: Pick<Logger, 'warn'>,
   check: () => void,
   workspace: EditWorkspace,
   absolutePath: string | undefined,
@@ -333,37 +376,17 @@ export async function withCheckpointEditAt<T>(
     check()
     return await work()
   }
-  return await withCheckpointEdit(checkpoints, check, work)
+  return await withCheckpointEdit(checkpoints, log, check, work)
 }
 
 /**
- * `work` as a write or delete the extension makes in the user's name (a
- * command they ran, a file they export): once it is done its path is the
- * user's, as their own save is (a Revert, whose change may be refused, is
- * the user's only once it lands: `createRevertIo`). `workspace.fs` saves no
- * document, so VS Code's save event never sees these writes; noted here, a
- * turn running meanwhile neither takes the file for its own nor undoes it on
- * a restore.
- * The model's writes (its tools, its memory) never come through here: they
- * are the turn's, and its restore puts them back.
+ * The window's tool io (M86): every tool write refused in the checkpoint
+ * storage, and every command and hook marked as workspace activity, so no
+ * restore runs meanwhile. It records nothing: a turn's own io records its
+ * writes (`writeRecorder`), and what else writes through this one (Muse
+ * Code's image tools, the extension for the user) is never recorded.
  */
-export function asUserEdit<T>(
-  checkpoints: CheckpointPort,
-  absolutePath: string,
-  work: () => Promise<T>,
-): () => Promise<T> {
-  return async () => {
-    const result = await work()
-    checkpoints.noteUserSave(absolutePath)
-    return result
-  }
-}
-
-/**
- * The tools' file access with a checkpoint copy before every write: the
- * Model API's `write_file` and `edit_file`, and a generated image's new file.
- */
-export function withCheckpointCopies(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
+export function withCheckpointStorageGuard(io: ToolIo, checkpoints: CheckpointPort): ToolIo {
   const finishActivity = async (key: string, isProven: boolean): Promise<void> => {
     try {
       if (!isProven) {
@@ -419,16 +442,16 @@ export function withCheckpointCopies(io: ToolIo, checkpoints: CheckpointPort): T
         await activity(async () => await hook(...args)),
     }),
     writeFile: async (absolutePath, content, expectedCanonicalPath, assertCanWrite) => {
-      await checkpoints.beforeToolWrite(absolutePath)
+      checkpoints.refuseStorageWrite(absolutePath)
       await io.writeFile(absolutePath, content, expectedCanonicalPath, assertCanWrite)
     },
     writeFileIfUnchanged: async (...args: Parameters<ToolIo['writeFileIfUnchanged']>) => {
-      await checkpoints.beforeToolWrite(args[0])
+      checkpoints.refuseStorageWrite(args[0])
       return await conditionalWrite(...args)
     },
-    reserveFile: async (absolutePath, expectedCanonicalPath): Promise<FileReservation> => {
-      await checkpoints.beforeToolWrite(absolutePath)
-      return await io.reserveFile(absolutePath, expectedCanonicalPath)
+    reserveFile: async (absolutePath, expectedCanonicalPath, beforeCreate) => {
+      checkpoints.refuseStorageWrite(absolutePath)
+      return await io.reserveFile(absolutePath, expectedCanonicalPath, beforeCreate)
     },
   }
 }

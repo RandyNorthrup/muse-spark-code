@@ -1613,13 +1613,8 @@ export interface ImportApplyOptions {
    */
   readonly beforeWrite?: (isProject: boolean) => void
   readonly beginProjectEdit?: ImportWriteNotice
-  /** Keeps a project file's bytes for a checkpoint restore before it is written (M72). */
-  readonly beforeProjectWrite?: (absolutePath: string) => Promise<void>
-  /**
-   * A file the import published: the user's own write, as their save is, so
-   * a turn running meanwhile neither takes it for its own nor undoes it (M72).
-   */
-  readonly notePublished?: (absolutePath: string) => void
+  /** Refuses a project publication in checkpoint storage (M86); records no bytes. */
+  readonly beforeProjectWrite?: (absolutePath: string) => void | Promise<void>
   /** Whether the window still shows the folder the plan was made for. */
   readonly isRootCurrent?: (root: ImportProjectRoot) => Promise<boolean>
 }
@@ -1665,10 +1660,9 @@ async function fileWithinRoot(
 }
 
 /**
- * One native publication between its notice and its checkpoint copy: the
- * copy first (a failed copy fails the write), then the window's guard, then
- * the work, with the notice completed either way and counting only a write.
- * A file it wrote is noted as the user's.
+ * One native publication behind its storage and window guards, with the
+ * notice completed either way and counting only a write. Explicit imports
+ * remain outside the model's recorder (M86).
  */
 async function wasPublished(
   write: ImportWrite,
@@ -1701,9 +1695,6 @@ async function wasPublished(
   let wasWritten = false
   try {
     wasWritten = await didWrite(beforePublish)
-    if (wasWritten) {
-      options.notePublished?.(write.absolutePath)
-    }
     return wasWritten
   } finally {
     complete?.(wasWritten)

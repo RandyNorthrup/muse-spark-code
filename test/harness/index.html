@@ -3179,6 +3179,37 @@
             })
           })
         },
+        // --- D26: a notice said again is one row with its count, a different one apart ---
+        'notice-repeat': () => {
+          send({
+            type: 'sessionInfo',
+            modelId: 'muse-spark-1.3',
+            contextLimit: 1007997,
+            sessionId: 's1',
+          })
+          transcriptFixture({ isDone: true })
+          const said = (times, level, text) => {
+            for (let index = 0; index < times; index += 1) {
+              send({ type: 'notice', level, text })
+            }
+          }
+          said(
+            5,
+            'warning',
+            'Could not load the output: Muse Code did not answer item/readOutput within 60 s. Muse Code may be busy: collapse and expand the row to try again. Further failures go to the log only.',
+          )
+          said(
+            7,
+            'warning',
+            'Reasoning effort could not be applied: Muse Code did not answer session/setReasoningEffort within 60 s',
+          )
+          said(1, 'info', 'Nothing to compact yet.')
+          said(
+            2,
+            'error',
+            'Could not switch model: Muse Code did not answer session/setModel within 60 s',
+          )
+        },
         // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---
         share: () => {
           send({

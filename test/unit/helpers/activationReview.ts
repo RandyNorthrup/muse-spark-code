@@ -3,14 +3,13 @@
 // object-literal source between `withAdmission` and `openDiff` in its
 // `lazyReview({...})` is evaluated over the bindings a test gives for its free
 // names: the real lease and Revert publication, the tools' real file access
-// by default, and the test's own window guard, checkpoint port and trash.
+// by default, and the test's own window guard, checkpoint port, log and trash.
 
 import { readFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 import { vi } from 'vitest'
 import type { ToolIo } from '../../../src/core/backends/modelapi/tools'
-import { createToolIo } from '../../../src/host/backend/toolIo'
 import {
   type CheckpointPort,
   createCheckpointPort,
@@ -18,6 +17,8 @@ import {
 } from '../../../src/host/checkpoints/checkpointHost'
 import type { EditReviewDeps } from '../../../src/host/editor/editReview'
 import { createRevertIo } from '../../../src/host/editor/revertIo'
+import type { Logger } from '../../../src/host/logger'
+import { nativeToolIo } from './fakeToolIo'
 
 export type ActivationRevert = Pick<EditReviewDeps, 'withAdmission' | 'io'>
 
@@ -84,21 +85,10 @@ export function activationRevert(bindings: Readonly<Record<string, unknown>>): A
   return value
 }
 
-/** The tools' real file access over this machine's files, editors dirty at `unsavedFiles`. */
-export function nativeToolIo(unsavedFiles: () => readonly string[] = () => []): ToolIo {
-  return createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    env: () => ({}),
-    listFiles: () => Promise.resolve([]),
-    searchWorkerPath: 'unused',
-    log: () => undefined,
-    unsavedFiles,
-  })
-}
-
 export interface RevertWiring {
   readonly checkpoints: CheckpointPort
+  /** The window's log, where a lease that cannot be let go is noted (M86); silent by default. */
+  readonly log?: Pick<Logger, 'warn'>
   /** The backend manager's `workspaceActionGuard`, as activation calls it. */
   readonly guard: (signal: AbortSignal) => () => void
   /** The window's native-start signal. */
@@ -116,6 +106,7 @@ export function wiredRevert(wiring: RevertWiring): ActivationRevert {
     backend: { workspaceActionGuard: wiring.guard },
     nativeStarts: { signal: wiring.signal ?? new AbortController().signal },
     checkpoints: wiring.checkpoints,
+    log: wiring.log ?? { warn: () => undefined },
     withCheckpointEdit,
     createRevertIo,
     toolIo: wiring.toolIo ?? nativeToolIo(),

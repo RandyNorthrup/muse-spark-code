@@ -1,13 +1,12 @@
 // The physical identity of a workspace folder: its canonical path and its
-// device and inode (bigint, which Node 20 hosts read too), so a request bound
-// to a folder can tell when the path it was given now leads to another one. A
-// link or junction retargeted, or a directory replaced, changes the identity
-// while the lexical and canonical paths still resolve. Used by the review's
-// git reads (M70) and by the ACP agent's Model API hosts (PLAN.md D62).
+// native file ID (sampled by core/fs/fileIdentity, the one place that reads
+// device and inode), so a request bound to a folder can tell when the path it
+// was given now leads to another one. A link or junction retargeted, or a
+// directory replaced, changes the identity while the lexical and canonical
+// paths still resolve. Used by the review's git reads (M70) and by the ACP
+// agent's Model API hosts (PLAN.md D62).
 
-import { statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import { WORKSPACE_IDENTITY_ZERO } from '../shared/constants'
+import { fileIdentityKey, sameFile, statIdentity, statIdentitySync } from '../core/fs/fileIdentity'
 import { canonicalPath } from './canonicalPath'
 
 export interface WorkspaceIdentity {
@@ -32,24 +31,19 @@ export async function captureWorkspaceIdentity(
   root: string,
 ): Promise<WorkspaceIdentity | undefined> {
   const canonical = await canonicalPath(root)
-  const captured = await stat(canonical, { bigint: true })
-  if (
-    !captured.isDirectory() ||
-    captured.ino <= WORKSPACE_IDENTITY_ZERO ||
-    captured.dev < WORKSPACE_IDENTITY_ZERO
-  ) {
+  const captured = await statIdentity(canonical)
+  const key = fileIdentityKey(captured)
+  if (key === undefined || !captured.isDirectory()) {
     return undefined
   }
   return {
     canonical,
-    key: `${captured.dev.toString()}:${captured.ino.toString()}`,
+    key,
     isCurrent: () => {
       try {
         return [root, canonical].every((folder) => {
-          const current = statSync(folder, { bigint: true })
-          return (
-            current.isDirectory() && current.dev === captured.dev && current.ino === captured.ino
-          )
+          const current = statIdentitySync(folder)
+          return current.isDirectory() && sameFile(current, captured)
         })
       } catch {
         return false

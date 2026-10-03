@@ -14,6 +14,13 @@ import { randomUUID } from 'node:crypto'
 import { type BigIntStats, constants, type Dirent } from 'node:fs'
 import { link, lstat, mkdir, open, readdir, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
+import {
+  fileIdentityKey,
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../core/fs/fileIdentity'
 import type {
   ImportDirEntry,
   ImportIo,
@@ -97,16 +104,9 @@ const LINK_REFUSED = 'ELOOP'
 const CHANGED = 'ESTALE'
 const TOO_LARGE = 'EFBIG'
 const EXCLUSIVE_CREATE = 'wx'
-const NO_FILE_NUMBER = 0n
-const FILE_ID_SEPARATOR = ':'
 
 function refused(code: string): Error {
   return Object.assign(new Error('Import path cannot be used safely'), { code })
-}
-
-/** Device and file number; bigint so that no 64-bit file number loses its low bits. */
-function isSameFile(before: BigIntStats, after: BigIntStats): boolean {
-  return before.dev === after.dev && before.ino === after.ino
 }
 
 /** The canonical form the import confines by: broken links followed to where they lead. */
@@ -116,16 +116,13 @@ export const importRealPath: RealPathIo['realPath'] = async (absolutePath) =>
 /** A folder's canonical path and file number, for comparing it with itself later. */
 async function identifyRoot(absolutePath: string): Promise<ImportRootIdentity> {
   const canonical = await importRealPath(absolutePath)
-  const info = await stat(canonical, { bigint: true })
+  const info = await statIdentity(canonical)
   if (!info.isDirectory()) {
     throw refused('ENOTDIR')
   }
   return {
     canonical,
-    fileId:
-      info.ino === NO_FILE_NUMBER
-        ? ''
-        : `${String(info.dev)}${FILE_ID_SEPARATOR}${String(info.ino)}`,
+    fileId: fileIdentityKey(info) ?? '',
   }
 }
 
@@ -156,7 +153,7 @@ async function assertNoLinks(absolutePath: string, root: string): Promise<void> 
     current = path.join(current, segment)
     let info: BigIntStats
     try {
-      info = await lstat(current, { bigint: true })
+      info = await lstatIdentity(current)
     } catch (error: unknown) {
       if (isMissingPath(error)) {
         return
@@ -222,7 +219,7 @@ async function readImportFile(
   await check()
   let info: BigIntStats
   try {
-    info = await stat(absolutePath, { bigint: true })
+    info = await statIdentity(absolutePath)
   } catch (error: unknown) {
     if (isMissingPath(error)) {
       return { status: 'missing' }
@@ -238,11 +235,11 @@ async function readImportFile(
   const flags = constants.O_RDONLY | (isBound ? constants.O_NOFOLLOW : 0)
   const handle = await open(absolutePath, flags)
   try {
-    if (!isSameFile(info, await handle.stat({ bigint: true }))) {
+    if (!sameFile(info, await handleIdentity(handle))) {
       throw refused(CHANGED)
     }
     await check()
-    if (!isSameFile(info, await stat(absolutePath, { bigint: true }))) {
+    if (!sameFile(info, await statIdentity(absolutePath))) {
       throw refused(CHANGED)
     }
     const bytes = Buffer.alloc(maxBytes + 1)
@@ -322,10 +319,10 @@ async function createImportFile(
   let identity: BigIntStats | undefined
   let createdPath: string | undefined
   try {
-    identity = await handle.stat({ bigint: true })
+    identity = await handleIdentity(handle)
     createdPath = await importRealPath(temporary)
     await checkTarget(temporary, project)
-    if (!isSameFile(identity, await lstat(temporary, { bigint: true }))) {
+    if (!sameFile(identity, await lstatIdentity(temporary))) {
       throw refused(CHANGED)
     }
     await beforePublish?.()
@@ -333,7 +330,7 @@ async function createImportFile(
     await handle.close()
     await checkTarget(temporary, project)
     await checkTarget(absolutePath, project)
-    if (!isSameFile(identity, await lstat(temporary, { bigint: true }))) {
+    if (!sameFile(identity, await lstatIdentity(temporary))) {
       throw refused(CHANGED)
     }
     await beforePublish?.()
@@ -351,7 +348,7 @@ async function createImportFile(
       if (
         identity !== undefined &&
         createdPath !== undefined &&
-        isSameFile(identity, await lstat(createdPath, { bigint: true }))
+        sameFile(identity, await lstatIdentity(createdPath))
       ) {
         await rm(createdPath)
       }

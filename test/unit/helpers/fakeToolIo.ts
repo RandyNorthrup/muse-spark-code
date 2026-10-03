@@ -5,6 +5,23 @@
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
 import { refusedShellEntry } from '../../../src/core/shellResult'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
+import { createToolIo } from '../../../src/host/backend/toolIo'
+
+/**
+ * The real tool io over the real file system: no shell environment, and an
+ * editor with unsaved changes at `unsavedFiles` only (none by default).
+ */
+export function nativeToolIo(unsavedFiles: () => readonly string[] = () => []): ToolIo {
+  return createToolIo({
+    platform: process.platform,
+    systemRoot: process.env['SystemRoot'],
+    env: () => ({}),
+    listFiles: () => Promise.resolve([]),
+    searchWorkerPath: 'unused',
+    log: () => undefined,
+    unsavedFiles,
+  })
+}
 
 /**
  * The real adapter's final admission (the sixth `runShell` argument), asked at
@@ -81,17 +98,21 @@ export function memoryToolIo(
     reserveFile: (absolutePath) => {
       const key = keyOf(absolutePath)
       if (isTaken(key)) {
-        return Promise.reject(new Error(`EEXIST: file already exists, open '${absolutePath}'`))
+        return Promise.reject(
+          Object.assign(new Error(`EEXIST: file already exists, open '${absolutePath}'`), {
+            code: 'EEXIST',
+          }),
+        )
       }
       binaries.set(key, new Uint8Array())
       return Promise.resolve({
         fill: (bytes) => {
           binaries.set(key, bytes)
-          return Promise.resolve()
+          return Promise.resolve('done')
         },
         release: () => {
           binaries.delete(key)
-          return Promise.resolve()
+          return Promise.resolve('done')
         },
       })
     },
@@ -122,16 +143,20 @@ export function memoryToolIo(
       return Promise.resolve()
     },
     // The conditional write (M68): only over the expected text.
-    writeFileIfUnchanged: (absolutePath, expectedFingerprint, content, options) => {
+    writeFileIfUnchanged: async (absolutePath, expected, content, options) => {
       options.assertCanWrite?.()
       const key = keyOf(absolutePath)
       const current = files.get(key)
       const isUnsaved = options.unsavedAt.some((path) => unsaved.has(keyOf(path)))
-      if (isUnsaved || current === undefined || fingerprint(current) !== expectedFingerprint) {
-        return Promise.resolve('changed')
+      const isExpected =
+        typeof expected === 'string'
+          ? current !== undefined && fingerprint(current) === expected
+          : await expected()
+      if (isUnsaved || !isExpected) {
+        return 'changed'
       }
       files.set(key, content)
-      return Promise.resolve('written')
+      return 'written'
     },
     listFiles: () =>
       Promise.resolve(Array.from(files.keys(), (absolute) => absolute.slice(root.length + 1))),
@@ -174,7 +199,10 @@ export const noopToolIo: ToolIo = {
   writeFileIfUnchanged: () => Promise.resolve('changed'),
   pathExists: () => Promise.resolve(false),
   reserveFile: () =>
-    Promise.resolve({ fill: () => Promise.resolve(), release: () => Promise.resolve() }),
+    Promise.resolve({
+      fill: () => Promise.resolve('done'),
+      release: () => Promise.resolve('done'),
+    }),
   hasUnsavedChanges: () => false,
   unsavedFiles: () => [],
   listFiles: () => Promise.resolve([]),

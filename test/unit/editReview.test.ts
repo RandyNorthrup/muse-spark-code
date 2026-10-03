@@ -23,9 +23,9 @@ import {
   admitted,
   DELETION_ONLY_PATCH,
   failsRelease,
-  nativeToolIo,
   wiredRevert,
 } from './helpers/activationReview'
+import { nativeToolIo } from './helpers/fakeToolIo'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -110,6 +110,7 @@ async function nativeRevert(
     hasUnsavedChanges: (fsPath) => unsaved.includes(fsPath),
     ...wiredRevert({
       checkpoints,
+      log,
       guard: () => admitted,
       toolIo: nativeToolIo(() => unsaved),
       trash,
@@ -350,7 +351,9 @@ describe('Revert confinement under checkpoint admission (RV69 finding 2)', () =>
 })
 
 // RV69 finding 4: a Revert that changed the file stands when letting its
-// admission go fails afterwards; the failure is logged, not reported as unwritten.
+// admission go fails afterwards; the failure is logged, not reported as
+// unwritten. Since M86 the window's lease itself logs it and never fails the
+// edit (`withCheckpointEdit`); the mark left behind keeps restores closed.
 describe('a committed Revert whose admission release fails (RV69 finding 4)', () => {
   it.each(['file', 'hunk'] as const)(
     'reports the %s Revert done and logs the release failure',
@@ -363,15 +366,17 @@ describe('a committed Revert whose admission release fails (RV69 finding 4)', ()
       expect(result).toEqual(revertedResult('notes.md'))
       expect(await readFile(t.file, 'utf8')).toBe('removed\ntail\n')
       expect(t.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining('its checkpoint admission was not released'),
+        expect.stringContaining("An edit's checkpoint lease could not be let go"),
       )
     },
   )
 
-  it('still fails a Revert that changed nothing when the release fails', async () => {
+  it('still refuses a Revert that changed nothing when the release fails', async () => {
     const t = await nativeRevert({ content: 'unrelated\n', mark: failsRelease })
-    await expect(t.review.revertHunk('edit', DELETION_ONLY_PATCH, 0, 0)).rejects.toThrow(
-      'presence not written',
+    const result = await t.review.revertHunk('edit', DELETION_ONLY_PATCH, 0, 0)
+    expect(result.isReverted).toBe(false)
+    expect(t.log.warn).toHaveBeenCalledWith(
+      expect.stringContaining("An edit's checkpoint lease could not be let go"),
     )
     expect(await readFile(t.file, 'utf8')).toBe('unrelated\n')
   })
@@ -584,7 +589,6 @@ describe('manual revert verification notices', () => {
           withAdmission: async (work) => await work(() => undefined),
           io: createRevertIo({
             io: nativeToolIo(),
-            checkpoints: { noteUserSave: () => undefined },
             platform: process.platform,
             trash: (file) => unlink(file),
           }),

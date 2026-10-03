@@ -9,43 +9,38 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **Review** (M70, PLAN.md D49), on both backends:
-  - `/review` reviews the uncommitted changes; `/review branch [base]` the
-    branch against its base, `/review commit [revision]` one commit (a
-    picker asks when you leave either out), `/review <what to look at>`
-    anything you describe, with no git. `security` first, or **Security
-    review** (`/security-review`), looks for injection, secrets,
-    authentication and unsafe APIs. The palette's new **Review** group has
-    each preset.
-  - Git's changes go with the review marked as untrusted data, files that
-    may hold secrets left out and only named; in Restricted Mode the git
-    presets say why they cannot run.
-  - On the Model API the review runs as the built-in **Reviewer**: its own
-    prompt and tools that only read, in every permission mode, and no
-    extra charge (it is your own turn). The model can start it as a paid
-    subagent with the role `reviewer` (a custom agent it names instead runs
-    as that agent). On Muse Code the review turn runs in
-    Plan mode and your permission mode comes back when it ends; Muse Code's
-    own allow rules still apply in Plan mode, so that review is not claimed
-    strictly read-only.
-  - Findings end the reply as a list with severity, file and line; each
-    location opens its file there.
-  - **The review pane** (`/changes`): every change this conversation made,
-    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
-    file is now) and **Comment on a line**, which sends your comment with
-    the lines around it into the running turn or as your next message.
-  - A review is a turn: it is marked running and takes its turn checkpoint
-    like a message, and a message you send while a review is starting waits
-    for it and then goes into the review turn. Clearing the conversation
-    while a review is still starting lets the new conversation's review or
-    message start at once.
-  - 70 new strings in the 14 tables (the word for review in Simplified
-    Chinese is the table's existing 审阅).
-  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
-    review turn's text, the Plan-mode hold and edit review (Open diff and
-    Revert) are the new `dist/review.js` (42.0 KiB, budget 50), required the
-    first time one is used; a module that cannot be loaded refuses the review
-    with `reviewUnavailable` and the log has the cause.
+- **Turn checkpoints (M86).** On by default again, with restore rebuilt on
+  the model's own file-tool writes while each file still holds exactly
+  what the model left. Commands, hooks, MCP tools or background work active
+  in those turns are noted; their file changes are never undone. Workspace
+  captures and ignored-file scans are removed. Restore and Redo refuse
+  replaced workspace roots, swapped junctions, dirty editor aliases and
+  incomplete later transcripts. Durable recovery inputs survive unreadable
+  records; applied batches keep their results and Redo after lost outcomes.
+  Retention releases old units by sequence and sweeps every unreferenced
+  content copy, including failed writes without an intent, after a one-hour
+  grace period with no live writer. Bounded passes resume next time.
+  One CAS lease manager recovers abandoned cleanup reservations before ordinary
+  sends, trusted startup, cleanup and restore, preserving live and uncertain
+  owners. One BigInt identity module protects copies, reservations, publication,
+  cleanup and workspace fences; ESLint rejects identity reads elsewhere. Children keep
+  their inherited recording decision across reloads, and folder cleanup
+  uses actual creation ownership. Imports from other agents keep their edit
+  and storage guards while remaining outside the model's recorder.
+  Identity metadata without file contents may outlive retired copies until
+  the window that wrote it retires; removing extension storage clears it.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -69,7 +64,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -96,11 +93,15 @@ happened, not what was planned; superseded entries are kept.
     fresh random markers around the unchanged slice, so a page from the
     middle of a fetched web page keeps its boundary.
   - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
   - **The recall row speaks the display language.** Its heading and its
     refusals are in the installed language, with counts in its number
     format; the recalled text is shown as it was, and the model's text
     stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
   - **The live report records the packing acceptance.** The report says
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
@@ -137,18 +138,6 @@ happened, not what was planned; superseded entries are kept.
   keeping its exact draft and images without replacing newer typing.
   No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
-  commands become skills, compatible agents become M76 agent files, project
-  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
-  editor edits for review and save. Import preserves source exposure:
-  personal stays personal and git-ignored files never enter tracked targets;
-  target exposure and path guards are checked again at publication/edit.
-  Values stay unchanged; no credential detector or clipboard operation.
-  Preview/picker output shows names, scopes and targets only, logs counts
-  and fixed reasons only. Only active MCP transport fields are copied;
-  inactive/unknown fields are dropped by name. Existing files and running
-  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
-  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
   model runs one through `subagent_spawn` with `agent` set to its id, and the
@@ -192,10 +181,65 @@ happened, not what was planned; superseded entries are kept.
   the others still load, and an agent it, or a file in it that was skipped,
   might define is refused by name rather than replaced by a broader personal
   or built-in agent of the same id.
+- **Review** (M70, PLAN.md D49), on both backends:
+  - `/review` reviews the uncommitted changes; `/review branch [base]` the
+    branch against its base, `/review commit [revision]` one commit (a
+    picker asks when you leave either out), `/review <what to look at>`
+    anything you describe, with no git. `security` first, or **Security
+    review** (`/security-review`), looks for injection, secrets,
+    authentication and unsafe APIs. The palette's new **Review** group has
+    each preset.
+  - Git's changes go with the review marked as untrusted data, files that
+    may hold secrets left out and only named; in Restricted Mode the git
+    presets say why they cannot run.
+  - On the Model API the review runs as the built-in **Reviewer**: its own
+    prompt and tools that only read, in every permission mode, and no
+    extra charge (it is your own turn). The model can start it as a paid
+    subagent with the role `reviewer` (a custom agent it names instead runs
+    as that agent). On Muse Code the review turn runs in
+    Plan mode and your permission mode comes back when it ends; Muse Code's
+    own allow rules still apply in Plan mode, so that review is not claimed
+    strictly read-only.
+  - Findings end the reply as a list with severity, file and line; each
+    location opens its file there.
+  - **The review pane** (`/changes`): every change this conversation made,
+    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
+    file is now) and **Comment on a line**, which sends your comment with
+    the lines around it into the running turn or as your next message.
+  - A review is a turn: it is marked running and takes its turn checkpoint
+    like a message, and a message you send while a review is starting waits
+    for it and then goes into the review turn. Clearing the conversation
+    while a review is still starting lets the new conversation's review or
+    message start at once.
+  - 70 new strings in the 14 tables (the word for review in Simplified
+    Chinese is the table's existing 审阅).
+  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
+    review turn's text, the Plan-mode hold and edit review (Open diff and
+    Revert) are the new `dist/review.js` (43.2 KiB, budget 50), required the
+    first time one is used; a module that cannot be loaded refuses the review
+    with `reviewUnavailable` and the log has the cause.
 
 ### Changed
 
-- The host API compatibility record is regenerated from the combined source.
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -204,12 +248,6 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
-- README: an install guide for the most used editors (VS Code, Cursor,
-  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
-  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
-  settings; the README, banner and social preview now name no single editor
-  ("a coding agent in your editor"), and the README links every channel:
-  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
   2026-11-01. No fixed release exists, and `braces` reaches only development
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
@@ -243,52 +281,28 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
   TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
   until typescript-eslint admits 7. The SDK is bundled into the ACP agent
   alone; no file of the extension changes.
-- **Approval cards are docked above the message box** while they wait,
-  as in Claude Code's panel, so scrolling never loses one.
-  - The tool's row in the conversation keeps a short "Waiting for your
-    approval" line, then shows the decision.
-  - With several waiting, the oldest is docked (the order Muse asked) with
-    "Approvals waiting: N"; each moves up as the one before is settled.
-  - Focus moves to an arriving card itself, not onto a choice. A field you
-    are typing in (one holding text, or a key in the last 1.5 s) keeps
-    focus, and the panel's live region announces the card either way.
-  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
-    panel's height and wraps a long command at 320 px.
-  - The accessibility gate checks it in the four themes in new scenarios:
-    several cards, 320 px, and a step that moved on.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+- The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
 
-- **Revert on an edit no longer overwrites your saved or unsaved changes**.
-  Edit review's Revert and the pane's hunk Revert are one step under the
-  turn checkpoints' file-edit lease: they read the saved file, rebuild the
-  pre-edit text from it, check that the path still leads to the same file
-  inside the workspace and that no editor has unsaved changes for it (the
-  file itself or a link to it), then write the file, or move a file Muse
-  created to the trash, only while it still holds what was read, with no
-  link or junction on the way. A save, an editor turning dirty or a folder
-  swapped for a link meanwhile makes Revert refuse and say why instead of
-  overwriting. Reverts of one file run in order and rebuild from each
-  other's bytes; a failed write frees the next one, and a Revert that wrote
-  stays done when releasing the lease fails afterwards (the log says so),
-  so it is not offered again. They tell live verification about the write
-  without creating an edit round of the agent's own.
-- A handoff brief that arrives while the review pane is open waits until
-  the pane closes, preserving one modal and one focus trap at a time.
-- The Reviewer retains whole tool observations when observation packing is
-  enabled, because its read-only tools cannot recall packed output. The
-  next ordinary request still uses the same packed placeholder.
-- **Implement in a fresh conversation** now waits while handoff Start is
-  running, and Start waits for Implement, so they cannot both leave the
-  conversation and steer one brief into the other.
+- Staged file writes and plan-stage cleanup compare exact device/inode IDs,
+  preventing rounded Windows file IDs from accepting or removing a replacement.
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
@@ -332,37 +346,6 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
-- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
-- **A handoff brief no longer mixes in a later turn's tasks.** A message
-  sent after the distillation turn ended but before its brief was read
-  back could update the todo list the dialog and the new conversation
-  take from it. Sends stay refused until the brief and its todos are
-  captured. A brief deferred by key activation now also survives the
-  activation's restart: it is read back once the key is active, instead
-  of never returning. And a send refused while it waited is kept across
-  a panel reload, so the exact draft is still restored.
-- **A spawn that starts no child asks nothing** (Model API backend). One past
-  the 64 children of a conversation, one asking for worktree isolation, or
-  one reusing an earlier spawn's command id for a different task is refused
-  before the paid-use popup or the contributor question; a retry of the
-  same spawn under its command id answers with that child without asking
-  again. Each used to ask first.
-- When your PreToolUse hook rewrites a `then_run` command into one that
-  names no command, the line under the edit says so in your display
-  language; it was English. The model is still told in English.
-- A skill folder that cannot be read no longer hides the other folder's
-  skills (Model API backend): each loads on its own, and the log names the
-  one that failed.
-- Project context files are read through the canonical path confinement.
-  Replacing an agent/skill/rules alias with an outside link between check and
-  read no longer redirects the read outside the workspace.
-- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
-  share one decision's eventual result, so a confirmed refusal unlocks
-  both. Stop waits for an in-flight decision and rejects the next waiting
-  stage before cancelling. A fault's Restart now stops only Muse Code;
-  Model API conversations continue. Recovery buttons retire on first use
-  and remain retired in restored panels. The approval dock count uses
-  localized plural forms in every display language.
 - **One decision per approval step (0.10.0, 0.10.1).** The approval card
   sent a step's decision again, so one approval got two or three answers
   and Muse Code refused the extra ones ("That request moved on to its next
@@ -417,6 +400,108 @@ happened, not what was planned; superseded entries are kept.
     retry; later ones go to the log until a read succeeds.
   - Collapsing and expanding the row asks again. The row keeps the diff it
     already shows, and the turn goes on meanwhile.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
+- **A message sent while a turn runs is never sent twice (0.10.x).** When
+  Muse Code did not answer the steer within 60 s, the panel sent the same
+  message again as a new turn, and a slow Muse Code took both: the copy
+  waited in its queue and ran (or failed) after the turn. Now only Muse
+  Code saying no turn is there to take it sends the message as a new turn.
+  A steer with no answer fails the message's card with "Muse Code did not
+  confirm your message reached the running turn. It may still arrive; check
+  before you send it again.", and the composer keeps the text; any other
+  refusal is said in its own words.
+- **A Muse Code that stops answering no longer leaves every action waiting
+  60 s.** On 2026-10-03 `muse serve` stopped writing anything at all (one
+  core busy), and every command (a message, a new chat, Stop) waited out
+  its deadline, with no way out but reloading the window. Now, after three
+  commands in a row missed their deadline with nothing at all from Muse
+  Code for 90 s, it counts as not answering: new commands fail at once
+  ("Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."), and anything Muse Code sends clears it. With no turn running in
+  the window it is restarted at once and the panel says so; while a turn
+  runs, that panel's notice offers **Restart now**, which stops the turn.
+- **Muse Spark: Restart Muse Code** starts a fresh `muse serve` without
+  reloading the window. A running turn is stopped, and each conversation
+  continues with its next message. A fault notice's **Restart now** does
+  the same.
+- **A conversation whose Muse Code log is damaged says so.** Muse Code
+  1.4.2 can fail a session's event log ("event log failed: …", a fault in
+  Muse Code), after which it fails every message of that session. The
+  panel now remembers such a session (the newest 50 in each workspace): it
+  is never resumed by itself after a restart or a reload, and a message to
+  it is refused before Muse Code hears of it, with a notice offering **New
+  conversation**. The conversation stays in History.
+- **Moving the effort slider no longer sends a change per step.** Eight
+  quick steps sent eight `session/setReasoningEffort` at once, and a busy
+  Muse Code failed each with its own warning. Now one change per
+  conversation is in flight, the newest waits, and a failed burst is said
+  once.
+- **Edit rows no longer read all their diffs at once after a resume.**
+  Every open edit row asked for its stored diff at the same instant (26 at
+  once in the owner's session). At most four reads go to Muse Code at a
+  time, in order, and one for a conversation no longer shown is never
+  sent.
+- **A notice said again is one row, not a stack (0.10.1 and earlier).**
+  When Muse Code stopped answering, the conversation filled with copies of
+  the same notice: "Could not load the output: … within 60 s" five times,
+  "Reasoning effort could not be applied: …" seven times. That buried the
+  chat. Now:
+  - A notice with the same level and text as one in the run of notices
+    that ends the conversation replaces it. The one row moves to the end,
+    with a small count after its text ("7×", read out as "Shown 7 times").
+    A notice said before the last message stays where it was said.
+  - Notices with a different text or level stay apart.
+  - Each file restore's notice keeps its own row and its Redo.
+  - A Muse Code fault said again offers its buttons again.
+  - The count is kept when the panel reloads.
+- **Error notices in the conversation are readable in the Light and Dark
+  themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
+  WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
+  with a red edge.
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
+- A handoff brief that arrives while the review pane is open waits until
+  the pane closes, preserving one modal and one focus trap at a time.
+- The Reviewer retains whole tool observations when observation packing is
+  enabled, because its read-only tools cannot recall packed output. The
+  next ordinary request still uses the same packed placeholder.
 
 ### Release infrastructure
 

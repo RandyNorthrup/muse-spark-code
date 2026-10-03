@@ -8,6 +8,9 @@ import {
   type LegacyCheckpointDeps,
 } from './legacyCheckpoints'
 
+// The recorder of the turns' own writes (M86) loads with the store, not at activation.
+export { createTurnRecording } from './writeRecorder'
+
 export function createCheckpointStore(
   deps: CheckpointStoreDeps,
   table: UiText,

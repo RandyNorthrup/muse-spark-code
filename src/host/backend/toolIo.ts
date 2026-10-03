@@ -8,9 +8,16 @@
 // terminal would give (D24).
 
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { type FileHandle, lstat, mkdir, open, rm, stat } from 'node:fs/promises'
+import { existsSync, type BigIntStats } from 'node:fs'
+import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
 import path from 'node:path'
+import {
+  type FileIdentity,
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../../core/fs/fileIdentity'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
 import {
@@ -20,6 +27,7 @@ import {
   windowsPowerShellModulePath,
 } from '../../core/backends/musecode/launch'
 import type {
+  ReservationStep,
   SearchHit,
   SearchJob,
   SearchOutcome,
@@ -53,7 +61,7 @@ import {
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
 import { canonicalPath } from '../canonicalPath'
-import { writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
+import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
 import { joinStatement, newShellJob } from './shellJob'
 
@@ -384,21 +392,21 @@ async function checkedOpenedFile(
   file: FileHandle,
   expectedCanonicalPath: string | undefined,
   platform: NodeJS.Platform,
-): Promise<{ readonly dev: number; readonly ino: number }> {
-  const held = await file.stat()
+): Promise<FileIdentity> {
+  const held = await handleIdentity(file)
   // Node exposes inode identity, not a final path by handle. This catches
   // observed swaps; rapid adversarial ABA swaps remain outside the guarantee.
   if (expectedCanonicalPath === undefined) {
-    return { dev: held.dev, ino: held.ino }
+    return held
   }
   for (let sample = 0; sample < 2; sample += 1) {
     await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, platform)
-    const current = await stat(absolutePath)
-    if (held.dev !== current.dev || held.ino !== current.ino) {
+    const current = await statIdentity(absolutePath)
+    if (!sameFile(held, current)) {
       throw new Error(MODEL_TEXT.pathChangedAfterApproval)
     }
   }
-  return { dev: held.dev, ino: held.ino }
+  return held
 }
 
 /** A path's metadata and bytes come from one handle; growth stops after max + 1 bytes. */
@@ -574,6 +582,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         expectedCanonicalPath: options.expectedCanonicalPath,
         platform: deps.platform,
         isReplaceable: () => options.unsavedAt.every((path) => !hasUnsavedChanges(path)),
+        ...(options.staged !== undefined && { staged: options.staged }),
       })
     },
     async pathExists(absolutePath) {
@@ -587,17 +596,19 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async reserveFile(absolutePath, expectedCanonicalPath) {
+    async reserveFile(absolutePath, expectedCanonicalPath, beforeCreate) {
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
       deps.assertWorkspaceCurrent?.()
-      await mkdir(path.dirname(absolutePath), { recursive: true })
+      const directory = path.dirname(absolutePath)
+      const createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
+      await beforeCreate?.(createdFolders)
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
       // `wx`: created here or refused, never an existing file replaced (M34).
       deps.assertWorkspaceCurrent?.()
       const handle = await open(absolutePath, 'wx')
-      let identity: { readonly dev: number; readonly ino: number }
+      let identity: FileIdentity
       try {
-        identity = await handle.stat()
+        identity = await handleIdentity(handle)
       } catch (error: unknown) {
         await handle.close()
         throw error
@@ -610,14 +621,29 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         await handle.close()
         isClosed = true
       }
-      const release = async () => {
-        await close()
+      // The path still names the file reserved, with no link on the way, and
+      // it is still empty: only then is it ours to fill or remove (M86). Bytes
+      // the user wrote into it meanwhile are theirs and stay.
+      const isReserved = async (): Promise<boolean> => {
         await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
-        const current = await stat(absolutePath)
-        if (current.dev !== identity.dev || current.ino !== identity.ino) {
-          throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        let current: BigIntStats
+        try {
+          current = await lstatIdentity(absolutePath)
+        } catch (error: unknown) {
+          if (isMissingFile(error)) {
+            return false
+          }
+          throw error
+        }
+        return current.isFile() && sameFile(current, identity) && Number(current.size) === 0
+      }
+      const release = async (): Promise<ReservationStep> => {
+        await close()
+        if (!(await isReserved())) {
+          return 'changed'
         }
         await rm(absolutePath, { force: true })
+        return 'done'
       }
       try {
         await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
@@ -631,20 +657,19 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return {
         fill: async (bytes) => {
-          try {
-            await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
-            deps.assertWorkspaceCurrent?.()
-            await handle.writeFile(bytes)
+          await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
+          // Immediately before writing: the held file is still empty and the
+          // path still names it. A failure part way is left as it is, never
+          // cleaned up blindly: a release removes the file only while empty.
+          const held = await handleIdentity(handle)
+          if (Number(held.size) > 0 || !(await isReserved())) {
             await close()
-          } catch (error: unknown) {
-            // A write that failed (a full disk) leaves no half file behind.
-            try {
-              await release()
-            } catch {
-              // The write's own failure is the one reported.
-            }
-            throw error
+            return 'changed'
           }
+          deps.assertWorkspaceCurrent?.()
+          await handle.writeFile(bytes)
+          await close()
+          return 'done'
         },
         release,
       }

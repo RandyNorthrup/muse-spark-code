@@ -141,6 +141,7 @@ import {
   type SessionRecord,
   type SkillSummary,
   type StartSessionOptions,
+  SteerRefusedError,
   type TurnPart,
   type TurnSubmission,
 } from '../../agent/agentBackend'
@@ -285,6 +286,10 @@ import {
   toolDefinitions,
   type ToolIo,
   type ToolOutcome,
+  type TopTurn,
+  type TurnCheckpoint,
+  type TurnEnd,
+  type TurnWrites,
   type VisibleFile,
 } from './tools'
 import {
@@ -424,9 +429,18 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
-  /** M72: admitted before hooks or edits, including queued and scheduled turns. */
-  readonly beforeTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
-  readonly afterTurnRuns?: ((sessionId: string, turnId: string) => Promise<void>) | undefined
+  /**
+   * M72: admitted before hooks or edits, including queued and scheduled
+   * turns. M86: whether the turn is recorded, with its own writes, which
+   * record what its tools write for a restore until `afterTurnRuns`. A child
+   * turn passes its top turn (spec 3.2): it inherits that turn's decision,
+   * and it does not run when its own record cannot be made (a rejection).
+   */
+  readonly beforeTurnRuns?:
+    ((sessionId: string, turnId: string, top?: TopTurn) => Promise<TurnCheckpoint>) | undefined
+  /** The turn ended (Stop and cancellation alike): its checkpoint ends after its writes. */
+  readonly afterTurnRuns?:
+    ((sessionId: string, turnId: string, end: TurnEnd) => Promise<void>) | undefined
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -564,6 +578,10 @@ interface ActiveTurn {
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
   readonly isReview: boolean
+  /** Whether it is recorded (M86), and what its tools then write through; set once admitted. */
+  checkpoint?: TurnCheckpoint | undefined
+  /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
+  ranProcesses: boolean
 }
 
 interface HookToolResult {
@@ -1434,6 +1452,11 @@ export class ModelApiSession implements AgentSession {
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
   private readonly confirmedContributorModels = new Set<string>()
   private childTaskGrant: ChildTaskGrant | undefined
+  /**
+   * A child's top turn (M86, spec 3.2): the parent's turn that spawned it,
+   * whose recording decision each of the child's turns inherits.
+   */
+  private topTurn: TopTurn | undefined
   private readonly admitChildAttempt = (
     keyDigest: string | undefined,
     body: CreateResponseBody,
@@ -1672,12 +1695,21 @@ export class ModelApiSession implements AgentSession {
     shouldReplayContext = true,
     shouldShowMessages = true,
   ): Promise<HookDispatch> {
+    const runHook = this.deps.io.runHook?.bind(this.deps.io)
     const result = await dispatchHooks(
       this.enabledHooks(),
       event,
       this.hookPayload(event, turnId, fields),
       matcher,
-      this.deps.io,
+      // A hook's command is a process the running turn started (M86).
+      runHook === undefined
+        ? {}
+        : {
+            runHook: async (...args: Parameters<typeof runHook>) => {
+              this.noteProcessRan()
+              return await runHook(...args)
+            },
+          },
       signal,
       (warning) => {
         this.deps.log.warn(`Model API hooks: ${warning}`)
@@ -3364,7 +3396,7 @@ export class ModelApiSession implements AgentSession {
     }
     return await runImageCall(plan, {
       client: this.deps.client,
-      io: this.deps.io,
+      io: this.toolWrites()?.io ?? this.deps.io,
       signal,
       isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
       onBilled: () => {
@@ -3414,6 +3446,7 @@ export class ModelApiSession implements AgentSession {
     turnSignal: AbortSignal,
     isAllowed: CallAdmission,
   ): Promise<Performed> {
+    this.noteProcessRan()
     const stop = new AbortController()
     const onTurnStop = () => {
       stop.abort()
@@ -3453,6 +3486,7 @@ export class ModelApiSession implements AgentSession {
     }
     limit.lift()
     this.backgroundShells.set(itemId, stop)
+    this.noteBackgroundStarted()
     return {
       outcome: { output: MODEL_API_MODEL_TEXT.shellMovedToBackground, visibleOutput: '' },
       running,
@@ -3473,6 +3507,7 @@ export class ModelApiSession implements AgentSession {
     if (servers === undefined) {
       return toolFailure(`${call.name} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
+    this.noteProcessRan()
     const outcome = await servers.call(call.name, call.arguments, signal)
     return {
       output: outcome.output,
@@ -4161,6 +4196,7 @@ export class ModelApiSession implements AgentSession {
       isReviewerRole(args.role),
     )
     child.childTaskGrant = grant
+    child.topTurn = { checkpoint: this.active?.checkpoint }
     const record: ChildRecord = {
       id,
       role: args.role,
@@ -4463,7 +4499,7 @@ export class ModelApiSession implements AgentSession {
           outcome: await executeTool(call.name, call.arguments, {
             workspaceRoot: this.deps.workspaceRoot,
             platform: this.deps.platform,
-            io: this.deps.io,
+            io: this.toolWrites()?.io ?? this.deps.io,
             signal,
             seen: this.seenFiles,
             assertCanWrite,
@@ -4816,6 +4852,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     assertCanRun?: () => void,
   ): Promise<ShellResult> {
+    this.noteProcessRan()
     try {
       return await this.deps.io.runShell(
         line,
@@ -5111,6 +5148,7 @@ export class ModelApiSession implements AgentSession {
     const assertCurrent = () => {
       if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
     }
+    const writes = this.toolWrites()?.memory
     assertCurrent()
     if (placed.call.tool === 'read') {
       const outcome = await runMemoryCall(memory, placed, assertCurrent)
@@ -5146,7 +5184,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
       assertCurrent()
-      return await runMemoryCall(memory, placed, assertCurrent)
+      return await runMemoryCall(memory, placed, assertCurrent, writes)
     } finally {
       for (const complete of completions) {
         complete()
@@ -5306,7 +5344,7 @@ export class ModelApiSession implements AgentSession {
       const outcome = await applyRename(plan, {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
-        io: this.deps.io,
+        io: this.toolWrites()?.io ?? this.deps.io,
         seen: this.seenFiles,
         signal,
         beforeAccess: (file) => {
@@ -6588,6 +6626,60 @@ export class ModelApiSession implements AgentSession {
     return this.parentSession?.checkpointSessionId() ?? this.sessionId
   }
 
+  /**
+   * What a tool call writes through, taken when it starts: the running
+   * turn's own recorded writes (M86), else the window's io, which records
+   * nothing. A call that outlives its turn keeps the turn's, which refuses it.
+   */
+  private toolWrites(): TurnWrites | undefined {
+    const checkpoint = this.active?.checkpoint
+    return checkpoint?.kind === 'recording' ? checkpoint.writes : undefined
+  }
+
+  /** Only the inherited decision is persisted, never a previous window's writes. */
+  private inheritedRecording(): boolean | undefined {
+    const top = this.topTurn
+    return (
+      top?.recordsFiles ??
+      (top?.checkpoint === undefined ? undefined : top.checkpoint.kind !== 'off')
+    )
+  }
+
+  /** The running turn started a process (M86, spec 8): its restore says what it never undoes. */
+  private noteProcessRan(): void {
+    if (this.active !== undefined) {
+      this.active.ranProcesses = true
+    }
+  }
+
+  /** Whether a command of the conversation, its children's included, runs in the background now. */
+  private hasLiveCommands(): boolean {
+    return this.conversationSessions().some(
+      (session) => session.backgroundShells.size > 0 || session.userShells.size > 0,
+    )
+  }
+
+  private conversationSessions(): readonly ModelApiSession[] {
+    return this.parentSession === undefined
+      ? [this, ...this.descendantSessions()]
+      : this.parentSession.conversationSessions()
+  }
+
+  private descendantSessions(): readonly ModelApiSession[] {
+    const sessions: ModelApiSession[] = []
+    for (const { session } of this.children.values()) {
+      sessions.push(session, ...session.descendantSessions())
+    }
+    return sessions
+  }
+
+  /** A task can start and finish between another turn's start/end samples. */
+  private noteBackgroundStarted(): void {
+    for (const session of this.conversationSessions()) {
+      session.noteProcessRan()
+    }
+  }
+
   private async runTurn(queued: QueuedTurn): Promise<void> {
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
@@ -6599,6 +6691,7 @@ export class ModelApiSession implements AgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
         confirmedRequest: queued.confirmedRequest,
       }),
@@ -6624,12 +6717,18 @@ export class ModelApiSession implements AgentSession {
     let errorKind: string | undefined
     try {
       try {
-        await this.deps.beforeTurnRuns?.(this.checkpointSessionId(), turn.turnId)
+        turn.checkpoint = await this.deps.beforeTurnRuns?.(
+          this.checkpointSessionId(),
+          turn.turnId,
+          this.isSubagent ? (this.topTurn ?? { checkpoint: undefined }) : undefined,
+        )
       } catch (error: unknown) {
         this.deps.log.warn(
           `The turn checkpoint could not be admitted: ${error instanceof Error ? error.name : 'unknown failure'}`,
         )
-        throw new Error(UI_TEXT.sendMarkFailed, { cause: error })
+        throw new Error(this.isSubagent ? UI_TEXT.childCheckpointFailed : UI_TEXT.sendMarkFailed, {
+          cause: error,
+        })
       }
       turn.abort.signal.throwIfAborted()
       await this.startHooks()
@@ -6745,7 +6844,10 @@ export class ModelApiSession implements AgentSession {
     // A note that arrived during the last reply is kept for the next request (M46).
     this.settleNotes(turn.turnId)
     try {
-      await this.deps.afterTurnRuns?.(this.checkpointSessionId(), turn.turnId)
+      await this.deps.afterTurnRuns?.(this.checkpointSessionId(), turn.turnId, {
+        checkpoint: turn.checkpoint,
+        ranProcesses: turn.ranProcesses || this.hasLiveCommands(),
+      })
     } catch (error: unknown) {
       this.deps.log.warn(
         `The turn checkpoint could not be ended: ${error instanceof Error ? error.name : 'unknown failure'}`,
@@ -7269,22 +7371,26 @@ export class ModelApiSession implements AgentSession {
     return this.submitTurn(parts, displayText, true)
   }
 
+  /**
+   * Input for the running turn. Each refusal takes nothing (a
+   * `SteerRefusedError`), so the conversation may send it as a new turn.
+   */
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
     }
     if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
-      return Promise.reject(new Error(TURN_NOT_RUNNING))
+      return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
     }
     const addedTextBytes = textAttachmentBytes(parts)
     const textBudgetError = textAttachmentBudgetError(
       this.active.acceptedTextAttachmentBytes + addedTextBytes,
     )
     if (textBudgetError !== undefined) {
-      return Promise.reject(textBudgetError)
+      return Promise.reject(new SteerRefusedError(textBudgetError.message))
     }
     if (!this.canQueueSteeredMedia(parts)) {
-      return Promise.reject(new Error(UI_TEXT.mediaTotalTooLarge))
+      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
     }
     const userMessageId = this.deps.newId()
     this.active.acceptedTextAttachmentBytes += addedTextBytes
@@ -7499,6 +7605,8 @@ export class ModelApiSession implements AgentSession {
     }
     const stop = new AbortController()
     this.userShells.set(started.itemId, stop)
+    this.noteBackgroundStarted()
+    this.noteProcessRan()
     this.recordTranscript(this.latestTurnId(), started)
     this.touch()
     this.emit({ type: 'itemStarted', item: started })
@@ -7890,6 +7998,9 @@ export class ModelApiSession implements AgentSession {
           objective: child.objective,
           itemId: child.itemId,
           parentTurnId: child.parentTurnId,
+          ...(child.session.inheritedRecording() !== undefined && {
+            checkpointRecording: child.session.inheritedRecording(),
+          }),
           startedAt: child.startedAt,
           state: child.state,
           ...(child.result !== undefined && { result: child.result }),
@@ -7969,6 +8080,7 @@ export class ModelApiSession implements AgentSession {
         isReviewerRole(saved.role),
       )
       session.adopt(saved.session)
+      session.topTurn = { checkpoint: undefined, recordsFiles: saved.checkpointRecording }
       const record: ChildRecord = {
         id: saved.id,
         role: saved.role,
@@ -8087,6 +8199,7 @@ export class ModelApiSession implements AgentSession {
         isReviewerRole(child.role),
       )
       session.adopt(saved)
+      session.topTurn = { checkpoint: undefined, recordsFiles: child.session.inheritedRecording() }
       const cloned: ChildRecord = {
         ...child,
         session,

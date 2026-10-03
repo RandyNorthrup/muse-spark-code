@@ -38,7 +38,7 @@ function factsOver(h: Harness, signal = new AbortController().signal, trusted = 
     describeEnvironment({
       workspaceRoot: h.root,
       runGit: async (args, cwd) =>
-        await withCheckpointEdit(port, check, async () => await process(args, cwd)),
+        await withCheckpointEdit(port, h.log, check, async () => await process(args, cwd)),
       isWorkspaceTrusted: trusted,
       now: () => Date.now(),
       log: h.log,

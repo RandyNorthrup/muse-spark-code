@@ -1,102 +1,23 @@
-// What the checkpoint store's git commands print (M72, PLAN.md D51), read
-// into plain values. Every command runs with `-z`, so a path is taken
-// byte for byte (no quoting); the formats are git's documented porcelain
-// and plumbing output. Pure: no git, no file system.
+// What the checkpoint store's git commands print (M72, M86; PLAN.md D51,
+// D63), read into plain values, and the object name git gives bytes. The
+// formats are git's documented plumbing output. Pure: no git, no file system.
 
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
+import { createHash, type Hash } from 'node:crypto'
 import { GIT_MISSING_OBJECT } from '../../shared/constants'
 
 const NUL = '\0'
-const FOLDER_MARK = '/'
-// `git status --porcelain=v1`: two status letters and a space, then the path.
-const STATUS_PREFIX_LENGTH = 3
-const UNTRACKED = '??'
-const IGNORED = '!!'
 const SPACE = ' '
-// `git diff-tree --raw`: `:<mode> <mode> <oid> <oid> <status>`.
-const RAW_MARK = ':'
-const ABSENT_MODE = '000000'
 const LINE_FEED = 0x0a
 // The shadow repository's object format (git's default; it runs with no
 // global or system config that could change it).
 const BLOB_HASH = 'sha1'
 const BLOB_TYPE = 'blob'
 
-/** The non-empty fields of `-z` output. */
-export function splitNul(output: string): readonly string[] {
-  return output.split(NUL).filter((field) => field !== '')
-}
-
-/**
- * `git status --porcelain=v1 -z --ignored=matching --untracked-files=all`
- * over an empty index: every file outside the ignore rules is untracked.
- * A folder (`dir/`) among the untracked is a repository of its own; among
- * the ignored, a folder an ignore rule names whole (`node_modules/`).
- */
-export interface StatusListing {
-  readonly files: readonly string[]
-  readonly repositories: readonly string[]
-  readonly ignoredFiles: readonly string[]
-  readonly ignoredFolders: readonly string[]
-}
-
-export function parseStatusListing(output: string): StatusListing {
-  const files: string[] = []
-  const repositories: string[] = []
-  const ignoredFiles: string[] = []
-  const ignoredFolders: string[] = []
-  for (const entry of splitNul(output)) {
-    const code = entry.slice(0, 2)
-    const entryPath = entry.slice(STATUS_PREFIX_LENGTH)
-    const isFolder = entryPath.endsWith(FOLDER_MARK)
-    const bare = isFolder ? entryPath.slice(0, -FOLDER_MARK.length) : entryPath
-    if (code === UNTRACKED) {
-      ;(isFolder ? repositories : files).push(bare)
-    } else if (code === IGNORED) {
-      ;(isFolder ? ignoredFolders : ignoredFiles).push(bare)
-    }
-  }
-  return { files, repositories, ignoredFiles, ignoredFolders }
-}
-
 /** A blob in a tree: its mode and object name. */
 export interface BlobRef {
   readonly mode: string
   readonly oid: string
-}
-
-/** One path that differs between two trees; `undefined` on the side it is absent from. */
-export interface TreeChange {
-  readonly path: string
-  readonly before: BlobRef | undefined
-  readonly after: BlobRef | undefined
-}
-
-/** `git diff-tree -r -z --no-renames <a> <b>`: a raw header, then the path. */
-export function parseDiffTree(output: string): readonly TreeChange[] {
-  const fields = splitNul(output)
-  const changes: TreeChange[] = []
-  for (let index = 0; index < fields.length; index += 1) {
-    const header = fields[index] ?? ''
-    if (!header.startsWith(RAW_MARK)) {
-      continue
-    }
-    const changedPath = fields[index + 1]
-    if (changedPath === undefined) {
-      break
-    }
-    index += 1
-    const [beforeMode = '', afterMode = '', beforeOid = '', afterOid = ''] = header
-      .slice(RAW_MARK.length)
-      .split(SPACE)
-    changes.push({
-      path: changedPath,
-      before: beforeMode === ABSENT_MODE ? undefined : { mode: beforeMode, oid: beforeOid },
-      after: afterMode === ABSENT_MODE ? undefined : { mode: afterMode, oid: afterOid },
-    })
-  }
-  return changes
 }
 
 /**
@@ -121,10 +42,12 @@ export function parseBatchCheck(output: string): ReadonlyMap<string, number> {
  * be compared with what a capture holds without running git.
  */
 export function gitBlobOid(bytes: Uint8Array): string {
-  return createHash(BLOB_HASH)
-    .update(`${BLOB_TYPE}${SPACE}${String(bytes.length)}${NUL}`)
-    .update(bytes)
-    .digest('hex')
+  return gitBlobHash(bytes.length).update(bytes).digest('hex')
+}
+
+/** `gitBlobOid` of `size` bytes fed in parts (M86: a file too large to hold), in order. */
+export function gitBlobHash(size: number): Hash {
+  return createHash(BLOB_HASH).update(`${BLOB_TYPE}${SPACE}${String(size)}${NUL}`)
 }
 
 /** One answer of `git cat-file --batch`: the name it gave and the bytes (undefined: missing). */

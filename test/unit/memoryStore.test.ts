@@ -522,11 +522,11 @@ describe('MemoryStore: the view and the snapshot', () => {
         }
         await inner.createFile(file, content, checked, guard)
       },
-      writeFile: async (file, content, guard) => {
+      writeFile: async (file, content, checked, guard) => {
         if (guard !== undefined) {
           writes.push(guard)
         }
-        await inner.writeFile(file, content, guard)
+        await inner.writeFile(file, content, checked, guard)
       },
     }
     const store = new MemoryStore({
