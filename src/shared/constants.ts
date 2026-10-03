@@ -1658,6 +1658,8 @@ export const OBS_PACK_TAIL_LINES = 4
 // A recalled page stays under the threshold, so paging an output back never
 // packs the page itself.
 export const OBS_PACK_PAGE_CHARS = 4000
+// An unknown recall id names only the newest ids, keeping its error bounded.
+export const OBS_PACK_RECALL_ID_LIMIT = 8
 // Random bytes (as hex) in the markers around a recalled page, fresh for
 // each recall, so the original cannot close the untrusted block itself.
 export const OBS_PACK_MARKER_BYTES = 8
@@ -3114,6 +3116,7 @@ export const MODEL_TEXT = {
   packInvalidJson: 'arguments are not valid JSON',
   packInvalidArguments: 'invalid arguments: {detail}',
   packUnknownId: 'unknown packed output id "{id}" (packed outputs in this session: {known})',
+  packKnownIdsMore: '{known}, and {count} more',
   packBadOffset:
     'offset for packed output "{id}" must be a whole number of characters from 0 to {last}, not inside a character',
   // M68 (PLAN.md D49): the verify loop. What follows an edit is data from the
