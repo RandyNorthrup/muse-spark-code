@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "Otevřít návod",
   "command.manageSkills.title": "Spravovat dovednosti",
   "command.importSkills.title": "Importovat dovednosti z Claude Code nebo Codex",
+  "command.importFromAgents.title": "Importovat z jiných agentů",
   "command.exportConversation.title": "Exportovat konverzaci",
   "command.importSession.title": "Importovat relaci",
   "command.openShareFile.title": "Otevřít sdílený soubor",

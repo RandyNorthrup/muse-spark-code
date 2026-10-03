@@ -45,20 +45,6 @@ happened, not what was planned; superseded entries are kept.
     Revert) are the new `dist/review.js` (42.0 KiB, budget 50), required the
     first time one is used; a module that cannot be loaded refuses the review
     with `reviewUnavailable` and the log has the cause.
-- **Revert on an edit no longer overwrites your saved or unsaved changes**.
-  Edit review's Revert and the pane's hunk Revert are one step under the
-  turn checkpoints' file-edit lease: they read the saved file, rebuild the
-  pre-edit text from it, check that the path still leads to the same file
-  inside the workspace and that no editor has unsaved changes for it (the
-  file itself or a link to it), then write the file, or move a file Muse
-  created to the trash, only while it still holds what was read, with no
-  link or junction on the way. A save, an editor turning dirty or a folder
-  swapped for a link meanwhile makes Revert refuse and say why instead of
-  overwriting. Reverts of one file run in order and rebuild from each
-  other's bytes; a failed write frees the next one, and a Revert that wrote
-  stays done when releasing the lease fails afterwards (the log says so),
-  so it is not offered again. They tell live verification about the write
-  without creating an edit round of the agent's own.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -146,6 +132,18 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 
 ### Changed
 
@@ -158,9 +156,34 @@ happened, not what was planned; superseded entries are kept.
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
 - The host API compatibility record is regenerated from the combined source.
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
 
 ### Fixed
 
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
 - A handoff brief that arrives while the review pane is open waits until
   the pane closes, preserving one modal and one focus trap at a time.
 - The Reviewer retains whole tool observations when observation packing is

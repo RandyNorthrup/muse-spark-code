@@ -381,6 +381,26 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **Import from other agents** (M83, D64) reads other tools' files only
+  when requested, locally, without a model call or sending their contents
+  anywhere. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+  Sources are Claude Code's `~/.claude.json` and `.claude/`, Codex's
+  `.codex/` (their configured roots included), Cursor's `.cursor/`, and
+  trusted project rules/configuration. Account and usage fields in
+  `.claude.json` are discarded. Personal sources outside the home or whose
+  exposure cannot be classified are refused. The preview contains names,
+  kinds, scopes, target paths and refusal reasons only; picker details give
+  scope rather than source path. The log contains counts and fixed reasons
+  only. No clipboard API is used. Values are copied unchanged into an
+  allowed file or an unsaved target editor edit, which you review and save.
+  Only active MCP transport fields are emitted; inactive/unknown fields
+  are listed as dropped by name. **Residual:** item names remain visible as
+  the source tool shows them, including a name that itself contains a
+  credential; generated target paths and dropped field names are visible
+  too. **Residual:** an unsaved target edit is bound to its file only until
+  you save; the prompt says to save it only to that path, but Save As can
+  still put it in a more exposed file, so where you save it is your choice.
+  Unsupported agent restrictions never create an executable file.
 - A session export (M84) is written only where you save it, after its
   redacted form opened read-only in the editor. It holds the conversation's
   messages, thinking and tool calls with their arguments and visible output,
