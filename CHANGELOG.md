@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
