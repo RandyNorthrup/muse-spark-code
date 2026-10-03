@@ -4,10 +4,16 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
-import { MSP_KNOWN_SCHEMA_FINGERPRINTS, type EnvironmentVariable } from '../../src/shared/constants'
+import {
+  MSP_KNOWN_SCHEMA_FINGERPRINTS,
+  MSP_UNRESPONSIVE_MISSES,
+  type EnvironmentVariable,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import type {
   MuseCodeBackendManager,
   BackendManagerDeps,
+  UnresponsiveHostDeps,
 } from '../../src/host/backend/museCodeBackendManager'
 import { readProxySettings } from '../../src/host/networkPosture'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -339,6 +345,102 @@ describe('MuseCodeBackendManager: the CLI lookup reads (M39)', () => {
       )
     } finally {
       rmSync(installDir, { recursive: true, force: true })
+    }
+  })
+})
+
+/**
+ * A manager on the fake CLI, which from its first `model/list` on answers
+ * nothing and stays up: the wedged `muse serve` of 2026-10-03 (CLI recovery).
+ */
+function wedgedManager(unresponsive: UnresponsiveHostDeps): MuseCodeBackendManager {
+  const spawn = sdk.spawnMspConnection
+  vi.spyOn(sdk, 'spawnMspConnection').mockImplementation((options) =>
+    spawn({
+      ...options,
+      args: [path.resolve('test/e2e/fake-muse/serve.mjs')],
+      env: {
+        MUSE_FAKE_WEDGE: 'model/list',
+        XDG_CONFIG_HOME: path.resolve('test/fixtures/workspace/no-muse-config'),
+      },
+    }),
+  )
+  const manager = managerWith([], '', new FakeLogOutputChannel(), {
+    getConfiguredBinaryPath: () => process.execPath,
+    unresponsive,
+    // Three short deadlines in a row are enough; the silence is the host test's.
+    commandTimeouts: { normalMs: 150, longMs: 150, unresponsiveSilenceMs: 0 },
+  })
+  // This fixture has no sign-in; never read the developer's credential file.
+  vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+  return manager
+}
+
+/** The started host, after enough missed deadlines to count as not answering. */
+async function wedge(manager: MuseCodeBackendManager) {
+  const host = await manager.ensureHost()
+  for (let miss = 0; miss < MSP_UNRESPONSIVE_MISSES; miss += 1) {
+    await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+  }
+  return host
+}
+
+/** A wedged manager whose window has a turn running, or none, and what it was told. */
+function recovery(isTurnRunning: boolean) {
+  const told: string[] = []
+  const holder: { manager?: MuseCodeBackendManager } = {}
+  const manager = wedgedManager({
+    isTurnRunning: () => isTurnRunning,
+    restart: async () => {
+      told.push('restart')
+      await holder.manager?.dispose()
+    },
+    sayRestarted: () => {
+      told.push('sayRestarted')
+    },
+    offerRestart: () => {
+      told.push('offerRestart')
+    },
+  })
+  holder.manager = manager
+  return { manager, told }
+}
+
+describe('MuseCodeBackendManager: a Muse Code that stops answering (CLI recovery)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('restarts it at once when no turn runs, then says so', async () => {
+    const { manager, told } = recovery(false)
+    try {
+      const host = await wedge(manager)
+      await vi.waitFor(() => {
+        expect(told).toEqual(['restart', 'sayRestarted'])
+      })
+      expect(manager.isRunning).toBe(false)
+      // The old host refuses at once; the next ensureHost starts a fresh one.
+      await expect(host.listModels()).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+      expect(told).toEqual(['restart', 'sayRestarted'])
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it('offers the restart once while a turn runs, and restarts nothing by itself', async () => {
+    const { manager, told } = recovery(true)
+    try {
+      const host = await wedge(manager)
+      await vi.waitFor(() => {
+        expect(told).toEqual(['offerRestart'])
+      })
+      // The same episode says nothing more.
+      await expect(host.listModels()).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(told).toEqual(['offerRestart'])
+      expect(manager.isRunning).toBe(true)
+    } finally {
+      await manager.dispose()
     }
   })
 })

@@ -41,7 +41,8 @@
       "exportThenRunSkipped",
       "gitPullRequestName",
       "handoffItem",
-      "agentImportSourceCursor"
+      "agentImportSourceCursor",
+      "noticeRepeatBadge"
     ],
     "cs": [
       "groupModel",

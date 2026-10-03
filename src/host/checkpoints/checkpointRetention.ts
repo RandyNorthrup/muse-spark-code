@@ -1,86 +1,58 @@
-// How long checkpoints and redo records are kept (M72, PLAN.md D51): the
-// newest CHECKPOINTS_PER_SESSION_MAX checkpoints and
-// CHECKPOINT_RESTORES_PER_SESSION_MAX redo records of each conversation,
-// for the CHECKPOINT_SESSIONS_MAX conversations used most recently, none
-// older than `museSpark.cleanupPeriodDays`. A running turn's checkpoint is
-// always kept. Pure: the store drops the refs and prunes.
+// How long checkpoint records are kept (M72, M86; PLAN.md D51, D63). Within
+// a conversation by number only, never by the clock: the newest
+// CHECKPOINTS_PER_SESSION_MAX units (turns, restores and Redos alike) stay,
+// so a restore from a turn still offered has every unit it needs (they are
+// all newer than anything dropped). Whole conversations go: beyond the
+// CHECKPOINT_SESSIONS_MAX used most recently, or idle longer than
+// `museSpark.cleanupPeriodDays`. A conversation with a unit still running is
+// kept whole. Pure: the store drops the refs and prunes.
 
 import {
-  CHECKPOINT_RESTORES_PER_SESSION_MAX,
   CHECKPOINT_SESSIONS_MAX,
   CHECKPOINTS_PER_SESSION_MAX,
   MILLISECONDS_PER_DAY,
 } from '../../shared/constants'
-import type { CheckpointRecord, CheckpointRecords, RestoreRecord } from './checkpointRecords'
 
-export interface Retained {
-  readonly checkpoints: CheckpointRecord[]
-  readonly restores: RestoreRecord[]
-  /** The records that went: their keep refs are dropped. */
-  readonly dropped: readonly { readonly id: string }[]
+/** What retention reads of a record. */
+export interface RetainedRecord {
+  readonly sessionId: string
+  /** Its number in its conversation (an M72 record without one counts as before every other). */
+  readonly sequence: number
+  readonly createdAt: number
+  /** Still running here, or in another live window. */
+  readonly isOpen: boolean
 }
 
-function oldestFirst<T extends { readonly createdAt: number }>(records: readonly T[]): T[] {
-  return records.toSorted((left, right) => left.createdAt - right.createdAt)
-}
-
-/** The newest `limit` records of each conversation, and every one `isAlwaysKept` names. */
-function newestPerSession<T extends { readonly createdAt: number; readonly sessionId: string }>(
+/** The records the retention bounds drop: whole conversations, and each one's oldest by number. */
+export function droppedRecords<T extends RetainedRecord>(
   records: readonly T[],
-  limit: number,
-  isAlwaysKept: (record: T) => boolean,
-): readonly T[] {
-  const counts = new Map<string, number>()
-  return records
-    .toSorted((left, right) => right.createdAt - left.createdAt)
-    .filter((record) => {
-      const count = (counts.get(record.sessionId) ?? 0) + 1
-      counts.set(record.sessionId, count)
-      return isAlwaysKept(record) || count <= limit
-    })
-}
-
-/** The conversations used most recently, by their newest checkpoint or redo record. */
-function recentSessions(records: CheckpointRecords): ReadonlySet<string> {
-  const sessions: string[] = []
-  const newestFirst = [...records.checkpoints, ...records.restores].toSorted(
-    (left, right) => right.createdAt - left.createdAt,
-  )
-  for (const record of newestFirst) {
-    if (!sessions.includes(record.sessionId)) {
-      sessions.push(record.sessionId)
-    }
-  }
-  return new Set(sessions.slice(0, CHECKPOINT_SESSIONS_MAX))
-}
-
-/** What the retention bounds keep of the records, and what they drop. */
-export function retainRecords(
-  records: CheckpointRecords,
   now: number,
   retentionDays: number,
-  isOpen: (record: CheckpointRecord) => boolean,
-): Retained {
+): readonly T[] {
   const cutoff = retentionDays > 0 ? now - retentionDays * MILLISECONDS_PER_DAY : -Infinity
-  const sessions = recentSessions(records)
-  const isCurrent = (record: CheckpointRecord | RestoreRecord) =>
-    sessions.has(record.sessionId) && record.createdAt >= cutoff
-  const checkpoints = newestPerSession(
-    records.checkpoints.filter((record) => isOpen(record) || isCurrent(record)),
-    CHECKPOINTS_PER_SESSION_MAX,
-    isOpen,
-  )
-  const restores = newestPerSession(
-    records.restores.filter((record) => isCurrent(record)),
-    CHECKPOINT_RESTORES_PER_SESSION_MAX,
-    () => false,
-  )
-  return {
-    checkpoints: oldestFirst(checkpoints),
-    restores: oldestFirst(restores),
-    dropped: [
-      ...records.checkpoints.filter((record) => !checkpoints.includes(record)),
-      ...records.restores.filter((record) => !restores.includes(record)),
-    ],
+  const conversations = new Map<string, T[]>()
+  for (const record of records) {
+    conversations.set(record.sessionId, [...(conversations.get(record.sessionId) ?? []), record])
   }
+  const lastUsed = (members: readonly T[]) => Math.max(...members.map((record) => record.createdAt))
+  const recent = new Set(
+    [...conversations]
+      .filter(([, members]) => lastUsed(members) >= cutoff)
+      .toSorted(([, left], [, right]) => lastUsed(right) - lastUsed(left))
+      .slice(0, CHECKPOINT_SESSIONS_MAX)
+      .map(([sessionId]) => sessionId),
+  )
+  const dropped: T[] = []
+  for (const [sessionId, members] of conversations) {
+    if (members.some((record) => record.isOpen)) {
+      continue
+    }
+    if (!recent.has(sessionId)) {
+      dropped.push(...members)
+      continue
+    }
+    const newestFirst = members.toSorted((left, right) => right.sequence - left.sequence)
+    dropped.push(...newestFirst.slice(CHECKPOINTS_PER_SESSION_MAX))
+  }
+  return dropped
 }

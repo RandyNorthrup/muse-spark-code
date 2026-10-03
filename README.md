@@ -1613,164 +1613,96 @@ rewind button on any sent message (on hover):
   checkpoint) is one action: the confirmation, the reverts, then the fork.
   Declining the confirmation does neither.
 
-Both **Rewind code to here** and **Restore files to here** ask first, in the
-same confirmation.
+Both **Rewind code to here** and **Restore files to here** ask first, each in
+its own confirmation.
 
-**Turn checkpoints (Preview).** Off by default: turn them on with
-`museSpark.turnCheckpoints`. Their restore is being rebuilt on the tools'
-own writes, so that it never has to tell your changes from the model's
-(PLAN.md D63, M86). Captures run on both backends. Stored **Restore files**
-and **Redo** require the actual connected Model API session and confirmed
-workspace-process safety; Muse Code captures remain read-only. Account
-probes, shell commands and hooks can also close Model API restoration
-availability when full descendant shutdown is unproved. Each turn gets a checkpoint of the workspace's files
-when it starts and when it ends: the tracked files and the untracked ones,
-byte for byte, but not the ones `.gitignore` names. (`.gitignore` files, the
-repository's `info/exclude` and your global excludes file decide what is
-ignored.) Checkpoints work in a folder that is not a repository too, and in a
-repository with no commits. They need git on `PATH`; without it the menu and
-the panel say git was not found.
+**Turn checkpoints.** On by default (`museSpark.turnCheckpoints`). **Restore
+files to here** undoes the model's own file-tool edits from that message
+onward, while each file still holds exactly what the model left. Stored
+file restore and **Redo** require a connected Model API session, git on
+`PATH`, a trusted workspace and confirmed workspace-process safety. Muse
+Code has no stored file restore; its native rewind is separate.
 
-- **Where they live.** A shadow git repository under this extension profile's
-  global storage, `checkpoints/<canonical-root-key>/shadow.git`. Current-version
-  windows using the same physical canonical root and global-storage namespace
-  share it even when their VS Code workspace identities differ. Native realpath
-  resolves aliases; Windows key comparison ignores letter case. Unknown roots
-  fail closed. Old per-workspace stores remain in place, readable as legacy
-  captures; their messages are labelled read-only and no active fence/history
-  is migrated. Older versions, other profiles/users/machines, independent
-  editors/processes and remotely managed HTTP MCP services are outside this
-  fence guarantee. Nothing is written into the workspace's `.git`: no object, no
-  ref, no index change, so a push can never carry a checkpoint. That git runs
-  with hooks and fsmonitor off, none of your git configuration, and none of
-  the workspace's attribute filters.
-- **What a restore does.** It undoes what the conversation's turns changed
-  from that message on. A file changed outside those turns (by you, a build
-  you ran, or another conversation whose turn overlapped them) is left as it
-  is and named, as is a file with unsaved changes in an editor or notebook.
-  Each file is checked again just before it changes, so one edited while the
-  restore runs is left too. Deletions come before writes, so a rename that
-  changed only letter case, or a file that became a folder, comes back. A
-  file or folder reached through a link or junction is never written or
-  deleted: a folder link a turn made is left out of the checkpoint and named.
-  Restore never touches HEAD, the index, the stash or a branch, and while any
-  turn runs in the window it is refused until that turn ends. When a turn's
-  end was never recorded
-  (the window closed mid-turn), the notice names the restored files that turn
-  may not have changed itself. A folder that was there before the turn, even
-  an empty one, is never removed. A folder the turns made is removed once
-  empty when the filesystem permits, except inside a folder that held no
-  tracked or untracked file at the
-  checkpoint (an empty one, or one holding only ignored files): there it is
-  left, empty.
-- **Current windows sharing a canonical-root namespace.** They share
-  checkpoint records. Conversation history still belongs to its workspace
-  and account.
-  Records are saved independently without overwriting another window's
-  changes, and only one file restore or Redo runs at a time. A message sent
-  from the panel is marked as running before submission; Model API turns
-  also await that mark and their capture/record before hooks, shell edits
-  or model requests, including queued and scheduled turns and children that
-  outlive their parent. A failed mark refuses that turn with a localized
-  reason. While a turn is marked in either window, restores are
-  refused until its end is recorded. Tool preimages survive an end-record
-  failure; the next checkpoint operation retries the original end boundary.
-  Archives are written before returning, including in Restricted Mode, so
-  another window immediately hides those checkpoints even if this one closes.
-  Before any workspace Muse Code server or configured local stdio MCP server
-  starts, including an account probe, its window publishes a sticky unsafe
-  marker. Short CLI skills/import/export and sandbox commands, and terminals
-  the extension opens for Muse, MCP sign-in, sign-out or installation, await
-  the same marker before process or terminal creation. **Create AGENTS.md**
-  applies the same admission: `muse init` uses native admission;
-  its explicit template fallback holds a file-edit lease until I/O settles,
-  with no process marker added for that pure file write. Refused CLI startup
-  never falls back to writing a template. Extension-managed Git worktree
-  add/remove also use native admission before normal repository hooks can run.
-  Pure plan-file publication/stage cleanup and file-review Revert hold the
-  same file-edit lease through their actual I/O, retaining ownership checks.
-  So do the Memory view's new note, delete and index line, and a
-  conversation export you save inside the workspace; a note outside the
-  workspace (your personal memory) takes no project lease.
-  Automatic prompt Git facts suppress configured fsmonitor, signature and
-  clean/process helpers per command, with bounded names-only discovery and
-  live admission. Ordinary Git configuration remains intact; those reads
-  do not add permanent native uncertainty when helpers stay disabled.
-  The standalone ACP agent has no stored-checkpoint restore service or shared
-  VS Code profile namespace; its writes are outside this window exclusion
-  guarantee, like other independent editors and processes.
-  Plan publication/stale-stage cleanup recheck current workspace trust and
-  lifetime at the actual mutation boundary, retaining captured edit owners.
-  Restore/Redo recheck the expected file, dirty editors and live admission
-  after atomic staging and on rename retries. Node has no conditional rename:
-  a disk change in the final comparison-to-syscall gap remains outside that
-  guarantee, as with the Model API's conditional edits.
-  Pending starts are
-  refused after window shutdown or backend disposal. Shell and hook I/O holds a
-  separate activity mark through its real promise, including background, `!`
-  and child work. Normal process exit or pipe drain does not prove every
-  descendant stopped, so current launched-process runners leave unsafe
-  presence too. A shell that could not start at all (no interpreter on
-  `PATH`, or the operating system refused the start) proves no process exists
-  and leaves none. File restore/Redo refuses these windows and old/unknown peers.
-  Closing a server, terminal or window, owner PID death and heartbeat age cannot clear
-  that uncertainty. Intentional background work is kept running.
-- **Ignored files.** They are not copied wholesale. A file the Model API's
-  edit and write tools (or the image tools) are about to change is copied
-  first, so a restore brings it back; so is an ignored project memory note
-  the memory tools or the Memory view are about to change or delete, with
-  its `MEMORY.md`. A shell command's changes are found
-  afterwards by comparing the ignored files' sizes and times at the turn's
-  start and end. A restore deletes the ignored files the turn created and
-  lists the ones it changed without an earlier copy as **Not restorable**; it
-  never claims to have undone them. Muse Code runs its own tools, so on that
-  backend changed ignored files are listed the same way.
-- **Redo.** A restore's notice has **Redo**, which puts back what the
-  restore replaced, leaving any file you changed since. What it could not
-  put back stays on the button for another try; a redo offers its own Redo.
-  The redo record is saved before the first file changes, so a restore that
-  stops part way still says what it changed and keeps its Redo. To make Redo
-  possible, a restore copies what it overwrites or deletes, an ignored file
-  included.
-- **Limits.** A file over 16 MiB, a link, a folder link or junction, and a
-  folder that is a repository of its own are left out and named. A workspace with more than 50,000 files
-  outside its ignore rules gets no checkpoints, and a turn that would copy
-  more than 512 MiB of changed files gets none; the panel says why. The
-  ignored-file scan looks at 5,000 files at most, and an ignored folder with
-  more than 1,000 files (`node_modules`) is left out whole. git cannot open a
-  path past its own limit (260 characters on Windows, 1,024 on macOS, 4,096
-  elsewhere), so on Windows a workspace path over 258 characters, or a
-  checkpoint folder over 240, gets no checkpoints, and the panel says the
-  path is too long for git; paths within those limits work, long ones
-  included.
-- **Cleanup.** Archiving a conversation deletes its checkpoints (in
-  Restricted Mode, its records at once and its copies the next time the
-  folder is trusted). A conversation keeps
-  its 100 newest checkpoints and 20 newest redo records, the 50 most recent
-  conversations keep theirs, and records older than
-  `museSpark.cleanupPeriodDays` go. The bounds are applied each time the
-  window opens, with the setting on or off.
-- **Off.** Checkpoints are off in Restricted Mode, where the extension runs
-  no git, and with `museSpark.turnCheckpoints` off; the menu says so. A turn
-  already under way when the setting goes off still gets its end.
-  Muse Code checkpoints are read-only. Its native Windows fork limitation
-  is separate; the menu explains unavailable actions.
-
-**Recovering confirmed stale unsafe presence.** Verify yourself that all
-Muse Code servers, native scheduled/child work, shell commands, hooks and
-their workspace-capable descendants have stopped; SDK close, a completed
-row or a dead window PID alone does not prove this. Close the old implicated
-windows so they cannot rewrite their marker or restart work. In this
-extension profile's global storage, inspect
-`checkpoints/<canonical-root-key>/windows/<instance>.json`
-(the file records its window PID and random instance). Remove only the exact
-confirmed stale unsafe file: `native-backend-unsafe`, an unresolved
-`workspace-activity:` word, or an old/unreadable file that cannot attest
-`fenced-window-v1`. Saved `shadow.git` record refs, captures, Redo and history
-remain in place. Reopen with Model API and refresh the checkpoint state.
-Required account checks still run; any fresh native probe, command or hook
-can close availability again. Native destructive restoration awaits an
-upstream pre-edit fence and full shutdown proof.
+- **What is recorded.** Each write by the Model API's file tools, image
+  tools, workspace memory tools and `rename_symbol` records the file's
+  bytes before and after. Format on edit is recorded too. This includes
+  files ignored by git when those tools write them. No workspace captures
+  or ignored-file scans are taken.
+- **What a restore does.** The recorded writes from the chosen message
+  onward must form an unbroken chain for each file, ending in exactly what
+  is on disk now. A restore returns that file to its state before the first
+  write, deleting a file the tools created. Files already in that state
+  are counted separately and left alone. A file changed between tool
+  writes or since the last write is left as it is and named, as is a file
+  with unsaved changes or a path reached through a link or junction. Empty
+  folders created by the recorded writes are removed when their files are
+  removed. Existing files keep their current permission bits; a recreated
+  file gets its recorded earlier mode. Restore leaves HEAD, the index,
+  branches and the stash alone.
+- **What is never undone.** Changes by commands, hooks, MCP tools, your own
+  edits and other windows' writes. When commands, hooks or MCP tools ran,
+  or background work was alive during those turns, the result says so;
+  it does not list or undo their file changes. Check your version control.
+  Personal memory outside the workspace is never restored. Edits you make
+  in the Memory view, exports, plan saves and other writes made for you by
+  the extension are not recorded as model edits.
+- **Formatters.** A formatter run by a `PostToolUse` hook or `then_run`
+  changes files outside the recorded tool writes and makes those files
+  not restorable. **Format on edit** (`museSpark.formatOnEdit`) writes
+  through the recorded file-tool path and is restorable.
+- **Conversation rewind.** **Rewind conversation and restore files**
+  restores first, then branches before the message and returns its prompt
+  to the composer. A refused file blocks the conversation rewind; a
+  commands note by itself does not. Files already in the earlier state
+  do not block it. The original conversation stays in History.
+- **Redo.** The result offers **Redo**, which puts back the writes of that
+  restore in the same conversation. A later recorded write to a file blocks
+  its Redo; other changes are checked against the recorded bytes too. A
+  file already at Redo's target is counted as unchanged. Refused files
+  stay available for another try. Once all files are restored or unchanged,
+  that Redo is spent.
+- **Storage and windows.** Records and file bytes stay under this extension
+  profile's global storage, `checkpoints/<canonical-root-key>`; windows
+  sharing that storage and physical workspace root share the store. The
+  shadow git repository holds objects and compare-and-swap records, and
+  each window has a durable write journal. Nothing is written into the
+  workspace's `.git`, and copies are not sent anywhere. Only one restore
+  or Redo runs at a time; while any turn runs, file restoration is refused.
+  Native processes and windows whose safety cannot be proved also block
+  it. If another window runs an older Muse Spark version, reload that
+  window before restoring. M72 records remain read-only; a range containing
+  an older record cannot be restored, and M72 restores cannot be redone.
+- **Incomplete records and caps.** A range with missing turn records or
+  incomplete edits is refused; this can follow a reload or crash during an
+  edit, a recording failure or a turn run with checkpoints off. A file over
+  16 MiB or whose earlier bytes exceeded the per-turn copy budget is not
+  restorable and is named. Exceeding the per-turn write-record budget makes
+  the range incomplete. A journal write that fails, including on a full
+  disk, refuses the tool's write before it changes the file. Oldest whole
+  records, their journal data and copies are removed by conversation
+  sequence; archiving hides the conversation's records from other windows.
+  Small identity records keep retired owners and sequence numbers distinct
+  from unexplained missing records. Shared journals keep their metadata until
+  their instance's units are all retired. Cleanup sweeps unreferenced copies,
+  including failed writes with no journal intent, after a one-hour grace period
+  while no writer is live. Each pass is bounded and resumes on the next pass.
+  Ordinary sends and trusted startup recover abandoned cleanup reservations;
+  live or uncertain owners remain protected.
+- **Off.** No new turns are recorded with `museSpark.turnCheckpoints` off
+  or in Restricted Mode. A turn that started recording keeps recording
+  until it ends, even if the setting is switched off. A restore range
+  containing a turn that ran without recording is refused.
+  A child keeps its spawning turn's decision across reloads. A historical
+  child whose decision is unknown does not run. Redo checks later transcript
+  turns too; missing history or a historical batch without a recorded
+  transcript boundary refuses the range.
+- **Limits.** If someone else writes exactly the bytes the model left,
+  restore cannot tell (the ABA limit). Foreign writes in other windows are
+  judged by bytes, not their order. The filesystem writer checks again
+  immediately before replacing a file, but a change between that final
+  comparison and the rename can still be overwritten; the filesystem has
+  no conditional rename. See SPEC v3.1, sections 3, 4 and 12, in
+  [the M86 design](docs/design/m86-restore-by-tool-writes.md).
 
 **Side chat.** Use **Side chat** in the header to open a separate Plan-mode
 conversation with the completed turns as reference. Its inherited goal is
@@ -2315,6 +2247,7 @@ What stays in English:
 | Muse Spark: Open a Pull Request in a Conversation…  | —                                                                                    | Check a GitHub pull request out in a worktree of its own and open it in a new window; someone else's is held in Plan mode, its project configuration off, until you trust it there                |
 | Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command        | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                               |
 | Muse Spark: Stop Background Tasks                   | —                                                                                    | Stop every background task of the conversation in view                                                                                                                                            |
+| Muse Spark: Restart Muse Code                       | —                                                                                    | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                            |
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                                                                   |
 | (composer) Run a shell command                      | Start the message with `!`                                                           | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                        |
 
@@ -2375,7 +2308,7 @@ Bypass at once.
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                             |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                       |
 | `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                     |
-| `turnCheckpoints`                 | `false`     | Preview. A capture of the workspace's files at each turn's start and end. Stored **Restore files to here** and Redo require an attached Model API session and confirmed process safety (**Turn checkpoints** in [The panel](#the-panel)); runs git on every turn and keeps the copies in the extension's storage, never in the workspace's `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                           |
+| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                      |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -2483,13 +2416,15 @@ stopped and the next message resumes the same session.
 - The paid features (web search, image generation, Muse Voice, Model API
   subagents and scheduled prompts) are off until you turn one on and accept
   its price; a repository's settings cannot turn one on.
-- Turn checkpoints copy the workspace's files (and an ignored file such as
-  `.env` only when the extension's own tools are about to change it, or when
-  a restore overwrites or deletes it, for Redo) into a shadow repository in
-  VS Code's storage directory for this workspace, never into the
-  repository's `.git`; that folder is readable by your user only (on macOS
-  and Linux). They stay on the machine and are deleted with the conversation,
-  by the retention bounds, or by removing that directory. See **Turn
+- Turn checkpoints keep the model's own file-tool bytes, including ignored
+  files its tools change, under this extension profile's global storage,
+  `checkpoints/<canonical-root-key>`, as described in the Panel section.
+  The shadow repository and per-instance journals stay outside the
+  workspace's `.git`; that folder is readable by your user only (on macOS
+  and Linux). Copies stay on the machine and are removed by conversation
+  retention or by removing that directory. Unreferenced file copies are swept
+  after a one-hour grace period when no writer is live. Shared journal metadata remains
+  until all its instance's units are retired. See **Turn
   checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage
   directory for the extension (not in the repository); ones idle longer than
@@ -2685,7 +2620,28 @@ stopped and the next message resumes the same session.
 - **"Could not load the output: Muse Code did not answer item/readOutput
   within 60 s"** — a busy Muse Code answers stored-output reads one after
   another. The panel says it once per conversation; the row keeps the diff it
-  already has, and collapsing and expanding the row asks again.
+  already has, and collapsing and expanding the row asks again. At most four
+  reads go to Muse Code at a time.
+- **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
+  Spark: Restart Muse Code**. It stops `muse serve` and starts it again
+  without reloading the window; a running turn is stopped, and each
+  conversation continues with your next message.
+- **"Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."** — three commands in a row went unanswered and nothing at all
+  came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
+  one. When no turn was running, Muse Code was restarted already ("Muse Code
+  stopped answering and was restarted."); while a turn runs, its notice
+  offers **Restart now**, which stops the turn. If Muse Code answers again
+  on its own, commands go through again.
+- **"Muse Code did not confirm your message reached the running turn"** —
+  the message was for the running turn, and Muse Code did not answer in
+  time. It may still reach the turn, so it is not sent again; the composer
+  keeps it. Look at the conversation before you send it again.
+- **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
+  failed the session's event log ("event log failed: …"), after which it
+  fails every message of that session. The panel refuses new messages to it
+  instead and offers **New conversation**; the conversation stays in History
+  to read, and is not resumed by itself after a restart.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   log says which credential it started with). If the CLI itself holds a

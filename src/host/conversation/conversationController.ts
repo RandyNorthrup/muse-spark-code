@@ -19,8 +19,11 @@ import {
   isMuseCodeFaultError,
   isPromptSettledError,
   isSessionNotLoadedError,
+  isSteerRefusedError,
   type LoadedSession,
   type MuseCodeFaultError,
+  type OutputPage,
+  type OutputPageRequest,
   type PromptSettledError,
   type PromptSettledReason,
   type SessionHistoryOutcome,
@@ -50,7 +53,9 @@ import {
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
+import { FifoLimiter } from '../../core/fifoLimiter'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
@@ -59,6 +64,7 @@ import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
   CONTRIBUTOR_MODEL_SUFFIX,
+  DAMAGED_SESSIONS_KEPT,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   DELTA_BATCH_MS,
@@ -83,7 +89,9 @@ import {
   PRIVATE_ATTACHMENT_NAMES,
   MENTION_RESULT_LIMIT,
   MODEL_TEXT,
+  MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
+  MUSE_EVENT_LOG_FAULT,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -167,7 +175,7 @@ export interface NewPullRequestRequest {
 import {
   ConversationCheckpoints,
   type NoticeLevel,
-  type PendingCapture,
+  type PendingMark,
 } from './conversationCheckpoints'
 import {
   type ConversationExports,
@@ -288,6 +296,9 @@ export interface LastSession {
 export interface SessionMemory {
   archivedIds(): readonly string[]
   setArchivedIds(ids: readonly string[]): Promise<void>
+  /** Sessions whose Muse Code event log failed, newest last (CLI recovery). */
+  damagedIds(): readonly string[]
+  setDamagedIds(ids: readonly string[]): Promise<void>
   lastSession(): LastSession | undefined
   setLastSession(last: LastSession | undefined): Promise<void>
 }
@@ -788,6 +799,27 @@ interface PendingHandoff {
   generation: number
 }
 
+/** The composer's effort and Thinking toggle, as a session holds them. */
+interface ComposerEffort {
+  readonly effort: EffortLevel
+  readonly isThinkingEnabled: boolean
+}
+
+/**
+ * One session's reasoning-effort changes (CLI recovery, 2026-10-03: eight
+ * slider steps sent eight `session/setReasoningEffort` at once to a Muse
+ * Code that answered none, each failing with its own warning).
+ */
+interface EffortSync {
+  /** The wire value wanted now, and the composer state it stands for. */
+  wanted: string
+  wantedState: ComposerEffort
+  /** The composer state the session holds, as far as this burst knows. */
+  kept: ComposerEffort
+  /** The burst's end: undefined when the newest value applied, else `kept`. */
+  done: Promise<ComposerEffort | undefined> | undefined
+}
+
 /** An error's kind for the log (its code or name), never its message, which may name the plan. */
 function errorKind(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -917,8 +949,16 @@ export class ConversationController {
    * sent instead of queueing another behind it on a busy host.
    */
   private readonly outputReads = new Map<string, Promise<void>>()
+  /**
+   * Stored-output reads sent at once, the rest waiting in order (CLI
+   * recovery): a read still waiting when its session is no longer this
+   * panel's is never sent.
+   */
+  private readonly outputReadSlots = new FifoLimiter(MSP_READ_OUTPUT_CONCURRENCY)
   /** A failed output read was said in this conversation; later ones only log until one succeeds. */
   private hasSaidOutputFailure = false
+  /** Each session's effort changes: one in flight, the newest waiting (CLI recovery). */
+  private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
   /** Stops listening for the host closing this session. */
@@ -1132,6 +1172,67 @@ export class ConversationController {
 
   private faultKey(fault: MuseCodeFaultError['fault']): string {
     return `${this.session?.sessionId ?? ''}\u{0}${fault}`
+  }
+
+  private isDamaged(sessionId: string): boolean {
+    return this.deps.sessions.damagedIds().includes(sessionId)
+  }
+
+  /**
+   * Muse Code said this session's event log failed (CLI recovery): Muse Code
+   * 1.4.2 then failed every message of it (the owner's session of
+   * 2026-10-02/03). It is kept as damaged in this workspace, the newest
+   * `DAMAGED_SESSIONS_KEPT`: never resumed by itself again, and a message to
+   * it is refused before Muse Code hears of it. It stays in History.
+   */
+  private markDamaged(sessionId: string, how: string): void {
+    const damaged = this.deps.sessions.damagedIds()
+    if (damaged.includes(sessionId)) {
+      return
+    }
+    this.deps.log.warn(
+      `Session ${sessionId}'s Muse Code event log failed (${how}); it takes no new message`,
+    )
+    void this.deps.sessions
+      .setDamagedIds([...damaged, sessionId].slice(-DAMAGED_SESSIONS_KEPT))
+      .catch((error: unknown) => {
+        this.deps.log.warn(`The damaged session list could not be saved: ${errorKind(error)}`)
+      })
+  }
+
+  /** The session this panel's next message would go to, when its log is damaged. */
+  private damagedTarget(): string | undefined {
+    const sessionId = this.session?.sessionId ?? this.resumeTarget?.sessionId
+    return sessionId !== undefined && this.isDamaged(sessionId) ? sessionId : undefined
+  }
+
+  /**
+   * A message or action for a damaged session (CLI recovery): a message's
+   * card says why and the composer keeps the draft; the notice beside it
+   * offers a new conversation (D26's way on), each time.
+   */
+  private refuseDamaged(
+    sessionId: string,
+    localId: string | undefined,
+    isComposerMessage: boolean,
+  ): void {
+    this.deps.log.info(
+      `A message to session ${sessionId} was refused: its Muse Code log is damaged`,
+    )
+    if (localId !== undefined) {
+      this.post({
+        type: 'sendFailed',
+        localId,
+        reason: UI_TEXT.sessionLogDamaged,
+        attachmentsKept: isComposerMessage,
+      })
+    }
+    this.post({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.sessionLogDamaged,
+      actions: ['newConversation'],
+    })
   }
 
   /**
@@ -1572,6 +1673,15 @@ export class ConversationController {
         this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
           this.deps.auth.markAuthRequired(event.reason ?? AUTH_REQUIRED_ERROR_KIND)
+        }
+        // This session's own event log failed (a child's turn is the child's).
+        if (
+          event.terminal === 'failed' &&
+          event.reason?.includes(MUSE_EVENT_LOG_FAULT) === true &&
+          !this.isChildTurn(event.turnId) &&
+          this.session !== undefined
+        ) {
+          this.markDamaged(this.session.sessionId, 'a turn ended on it')
         }
         break
       }
@@ -2018,7 +2128,7 @@ export class ConversationController {
   ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const page = await session.readOutput({
+      const page = await this.readOutputSlot(session, generation, {
         itemId: message.itemId,
         outputRef: message.outputRef,
         offsetBytes: message.offsetBytes,
@@ -2053,6 +2163,25 @@ export class ConversationController {
       this.hasSaidOutputFailure = true
       this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`)
     }
+  }
+
+  /**
+   * One stored-output page through the read slots (CLI recovery): at most
+   * `MSP_READ_OUTPUT_CONCURRENCY` in flight, the rest in order. One whose
+   * session is no longer this panel's when its turn comes is never sent: it
+   * fails as a stale read, which its caller does not show.
+   */
+  private readOutputSlot(
+    session: AgentSession,
+    generation: number,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    return this.outputReadSlots.run(
+      () => session.readOutput(request),
+      () =>
+        !this.isDisposed && generation === this.sendInvalidationEpoch && this.session === session,
+      () => new Error(UI_TEXT.questionCancelled),
+    )
   }
 
   /** A tool row's picture (M43): the file as a data URI, or why it cannot be shown. */
@@ -2153,7 +2282,7 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(session, generation)) {
         return undefined
       }
-      const chunk = await session.readOutput({
+      const chunk = await this.readOutputSlot(session, generation, {
         itemId,
         outputRef,
         offsetBytes,
@@ -2307,15 +2436,59 @@ export class ConversationController {
     this.post({ type: 'modelList', models: [...this.models] })
   }
 
-  /** Whether the session took the effort; a refusal is said, and the turn still goes. */
-  private async applyEffort(session: AgentSession): Promise<boolean> {
-    try {
-      await session.setReasoningEffort(effortForThinking(this.effort, this.isThinkingEnabled))
-      return true
-    } catch (error: unknown) {
-      this.deps.log.warn(`session/setReasoningEffort failed: ${describe(error)}`)
-      this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
-      return false
+  /**
+   * The composer's effort for the session; a refusal is said, and the turn
+   * still goes. One `session/setReasoningEffort` per session is in flight
+   * (CLI recovery): a change meanwhile replaces the one waiting, which is
+   * sent when the first settles if it differs from what that sent, and a
+   * burst's failure is said once. `kept` is what the session holds before
+   * this burst. Resolves to undefined when the newest value applied, else to
+   * the composer state the session still holds.
+   */
+  private applyEffort(
+    session: AgentSession,
+    kept: ComposerEffort,
+  ): Promise<ComposerEffort | undefined> {
+    const state = { effort: this.effort, isThinkingEnabled: this.isThinkingEnabled }
+    const wanted = effortForThinking(state.effort, state.isThinkingEnabled)
+    const running = this.effortSyncs.get(session)
+    if (running?.done !== undefined) {
+      running.wanted = wanted
+      running.wantedState = state
+      return running.done
+    }
+    const sync: EffortSync = { wanted, wantedState: state, kept, done: undefined }
+    this.effortSyncs.set(session, sync)
+    sync.done = this.syncEffort(session, sync)
+    return sync.done
+  }
+
+  private async syncEffort(
+    session: AgentSession,
+    sync: EffortSync,
+  ): Promise<ComposerEffort | undefined> {
+    let hasWarned = false
+    for (;;) {
+      const sent = sync.wanted
+      const sentState = sync.wantedState
+      let isApplied = true
+      try {
+        await session.setReasoningEffort(sent)
+        sync.kept = sentState
+      } catch (error: unknown) {
+        isApplied = false
+        this.deps.log.warn(`session/setReasoningEffort failed: ${failureForLog(error)}`)
+        if (!hasWarned) {
+          hasWarned = true
+          this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+        }
+      }
+      // Ended in the same step that saw nothing newer: a change after this
+      // starts a burst of its own.
+      if (sync.wanted === sent) {
+        this.effortSyncs.delete(session)
+        return isApplied ? undefined : sync.kept
+      }
     }
   }
 
@@ -2394,7 +2567,7 @@ export class ConversationController {
     sessionSurfaces.set(session, surfaces)
     this.canEditSessions = host.info.canEditSessions
     const eventGeneration = this.sendInvalidationEpoch
-    this.unsubscribe = session.onEvent((event) => {
+    const stopEvents = session.onEvent((event) => {
       if (
         this.isDisposed ||
         this.session !== session ||
@@ -2404,6 +2577,14 @@ export class ConversationController {
       }
       this.onEvent(event)
     })
+    // A command Muse Code answered with its event log's failure (CLI recovery).
+    const stopLogWatch = session.onLogDamaged?.(() => {
+      this.markDamaged(session.sessionId, 'a command failed on it')
+    })
+    this.unsubscribe = () => {
+      stopEvents()
+      stopLogWatch?.()
+    }
     // The host closing this very session is heard here (D25), not only in History.
     this.closedWatch = host.onSessionListEvent((event) => {
       if (eventGeneration !== this.sendInvalidationEpoch) {
@@ -2420,7 +2601,10 @@ export class ConversationController {
     this.postSessionInfo(this.modelId)
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
-    await this.applyEffort(session)
+    await this.applyEffort(session, {
+      effort: this.effort,
+      isThinkingEnabled: this.isThinkingEnabled,
+    })
     if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
       return
     }
@@ -2516,6 +2700,13 @@ export class ConversationController {
     generation: number,
   ): Promise<AgentSession | undefined> {
     const target = this.resumeTarget
+    if (target !== undefined && this.isDamaged(target.sessionId)) {
+      // Never resumed by itself (CLI recovery): Muse Code 1.4.2 re-ran its
+      // stale queued turn on resume and failed it again. It stays the target,
+      // so the next message is refused rather than sent to a new session.
+      this.deps.log.info(`Session ${target.sessionId} is not resumed: its Muse Code log is damaged`)
+      throw new Error(UI_TEXT.sessionLogDamaged)
+    }
     this.resumeTarget = undefined
     if (target?.kind !== host.info.kind) {
       return undefined
@@ -2621,6 +2812,12 @@ export class ConversationController {
     const generation = this.sendInvalidationEpoch
     const refusal = this.refuseAction(localId, isComposerMessage)
     if (refusal !== undefined || this.deps.workspaceRoot === undefined) {
+      return undefined
+    }
+    // Refused before any Muse Code command, a resume included (CLI recovery).
+    const damaged = this.damagedTarget()
+    if (damaged !== undefined) {
+      this.refuseDamaged(damaged, localId, isComposerMessage)
       return undefined
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
@@ -4096,8 +4293,53 @@ export class ConversationController {
   }
 
   /**
-   * "Restore files to here" (M72), and with `rewind` the conversation too
-   * ("Rewind conversation and restore files"), once the files are restored.
+   * The transcript's turn ids of the conversation from `turnId` on, with
+   * every turn of the child sessions those turns started, theirs included
+   * (M86, spec 3.2): a restore goes ahead only when each has a record.
+   * Undefined when the transcript cannot be read or does not hold the turn.
+   */
+  private async transcriptTurnIds(
+    host: AgentHost,
+    sessionId: string,
+    turnId: string,
+  ): Promise<readonly string[] | undefined> {
+    const history = await host.readSession(sessionId)
+    const start = history.items.findIndex((item) => item.turnId === turnId)
+    if (start === -1 || history.mode === HISTORY_MODE_NONE) {
+      return undefined
+    }
+    const turnIds = new Set<string>()
+    const children: string[] = []
+    const take = (items: readonly ItemSnapshot[]) => {
+      for (const item of items) {
+        if (item.turnId !== undefined) {
+          turnIds.add(item.turnId)
+        }
+        if (item.kind === SUBAGENT_ITEM_KIND && item.childSessionId !== undefined) {
+          children.push(item.childSessionId)
+        }
+      }
+    }
+    take(history.items.slice(start))
+    const read = new Set<string>()
+    for (let child = children.shift(); child !== undefined; child = children.shift()) {
+      if (read.has(child)) {
+        continue
+      }
+      read.add(child)
+      const childHistory = await host.readSession(child)
+      if (childHistory.mode === HISTORY_MODE_NONE) {
+        return undefined
+      }
+      take(childHistory.items)
+    }
+    return [...turnIds]
+  }
+
+  /**
+   * "Restore files to here" (M72, M86), and with `rewind` the conversation
+   * too ("Rewind conversation and restore files"), once the files are
+   * restored.
    */
   private async restoreFiles(
     message: Extract<ConversationMessage, { type: 'restoreFiles' }>,
@@ -4142,7 +4384,24 @@ export class ConversationController {
         return
       }
     }
-    const report = await this.checkpoints.restore(session.sessionId, message.turnId)
+    let turnIds: readonly string[] | undefined
+    try {
+      turnIds = await this.transcriptTurnIds(
+        await this.deps.ensureHost(),
+        session.sessionId,
+        message.turnId,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(`The transcript for a restore could not be read: ${describe(error)}`)
+    }
+    if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
+      this.notice(
+        'warning',
+        turnIds === undefined ? UI_TEXT.restoreWritesIncomplete : UI_TEXT.restoreFailed,
+      )
+      return
+    }
+    const report = await this.checkpoints.restore(session.sessionId, message.turnId, turnIds)
     if (prepared === undefined) {
       report.post()
       return
@@ -4165,9 +4424,20 @@ export class ConversationController {
     return this.activeTurnId !== undefined
   }
 
-  /** A restore's Redo (M72): never while a turn runs here. */
-  private async redoRestore(restoreId: string): Promise<void> {
-    if (this.session === undefined || this.sessionKind !== 'modelApi') {
+  /**
+   * A restore's Redo (M72, M86): never while a turn runs here, and only for
+   * the conversation shown, which the request names (the store also checks
+   * that the restore was that conversation's).
+   */
+  private async redoRestore(
+    message: Extract<ConversationMessage, { type: 'redoRestore' }>,
+  ): Promise<void> {
+    const { restoreId, sourceSessionId } = message
+    if (this.session?.sessionId !== sourceSessionId) {
+      this.post({ type: 'restoreRedone', restoreId, isSpent: false })
+      return
+    }
+    if (this.sessionKind !== 'modelApi') {
       this.notice('warning', UI_TEXT.checkpointsModelApiOnly)
       this.post({ type: 'restoreRedone', restoreId, isSpent: false })
       return
@@ -4177,7 +4447,20 @@ export class ConversationController {
       this.post({ type: 'restoreRedone', restoreId, isSpent: false })
       return
     }
-    await this.checkpoints.redo(restoreId)
+    const session = this.session
+    await this.checkpoints.redo(restoreId, sourceSessionId, async (fromTurnId) => {
+      try {
+        const ids = await this.transcriptTurnIds(
+          await this.deps.ensureHost(),
+          sourceSessionId,
+          fromTurnId,
+        )
+        return this.session === session && !this.isTurnRunning() ? ids : undefined
+      } catch (error: unknown) {
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${describe(error)}`)
+        return
+      }
+    })
   }
 
   private buildParts(text: string, attachmentIds: readonly string[]): readonly TurnPart[] {
@@ -4217,7 +4500,16 @@ export class ConversationController {
         if (!isCurrent()) {
           throw new Error(UI_TEXT.turnStoppedByRestart, { cause: error })
         }
-        this.deps.log.warn(`turn/steer failed (${describe(error)}); submitting as a new turn`)
+        // Only a steer refused with nothing taken goes as a new turn (CLI
+        // recovery): one with no answer may still reach the turn, and a
+        // second copy would run after it (the owner's session, 2026-10-02).
+        if (!isSteerRefusedError(error)) {
+          this.deps.log.warn(
+            `turn/steer failed (${failureForLog(error)}); the message is not sent again`,
+          )
+          throw error
+        }
+        this.deps.log.info('turn/steer was refused with nothing taken; submitting as a new turn')
       }
     }
     if (!isCurrent()) {
@@ -4301,8 +4593,8 @@ export class ConversationController {
   ): Promise<SendOutcome> {
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
-    // The capture this message's turn takes (M72), dropped if it is not sent.
-    let checkpoint: PendingCapture | undefined
+    // The running mark this message's turn takes over (M72), dropped if it is not sent.
+    let checkpoint: PendingMark | undefined
     const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
@@ -4439,7 +4731,7 @@ export class ConversationController {
       }
       // Whether this message starts a Plan-mode turn: its reply may be a plan (M79).
       const isPlanModeSend = this.permissionMode === PLAN_MODE
-      // The checkpoint before a turn this message starts (M72); a message
+      // The running mark before a turn this message starts (M72); a message
       // that steers or queues behind a running turn takes none.
       if (this.activeTurnId === undefined && !this.isSideChat) {
         checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
@@ -4937,14 +5229,16 @@ export class ConversationController {
     this.effort = effort
     this.isThinkingEnabled = isThinkingEnabled
     const { session } = this
-    if (session !== undefined && !(await this.applyEffort(session))) {
-      // The session kept its effort, so the composer shows it again, unless
-      // the model no longer serves it (a model switch dropped the tier).
-      const isSameSession = this.session === session
-      if (isSameSession && effortLevelsFor(this.modelId).includes(previous.effort)) {
-        this.effort = previous.effort
-        this.isThinkingEnabled = previous.isThinkingEnabled
-      }
+    const kept = session === undefined ? undefined : await this.applyEffort(session, previous)
+    // The session kept its effort, so the composer shows it again, unless
+    // the model no longer serves it (a model switch dropped the tier).
+    if (
+      kept !== undefined &&
+      this.session === session &&
+      effortLevelsFor(this.modelId).includes(kept.effort)
+    ) {
+      this.effort = kept.effort
+      this.isThinkingEnabled = kept.isThinkingEnabled
     }
     this.postComposerState()
   }
@@ -5971,7 +6265,7 @@ export class ConversationController {
         break
       }
       case 'redoRestore': {
-        await this.redoRestore(message.restoreId)
+        await this.redoRestore(message)
         break
       }
       case 'openSideChat': {
@@ -6278,6 +6572,12 @@ export class ConversationController {
       await this.deps.sessions.setLastSession(undefined)
       return
     }
+    if (this.isDamaged(last.sessionId)) {
+      // History opens it on request; it is never resumed by itself (CLI recovery).
+      this.deps.log.info(`Session ${last.sessionId} is not reopened: its Muse Code log is damaged`)
+      await this.deps.sessions.setLastSession(undefined)
+      return
+    }
     this.beginBrowserSessionChange()
     this.postSurfaceState()
     await this.resumeSession(last.sessionId)
@@ -6293,6 +6593,10 @@ export class ConversationController {
       this.deps.workspaceRoot === undefined ||
       this.deps.auth.current.status !== 'signedIn'
     ) {
+      return
+    }
+    if (this.isDamaged(sessionId)) {
+      this.deps.log.info(`Session ${sessionId} is not reopened: its Muse Code log is damaged`)
       return
     }
     this.beginBrowserSessionChange()
@@ -6349,6 +6653,45 @@ export class ConversationController {
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0
+  }
+
+  /** Whether a turn of this conversation runs on that backend (the watchdog's choice, CLI recovery). */
+  public isTurnRunningOn(kind: BackendKind): boolean {
+    return this.activeTurnId !== undefined && this.sessionKind === kind
+  }
+
+  /**
+   * Muse Code stopped answering (the watchdog, CLI recovery), said in a
+   * panel on it: restarted already when no turn ran, or, in a panel whose
+   * turn runs, the offer to restart it (D26's Restart, which stops the turn).
+   */
+  public museCodeStoppedAnswering(isRestarted: boolean): void {
+    if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'museCode') {
+      return
+    }
+    if (isRestarted) {
+      this.say('info', UI_TEXT.museCodeRestartedUnresponsive)
+      return
+    }
+    if (!this.isTurnRunningOn('museCode')) {
+      return
+    }
+    this.deps.log.warn(`${NOTICE_PREFIX}${UI_TEXT.museCodeUnresponsiveTurn}`)
+    this.post({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.museCodeUnresponsiveTurn,
+      actions: ['restartMuseCode'],
+    })
+  }
+
+  /**
+   * "Restart Muse Code" (CLI recovery) stopped the backend: the fresh one
+   * starts now and lists its models, as when the panel opens; the
+   * conversation resumes with its next message.
+   */
+  public warmUp(): void {
+    void this.warmModels()
   }
 
   /**

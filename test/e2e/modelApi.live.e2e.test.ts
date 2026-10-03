@@ -1046,6 +1046,8 @@ function livePanel(rig: Rig): LivePanel {
     sessions: {
       archivedIds: () => [],
       setArchivedIds: () => Promise.resolve(),
+      damagedIds: () => [],
+      setDamagedIds: () => Promise.resolve(),
       lastSession: () => undefined,
       setLastSession: () => Promise.resolve(),
     },

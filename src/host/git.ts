@@ -61,11 +61,6 @@ export class GitMissingError extends Error {
   }
 }
 
-/** Local error identity must survive our independently built host bundles. */
-export function isGitMissingError(value: unknown): value is GitMissingError {
-  return value instanceof Error && value.name === 'GitMissingError'
-}
-
 /** The subcommand of an argument list, past `-c name=value` pairs and other options. */
 function subcommandOf(args: readonly string[]): string {
   for (let index = 0; index < args.length; index += 1) {

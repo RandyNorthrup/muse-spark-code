@@ -5,11 +5,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { applyImportWrites, type ImportWrite } from '../../src/core/import/agentImport'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import {
-  asUserEdit,
-  type CheckpointPort,
-  withCheckpointEdit,
-} from '../../src/host/checkpoints/checkpointHost'
+import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { EditReview } from '../../src/host/editor/editReview'
 import { fileImportWriter } from '../../src/host/importIo'
 import { createPlanIo, type PlanIoOptions } from '../../src/host/planFeatures'
@@ -57,7 +53,7 @@ function editLease(h: Harness, signal: AbortSignal, cwd?: string, isTrusted = ()
   const port = checkpointPort(h, isTrusted)
   const check = manager.workspaceActionGuard(signal, cwd)
   const edit = async (work: (assertCanWrite?: () => void) => Promise<void>) => {
-    await withCheckpointEdit(port, check, async () => {
+    await withCheckpointEdit(port, h.log, check, async () => {
       await work(check)
     })
   }
@@ -132,11 +128,8 @@ async function importFile(
   await edit(async (assertCanWrite) => {
     const result = await applyImportWrites([write], fileImportWriter, process.platform, {
       beforeWrite: () => assertCanWrite?.(),
-      beforeProjectWrite: async (file) => {
-        await port.beforeToolWrite(file)
-      },
-      notePublished: (file) => {
-        port.noteUserSave(file)
+      beforeProjectWrite: (file) => {
+        port.refuseStorageWrite(file)
       },
     })
     const [failure] = result.failures
@@ -146,21 +139,18 @@ async function importFile(
   })
 }
 
-/** One edit, wired as activation wires it: under the lease, and the user's once written (M72). */
+/** One edit, wired as activation wires it: under the lease, never recorded (M86). */
 async function startEdit(
   h: Harness,
   family: EditFamily,
-  { port, edit }: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
+  lease: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
 ) {
+  const { edit } = lease
   if (family === 'import create' || family === 'import append') {
-    await importFile(h, family, { port, edit })
+    await importFile(h, family, lease)
     return
   }
-  const io = planIo(h, edit, {
-    noteUserWrite: (file) => {
-      port.noteUserSave(file)
-    },
-  })
+  const io = planIo(h, edit)
   const folder = path.join(h.root, '.agents', 'plans')
   if (family === 'plan create') {
     return await io.createFile(path.join(folder, PLAN_NAME), '# Owned\n')
@@ -175,18 +165,14 @@ async function startEdit(
     readFile: async (file) => await readFile(file, 'utf8'),
     realPath: canonicalPath,
     writeFile: async (file, content) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await writeFile(file, content)
-        }),
-      )
+      await edit(async () => {
+        await writeFile(file, content)
+      })
     },
     deleteFile: async (file) => {
-      await edit(
-        asUserEdit(port, file, async () => {
-          await rm(file)
-        }),
-      )
+      await edit(async () => {
+        await rm(file)
+      })
     },
     openDiff: () => Promise.resolve(),
     log: h.log,
@@ -194,7 +180,7 @@ async function startEdit(
   return await review.revert('owned-review', family === 'review write' ? EDIT_PATCH : CREATED_PATCH)
 }
 
-describe('current-main explicit workspace edits (M72/M79)', () => {
+describe('current-main explicit workspace edits (M72/M79/M86)', () => {
   it(
     'publishes no plan after trust is withdrawn during awaited presence admission',
     async () => {
@@ -384,7 +370,7 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
     ['import create', '.agents/skills/imported/SKILL.md', IMPORTED_SKILL],
     ['import append', 'AGENTS.md', `${RULES_BEFORE}\n${IMPORTED_SECTION}\n`],
   ])(
-    "leaves a %s the user made while a turn ran to them on that turn's restore",
+    "never records a %s the user made while a turn ran, so the turn's restore leaves it",
     async (family, relative, kept) => {
       const h = await harness()
       await write(h.root, 'a.txt', 'a0\n')
@@ -395,12 +381,13 @@ describe('current-main explicit workspace edits (M72/M79)', () => {
       const stale = new Date(Date.now() - PLAN_STAGE_STALE_MS - 1)
       await utimes(path.join(h.root, '.agents', 'plans', STALE_STAGE), stale, stale)
       const lease = editLease(h, new AbortController().signal)
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('a.txt', 'a1\n')
         await startEdit(h, family, lease)
       })
       const outcome = done(await restoreOutcome(h.store, 't1'))
-      expect(outcome.refused).toEqual([{ path: relative, reason: 'changedAfter' }])
+      expect(outcome.changed).toEqual(['a.txt'])
+      expect(outcome.refused).toEqual([])
       const content = (await isPresent(h.root, relative)) ? await read(h.root, relative) : undefined
       expect(content).toBe(kept)
       // The turn's own change still goes back.

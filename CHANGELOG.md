@@ -9,26 +9,38 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Git and pull requests from the panel (M71): editable commit and PR drafts
-  written by the user's Muse turn, explicit commit/push consent, GitHub PR
-  creation and conversation-linked checks. Push never uses force. A commit's
-  consent covers the bytes of new files too, in either of VS Code's views of
-  them, so a commit whose new files changed after the consent is refused. A
-  foreign PR opens in its own held worktree, with project configuration and shell
-  access off until the extension's trust card is confirmed. Git never checks
-  a foreign PR out: the worktree is added with `--no-checkout`, its index
-  read from the commit, and its files written by the extension exactly as
-  stored, so no filter, hook or conversion runs wherever Git's configuration
-  defines one. Paths that would leave the worktree, name `.git`, use a name
-  the platform cannot hold or collide where case does not count refuse the
-  checkout whole, as do PRs over 20,000 entries or 250 MB. A trusted parent
-  record never releases a held PR below it. Concurrent opens of the same
-  held PR preserve the successful checkout's record when another open
-  fails. The held checkout rejects non-commit SHA arguments before Git
-  runs and reports an overflowing tree listing as the existing too-large
-  refusal. Physical-owner and lifetime
-  guards refuse stale operations. Commit, push, PR fetch and checkout use
-  checkpoint process admission.
+- **Turn checkpoints (M86).** On by default again, with restore rebuilt on
+  the model's own file-tool writes while each file still holds exactly
+  what the model left. Commands, hooks, MCP tools or background work active
+  in those turns are noted; their file changes are never undone. Workspace
+  captures and ignored-file scans are removed. Restore and Redo refuse
+  replaced workspace roots, swapped junctions, dirty editor aliases and
+  incomplete later transcripts. Durable recovery inputs survive unreadable
+  records; applied batches keep their results and Redo after lost outcomes.
+  Retention releases old units by sequence and sweeps every unreferenced
+  content copy, including failed writes without an intent, after a one-hour
+  grace period with no live writer. Bounded passes resume next time.
+  One CAS lease manager recovers abandoned cleanup reservations before ordinary
+  sends, trusted startup, cleanup and restore, preserving live and uncertain
+  owners. One BigInt identity module protects copies, reservations, publication,
+  cleanup and workspace fences; ESLint rejects identity reads elsewhere. Children keep
+  their inherited recording decision across reloads, and folder cleanup
+  uses actual creation ownership. Imports from other agents keep their edit
+  and storage guards while remaining outside the model's recorder.
+  Identity metadata without file contents may outlive retired copies until
+  the window that wrote it retires; removing extension storage clears it.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -126,18 +138,6 @@ happened, not what was planned; superseded entries are kept.
   keeping its exact draft and images without replacing newer typing.
   No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
-  commands become skills, compatible agents become M76 agent files, project
-  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
-  editor edits for review and save. Import preserves source exposure:
-  personal stays personal and git-ignored files never enter tracked targets;
-  target exposure and path guards are checked again at publication/edit.
-  Values stay unchanged; no credential detector or clipboard operation.
-  Preview/picker output shows names, scopes and targets only, logs counts
-  and fixed reasons only. Only active MCP transport fields are copied;
-  inactive/unknown fields are dropped by name. Existing files and running
-  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
-  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Custom agents on the Model API backend** (M76, PLAN.md D49): specialised
   agents with their own prompt, tools, model or effort, and permissions. The
   model runs one through `subagent_spawn` with `agent` set to its id, and the
@@ -181,9 +181,48 @@ happened, not what was planned; superseded entries are kept.
   the others still load, and an agent it, or a file in it that was skipped,
   might define is refused by name rather than replaced by a broader personal
   or built-in agent of the same id.
+- Git and pull requests from the panel (M71): editable commit and PR drafts
+  written by the user's Muse turn, explicit commit/push consent, GitHub PR
+  creation and conversation-linked checks. Push never uses force. A commit's
+  consent covers the bytes of new files too, in either of VS Code's views of
+  them, so a commit whose new files changed after the consent is refused. A
+  foreign PR opens in its own held worktree, with project configuration and shell
+  access off until the extension's trust card is confirmed. Git never checks
+  a foreign PR out: the worktree is added with `--no-checkout`, its index
+  read from the commit, and its files written by the extension exactly as
+  stored, so no filter, hook or conversion runs wherever Git's configuration
+  defines one. Paths that would leave the worktree, name `.git`, use a name
+  the platform cannot hold or collide where case does not count refuse the
+  checkout whole, as do PRs over 20,000 entries or 250 MB. A trusted parent
+  record never releases a held PR below it. Concurrent opens of the same
+  held PR preserve the successful checkout's record when another open
+  fails. The held checkout rejects non-commit SHA arguments before Git
+  runs and reports an overflowing tree listing as the existing too-large
+  refusal. Physical-owner and lifetime
+  guards refuse stale operations. Commit, push, PR fetch and checkout use
+  checkpoint process admission.
 
 ### Changed
 
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -192,20 +231,11 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
-- README: an install guide for the most used editors (VS Code, Cursor,
-  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
-  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
-  settings; the README, banner and social preview now name no single editor
-  ("a coding agent in your editor"), and the README links every channel:
-  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
   2026-11-01. No fixed release exists, and `braces` reaches only development
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
-- The Command Palette offers the pull-request command alongside session
-  import and share-file commands when their workspace or panel context is
-  available.
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
@@ -234,49 +264,30 @@ happened, not what was planned; superseded entries are kept.
   still works, and a brief that arrives meanwhile opens with the next
   `/handoff`. No new setting: nothing automatic runs. Automatic
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
-- A skill file over its 64 KB cap is now refused before it is read whole, so
-  its log line says "is over the 65536 byte limit" without the file's size.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
   TypeScript stays at 6.0.3 and Dependabot now ignores its major updates
   until typescript-eslint admits 7. The SDK is bundled into the ACP agent
   alone; no file of the extension changes.
-- **Approval cards are docked above the message box** while they wait,
-  as in Claude Code's panel, so scrolling never loses one.
-  - The tool's row in the conversation keeps a short "Waiting for your
-    approval" line, then shows the decision.
-  - With several waiting, the oldest is docked (the order Muse asked) with
-    "Approvals waiting: N"; each moves up as the one before is settled.
-  - Focus moves to an arriving card itself, not onto a choice. A field you
-    are typing in (one holding text, or a key in the last 1.5 s) keeps
-    focus, and the panel's live region announces the card either way.
-  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
-    panel's height and wraps a long command at 320 px.
-  - The accessibility gate checks it in the four themes in new scenarios:
-    several cards, 320 px, and a step that moved on.
+- A skill file over its 64 KB cap is now refused before it is read whole, so
+  its log line says "is over the 65536 byte limit" without the file's size.
+- The Command Palette offers the pull-request command alongside session
+  import and share-file commands when their workspace or panel context is
+  available.
 
 ### Fixed
 
-- Import from other agents loads its UI adapter and configuration schema
-  only on the first import, keeping activation within its existing bundle
-  budget after the milestone merge.
-- The conversation's Git adapter ships in its own checked bundle, keeping
-  the merged activation bundle below its unchanged 600 KiB cap. Its
-  construction, consent, trust checks and installed display language stay
-  the same. The window's git and pull request features (VS Code's git
-  extension adapter, the GitHub client and sign-in, the pull request
-  checkout and its untrusted git lane, the draft prompts' words) load there
-  too, with the first conversation or pull request command, so M71 adds
-  7.8 KiB to activation instead of 32.1 KiB. When that bundle cannot load,
-  "Open a pull request in a conversation…" is refused with Git's
-  unavailable error, and the next try loads it again.
-- The merged credential redactor retains M71's complete Slack tokens,
-  including `xoxe-` and long suffixes, and complete legacy encrypted PEM
-  blocks with their header lines.
-- **Implement in a fresh conversation** now waits while handoff Start is
-  running, and Start waits for Implement, so they cannot both leave the
-  conversation and steer one brief into the other.
+- Staged file writes and plan-stage cleanup compare exact device/inode IDs,
+  preventing rounded Windows file IDs from accepting or removing a replacement.
+- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
+  share one decision's eventual result, so a confirmed refusal unlocks
+  both. Stop waits for an in-flight decision and rejects the next waiting
+  stage before cancelling. A fault's Restart now stops only Muse Code;
+  Model API conversations continue. Recovery buttons retire on first use
+  and remain retired in restored panels. The approval dock count uses
+  localized plural forms in every display language.
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
@@ -320,37 +331,6 @@ happened, not what was planned; superseded entries are kept.
   Implement looked up the backend, the current conversation was left
   before the start was refused. The start is now refused first, with the
   reason, and the conversation stays.
-- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
-- **A handoff brief no longer mixes in a later turn's tasks.** A message
-  sent after the distillation turn ended but before its brief was read
-  back could update the todo list the dialog and the new conversation
-  take from it. Sends stay refused until the brief and its todos are
-  captured. A brief deferred by key activation now also survives the
-  activation's restart: it is read back once the key is active, instead
-  of never returning. And a send refused while it waited is kept across
-  a panel reload, so the exact draft is still restored.
-- **A spawn that starts no child asks nothing** (Model API backend). One past
-  the 64 children of a conversation, one asking for worktree isolation, or
-  one reusing an earlier spawn's command id for a different task is refused
-  before the paid-use popup or the contributor question; a retry of the
-  same spawn under its command id answers with that child without asking
-  again. Each used to ask first.
-- When your PreToolUse hook rewrites a `then_run` command into one that
-  names no command, the line under the edit says so in your display
-  language; it was English. The model is still told in English.
-- A skill folder that cannot be read no longer hides the other folder's
-  skills (Model API backend): each loads on its own, and the log names the
-  one that failed.
-- Project context files are read through the canonical path confinement.
-  Replacing an agent/skill/rules alias with an outside link between check and
-  read no longer redirects the read outside the workspace.
-- **Approval decisions and recovery (PR #90, D26):** simultaneous panels
-  share one decision's eventual result, so a confirmed refusal unlocks
-  both. Stop waits for an in-flight decision and rejects the next waiting
-  stage before cancelling. A fault's Restart now stops only Muse Code;
-  Model API conversations continue. Recovery buttons retire on first use
-  and remain retired in restored panels. The approval dock count uses
-  localized plural forms in every display language.
 - **One decision per approval step (0.10.0, 0.10.1).** The approval card
   sent a step's decision again, so one approval got two or three answers
   and Muse Code refused the extra ones ("That request moved on to its next
@@ -405,6 +385,105 @@ happened, not what was planned; superseded entries are kept.
     retry; later ones go to the log until a read succeeds.
   - Collapsing and expanding the row asks again. The row keeps the diff it
     already shows, and the turn goes on meanwhile.
+- **A spawn that starts no child asks nothing** (Model API backend). One past
+  the 64 children of a conversation, one asking for worktree isolation, or
+  one reusing an earlier spawn's command id for a different task is refused
+  before the paid-use popup or the contributor question; a retry of the
+  same spawn under its command id answers with that child without asking
+  again. Each used to ask first.
+- When your PreToolUse hook rewrites a `then_run` command into one that
+  names no command, the line under the edit says so in your display
+  language; it was English. The model is still told in English.
+- A skill folder that cannot be read no longer hides the other folder's
+  skills (Model API backend): each loads on its own, and the log names the
+  one that failed.
+- Project context files are read through the canonical path confinement.
+  Replacing an agent/skill/rules alias with an outside link between check and
+  read no longer redirects the read outside the workspace.
+- **Implement in a fresh conversation** now waits while handoff Start is
+  running, and Start waits for Implement, so they cannot both leave the
+  conversation and steer one brief into the other.
+- **A handoff brief no longer mixes in a later turn's tasks.** A message
+  sent after the distillation turn ended but before its brief was read
+  back could update the todo list the dialog and the new conversation
+  take from it. Sends stay refused until the brief and its todos are
+  captured. A brief deferred by key activation now also survives the
+  activation's restart: it is read back once the key is active, instead
+  of never returning. And a send refused while it waited is kept across
+  a panel reload, so the exact draft is still restored.
+- **A message sent while a turn runs is never sent twice (0.10.x).** When
+  Muse Code did not answer the steer within 60 s, the panel sent the same
+  message again as a new turn, and a slow Muse Code took both: the copy
+  waited in its queue and ran (or failed) after the turn. Now only Muse
+  Code saying no turn is there to take it sends the message as a new turn.
+  A steer with no answer fails the message's card with "Muse Code did not
+  confirm your message reached the running turn. It may still arrive; check
+  before you send it again.", and the composer keeps the text; any other
+  refusal is said in its own words.
+- **A Muse Code that stops answering no longer leaves every action waiting
+  60 s.** On 2026-10-03 `muse serve` stopped writing anything at all (one
+  core busy), and every command (a message, a new chat, Stop) waited out
+  its deadline, with no way out but reloading the window. Now, after three
+  commands in a row missed their deadline with nothing at all from Muse
+  Code for 90 s, it counts as not answering: new commands fail at once
+  ("Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."), and anything Muse Code sends clears it. With no turn running in
+  the window it is restarted at once and the panel says so; while a turn
+  runs, that panel's notice offers **Restart now**, which stops the turn.
+- **Muse Spark: Restart Muse Code** starts a fresh `muse serve` without
+  reloading the window. A running turn is stopped, and each conversation
+  continues with its next message. A fault notice's **Restart now** does
+  the same.
+- **A conversation whose Muse Code log is damaged says so.** Muse Code
+  1.4.2 can fail a session's event log ("event log failed: …", a fault in
+  Muse Code), after which it fails every message of that session. The
+  panel now remembers such a session (the newest 50 in each workspace): it
+  is never resumed by itself after a restart or a reload, and a message to
+  it is refused before Muse Code hears of it, with a notice offering **New
+  conversation**. The conversation stays in History.
+- **Moving the effort slider no longer sends a change per step.** Eight
+  quick steps sent eight `session/setReasoningEffort` at once, and a busy
+  Muse Code failed each with its own warning. Now one change per
+  conversation is in flight, the newest waits, and a failed burst is said
+  once.
+- **Edit rows no longer read all their diffs at once after a resume.**
+  Every open edit row asked for its stored diff at the same instant (26 at
+  once in the owner's session). At most four reads go to Muse Code at a
+  time, in order, and one for a conversation no longer shown is never
+  sent.
+- **A notice said again is one row, not a stack (0.10.1 and earlier).**
+  When Muse Code stopped answering, the conversation filled with copies of
+  the same notice: "Could not load the output: … within 60 s" five times,
+  "Reasoning effort could not be applied: …" seven times. That buried the
+  chat. Now:
+  - A notice with the same level and text as one in the run of notices
+    that ends the conversation replaces it. The one row moves to the end,
+    with a small count after its text ("7×", read out as "Shown 7 times").
+    A notice said before the last message stays where it was said.
+  - Notices with a different text or level stay apart.
+  - Each file restore's notice keeps its own row and its Redo.
+  - A Muse Code fault said again offers its buttons again.
+  - The count is kept when the panel reloads.
+- **Error notices in the conversation are readable in the Light and Dark
+  themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
+  WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
+  with a red edge.
+- Import from other agents loads its UI adapter and configuration schema
+  only on the first import, keeping activation within its existing bundle
+  budget after the milestone merge.
+- The conversation's Git adapter ships in its own checked bundle, keeping
+  the merged activation bundle below its unchanged 600 KiB cap. Its
+  construction, consent, trust checks and installed display language stay
+  the same. The window's git and pull request features (VS Code's git
+  extension adapter, the GitHub client and sign-in, the pull request
+  checkout and its untrusted git lane, the draft prompts' words) load there
+  too, with the first conversation or pull request command, so M71 adds
+  7.8 KiB to activation instead of 32.1 KiB. When that bundle cannot load,
+  "Open a pull request in a conversation…" is refused with Git's
+  unavailable error, and the next try loads it again.
+- The merged credential redactor retains M71's complete Slack tokens,
+  including `xoxe-` and long suffixes, and complete legacy encrypted PEM
+  blocks with their header lines.
 
 ### Release infrastructure
 

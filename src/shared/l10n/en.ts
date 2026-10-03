@@ -960,14 +960,14 @@ export const EN = {
   forkedNotice: 'Forked into a new conversation.',
   rewindImagesUnavailable: 'Some images from this message could not be restored.',
   rewindBeforeCompaction: 'Cannot rewind before the latest compaction.',
-  // Turn checkpoints (M72): the user card's menu, the confirmations, the result.
+  // Turn checkpoints (M86): the user card's menu, the confirmations, the result.
   restoreFilesToHere: 'Restore files to here',
   checkpointsModelApiOnly:
-    'File restore and Redo require a connected Model API session. Muse Code checkpoints are read-only.',
+    'File restore and Redo require a connected Model API session. Only the model’s own file-tool edits are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone.',
   checkpointsLegacyReadOnly:
-    'This message has a legacy checkpoint. Its saved records remain readable; file restoration needs a current safely fenced capture.',
+    'This message was recorded by an earlier version of Muse Spark. Its files cannot be restored.',
   checkpointsNativeUnsafe:
-    'File restore and Redo are unavailable because a native workspace process or an unknown window may still edit files. Process shutdown is unproved; confirmed recovery is required.',
+    'File restore and Redo are unavailable while a Muse Code session, or a window that does not record its edits, may still change files. Close or reload that window, then try again.',
   rewindAndRestore: 'Rewind conversation and restore files',
   checkpointsRestricted: 'File checkpoints are off in Restricted Mode',
   checkpointsOff: 'File checkpoints are off in settings',
@@ -976,15 +976,15 @@ export const EN = {
     'Rewinding the conversation is not available with Muse Code on Windows',
   restoreConfirmTitle: 'Restore the files to before this message?',
   restoreConfirmDetail:
-    'What the turns from this message on changed is put back, untracked files and pre-copied ignored files included; ignored files they created are deleted. A file changed by something else in the meantime, or with unsaved changes, is left as it is and named. Redo puts back what the restore changed.',
+    'Only the model’s own file-tool edits from this message on are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Files with unsaved changes are left as they are and named. Redo puts back what the restore changed.',
   restoreConfirmAction: 'Restore files',
   rewindCodeConfirmTitle: 'Rewind the code to before this message?',
   rewindCodeConfirmDetail:
-    'Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered: Restore files covers it.',
+    'Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered, and Restore files does not undo it either: it is left as it is; check version control.',
   rewindCodeConfirmAction: 'Rewind code',
   restoreBothConfirmTitle: 'Restore the files and rewind the conversation to before this message?',
   restoreBothConfirmDetail:
-    'The files are restored first, as Restore files does; then the conversation branches before this message and its prompt returns to the composer. If a file is left as it is, the conversation is not rewound. The original conversation stays in History.',
+    'Only the model’s own file-tool edits from this message on are undone, while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Then the conversation branches before this message and its prompt returns to the composer. If a file is refused, the conversation is not rewound. The original conversation stays in History.',
   restoreBothConfirmAction: 'Restore and rewind',
   rewindNotDone: 'The conversation was not rewound.',
   restoreDone: forms({
@@ -992,20 +992,38 @@ export const EN = {
     other: 'Restored {count} files to before this message.',
   }),
   restoreNothing: 'No file needed restoring.',
+  redoNothing: 'Nothing left to put back.',
   redoDone: forms({ one: 'Put {count} file back.', other: 'Put {count} files back.' }),
   redoAction: 'Redo',
   redoLabel: 'Redo: put back the files this restore replaced',
   redoGone: 'This restore can no longer be redone.',
+  // PLAN.md D26: a notice said again is one row with a count, not a new row.
+  // {count}: how many times it was said in all (2 or more).
+  noticeRepeatBadge: '{count}×',
+  noticeRepeated: forms({ one: 'Shown {count} time', other: 'Shown {count} times' }),
   restoreRefusedUnsaved: 'Left as they are, with unsaved changes: {files}',
   restoreRefusedChanged: 'Left as they are, changed by something else in the meantime: {files}',
-  restoreRefusedNotCovered: 'Left as they are, not in the checkpoint: {files}',
-  restoreRefusedNoCopy: 'Not restorable, no copy from before the turn was kept: {files}',
+  restoreRefusedBetween:
+    'Left as they are, changed by something else between the model’s edits: {files}',
+  restoreRefusedOrderUnknown:
+    'Left as they are, edited from more than one window in an order that cannot be told: {files}',
+  restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
+  restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
+  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
-  restoreUnsure:
-    'Restored, but a turn’s end was not recorded, so these may also have undone later changes: {files}',
+  restoreUnchanged: forms({
+    one: 'Already as before: {count} file.',
+    other: 'Already as before: {count} files.',
+  }),
+  restoreWritesIncomplete:
+    'Nothing was restored: some of these turns’ edits were not fully recorded (a reload or crash mid-edit, or file checkpoints were off).',
+  restoreLegacyInRange:
+    'Nothing was restored: some of these turns were recorded by an earlier version, which this one cannot restore.',
+  restoreLegacyWindowOpen:
+    'Another window runs an older version of Muse Spark; reload it, then try again.',
+  restoreCommandsNote:
+    'Commands, hooks, MCP tools or background work were active in these turns; files they changed are not undone. Check your version control.',
   namedFilesMore: '{files} (+{count})',
-  restoreIgnoredIncomplete:
-    'Some ignored files these turns changed were not tracked and are left as they are.',
   restoreNoCheckpoint: 'This message has no file checkpoint any more.',
   restoreTurnRunning: 'Wait until no turn is running in this window, then try again.',
   restoreTurnElsewhere:
@@ -1013,14 +1031,9 @@ export const EN = {
   sendMarkFailed:
     'The message was not sent: this window could not tell other windows on this folder that a turn is starting.',
   restoreFailed: 'Could not restore the files',
-  checkpointLeftOut: 'The file checkpoint left out: {files}',
-  checkpointUnavailable: 'No file checkpoint for this turn: {reason}',
-  checkpointTooManyFiles: 'the workspace has more than {count} files outside its ignore rules',
-  checkpointTooLarge: 'over {size} MiB of changed files to copy',
   checkpointFailed: 'the checkpoint failed',
-  checkpointNoGit: 'git was not found on PATH',
-  checkpointPathTooLong:
-    'the path of the workspace or of this extension’s storage folder is too long for git',
+  childCheckpointFailed:
+    'The subagent turn did not run: its file checkpoint could not be created or its inherited recording decision is unknown.',
   resumedNotice: 'Resumed',
   historyUnavailable: 'The conversation history could not be loaded',
   historyNotServed: 'The earlier messages of this conversation could not be shown',
@@ -1107,6 +1120,21 @@ export const EN = {
     'Muse Code applies your approvals in this conversation but reports an error for each one (a fault in its approval record, not in your choices). Each card follows what Muse Code does next; a new conversation does not have the fault.',
   museCodeRestartAsked:
     'Muse Code was stopped. Your next message starts it again and continues this conversation.',
+  // CLI recovery (2026-10-03): a steer whose answer never came may still reach the turn.
+  steerUnconfirmed:
+    'Muse Code did not confirm your message reached the running turn. It may still arrive; check before you send it again.',
+  // The watchdog: a command refused at once while Muse Code answers nothing.
+  museCodeNotAnswering:
+    'Muse Code is not answering. Restart it with "Muse Spark: Restart Muse Code".',
+  museCodeRestartedUnresponsive: 'Muse Code stopped answering and was restarted.',
+  // Its notice offers Restart now (D26's action).
+  museCodeUnresponsiveTurn:
+    'Muse Code stopped answering while a turn runs. Restarting it stops that turn; the conversation continues with your next message.',
+  // After "Muse Spark: Restart Muse Code".
+  museCodeRestarted: 'Muse Code was restarted. Your next message continues this conversation.',
+  // A session whose Muse Code event log failed (a CLI fault) takes no new message.
+  sessionLogDamaged:
+    'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',

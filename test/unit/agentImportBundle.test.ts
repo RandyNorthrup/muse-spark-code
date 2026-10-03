@@ -173,7 +173,6 @@ describe('the shipped import bundle', () => {
         captureOwner,
         editProject: async (work) => await work(() => undefined),
         beforeProjectWrite: () => Promise.resolve(),
-        noteUserWrite: () => undefined,
         museSettingsPath: () => path.join(built.folder, 'settings.json'),
         openDocument: () => Promise.resolve(),
         bundle: () => bundled,
@@ -223,7 +222,6 @@ describe('the shipped import bundle', () => {
       museSettingsFile: settings,
       editProject: async (work) => await work(() => undefined),
       beforeProjectWrite: () => Promise.resolve(),
-      noteUserWrite: () => undefined,
       pickSource: () => Promise.resolve('codex'),
       pickCandidates: (items) => Promise.resolve(items.map((item) => item.id)),
       openPreview: (_title, markdown) => {

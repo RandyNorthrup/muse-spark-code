@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, rm, symlink, utimes } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, symlink, utimes } from 'node:fs/promises'
 import { statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -9,7 +9,6 @@ import { gitPathMax } from '../../src/host/checkpoints/shadowGit'
 import { type GitProcess, processGitProcess } from '../../src/host/git'
 import { CHECKPOINT_STALE_LOCK_MS } from '../../src/shared/constants'
 import {
-  captured,
   harness,
   type Harness,
   isPresent,
@@ -20,9 +19,10 @@ import {
   restoreTurn,
   runGit,
   shadowGit,
-  storedRecords,
+  storedUnits,
   turn,
   write,
+  writeLegacyRecord,
 } from './helpers/checkpointHarness'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -123,7 +123,7 @@ async function initializers(storage: string): Promise<readonly string[]> {
   return names.filter((name) => INITIALIZER_LIKE.test(name))
 }
 
-/** Capture, record, end, restore and redo on a store, read back independently and by a second window. */
+/** A turn's unit recorded, restored and redone on a store, read back independently and by a second window. */
 async function roundTrip(
   h: Harness,
   storage: string,
@@ -133,17 +133,16 @@ async function roundTrip(
   const store = h.reopenAt(storage, workspace, limits.told)
   await write(workspace, 'a.txt', 'one\n')
   await write(workspace, 'sub/b.txt', 'b\n')
-  // An ignored file a tool writes is copied first, by a path git opens itself.
   await write(workspace, '.gitignore', '.env\n')
   await write(workspace, '.env', 'KEY=before\n')
-  await turn({ store }, 't1', async () => {
-    await write(workspace, 'a.txt', 'two\n')
-    await rm(path.join(workspace, 'sub', 'b.txt'))
-    await store.beforeToolWrite(path.join(workspace, '.env'))
-    await write(workspace, '.env', 'KEY=after\n')
+  // The copies a tool's writes kept are brought in by paths git opens itself.
+  await turn({ store, root: workspace }, 't1', async (tool) => {
+    await tool('a.txt', 'two\n')
+    await tool('sub/b.txt', null)
+    await tool('.env', 'KEY=after\n')
   })
   expect(await store.turns('s1')).toEqual(['t1'])
-  expect(storedRecords(storage).map((record) => record.kind)).toEqual(['checkpoint'])
+  expect(storedUnits(storage).map((unit) => unit.owner.unitKind)).toEqual(['turn'])
   const restored = await restoreTurn(store, 't1')
   expect(await read(workspace, 'a.txt')).toBe('one\n')
   expect(await read(workspace, 'sub/b.txt')).toBe('b\n')
@@ -152,11 +151,11 @@ async function roundTrip(
   expect(await read(workspace, 'a.txt')).toBe('two\n')
   expect(await read(workspace, '.env')).toBe('KEY=after\n')
   expect(await isPresent(workspace, 'sub/b.txt')).toBe(false)
-  expect(
-    storedRecords(storage)
-      .map((record) => record.kind)
-      .toSorted((a, b) => a.localeCompare(b)),
-  ).toEqual(['checkpoint', 'restore'])
+  expect(storedUnits(storage).map((unit) => unit.owner.unitKind)).toEqual([
+    'turn',
+    'batch',
+    'batch',
+  ])
   // Another window on the same storage reads what this one wrote.
   expect(await h.reopenAt(storage, workspace, limits.told).turns('s1')).toEqual(['t1'])
   expect(await initializers(storage)).toEqual([])
@@ -186,127 +185,133 @@ const SUITES = [
   { label: 'a lowered limit', isNatural: false },
 ] as const
 
-describe.each(SUITES)('checkpoint storage beyond git’s path limits with $label (M72)', (suite) => {
-  // The platform's own limit is reached with real paths only where it is 260.
-  const isWindowsOnly = suite.isNatural && process.platform !== 'win32'
-  const limitsFor = (h: Harness) => (suite.isNatural ? NATURAL : loweredLimits(baseOf(h)))
+describe.each(SUITES)(
+  'checkpoint storage beyond git’s path limits with $label (M72, M86)',
+  (suite) => {
+    // The platform's own limit is reached with real paths only where it is 260.
+    const isWindowsOnly = suite.isNatural && process.platform !== 'win32'
+    const limitsFor = (h: Harness) => (suite.isNatural ? NATURAL : loweredLimits(baseOf(h)))
 
-  describe.skipIf(isWindowsOnly)('at its edges', () => {
-    it.each(TIERS)(
-      'takes, records, restores and redoes checkpoints at $tier',
-      async ({ repository, isRelative }) => {
-        const calls: Call[] = []
-        const h = await harness({ gitProcess: recordingGit(calls) })
-        const limits = limitsFor(h)
-        const storage = storageFor(baseOf(h), repository(limits))
-        await roundTrip(h, storage, limits)
-        const inShadow = shadowCalls(calls)
-        expect(inShadow.length).toBeGreaterThan(0)
-        for (const call of inShadow) {
-          // Short paths keep the absolute spelling and the work tree as the
-          // directory; only a repository git would refuse goes relative.
-          expect(call.env['GIT_DIR']).toBe(
-            isRelative ? 'shadow.git' : path.join(storage, 'shadow.git'),
+    describe.skipIf(isWindowsOnly)('at its edges', () => {
+      it.each(TIERS)(
+        'records, restores and redoes a turn’s writes at $tier',
+        async ({ repository, isRelative }) => {
+          const calls: Call[] = []
+          const h = await harness({ gitProcess: recordingGit(calls) })
+          const limits = limitsFor(h)
+          const storage = storageFor(baseOf(h), repository(limits))
+          await roundTrip(h, storage, limits)
+          const inShadow = shadowCalls(calls)
+          expect(inShadow.length).toBeGreaterThan(0)
+          for (const call of inShadow) {
+            // Short paths keep the absolute spelling and the work tree as the
+            // directory; only a repository git would refuse goes relative.
+            expect(call.env['GIT_DIR']).toBe(
+              isRelative ? 'shadow.git' : path.join(storage, 'shadow.git'),
+            )
+            expect(call.cwd).toBe(isRelative ? storage : h.top)
+            expect(call.env['GIT_WORK_TREE']).toBe(h.top)
+            expect(path.isAbsolute(call.env['GIT_INDEX_FILE'] ?? '')).toBe(true)
+          }
+          const init = calls.find((call) => call.args.includes('init'))
+          expect(init?.cwd).toBe(storage)
+          expect(init?.args).toEqual(expect.arrayContaining(['-c', 'core.longpaths=true']))
+          expect(init?.args.at(-1)).toMatch(INITIALIZER)
+        },
+        REAL_GIT_TIMEOUT_MS,
+      )
+
+      it(
+        'refuses a repository path git cannot open, says so, and starts and makes no repository',
+        async () => {
+          const calls: Call[] = []
+          const h = await harness({ gitProcess: recordingGit(calls) })
+          const limits = limitsFor(h)
+          const storage = storageFor(baseOf(h), limits.repository + 1)
+          await expect(h.reopenAt(storage, h.root, limits.told).turns('s1')).rejects.toThrow(
+            `storage path is ${String(limits.repository + 1)}`,
           )
-          expect(call.cwd).toBe(isRelative ? storage : h.top)
-          expect(call.env['GIT_WORK_TREE']).toBe(h.top)
-          expect(path.isAbsolute(call.env['GIT_INDEX_FILE'] ?? '')).toBe(true)
-        }
-        const init = calls.find((call) => call.args.includes('init'))
-        expect(init?.cwd).toBe(storage)
-        expect(init?.args).toEqual(expect.arrayContaining(['-c', 'core.longpaths=true']))
-        expect(init?.args.at(-1)).toMatch(INITIALIZER)
-      },
-      REAL_GIT_TIMEOUT_MS,
-    )
+          expect(calls).toEqual([])
+          // No repository is made, and no initializer is left.
+          expect(await readdir(storage)).not.toContain('shadow.git')
+          expect(await initializers(storage)).toEqual([])
+        },
+        REAL_GIT_TIMEOUT_MS,
+      )
 
-    it(
-      'refuses a repository path git cannot open, says so, and starts and makes no repository',
-      async () => {
-        const calls: Call[] = []
-        const h = await harness({ gitProcess: recordingGit(calls) })
-        const limits = limitsFor(h)
-        const storage = storageFor(baseOf(h), limits.repository + 1)
-        const capture = await h.reopenAt(storage, h.root, limits.told).capture()
-        expect(capture).toMatchObject({ ok: false, reason: 'pathTooLong' })
-        expect(capture.ok || capture.detail).toContain(
-          `storage path is ${String(limits.repository + 1)}`,
-        )
-        expect(calls).toEqual([])
-        // Only the window's presence (a folder of its own) is written.
-        expect(await readdir(storage)).toEqual(['windows'])
-      },
-      REAL_GIT_TIMEOUT_MS,
-    )
+      it(
+        'refuses a work tree git cannot change into before any git starts',
+        async () => {
+          const calls: Call[] = []
+          const h = await harness({ git: 'none', gitProcess: recordingGit(calls) })
+          const limits = limitsFor(h)
+          const deep = pathOfLength(path.join(h.top, 'w'), limits.directory + 1)
+          await mkdir(deep, { recursive: true })
+          const store = h.reopenAt(path.join(baseOf(h), 'short-storage'), deep, limits.told)
+          await expect(store.turns('s1')).rejects.toThrow(
+            `workspace path is ${String(deep.length)}`,
+          )
+          expect(calls).toEqual([])
+        },
+        REAL_GIT_TIMEOUT_MS,
+      )
 
-    it(
-      'refuses a work tree git cannot change into before any git starts',
-      async () => {
-        const calls: Call[] = []
-        const h = await harness({ git: 'none', gitProcess: recordingGit(calls) })
-        const limits = limitsFor(h)
-        const deep = pathOfLength(path.join(h.top, 'w'), limits.directory + 1)
-        await mkdir(deep, { recursive: true })
-        const store = h.reopenAt(path.join(baseOf(h), 'short-storage'), deep, limits.told)
-        const capture = await store.capture()
-        expect(capture).toMatchObject({ ok: false, reason: 'pathTooLong' })
-        expect(capture.ok || capture.detail).toContain(`workspace path is ${String(deep.length)}`)
-        expect(calls).toEqual([])
-      },
-      REAL_GIT_TIMEOUT_MS,
-    )
+      it(
+        'names a long store’s records when an older reader opens it with no prepare',
+        async () => {
+          const h = await harness()
+          const limits = limitsFor(h)
+          const storage = storageFor(baseOf(h), limits.absolute + 1)
+          const store = h.reopenAt(storage, h.root, limits.told)
+          await store.turns('s1')
+          writeLegacyRecord(storage, h.top, {
+            kind: 'checkpoint',
+            id: 'm72',
+            sessionId: 's1',
+            turnId: 'm72-turn',
+          })
+          await expect(
+            legacyCheckpointTurns(
+              {
+                storageDir: storage,
+                workspaceRoot: h.root,
+                platform: process.platform,
+                git: realGit,
+                env: process.env,
+                signal: new AbortController().signal,
+                ...(limits.told !== undefined && { gitPathMax: limits.told }),
+              },
+              's1',
+            ),
+          ).resolves.toEqual(['m72-turn'])
+        },
+        REAL_GIT_TIMEOUT_MS,
+      )
 
-    it(
-      'names a long store’s records when an older reader opens it with no prepare',
-      async () => {
-        const h = await harness()
-        const limits = limitsFor(h)
-        const storage = storageFor(baseOf(h), limits.absolute + 1)
-        const store = h.reopenAt(storage, h.root, limits.told)
-        await write(h.root, 'a.txt', 'one\n')
-        await turn({ store }, 't1', () => write(h.root, 'a.txt', 'two\n'))
-        await expect(
-          legacyCheckpointTurns(
-            {
-              storageDir: storage,
-              workspaceRoot: h.root,
-              platform: process.platform,
-              git: realGit,
-              env: process.env,
-              signal: new AbortController().signal,
-              ...(limits.told !== undefined && { gitPathMax: limits.told }),
-            },
-            's1',
-          ),
-        ).resolves.toEqual(['t1'])
-      },
-      REAL_GIT_TIMEOUT_MS,
-    )
-
-    it(
-      'reaches storage through a link that is short while its target is too long',
-      async () => {
-        const h = await harness()
-        const limits = limitsFor(h)
-        const base = baseOf(h)
-        const real = storageFor(base, limits.repository + 1)
-        await mkdir(real, { recursive: true })
-        const link = path.join(base, 'link')
-        await symlink(real, link, process.platform === 'win32' ? 'junction' : 'dir')
-        // The same folder, spelled by its canonical path, is refused; spelled
-        // through the link it is usable, and the repository lands in the
-        // folder the link names (one folder: one volume, one rename).
-        expect(await h.reopenAt(real, h.root, limits.told).capture()).toMatchObject({
-          ok: false,
-          reason: 'pathTooLong',
-        })
-        await roundTrip(h, link, limits)
-        expect(await isPresent(real, 'shadow.git/HEAD')).toBe(true)
-      },
-      REAL_GIT_TIMEOUT_MS,
-    )
-  })
-})
+      it(
+        'reaches storage through a link that is short while its target is too long',
+        async () => {
+          const h = await harness()
+          const limits = limitsFor(h)
+          const base = baseOf(h)
+          const real = storageFor(base, limits.repository + 1)
+          await mkdir(real, { recursive: true })
+          const link = path.join(base, 'link')
+          await symlink(real, link, process.platform === 'win32' ? 'junction' : 'dir')
+          // The same folder, spelled by its canonical path, is refused; spelled
+          // through the link it is usable, and the repository lands in the
+          // folder the link names (one folder: one volume, one rename).
+          await expect(h.reopenAt(real, h.root, limits.told).turns('s1')).rejects.toThrow(
+            'storage path is',
+          )
+          await roundTrip(h, link, limits)
+          expect(await isPresent(real, 'shadow.git/HEAD')).toBe(true)
+        },
+        REAL_GIT_TIMEOUT_MS,
+      )
+    })
+  },
+)
 
 describe('the initializer of the shadow repository (M72)', () => {
   it(
@@ -324,12 +329,11 @@ describe('the initializer of the shadow repository (M72)', () => {
       })
       const storage = path.join(baseOf(h), 'init-fails')
       const store = h.reopenAt(storage)
-      expect(await store.capture()).toMatchObject({ ok: false, reason: 'failed' })
+      await expect(store.turns('s1')).rejects.toThrow('injected init failure')
       expect(await initializers(storage)).toEqual([])
       expect(await isPresent(storage, 'shadow.git')).toBe(false)
       isFailing = false
-      const again = await store.capture()
-      expect(again.ok).toBe(true)
+      await expect(store.turns('s1')).resolves.toEqual([])
       expect(await initializers(storage)).toEqual([])
     },
     REAL_GIT_TIMEOUT_MS,
@@ -354,8 +358,7 @@ describe('the initializer of the shadow repository (M72)', () => {
       const storage = path.join(baseOf(h), 'init-cancelled')
       const store = h.reopenAt(storage)
       window.store = store
-      const capture = await store.capture()
-      expect(capture.ok).toBe(false)
+      await expect(store.turns('s1')).rejects.toThrow()
       expect(await initializers(storage)).toEqual([])
       expect(await isPresent(storage, 'shadow.git')).toBe(false)
     },
@@ -369,14 +372,14 @@ describe('the initializer of the shadow repository (M72)', () => {
       const storage = path.join(baseOf(h), 'init-blocked')
       // A folder that is not a repository already stands where it belongs.
       await mkdir(path.join(storage, 'shadow.git', 'not-a-repository'), { recursive: true })
-      expect(await h.reopenAt(storage).capture()).toMatchObject({ ok: false, reason: 'failed' })
+      await expect(h.reopenAt(storage).turns('s1')).rejects.toThrow()
       expect(await initializers(storage)).toEqual([])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'lets two windows start one storage at once: one repository, both captures, no initializer',
+    'lets two windows start one storage at once: one repository, both reads, no initializer',
     async () => {
       const second: { store?: CheckpointStore } = {}
       let isNested = false
@@ -388,8 +391,8 @@ describe('the initializer of the shadow repository (M72)', () => {
             // The second window starts, makes and publishes its own repository
             // while the first one's is made but not yet published.
             isNested = true
-            const capture = await second.store.capture()
-            nested.push(capture.ok)
+            const turns = await second.store.turns('s1')
+            nested.push(turns.length === 0)
           }
           return output
         },
@@ -399,12 +402,10 @@ describe('the initializer of the shadow repository (M72)', () => {
       const other = h.reopenAt(storage)
       second.store = other
       await write(h.root, 'a.txt', 'one\n')
-      const snapshot = await captured(first)
+      await turn({ store: first, root: h.root }, 't1', (tool) => tool('a.txt', 'two\n'))
       expect(nested).toEqual([true])
       expect(await initializers(storage)).toEqual([])
       expect(await isPresent(storage, 'shadow.git/HEAD')).toBe(true)
-      await first.record('s1', 't1', snapshot)
-      await first.endTurn('s1', 't1')
       expect(await other.turns('s1')).toEqual(['t1'])
     },
     REAL_GIT_TIMEOUT_MS,
@@ -430,8 +431,7 @@ describe('the initializer of the shadow repository (M72)', () => {
         await utimes(folder, old, old)
       }
       await utimes(live, recent, recent)
-      const capture = await h.reopenAt(storage).capture()
-      expect(capture.ok).toBe(true)
+      await expect(h.reopenAt(storage).turns('s1')).resolves.toEqual([])
       const names = await readdir(storage)
       expect(
         names.filter((name) => name.startsWith('.i-')).toSorted((a, b) => a.localeCompare(b)),
@@ -524,10 +524,10 @@ describe('the independent reads of the tests (M72)', () => {
       const storage = storageFor(baseOf(h), NATURAL.absolute)
       const store = h.reopenAt(storage)
       await write(h.root, 'a.txt', 'one\n')
-      await turn({ store }, 't1', () => write(h.root, 'a.txt', 'two\n'))
+      await turn({ store, root: h.root }, 't1', (tool) => tool('a.txt', 'two\n'))
       const refs = shadowGit(storage, ['for-each-ref', '--format=%(refname)', 'refs/muse-spark/'])
         .split('\n')
-        .filter((ref) => ref.includes('/record/'))
+        .filter((ref) => ref.includes('/m86/unit/'))
       expect(refs).toHaveLength(1)
       expect(
         path.join(storage, 'shadow.git', ...(refs[0] ?? '').split('/')).length,

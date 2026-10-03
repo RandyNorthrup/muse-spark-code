@@ -12,16 +12,13 @@ function setup(initial: Record<string, string> = {}) {
   const log = new FakeLogOutputChannel()
   /** What the activation's checkpoint composition does, in the order it does it. */
   const order: string[] = []
-  const guard = { isRevoked: false }
-  const beforeDelete = vi.fn((absolutePath: string) => {
-    order.push(`copy ${absolutePath}`)
-    return Promise.resolve()
-  })
+  const guard = { isRevoked: false, isRevokedInLease: false }
   const features = createMemoryFeatures({
     store: memoryStoreOver(files).store,
     log,
     edit: async (scope, work) => {
       order.push(`lease ${scope}`)
+      guard.isRevoked ||= guard.isRevokedInLease
       return await work(() => {
         order.push('guard')
         if (guard.isRevoked) {
@@ -29,12 +26,8 @@ function setup(initial: Record<string, string> = {}) {
         }
       })
     },
-    beforeDelete,
-    afterDelete: (absolutePath) => {
-      order.push(`trashed ${absolutePath}`)
-    },
   })
-  return { files, log, features, order, guard, beforeDelete }
+  return { files, log, features, order, guard }
 }
 
 /** Each quick pick answers with the row whose id is next in `ids`. */
@@ -87,7 +80,7 @@ describe('createMemoryFeatures (M49)', () => {
     expect(t.log.info).toHaveBeenCalledWith(`Memory note moved to the trash: ${PROJECT}/a.md`)
   })
 
-  it('holds the lease, keeps a copy, then lets the guard speak last before the trash', async () => {
+  it('holds the lease, then lets the guard speak last before the trash', async () => {
     const t = setup({
       [`${PROJECT}/a.md`]: 'A',
       [`${PROJECT}/MEMORY.md`]: '- [a](a.md) | A\n',
@@ -99,45 +92,23 @@ describe('createMemoryFeatures (M49)', () => {
     pickIds('note:1', 'delete')
     vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
-    // Only once it is in the trash is the removal noted as the user's (M72).
-    expect(t.order.slice(0, 5)).toEqual([
-      'lease project',
-      `copy ${PROJECT}/a.md`,
-      'guard',
-      'delete',
-      `trashed ${PROJECT}/a.md`,
-    ])
+    // The user's removal is never recorded (M86): no copy, no note of it.
+    expect(t.order.slice(0, 3)).toEqual(['lease project', 'guard', 'delete'])
     // The index update, inside the same lease, carries the guard as well.
     expect(t.order.indexOf('guard', t.order.indexOf('delete'))).toBeGreaterThan(0)
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('')
   })
 
-  it('does not trash a note when the guard is revoked after its copy was kept', async () => {
+  it('does not trash a note when the guard is revoked once the lease is held', async () => {
     const t = setup({ [`${PROJECT}/a.md`]: 'A', [`${PROJECT}/MEMORY.md`]: '- [a](a.md) | A\n' })
-    t.beforeDelete.mockImplementation(() => {
-      t.guard.isRevoked = true
-      return Promise.resolve()
-    })
+    t.guard.isRevokedInLease = true
     pickIds('note:1', 'delete')
     vi.mocked(confirmModal).mockResolvedValue('Delete')
     await t.features.showMemory()
     expect(workspace.fs.delete).not.toHaveBeenCalled()
-    expect(t.order.filter((step) => step.startsWith('trashed'))).toEqual([])
     expect(t.files.get(`${PROJECT}/MEMORY.md`)).toBe('- [a](a.md) | A\n')
     expect(window.showErrorMessage).toHaveBeenCalledWith(
       'The memory could not be changed: the window closed',
-    )
-  })
-
-  it('does not trash a note whose checkpoint copy could not be kept', async () => {
-    const t = setup({ [`${PROJECT}/a.md`]: 'A' })
-    t.beforeDelete.mockRejectedValue(new Error('the copy failed'))
-    pickIds('note:0', 'delete')
-    vi.mocked(confirmModal).mockResolvedValue('Delete')
-    await t.features.showMemory()
-    expect(workspace.fs.delete).not.toHaveBeenCalled()
-    expect(window.showErrorMessage).toHaveBeenCalledWith(
-      'The memory could not be changed: the copy failed',
     )
   })
 

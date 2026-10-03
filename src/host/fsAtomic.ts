@@ -30,21 +30,18 @@
 //   rename is still replaced.
 
 import { randomUUID } from 'node:crypto'
-import { constants, type Stats } from 'node:fs'
-import {
-  access,
-  link,
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-} from 'node:fs/promises'
+import { constants, type BigIntStats } from 'node:fs'
+import { access, link, mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import {
+  type FileIdentity,
+  handleIdentity,
+  identityOf,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../core/fs/fileIdentity'
 import { isSamePath } from '../core/paths'
 import { bytesFingerprint } from '../core/verify/fingerprint'
 import {
@@ -54,7 +51,7 @@ import {
   MODEL_TEXT,
 } from '../shared/constants'
 import { canonicalPath } from './canonicalPath'
-import type { ConditionalWrite } from '../core/backends/modelapi/tools'
+import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
   /** A checkpoint's live admission, checked after awaits and before file mutations. */
@@ -83,6 +80,12 @@ export interface AtomicWriteOptions {
    * whether an editor now holds unsaved text for the file; Grok's review).
    */
   readonly isReplaceable?: () => boolean
+  /**
+   * Runs once the content is staged and closed, with the staged file's mode
+   * from its handle and the folder the write created, before the first
+   * rename attempt (M86: the recorder's intent). A throw leaves the target alone.
+   */
+  readonly staged?: (file: StagedFile) => Promise<void>
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
@@ -112,18 +115,18 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
-/** A cleanup may remove only the same regular file, with captured metadata when supplied. */
+/** A cleanup may remove only the same regular file, with exact inode IDs and captured metadata. */
 export async function isOwnedFile(
   target: string,
-  identity: Pick<Stats, 'dev' | 'ino'> & Partial<Pick<Stats, 'mtimeMs' | 'size'>>,
+  identity: FileIdentity & Partial<Pick<BigIntStats, 'mtimeNs' | 'size'>>,
 ): Promise<boolean> {
   try {
-    const current = await lstat(target)
+    // Windows file IDs exceed Number's safe range: rounded IDs can name two files.
+    const current = await lstatIdentity(target)
     return (
       current.isFile() &&
-      current.dev === identity.dev &&
-      current.ino === identity.ino &&
-      (identity.mtimeMs === undefined || current.mtimeMs === identity.mtimeMs) &&
+      sameFile(current, identity) &&
+      (identity.mtimeNs === undefined || current.mtimeNs === identity.mtimeNs) &&
       (identity.size === undefined || current.size === identity.size)
     )
   } catch (error: unknown) {
@@ -196,6 +199,19 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
   await access(real, constants.W_OK)
   const { mode } = await stat(real)
   return { path: real, mode: mode & PERMISSION_BITS }
+}
+
+/**
+ * How many folders, `folder` and up, a recursive `mkdir` of it made, from the
+ * outermost one it names (undefined: none). Windows names it in its long-path
+ * form (`\\?\C:\…`), so both are compared in that form.
+ */
+export function foldersMade(folder: string, outermost: string | undefined): number {
+  if (outermost === undefined) {
+    return 0
+  }
+  const below = path.relative(path.toNamespacedPath(outermost), path.toNamespacedPath(folder))
+  return below === '' ? 1 : below.split(path.sep).length + 1
 }
 
 /** The target no longer holds what a conditional write expected: nothing was written. */
@@ -275,13 +291,17 @@ async function writeAtomically(
   expectedFingerprint: string | (() => Promise<boolean>) | undefined,
 ): Promise<void> {
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
+  let createdFolders = 0
   if (expectedFingerprint === undefined || typeof expectedFingerprint === 'function') {
     if (expectedFingerprint !== undefined) {
       await assertUnchanged(target, expectedFingerprint)
     }
     options.beforeCommit?.()
     options.assertCanWrite?.()
-    await mkdir(path.dirname(target), { recursive: true })
+    createdFolders = foldersMade(
+      path.dirname(target),
+      await mkdir(path.dirname(target), { recursive: true }),
+    )
   } else {
     // A conditional write replaces only the expected text: a target that is
     // gone, with its folder or not, stays gone.
@@ -291,30 +311,31 @@ async function writeAtomically(
   const destination = await destinationOf(target, options)
   await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
   const temporary = `${destination.path}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
-  let temporaryIdentity: { readonly dev: number; readonly ino: number } | undefined
+  let temporaryIdentity: FileIdentity | undefined
+  let stagedMode = 0
   try {
     await assertBoundPath(temporary, temporary, options)
     options.beforeCommit?.()
     options.assertCanWrite?.()
     const handle = await open(temporary, 'wx')
     try {
-      const held = await handle.stat()
+      const held = await handleIdentity(handle)
       // The content is written through this handle only after path and inode
       // agree twice. Node cannot make a path-based rename handle-relative.
       for (let sample = 0; sample < 2; sample += 1) {
         await assertBoundPath(temporary, temporary, options)
-        const current = await stat(temporary)
-        if (held.dev !== current.dev || held.ino !== current.ino) {
+        const current = await statIdentity(temporary)
+        if (!sameFile(held, current)) {
           throw new Error(MODEL_TEXT.pathChangedAfterApproval)
         }
       }
-      temporaryIdentity = { dev: held.dev, ino: held.ino }
+      temporaryIdentity = identityOf(held)
       options.beforeCommit?.()
       options.assertCanWrite?.()
       await (typeof content === 'string'
         ? handle.writeFile(content, 'utf8')
         : handle.writeFile(content))
-      const mode = destination.mode ?? held.mode & PERMISSION_BITS
+      const mode = destination.mode ?? Number(held.mode) & PERMISSION_BITS
       options.beforeCommit?.()
       options.assertCanWrite?.()
       if (options.executable !== undefined && (options.platform ?? process.platform) !== 'win32') {
@@ -322,14 +343,19 @@ async function writeAtomically(
       } else if (destination.mode !== undefined) {
         await handle.chmod(destination.mode)
       }
+      if (options.staged !== undefined) {
+        const staged = await handle.stat()
+        stagedMode = staged.mode & PERMISSION_BITS
+      }
     } finally {
       await handle.close()
     }
+    await options.staged?.({ mode: stagedMode, createdFolders })
     await renameReplacing(temporary, destination.path, options, async () => {
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
-      const current = await stat(temporary)
-      if (current.dev !== temporaryIdentity?.dev || current.ino !== temporaryIdentity.ino) {
+      const current = await statIdentity(temporary)
+      if (temporaryIdentity === undefined || !sameFile(current, temporaryIdentity)) {
         throw new Error(MODEL_TEXT.pathChangedAfterApproval)
       }
       await assertBoundPath(temporary, temporary, options)
@@ -382,7 +408,7 @@ export interface NewFileOptions {
   /** Removes the stage (`fs.rm`); tests stand in a scanner holding it. */
   readonly remove?: (stage: string) => Promise<void>
   /** Runs once the stage is written and closed, before the last check; tests swap the folder here. */
-  readonly staged?: () => Promise<void>
+  readonly staged?: (file: StagedFile) => Promise<void>
   readonly platform?: NodeJS.Platform
 }
 
@@ -475,9 +501,10 @@ export async function createFileExclusively(
   const directory = path.dirname(absolutePath)
   const expected = options.expectedDirectory ?? (await canonicalPath(directory))
   await assertSameDirectory(directory, expected, platform)
+  let createdFolders: number
   try {
     options.assertCanWrite?.()
-    await mkdir(directory, { recursive: true })
+    createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
   } catch (error: unknown) {
     const code = errorCode(error)
     if (code !== undefined && NOT_A_FOLDER_CODES.has(code)) {
@@ -490,14 +517,16 @@ export async function createFileExclusively(
     directory,
     `.${path.basename(absolutePath)}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`,
   )
-  let stageIdentity: Pick<Stats, 'dev' | 'ino'> | undefined
+  let stageIdentity: FileIdentity | undefined
   let isPublished = false
+  let stagedMode: number
   try {
     options.assertCanWrite?.()
     const handle = await open(stage, 'wx', options.mode)
     try {
-      const held = await handle.stat()
-      stageIdentity = { dev: held.dev, ino: held.ino }
+      const held = await handleIdentity(handle)
+      stageIdentity = identityOf(held)
+      stagedMode = Number(held.mode) & PERMISSION_BITS
       options.assertCanWrite?.()
       await (typeof content === 'string'
         ? handle.writeFile(content, 'utf8')
@@ -506,7 +535,7 @@ export async function createFileExclusively(
     } finally {
       await handle.close()
     }
-    await options.staged?.()
+    await options.staged?.({ mode: stagedMode, createdFolders })
     await assertSameDirectory(directory, expected, platform)
     if (!(await isOwnedFile(stage, stageIdentity))) {
       throw new Error(MODEL_TEXT.pathChangedAfterApproval)
