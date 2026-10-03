@@ -625,6 +625,33 @@ describe('App conversation', () => {
     expect(document.querySelector('[aria-live]')).toHaveTextContent('Open a folder first')
   })
 
+  it.each([undefined, 'Newer typing', ''])(
+    'keeps the composer draft and image on handoff refusal, respecting newer edit %s',
+    (newer) => {
+      const postMessage = renderReady()
+      deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 'distillation' } })
+      addTestImage()
+      const draft = '  Do this instead\n'
+      send(draft)
+      expect(postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: 'sendMessage', text: 'Do this instead' }),
+      )
+      if (newer !== undefined) {
+        fireEvent.change(textarea(), { target: { value: 'Newer typing' } })
+        fireEvent.change(textarea(), { target: { value: newer } })
+      }
+      deliver({
+        type: 'sendFailed',
+        localId: 'local-1',
+        reason: UI_TEXT.handoffBusy,
+        attachmentsKept: true,
+      })
+      expect(textarea().value).toBe(newer ?? draft)
+      expect(screen.getByLabelText('Remove shot.png')).toBeInTheDocument()
+      expect(document.querySelector('[aria-live]')).toHaveTextContent(UI_TEXT.handoffBusy)
+    },
+  )
+
   it('labels the model pill with model and effort, like the Claude Code pill', () => {
     renderReady()
     deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', contextLimit: 1_007_997 })
@@ -778,6 +805,124 @@ describe('App conversation', () => {
     fireEvent.click(screen.getByLabelText('Remove x.png'))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'removeAttachment', id: 'a1' })
     expect(screen.queryByText('x.png')).toBeNull()
+  })
+})
+
+/** A two-step shell approval waiting on `sourceIndex` (the 1.4.2 frames' shape). */
+function twoStepApproval(type: 'approvalRequested' | 'approvalUpdated', sourceIndex: number) {
+  const stages = [0, 1].map((index) => ({
+    requirementId: { approvalId: 'a1', sourceIndex: index },
+    position: index + 1,
+    totalStages: 2,
+    argv: index === 0 ? ['git', 'show', 'HEAD:a.yml'] : ['Out-String'],
+  }))
+  const choices = [
+    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+  ]
+  const common = {
+    approvalId: 'a1',
+    requirementId: { approvalId: 'a1', sourceIndex },
+    subject: { kind: 'shell', command: 'git show HEAD:a.yml | Out-String', stages },
+    availableChoices: choices,
+  }
+  return type === 'approvalUpdated'
+    ? { type, ...common }
+    : {
+        type,
+        ...common,
+        itemId: 'c1',
+        toolName: 'powershell',
+        rawArgs: '{"command":"git show HEAD:a.yml | Out-String"}',
+        isJudgeEscalated: false,
+        isProtectedWrite: false,
+      }
+}
+
+function decisionsPosted(postMessage: ReturnType<typeof renderReady>) {
+  return postMessage.mock.calls.filter(([message]) => message.type === 'decideApproval')
+}
+
+describe('App approval card: one decision per stage (D26)', () => {
+  it('keeps every button disabled after a click until the host settles the decision', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    const allow = screen.getByRole('button', { name: 'Allow once' })
+    // Two clicks in one frame, before the locked card renders.
+    act(() => {
+      allow.click()
+      allow.click()
+    })
+    // What arrives before the host settles it: the same step updated (the
+    // rule's persistence), the request announced again, a notice, a reply.
+    deliver({
+      type: 'agentEvent',
+      event: { ...twoStepApproval('approvalUpdated', 0), change: { kind: 'policyPersistence' } },
+    })
+    deliver({
+      type: 'agentEvent',
+      event: { ...twoStepApproval('approvalRequested', 0), isReplayed: true },
+    })
+    deliver({ type: 'notice', level: 'error', text: 'Something else failed' })
+    streamReply('r1', 'meanwhile')
+    for (const name of ['Allow once', 'Reject']) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toBeDisabled()
+      fireEvent.click(button)
+    }
+    expect(decisionsPosted(postMessage)).toHaveLength(1)
+    // Settled by the host: its next step is a new decision.
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
+    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(decisionsPosted(postMessage).map(([message]) => message)).toEqual([
+      expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 0 } }),
+      expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 1 } }),
+    ])
+  })
+
+  it('docks the waiting card above the composer and leaves the decision in its row', () => {
+    renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    const dock = screen.getByRole('region', { name: UI_TEXT.approvalDockLabel })
+    // Outside the scrolled transcript, before the composer in Tab order.
+    expect(screen.getByRole('main')).not.toContainElement(dock)
+    expect(dock.compareDocumentPosition(textarea()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(dock).getByRole('group', { name: /^Muse wants to / })).toHaveFocus()
+    expect(within(screen.getByRole('main')).getByText(UI_TEXT.approvalDockedNote)).toBeVisible()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    })
+    expect(screen.queryByRole('region', { name: UI_TEXT.approvalDockLabel })).toBeNull()
+    expect(within(screen.getByRole('main')).getByText(/Decided: approved/)).toBeInTheDocument()
+    expect(screen.queryByText(UI_TEXT.approvalDockedNote)).toBeNull()
+  })
+
+  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    deliver({ type: 'approvalReopened', approvalId: 'a1' })
+    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(decisionsPosted(postMessage)).toHaveLength(2)
+    // Refused as stale: the card shows the step Muse Code waits on, and says so.
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
+    deliver({ type: 'approvalMovedOn', approvalId: 'a1' })
+    const card = screen.getByRole('group', { name: /^Muse wants to / })
+    expect(card).toHaveClass('approval-moved')
+    expect(within(card).getByText(UI_TEXT.promptMovedOn)).toBeInTheDocument()
+    expect(within(card).getByText('Out-String')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(card).not.toHaveClass('approval-moved')
+    expect(decisionsPosted(postMessage)).toHaveLength(3)
   })
 })
 
@@ -1147,6 +1292,55 @@ describe('App palette', () => {
     expect(screen.getByRole('list', { name: 'Conversation' })).toHaveTextContent(
       'Reasoning effort could not be applied',
     )
+  })
+
+  it('retires a fault notice on first use and keeps it retired after restoration (D26)', () => {
+    const store = createUiStore({ ...initialUiState, sessionId: 's1' })
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    const view = render(<App postMessage={postMessage} store={store} />)
+    act(() => {
+      const messages: readonly HostToWebviewMessage[] = [
+        init,
+        { type: 'authState', status: 'signedIn' },
+        {
+          type: 'notice',
+          level: 'error',
+          text: 'Replay refused',
+          actions: ['restartMuseCode', 'newConversation'],
+        },
+      ]
+      for (const message of messages) {
+        store.dispatch({ type: 'hostMessage', message, at: 1 })
+      }
+    })
+    const restart = screen.getByRole('button', { name: 'Restart now' })
+    fireEvent.click(restart)
+    fireEvent.click(restart)
+    expect(
+      postMessage.mock.calls.filter(
+        ([message]) => message.type === 'hostAction' && message.action === 'restartMuseCode',
+      ),
+    ).toHaveLength(1)
+    expect(store.getState().transcript.at(-1)).toMatchObject({ actions: [] })
+    const restored = restoredUiState(webviewStateOf(store.getState(), true))
+    view.unmount()
+    const restoredStore = createUiStore(restored)
+    render(<App postMessage={postMessage} store={restoredStore} />)
+    act(() => {
+      restoredStore.dispatch({ type: 'hostMessage', message: init, at: 1 })
+      restoredStore.dispatch({
+        type: 'hostMessage',
+        message: { type: 'surfaceState', sessionId: 's1' },
+        at: 1,
+      })
+      restoredStore.dispatch({
+        type: 'hostMessage',
+        message: { type: 'authState', status: 'signedIn' },
+        at: 1,
+      })
+    })
+    expect(screen.getByText('Replay refused')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Restart now' })).toBeNull()
   })
 })
 

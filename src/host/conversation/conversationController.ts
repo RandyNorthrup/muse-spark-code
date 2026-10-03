@@ -14,10 +14,13 @@ import {
   type GoalCommand,
   type GoalRefusal,
   type HostExit,
+  isDecisionNotAppliedError,
   isGoalRefusedError,
+  isMuseCodeFaultError,
   isPromptSettledError,
   isSessionNotLoadedError,
   type LoadedSession,
+  type MuseCodeFaultError,
   type PromptSettledError,
   type PromptSettledReason,
   type SessionHistoryOutcome,
@@ -117,6 +120,7 @@ import type {
   LineRange,
   MentionItem,
   ModelOption,
+  NoticeAction,
   SkillOption,
 } from '../../shared/protocol'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
@@ -768,6 +772,8 @@ interface PendingHandoff {
   readonly requestId: string
   readonly goal: string | undefined
   turnId: string | undefined
+  /** Submission began; the turn can run before its acceptance arrives. */
+  hasSubmittedTurn: boolean
   session: AgentSession | undefined
   /** The brief, once the distillation turn completed and it was shown. */
   brief: string | undefined
@@ -775,7 +781,11 @@ interface PendingHandoff {
   /** The completed turn's reply being read back as the brief. */
   isReadingBrief: boolean
   isStarting: boolean
-  readonly generation: number
+  /**
+   * The send epoch owning the slot; a resumable restart adopts a waiting
+   * brief into the new one, so the sign-in retry still owns it.
+   */
+  generation: number
 }
 
 /** An error's kind for the log (its code or name), never its message, which may name the plan. */
@@ -784,6 +794,25 @@ function errorKind(error: unknown): string {
     return String(error.code)
   }
   return error instanceof Error ? error.name : typeof error
+}
+
+/**
+ * The extension's existing restart sequence (D25/D26), shared with its tests
+ * so a Muse-only recovery proves both controller and host isolation.
+ */
+export async function restartConversationBackends(
+  controllers: Iterable<ConversationController>,
+  museCode: { dispose: () => Promise<void> },
+  modelApi: { dispose: () => Promise<void> },
+  isConversationEnding: boolean,
+  isMuseCodeOnly: boolean,
+): Promise<void> {
+  await Promise.all(
+    Array.from(controllers, (controller) =>
+      controller.backendStopping(isConversationEnding, isMuseCodeOnly ? 'museCode' : undefined),
+    ),
+  )
+  await Promise.all([museCode.dispose(), ...(isMuseCodeOnly ? [] : [modelApi.dispose()])])
 }
 
 export class ConversationController {
@@ -877,6 +906,19 @@ export class ConversationController {
    * other waiters only log it (0.10.0 showed one slow start six times).
    */
   private readonly shownFailures = new WeakSet<object>()
+  /**
+   * Muse Code faults said in this panel, by session and fault (D26): each is
+   * said once, with its way on; a repeat only logs.
+   */
+  private readonly shownFaults = new Set<string>()
+  /**
+   * Stored-output reads in flight, by item, output and offset: a row that
+   * asks again (re-rendered, collapsed and expanded) joins the read already
+   * sent instead of queueing another behind it on a busy host.
+   */
+  private readonly outputReads = new Map<string, Promise<void>>()
+  /** A failed output read was said in this conversation; later ones only log until one succeeds. */
+  private hasSaidOutputFailure = false
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
   /** Stops listening for the host closing this session. */
@@ -932,7 +974,7 @@ export class ConversationController {
    * Plan mode drops them all, since any of them may then act.
    */
   private readonly pendingPlanTurnIds = new Set<string>()
-  /** A plan action (save, implement, Plans…) is running (M79). */
+  /** Plan actions and handoff Start share the conversation-replacing operation lock. */
   private isPlanActionRunning = false
   /** This conversation's turn checkpoints (M72). */
   private readonly checkpoints: ConversationCheckpoints
@@ -1063,6 +1105,33 @@ export class ConversationController {
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
     })
+  }
+
+  /**
+   * A Muse Code fault (D26), said once per session in plain words with the
+   * way on: the replay fault refuses every message, so it offers a restart
+   * (after which the session runs again) and a new conversation; the ledger
+   * fault only spoils each decision's reply, so it offers a new conversation.
+   */
+  private noteMuseCodeFault(error: MuseCodeFaultError): void {
+    const key = this.faultKey(error.fault)
+    if (this.shownFaults.has(key)) {
+      this.deps.log.warn(`Muse Code fault ${error.fault} again (said once in the panel)`)
+      return
+    }
+    this.shownFaults.add(key)
+    const isReplay = error.fault === 'approvalReplay'
+    const text = isReplay ? UI_TEXT.approvalReplayRefused : UI_TEXT.approvalLedgerFault
+    const actions: readonly NoticeAction[] = isReplay
+      ? ['restartMuseCode', 'newConversation']
+      : ['newConversation']
+    const level: NoticeLevel = isReplay ? 'error' : 'warning'
+    this.deps.log[isReplay ? 'error' : 'warn'](`${NOTICE_PREFIX}${text}`)
+    this.post({ type: 'notice', level, text, actions: [...actions] })
+  }
+
+  private faultKey(fault: MuseCodeFaultError['fault']): string {
+    return `${this.session?.sessionId ?? ''}\u{0}${fault}`
   }
 
   /**
@@ -1201,6 +1270,7 @@ export class ConversationController {
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
+    this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
     this.childSessionIds.clear()
@@ -1701,7 +1771,11 @@ export class ConversationController {
     if (this.session === undefined) {
       return
     }
-    this.deps.log.info(`Approval ${message.approvalId} answered: ${message.choiceId}`)
+    // The stage is logged: a multi-command line is one approval decided
+    // stage by stage, which read as repeated answers without it.
+    this.deps.log.info(
+      `Approval ${message.approvalId} stage ${String(message.requirementId.sourceIndex)} answered: ${message.choiceId}`,
+    )
     try {
       await this.session.decideApproval({
         approvalId: message.approvalId,
@@ -1714,12 +1788,19 @@ export class ConversationController {
         this.promptSettled(error, { approvalId: message.approvalId })
         return
       }
-      // Muse Code 1.3.0 on Windows can fail the reply to `approval/decide`
-      // on its own ledger write after applying the decision (the tool runs
-      // on); the wording must not claim the decision was refused. The card
-      // opens again: if the decision did apply, its resolve still closes it.
+      if (isMuseCodeFaultError(error)) {
+        // The decision applied (#29); the card follows the host's resolve.
+        this.noteMuseCodeFault(error)
+        return
+      }
+      // The wording must not claim the decision was refused: the tool may
+      // run on. The card offers the choice again only when the host still
+      // waits on this stage (one decision per stage, D26); otherwise it
+      // follows the host's own events.
       this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
-      this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+      if (isDecisionNotAppliedError(error)) {
+        this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+      }
     }
   }
 
@@ -1732,6 +1813,14 @@ export class ConversationController {
     error: PromptSettledError,
     prompt: { readonly approvalId: string } | { readonly userInputId: string },
   ): void {
+    if (error.reason === 'movedOn' && 'approvalId' in prompt) {
+      // Said on the card itself, which shows the step Muse Code waits on.
+      this.deps.log.info(
+        `Approval ${prompt.approvalId}: a decision arrived after its step moved on`,
+      )
+      this.post({ type: 'approvalMovedOn', approvalId: prompt.approvalId })
+      return
+    }
     this.notice('info', promptSettledText(error.reason))
     if (error.reason === 'gone') {
       this.post({ type: 'promptDropped', ...prompt })
@@ -1893,6 +1982,14 @@ export class ConversationController {
     }
   }
 
+  /**
+   * One page of a row's stored output (an edit's patch). A read already in
+   * flight for the same page is joined, not sent again, and its page serves
+   * every row that asked. A failed read is said once in a conversation, with
+   * how to retry (collapse and expand the row); later failures only log
+   * until a read succeeds again, so a busy Muse Code (one answering reads
+   * one after another, more than 60 s behind) stacks no notices (D26).
+   */
   private async readOutput(
     message: Extract<ConversationMessage, { type: 'readOutput' }>,
   ): Promise<void> {
@@ -1900,6 +1997,25 @@ export class ConversationController {
     if (session === undefined) {
       return
     }
+    const key = `${message.itemId}\u{0}${message.outputRef}\u{0}${String(message.offsetBytes)}`
+    const inFlight = this.outputReads.get(key)
+    if (inFlight !== undefined) {
+      await inFlight
+      return
+    }
+    const reading = this.readOutputPage(session, message)
+    this.outputReads.set(key, reading)
+    try {
+      await reading
+    } finally {
+      this.outputReads.delete(key)
+    }
+  }
+
+  private async readOutputPage(
+    session: AgentSession,
+    message: Extract<ConversationMessage, { type: 'readOutput' }>,
+  ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
       const page = await session.readOutput({
@@ -1915,6 +2031,7 @@ export class ConversationController {
       ) {
         return
       }
+      this.hasSaidOutputFailure = false
       this.post({
         type: 'outputPage',
         itemId: message.itemId,
@@ -1925,9 +2042,16 @@ export class ConversationController {
         eof: page.eof,
       })
     } catch (error: unknown) {
-      if (generation === this.sendInvalidationEpoch && this.session === session) {
-        this.notice('error', `${UI_TEXT.outputLoadFailed}: ${describe(error)}`)
+      if (generation !== this.sendInvalidationEpoch || this.session !== session) {
+        return
       }
+      const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
+      if (this.hasSaidOutputFailure) {
+        this.deps.log.warn(`${text} (item ${message.itemId}; said once in the panel)`)
+        return
+      }
+      this.hasSaidOutputFailure = true
+      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`)
     }
   }
 
@@ -3239,9 +3363,9 @@ export class ConversationController {
   }
 
   /**
-   * One plan action at a time: a second press while Save plan, Implement or
-   * Plans… still runs is dropped, and said, so a plan is saved once and
-   * started once.
+   * One plan action or handoff Start at a time: a second press while Save
+   * plan, Implement, Plans… or Start still runs is dropped, and said, so
+   * only one operation can leave and seed a conversation.
    */
   private async onePlanAction(run: () => Promise<void>): Promise<void> {
     if (this.isPlanActionRunning) {
@@ -3648,6 +3772,7 @@ export class ConversationController {
       goal,
       generation,
       turnId: undefined,
+      hasSubmittedTurn: false,
       session: this.session,
       brief: undefined,
       todos: [],
@@ -3747,12 +3872,24 @@ export class ConversationController {
     pending.isReadingBrief = true
     try {
       // While admission is closed the operation waits, its turn done, and
-      // `readWaitingBrief` reads the brief when the panel next asks.
+      // `readWaitingBrief` reads the brief after sign-in/key activation,
+      // or when the panel next asks.
       if (!this.isStillCurrent(pending)) {
         return
       }
       const host = await this.deps.ensureHost()
-      const session = pending.session
+      const hasConversationToResume = this.session !== undefined || this.resumeTarget !== undefined
+      let session = pending.session
+      if (hasConversationToResume && session === undefined) {
+        // Rebound after a resumable restart (M74): the stop dropped the
+        // waiting handoff's session, so the retry reads the brief from the
+        // resumed conversation (the review of PR #84).
+        const resumed = await this.sessionForAction()
+        if (resumed !== undefined && this.pendingHandoff === pending) {
+          pending.session = resumed
+          session = resumed
+        }
+      }
       if (session === undefined || !this.isStillCurrent(pending)) {
         return
       }
@@ -3780,12 +3917,15 @@ export class ConversationController {
       pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
       this.postHandoffReady()
     } catch (error: unknown) {
-      if (this.isCurrentHandoff(pending)) {
+      if (this.isStillCurrent(pending)) {
         this.pendingHandoff = undefined
         this.handoffFailed(error)
       }
     } finally {
       pending.isReadingBrief = false
+      if (this.isCurrentHandoff(pending) && !this.isAuthAdmitted()) {
+        this.notice('warning', UI_TEXT.notSignedInReason)
+      }
     }
   }
 
@@ -3801,6 +3941,9 @@ export class ConversationController {
       pending.brief !== undefined ||
       pending.isReadingBrief ||
       !this.finishedTurns.has(pending.turnId) ||
+      (pending.session === undefined &&
+        this.session === undefined &&
+        this.resumeTarget === undefined) ||
       !this.isStillCurrent(pending)
     ) {
       return false
@@ -3846,6 +3989,11 @@ export class ConversationController {
       this.post({ type: 'handoffCommandResult', requestId, accepted: false })
       return
     }
+    if (this.isPlanActionRunning) {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.notice('info', UI_TEXT.handoffBusy)
+      return
+    }
     const generation = pending.generation
     if (!this.isCurrentHandoff(pending)) {
       this.pendingHandoff = undefined
@@ -3864,6 +4012,7 @@ export class ConversationController {
       return
     }
     pending.isStarting = true
+    this.isPlanActionRunning = true
     const seeded = handoffBrief(
       brief,
       pending.goal,
@@ -3881,6 +4030,7 @@ export class ConversationController {
       return
     } finally {
       pending.isStarting = false
+      this.isPlanActionRunning = false
     }
     if (started.status === 'changed') {
       this.dropHandoff(pending)
@@ -4157,6 +4307,26 @@ export class ConversationController {
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
+      // A composer send cannot steer the distillation's reply into a
+      // different brief. Start's own brief send remains admitted. Check
+      // before auth/session preparation too, so its refusal keeps the draft.
+      // The block lasts until the brief and its todo snapshot are both
+      // captured: the reply is read by turn id, but the todos come from the
+      // session-wide list, which a send admitted meanwhile could update
+      // before the read resolves (the review of PR #84).
+      const requireNoDistillation = (): void => {
+        const pending = this.pendingHandoff
+        if (
+          handoff === undefined &&
+          brief === undefined &&
+          pending?.hasSubmittedTurn === true &&
+          pending.brief === undefined &&
+          this.isCurrentHandoff(pending)
+        ) {
+          throw new Error(UI_TEXT.handoffBusy)
+        }
+      }
+      requireNoDistillation()
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
       if (session === undefined) {
@@ -4179,6 +4349,7 @@ export class ConversationController {
         if (handoff !== undefined && !this.isCurrentHandoff(handoff)) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
         }
+        requireNoDistillation()
         // Nor is its request sent once admission closed (M74): refused as
         // the reason its card failed, and the composer keeps the command.
         if (handoff !== undefined && !hasSubmittedHandoff && !this.isAuthAdmitted()) {
@@ -4292,6 +4463,9 @@ export class ConversationController {
           seededSession = current
         }
         hasSubmittedHandoff = handoff !== undefined
+        if (handoff !== undefined) {
+          handoff.hasSubmittedTurn = true
+        }
         return this.submit(
           current,
           parts,
@@ -4373,6 +4547,11 @@ export class ConversationController {
       // says why, so whatever else waited on the same start only logs it.
       this.noteShown(error)
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
+      if (isMuseCodeFaultError(error)) {
+        // Muse Code refuses every message of this session the same way: the
+        // card says what it said, the notice what to do about it (D26).
+        this.noteMuseCodeFault(error)
+      }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
     } finally {
       if (gitGeneration !== undefined && !isGitSubmitted) {
@@ -5204,11 +5383,21 @@ export class ConversationController {
       this.deps.surface.reload()
       return
     }
+    // A restart asked for from a fault's notice: the session it names is
+    // said again should the fault outlive the restart.
+    const restartedFault =
+      action === 'restartMuseCode' ? this.faultKey('approvalReplay') : undefined
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
       this.notice('error', `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`)
+      return
     }
+    if (restartedFault === undefined) {
+      return
+    }
+    this.shownFaults.delete(restartedFault)
+    this.notice('info', UI_TEXT.museCodeRestartAsked)
   }
 
   /** Called when the webview has mounted: replay the state it needs. */
@@ -5674,6 +5863,7 @@ export class ConversationController {
       }
       case 'signIn': {
         await this.deps.auth.signIn(message.method)
+        this.readWaitingBrief()
         void this.warmModels()
         break
       }
@@ -6183,11 +6373,22 @@ export class ConversationController {
 
   /**
    * The extension is about to stop the hosts (a restart for a setting, trust
-   * granted, a sign-in or sign-out; PLAN.md D25). A running turn is
+   * granted, a sign-in or sign-out; PLAN.md D25). A fault recovery names
+   * only its backend kind, leaving the other backend's conversations live.
+   * A running turn is
    * cancelled and ended in the webview; unless the conversations end (sign
    * out, shutdown), the session is resumed by the next message.
    */
-  public async backendStopping(isConversationEnding: boolean): Promise<void> {
+  public async backendStopping(
+    isConversationEnding: boolean,
+    onlyKind?: BackendKind,
+  ): Promise<void> {
+    if (
+      onlyKind !== undefined &&
+      (this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== onlyKind
+    ) {
+      return
+    }
     if (isConversationEnding) {
       this.accountStopsInFlight += 1
     }
@@ -6225,8 +6426,30 @@ export class ConversationController {
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }
+      const waiting = this.pendingHandoff
+      const isWaitingTurnFinished =
+        waiting?.turnId !== undefined &&
+        waiting.brief === undefined &&
+        this.finishedTurns.has(waiting.turnId)
       this.rememberForResume(isConversationEnding ? undefined : session)
       this.dropSession(false)
+      if (
+        !isConversationEnding &&
+        waiting !== undefined &&
+        isWaitingTurnFinished &&
+        this.pendingHandoff === waiting &&
+        waiting.brief === undefined &&
+        waiting.turnId !== undefined
+      ) {
+        // A brief deferred by closed admission (M74) survives the resumable
+        // restart: the stop dropped the session and the finished-turn
+        // record, so the waiting handoff is adopted into the new generation
+        // with its turn, its session rebound when the conversation resumes,
+        // and the sign-in retry reads it (the review of PR #84).
+        waiting.generation = this.sendInvalidationEpoch
+        waiting.session = undefined
+        this.finishedTurns.add(waiting.turnId)
+      }
       this.forgetModels()
       this.listWatch.forget()
       this.usageWatch.forget()

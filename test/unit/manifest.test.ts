@@ -291,7 +291,11 @@ describe('packaging (M26)', () => {
       '${{ secrets.VSCE_PAT }}',
     ])
     expect(release).toMatch(
-      /run: npm ci --ignore-scripts --no-audit\n.*\n.*\n.*\n {10}VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\n {8}run: \.\/node_modules\/\.bin\/vsce publish/,
+      /run: npm ci --ignore-scripts --no-audit\n.*\n.*\n.*\n.*\n {10}VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\n {8}run: node scripts\/publish-registry\.mjs marketplace /,
+    )
+    // That step's script publishes with the locked vsce just installed.
+    expect(read('scripts', 'publish-registry.mjs')).toContain(
+      "marketplace: ['./node_modules/.bin/vsce', ['publish'",
     )
     expect(release).toContain('git merge-base --is-ancestor "${GITHUB_SHA}" origin/main')
   })
@@ -303,5 +307,20 @@ describe('packaging (M26)', () => {
     expect(build).toContain('VERSION="$(plutil -extract version raw -o - "$MANIFEST")"')
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
     expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
+  })
+})
+
+describe('toolchain pins (AGENTS.md)', () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+
+  it('keeps Dependabot from proposing TypeScript 7 while typescript-eslint cannot take it', () => {
+    // typescript-eslint accepts `>=4.8.4 <6.1.0`; a compiler outside that range
+    // silently turns off every type-aware lint rule. The grouped dev-dependency
+    // pull request carried TypeScript 7 (PR #61) until this ignore existed.
+    expect(manifest.devDependencies.typescript).toMatch(/^6\.0\.\d+$/)
+    const dependabot = readFileSync(path.join(root, '.github', 'dependabot.yml'), 'utf8')
+    expect(dependabot).toMatch(
+      /^ {6}- dependency-name: typescript\n {8}update-types: \['version-update:semver-major'\]$/m,
+    )
   })
 })

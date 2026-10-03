@@ -138,16 +138,21 @@ security notes for contributors are in `PLAN.md` §9.
   Model API key are left out. What a hook does with that is up to the hook:
   it can write it to disk or send it anywhere, so read a hook before you
   turn the setting on. No hook runs while the folder is in Restricted Mode.
-- **Workspace rules, skills and memory.** In a trusted workspace the agent
-  reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills` and
-  `~/.config/muse/skills`, and Muse Code's memory (the project's
-  `.agents/memory`, and your own notes under `~/.local/share/muse/memory`),
-  as the README describes. On the Model API backend the rules text, the
-  skill catalogue (ids and descriptions) and the memory snapshot (each
-  scope's `MEMORY.md` and its notes' names, your personal scopes included)
-  go to Meta with every request as part of the instructions, a skill's full
-  text when it is loaded or invoked, and a note's text when the model reads
-  it with `read_memory`. What the model saves with `add_memory` is written
+- **Workspace rules, skills, agents and memory.** In a trusted workspace the
+  agent reads `AGENTS.md` (or `CLAUDE.md`), the skills under `.agents/skills`
+  and `~/.config/muse/skills`, on the Model API backend the custom agents
+  under `.agents/agents` and `~/.config/muse/agents`, and Muse Code's memory
+  (the project's `.agents/memory`, and your own notes under
+  `~/.local/share/muse/memory`), as the README describes. On the Model API
+  backend the rules text, the skill catalogue (ids and descriptions), the
+  agent catalogue (ids, sources and descriptions, only while paid subagents
+  are on) and the memory snapshot (each scope's `MEMORY.md` and its notes'
+  names, your personal scopes included) go to Meta with every request as
+  part of the instructions, a skill's full text when it is loaded or
+  invoked, an agent's full prompt with the requests of the child task that
+  runs it (on the model its file names, when it names one), and a note's
+  text when the model reads it with `read_memory`. What the model saves
+  with `add_memory` is written
   on your machine, in the same files Muse Code uses. On the Muse Code CLI
   backend the CLI reads and sends them under Meta's Muse Code terms. The
   Model API backend reads none of this while VS Code has the folder in
@@ -470,8 +475,9 @@ hands it, the same way the extension does, and nothing else:
   certificate settings do not apply to it.
 - **The log** goes to stderr, which the editor shows or keeps as its agent
   log; keys and tokens are redacted.
-- The folder's rules, skills and memory are read only with
-  `--trust-workspace`; contributor-tier models are listed only with
+- The folder's rules, skills, custom agents and memory are read only with
+  `--trust-workspace` (the agent runs no subagents, so no agent is ever
+  offered or sent); contributor-tier models are listed only with
   `--allow-contributor-models`; web search and image generation only with
   `--web-search` or `--image-generation`, and each use only once you allow
   it in the editor's prompt, which names the price (Allow once, Allow

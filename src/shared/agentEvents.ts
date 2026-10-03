@@ -7,7 +7,7 @@
 
 import * as z from 'zod/mini'
 import { scheduleViewSchema } from './schedule'
-import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES } from './constants'
+import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES, PERMISSION_MODES } from './constants'
 
 /**
  * One check command as a row reports it (M68): its name, how it ended, why
@@ -208,6 +208,12 @@ export const approvalStageSchema = z.object({
   position: z.number(),
   totalStages: z.number(),
   argv: z.array(z.string()),
+  /**
+   * The rule "Always allow in this workspace" would add for this stage; its
+   * `label` is the label and preview Muse Code gives that choice while this
+   * stage is current (captured 2026-10-02, Muse Code 1.4.0 and 1.4.2).
+   */
+  suggestedPrefix: z.optional(z.object({ argvPrefix: z.array(z.string()), label: z.string() })),
 })
 export type ApprovalStage = z.infer<typeof approvalStageSchema>
 
@@ -350,6 +356,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     availableChoices: z.array(approvalChoiceSchema),
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
+    /**
+     * A custom child's own `permission-mode`: the client answers it under
+     * the less automatic of this and its own mode (childPermissionMode).
+     */
+    permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),
   }),

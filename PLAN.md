@@ -137,10 +137,10 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `eslint-plugin-react-hooks`                                                                          | 7.1.1                             | Declares eslint `^10.0.0`. `eslint-plugin-react` (7.37.5) and `eslint-plugin-jsx-a11y` (6.10.2) only declare up to eslint `^9`, so they are **not** installed; a11y is covered by manual checks in visual certification and revisited when the plugins add eslint 10 peers.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `dpdm`                                                                                               | 4.3.0                             | Circular-import gate (`--exit-code circular:1`). `madge` is incompatible with TS 6+. `eslint-plugin-import-x` was considered and dropped: its `no-cycle` rule is known not to fire, and unresolved imports are already a hard `tsc` error (TS2307) in every project here.                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `knip`                                                                                               | 6.37.0                            | Unused files/exports/deps. Config is `knip.jsonc` (knip 6 rejects `"//"` pseudo-comments). Run without `--strict`: strict implies production mode, which needs `!`-suffixed entries and otherwise analyses nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `prettier`                                                                                           | 3.9.8                             | Formatter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `prettier`                                                                                           | 3.9.9                             | Formatter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  | Webview CSS gate (`--max-warnings=0`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.1                             | Unit tests (node env for extension code, jsdom for webview). Peer `@types/node ^22                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |     | >=24` satisfied. |
-| `jsdom`                                                                                              | 30.1.0                            | Webview component tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `jsdom`                                                                                              | 30.1.1                            | Webview component tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `@testing-library/react` / `dom` / `jest-dom`                                                        | 16.3.3 / 10.4.2 / 7.0.1           | Component assertions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`                              | 0.0.15 / 3.1.0 / 12.0.2 / 10.0.10 | Integration tests inside the Extension Development Host. `@vscode/test-electron` is an unlisted peer of test-cli, so knip ignores it explicitly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `esbuild`                                                                                            | 0.28.2                            | Bundles extension (cjs, node platform) and webview (esm/iife, browser platform).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -217,24 +217,25 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
-| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                               |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                          |
-| `dist/conversationGit.js` | ≤ 100 KiB (M71: checked synchronous factory; measured 74.7 KiB plus 15%, rounded up to 25 KiB)                                  |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                          |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
+| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                             |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                               |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
+| `dist/conversationGit.js` | ≤ 100 KiB (M71: checked synchronous factory; measured 74.7 KiB plus 15%, rounded up to 25 KiB)                                                                |
 
-`npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
-and fails the build over budget or when a bundle is missing. This table mirrors
-the script and changes with it, with a CHANGELOG entry.
+`npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
+numbers and fails over budget or when a bundle is missing. The compressed VSIX
+has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
+mirrors both scripts and changes with them, with a CHANGELOG entry.
 
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
 The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
@@ -676,6 +677,24 @@ Muse Code owns all of this on the CLI backend; the extension only passes
 the trust flag. On the Model API backend the extension is the host, so it
 mirrors the conventions above and no others: no invented file names, no
 `MUSE.md`.
+
+**Addendum — custom agents (M76, 2026-09-28, re-checked 2026-09-30).** The
+CLI names no agent folder, so M76's is the extension's own, the one place
+this section allows an invented name. Checked against Muse Code
+1.4.0-R4302.1 (`muse-bin-1.4.0-R4302.1.exe`, run for help text only, no model
+call): `muse --help` lists agents only as the ephemeral `--agents <JSON>`
+overlay ("Supply one ephemeral agent-definition overlay"), `muse skills
+--help` lists skills only, `muse init` takes no agent argument, and the
+binary's strings name `.agents/skills`, `.agents/memory`, `.agents/plans`,
+`.agents/workflows` and `.agents/skill-drafts` but no agent folder. The
+folder follows the skill layout: project `.agents/agents/<id>/AGENT.md`,
+personal `$XDG_CONFIG_HOME/muse/agents/<id>/AGENT.md` (else
+`~/.config/muse/agents`), front matter `name` and `description` with
+optional `tools`, `model`, `effort` and `permission-mode` above the agent's
+own prompt. The trust rule is the skills': a repository's agent files load
+only in a trusted workspace, and Restricted Mode loads no agents on the Model
+API backend. Muse Code never reads the folder, and the extension sends it no
+agent.
 
 **Plans (M79, 2026-09-27).** The saved-plan location is Muse Code's own,
 not the extension's. It was read from `skills/plan/SKILL.md`, the `plan`
@@ -1142,6 +1161,87 @@ action that fails is worse than hiding one that would work.
 - **Not taken.** `TBH_CREDENTIAL_BACKEND=file` is not set. R4302.1 fixed
   #38/#53 and the launcher updates itself; the README names the switch
   only for someone stuck on R4161.1.
+
+**Amendment 2026-10-02: one decision per approval stage, and Muse Code's
+approval faults.** The owner's session of 2026-10-02 (0.10.0; Muse Code
+1.4.0-R4302.1, then 1.4.2-R4684.1) was read from its durable log and its
+view journal. The faults were then reproduced live with no model and no
+credential: `muse serve --provider meta` against a loopback fake of the
+Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
+
+- **What the "repeated answers" were.** Each "answered" line was a
+  separate stage of one multi-command line, except the decisions the card
+  sent again. The card reopened after every decide error and after every
+  60 s deadline. 1.4.2 reports its ledger fault (#29) for decisions it has
+  applied, and a busy host took one command in three minutes after it was
+  sent (23:49:40 → 23:52:33). The two decisions sent again were refused as
+  stale ("moved on").
+- **One decision per stage.**
+  - The card keeps the stage it sent in a ref, set at once (two clicks in
+    one frame send one). It also keeps a decided stage locked when the same
+    request is announced again.
+  - The session's `PromptLedger` records the stages sent. A second decision
+    for a stage, or one for a stage the approval has left, is never sent.
+  - A decision with no answer is never offered again, nor one Muse Code
+    applied while reporting its ledger fault. `approvalReopened` is posted
+    only when the host refused it and `approval/listPending` still names
+    that very stage.
+- **A stage moved by policy.** After a policy amendment, 1.4.2 can present
+  a stage that the new rule allows. It then refuses a decision for it with
+  `approvalRequirementStale`, naming the next stage, and never sends an
+  `approval/updated` for that one; `approval/listPending` also lags. The
+  card moves to the stage the refusal names (`advanceTo`), with that
+  stage's own `suggestedPrefix` label for the rule choice (or without the
+  choice), and says on itself that it moved (`approvalMovedOn`).
+  - **Not taken: carrying the choice to the next stage.** The next stage is
+    a different command, so an Allow carried over approves what the user
+    never saw, and an Always allow adds a different rule.
+- **The replay fault.** A turn cancelled under an approval with a stage
+  decided and one waiting leaves 1.4.2 refusing every `turn/start` with
+  -32603 "approval replay failed: decision stage evidence contains an
+  unrecorded human resolution", on Windows and Linux, until `muse serve`
+  restarts. On Windows, each decide of that session then reports the
+  ledger fault.
+  - Rejecting the waiting stage through `approval/decide` before the cancel
+    does not wedge. A Stop therefore rejects first (`rejectPartlyDecided`,
+    10 s at most per try).
+  - Both faults become `MuseCodeFaultError`. The controller names them
+    once per session, with the way on: Restart now (the `restartMuseCode`
+    host action, then D25's resume) and New conversation.
+  - Filed as a draft for meta-models/muse-code-sdk, not sent; it reuses
+    #29.
+- **Stored outputs.** An edit's `patchRef` arrives while the item is
+  `inProgress`, and a read then can answer `notFound`. The row reads its
+  patch only once the item is finished. A read in flight is joined. A
+  failed read is said once per conversation, at warning level, with how to
+  retry (collapse and expand the row, which asks again).
+- **Startup (no change).** 0.10.1's slow-start wait already covers the
+  owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
+  The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s
+  leaves six times the slowest observed.
+- **The dock (the owner's request, 2026-10-03).** A waiting approval's card
+  is docked above the composer (`ApprovalDock`), outside the scrolled
+  transcript. Its row keeps a compact record, then the decision.
+  - **Several waiting.** The oldest is docked, in the order its row stands,
+    which is the order Muse asked, with "Approvals waiting: N". Stacking all
+    of them would push the composer off a 320 px panel, and Muse Code takes
+    them in order anyway.
+  - **Focus.** An arriving card takes focus, on the card itself, not on a
+    choice a stray Enter would make. It does not when the user is typing (a
+    field holding text, or a key within `DOCK_TYPING_GRACE_MS`) or a modal
+    is open; the reducer's live-region announcement covers those cases.
+  - The single-decision lock is the card's, so it holds in the dock.
+
+**PR #90 review follow-up (FIX90, 2026-10-03).** Keep this correction within
+D26: join simultaneous callers to the same in-flight decision and its eventual
+failure; Stop waits for those decisions before rejecting the newest waiting
+stage; a fault recovery restarts only Muse Code and its conversations; a
+notice's recovery actions are retired on their first use, including in saved
+webview state; the dock count uses every language's plural forms. Extend the
+existing session, controller, App, Transcript and dock tests, drill each guard,
+and record Kubuntu results in `docs/certification/approval-decisions.md`.
+FIX90 explicitly delegates full quality and publication to the lead; this lane
+runs its focused tests and checks on the rig, with the configured commit hooks.
 
 ### D27 — The audit: editing correctness (2026-09-23)
 
@@ -3279,6 +3379,504 @@ validator remains deferred because this canonical plan has no ledger;
 focused behavioral evidence and SHA-256-restored red drills go in
 `docs/certification/m83e.md`. Full quality and native UI remain lead-owned.
 
+### D66 — Panel polish from the owner's requests of 2026-10-03 (M87)
+
+The owner sent sixteen requests on 2026-10-03, with screenshots of the
+Codex app as inspiration. M87 takes items 1–10 and 12; item 11 is built
+already (below); items 13–16 are D67. D65 is taken by M80 on PR #88. The
+choices:
+
+- **Context meter (item 1, with the owner's correction of 2026-10-03).**
+  - A round meter replaces the composer's "12% context" button
+    (`contextLabelFor` in `App.tsx`, `Composer.tsx`), in the same place and
+    with the same click: it compacts (M14). The ring fills clockwise from
+    the top with the share of the window used. The whole percent sits
+    inside it, with no label beside it and no "%" sign in the ring.
+  - The accessible name is "Context 42% used" followed by the existing
+    detail (`contextDetail`): used and window tokens, and the wire's
+    pressure word as it came (D36). The tooltip is the detail and the
+    compact hint (`contextCompactTitle`).
+  - **Thresholds: 70 % and 90 %.** These are `CONTEXT_PRESSURE_MEDIUM` and
+    `CONTEXT_PRESSURE_HIGH`, the levels the Model API host already reports.
+    The webview computes the level from used ÷ window on both backends.
+    Muse Code's `pressure` vocabulary is known from one capture only
+    (`"normal"`, §5.4), so it is shown, not interpreted.
+  - **Colours.** Under 70 % the arc is `--vscode-progressBar-background`,
+    from 70 % `--vscode-list-warningForeground`, from 90 %
+    `--vscode-errorForeground`. The number carries the value, so colour is
+    never the only signal (WCAG 1.4.1).
+  - **Legibility at its size.** The ring is 22 px across inside the 26 px
+    control (`--ms-control-size`, which keeps WCAG 2.5.8's 24 px target).
+    Its stroke is 2.5 px, leaving 17 px inside. The number is
+    `--vscode-foreground`, weight 600, with tabular figures: 10 px for 0–99
+    and 9 px for 100. Nothing is drawn smaller than 9 px.
+  - **Rounding.** The percent is rounded down, so 99.6 % reads 99 and 100
+    means full. A window that is used but under 1 % reads "<1".
+  - **Number contrast.** On the captured backgrounds (VS Code 1.139.0,
+    `test/harness/themes/`) the number measures about 10.3:1 in Dark Modern
+    (editor background), 10.5:1 in Light Modern, 21:1 in High Contrast and
+    14.5:1 in High Contrast Light. The 4.5:1 floor for small text holds with
+    room.
+  - **At 100 % and over.** The ring is full, in the 90 % colour, and reads
+    "100". The name and tooltip give the true share ("104%") and say the
+    window is exceeded.
+  - **No reported window.** A window the host has not reported shows no
+    meter, as today. No window is guessed.
+  - **Arc contrast** (a graphical object, 3:1, WCAG 1.4.11), measured on
+    the captured values: 3.6–10.5:1 for the normal level across the four
+    themes, and 3.2–8.6:1 for the 90 % level. The 70 % token is not in the
+    captures yet. M87's capture adds it; in any theme where it misses 3:1,
+    that level keeps the normal colour (the number still gives the value).
+- **Tool In/Out boxes (item 2).**
+  - A shell row's IN and OUT become one bordered block split by a rule,
+    with no gap between them. The user's own `!` rows (M46) get the same
+    block.
+  - Each part shows five lines (`IO_PREVIEW_LINES`, new) and keeps the
+    2,000-character cap. Then comes "Show more": a button styled as a link,
+    with `aria-expanded`.
+  - Other tool outputs keep their 12 lines: the owner named the In/Out
+    boxes.
+- **Step expander (item 3).** M87 reuses Focus view's `segment()` and
+  `StepsGroup` (`Transcript.tsx`).
+  - **Default view.** A run of two or more finished steps (tool and
+    reasoning rows, with no other row between them) folds into one summary
+    row. The row is collapsed and opens in place.
+    - A step waiting on the user never folds (the existing `isWaiting`).
+    - A running step stays outside the group, below it, until it finishes.
+    - A failed step folds, but the summary names the failures and carries
+      the failure dot, so no failure is hidden.
+  - **The summary** is built from what ran, in first-seen order: "Edited 2
+    files, ran a command, read 3 files".
+    - Files count distinct paths.
+    - Each part is a plural form, and `Intl.ListFormat` (`type: 'unit'`)
+      joins them. Only the first letter is raised, in the display
+      language's own case rules.
+    - Reasoning rows are folded but not named.
+  - **Focus view** keeps folding every non-waiting step, now under the same
+    summary instead of "Show N hidden steps". No new setting is added:
+    Focus view already switches between the two densities.
+- **Working indicator (item 4).** The status line's spinning ✦ becomes the
+  bullet the step rows use (`.tool-dot.tool-dot-running`: 8 px,
+  `--vscode-progressBar-background`, the existing 1.2 s `pulse`). After
+  the bullet comes the verb, then a heartbeat trace centred in the chat's
+  width.
+  - **Our own trace, not the pens'.** The three pens the owner sent
+    (vahidseo MWvmvd, borntofrappe GRgBvxa, MAW QbgLmV) were looked at for
+    the idea only. The trace is one SVG path drawn for this panel: flat, a
+    small P bump, the QRS spike, a T bump, flat. It has its own `viewBox`
+    and `pathLength="100"`, and our CSS animates it. No code, path data or
+    keyframes are copied.
+  - **Size.** 1.5 em high (inside one line of the 13 px text) and 6 em
+    wide. A three-column grid (`1fr auto 1fr`) centres it in the chat. When
+    the verb needs more room the trace moves right, never over the text. A
+    container query hides it below 260 px.
+  - **Motion budget.** One bright segment, a fifth of the path, sweeps
+    along it every 1.6 s at a linear pace, over the full trace drawn at 30 %
+    opacity. The bullet pulses as the step rows' do. Nothing flashes (WCAG
+    2.3.1). The glow (a `drop-shadow` of the same colour) is drawn in the
+    dark theme only; the light theme and both high-contrast themes get the
+    plain line. Only a small SVG repaints.
+  - **Contrast.** The trace uses `--vscode-progressBar-background`, which
+    measures 3.6:1 (Dark Modern, editor background) to 10.5:1 (High
+    Contrast) on the captured backgrounds. It is decorative and
+    `aria-hidden`, and the line stays out of every live region (M25).
+  - **Reduced motion.** There is no sweep and no pulse: the full trace and
+    the dot stand still. A unit test checks that every animated selector in
+    `styles.css` has a `prefers-reduced-motion` rule.
+- **Tasks pane (item 5).**
+  - A chevron collapses the list to two lines: the title with "3 of 7
+    done", and the task in progress.
+  - The collapsed state belongs to the component, so a reload opens the
+    list expanded.
+- **Tasks pane in its own window (item 6): an editor tab that the user
+  moves.**
+  - **What VS Code allows.** VS Code gives an extension no floating window
+    and no way to move a webview view (the sidebar) out of the window. The
+    request for such an API (microsoft/vscode#213516) was closed as not
+    planned. VS Code does have floating windows for editors: an editor
+    tab's "Move into New Window" (`workbench.action.moveEditorToNewWindow`),
+    plus "Set Always on Top" and compact mode in the releases that have
+    them.
+  - **The design.** "Open tasks in a tab" opens a `WebviewPanel`
+    (`museSpark.tasksPanel`) beside the editor. It shows the same
+    `TodoPanel`, live, for the conversation that opened it.
+  - **Moving it.** The tab's "Move into new window" focuses the tab and
+    runs that built-in command. The button is offered only when
+    `vscode.commands.getCommands(true)` lists the command. Without it, the
+    tab's own context menu does the same.
+  - **Limits, stated in the README.**
+    - The floating window is a VS Code window. It closes with VS Code and
+      follows its theme; it is not an independent app.
+    - A webview that moves reloads, so the tab rebuilds from the host every
+      time it loads.
+    - The tab is not restored after a reload, because it has no serializer
+      (its conversation may be gone).
+    - The command id is VS Code's, not API. So the host-API record (D60)
+      lists it, and editors without it (D60's hosts) get the plain tab.
+    - The chat itself already opens as a tab ("Open in New Tab") and moves
+      the same way.
+- **Menu tooltips (item 7).**
+  - Every row of the command palette and the "/" list gets a one-sentence
+    tip. It is the row's `title`, for the pointer, and the same text is the
+    option's accessible description. A skill's tip is its own description.
+    A skill without one (Muse Code's list gives an empty string,
+    `skillsCli.ts`, and a `SKILL.md` may have none) gets "Run the {name}
+    skill." instead, so no tip is ever empty.
+  - VS Code's Command Palette shows only a command's title, category and
+    keybinding, and a contributed command has no tooltip. The panel's menus
+    are therefore what M87 covers.
+- **Stop turns red on hover (item 8).**
+  - In the light and dark themes the button takes `--vscode-charts-red`
+    behind the `--vscode-button-foreground` icon. That measures 4.7:1 and
+    3.6:1, over the 3:1 an icon needs.
+  - The high-contrast themes are drawn with outlines. There the icon and a
+    1 px border take `--vscode-errorForeground` on the unchanged background
+    (8.6:1 and 6.6:1).
+  - The same applies on keyboard focus.
+- **Message timestamps (item 9).**
+  - Hovering or focusing a message shows its time in a `<time>` at the
+    card's corner: the time alone for today, otherwise the date and time.
+    Its `title` gives the full date and time.
+  - **Formatting.** All three forms come from `text.ts`'s `Intl` helpers in
+    the display language: `formatTime` (the time alone, new),
+    `formatDateTime` (as today) and `formatFullDateTime` (the full date and
+    the time, new). "Today" is `isSameLocalDay` (new): the same calendar day
+    in the webview's local time zone, judged when the card renders. A card
+    left open past midnight keeps its time-only label, and its `title`
+    still names the day.
+  - **Keyboard.** Every card with a time has a keyboard stop that reveals
+    it. A card with action buttons of its own (rewind, copy, the queued "…")
+    shows the time while focus is inside it (`:focus-within`), and gets no
+    extra stop. A card that renders none (an imported user message without
+    rewind, a reply still streaming) makes the `<time>` itself focusable
+    (`tabIndex={0}`), so Tab reaches it and it shows with the focus ring.
+  - **Where the time comes from.**
+    - On Muse Code, from `recordedAt` (RFC 3339). The M79 and M46 captures
+      show it on `userMessage`, `agentMessage` and `userShell` items, both
+      live and in `session/read` (AGENTS.md rule 13).
+    - On the Model API, from a time the host stores with each user and
+      reply item, from M87 on.
+    - A live card shows the moment it was sent until the host's time
+      arrives.
+  - A message with no recorded time (a Model API session stored before
+    M87) shows none: using the session's creation time would be a guess.
+- **Diff tally (item 10).**
+  - A status row sits above the goal, task and git panes; the approval dock
+    stays nearest the composer. It reads "8 files changed +313 −96", with
+    Review.
+  - **The source is the conversation's edits:** the edit rows' patch
+    summaries (`patchSummary`: files, added, removed), the same set that
+    M70's review pane lists. Files count distinct paths. An edit whose patch
+    names several files without a single path adds its own file count.
+  - **A sum of edits, not `git diff`.** Git would count the user's own
+    work, and M86's per-turn records are not built yet. The tooltip says
+    so: these are lines added and removed by this conversation's edits, and
+    changes made by shell commands or by the user are not counted.
+  - **Review** opens M70's review pane (PR #69). Without M70 the row has no
+    Review button. With no edit there is no row.
+  - **Colours.** The added and removed numbers use
+    `--vscode-gitDecoration-addedResourceForeground` and
+    `--vscode-gitDecoration-deletedResourceForeground`. Each is measured at
+    capture against 4.5:1, and the foreground colour stands in wherever one
+    misses.
+- **Notifications (item 11): already built, no M87 work.**
+  - M82 (`museSpark.notifyOnBackgroundTurn`, on by default, PR #89,
+    `src/host/conversation/turnNotifications.ts`) raises VS Code's own
+    notice once per event while the window is unfocused. The events are a
+    turn of at least 60 s that ended (not cancelled), an approval waiting,
+    and a question waiting.
+  - A focused window with the panel hidden is not notified, by M82's
+    acceptance.
+  - The one gap is M88's: a timed send that falls due (D67).
+- **Edit a queued prompt (item 12).**
+  - **Queued means accepted but not yet seen by the model.**
+    - On the Model API: a turn in `queuedTurns`, or steered input still in
+      `turn.steered` before `drainSteered` puts it into a request.
+    - On Muse Code: a submit acknowledged `queued`, until `turn/started`.
+    - A Muse Code message steered into the running turn cannot be taken
+      back, because MSP's `turn/unqueue` covers queued submits only. Its
+      menu says it was delivered.
+  - **Opening Edit.** Right-click on such a card offers Edit, as do
+    Shift+F10, the context-menu key and the card's "…" button.
+  - **Withdrawing.** On the Model API the host removes the message. On
+    Muse Code it sends `turn/unqueue`, whose ack and late refusal are
+    captured before the parser is written (rule 13). `turn/unqueued` is
+    already mapped to `turnWithdrawn`.
+  - **On success** the card leaves the transcript, and its text and images
+    return to the composer. In an empty box they stand alone; otherwise they
+    go before the draft with a blank line, so no draft is lost.
+  - **Too late:** the card stays, and a notice says the message already
+    reached the model.
+  - Right-click on selected text keeps M17's quote menu.
+
+### D67 — Saved prompts, bookmarks and timed sends (M88)
+
+Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
+
+- **What exists, and the gap (item 13).**
+  - **Skills** are the reusable prompts both backends already run as slash
+    commands (`/<id>`, M30). They live in `.agents/skills/<id>/SKILL.md`
+    and the personal `~/.config/muse/skills`. M83 turns other agents' saved
+    commands and prompts into skills. The panel cannot create or edit one,
+    and a skill is sent as an invocation the model reads, not as text the
+    user edits first.
+  - **Scheduled prompts.** M52's `/loop` repeats a prompt on an interval or
+    a cron schedule, on the Model API. Muse Code's own `cron_*` tools run
+    only through a model turn and cannot be listed (M52).
+  - **Muse Code workflows** (M47, D40) are scripts the model writes and the
+    CLI runs. The panel shows their cards but cannot define, list or start
+    one: MSP has no verb for it, and `muse workflows list|recover` is
+    CLI-only.
+  - **Plans** (M79) are files the panel opens and implements.
+  - **The gap** is a library the user fills from the panel (named text put
+    into the composer to edit and send), and a way to send several prompts
+    one after another. For item 13, M88 builds only that.
+- **Saved prompts belong to the panel, not to skills.**
+  - **Why not skills.** Writing them as skills would put files into Muse
+    Code's personal folder, which the extension never does (D13), or into
+    the project, where git would share them. And a skill does not behave
+    like inserted text.
+  - **Where they are stored.** Each prompt goes in VS Code's `globalState`
+    ("All workspaces", the default) or `workspaceState` ("This workspace"),
+    chosen per prompt. Both live in VS Code's state database on this
+    machine, unencrypted.
+  - **Sync is opt in (owner, 2026-10-03, §3).** A prompt can hold private
+    text (paths, names, customer details), so nothing is synced unless the
+    user asks. One setting, `museSpark.syncPromptsAndBookmarks` (boolean,
+    off by default, machine-scoped so that each computer opts in itself),
+    decides it for saved prompts and bookmarks together.
+    - VS Code syncs only `globalState` keys registered with
+      `setKeysForSync`, never `workspaceState`. One host module registers
+      both keys (the "All workspaces" prompts and the bookmarks) while the
+      setting is on, and an empty list while it is off, at start and on
+      every change of the setting.
+    - "This workspace" prompts stay in `workspaceState`, so they never sync.
+      With sync on, the scope picker says so, and a prompt wanted on every
+      computer is saved for "All workspaces".
+    - Off, nothing is registered and everything stays on this machine.
+  - **Caps** (in constants): 200 prompts per scope, 80 characters per name,
+    10,000 characters per text, and 20 steps per sequence.
+  - **A damaged store.** Each scope is validated on its own. A scope that
+    fails its schema (a damaged value, or one that arrived through sync) is
+    reported and kept as found, and it is not written again until the user
+    resets it. The other scope works as usual.
+    - **Reset** is a button on the damage notice, with an inline
+      confirmation. It replaces that scope's value with an empty library of
+      the current version, and touches nothing else.
+  - **Insert** puts the text at the composer's caret; nothing is sent.
+  - **Secrets.** The dialog says not to save secrets: the store is plain
+    text, and D64 shows why the panel does not try to detect them.
+- **Prompt sequences, not "workflows".** The multi-step part is called a
+  prompt sequence in the panel, because "workflow" already names Muse
+  Code's engine, whose cards the transcript shows. A sequence is an ordered
+  list of steps (texts).
+  - **Starting.** The start dialog lists the steps, the conversation and
+    its permission mode. Auto and Bypass are named prominently.
+  - **Running.**
+    - Step 1 is sent as the user's own message.
+    - Each later step is sent only when the previous turn ends `completed`
+      and no other turn is queued.
+    - The run ends when a turn fails or is cancelled, on Stop, on a session
+      switch, and when the panel closes.
+    - A message the user sends meanwhile steers the turn, as any message
+      does, and the run goes on after it.
+    - A run row shows "step 2 of 4", with Stop.
+  - **Cost.** Each step is an ordinary turn. On Muse Code it is billed to
+    the subscription; on the Model API it is billed to the key at the
+    model's token prices, under M82's session budget.
+  - **Not a paid feature** under AGENTS.md rule 12: it makes no extra-cost
+    call, and the user starts it. On the Model API, the start dialog says
+    that N turns will be billed.
+- **Bookmarks (item 14).**
+  - **Storage.** Bookmarks are per workspace, as conversations are: a list
+    of `{ backend, sessionId, title, bookmarkedAtMs }`, at most 200 per
+    workspace (in constants).
+    - Settings Sync can carry only `globalState`, so every workspace's list
+      lives there under one state key, filed under the workspace's digest:
+      the start of the SHA-256 of the workspace file's URI, otherwise of
+      the first folder's URI (as `workspaceKey` in
+      `src/runtime/dataFolder.ts` hashes a root). No path is stored. The
+      same state key serves with sync on and off, so turning the setting on
+      or off moves nothing.
+    - A window without a folder offers no bookmark.
+    - A session id names a conversation only where its sessions are. So a
+      synced bookmark resolves on another computer only in the same
+      workspace with the same sessions (chiefly a remote workspace that both
+      computers open). Elsewhere it shows as not available here, with Remove
+      (below).
+  - **Kept past retention.** A bookmarked Model API session is not deleted
+    by `museSpark.cleanupPeriodDays` (D26): the session store's retention
+    skips the ids the bookmark store holds. Once the bookmark is removed,
+    retention takes the session at the next listing as usual. Muse Code
+    keeps its own sessions, which the extension cannot keep.
+  - **In History** a "Bookmarked" group comes first (`shared/sessions.ts`).
+    The header has the star for the open conversation, a toggle button.
+  - **History's keyboard model is kept** (M37, the listbox of PR #89's
+    `paletteDialog.tsx`). Focus stays in the search box, and a row is an
+    option, so it holds no button.
+    - **Alt+B** toggles the highlighted row's bookmark from the search box,
+      as Delete archives it. The key is matched on `event.code` (`KeyB`), so
+      macOS's Option characters do not change it. The extension binds
+      nothing to Alt+B (`package.json`). Lane B checks VS Code's default
+      keymap on the three systems before using it; if one binds it, the lead
+      picks another key, and lane 0's strings follow.
+    - Each row's star is for the mouse only, `aria-hidden` like the archive
+      control.
+    - The option carries the state: a bookmarked row's name includes
+      "Bookmarked" (visually hidden text). Its `aria-keyshortcuts` is
+      "Delete Alt+B", and its description names both commands.
+  - **Archived.** An archived chat that is bookmarked shows under "Show
+    archived", with its star.
+  - **Chats older than the loaded pages.** The Bookmarked group loads
+    further pages until it finds every id or the list ends. Meanwhile the
+    stored title stands in, and it is refreshed when the row is seen.
+  - **A bookmark whose session is gone** (pruned by Muse Code, deleted, or
+    synced from a computer that has it) keeps its stored title in the
+    Bookmarked group once every page has been read. It is marked not
+    available here, and its only action is Remove.
+- **Timed sends (item 15) extend M52.**
+  - **A one-shot cadence.** `{ kind: 'once', atMs }` joins `interval` and
+    `cron` (`src/shared/schedule.ts`). It fires once and ends after its
+    attempt.
+    - M52's store, atomic claim (`wx` receipt), workspace check, seven-day
+      lifetime and expiry rules apply unchanged. Each backend binds a job to
+      its account in its own way (below).
+    - The picker offers whole minutes from one minute to six days ahead
+      (`TIMED_SEND_MIN_LEAD_MS`, `TIMED_SEND_MAX_LEAD_MS`), so every send
+      has at least a day to be run before its job expires.
+  - **Entry.** "Schedule this prompt…" (`/schedule`) opens a dialog with
+    the composer's text and an `<input type="datetime-local">`, in local
+    time, at the earliest a minute ahead. `/loop` keeps its grammar.
+  - **At its time, on both backends (owner, 2026-10-03, §3).** A send goes
+    by itself, with no Run or Send now, when the 60 s poll finds it due no
+    later than `TIMED_SEND_GRACE_MS` (two minutes) after its time, its
+    session is the one loaded in this window, and its backend's binding
+    (below) still matches.
+    - It runs in the conversation's permission mode at that moment, so
+      Manual still stops at each approval, and Auto and Bypass do not.
+    - The schedule dialog names the current mode, Auto and Bypass
+      prominently, as the sequence start dialog does.
+    - In the live transcript its user card is marked "Sent on schedule".
+  - **A busy session.** `deferredSend` takes a message only while the
+    session is idle, and a running prompt sequence counts as busy. A send
+    that falls due during a turn stays pending and unclaimed. It keeps its
+    on-time place while this window stays open, and goes when the turn
+    settles (`onTurnSettled`).
+    - The claim is taken only once the session can take the message: the
+      scheduler checks, claims, and sends in the same step as the claim
+      resolves.
+    - If the session turned busy or was unloaded while the receipt was
+      written, the host deletes its own receipt and the send waits again.
+      No turn was admitted, so nothing can have been billed, and M52's
+      no-replay rule still holds.
+    - Once `sendAsUser` accepts it, the occurrence is attempted, as in M52.
+  - **Otherwise it waits.** A send that was not on time (VS Code closed or
+    asleep through it, or the window reloaded while it waited for a turn),
+    whose session is not loaded, or, on the Model API, whose binding no
+    longer matches, is due. It waits for Run on the Model API (which asks
+    again), Send now on Muse Code, Cancel, or expiry. Nothing is ever sent
+    late on its own. (On Muse Code a changed binding deletes the job; see
+    below.)
+  - **Model API: confirmed when it is scheduled (owner, 2026-10-03, §3).**
+    - Creating, listing and cancelling make no call (M52).
+    - Schedule needs `museSpark.modelApiScheduledPrompts` on, with its price
+      accepted. Otherwise the dialog says so, offers the setting, and stores
+      nothing.
+    - Schedule shows the D48 popup once, for that run only: the prompt, the
+      model and its price, and the time. Bypass cannot skip it. "Allow
+      always in this workspace" skips it, as D48 says. Deny, or closing it,
+      stores nothing.
+    - The job keeps what was confirmed: the prompt, the model, the session,
+      M52's key digest, and the gate's price generation (D48).
+    - At its time all of these are checked again, and the gate must still
+      be on. Any change sends it back to Run, which asks again. Nothing is
+      billed without a match.
+    - The paid row and tally work as in M52.
+  - **Muse Code: unattended (owner, 2026-10-03, §3).** M52 is Model API
+    only, and Muse Code's own cron jobs cannot be created or listed from the
+    panel.
+    - So the extension keeps Muse Code's timed sends in a store of its own
+      (`storageUri/musecode-timed-sends`), with M52's store implementation
+      and claim, bound to the workspace and the session.
+    - No key is involved and the subscription pays, so there is no paid
+      gate.
+    - **Bound to the sign-in, not to an account.** The extension never
+      knows the Muse Code account: `account/read`'s label is not even
+      parsed, and AGENTS.md rule 8 keeps it out of storage. So a job's
+      account field holds the credential file's signature as
+      `cliAccount.ts` reads it (its size and modification time, never a
+      value). Nothing in it identifies anyone.
+      - A sign-out and a sign-in both write that file (the shapes in
+        `credentialFile.ts`, D26). So a change of account changes the
+        signature, even one made while VS Code is closed.
+      - The host compares the signatures at start, at each poll, and on the
+        panel's own sign-in or sign-out. When the current one differs from
+        a job's, it deletes every Muse Code timed send of the workspace,
+        prompt text included, before anything is listed, and the schedule
+        pane says why. M52's listing filter and claim check refuse a
+        mismatched job in the meantime.
+      - Whether the CLI rewrites the file when it refreshes a token is not
+        captured. Lane C records it before relying on the signature: the
+        signature at the start and the end of a day of ordinary use with no
+        sign-in between. If it changes, the binding uses the file's
+        structure instead (`credentialFileVerdict`'s lane and providers).
+        Then only the sign-outs and sign-ins the host sees clear the jobs,
+        and the README says that a change of account made while VS Code is
+        closed is not detected.
+      - While `META_API_KEY` is set in VS Code's environment, the CLI uses
+        it instead of the file. Muse Code then offers no timed send, and
+        says why. Only the variable's presence is checked; its value is
+        never read.
+  - **The notices.** A send that waits is the due row in the schedule pane,
+    the live region, and, while the window is unfocused, M82's background
+    notice (a new notice kind, `scheduleDue`; PR #89). A send that goes on
+    time starts an ordinary turn, which M82 already reports.
+  - **While VS Code is closed nothing runs.**
+    - The extension is code inside VS Code. There is no service, OS
+      scheduler or background process, by design (D4, M52).
+    - At the next start the host reads the store (no model call) and lists
+      every due send of the workspace. A send whose session is not loaded
+      gets "Open conversation".
+    - A missed send says "due since …" and waits, as above, until it
+      expires.
+    - Sleep counts as closed: the 60 s poll catches up on wake, and a send
+      it finds past its grace waits.
+    - Two windows on one folder cannot both send: the claim decides.
+- **Resume after a limit (item 16).** Resume is a timed send of a fixed
+  English prompt (`MODEL_TEXT.resumePrompt`: "Continue where you left
+  off."). It is offered as "Resume later…" on the failed turn's row, in the
+  same session, under the same rules. What counts as a limit:
+  - **Model API, rate limit.** The turn failed with HTTP 429 after the
+    client's four retries (`client.ts`). A new error kind, `rateLimited`,
+    carries the last `Retry-After` (seconds or an HTTP date). The default
+    time is when it ends, otherwise five minutes after the failure.
+  - **Model API, M82's session budget** (`SessionBudgetExceededError`).
+    Time does not refill it, so no timer is offered. The row offers the
+    budget setting, then Continue.
+  - **Model API, an account quota or balance refusal.** No capture shows
+    its shape, so it stays an ordinary failure until one does (rule 13).
+  - **Muse Code, the subscription's usage limit.** The error that a full
+    window gives has not been captured. §3 decides to capture it, and lane C
+    of M88 takes the capture.
+    - **The offer needs a captured usage-limit signal**, never the usage
+      report alone. The signal is a turn failure in the captured shape
+      (written from that capture, rule 13), or the goal status
+      `usage_limited` (M45). Until the capture exists, only the goal status
+      offers Resume later on Muse Code.
+    - **The time** comes from a `usage/read` made after that signal: the
+      reset (`resetsAtMs`) of a window it shows at 100 % (M53). With no such
+      window there is no time, and no offer.
+    - Any other failure stays an ordinary failure, even while a window
+      reads 100 %. A network, tool or protocol error must not schedule a
+      message the user never asked for.
+    - The offer says that its time rests on the usage report.
+  - **The default time fits the picker,** for every kind above. It is
+    rounded up to the next whole minute and is never less than a minute
+    ahead, so a `Retry-After` of a few seconds opens at one minute. A limit
+    that lifts more than six days ahead (a `Retry-After`, or a weekly
+    window's reset) gets no timer: a timed send could only go before it
+    lifts. The row says when it lifts instead.
+
 ## 3. Open questions (need the owner)
 
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
@@ -3312,6 +3910,11 @@ focused behavioral evidence and SHA-256-restored red drills go in
   evaluation fails any task on which a paid use happens. Should the
   evaluation gain a priced, counted paid arm for it, or should the reducer be
   judged by its own D48 consent without an M75 run? Default: not built.
+- **M87 queued messages on Muse Code (D66, item 12).** **Resolved 2026-10-03 (owner): keep steering.** A message typed during a Muse Code turn still goes into that turn. Edit is offered only for messages Muse Code really queued (a handoff, a message with a text file, a refused steer).
+- **M88 saved prompts and Settings Sync (D67, item 13).** **Resolved 2026-10-03 (owner): optional sync.** One setting, off by default, adds saved prompts and bookmarks to Settings Sync (`globalState.setKeysForSync`). Off, they stay on this machine.
+- **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
+- **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
+- **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -3327,7 +3930,7 @@ focused behavioral evidence and SHA-256-restored red drills go in
 | Q10 | M67's repo map on Muse Code: the plan asks for it "as an opt-in section of the system prompt", but Muse Code's instructions are its own (D13: nothing installed into its folders). It could ride as a hidden note on the first turn of a conversation (as the question-card hint does), billed to the subscription as prompt tokens. Wanted?                                                                                                                                                                                                                                                                                                                                                 | The `repoMap` tool only; no note in Muse Code turns.                                    |
 | Q11 | M67's prompt repo map setting: its name (`museSpark.modelApiRepoMap`), its default (off, since every request pays its tokens) and its fixed ~1,000-token budget, and whether the model should see the map by default once the M75 evaluation measures it.                                                                                                                                                                                                                                                                                                                                                                                                                                    | Off by default, machine-scoped, 1,024 tokens, no budget setting.                        |
 | Q60 | **Answered 2026-09-26:** the owner set up the Open VSX account: the Eclipse Publisher Agreement signed, the namespace `RandyNorthrup` created, the token in `OVSX_PAT`. The release workflow publishes there from the next tag (M62).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62). **Superseded 2026-10-01 (PR #65):** 1.5.0, past the window, is pinned; it speaks the same ACP v1 and only adds optional notice schemas (`docs/certification/pr61-dependencies.md`).                                                                                                                                                                                                                                                                                            |
 | Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -4730,6 +5333,24 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
   new dependency.
 
 ### M26 — The audit: packaging, CI, platform and voice (D29)
+
+**Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
+Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
+CycloneDX ingredient lists from the shipped bundle inputs and the ACP native
+dependency; retry only transient registry failures (three attempts, 20/60-second
+backoff); accept an existing version only after its downloaded hash or npm
+integrity matches; aggregate every channel's outcome and make GitHub Release
+reruns safe. Add a measured VSIX size gate, check every packaged ACP locale,
+trace the Windows launcher's actual runtime use, document signing/auth/recovery,
+and prepare inert M80 schema/major-tag hooks. No publication, version/tag change,
+M80 implementation or budget relaxation in this lane. Acceptance: owning script
+tests and deliberate guard removals on Kubuntu, actionlint and shellcheck there,
+the lane's scoped local checks and production build/package measurement.
+`docs/certification/rel-artifacts.md` binds results: 60 owning tests, 20
+byte-exact guard-removal controls, actual corrupted-tar/checksum exercises,
+workflow lint, scoped local checks and a universal package. The lead owns
+aggregate quality and hosted release verification. Existing build, package,
+esbuild metafiles, tag/environment policy and release ledger are reused.
 
 **Status 2026-09-23: built and certified** (`docs/certification/m26.md`);
 merged through pull request #7 from `hardening/m26-platform`, shipped in
@@ -9298,6 +9919,25 @@ evaluation is authorized by these repairs.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
+**M74fu follow-ups verified, 2026-10-02 (`fix/m74-followups`).** The four
+review findings after PR #71 are fixed: share one conversation-replacing operation
+lock between handoff Start and plan actions (P2-2); explain a deferred
+brief read and retry it after sign-in/key activation completes (P2-1);
+retain a current handoff when its brief read throws while admission is
+closed (P3-4); and refuse a composer send during distillation, keeping its
+draft and attachments, while allowing Start's own brief send (P3-3).
+The composer guard runs before the first auth/session await as well as
+after preparation awaits, so an admission hold cannot lose that draft.
+The existing controller and reducer reuse the busy and sign-in text.
+The four owning suites and the UI-state suite pass 606 tests on Kubuntu;
+nine guard drills fail as intended and restore byte-exact by SHA-256.
+The five TypeScript projects, ESLint, Prettier, dead code, duplication,
+localization, host API and production build pass there too, with unchanged
+caps (extension 552.2/600 KiB, Model API 353.5/400). Evidence and exact
+bindings are in `docs/certification/m74.md`. The full quality gate remains
+the lead's per the lane brief. No origin push,
+live call, new dependency, setting, wire shape or escape hatch.
+
 **Main merge, 2026-10-02 (M74m).** Merge `origin/main` at `2a03a79b`
 (M84, M75 and 0.10.1) into the handoff branch at `aa37274e` (`91329eb8`),
 then include PR #74's documentation audit at `2067d2f9`. Keep both
@@ -9447,7 +10087,12 @@ integration tests, a production build with a real `node_modules` and
     so M79's Implement gets it too. A refusal for admission leaves the
     operation waiting with its dialog intact: Start works again once
     admission returns, and a brief whose read admission put off is read
-    on the next `/handoff` or a rebuilt panel.
+    after sign-in/key activation completes, on the next `/handoff` or a
+    rebuilt panel, with the sign-in reason said while the read waits. A
+    read that throws while admission is closed keeps its operation. Start
+    shares the plan actions' operation lock through the new brief's send,
+    and composer sends cannot steer a submitted distillation, even before
+    its acceptance arrives; refusal restores the exact draft unless edited.
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so
@@ -9469,6 +10114,133 @@ integration tests, a production build with a real `node_modules` and
     certification. No escape hatches (§8: nothing to record).
 
 ### M76 — Custom agents (D49)
+
+- **Main integration, MG70, 2026-10-02.** Finish the active merge of
+  origin/main `0e9546e0` into `feature/m76-agents`, preserving M76 and main's
+  imports, handoff, observation packing, session transfer and release/docs
+  work. Regenerate the host API record on Kubuntu and retain main's released
+  changelog bytes. Repair the merged fake-host dependencies and retained
+  test helper calls after observing their compiler/test failures. The
+  joined import bundle test duplicates M76's shared-text build plugin;
+  reuse that existing plugin after observing jscpd's clone failure. Run the
+  owning suites and static checks serially on Kubuntu, then commit with
+  normal hooks and no push. Aggregate quality and editor/platform gates
+  remain lead-owned under `MG70.md` and `common.md`.
+  **Lane result:** 1,863 tests in 42 owning/affected files pass on Kubuntu,
+  with no skips, and all eight serial static/build commands exit 0. The
+  regenerated host record reports 273 APIs and zero problems. Compiler,
+  Manual-policy test and duplication-gate failures were observed before
+  their repairs; the merge receipt is in `docs/certification/m76.md`.
+
+- **Main integration, M76m, 2026-10-02.** Join origin/main `2067d2f9`
+  (M75, M84, 0.10.1 and the documentation audit) into `feature/m76-agents`.
+  Preserve both sides' behavior and documentation, regenerate the host API
+  record on Kubuntu, and keep every released changelog section byte-identical
+  to main. The joined M75 evaluator needs M76's three host ports: no personal
+  agent root, the existing non-confidential evaluation workspace, and the
+  evaluator's contributor-model consent (paid child tasks still refuse).
+  Record the failing compiler and owning evaluator test before that repair;
+  run the lane's owning tests and static
+  checks serially on Kubuntu. Aggregate quality, editor/platform and release
+  gates remain lead-owned under `M76m.md` and `common.md`.
+  **Lane result:** all five typecheck projects and the seven remaining lane
+  checks pass on Kubuntu; 1,601 tests in 34 owning files pass with no skips.
+  The regenerated host record reports 266 APIs and zero problems. The
+  evaluator's paid refusal fired red before repair; its 134 controls pass
+  after. All production build subgates pass without changing a cap. The
+  conflict resolutions, rig setup and receipts are in
+  `docs/certification/m76.md`.
+  **Updated main:** first join committed as `0621fda9` with normal hooks;
+  then join `555f764a` (PR #64, encoding compatibility), preserving both
+  changelog/plan additions and removing four exact Unreleased duplicates
+  already released on main. A fresh private rig install takes sniffer 7.0.0.
+  All eight lane commands pass again; 1,634 tests in 37 files pass with no
+  skips. The encoding source/tests remain byte-identical to main and the
+  host API record is regenerated again on Kubuntu. Final extension size
+  is 544.1/600 KiB, Model API 359.9/400 and page worker 203.2/300; all
+  production build subgates pass. The record above binds this final join.
+
+- **Independent-review corrections, 2026-10-01 (M76b).** Reproduce RV76's
+  three findings on `eb606fcb` with fake HTTP, then commit each smallest fix:
+  preserve the child's Manual/Edit automatically policy through parsing,
+  persistence and approval routing while retaining the parent ceiling; admit
+  spawns against the effective child tools and refuse an empty set before a
+  paid request; localize allowlist refusals in all 14 tables while retaining
+  English model output. Drill each new guard with SHA-256 restoration.
+  No candidate merge this round. Focused tests run on rigs in slot `m76`;
+  serial local lane gates run before handoff. Full quality and editor/platform
+  certification remain lead-owned under `common.md`.
+  **Lane result:** all three findings reproduced on `eb606fcb`, fixed with
+  fake HTTP, and drilled with byte-exact restoration. The final affected
+  suites passed 813 tests on Kubuntu; all eight required serial Windows
+  checks passed, including the production build within every existing cap.
+  `docs/certification/m76.md` records the original failures, five drills and
+  gate receipts. No candidate merge was performed this round.
+- **Second independent review, 2026-10-01 (M76c).** Two findings, both
+  confirmed by a failing regression first. A `then_run` an agent without
+  the shell refused showed the English model sentence in its localized line
+  under the edit: the row now takes `UI_TEXT`, the model keeps `MODEL_TEXT`.
+  The **Check edits** body is the model's note and stays English like every
+  check sentence in it (its summary line is localized; a check's `detail`
+  is not rendered), so the docs were narrowed to say so. A spawn whose agent
+  lists no offered tool asked the contributor yes and the paid-use popup
+  before failing: it is now refused before both, and met again at child
+  creation, since the offered tools can change while a popup waits. Three
+  drills restored byte-exact; joined origin/main `2a30b1a0` first.
+  **Lead decision, same review:** the same two kinds, older than M76, fixed
+  too (owner rule: no deferrals). `settledSpawn` settles a spawn that starts
+  no child (worktree isolation, a `command_id` reused for a different task,
+  the per-conversation limit) before the contributor yes and the paid-use
+  popup, and a retry under the same `command_id` answers with that child
+  without asking again. No re-check follows the popups: a turn's calls run
+  one at a time, only a spawn adds a child or a command id, and a child
+  cannot spawn. M68's `hookInputNoCommand` gets a `UI_TEXT` key in all 14
+  tables for the `then_run` line; the model keeps `MODEL_TEXT`. Five drills
+  restored byte-exact.
+- **Third independent review, 2026-10-02 (RV70x, structural round).** Four
+  findings (three P2, one P3). Owner rule at a third round: fix the shape,
+  not the instance; the lead set three shapes, built as specified after
+  joining origin/main `3614409e`.
+  - **S1, catalogue precedence fails closed** (finding 1: a personal root's
+    EACCES discarded a read project agent, and the inheriting built-in of
+    its id wrote under Auto). `loadCatalogFiles` lists each root on its own:
+    a listing failure is a warning naming that root (`loading the user
+agents failed: …`), and the other roots load. Each root also reports
+    what it holds but did not yield (a file unreadable, over its cap,
+    refused, past the limit). `loadAgents` turns both into holes, and
+    `resolveAgent` walks project, personal, built-in: a hole that may hold
+    the name refuses it, naming the folder or file, before any lower
+    definition can stand in. Only names that resolve are offered to the
+    model. The skills share the loader, so one skill root's failure no
+    longer hides the other's skills either.
+  - **S2, spawn admission is one ordered pipeline** (findings 2 and 4).
+    `decideAndRunSpawn` owns the order: the mode (Plan refuses a retry
+    too), then an existing `command_id` (`existingSpawn`: an exact retry
+    answers with its child before any new-child admission; another task is
+    refused), then `admitNewSpawn` (isolation, the limit, the agent, its
+    tools, the paid gates; nothing awaited), then `consentToChildTask`,
+    which takes the grant and each wait in turn (the contributor yes, the
+    PermissionRequest hooks, the paid-use popup) with `recheckAdmission`
+    after every one: trust for a custom agent, Plan, paid subagents, the
+    price, a contributor model in a confidential workspace, the model, the
+    key, the goal, and the tools the agent meets. The child starts on the
+    last recheck with nothing awaited between. Model follow-ups and the
+    user's own follow-ups and reopens take the same waits and rechecks.
+    This supersedes M76c's "no re-check follows the popups".
+  - **S3, the child's policy is one table** (finding 3: an Edit
+    automatically child prompted under Auto and Bypass).
+    `childPermissionMode(parent, child)` in `approvalRules.ts` is the less
+    automatic of the two in the order Plan, Manual, Edit automatically,
+    Auto, Bypass (the parent's when the agent names none);
+    `editAutomaticallyChoice`, which the panel and the ACP agent share,
+    answers under it. So a Manual parent caps every child, a Manual child
+    always asks, an Edit automatically child keeps its automation under
+    Auto and Bypass, and protected, replayed and escalated requests are
+    never automatic. A table test covers all 30 (parent × child) pairs and
+    holds the host's `narrowApprovalMode` to the same order.
+  - One regression per finding, each failing without its fix; five drills
+    restored byte-exact (`docs/certification/m76.md`). The refusal for a
+    root that did not load is a new `agentUnloaded` string in all 14 tables.
 
 - **Goal.** Specialised agents with their own prompt, tools, model or
   effort, and permissions.
@@ -9500,6 +10272,118 @@ integration tests, a production build with a real `node_modules` and
 - **Tests.** Front-matter parsing with zod, and drills for each narrowing
   rule.
 - **Size.** M.
+- **Lane review 2026-09-30.** Recheck workspace trust at child creation,
+  after contributor and paid consent waits; a revoked workspace must create
+  no custom-agent child or paid model request. Explicitly label role text
+  as untrusted in the model prompt. Recheck trust before agent loading and
+  discard a catalogue completed after trust withdrawal. Restore the missing certification record
+  with current lane checks and red/restored proofs; lead-owned aggregate and
+  platform gates remain open. The brief's handoff was missing during this
+  review; the lead restored it before the 2026-10-01 resume.
+  The inherited retained-surface checkpoint test must await its existing
+  preparation hook before its model-request assertion; repeated lane runs
+  raced real Git setup. Preserve its request deadline, test timeout and
+  restore assertions. Record the two test-only session casts in §8 and
+  select a known approval-mode member without an unchecked cast.
+  Read the canonical file that confinement approved, rather than resolving
+  the project alias again after a symlink/junction may have changed; a link
+  swap regression must keep outside prompt text out of the catalogue.
+- **Status 2026-09-30: built on `feature/m76-agents`** over the M72 release
+  candidate (`1fd98aaf`), after a first build on 2026-09-28 (Muse Code) and
+  a resume that ported it over main `32709441`; the record is
+  `docs/certification/m76.md`. Reviewed in three classes (concurrency and
+  lifecycle; validation, confinement, trust and the paid rule; failure
+  paths, honesty and docs), with the findings below fixed. M70's Reviewer
+  joins the built-ins when M70 lands, and M83 imports Claude Code's and
+  Codex's formats through `parseAgentFile`; neither is part of this
+  milestone.
+- **Decisions taken while building.**
+  - **Lead decision 2, resumed 2026-10-01.** Withdraw the empty English
+    table substitution and its test/gate/docs as a separate commit. Merge
+    `build/shared-ui-text` (`44d920fd`) and use its shared `dist/uiText.js`
+    runtime fallback for every Node bundle and the ACP package. No other
+    build-layout change or cap increase is authorized. Refresh the lane
+    checks after joining the current M72 candidate.
+  - **Resumed lane verification 2026-10-01.** Removed the rejected approach
+    in `8f697aff`, merged the approved shared fallback in `2688de3f` and
+    the candidate `2ae4caf7` in `18f9262b`. All required lane checks passed;
+    897 tests in 16 files, two existing platform skips. The shared-layout
+    test fired red and restored byte-exact; an offline installed ACP tarball
+    and the actual Node bundles load English successfully. The joined
+    checkpoint fixture's two clones were removed by shared setup and
+    expected blob data, preserving assertions and platform conditions.
+    Final sizes: extension 523.4/600 KiB, Model API 337.4/400, checkpoint
+    store 120.6/225 and shared table 73.0/100. Merged the final candidate
+    `d09d472f` in `80a33895`, retaining its mode-aware expectations and the
+    shared fixtures. All nine lane checks passed again on the affected
+    join: five-project types, affected lint/format, knip, zero clones,
+    localization, host API, build and 50 checkpoint tests in four files
+    (six inherited platform skips). The current runtime smoke passed;
+    installed ACP, Model API and shared-table bytes match the final build.
+    Full quality, independent review and platform/release gates remain
+    lead-owned; no lane check is pending or red.
+  - **Prior lane verification 2026-09-30.** Merged the current candidate
+    `8d59fb5c` in `486f33c2`. All required lane gates passed: five typecheck
+    projects, changed-file lint/format, dead code, duplication, localization,
+    host API, build and 891 tests in 15 non-live files. Seventeen retained
+    intentional failures proved the feature guards; exact SHA-256 restoration
+    and green reruns are in `docs/certification/m76.md`. Final sizes are
+    extension 595.8/600 KiB, Model API 337.4/400 and checkpoint store
+    192.7/225. The handoff was restored and read on resume; full quality,
+    independent review, four-machine and release gates remain lead-owned.
+  - **The folder** is the extension's own (D13's addendum): the CLI names
+    none.
+  - **One loader.** `src/core/context/catalogFiles.ts` serves skills and
+    agents (the duplication gate's threshold is 0), and `skills.ts` keeps
+    its behaviour. A file is read through `ContextIo.readFile(path,
+maxBytes)`, which returns at most one byte past the cap and only for a
+    regular file, so a huge file, a pipe or a device never reads whole; the
+    skills' log line for an oversize file therefore drops the file's size.
+  - **`subagent_spawn` takes an optional `agent`**: no new tool, no palette
+    command, no `/agent` invocation. The `# Agents` catalogue (id, source,
+    description) rides the parent's instructions while paid subagents are on
+    and the workspace is trusted; a child's role rides its own, labelled
+    with its source and id, below the workspace rules and skills, as text
+    that cannot add tools or permissions.
+  - **Narrowing only.** The child's allowlist is the agent's list met with
+    the tools the session offers (a list that meets nothing fails the spawn
+    loudly, before any popup asks) and binds every call before any dispatcher, memory's included;
+    the mode is the agent's when it is not wider than the session's, in the
+    order denyUnmatched < promptUnmatched < onRequest < allowAll (the modes
+    menu's order, not `APPROVAL_MODES`'s), and a mode switch re-narrows;
+    automatic checks need `run_checks` or the shell in the list, and
+    `then_run`, which runs any command line, the shell; the model is the agent's or the session's; the effort is the
+    agent's, else the default, dropped to the highest tier the model serves
+    (D10). A stored, resumed or forked child keeps its narrowing.
+  - **Untrusted input.** Front matter is parsed with zod after a line
+    reader that reports what it could not take (a list, an indented value,
+    a repeated key); such a file is refused, and so is a `tools` line naming
+    no tool (it used to read as "every tool"). Name, description and model
+    are bounded (64, 240, 64 characters) and free of control and format
+    characters; at most 32 files load; a file agent shadows a built-in or
+    personal one with the same id, with a log line.
+  - **Trust.** A repository's files load only in a trusted workspace; the
+    catalogue and every spawn are refused once trust is lost; a resumed
+    child's project-file role is left out while untrusted; a child reads no
+    agent directory.
+  - **Paid (D48).** An agent run is a paid subagent use: its popup names the
+    model and its price; a model other than the session's asks even when
+    subagents are allowed always here, because "always" was given for the
+    model the user saw priced. A contributor model asks the contributor yes
+    for each spawn, and for a follow-up this session was never given it for
+    (a child resumed in a new window); a confidential workspace blocks it,
+    at the grant and again at a queued start.
+  - **Built-ins.** `explore` reads, searches and lists (and `read_skill`
+    when skills exist) on the session model; `second-opinion` runs at high
+    effort with the session's tools. They survive an unreadable agent root.
+  - **Not built.** No file watcher (agents load once per conversation), no
+    palette listing, no per-agent settings; Restricted Mode and the ACP
+    agent (no subagents, D62) offer none.
+- **Owner's choices taken as the safest default.** A role below the rules
+  that outrank it, not first; an agent's effort may exceed the session's
+  (Second opinion's purpose) and the popup does not name it; a project file
+  may shadow a built-in; the contributor yes per spawn, not per
+  conversation. Each is listed in the certification record.
 
 ### M77 — Session board and best-of-N (D49)
 
@@ -10496,6 +11380,972 @@ remain the lead's.
 - **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
 - **Size.** L.
 
+### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
+
+**Status 2026-10-03: planned, nothing built.** These are the owner's
+sixteen requests of 2026-10-03, which came with screenshots of the Codex app
+as inspiration. The design decisions are D66 (M87) and D67 (M88); the
+owner's answers to their questions (2026-10-03) are in §3 and applied in D66
+and D67.
+
+| #   | Request                                    | Where              | Reuses                                                                |
+| --- | ------------------------------------------ | ------------------ | --------------------------------------------------------------------- |
+| 1   | Context meter, percent inside the ring     | M87 lane A         | `contextUsage`, `CONTEXT_PRESSURE_*`, compact on click (M14)          |
+| 2   | In/Out boxes joined, five lines, Show more | M87 lane B         | `Clipped`, `ShellBody`, `UserShellRow`                                |
+| 3   | Consecutive steps under one summary row    | M87 lane C         | Focus view's `segment()` and `StepsGroup` (M16)                       |
+| 4   | Bullet with a blue pulse, heartbeat trace  | M87 lane B         | `.tool-dot-running` and its `pulse`                                   |
+| 5   | Tasks pane collapses to two lines          | M87 lane D         | `TodoPanel`                                                           |
+| 6   | Tasks pane in its own window               | M87 lanes P, D     | `chatPanel.ts`, `html.ts`, VS Code's floating windows for editors     |
+| 7   | Tooltips on the command and "/" menus      | M87 lane A         | `PaletteItem`, skill descriptions                                     |
+| 8   | Stop red on hover                          | M87 lane A         | —                                                                     |
+| 9   | Timestamp on hover                         | M87 lanes P, C     | Muse Code's captured `recordedAt`                                     |
+| 10  | Diff tally row with Review                 | M87 lane E         | `patchSummary`, M70's review pane                                     |
+| 11  | Notice when a thread ends or waits         | built: M82, PR #89 | `BackgroundNotifier`, `museSpark.notifyOnBackgroundTurn`              |
+| 12  | Edit on a queued prompt                    | M87 lanes P, C     | `turnWithdrawn`, `turn/unqueued`, M53's prompt back into the composer |
+| 13  | Saved prompts and prompt sequences         | M88 lane A         | PR #89's `paletteDialog.tsx`; skills stay as they are                 |
+| 14  | Bookmarks                                  | M88 lane B         | the archived ids (M6), `shared/sessions.ts` groups                    |
+| 15  | Timed send at a date and time              | M88 lane C         | M52's store, claim, paid gate and the D48 popup, asked at scheduling  |
+| 16  | Resume after a limit                       | M88 lane C         | timed sends, the client's `Retry-After`, Muse Code's usage report     |
+
+**Found already built.**
+
+- Item 11 is M82 (PR #89).
+- The grouping behind item 3 is Focus view (M16).
+- The prompt going back into the composer (item 12) is M53's rewind.
+- Reusable prompts exist as skills: they run as slash commands, and M83
+  imports other agents' commands as skills (item 13).
+- Scheduled prompts are M52 (item 15).
+
+**Not feasible as asked.**
+
+- A floating window for the sidebar view, or one an extension opens (item
+  6). M87 offers an editor tab that the user moves instead (D66).
+- Tooltips in VS Code's own Command Palette (item 7).
+- Any send while VS Code is closed (items 15 and 16). A missed send shows
+  as due at the next start (D67).
+
+**When they start.** Every lane edits the stylesheet and the harness, and
+most edit `App.tsx`, `uiState.ts` or the conversation controller. These open
+branches change the same files:
+
+| Open branch                                                          | Files it shares with M87 and M88                                                                                                                                                                                                                                                                                                    | Rule                                                                                                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fix/approval-decisions`: the approval dock and single-decision lock | `src/webview/App.tsx`, `Transcript.tsx`, `ToolRow.tsx`, `ApprovalCard.tsx`, the new `ApprovalDock.tsx`, `uiState.ts`, `transcriptEntries.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `agentBackend.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `extension.ts`, `constants.ts`, the strings, the harness            | M87's integration branch starts after it merges. Lanes A and E share only region-owned files with it, so their work may begin earlier in their own worktrees and rebase onto the integration branch. |
+| PR #89 (M77, M78, M82)                                               | `App.tsx`, `Transcript.tsx`, `Header.tsx`, `HistoryDialog.tsx` (moved onto `paletteDialog.tsx`), `uiState.ts`, `transcriptEntries.ts`, `toolPresentation.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `sessionStore.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `turnNotifications.ts`, `extension.ts`, the harness | M87 starts after it. M88 needs it: `paletteDialog.tsx`, `BackgroundNotifier`, the session budget.                                                                                                    |
+| PR #69 (M70)                                                         | `App.tsx`, `Composer.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness                                                                                                                                                                                                        | M87 starts after it. The tally's Review button needs M70.                                                                                                                                            |
+| PR #78 (M71)                                                         | `App.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness; its `GitPanel` sits above the composer                                                                                                                                                                                | M87 starts after it.                                                                                                                                                                                 |
+| PR #84 (M74 follow-ups)                                              | `conversationController.ts`, `uiState.ts`                                                                                                                                                                                                                                                                                           | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
+| PR #70 (M76)                                                         | `sessionStore.ts`, `agentEvents.ts`                                                                                                                                                                                                                                                                                                 | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
+
+So M87's integration branch starts from main once those six have merged
+or closed. M88's starts from main after M87 merges, because both
+milestones edit the strings, the controller, `palette.ts` and the
+stylesheet. Within a milestone, the "Starts" column below gives the order
+of the lanes.
+
+**Lane rules (both milestones).**
+
+1. **Branches.** Each milestone has an integration branch
+   (`feature/m87-panel-polish`, `feature/m88-prompts-timed-sends`) and one
+   worktree per lane. The lead reviews every lane's diff before merging it
+   into the integration branch. One pull request per milestone goes to
+   main, and hosted CI is the gate.
+2. **Lane 0 goes first.** It writes every new English string below and its
+   14 translations. A key nobody reads yet passes every gate. A lane that
+   needs a new or changed string asks the lead. Lane W deletes the keys that
+   go, once nothing reads them.
+3. **Lane P (plumbing) goes next.** It lands the shared schemas, the
+   controller's cases and the ports. The backends' new methods are
+   optional, so every later lane compiles on its own.
+4. **One owner per file at a time** (the tables below).
+   - Five files cannot be split without restructuring the codebase:
+     - `src/shared/constants.ts`: AGENTS.md rule 5 keeps every tunable
+       there.
+     - `src/webview/styles.css`: one stylesheet, ordered by specificity.
+     - `test/harness/index.html` and `scripts/lib/harnessServer.mjs`: one
+       scenario list.
+     - In M88, `src/shared/palette.ts`.
+   - These are region-owned. A lane edits only the region named for it,
+     beside the related existing block and never at the file's end, so the
+     merges never touch the same lines. A harness scenario goes after the
+     existing scenario its table row names.
+   - Any other shared edit goes through the lead.
+5. **Lane W (wiring) goes last.** It owns `App.tsx`, the theme capture, the
+   docs, the milestone record and the full gate.
+6. **Records.** Each lane records its red drills, captures and bundle delta
+   in `docs/certification/m87-<lane>.md` (as M83's lanes did), and Lane W
+   writes `m87.md`. M88 does the same.
+
+### M87 — Panel polish (D66)
+
+- **Goal.** The panel can be read at a glance: how full the context is,
+  what the agent did (one line per run of steps), what changed, and that it
+  is working. The boxes are smaller, and the user controls queued messages
+  and the task list.
+- **Scope.** Items 1–10 and 12, as D66 decides them. No new setting.
+- **Backends.** Both. Items 9 and 12 have backend parts; the rest is the
+  webview's.
+- **Size.** L, in seven lanes.
+
+**Lanes and file ownership.**
+
+| Lane                      | Items    | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Its regions in shared files                                                                                                                                                                         | Starts       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| 0 Strings                 | all      | `src/shared/l10n/en.ts`; the 14 tables `l10n/ui.{cs,de,es,fr,hu,it,ja,ko,pl,pt-br,ru,tr,zh-cn,zh-tw}.json`; `l10n/untranslated.json`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | —                                                                                                                                                                                                   | First        |
+| P Plumbing                | 6, 9, 12 | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/core/agent/agentBackend.ts`, `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/views/tasksTabPort.ts`; `src/webview/state/uiState.ts` and `uiState.test.ts` only for its new messages' cases, then lane C's; tests `conversationController.test.ts` and the protocol and ACP translation tests                                                                                                                                                                                         | —                                                                                                                                                                                                   | After lane 0 |
+| A Composer and menus      | 1, 7, 8  | the new `src/webview/components/ContextMeter.tsx`, `Composer.tsx`, `Palette.tsx`, `SlashMenu.tsx`, `MenuOption.tsx`, `src/shared/palette.ts`, `src/shared/slashCommands.ts`; in `App.tsx` only the meter's lines (step 2); tests: the new `ContextMeter.test.tsx`, `Composer.test.tsx`, `Palette.test.tsx`, `paletteRegistry.test.ts`                                                                                                                                                                                                                                                         | Styles: the composer controls (the `.context-label*` rules become `.context-meter*`) and the `(0,3,0)` state block (Stop). Harness: after `palette`.                                                | After lane 0 |
+| B Rows and status line    | 2, 4     | `ToolBlocks.tsx`, `ToolRow.tsx`, `UserShellRow.tsx`, `StatusLine.tsx`, the new `HeartbeatTrace.tsx`; tests `toolRows.test.tsx`, `StatusLine.test.tsx`, the new `reducedMotion.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                        | Constants: `IO_PREVIEW_LINES` beside `OUTPUT_PREVIEW_LINES`. Styles: `.shell*`; `.status-line`, `.status-spark` and `@keyframes spin`; the closing reduced-motion block. Harness: after `thinking`. | After lane 0 |
+| C Transcript and backends | 3, 9, 12 | `Transcript.tsx`, the new `src/webview/stepSummary.ts`, `src/webview/state/transcriptEntries.ts`, `uiState.ts`, `snapshot.ts`, `src/shared/l10n/text.ts`, `src/core/backends/musecode/mapNotification.ts`, `MuseCodeHost.ts`, `src/core/backends/modelapi/ModelApiHost.ts`, `sessionStore.ts`, `test/e2e/fake-muse/serve.mjs`; tests `Transcript.test.tsx`, `uiState.test.ts`, `snapshot.test.ts`, `sessionStore.test.ts`, `MuseCodeHost.test.ts`, the Model API host tests, `l10n.test.ts`, the new `stepSummary.test.ts`, `helpers/transcriptFixtures.tsx`, the new `helpers/m87Capture.ts` | Styles: `.steps*`, and the user and assistant message block. Harness: after `focus`.                                                                                                                | After lane P |
+| D Tasks                   | 5, 6     | `TodoPanel.tsx`, the new `src/webview/TasksApp.tsx`, `src/webview/main.tsx`, the new `src/shared/tasksProtocol.ts`, the new `src/host/views/tasksPanel.ts`, `src/host/html.ts`, `src/extension.ts`, `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `docs/ide-compatibility/host-api.md` (regenerated); tests `cards.test.tsx` (its `TodoPanel` cases), `html.test.ts`, the new `tasksPanel.test.ts` and `TasksApp.test.tsx`                                                                                                                                         | Constants: the view type and command id beside `CHAT_PANEL_VIEW_TYPE`. Styles: `.todo*`. Harness: after `todo`.                                                                                     | After lane P |
+| E Diff tally              | 10       | the new `src/webview/diffTally.ts` and `DiffTally.tsx`; the new tests `diffTally.test.ts` and `DiffTally.test.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Styles: a new block just before the goal pane's. Harness: after `goal`.                                                                                                                             | After lane 0 |
+| W Wiring and join         | all      | `src/webview/App.tsx`, `test/unit/App.test.tsx`, `test/harness/themes/*.json` (recaptured), `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/certification/m87.md`                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                                                                   | Last         |
+
+**Lane 0's strings** (English; each key also goes in all 14 tables):
+
+- **A:**
+  - `contextMeterLabel` "Context {percent} used".
+  - `contextMeterOver` "Over the context window".
+  - `contextMeterUnderOne` "<1", allowed in `untranslated.json`.
+  - `paletteTips`: one sentence for each row id that `buildPalette()` emits,
+    leaving out `skills:loading` and `skills:empty`, with the list fixed
+    when lane 0 starts. For example, `compact` is "Summarise the
+    conversation so far to free context."
+  - `paletteSkillTip` "Run the {name} skill.", the tip of a skill whose
+    description is empty or blank.
+- **C:**
+  - `stepSummary` plural forms: `edited` ("edited a file" / "edited
+    {count} files"), `read`, `searched`, `ran`, `fetched`, `searchedWeb`,
+    `used` ("used a tool"), `failed` ("{count} failed").
+  - `messageSentAt` "Sent {time}" and `messageReceivedAt` "Received {time}".
+  - `queuedLabel` "Queued" and `queuedMenuLabel` "Queued message actions".
+  - `queuedEdit` "Edit" and `queuedEditTitle` "Take the message out of the
+    queue and back into the prompt box".
+  - `queuedDelivered` "Already delivered to the running turn".
+  - `queuedTooLate` "This message already reached the model, so it can no
+    longer be edited."
+- **D:**
+  - `todoProgress` "{done} of {total} done".
+  - `todoOpenInTab` "Open in a tab" and `todoOpenInTabTitle` "Open the task
+    list in an editor tab, which you can move into its own window".
+  - `tasksTabTitle` "Tasks: {conversation}" and `tasksTabMoveToWindow`
+    "Move into new window".
+  - `tasksTabEmpty` "No tasks yet." and `tasksTabEnded` "The conversation
+    this list belongs to was closed."
+  - The manifest's `command.openTasks.title` "Open Tasks in a Tab" is lane
+    D's, in `package.nls*.json`, because `check:l10n` fails a manifest key
+    that `package.json` does not use.
+- **E:**
+  - `diffTallyFiles` plural forms ("{count} file changed" / "{count} files
+    changed") and `diffTallyLines` "+{added} −{removed}".
+  - `diffTallyLabel` "Changes in this conversation".
+  - `diffTallyTitle` "Lines added and removed by this conversation's
+    edits, added up edit by edit. Changes made by shell commands or by you
+    are not counted."
+  - `diffTallyReview` "Review" and `diffTallyReviewTitle` "Open the review
+    pane on these changes".
+- **Removed by lane W** once nothing reads them: `contextPercent`,
+  `showHiddenSteps` and `hideHiddenSteps`.
+
+**Implementation steps.**
+
+- **P Plumbing.**
+  1. `turnAccepted` gains `disposition`: the wire's `started`, `queued` or
+     `steered`, kept open (D36).
+  2. Three new messages: `withdrawQueued` (webview to host:
+     `localId`, `turnId`, `userMessageId`), and `queuedWithdrawn` and
+     `withdrawRefused` (host to webview). `queuedWithdrawn` carries
+     `attachmentsKept`, as `sendFailed` does (M25).
+  3. A new event, `messageAdmitted` (`userMessageId`): the moment a queued
+     or steered message reaches a request.
+  4. The item shape gains `recordedAt` (an RFC 3339 string, optional).
+  5. `HOST_ACTIONS` gains `openTasksTab`.
+  6. `AgentSession.withdrawQueued?(ref)` resolves to `withdrawn` or
+     `tooLate`. A backend without it means no Edit.
+  7. The controller routes the withdrawal to the session and caches each
+     session's last todo list. It answers `openTasksTab` through an
+     optional `TasksTabPort` (`open`, `update`, `ended`).
+  8. Every exhaustive switch over the event and message unions handles the
+     new members: the webview reducer (its first cases, before lane C takes
+     the file), `src/acp/translate.ts` (a no-op said in its comment, never
+     a silent drop), and any other consumer the compiler names.
+- **A Composer and menus.**
+  1. `ContextMeter` takes `state.context`. It computes the floored percent,
+     the level (from the `CONTEXT_PRESSURE_*` constants) and the name and
+     tooltip, and it draws a 22 px SVG ring. The circle has
+     `pathLength="100"`, so the arc is `stroke-dasharray`, and no geometry
+     is computed in TypeScript.
+  2. The number sits in the ring at 10 px, or 9 px for "100". The meter is
+     a button that keeps `onCompact`. `contextLabelFor` and
+     `contextTitleFor` leave `App.tsx` for the component, and `<Composer>`
+     gets `context` instead of the two strings. These are the only lines of
+     `App.tsx` that lane A edits; the rest of the file is lane W's, later.
+  3. Stop gets `send-button-stop`. Its hover and focus rules sit in the
+     `(0,3,0)` block, with the high-contrast variants under
+     `body.vscode-high-contrast`.
+  4. `PaletteItem` gains `tip`, and `buildPalette()` fills it from
+     `UI_TEXT.paletteTips[id]` or a skill's description, trimmed. A skill
+     whose description is empty or blank (`skillsCli.ts` turns a missing
+     one into `''`) gets `fill(UI_TEXT.paletteSkillTip, { name })`.
+     `slashCommandsOf` carries it.
+  5. `PaletteRow` and `MenuOption` set `title` and an `aria-describedby` to
+     a visually hidden span holding the tip. The registry test fails on a
+     row without one.
+- **B Rows and status line.**
+  1. `Clipped` takes `previewLines`, defaulting to `OUTPUT_PREVIEW_LINES`,
+     and gives its toggle `aria-expanded`.
+  2. `ShellBody` and `UserShellRow` render their boxes as one `.shell`
+     block (border and radius on the block, a rule between the parts).
+     Every part is `Clipped` at `IO_PREVIEW_LINES = 5`; the IN box was
+     unclipped until now.
+  3. `StatusLine` renders `<span class="tool-dot tool-dot-running">`, the
+     verb, and `HeartbeatTrace`: an `aria-hidden` SVG with the base path and
+     the sweeping segment.
+  4. The `.status-spark` rules and `@keyframes spin` are removed. The
+     reduced-motion block names `.heartbeat-sweep`.
+  5. `reducedMotion.test.ts` reads `styles.css`, collects every selector
+     with an `animation` or `transition`, and fails if one is not set to
+     none under `prefers-reduced-motion: reduce`.
+- **C Transcript and backends.**
+  1. `stepSummary(steps)` is pure. It reads `describeTool()`'s `body` and
+     the edit and read tool sets, counts distinct paths, and returns the
+     parts and the failed count.
+  2. `text.ts` gains `formatList`, on `Intl.ListFormat` with `type: 'unit'`
+     and `style: 'short'`. For the timestamps it gains `formatTime`
+     (`timeStyle: 'short'`), `formatFullDateTime` (`dateStyle: 'full'`,
+     `timeStyle: 'short'`) and `isSameLocalDay(aMs, bMs)` (the same local
+     year, month and day). The formats are built once per display language,
+     beside `formatDate` and `formatDateTime`.
+  3. `segment(entries, isFocusView)` gains the default-view rule (two or
+     more finished steps, waiting steps never, running steps after the
+     group). `StepsGroup` shows the summary as a button with `aria-expanded`
+     and `aria-controls`.
+  4. User and assistant entries gain `atMs`.
+     - Muse Code fills it from `recordedAt`, through zod and a finite
+       `Date.parse`; an invalid value means no time.
+     - The Model API host stamps each user and reply item, and
+       `sessionStore` keeps the time as an optional field (old files read
+       unchanged).
+     - The card renders `<time dateTime>`, revealed on `:hover` and
+       `:focus-within`. Its text is `formatTime` when `isSameLocalDay` with
+       the time the card renders, otherwise `formatDateTime`. Its `title`
+       is `messageSentAt` or `messageReceivedAt` filled with
+       `formatFullDateTime` (D66). No other formatter is used.
+     - A card that renders no action button of its own gives the `<time>`
+       `tabIndex={0}`, so the keyboard can reach and reveal it (D66).
+  5. The user entry's status gains `queued`, kept until `messageAdmitted`
+     or `turnStarted` for its turn.
+     - The card's `onContextMenu` stops the event only when no text is
+       selected, so M17's quote menu still wins.
+     - It opens the card's menu (the `rewind-menu` pattern) with Edit, or
+       the delivered note.
+  6. **`withdrawQueued` on the Model API.** It removes the message from
+     `queuedTurns` or `turn.steered`, synchronously, if it is still there,
+     and emits `turnWithdrawn` with the reason `edited`. Otherwise it
+     answers `tooLate`.
+  7. **`withdrawQueued` on Muse Code** sends `turn/unqueue` only for a turn
+     acknowledged `queued`. Its ack and late refusal are taken from the
+     capture below. The fake CLI learns the verb.
+  8. On `queuedWithdrawn` the reducer removes the card and puts the text
+     (and the images, when kept) into the draft: alone in an empty box,
+     otherwise first with a blank line.
+- **D Tasks.**
+  1. `TodoPanel` gets a header button (`aria-expanded`, `aria-controls`)
+     with the title and `todoProgress`. Collapsed, it shows only the task in
+     progress, on one ellipsised line. An optional `onOpenInTab` adds the
+     tab button.
+  2. `tasksPanel.ts` creates the `WebviewPanel` (`museSpark.tasksPanel`,
+     `ViewColumn.Beside`, no serializer, no command URIs) with `html.ts`'s
+     CSP and `data-surface="tasks"`. It implements `TasksTabPort`.
+     - On every `tasksReady` it sends the cached list, since a moved webview
+       reloads.
+     - "Move into new window" reveals the panel, then runs
+       `workbench.action.moveEditorToNewWindow`. The button appears only
+       when `getCommands(true)` lists that command.
+  3. `main.tsx` mounts `TasksApp` for the tasks surface. It is validated by
+     `tasksProtocol.ts`'s zod schemas, posts only `tasksReady` and
+     `revealConversation`, and renders `TodoPanel`.
+  4. `extension.ts` registers `museSpark.openTasks` and passes each
+     surface's controller its port. `npm run check:host-api -- --write`
+     records the new command id.
+- **E Diff tally.**
+  1. `diffTally(entries)` is pure. It reads the edit rows' `patchSummary`
+     and paths and returns files, added and removed, or undefined when there
+     is no edit.
+  2. `DiffTally` renders the row with the file count, the numbers
+     (`formatNumber`), the tooltip and an optional `onReview`.
+- **W Wiring and join.**
+  1. In `App.tsx`: the meter's props, and the tally mounted above
+     `GoalPanel` (and above M71's `GitPanel`), with Review opening M70's
+     pane.
+  2. `onEditQueued` posts `withdrawQueued`, and `TodoPanel` gets its
+     `onOpenInTab`.
+  3. Recapture the themes with `node scripts/capture-themes.mjs`, so that
+     `--vscode-list-warningForeground` and the two `gitDecoration` tokens
+     are measured. Record each D66 contrast figure from the capture. Run the
+     full gate.
+
+**Live capture (lane C, AGENTS.md rule 13).** `turn/unqueue` has never
+been sent.
+
+- **The run:** a script over `@muse-code/sdk`, as the earlier captures
+  were, in an empty workspace on the contributor model. Start turn A.
+  While it runs, send B with `ifBusy: "queue"`, and unqueue B: this
+  captures the ack and `turn/unqueued`. Then send C the same way, let it
+  launch when A ends, and unqueue it late: this captures the refusal.
+- **Expected:** two short reply-only turns, A and C (B never runs). The
+  expected attempts are stated in the record before the run and counted
+  from the CLI's trace log afterwards (the owner's live-spend rule of
+  2026-10-02).
+- Frames go into `helpers/m87Capture.ts`, and the record goes into
+  `docs/certification/m87-c.md`.
+
+**Acceptance.**
+
+- **1, the meter.** It reads the floored percent inside the ring at 0, 42,
+  75, 95, 100 and 104 %, and "<1" at 0.4 %. The level changes at exactly 70
+  and 90 %. At 104 % it shows "100" with the true share in its name. It is
+  hidden with no window. A click compacts. Its name holds the percent and
+  both token counts. The number is never under 9 px.
+- **2, the In/Out boxes.** No gap between IN and OUT. Each shows five lines
+  and then Show more, which toggles with `aria-expanded`. A `!` row behaves
+  the same. Other tools keep 12 lines.
+- **3, the step summary.**
+  - Two finished steps fold under a summary naming them; one does not.
+  - A waiting step and a running step stay visible.
+  - A failure is named in the summary.
+  - Focus view folds as before, under the summary.
+  - The summary is grammatical in the pseudo-locale and in the shipped
+    German, Turkish and Japanese tables.
+- **4, the working indicator.** The bullet pulses in the progress colour.
+  The trace is centred in a 690 px panel, never overlaps the verb at 320
+  px, and is hidden under 260 px. With reduced motion nothing moves. No ✦
+  remains.
+- **5, the tasks pane.** It collapses to its two lines and expands back.
+- **6, the tasks tab.**
+  - The tab mirrors the list live and rebuilds after a reload of its
+    webview.
+  - "Move into new window" appears only when the command exists.
+  - The tab says when its conversation ends.
+  - Nothing in it can send a message.
+- **7, the menu tips.** Every palette and "/" row has a non-empty tip as
+  its `title` and accessible description. Skills show their own
+  descriptions, and a skill with an empty or blank one shows "Run the
+  {name} skill."
+- **8, Stop.** It is red on hover and focus in all four themes, at the
+  contrasts in D66.
+- **9, timestamps.**
+  - A message shows its time on hover and on keyboard focus, including a
+    card with no action button (an imported user message), which Tab
+    reaches through its `<time>`.
+  - Today's message shows the time alone and an older one the date and
+    time, in the display language, with the full date and time in the
+    `title`. A message from 23:59 shows its date once the local day has
+    changed.
+  - Muse Code's history shows the captured times. A Model API session
+    stored before M87 shows none, and a new one shows them after a reload.
+- **10, the diff tally.** The row's totals equal the sum of the edit rows'
+  summaries, with distinct paths. It is absent with no edit, and Review
+  opens M70's pane.
+- **12, Edit on a queued message.**
+  - Right-click and Shift+F10 on a queued card offer Edit.
+  - Edit puts the text back without losing a draft.
+  - A late Edit leaves the card and says why.
+  - A steered Muse Code card shows the delivered note.
+  - Right-click on selected text still opens the quote menu.
+
+**Tests.**
+
+- **Unit and webview (vitest, jsdom).** Each lane's files above.
+  - A: the meter at each level and edge, the ring's dash values, the name
+    and tooltip, the compact click, Stop's class, and the registry and menu
+    tips for a skill with an empty and with a blank description.
+  - B: line clipping at 5 and 12, `aria-expanded`, the bullet, and the trace
+    marked `aria-hidden`.
+  - C: `stepSummary` and `segment` for every rule, `formatList` in four
+    locales, `atMs` from captured frames and from stored sessions, and the
+    queued lifecycle, withdraw races and draft merge.
+  - C, the timestamps: `formatTime`, `formatFullDateTime` and
+    `isSameLocalDay` in four locales, with the time zone fixed by the test
+    and times on both sides of a local midnight (23:59 and 00:01) and of a
+    UTC midnight that is not local; the card's text and `title` for today
+    and for yesterday; the `<time>`'s `tabIndex` on a card with and without
+    action buttons.
+  - D: collapse; the tasks tab's ready, update, ended, reload and command
+    probe.
+  - E: tally sums and distinct paths.
+- **End to end.** The fake CLI's `turn/unqueue` against the real backend.
+  The Model API withdraw against the fake Model API, before and after
+  `drainSteered`.
+- **Integration (inside VS Code).** The tasks tab opens beside the editor
+  and receives a list. The move command is probed, not run: the test host
+  has no second window to watch.
+- **Harness screenshots** at 690 px and 320 px, viewed and filed in each
+  lane's record. Scenarios:
+  - `context-meter`, `context-meter-warning`, `context-meter-full`
+  - `palette-tips`, `slash-tips`, `stop-running`
+  - `tool-io`, `tool-io-expanded`
+  - `steps-summary`, `steps-summary-open`
+  - `status-heartbeat`, `status-heartbeat-narrow`
+  - `tasks-collapsed`, `tasks-tab`
+  - `message-time` (keyboard focus on the time of an imported user message
+    without rewind), `queued-menu`, `diff-tally`
+- **Red drills.** Each new test and gate is seen to fail once on a
+  deliberate break, then restored, as recorded in each lane's file:
+  - thresholds moved to 0.8;
+  - `IO_PREVIEW_LINES` set to 12;
+  - a waiting step folded;
+  - the trace left out of the reduced-motion block;
+  - a drained steer withdrawn;
+  - a file counted twice in the tally;
+  - a row's tip removed;
+  - a skill's empty description used as its tip;
+  - the same-day check made in UTC instead of local time;
+  - the `<time>` of a card without action buttons left unfocusable.
+
+**Gates.**
+
+- **Accessibility.** The 17 scenarios above in the four themes, 68 pages,
+  with zero violations or undecided results. axe cannot hover, so the hover
+  contrasts (Stop, the revealed time) are computed from the captured tokens
+  and written into the record. Focus states are exercised in the harness.
+  Until lane W recaptures the themes, a lane's own run sees the fallback
+  colour for the three new tokens, so lane W reruns all 68 pages after the
+  capture.
+- **Localization.** Every key in all 14 tables, with plural forms per
+  `Intl.PluralRules`, and `check:l10n` passes. The pseudo-locale shots
+  show no clipped meter, summary or tally:
+  `npm run harness:shots -- --lang=pseudo`.
+- **Bundle budgets (D6).**
+  - The last recorded sizes (M84): `dist/webview/main.js` 792.4 of 900
+    KiB, `dist/extension.js` 551.6 of 600, `dist/uiText.js` 77.7 of 100,
+    `dist/modelApi.js` 353.5 of 400.
+  - M87's allowance: webview +20 KiB (the strings included, since the
+    webview carries its English table), extension +8, uiText +6, modelApi
+    +2.
+  - The six branches above land first and add their own sizes. So lane W
+    measures main when M87 starts. If what is left cannot hold this
+    allowance, the lead amends D6 with the numbers before any lane merges.
+    No budget is raised quietly.
+- **Other gates.** The host-API record (`check:host-api`) and the bundle
+  split are unchanged except for lane D's command id. No dependency is
+  added.
+
+**Docs.**
+
+- **`README.md`:** the meter, the tasks tab and its limits, Edit on queued
+  messages, timestamps and the tally.
+- **`CHANGELOG.md`:** `[Unreleased]`.
+- **`CONTRIBUTING.md`:** the new harness scenarios and the reduced-motion
+  test.
+- **`AGENTS.md`:** the layout entries for `TasksApp`, the tasks panel and
+  `stepSummary`.
+- **`PLAN.md`:** M87's status.
+- **`docs/certification/m87.md`,** with the lane records.
+- **`docs/PRIVACY.md`:** unchanged. Nothing new leaves the machine, and the
+  timestamps are the backends' own.
+
+**Security and privacy.**
+
+- **The tasks webview** uses the chat's CSP (`html.ts`, nonce scripts, no
+  inline styles), with no command URIs. It receives task text only. Its
+  two messages are zod-validated and cannot reach the conversation.
+- **The move command** is VS Code's own built-in command id, run with no
+  arguments.
+- **Withdrawing** acts only on the host's own ids for this session, and
+  the text that comes back is the card's own.
+- **Tips** render as text (`title`, a span), never as HTML. A skill's
+  description is project content and stays text.
+- **Times** are parsed, never evaluated.
+- No secret, key or path is logged by any lane: the log gets fixed words
+  and counts.
+
+**Certification checklist.**
+
+- [ ] §6.0's list on the integration branch's final tree.
+- [ ] Lane 0's keys present in all 14 tables, and lane W's removals done.
+- [ ] Every red drill above recorded, with its failing and restored runs.
+- [ ] The `turn/unqueue` capture recorded: its workspace, its counted
+      attempts, and the frames the tests use.
+- [ ] The recaptured themes, and every D66 contrast figure confirmed from
+      them; any token that misses has its fallback applied and said.
+- [ ] 68 accessibility pages at zero, and the screenshots viewed and filed.
+- [ ] The bundle deltas, each within the allowance, or D6 amended first.
+- [ ] The README's tasks-tab limits and timestamp rules match D66.
+- [ ] Hosted CI green on the milestone PR's exact head.
+
+### M88 — Prompts, bookmarks and timed sends (D67)
+
+- **Goal.** The user keeps prompts and conversations they come back to, and
+  sends a prompt (or a "continue") at a time they choose, without any new
+  way to spend money unseen.
+- **Scope.** Items 13–16, as D67 decides them, with the owner's answers of
+  2026-10-03 (§3). One new setting, `museSpark.syncPromptsAndBookmarks`
+  (off by default, machine-scoped). The Model API's timed sends use the
+  existing `museSpark.modelApiScheduledPrompts`.
+- **Backends.**
+  - Saved prompts, sequences and bookmarks work on both backends.
+  - Timed sends work on both: M52's path on the Model API, the extension's
+    own store on Muse Code.
+  - Resume after a limit works on both, by D67's limit definitions.
+- **Size.** L, in six lanes.
+
+**Lanes and file ownership.** Lanes 0 and W follow the lane rules; lane 0
+owns the same string files as in M87.
+
+| Lane                     | Items  | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Its regions in shared files                                                                                                                                                                                                                          | Starts                  |
+| ------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 0 Strings                | all    | the same string files as M87's lane 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                                                                                                                    | First, after M87 merges |
+| P Plumbing               | 13–16  | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/webview/state/uiState.ts`, `transcriptEntries.ts` (the failed row's `limit`, the user entry's `origin`), `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/conversation/deferredSend.ts` and `featurePorts.ts`; the sync setting: `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `src/host/settings.ts`, the new `src/host/stateSync.ts`; tests `uiState.test.ts`, `conversationController.test.ts`, `settings.test.ts`, the new `deferredSend.test.ts` and `stateSync.test.ts`                                     | Constants: the two synced `GLOBAL_STATE_KEYS` entries (the "All workspaces" prompts, the bookmarks), beside the others.                                                                                                                              | After lane 0            |
+| A Library and sequences  | 13     | the new `src/shared/promptLibrary.ts`, `src/host/prompts/promptStore.ts`, `src/core/prompts/promptSequence.ts`, `src/host/prompts/sequenceRunner.ts`, `src/webview/components/PromptLibraryDialog.tsx` and `SequenceRunRow.tsx`, with their tests                                                                                                                                                                                                                                                                                                                                                                                                    | `palette.ts`: the library rows. Styles: a new block after the history dialog's. Harness: after `history`.                                                                                                                                            | After lane P            |
+| B Bookmarks              | 14     | the new `src/host/sessions/bookmarkStore.ts`, `src/shared/sessions.ts`, `HistoryDialog.tsx`, `Header.tsx`, `src/host/backend/fileSessionStore.ts` (the retention exemption); tests `HistoryDialog.test.tsx`, `sessions.test.ts`, `fileSessionStore.test.ts`, the new `bookmarkStore.test.ts` and `Header.test.tsx`                                                                                                                                                                                                                                                                                                                                   | Constants: the bookmark cap and the bookmark key (`KeyB`), beside `GLOBAL_STATE_KEYS`. Styles: the history and header blocks. Harness: after `history-archived`.                                                                                     | After lane P            |
+| C Timed sends and resume | 15, 16 | `src/shared/schedule.ts`, `src/core/backends/modelapi/schedules.ts`, `src/host/backend/fileScheduleStore.ts`, `ModelApiHost.ts`, `client.ts`, the new `src/host/schedules/museCodeTimedSends.ts` and `src/core/limits.ts`, `SchedulePanel.tsx`, the new `ScheduleSendDialog.tsx`, `Transcript.tsx` (the failed row's Resume later, the timed send's mark), `src/host/conversation/turnNotifications.ts`; tests `schedules.test.ts`, `fileScheduleStore.test.ts`, `SchedulePanel.test.tsx`, `Transcript.test.tsx`, `turnNotifications.test.ts`, the Model API host and client tests, the new `helpers/m88Capture.ts`, and new tests for each new file | Constants: the schedule block (the one-shot lead and horizon, the on-time grace, the resume delay) and `MODEL_TEXT.resumePrompt`. `palette.ts`: the "Schedule this prompt…" row. Styles: the schedule pane block. Harness: after `schedules-narrow`. | After lane P            |
+| W Wiring and join        | all    | `App.tsx`, `App.test.tsx`, `src/extension.ts` (the stores, the runner and the ports), `test/harness/themes/*.json` if a token is new, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/PRIVACY.md`, `docs/certification/m88.md`                                                                                                                                                                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                                    | Last                    |
+
+**Lane 0's strings** (English; all 14 tables):
+
+- **A, the library:** `promptLibraryTitle` "Saved prompts",
+  `promptLibrarySearch`, `promptLibraryEmpty`, `promptSaveCurrent` "Save
+  current prompt", `promptName`, `promptText`, `promptScope` "Available in",
+  `promptScopeUser` "All workspaces", `promptScopeWorkspace` "This
+  workspace", `promptInsert` "Insert", `promptEdit`, `promptDelete`,
+  `promptDeleteConfirm` "Delete “{name}”?", `promptSecretsNote` "Saved
+  prompts are stored as plain text on this computer, and in Settings Sync
+  if you turn sync on. Don't save passwords or keys.", `promptStoreDamaged`
+  "The saved prompts could not be read: {reason}. Nothing was changed.",
+  `promptStoreReset`, `promptStoreResetConfirm` "Delete the unreadable
+  saved prompts in {scope} and start again with none?",
+  `promptLimitReached` (plural forms), `promptTooLong`, `promptScopeSynced`
+  "Synced with Settings Sync", `promptScopeWorkspaceLocal` "Kept on this
+  computer only, even with sync on".
+- **P, the setting** (in `package.nls*.json`, lane P's, as M87's lane D
+  owned its manifest key): `config.syncPromptsAndBookmarks.description`
+  "Add your saved prompts for all workspaces and your bookmarks to Settings
+  Sync. Off by default: they stay on this computer. Prompts saved for one
+  workspace never sync."
+- **A, sequences:** `sequenceNew`, `sequenceStep` "Step {index}",
+  `sequenceAddStep`, `sequenceRun` "Run", `sequenceStartTitle` "Run
+  “{name}”?", `sequenceStartDetail` (plural forms: "{count} messages are
+  sent to this conversation, each after the previous turn completes."),
+  `sequenceStartBilled` "On the Model API, each message is billed as a
+  normal turn.", `sequenceModeWarning` "This conversation is in {mode}
+  mode: steps run without asking.", `sequenceRunning` "Sequence “{name}”:
+  step {step} of {total}", `sequenceStopped` "Sequence stopped after step
+  {step}: {reason}", `sequenceDone`.
+- **A, palette tips:** for the new rows (`prompts`, `schedule`).
+- **B:** `bookmarkAdd` "Bookmark", `bookmarkRemove` "Remove bookmark",
+  `bookmarkCurrentTitle` "Bookmark this conversation",
+  `historyGroupBookmarked` "Bookmarked", `bookmarkedState` "Bookmarked" (the
+  option's hidden state text), `bookmarkUnavailable` "Not available here",
+  `bookmarkLimitReached` (plural forms: "A workspace keeps up to {count}
+  bookmarks.").
+- **C, timed sends:** `scheduleSendTitle` "Schedule this prompt",
+  `scheduleSendWhen` "Send at", `scheduleSendRange` "Between a minute and
+  six days from now", `scheduleSendConfirm` "Schedule",
+  `scheduleSendModelApiNote` "You confirm its price now. At its time it is
+  sent only if the prompt, model, conversation and key are unchanged;
+  otherwise it waits for Run.", `scheduleSendConfirmTitle` "Send this prompt
+  with {model} at {time}?" (the popup's title; its body reuses M52's
+  `scheduleRunConfirmPrompt`, `scheduleRunConfirmPrice` and
+  `scheduleRunConfirmExtras`), `scheduleSendPaidOff` "Turn on Scheduled
+  prompts (paid) and accept its price before scheduling on the Model API.",
+  `scheduleSendMuseCodeNote` "It is sent at its time, in this
+  conversation's permission mode at that moment. Nothing is sent while VS
+  Code is closed.", `scheduleSendModeWarning` "This conversation is in
+  {mode} mode now: its tools run without asking.",
+  `scheduleOnceAt` "Once at {time}", `scheduleDueSince` "Due since {time}",
+  `scheduleWaitingForTurn` "Due · sent when the current turn ends",
+  `scheduleBindingChanged` "Due · the prompt, model, conversation or key
+  changed, so it waits for Run", `scheduleSendNow` "Send now",
+  `scheduleOpenConversation` "Open conversation", `scheduleSignInChanged`
+  "The Muse Code sign-in changed, so this workspace's timed sends were
+  deleted.", `scheduleEnvKeyUnavailable` "Timed sends on Muse Code are not
+  offered while META_API_KEY is set for VS Code.", `timedSendMark` "Sent on
+  schedule", `notifyScheduleDue` "A scheduled prompt is due."
+- **C, resume:** `resumeLater` "Resume later…", `resumeLaterTitle`
+  "Schedule a “continue” message for when the limit resets",
+  `resumeRateLimited` "Meta's rate limit stopped this turn.",
+  `resumeUsageFull` "Your Muse Code usage window is full. It resets at
+  {time}.", `resumeUsageNote` "Based on the usage report.",
+  `resumeBudgetStopped` "The session budget stopped this turn.",
+  `resumeOpenBudget` "Change the budget", `resumeBeyondHorizon` "The limit
+  lifts at {time}, later than a send can be scheduled."
+- `MODEL_TEXT.resumePrompt` stays English, in `constants.ts` (lane C).
+
+**Implementation steps.**
+
+- **P Plumbing.**
+  1. **Messages.**
+     - The library: `promptLibraryRead`, `promptSave`, `promptUpdate`,
+       `promptDelete`, `promptLibraryReset` (`scope`: `user` or
+       `workspace`), `sequenceStart` and `sequenceStop`, answered by
+       `promptLibrary` and `sequenceState`. `promptLibrary` carries each
+       scope's state (`ok` or `damaged` with its reason) and whether sync is
+       on.
+     - Bookmarks: `bookmarkSet`, answered by `bookmarks`.
+     - Timed sends: `timedSendCreate`, whose `origin` is `prompt` or
+       `resume`. `schedulesChanged` now carries the once cadence.
+  2. **Turn ends.** `turnCompleted` gains an optional `limit` (`kind`,
+     `retryAfterMs`, `resetsAtMs`), set only by lane C's classifiers.
+  3. **Reducer.** `uiState` holds the library, the run, the bookmark ids
+     and the due sends, and puts a turn's `limit` on its failed row's
+     entry, for lane C's Resume later. A user entry sent by `sendAsUser`
+     keeps its `origin`, so lane C's card can show `timedSendMark`.
+  4. **`deferredSend.ts`.**
+     - `canSendNow(sessionId)` says synchronously whether the session is
+       loaded and idle, with no turn queued and no sequence running, or why
+       not (`busy`, `notLoaded`).
+     - `sendAsUser(text, origin)` submits as the composer's Send does, only
+       while `canSendNow` holds; otherwise it refuses with that reason and
+       sends nothing.
+     - `onTurnSettled` reports each turn's terminal, so a waiting send can
+       go.
+     - The controller implements all three.
+  5. **`featurePorts.ts`** declares `PromptLibraryPort`, `BookmarkPort` and
+     `TimedSendPort`. The controller answers the new messages through
+     them, and refuses with an explicit error while a port is missing.
+  6. **The sync setting.** `museSpark.syncPromptsAndBookmarks` (boolean,
+     default false, `machine` scope) is read by `settings.ts`.
+     `stateSync.ts` calls `globalState.setKeysForSync` with the two keys
+     while it is on and with `[]` while it is off, at activation and on
+     every change of the setting (D67). Nothing else calls it.
+- **A Library and sequences.**
+  1. `promptLibrary.ts` holds the versioned zod schema and the caps.
+  2. `promptStore.ts` reads, validates and writes the two scopes: "All
+     workspaces" in `globalState` under lane P's synced key, "This
+     workspace" in `workspaceState`. It leaves sync to `stateSync.ts`.
+     - Each scope is validated on its own. A damaged value, read from disk
+       or arriving through sync, is kept, reported with its reason, and
+       blocks writes to that scope until reset.
+     - `reset(scope)` replaces only that scope's value with an empty
+       library of the current version. It runs only on
+       `promptLibraryReset`, after the dialog's inline confirmation.
+  3. `PromptLibraryDialog` is built on `paletteDialog.tsx`: search, insert
+     (Enter), edit inline, delete with an inline confirmation, and a save
+     form prefilled with the draft. Its scope picker marks "All workspaces"
+     as synced and "This workspace" as kept on this computer while sync is
+     on. A damaged scope shows `promptStoreDamaged` with Reset and its
+     inline confirmation.
+  4. `promptSequence.ts` is the run's pure state machine: start, step sent,
+     turn settled, stop, and end on any terminal other than `completed`.
+     `sequenceRunner.ts` drives it through `deferredSend`.
+  5. The `/prompts` palette row opens the dialog.
+- **B Bookmarks.**
+  1. `bookmarkStore.ts` keeps the records in `globalState` under lane P's
+     synced key, one list per workspace digest (D67), and refreshes titles
+     from listed rows. It validates what it reads, a value that arrived
+     through sync included, and refuses a bookmark past the cap with
+     `bookmarkLimitReached`. `has(backend, sessionId)` answers for this
+     workspace.
+  2. `fileSessionStore.ts` gains an optional `isKept(sessionId)`
+     dependency. Retention skips a session it keeps, and lane W's
+     `extension.ts` passes the bookmark store's `has`. The ACP agent's
+     store passes none and is unchanged.
+  3. `sessions.ts` gains `bookmarkedIds` and puts the Bookmarked group
+     first. A bookmark not found once the list has ended is a row marked
+     `bookmarkUnavailable`, whose only action is Remove.
+  4. `HistoryDialog` keeps its listbox (D67). Alt+B (`event.code` `KeyB`)
+     in the search box toggles the highlighted row's bookmark. The row's
+     star is `aria-hidden` and for the mouse only, as the archive control
+     is. The option's name includes `bookmarkedState` when bookmarked, its
+     `aria-keyshortcuts` is "Delete Alt+B", and its description names both
+     commands. The Bookmarked group loads pages until every id is found.
+  5. `Header` gets the star for the open session: a toggle button with
+     `bookmarkCurrentTitle` and `aria-pressed`.
+- **C Timed sends and resume.**
+  1. `schedule.ts` gains the once cadence. `nextScheduleFire` returns
+     `atMs` once, then nothing. `fileScheduleStore` gains `listAll()`, the
+     workspace's jobs, to list due sends at start.
+  2. **The Model API's one-shot** is M52's job with that cadence, the same
+     store, claim and paid row, confirmed when it is scheduled (D67).
+     - Schedule refuses with `scheduleSendPaidOff`, offering the setting,
+       while the gate is off. Otherwise it shows the D48 popup
+       (`scheduleSendConfirmTitle`) through `PaidUseConsent`. Deny or
+       closing it stores nothing.
+     - The job stores the confirmation: the prompt, the model, the session,
+       the key digest and the gate's price generation.
+     - At its time the host checks all of them again, and the gate. A match
+       sends without a popup; any change marks the job
+       `scheduleBindingChanged`, and it waits for M52's Run, which asks
+       again.
+  3. **`museCodeTimedSends.ts`** is a second store instance at
+     `storageUri/musecode-timed-sends`, with a 60 s poll.
+     - Its jobs' account field holds the credential file's signature
+       (`readCredentialFile` in `cliAccount.ts`: size and modification
+       time). It is never an account, a label or a backend name (D67).
+     - At start, at each poll, and on the panel's sign-in or sign-out, a
+       current signature that differs from a job's deletes the workspace's
+       Muse Code jobs before any list is published, and the pane shows
+       `scheduleSignInChanged`.
+     - Before that rests on the signature, lane C records whether a day's
+       ordinary use changes it without a sign-in. If it does, the binding
+       uses the file's structure instead, as D67 says.
+     - While `META_API_KEY` is present in the host's environment, creation
+       refuses with `scheduleEnvKeyUnavailable`.
+  4. **The send at its time, both backends** (D67). On each poll and each
+     `onTurnSettled`, a due job that was seen on time and whose binding
+     matches is sent this way:
+     - `canSendNow` false: the job stays unclaimed and pending
+       (`scheduleWaitingForTurn`) while this window is open.
+     - `canSendNow` true: claim, then, as the claim resolves, check
+       `canSendNow` again and call `sendAsUser`. If the session turned busy
+       or was unloaded meanwhile, `fileScheduleStore` deletes the receipt it
+       just wrote (`releaseClaim`, new: only its own, only before any turn
+       was admitted) and the job waits again.
+     - A job seen late, one whose session is not loaded, and a Model API
+       job whose binding changed are due and wait for Run or Send now.
+  5. `ScheduleSendDialog` uses `datetime-local` with `step` 60, between now
+     plus a minute and now plus six days, with the backend's note and, from
+     the session's current mode, `scheduleSendModeWarning` for Auto and
+     Bypass. `SchedulePanel` lists one-shots on both backends.
+  6. **`limits.ts`**:
+     - the Model API's final 429, with `Retry-After` (seconds or an HTTP
+       date) carried from `client.ts`;
+     - M82's budget error;
+     - on Muse Code, only a captured usage-limit signal: the goal status
+       `usage_limited`, or a turn failure in the shape the capture below
+       records. The time is the reset of a window at 100 % in a `usage/read`
+       made after the signal. A failure of any other kind is not a limit,
+       whatever the report says.
+  7. **The default time** is `resumeDefaultAt(limitAtMs, nowMs)`: rounded
+     up to a whole minute, at least a minute ahead, and undefined beyond
+     six days. Undefined means no Resume later, and the row shows
+     `resumeBeyondHorizon` instead.
+  8. **On the failed row**, `Transcript.tsx` shows "Resume later…", which
+     opens the dialog with `MODEL_TEXT.resumePrompt` and the default time,
+     or "Change the budget".
+  9. **`turnNotifications.ts`** gains the `scheduleDue` notice, once per job
+     that waits.
+- **W Wiring and join.** `extension.ts` builds the stores, the runner and
+  the ports per surface, and `App.tsx` mounts the dialogs and rows. Then
+  W runs the theme capture, if a token is new, and the full gate.
+
+**Live capture (lane C, AGENTS.md rule 13).** The error a full Muse Code
+usage window gives has never been captured (§3).
+
+- **The run:** the next time the owner's usage window reads 100 %, a script
+  over `@muse-code/sdk`, as the earlier captures were, in an empty workspace
+  on the contributor model. It sends one short reply-only turn, records
+  every frame up to its end, then calls `usage/read`.
+- **Expected:** one turn. The expected attempts are stated in the record
+  before the run and counted from the CLI's trace log afterwards (the
+  owner's live-spend rule of 2026-10-02).
+- Frames go into `helpers/m88Capture.ts`, and the record goes into
+  `docs/certification/m88-c.md`.
+- Until the capture exists, the turn-failure path is not written: Muse Code
+  offers Resume later only for the goal status `usage_limited`, and the
+  README and the record say so.
+
+**Acceptance.**
+
+- **13, saved prompts.**
+  - Save, name, insert (into the caret, nothing sent), edit and delete
+    work in both scopes.
+  - The caps refuse, and say why.
+  - A damaged scope is never overwritten, the other scope keeps working,
+    and Reset, after its confirmation, empties only the damaged scope.
+  - With `museSpark.syncPromptsAndBookmarks` off (the default),
+    `setKeysForSync` registers no key and nothing leaves the computer.
+  - With it on, exactly two keys are registered: the "All workspaces"
+    prompts and the bookmarks. "This workspace" prompts are never
+    registered, and the scope picker says so. Turning it off registers
+    none again.
+- **13, sequences.**
+  - A sequence sends step N+1 only after turn N ends `completed`.
+  - It ends on a failed or cancelled turn, Stop, a session switch or the
+    panel closing.
+  - A run on the Model API states the turns it bills.
+- **14, bookmarks.**
+  - A bookmark set from History or the header persists across reloads, in
+    this workspace only, with sync on and off.
+  - Alt+B in History's search box toggles the highlighted row's bookmark;
+    the option's name says it is bookmarked. The header's star is a toggle
+    button with `aria-pressed`.
+  - The Bookmarked group finds an old chat beyond the first page.
+  - Archived and bookmarked shows under Show archived.
+  - A bookmarked Model API session outlives `museSpark.cleanupPeriodDays`;
+    once unbookmarked, retention takes it at the next listing.
+  - A bookmark whose session is not found shows as not available here,
+    with Remove.
+  - The cap refuses the next bookmark, and says why.
+- **15, timed sends.**
+  - A one-shot fires once.
+  - **On the Model API**, Schedule asks once through the D48 popup, and
+    Bypass cannot skip it. Deny, a closed popup or the gate off stores
+    nothing and makes zero requests.
+  - At its time a confirmed send whose prompt, model, session, key digest
+    and gate price all match goes without a popup. Any change, or the gate
+    off, sends it to Run, which asks again; nothing is billed before.
+  - **On Muse Code** it goes at its time with no Send now, in the
+    conversation's mode at that moment: in Manual its approvals still
+    wait.
+  - A send due during a turn stays unclaimed and goes when the turn
+    settles. A session that turns busy while the claim is written releases
+    the claim, and the send goes after that turn, once.
+  - A Muse Code sign-in change deletes the workspace's Muse Code timed
+    sends before any list, and says so; none is listed or sent across it.
+    With `META_API_KEY` set, Muse Code offers no timed send.
+  - Two windows send once.
+  - With VS Code closed through the due time, the next start lists it as
+    "due since" and sends nothing by itself. A send whose session is not
+    loaded waits the same way.
+  - The picker refuses less than a minute ahead and more than six days
+    ahead.
+- **16, resume.**
+  - A final 429 offers Resume later at `Retry-After` (five minutes without
+    it). A `Retry-After` under a minute opens at one minute ahead, rounded
+    up to the minute. One beyond six days offers no timer and says when the
+    limit lifts.
+  - The budget stop offers the setting and no timer.
+  - On Muse Code, a goal stopped `usage_limited`, or a turn failing in the
+    captured usage-limit shape, offers the reset of the full window from a
+    `usage/read` made after it, and says it rests on the report.
+  - Any other failure offers nothing, even while a usage window reads
+    100 %. So does an unclassified failure on the Model API.
+  - The resume is a timed send with every rule of item 15.
+
+**Tests.**
+
+- **Unit and webview.**
+  - Every new file.
+  - The store schemas: damaged values per scope, a damaged value arriving
+    through sync, caps, scopes, and Reset (only the damaged scope, only on
+    its request).
+  - The controller's new cases, `promptLibraryReset` included: validated,
+    answered through the ports, and refused with an explicit error while a
+    port is missing.
+  - `stateSync.ts` with `setKeysForSync` spied: the setting off, on, and
+    turned off again.
+  - Every state of the sequence machine.
+  - Bookmark grouping and paging, the unavailable row, the cap, Alt+B and
+    the option's state, and the retention exemption in
+    `fileSessionStore.test.ts`.
+  - The once cadence's next fire and expiry, at the six-day edge and
+    around a daylight-saving change.
+  - `listAll`, and the claim race across two stores.
+  - `deferredSend` and the scheduler: a send due while busy stays
+    unclaimed; a claim released when the session turns busy during its
+    write; a send seen late waits.
+  - The Model API binding: each of prompt, model, session, key digest and
+    gate price changed in turn sends the job back to Run.
+  - The Muse Code binding: a changed signature deletes and reports;
+    `META_API_KEY` present refuses creation.
+  - The limit classifier on the Model API client's captured 429 path and on
+    M82's error; on Muse Code, the goal status and the captured frames, and
+    a network failure while a window reads 100 % (no limit).
+  - `resumeDefaultAt` at `Retry-After` 0 s, 5 s, 59 s, exactly six days
+    and six days and a minute, and as an HTTP date.
+- **End to end.**
+  - A sequence of three steps against the fake Model API: one billed turn
+    each, stopping on a failure.
+  - A Muse Code timed send against the fake CLI, at its time with no Send
+    now, and one that falls due during a turn.
+- **The native modal.** M52's ordinary-window probe is rerun for the
+  one-shot's popup at scheduling: decline stores nothing and makes zero
+  fetches, in Manual and in Bypass. It is rerun for Run after a changed
+  binding, with the same result.
+- **Harness screenshots** at 690 px and 320 px. Scenarios:
+  - `prompt-library`, `prompt-library-edit`, `prompt-library-delete`,
+    `prompt-library-damaged`
+  - `sequence-running`
+  - `history-bookmarks`, `header-bookmarked`
+  - `schedule-send`, `schedule-due-once`, `schedule-due-musecode`
+  - `resume-offer`, `resume-dialog`
+- **Red drills:**
+  - a step sent before its turn completes;
+  - a damaged store overwritten;
+  - a key registered for sync with the setting off;
+  - the one-shot fired twice;
+  - a closed-window send sent at start;
+  - a Bypass schedule without the popup;
+  - a confirmed send sent after its model changed;
+  - a due send claimed while its session was busy;
+  - a Muse Code job listed after the sign-in signature changed;
+  - a 429 not classified;
+  - a Muse Code network failure classified as usage-limited because a
+    window read 100 %;
+  - a `Retry-After` of 5 s giving a default the picker refuses;
+  - a bookmarked session deleted by retention.
+
+**Gates.**
+
+- **Accessibility.** The 12 scenarios in four themes, 48 pages, at zero.
+  The dialogs trap focus as `Modal` does. The header's star is a toggle
+  with a name and `aria-pressed`; History's stars stay out of the
+  accessibility tree, as the archive control does, and each option carries
+  its bookmarked state and both shortcuts.
+- **Localization.** All keys in all 14 tables, with plural forms. The
+  date-time picker's labels and the due times go through `Intl`.
+- **Bundle budgets (D6).** M88's allowance: webview +22 KiB, extension +14,
+  uiText +6, modelApi +3, measured after M87. If they do not fit, the same
+  rule applies as in M87: the lead amends D6 first.
+- **Other gates.**
+  - `npm run check:host-api -- --write` refreshes the host-API record for
+    any VS Code API use the new host files add.
+  - The bundle split keeps `schedules.ts`'s one-shot code where M57's
+    allowed list puts the schedule store's next occurrence.
+  - No dependency is added.
+
+**Docs.**
+
+- **`README.md`:** saved prompts and sequences, bookmarks, the sync
+  setting, timed sends and resume, with the closed-VS-Code rule, the
+  per-backend confirmation, and the Muse Code sign-in rule (with its limit,
+  if lane C's record finds one).
+- **`docs/PRIVACY.md`:** where saved prompts, bookmarks and timed sends are
+  stored, that they are unencrypted, what the sync setting adds to Settings
+  Sync (and that "This workspace" prompts never sync), and that nothing
+  runs while VS Code is closed.
+- **`CHANGELOG.md`,** `CONTRIBUTING.md` (the scenarios), **`AGENTS.md`**
+  (the layout for `src/host/prompts`, `src/host/schedules`,
+  `src/core/limits.ts`), **`PLAN.md`** (status), and
+  **`docs/certification/m88.md`** with the lane records.
+
+**Security and privacy.**
+
+- **Storage.** Saved prompts and bookmarks live in VS Code's state
+  database, unencrypted. They leave the machine only through Settings Sync,
+  only while the user has turned on `museSpark.syncPromptsAndBookmarks` on
+  this computer, and "This workspace" prompts never do. Bookmarks store
+  workspace digests, never paths. Neither is logged: the log gets counts
+  and ids.
+- **The timed-send stores** hold the prompt text and, on the Model API, the
+  key's digest, never the key (M52). Muse Code's hold the credential file's
+  signature (size and modification time), never an account or a value
+  from the file.
+- **Every message** across the bridge is zod-validated, and so is every
+  value read from state, synced or not.
+- **Sequences and timed sends** send as the user's own message, under the
+  session's permission mode at that moment. The start and schedule dialogs
+  name Auto and Bypass.
+- **Money.** No path sends a Model API timed send or resume without the
+  scheduled-prompts gate and the D48 popup answered for that run, at
+  scheduling or at Run, and no confirmed send goes unless its prompt,
+  model, session, key digest and gate price still match. No path sends
+  anything while VS Code is closed, or late on its own after it starts.
+  Muse Code's timed sends bill only the subscription.
+
+**Certification checklist.**
+
+- [ ] §6.0's list on the integration branch's final tree.
+- [ ] Lane 0's keys present in all 14 tables.
+- [ ] Every red drill recorded.
+- [ ] The native modal decline recorded in Manual and in Bypass, at
+      scheduling and at Run, with zero fetches and nothing stored.
+- [ ] The usage-limit capture recorded (its workspace, its counted
+      attempts, the frames the tests use), or its absence named in the
+      record and the README.
+- [ ] The credential-file signature check recorded (a day of ordinary use
+      with no sign-in), and the binding D67 chooses from it.
+- [ ] Alt+B checked against VS Code's default keymap on Windows, macOS and
+      Linux.
+- [ ] 48 accessibility pages at zero, and the screenshots viewed and
+      filed.
+- [ ] The bundle deltas within the allowance, or D6 amended first.
+- [ ] `docs/PRIVACY.md` matches D67.
+- [ ] The four M88 answers of 2026-10-03 in §3 applied as D67 states
+      them.
+- [ ] Hosted CI green on the milestone PR's exact head.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -10820,6 +12670,35 @@ The lead must resolve that runner before full quality certification; no
 gate, threshold, timeout, hook or skip is changed. The existing Windows
 8.3 fixture also needs a genuine short-name TEMP for its native proof.
 See `docs/certification/m71.md`, M71m main join.
+
+**M76b lane boundary (2026-10-01):** the owner's `common.md` explicitly
+forbids a full `npm run quality` or full unit run in this shared lane and
+assigns aggregate quality, coverage, accessibility, editor/platform and
+release gates to the lead. `M76b.md` also excludes the candidate merge this
+round. Finding commits use normal lint/format/secret hooks; the required
+focused tests and eight local lane checks pass. These results do not close
+the lead's remaining certification gates or change any gate configuration.
+
+**PR #61 compatible dependency update (2026-09-30, planned before pins):**
+preserve Dependabot head `6155ada0` and integrate its SDK 1.5.0, jsdom 30.1.1
+and Prettier 3.9.9 updates in an isolated worktree on main `32709441`.
+Keep TypeScript 6.0.3: the rechecked `typescript-eslint@8.70.1` peer range is
+`>=4.8.4 <6.1.0`, so the grouped TypeScript 7.0.2 update is incompatible:
+`.github/dependabot.yml` ignores TypeScript major updates (an entry to remove
+when typescript-eslint admits 7) and `test/unit/manifest.test.ts` holds it.
+SDK 1.5.0 accepts the pinned zod 4.6.5 and adds optional notice schemas;
+the existing ACP v1 connection implementation is unchanged. This change
+does not emit, advertise or implement those new notices or the v2 alpha
+protocol. No new wire shape is inferred from this upgrade. jsdom keeps
+its existing Node `^22.22.2 || ^24.15.0 || >=26.0.0` development floor;
+Prettier requires Node >=14. Inspect the exact resulting lock delta and
+audit before testing. Acceptance remains open until all five types,
+ACP/runtime and webview tests, formatting, independent review, exact-tree
+full quality on all four local environments and hosted CI pass. The
+primary 0.10 release retains rig priority. `docs/certification/pr61-dependencies.md`
+records primary release sources and actual evidence; no paid or live model
+call is authorized for this dependency work.
+
 **PR #60 compatibility repair (2026-09-30; proven on the floor, release remains first).**
 The owner explicitly included the Dependabot branches in the merge goal.
 Prepare the exact `html-encoding-sniffer` 7.0.0 delta from original bot head
@@ -11047,6 +12926,17 @@ remain available.
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+**REL signing decisions (2026-10-02).** The extension relies on the VS Code
+Marketplace's signing of published extensions and does not self-sign the VSIX:
+no new signing credentials or alternate package bytes. GitHub/Open VSX assets
+are verified with checksums and build attestations. Version tags remain unsigned
+because no maintainer signing identity/rotation process is configured; manifest
+version and `main` ancestry checks remain mandatory, and signed provenance binds
+the distributed packages to the workflow commit. These are not signed-tag
+verification. M80's prepared `v0` alias is intentionally unsigned and mutable,
+updated only after every channel published, never rolled back by an older rerun.
+No tag is created or moved by this implementation lane.
+
 M72's `src/host/checkpoints/checkpointStoreBundle.ts` uses the type predicate
 `isCheckpointStoreBundle`: the required module is unknown; both exported
 functions must exist. Their parameter/result types cannot be checked at
@@ -11080,6 +12970,10 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | -------------------------------------    | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/verifyEditor.test.ts`         | `as unknown as` on five `vscode` stubs                                                                  | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
 | `src/host/git/gitExtension.ts`           | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
+
+| File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
+| -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
 
 ## 9. Security assumptions and accepted residual risk
 

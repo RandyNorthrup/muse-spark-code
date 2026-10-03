@@ -57,6 +57,7 @@ import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import { parseLoopPrompt } from '../../src/core/backends/modelapi/schedules'
 import { type Usage, usageSchema } from '../../src/core/backends/modelapi/schemas'
 import { parseSse } from '../../src/core/backends/modelapi/sse'
+import { personalAgentsRoot } from '../../src/core/context/customAgents'
 import { personalSkillsRoot } from '../../src/core/context/skills'
 import { diagnosticsTool } from '../../src/core/diagnostics'
 import { readImageInfo } from '../../src/core/imageDimensions'
@@ -737,7 +738,12 @@ async function openRig(options: RigOptions): Promise<Rig> {
       contextIo: fileContextIo,
       memory,
       personalSkillsRoot: personalSkillsRoot(config),
+      personalAgentsRoot: personalAgentsRoot(config),
       isWorkspaceTrusted: isTrusted,
+      // The drill runs on the contributor tier throughout, training allowed
+      // on its throwaway content (above): the yes is the run itself.
+      isConfidentialWorkspace: () => false,
+      confirmContributorModel: () => Promise.resolve(true),
       hookSettingsPath: settingsPath,
       isHooksEnabled: () => options.hasHooks === true,
       store: createFileSessionStore({
