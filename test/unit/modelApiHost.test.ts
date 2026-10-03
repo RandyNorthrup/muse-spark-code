@@ -83,6 +83,7 @@ import type {
   BrowserCheckResult,
 } from '../../src/core/browser/browserRun'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { watchSessionTurns } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
 
@@ -361,25 +362,7 @@ async function startSession(
     approvalMode,
     ...(isSideChat && { sideChat: true }),
   })) as ModelApiSession
-  return { session, ...watchTurns(session) }
-}
-
-/** A session's events, and a wait for its next turn's end. */
-function watchTurns(session: AgentSession): {
-  events: AgentEvent[]
-  turnDone: () => Promise<void>
-} {
-  const events: AgentEvent[] = []
-  let done = Promise.withResolvers<undefined>()
-  session.onEvent((event) => {
-    events.push(event)
-    if (event.type !== 'turnCompleted') {
-      return
-    }
-    done.resolve(undefined)
-    done = Promise.withResolvers<undefined>()
-  })
-  return { events, turnDone: () => done.promise }
+  return { session, ...watchSessionTurns(session) }
 }
 
 /** Waits for the n-th approval request (0-based) and returns it. */
@@ -1139,7 +1122,7 @@ describe('ModelApiHost: catalogue and sessions', () => {
       kind: 'userMessage',
       attachments: [{ type: 'file', name: 'report.pdf', mediaType: 'application/pdf' }],
     })
-    const { turnDone: sideTurnDone } = watchTurns(side.session)
+    const { turnDone: sideTurnDone } = watchSessionTurns(side.session)
     t.api.script({ text: 'The side answer' })
     await side.session.sendTurn([{ type: 'text', text: 'One more question' }])
     await sideTurnDone()
@@ -9024,7 +9007,7 @@ async function forkInput(
   t: ReturnType<typeof setup>,
   session: AgentSession,
 ): Promise<readonly unknown[]> {
-  const { turnDone } = watchTurns(session)
+  const { turnDone } = watchSessionTurns(session)
   t.api.script({ text: 'It was ready.' })
   await session.sendTurn([{ type: 'text', text: 'what happened?' }])
   await turnDone()
@@ -9240,7 +9223,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     expect(resumed.history.items.find((item) => item.itemId === r.itemId)?.status).toBe(
       'interrupted',
     )
-    const { turnDone } = watchTurns(resumed.session)
+    const { turnDone } = watchSessionTurns(resumed.session)
     next.api.script({ text: 'I will start it again.' })
     await resumed.session.sendTurn([{ type: 'text', text: 'is the server up?' }])
     await turnDone()
@@ -9255,7 +9238,7 @@ describe('ModelApiSession: background shell commands (M46)', () => {
     await r.turnDone()
     const fork = await r.t.host.forkSession(r.session.sessionId, 'muse-spark-1.3')
     expect(fork.history.items.find((item) => item.itemId === r.itemId)?.status).toBe('interrupted')
-    const { turnDone } = watchTurns(fork.session)
+    const { turnDone } = watchSessionTurns(fork.session)
     r.t.api.script({ text: 'I will restart it.' })
     await fork.session.sendTurn([{ type: 'text', text: 'is the server running?' }])
     await turnDone()
@@ -10402,7 +10385,7 @@ describe('ModelApiHost: session import (M84, PLAN.md D49)', () => {
   it('hands the model the imported turns as user-role data before the new message', async () => {
     const t = setup({ newId: () => 'imported-1' })
     const loaded = await t.host.importSession(await exportDoc(), OPTIONS)
-    const { turnDone } = watchTurns(loaded.session)
+    const { turnDone } = watchSessionTurns(loaded.session)
     t.api.script({ text: 'I will check first.' })
     await loaded.session.sendTurn([{ type: 'text', text: 'Carry on' }])
     await turnDone()
@@ -10899,7 +10882,7 @@ describe('web fetch on the Model API backend (M69)', () => {
     const { session, turnDone } = await startSession(t)
     await answerFirst(t, session, turnDone)
     const side = await openSideFork(t, session)
-    const sideTurns = watchTurns(side.session)
+    const sideTurns = watchSessionTurns(side.session)
     t.api.script({ text: 'side reply' })
     await side.session.sendTurn([{ type: 'text', text: 'side question' }])
     await sideTurns.turnDone()

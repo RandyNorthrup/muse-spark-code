@@ -29,6 +29,7 @@ describe('readSettings', () => {
         sandboxNetwork: 'restricted',
         modelApiPromptCacheRetention: '24h',
         modelApiHooks: true,
+        modelApiObservationPacking: true,
       }),
       new FakeLogOutputChannel(),
     )
@@ -43,6 +44,9 @@ describe('readSettings', () => {
     expect(settings.shellSandbox).toBe('off')
     expect(settings.backend).toBe('modelApi')
     expect(settings.modelApiHooks).toBe(true)
+    // M73: observation packing, off by default.
+    expect(settings.modelApiObservationPacking).toBe(true)
+    expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(false)
   })
 
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {

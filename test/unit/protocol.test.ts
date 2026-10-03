@@ -71,6 +71,10 @@ describe('parseWebviewToHostMessage', () => {
     ['savePlan', { type: 'savePlan', sourceSessionId: 's1', itemId: 'r1' }],
     ['implementPlan', { type: 'implementPlan', sourceSessionId: 's1', itemId: 'r1' }],
     ['showPlans', { type: 'showPlans' }],
+    ['requestHandoff', { type: 'requestHandoff', requestId: 'h1', goal: 'Ship it' }],
+    ['requestHandoff without a goal', { type: 'requestHandoff', requestId: 'h1' }],
+    ['confirmHandoff', { type: 'confirmHandoff', requestId: 'h1', brief: 'Goal: x.' }],
+    ['cancelHandoff', { type: 'cancelHandoff', requestId: 'h1' }],
   ])('accepts %s', (_label, message) => {
     expect(parseWebviewToHostMessage(message)).toEqual({ ok: true, message })
   })
@@ -135,6 +139,9 @@ describe('parseWebviewToHostMessage', () => {
     ['plan save without its reply', { type: 'savePlan', sourceSessionId: 's1' }],
     ['plan save with an empty reply id', { type: 'savePlan', sourceSessionId: 's1', itemId: '' }],
     ['implement without its session', { type: 'implementPlan', itemId: 'r1' }],
+    ['handoff without a request id', { type: 'requestHandoff', goal: 'Ship it' }],
+    ['handoff confirm without the brief', { type: 'confirmHandoff', requestId: 'h1' }],
+    ['handoff cancel without a request id', { type: 'cancelHandoff' }],
   ])('rejects %s', (_label, input) => {
     const result = parseWebviewToHostMessage(input)
     expect(result.ok).toBe(false)
@@ -197,6 +204,21 @@ describe('parseHostToWebviewMessage', () => {
     ],
     ['sendFailed', { type: 'sendFailed', localId: 'l', reason: 'no' }],
     ['goalCommandResult', { type: 'goalCommandResult', requestId: 'g1', accepted: false }],
+    [
+      'handoffReady',
+      {
+        type: 'handoffReady',
+        requestId: 'h1',
+        brief: 'Goal: x.',
+        goal: 'Ship it',
+        todos: ['Ship it'],
+      },
+    ],
+    [
+      'handoffReady without a goal',
+      { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.', todos: [] },
+    ],
+    ['handoffCommandResult', { type: 'handoffCommandResult', requestId: 'h1', accepted: true }],
     ['agentEvent', { type: 'agentEvent', event: { type: 'turnStarted', turnId: 't' } }],
     [
       'promoted steer event',
@@ -288,6 +310,12 @@ describe('parseHostToWebviewMessage', () => {
       'briefSubmitted without its local id',
       { type: 'briefSubmitted', localId: '', text: 'x', attachments: [] },
     ],
+    ['handoff ready without the brief', { type: 'handoffReady', requestId: 'h1', todos: [] }],
+    [
+      'handoff ready without its open items',
+      { type: 'handoffReady', requestId: 'h1', brief: 'Goal: x.' },
+    ],
+    ['handoff result without acceptance', { type: 'handoffCommandResult', requestId: 'h1' }],
   ])('rejects %s', (_label, input) => {
     expect(parseHostToWebviewMessage(input).ok).toBe(false)
   })

@@ -157,7 +157,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `rimraf`                                                                                             | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `axe-core`                                                                                           | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `parse5`                                                                                             | 8.0.1                             | M69 (D49): web fetch parses a page with the HTML standard's own parsing algorithm (the implementation jsdom uses), after four review rounds found a hand-written tokenizer short of it. MIT; one dependency, `entities` ^8 (BSD-2-Clause, 8.1.0 locked, formerly our direct dependency); no peers; published 2026-04-19; already in the lockfile through jsdom and @vscode/vsce; `npm audit` clean. Quadratic on hostile nesting (40,000 nested lists in 73 s), so it runs only in `dist/pageWorker.js`, a worker per page (at most two at once) stopped at 10 s or 512 MiB (D6). `entities` 8 says Node ≥ 20.19 for `require(esm)`; bundled, the worker ran on Node 20.18.3. |
-| `html-encoding-sniffer`                                                                              | 6.0.0                             | M69: the HTML standard's encoding sniffing (byte order mark, the Content-Type charset, the 1,024-byte `<meta>` prescan) for web fetch's HTML, as jsdom uses it. MIT; one dependency, `@exodus/bytes` ^1.6 (MIT; 1.15.2 locked through jsdom, published 2026-09-21, inside the 7-day window: the lockfile pins it, as for `@muse-code/sdk`; its optional `@noble/hashes` peer is not used by the `encoding-lite` entry the sniffer imports); published 2025-12-26; `npm audit` clean. Says Node ≥ 20.19 (ESM); bundled into `dist/pageWorker.js` only and run on Node 20.18.3. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                                      |
+| `html-encoding-sniffer`                                                                              | 7.0.0                             | PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                     |
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
 
@@ -3271,6 +3271,15 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   is silently lost. Should every window publish its unsaved paths in its
   presence file, so a restore refuses them too? Default: unchanged, recorded as
   a limit (Codex, `a424e526`).
+- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
+  and this handling for M73's run: the test key decrypted from its DPAPI
+  file in memory and piped to `auth set`'s standard input only, the run, and
+  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
+  key source is unchanged.
+- **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
+  evaluation fails any task on which a paid use happens. Should the
+  evaluation gain a priced, counted paid arm for it, or should the reducer be
+  judged by its own D48 consent without an M75 run? Default: not built.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -3293,6 +3302,39 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### Q-M74 — Remaining automatic work (2026-09-29)
+
+The handoff repair does not complete automatic compaction, memory flush or
+the hidden todo follow-up. The lead must choose the billable-call/consent
+contract before implementing them. Until then they stay unimplemented and
+off; no background or hidden paid call is authorised by a setting draft.
+
+Minimal completion design, pending that choice:
+
+1. Reuse the existing Model API tool-loop boundary after a completed todo
+   transition and the existing context/usage and compaction primitives.
+   Decide once at a settled boundary, using the supported model's existing
+   cache prices and window limit; do not create a scheduler or a second
+   compaction engine. No autonomous work after the user's turn ends.
+2. Snapshot the exact open todos, goal and untrusted-content provenance.
+   Preserve these separately from the generated summary, then restore the
+   exact list before another request. A hidden model restatement must have
+   an explicit cost/consent contract, run through the same M82 account/key,
+   cap, Stop and final-send checks, and may not replace the authoritative
+   list with a lossy model guess.
+3. A memory flush uses the existing MemoryStore and permission engine:
+   Manual asks, Plan and Restricted Mode refuse, and notes derived from
+   tool/fetched/imported content retain an untrusted label. If generating
+   those notes adds a model call beyond the user's turn, use the existing
+   paid gate and paid-use popup with its own explicit feature/price and
+   usage row; do not reuse another paid feature's grant or hide the cost.
+4. Build one M75 arm on the current verified harness. Freeze long-context
+   accept/held-out tasks before running it, exercise todo preservation,
+   provenance, memory refusals and Stop, and require actual compaction
+   evidence as well as both 0.75 capability floors. Only a passing current
+   pair permits an off-by-default production setting. Record paid attempts,
+   known/unknown usage, source hashes and the incomplete inventory honestly.
 
 ## 4. Architecture
 
@@ -8679,6 +8721,32 @@ evaluation is authorized by these repairs.
 
 ### M73 — Observation packing (D49)
 
+- **First review (RV73) repaired, 2026-10-02.** Four findings, each with a
+  regression and red drills (`docs/certification/m73.md`):
+  - A recalled page is framed as untrusted tool data (D49 "Untrusted
+    content"): it names the tool its call named, carries the notice, and
+    sits between fresh random markers outside the unchanged slice, so an
+    interior page of a `web_fetch` result keeps its boundary.
+  - The ledger survives resume: the stored session keeps an optional
+    `packedTokensAvoided` (a non-negative whole number; older files resume
+    at zero), restored into the store while the outputs and their send
+    counts start fresh.
+  - The live run records its packing acceptance in the report
+    (`packingEngagement`, verdict `fail` when a long-output task never
+    packed) before it prints or writes it.
+  - The recall row's heading and refusals are `UI_TEXT` in all fifteen
+    tables, counts through `Intl`; the recalled text is shown as it was
+    and the model's text stays `MODEL_TEXT`.
+- **Main integration, 2026-10-02 (M73m).** Merge `origin/main` at
+  `44b76f24` into `feature/m73-packing`, preserving final M75 behavior and
+  main's changelog entries. Kubuntu passed the owning M73/M75 suites
+  (14 files, 627 tests), all five type projects and the code-intelligence
+  fixture, scoped lint, formatting, dead code, duplication, localization,
+  host API, cycles and production build. The build needed a private copy
+  of the rig's linked dependencies for its path-based bundle-split check;
+  no source or gate changed. Results are in `docs/certification/m73.md`;
+  full quality and the live paired evaluation remain the lead's gates.
+  No live or paid run is authorized.
 - **Goal.** Long sessions stop resending large old tool outputs.
 - **Scope.**
   - NVIDIA SoL-Pi's ObservationPack design, implemented for the Model API:
@@ -8701,8 +8769,103 @@ evaluation is authorized by these repairs.
   happens once per output; the ledger matches the tokens left out.
 - **Tests.** The fake Model API with long outputs, and its M75 run.
 - **Size.** S.
+- **Status 2026-10-02: shipped off by default after its M75 run passed.**
+  Built 2026-10-01 on
+  `feature/m73-packing`, from M75's merged head. What is in it:
+  - `src/core/backends/modelapi/observationPack.ts`: one session's store.
+    An output over 8,000 characters rides whole for 2 requests, then as a
+    placeholder (its call id, characters, lines, a token estimate, its
+    first 4 and last 4 lines, bounded under the threshold); the swap is
+    sticky, so the placeholder is the same text every request. A request
+    counts once it is really sent, at the client's last step before
+    `fetch` (`ResponseAttemptGuard.onRequestStarted`), and an HTTP retry of
+    the same request counts once. `recall_output(id, offset)` pages the
+    original back 4,000 characters at a time, never splitting a character;
+    the replay keeps every original (placeholders never commit), so a
+    restored session packs again from the whole outputs; a compaction
+    forgets the store's originals and keeps the ledger.
+  - The host builds the store only while its `observationPacking` dep is
+    on and never for a subagent, which is also refused `recall_output`
+    (a read-class tool: no card). The dep is read when a session is
+    created or resumed: `museSpark.modelApiObservationPacking` (since its
+    run passed, below) or the M75 arm.
+  - The ledger rides on `tokenUsage` (`packedTokensAvoided`) to Account &
+    usage's Tokens section, "Packing saved (estimate)", shown only while a
+    session packs; the estimate is 4 characters a token, net of what the
+    placeholder still costs.
+  - The M75 side: the `packing` arm (`src/core/eval/mechanisms.ts`); two
+    long-output tasks in the task set (`accept-long-middle-value`,
+    `heldout-long-middle-rule`: a 512-record evidence file whose middle
+    record is needed after two more requests), so the set is twelve tasks,
+    seven accept and five held-out, under the same 0.75 floors (6 of 7, 4
+    of 5); results record the ledger and successful recalls; the live run
+    passes only if packing engaged on every long-output task it ran
+    (`unengagedLongOutputTasks`).
+  - **Not built: the Evidence-Preserving Reducer.** The evaluation refuses
+    every paid use (D48), so it cannot measure a paid reducer, and the gate
+    forbids shipping what is not measured (§3).
+  - **The M75 run passed (2026-10-02, after the RV73 repairs):** both
+    arms 7/7 accept and 5/5 held-out against the 0.75 floors, packing
+    engaged on both long-output tasks, 111 model calls on the contributor
+    model for $0.0156 (`docs/certification/m73-run.md`). On the long-output
+    tasks packing sent 39% fewer input tokens at about the same cost: what
+    it leaves out was mostly read from the cache. So, as the gate says,
+    the setting was added, off by default and machine-scoped:
+    `museSpark.modelApiObservationPacking` (VS Code only; the ACP agent
+    does not pack).
+  - The WIP of `integrate/m73-m75-join-20260930` (staged tree `d52b6a9a`)
+    is archived as `_archive-2026-10-01/m73-m75-join-wip`; what was kept
+    and dropped is in `docs/certification/m73.md`.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
+
+**Main merge, 2026-10-02 (M74m).** Merge `origin/main` at `2a03a79b`
+(M84, M75 and 0.10.1) into the handoff branch at `aa37274e` (`91329eb8`),
+then include PR #74's documentation audit at `2067d2f9`. Keep both
+features and the released changelog unchanged. Share files join the
+handoff's one-modal rule: a waiting or edited brief stays in state while
+the share is open, then opens with focus when it closes. Both arrival
+orders have regression coverage. Current merge evidence is recorded in
+`docs/certification/m74.md`; the full four-machine gate remains the lead's.
+
+**Status, 2026-10-02 (this tree, `feature/m74-handoff`).** Manual
+`/handoff` is built: ported onto the release candidate (`41ed14bf` on
+`8e9d3a1e`), fixed for the ten findings of the RV74 review (one commit
+per finding), for RV74c's (a refusal at the sign-in guard answered, one
+modal at a time, the withdrawn-distillation guard tested) and for
+RV71x's (Cancel and Start while admission is held: the handoff as one
+owned operation), and merged with `main` at `3614409e`, its shared-table
+fixes kept as `main` has them (certification
+`docs/certification/m74.md`). Automatic compaction, the hidden todo
+follow-up and the memory flush are not built (see "Not built" below), so
+M74 is not complete. On this tree the M74 test files (nine files, 791
+tests with the M45 goal fixes below) pass on the kubuntu and Mac mini
+rigs; every M74 guard was broken on purpose, seen red and restored byte
+for byte (sha256), or is recorded as backed by another check (five are;
+O17, the one that had neither, now has its test); and the typechecks (host, unit,
+webview), `eslint` and Prettier on the changed files, `check:l10n`,
+`check:host-api`, `deadcode` and `jscpd` pass on kubuntu, and so did
+the `handoff`, `usage` and `agents` accessibility scenarios at RV74c (the
+webview has not changed since). The handoff had pushed
+`dist/extension.js` and `dist/modelApi.js` over their caps (601.3 and
+401.3 KiB); the lead's fix, the shared English table
+(`build/shared-ui-text`, merged at `f5f9006f`), brings every bundle
+within its unchanged cap (on this tree, kubuntu: `dist/extension.js`
+531.0 of 600 KiB, `dist/modelApi.js` 328.0 of 400, `dist/uiText.js` 74.3
+of 100, `dist/webview/main.js` 782.7 of 900). Where `node_modules` is a
+junction (the Windows host) or a link to another checkout (the kubuntu
+rig's test worktree), the build's split check reports the page worker's
+parser packages missing: esbuild names them by the link's target, outside
+`node_modules/`; they are bundled (the certification has why), and the
+checks the chain then skips (`check-host-globals`,
+`third-party-notices`) pass run by hand. After the shared-table merge the
+M74 test files and all 24 checkpoint test files passed on the kubuntu and
+Mac mini rigs (the twelve M72 checkpoint failures and the
+`checkpointModelApiStop.test.ts` hang seen before it, identical on
+`8e9d3a1e`, were gone); the checkpoint files were not re-run for RV74c,
+which changes no checkpoint code. Not run here: `harness:shots`, the
+integration tests, a production build with a real `node_modules` and
+`npm run quality` (the lead's four-machine gate).
 
 - **Goal.** Hours-long tasks keep their thread without a manual
   `/compact`.
@@ -8725,6 +8888,106 @@ evaluation is authorized by these repairs.
   label; `/handoff` shows the brief before the new conversation starts.
 - **Tests.** The fake Model API across a compaction, and its M75 run.
 - **Size.** M.
+- **Built: `/handoff` only** (certification `docs/certification/m74.md`).
+- **Not built: automatic compaction, the hidden todo follow-up and the
+  memory flush** (RV74 finding 2). No code, setting or path for any of
+  them exists. They are blocked, not put off: the Gate above lets
+  compaction and the follow-up land only with a passing M75 run, and the
+  flush runs before a compaction. M75 is now built with its baseline, but
+  no paired M74 compaction run has passed; and Q-M74 (§3) is open: the
+  owner has not chosen the billable-call and consent contract for a
+  model call the extension would make outside the user's own turn. So
+  the Acceptance ("compaction never drops the todo list or an untrusted
+  label") and the Tests ("the fake Model API across a compaction, and its
+  M75 run") are not met, and M74 is not complete. `/handoff` ships
+  without the gate, as the Gate says.
+- **Decisions taken for `/handoff`:**
+  - One owned operation per handoff, reserved before any preparation
+    await; its session and the conversation's generation stay current
+    through preparation, and an ordinary turn that starts meanwhile
+    refuses the handoff instead of the distillation steering into it.
+    Cancel invalidates a Start until the shared brief path commits the
+    new conversation. The reviewed brief's UTF-8 size (256 KB) is checked
+    before anything is cleared or sent.
+  - `/handoff` (optionally with a goal after it) is the user's own command
+    and ships without the M75 gate: it asks the model, as the user's own
+    turn in the current conversation, for the distilled brief (goal,
+    decisions, files touched, open work, todo list), shows it in a dialog
+    before anything starts, and starts the new conversation on confirm
+    through M79's `startFromBrief` path (`ConversationBrief`, one path, no
+    duplicate) — or cancels and nothing starts.
+  - The brief is the reviewed text itself as the first message (no file
+    travels); the goal and the open items travel in the model's note, and
+    the open items (never completed or dropped ones) become the todo list
+    before the first request. The request turn's own card stays in the
+    transcript.
+  - Untrusted content stays labelled: the request makes the model mark
+    tool-output, fetched-page and imported-file content `[untrusted]` in
+    the brief, and the seeded note tells the new conversation what the
+    label means (D49).
+  - **The start mode (RV74 finding 1; the lead's decision, 2026-10-01).**
+    The model wrote the brief, so it counts as approved, and starts in the
+    starting mode as an approved plan does (`briefMode`: Manual when that
+    is Plan, never Bypass in a remote window), only when the dialog showed
+    the user all of it before Start: the whole brief, and the open items
+    it seeds, which the dialog lists under Tasks, with no character the
+    dialog does not show (`hasUnshownCharacters`: a control or format
+    character). Otherwise it is untrusted content and starts in the
+    asking mode (`untrustedBriefMode`, as a plan picked from Plans…
+    does), and the panel names the mode. A handoff from a conversation in
+    Plan mode stays in Plan (`ConversationBrief.shouldKeepPlanMode`), whatever
+    either rule says.
+  - A brief waiting in its dialog comes back to a rebuilt panel
+    (`surfaceReady` posts its `handoffReady` again, RV74 finding 3): the
+    host keeps the handoff, so without its dialog every later `/handoff`
+    would answer "already running".
+  - The composer keeps `/handoff …` until the host answers
+    (`handoffCommandResult`, RV74 finding 4), as for `/goal`: a refused
+    handoff keeps its typed goal; an accepted one clears the draft unless
+    it was edited meanwhile. Every refusal answers, the sign-in guard's
+    too (RV74c N1): a request or a Start refused while the backend's
+    admission is held (a key activation, with the panel still reading
+    signed in) gets `accepted: false`, so the command and Start work
+    again once admission returns. The same guard now answers M45's
+    `goalCommand` too (released behaviour, the same defect; the lead's
+    decision, 2026-10-02: its own commit and `[Unreleased] ### Fixed`
+    entry; certification `docs/certification/m45.md`, drill G55), and
+    so does every exit of the goal command before the host has it
+    (admission closing, the account ending or a restart during its host
+    lookup; drills G56–G58). One the backend already had when a key
+    activation or a restart lands is answered refused too, with
+    `goalOutcomeUnknown` (it may or may not have taken effect), and the
+    goal is read back from the backend before the conversation's next
+    action (drills G59–G61).
+  - The handoff is one owned operation (RV71x N5, N6; the lead's rule,
+    2026-10-02). Cancel is never auth-gated: releasing an operation the
+    panel owns needs no admission. After every await of the request, the
+    brief read and Start, one check (`isStillCurrent`: generation,
+    session, ownership and admission) runs, and nothing is cleared or
+    left before it passes; Start's lives in the shared `startFromBrief`,
+    so M79's Implement gets it too. A refusal for admission leaves the
+    operation waiting with its dialog intact: Start works again once
+    admission returns, and a brief whose read admission put off is read
+    on the next `/handoff` or a rebuilt panel.
+  - One modal at a time (RV74c N2): a brief that arrives while Account &
+    usage, the Agent map or the install confirmation is open waits,
+    unmounted, until that dialog closes, then opens with the focus, so
+    its Start is never reachable under a dialog that hides it. Closing
+    the handoff dialog (Cancel, or the new conversation clearing it)
+    hands the focus back to the prompt, as the other dialogs do.
+  - Model API backend only: on Muse Code the command says it is
+    unavailable there. Side chats are refused; one handoff runs at a time;
+    a `/handoff` while a reply runs is refused ("Wait for the reply to
+    finish, or stop it, first."; nothing waits or queues, RV74 finding 8);
+    an oversized (over 256 KB) or empty brief is refused with the reason.
+    No new setting: nothing automatic runs.
+  - A built-in `/handoff` takes the name from a skill of the user's or the
+    project's own called `handoff` (RV74 finding 10; no skill or command
+    Muse Code 1.4.0 ships is named so). The lead's rule, 2026-10-01:
+    built-in command names win over a user skill of the same name, as
+    `/goal` does; no code change.
+  - The port's history (the four conflicts, the merge fixes) is in the
+    certification. No escape hatches (§8: nothing to record).
 
 ### M76 — Custom agents (D49)
 
@@ -9864,6 +10127,35 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**PR #60 compatibility repair (2026-09-30; proven on the floor, release remains first).**
+The owner explicitly included the Dependabot branches in the merge goal.
+Prepare the exact `html-encoding-sniffer` 7.0.0 delta from original bot head
+`f829f28f8ef81265722a9c862f8150e134fa3423` on main `32709441`; root retains
+commit, push and normal-merge ownership. Preserve the original bot head.
+Reuse `bomEncodingOf` and the sniffer's header-label normalization in the canonical HTML charset adapter:
+only a BOM or valid transport header may make HTML decoding certain. The v7
+XML-declaration/signature paths must not freeze an HTML page before its meta
+declaration can take effect. Keep the bounded prescan and existing later-meta
+reparse; write real byte-to-Markdown golden controls before accepting the delta.
+
+Acceptance PR60-A covers BOM/header priority, invalid labels, XML prologues,
+HTML meta priority and later tentative reparse. PR60-B covers UTF-16 signatures
+and malformed/truncated meta through the real sniffer and converter. PR60-C
+requires original-bot/source preservation, fresh peer/audit metadata, scoped
+types/lint/format and assertion red/restored proofs, then the actual packaged
+page worker on Node 20.18.3. Reuse existing worker-floor transport; no model,
+paid call, dependency engine waiver, threshold change or full quality in this
+source lane. Kubuntu bounded work yields to final M72/release gates. Merged
+with main 2a30b1a0 (0.10.0, #66, #67) on 2026-10-02; the full quality gate
+passed on the Mac mini at that head, and hosted CI is the merge gate. Result: sniffer 7 declares Node
+22.13, but bundled into `dist/pageWorker.js` it loads and converts in VS Code
+1.99.0's Node 20.18.3 (the floor), and the integration run's `minimum` label
+now carries the goldens through the shipped bundle. The proof also found one
+defect older than this PR: Node 20.18's `TextDecoder` reads windows-1252 as
+ISO-8859-1 (the euro sign and curly quotes come out as controls), so
+`textDecoding.ts` decodes that table itself on every Node. Receipts, red
+drills and sizes are in `docs/certification/pr60-sniffer7.md`.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,
