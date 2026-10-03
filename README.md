@@ -1,20 +1,25 @@
 <p align="center">
-  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent inside VS Code" width="100%">
+  <img src="media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent in your editor" width="100%">
 </p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://badgen.net/vs-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=3b6cf6"></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
+  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
+  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm: the ACP agent" src="https://badgen.net/npm/v/muse-spark-code-acp?label=npm%20(ACP%20agent)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="VS Code 1.99 or newer" src="https://img.shields.io/badge/VS%20Code-%E2%89%A5%201.99-2b7de9">
+  <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
   <a href="#languages"><img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
   <a href="https://www.paypal.com/donate/?hosted_button_id=Q9VC7B42R7K82"><img alt="Donate via PayPal" src="https://img.shields.io/badge/donate-PayPal-0070ba"></a>
 </p>
 
-**Muse Spark Code** puts Meta's Muse Spark model to work inside VS Code as a
-coding agent. A chat panel streams answers, reads and edits your files with
+**Muse Spark Code** puts Meta's Muse Spark model to work in your editor as a
+coding agent: as an extension in VS Code, Cursor, Windsurf, VSCodium and other
+VS Code-based editors, and through its ACP agent in Zed, JetBrains IDEs,
+Neovim, Emacs and more ([install](#install-in-your-editor)). A chat panel streams answers, reads and edits your files with
 reviewable diffs, runs commands behind permission modes, and delegates to
 subagents you can watch and steer. It also remembers past conversations and
 takes dictation from your microphone. It runs on your Muse subscription
@@ -297,8 +302,86 @@ agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release.
 [docs/acp.md](docs/acp.md) covers installing it, where it keeps a Model API
 key (the operating system's credential store), and the editor's settings.
-VS Code forks built on VS Code 1.99 or later can install the extension
-from a `.vsix`, and from Open VSX once a release is published there.
+VS Code forks built on VS Code 1.99 or later install the extension itself,
+from Open VSX or a `.vsix`.
+
+### Install in your editor
+
+Get it from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
+
+| Editor                                                   | How                                                                                                                                                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.10.1.vsix` |
+| **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
+| **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
+| **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
+| **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+**The ACP agent** needs Node.js 22 or later. Install it from the release:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.10.1/muse-spark-code-acp-0.10.1.tgz
+muse-spark-code-acp --version
+```
+
+**Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
+Muse Spark under External Agents in the Agent Panel's new-thread menu.
+
+```json
+{
+  "agent_servers": {
+    "Muse Spark": {
+      "type": "custom",
+      "command": "muse-spark-code-acp",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+**JetBrains IDEs**: in the AI Chat tool window choose **Add Custom Agent**,
+which opens `~/.jetbrains/acp.json`, and add the agent under
+`agent_servers` ([JetBrains' ACP guide](https://www.jetbrains.com/help/ai-assistant/acp.html)).
+This setup follows JetBrains' documentation and has not been tested here yet.
+
+```json
+{
+  "default_mcp_settings": {},
+  "agent_servers": {
+    "Muse Spark": {
+      "command": "muse-spark-code-acp",
+      "args": []
+    }
+  }
+}
+```
+
+Add `"--backend", "modelApi"` to `args` in either editor to use the Model
+API backend instead of Muse Code.
+
+**On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
+which some editors cannot start. If the editor says it cannot find or start
+the agent, use `node` as the command and the agent's script as the first
+argument, before any others. `<npm root -g>` is the folder `npm root -g`
+prints, usually `%APPDATA%\npm\node_modules`. This form works on every
+platform ([docs/acp.md](docs/acp.md#install)).
+
+```json
+{
+  "command": "node",
+  "args": [
+    "C:\\Users\\<you>\\AppData\\Roaming\\npm\\node_modules\\muse-spark-code-acp\\dist\\acp.js"
+  ]
+}
+```
+
 [docs/ide-compatibility/hosts.md](docs/ide-compatibility/hosts.md) records
 which editors have been tried: so far VSCodium, code-server, Eclipse
 Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
