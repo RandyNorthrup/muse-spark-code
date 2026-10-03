@@ -43,6 +43,7 @@ import type {
 } from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AgentMap } from './components/AgentMap'
+import { ApprovalDock } from './components/ApprovalDock'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
@@ -76,6 +77,7 @@ import {
   type UiState,
   userShellCommandOf,
   visibleEditorContext,
+  waitingApprovals,
   workflowsOf,
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
@@ -1423,6 +1425,8 @@ export function App({
     [canBypass, state.permissionMode, state.auth.backend],
   )
   const agents = agentsOf(state)
+  // The approvals waiting, docked above the composer (D26).
+  const waiting = useMemo(() => waitingApprovals(state.transcript), [state.transcript])
   const backgroundTasks = backgroundTasksOf(state)
   // A workflow's agents are agents too (M47): the header's pill counts them.
   const workflows = workflowsOf(state)
@@ -1550,7 +1554,6 @@ export function App({
           onInsert={state.isImported ? undefined : onInsert}
           onReadOutput={onReadOutput}
           onOpenOutput={onOpenOutput}
-          onDecide={onDecide}
           onAnswer={onAnswer}
           onCancelQuestion={onCancelQuestion}
           onClarifyQuestion={onClarifyQuestion}
@@ -1841,6 +1844,9 @@ export function App({
         onEnable={onScheduleEnable}
       />
       <TodoPanel items={state.todos} isInert={isModalOpen} />
+      {isBodyGated ? null : (
+        <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
+      )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
         <Composer

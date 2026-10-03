@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { OUTPUT_PREVIEW_CHARS } from '../../src/shared/constants'
+import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { segment, Transcript } from '../../src/webview/components/Transcript'
@@ -598,10 +598,6 @@ function stagedRow(sourceIndex: number) {
   return tool({ id: 'sh', tool: 'powershell', status: 'inProgress', approval: stage(sourceIndex) })
 }
 
-function box() {
-  return screen.getByPlaceholderText(/what to do instead/)
-}
-
 describe('Transcript rows (M25)', () => {
   it('marks a row its turn cut off as interrupted, without an alert', () => {
     renderTranscript([tool({ id: 'sh', tool: 'powershell', status: 'interrupted' })])
@@ -708,13 +704,11 @@ describe('Transcript rows (M25)', () => {
     expect(offsets).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
   })
 
-  it('starts the feedback box empty on every stage of a multi-command approval', () => {
-    const view = mountTranscript([stagedRow(0)])
-    fireEvent.change(box(), { target: { value: 'not the first one' } })
-    view.rerender({ entries: [stagedRow(0)] })
-    expect(box()).toHaveValue('not the first one')
-    view.rerender({ entries: [stagedRow(1)] })
-    expect(box()).toHaveValue('')
+  it('keeps a compact record of a waiting approval; the card is in the dock (D26)', () => {
+    renderTranscript([stagedRow(0)])
+    expect(screen.getByText(UI_TEXT.approvalDockedNote)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /^Muse wants to / })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
   it('locks a question card once it was answered or cancelled', () => {

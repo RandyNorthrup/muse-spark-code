@@ -22,7 +22,6 @@ import {
 import type { NoticeAction } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
-import type { ApprovalDecisionInput } from './ApprovalCard'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
@@ -55,7 +54,6 @@ export interface TranscriptProps {
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   /** A tool output as an editor tab (M15). */
   readonly onOpenOutput: ToolRowProps['onOpenOutput']
-  readonly onDecide: (decision: ApprovalDecisionInput) => void
   readonly onAnswer: (userInputId: string, answers: readonly QuestionAnswer[]) => void
   /** The question card's Cancel (M16), and its Explain instead (M46). */
   readonly onCancelQuestion: (userInputId: string) => void
@@ -742,7 +740,6 @@ function TranscriptList(props: TranscriptProps) {
     onInsert,
     onReadOutput,
     onOpenOutput,
-    onDecide,
     onAnswer,
     onCancelQuestion,
     onClarifyQuestion,
@@ -797,7 +794,6 @@ function TranscriptList(props: TranscriptProps) {
         }
         onReadOutput={onReadOutput}
         onOpenOutput={onOpenOutput}
-        onDecide={onDecide}
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
         onClarifyQuestion={onClarifyQuestion}

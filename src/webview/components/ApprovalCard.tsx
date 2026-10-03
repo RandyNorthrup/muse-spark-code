@@ -1,7 +1,8 @@
-// The permission card under a gated tool call: what Muse wants to do, one
+// The permission card of a gated tool call: what Muse wants to do, one
 // button per host-offered choice (Allow once / Always allow … / Reject), and a
-// feedback box for choices that accept it. The row keys the card by stage,
-// so the feedback box starts empty on every stage of a multi-command line (M25).
+// feedback box for choices that accept it. It waits in the dock above the
+// composer (ApprovalDock), keyed by stage, so the feedback box starts empty on
+// every stage of a multi-command line (M25).
 // A paid call never gets a card: the host's paid-use popup asks (M58).
 
 import { useEffect, useRef, useState } from 'react'
@@ -105,6 +106,9 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
       role="group"
       aria-label={fill(title, { action: subject })}
       aria-busy={isLocked}
+      // The dock moves focus here when the card arrives (not onto a choice,
+      // which a stray Enter would then make).
+      tabIndex={-1}
     >
       <div className="approval-title">
         {templateParts(title).map((part, index) =>

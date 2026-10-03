@@ -2748,6 +2748,26 @@ export function isRunningTask(entry: ToolEntry): boolean {
   return entry.isBackground && entry.status === IN_PROGRESS
 }
 
+/** An approval the dock shows (D26): the card's state, and the tool it gates. */
+export interface WaitingApproval {
+  readonly entryId: string
+  readonly toolName: string
+  readonly approval: PendingApproval
+}
+
+/** The approvals waiting, oldest first: the order their rows stand in. */
+export function waitingApprovals(
+  transcript: readonly TranscriptEntry[],
+): readonly WaitingApproval[] {
+  const waiting: WaitingApproval[] = []
+  for (const entry of transcript) {
+    if (entry.kind === 'tool' && entry.approval !== undefined) {
+      waiting.push({ entryId: entry.id, toolName: entry.tool, approval: entry.approval })
+    }
+  }
+  return waiting
+}
+
 /** Whether any tool row is waiting on the user (approval or question). */
 export function hasPendingRequest(state: UiState): boolean {
   return state.transcript.some(

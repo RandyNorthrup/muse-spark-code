@@ -111,6 +111,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Approval cards are docked above the message box** while they wait,
+  as in Claude Code's panel, so scrolling never loses one.
+  - The tool's row in the conversation keeps a short "Waiting for your
+    approval" line, then shows the decision.
+  - With several waiting, the oldest is docked (the order Muse asked) with
+    "Approvals waiting: N"; each moves up as the one before is settled.
+  - Focus moves to an arriving card itself, not onto a choice. A field you
+    are typing in (one holding text, or a key in the last 1.5 s) keeps
+    focus, and the panel's live region announces the card either way.
+  - Behind a dialog the dock is inert. It scrolls on its own at 45% of the
+    panel's height and wraps a long command at 320 px.
+  - The accessibility gate checks it in the four themes in new scenarios:
+    several cards, 320 px, and a step that moved on.
 - README: an install guide for the most used editors (VS Code, Cursor,
   Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
   Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains

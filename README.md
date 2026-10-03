@@ -190,7 +190,7 @@ harness:shots`) against a scripted session, so they match the build.
     <td align="center"><img src="media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /clear, /export, /resume, /usage, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/approval.png" alt="An approval card: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject"><br><sub>An approval card with the CLI's own choices</sub></td>
+    <td align="center"><img src="media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject; its row in the conversation says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
     <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out, Explain instead and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel</sub></td>
   </tr>
   <tr>
@@ -1312,15 +1312,23 @@ the text as it is.
   shows a chip for either; × drops it.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
-  multi-step shell lines are approved one step at a time. Each step takes
-  one decision: the card locks at your first click and stays locked until
-  Muse Code answers, and a step that moved on before your choice arrived
-  shows the step Muse Code now waits on and says so on the card. Question cards
-  stack radio buttons for one answer and checkboxes for several, put
-  multiple questions on tabs, always offer **Other**, and keep **Submit**
-  greyed until every question has an answer; **Cancel** declines the prompt,
-  and **Explain instead** answers in your own words (up to 500 characters)
-  rather than choosing, so the agent reads it and decides again.
+  multi-step shell lines are approved one step at a time.
+  - **The card is docked** just above the message box while it waits, in
+    view wherever you have scrolled. Its row in the conversation says it is
+    waiting, then shows the decision.
+  - **Several approvals** are taken in the order Muse asked: the oldest is
+    docked, with a count of how many wait.
+  - **Focus** moves to an arriving card unless you are typing; it is
+    announced either way.
+  - **Each step takes one decision.** The card locks at your first click and
+    stays locked until Muse Code answers. A step that moved on before your
+    choice arrived shows the step Muse Code now waits on, and says so on the
+    card.
+- Question cards stack radio buttons for one answer and checkboxes for
+  several, put multiple questions on tabs, always offer **Other**, and keep
+  **Submit** greyed until every question has an answer; **Cancel** declines
+  the prompt, and **Explain instead** answers in your own words (up to 500
+  characters) rather than choosing, so the agent reads it and decides again.
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the

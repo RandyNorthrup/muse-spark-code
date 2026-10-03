@@ -20,6 +20,7 @@ import {
   userShellCommandOf,
   visibleEditorContext,
   referenceLabel,
+  waitingApprovals,
   workflowsOf,
 } from '../../src/webview/state/uiState'
 import { toSnapshot, wireItemSchema } from '../../src/core/backends/musecode/sessionRecords'
@@ -709,6 +710,32 @@ describe('uiReducer: agent events', () => {
       }),
     ])
     expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
+  })
+
+  it('lists the approvals waiting for the dock, oldest first, until each resolves (D26)', () => {
+    const second = { ...SHELL_APPROVAL, approvalId: 'a2', itemId: 'c2', toolName: 'write_file' }
+    const both = reduceAll([agent(SHELL_APPROVAL), agent(second)])
+    expect(
+      waitingApprovals(both.transcript).map((waiting) => [
+        waiting.entryId,
+        waiting.toolName,
+        waiting.approval.approvalId,
+      ]),
+    ).toEqual([
+      ['c1', 'powershell', 'a1'],
+      ['c2', 'write_file', 'a2'],
+    ])
+    const resolved = uiReducer(
+      both,
+      agent({
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      }),
+    )
+    expect(waitingApprovals(resolved.transcript).map((waiting) => waiting.entryId)).toEqual(['c2'])
   })
 
   it('keeps a decided stage locked when the same request is announced again (D26)', () => {

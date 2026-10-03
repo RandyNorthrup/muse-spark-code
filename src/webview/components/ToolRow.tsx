@@ -33,7 +33,6 @@ import {
   type ToolPresentation,
   writtenContent,
 } from '../toolPresentation'
-import { ApprovalCard, type ApprovalCardProps } from './ApprovalCard'
 import { ExpandChevron } from './icons'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 import { Clipped, DiffTable } from './ToolBlocks'
@@ -62,7 +61,6 @@ export interface ToolRowProps {
     text: string,
     outputRef: string | undefined,
   ) => void
-  readonly onDecide: ApprovalCardProps['onDecide']
   readonly onAnswer: QuestionCardProps['onAnswer']
   readonly onCancelQuestion: QuestionCardProps['onCancel']
   readonly onClarifyQuestion: QuestionCardProps['onClarify']
@@ -319,7 +317,6 @@ function ToolRowView({
   patchPage,
   onReadOutput,
   onOpenOutput,
-  onDecide,
   onAnswer,
   onCancelQuestion,
   onClarifyQuestion,
@@ -540,13 +537,8 @@ function ToolRowView({
         </div>
       ) : null}
       {entry.approval === undefined ? null : (
-        // Keyed by stage so feedback typed for one stage never rides on the next (M25).
-        <ApprovalCard
-          key={`${entry.approval.approvalId}:${String(entry.approval.requirementId.sourceIndex)}`}
-          approval={entry.approval}
-          toolName={entry.tool}
-          onDecide={onDecide}
-        />
+        // The card itself waits in the dock above the composer (D26).
+        <div className="tool-outcome approval-docked">{UI_TEXT.approvalDockedNote}</div>
       )}
       {entry.approvalOutcome === undefined ? null : (
         <div className="tool-outcome">

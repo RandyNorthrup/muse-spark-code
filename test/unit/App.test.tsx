@@ -854,6 +854,30 @@ describe('App approval card: one decision per stage (D26)', () => {
     ])
   })
 
+  it('docks the waiting card above the composer and leaves the decision in its row', () => {
+    renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    const dock = screen.getByRole('region', { name: UI_TEXT.approvalDockLabel })
+    // Outside the scrolled transcript, before the composer in Tab order.
+    expect(screen.getByRole('main')).not.toContainElement(dock)
+    expect(dock.compareDocumentPosition(textarea()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(dock).getByRole('group', { name: /^Muse wants to / })).toHaveFocus()
+    expect(within(screen.getByRole('main')).getByText(UI_TEXT.approvalDockedNote)).toBeVisible()
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    })
+    expect(screen.queryByRole('region', { name: UI_TEXT.approvalDockLabel })).toBeNull()
+    expect(within(screen.getByRole('main')).getByText(/Decided: approved/)).toBeInTheDocument()
+    expect(screen.queryByText(UI_TEXT.approvalDockedNote)).toBeNull()
+  })
+
   it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
