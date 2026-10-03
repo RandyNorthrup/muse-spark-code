@@ -2,8 +2,9 @@
 // Bundles the extension host entry, the Model API backend, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
-// browser check (M81, loaded on the first check), the webview, and (in dev
-// mode) the integration tests with esbuild.
+// browser check (M81, loaded on the first check) and its runtime acquisition
+// (M81 A1, loaded when a runtime is prepared or verified), the webview, and
+// (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -54,6 +55,9 @@ const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
+// The runtime's acquisition (M81 A1): the pin, the download, the ZIP reader, the store.
+const BROWSER_RUNTIME_ENTRY = 'src/host/browser/browserRuntimeEntry.ts'
+const BROWSER_RUNTIME_OUTFILE = 'dist/browserRuntime.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -165,6 +169,17 @@ const browserCheckOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const browserRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [BROWSER_RUNTIME_ENTRY],
+  outfile: BROWSER_RUNTIME_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -239,6 +254,7 @@ if (isWatch) {
     esbuild.context(checkpointStoreOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(browserCheckOptions),
+    esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
@@ -253,6 +269,7 @@ if (isWatch) {
     checkpointStore: esbuild.build(checkpointStoreOptions),
     uiText: esbuild.build(uiTextOptions),
     browserCheck: esbuild.build(browserCheckOptions),
+    browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
@@ -280,6 +297,7 @@ if (isWatch) {
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
+  reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))

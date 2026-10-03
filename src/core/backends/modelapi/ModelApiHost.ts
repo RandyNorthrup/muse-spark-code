@@ -158,11 +158,13 @@ import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
 import {
-  allowedHostsFor,
   type BrowserCheckHost,
+  browserCheckScope,
+  browserScopeKey,
   extraHostSet,
   placeBrowserCall,
 } from '../../browser/browserTool'
+import type { CheckAdmission } from '../../browser/browserRun'
 import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import { approvalHost, checkPageUrl } from '../../web/pageUrl'
@@ -1861,7 +1863,11 @@ export class ModelApiSession implements AgentSession {
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),
       // The same for the browser check (M81); a side chat's Plan mode refuses it.
-      hasBrowserCheck: hasShell && this.deps.browserCheck !== undefined && !this.isSideChat,
+      hasBrowserCheck:
+        hasShell &&
+        this.deps.browserCheck !== undefined &&
+        this.deps.browserCheck.isOffered() &&
+        !this.isSideChat,
       hasCodeIntel: this.deps.codeIntel !== undefined,
     })
     const ide = (this.deps.ideTools ?? []).map(
@@ -4675,13 +4681,33 @@ export class ModelApiSession implements AgentSession {
     if (withdrawn !== undefined) {
       return withdrawn
     }
-    const result = await browser.check({
-      url: placement.url,
-      actions,
-      allowedHosts: allowedHostsFor(placement, browser.extraHosts()),
-      includeScreenshot: true,
-      signal,
-    })
+    // The scope the card covered, frozen now; trust, the mode, the runtime
+    // setting and that scope are read again while the check is prepared and
+    // runs (M81 A1).
+    const scope = browserCheckScope(placement, browser.extraHosts())
+    const approvalKey = browserScopeKey(placement.url, scope)
+    const admission: CheckAdmission = () => {
+      if (
+        !this.deps.isWorkspaceTrusted() ||
+        !browser.isOffered() ||
+        this.permissions.verdict(query) === 'deny'
+      ) {
+        return 'notOffered'
+      }
+      const now = browserCheckScope(placement, browser.extraHosts())
+      return browserScopeKey(placement.url, now) === approvalKey ? 'ok' : 'scopeChanged'
+    }
+    const result = await browser.check(
+      {
+        url: placement.url,
+        actions,
+        allowedHosts: scope.allowedHosts,
+        approvalKey,
+        includeScreenshot: true,
+        signal,
+      },
+      admission,
+    )
     return (
       this.networkCallWithdrawn(call, query, signal, browserCheckRestrictedCall) ?? {
         outcome: browserCheckOutcome(placement.url, result),

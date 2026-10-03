@@ -10,6 +10,8 @@ import {
   BACKEND_MODES,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
+  BROWSER_RUNTIME_MODES,
+  type BrowserRuntimeMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
   PROMPT_CACHE_RETENTIONS,
@@ -58,6 +60,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
   readonly browserCheckExtraHosts: readonly string[]
+  /** Whether the browser check's runtime is asked for, downloaded or off (M81 A1). */
+  readonly browserCheckRuntime: BrowserRuntimeMode
 }
 
 /**
@@ -100,6 +104,7 @@ const settingSchemas = {
   browserCheckExtraHosts: z
     .array(z.string().check(z.refine((entry) => widenedHost(entry) !== undefined)))
     .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
+  browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -173,6 +178,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
+    browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
   }
 }
 

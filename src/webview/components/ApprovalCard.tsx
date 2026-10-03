@@ -125,6 +125,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           {prompt}
         </blockquote>
       )}
+      {stage === undefined && approval.subject.kind === BROWSER_CHECK_WIDEN_SUBJECT_KIND ? (
+        <div className="approval-flags">
+          <span>{UI_TEXT.approvalBrowserCheckWidenResidual}</span>
+        </div>
+      ) : null}
       {approval.isProtectedWrite || approval.isJudgeEscalated ? (
         <div className="approval-flags">
           {approval.isProtectedWrite ? <span>{UI_TEXT.approvalProtectedWrite}</span> : null}

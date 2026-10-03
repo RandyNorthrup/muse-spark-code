@@ -139,6 +139,24 @@ describe('readSettings', () => {
     ).toEqual([])
   })
 
+  // M81 A1: ask before the runtime is downloaded unless the user chose otherwise.
+  it('reads how the browser check gets its runtime: ask by default, download or off, nothing else', () => {
+    expect(
+      readSettings(fakeSettingsSource({}), new FakeLogOutputChannel()).browserCheckRuntime,
+    ).toBe('ask')
+    for (const mode of ['ask', 'download', 'off'] as const) {
+      expect(
+        readSettings(fakeSettingsSource({ browserCheckRuntime: mode }), new FakeLogOutputChannel())
+          .browserCheckRuntime,
+      ).toBe(mode)
+    }
+    const log = new FakeLogOutputChannel()
+    expect(
+      readSettings(fakeSettingsSource({ browserCheckRuntime: 'always' }), log).browserCheckRuntime,
+    ).toBe('ask')
+    expect(String(log.warn.mock.calls[0]?.[0])).toContain('museSpark.browserCheckRuntime')
+  })
+
   // M39: the settings are read about seven times a message.
   it('warns about an invalid value once, and again when it changes', () => {
     const log = new FakeLogOutputChannel()

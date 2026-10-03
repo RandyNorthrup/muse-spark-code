@@ -77,7 +77,11 @@ import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functi
 import { countLogged } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
-import type { BrowserCheckRequest, BrowserCheckResult } from '../../src/core/browser/browserRun'
+import type {
+  BrowserCheckRequest,
+  CheckAdmission,
+  BrowserCheckResult,
+} from '../../src/core/browser/browserRun'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 
 const ROOT = '/ws'
@@ -10967,16 +10971,28 @@ const CHECKED: BrowserCheckResult = {
 function recordingBrowser(
   result: () => BrowserCheckResult = () => CHECKED,
   extraHosts: readonly string[] = [],
+  isOffered = true,
 ) {
   const requests: BrowserCheckRequest[] = []
+  const admissions: CheckAdmission[] = []
+  let hosts = extraHosts
   const host: NonNullable<ModelApiHostDeps['browserCheck']> = {
-    check: (request) => {
+    check: (request, admission) => {
       requests.push(request)
+      admissions.push(admission)
       return Promise.resolve(result())
     },
-    extraHosts: () => extraHosts,
+    extraHosts: () => hosts,
+    isOffered: () => isOffered,
   }
-  return { host, requests }
+  return {
+    host,
+    requests,
+    admissions,
+    setExtraHosts: (next: readonly string[]) => {
+      hosts = next
+    },
+  }
 }
 
 /** One `browser_check` call per URL, a round each, then a reply. */
@@ -11183,6 +11199,29 @@ describe('the browser check on the Model API backend (M81)', () => {
     expect(toolOutput(t, 'check_0')).toBe(`Error: ${MODEL_TEXT.browserCheckRuntimeMissing}`)
   })
 
+  it('is not offered while the browser check’s runtime setting is off (M81 A1)', async () => {
+    expect(await isCheckListed({ browserCheck: recordingBrowser(undefined, [], false).host })).toBe(
+      false,
+    )
+  })
+
+  it('freezes the scope the card covered and gives the check its admission: trust, mode and that scope (M81 A1)', async () => {
+    const browser = recordingBrowser(undefined, ['staging.example.com'])
+    const t = setup({ browserCheck: browser.host })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    scriptChecks(t, 'https://staging.example.com/')
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    await turnDone()
+    expect(browser.requests[0]).toMatchObject({
+      allowedHosts: ['staging.example.com'],
+      approvalKey: expect.stringContaining('staging.example.com'),
+    })
+    const [admission] = browser.admissions
+    expect(admission?.()).toBe('ok')
+    browser.setExtraHosts([])
+    expect(admission?.()).toBe('scopeChanged')
+  })
+
   it('ends a check the user stops', async () => {
     const signals: AbortSignal[] = []
     const t = setup({
@@ -11196,6 +11235,7 @@ describe('the browser check on the Model API backend (M81)', () => {
           })
         },
         extraHosts: () => [],
+        isOffered: () => true,
       },
     })
     const { session, events, turnDone } = await startSession(t, 'allowAll')

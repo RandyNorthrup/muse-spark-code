@@ -33,6 +33,11 @@ afterEach(() => {
   setUiText(EN, BASE_LOCALE)
 })
 
+/** `text` with its first letter capitalized, as its type says. */
+function capitalized<T extends string>(text: T): Capitalize<T> {
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}` as Capitalize<T>
+}
+
 describe('the browser check tool (M81)', () => {
   it('takes a URL and up to eight bounded click or type steps', () => {
     const placed = placeBrowserCall(
@@ -194,40 +199,42 @@ describe('the browser check tool (M81)', () => {
   })
 
   it('words every other closed failure with its own fixed text, never free text (M81 A1)', () => {
-    const fixed = {
-      runtimeMissing: 'browserCheckRuntimeMissing',
-      runtimeUnsupported: 'browserCheckRuntimeUnsupported',
-      runtimeOutdated: 'browserCheckRuntimeOutdated',
-      runtimeIntegrity: 'browserCheckRuntimeIntegrity',
-      runtimeBlocked: 'browserCheckRuntimeBlocked',
-      runtimeDeclined: 'browserCheckRuntimeDeclined',
-      scopeChanged: 'browserCheckScopeChanged',
-      notOffered: 'browserCheckNotOffered',
-      launch: 'browserCheckLaunch',
-      unrecognized: 'browserCheckUnrecognized',
-      profile: 'browserCheckProfile',
-      routeUnconfirmed: 'browserCheckRouteUnconfirmed',
-      resolverUnconfirmed: 'browserCheckResolverUnconfirmed',
-      signIn: 'browserCheckSignIn',
-      webrtc: 'browserCheckWebrtc',
-      transport: 'browserCheckTransport',
-      unverifiable: 'browserCheckUnverifiable',
-      unwatchable: 'browserCheckUnwatchable',
-      auditFailed: 'browserCheckAuditFailed',
-      restartObserved: 'browserCheckRestartObserved',
-      pageBlocked: 'browserCheckPageBlocked',
-      leaked: 'browserCheckLeaked',
-      browserFailed: 'browserCheckBrowserFailed',
-    } as const
+    // Each kind's words are the UI and model key named after it.
+    const fixed = [
+      'runtimeMissing',
+      'runtimeUnsupported',
+      'runtimeOutdated',
+      'runtimeIntegrity',
+      'runtimeBlocked',
+      'runtimeDeclined',
+      'scopeChanged',
+      'notOffered',
+      'launch',
+      'unrecognized',
+      'profile',
+      'routeUnconfirmed',
+      'resolverUnconfirmed',
+      'signIn',
+      'webrtc',
+      'transport',
+      'unverifiable',
+      'unwatchable',
+      'auditFailed',
+      'restartObserved',
+      'pageBlocked',
+      'leaked',
+      'browserFailed',
+    ] as const
     const seen = new Set<string>()
-    for (const [kind, key] of Object.entries(fixed)) {
-      const refusal = browserRefusal({ kind: kind as keyof typeof fixed })
+    for (const kind of fixed) {
+      const key = `browserCheck${capitalized(kind)}` as const
+      const refusal = browserRefusal({ kind })
       expect(refusal, kind).toEqual({ model: MODEL_TEXT[key], user: UI_TEXT[key] })
       expect(refusal.model, kind).not.toMatch(/\{\w+\}/)
       seen.add(refusal.user)
     }
     // Each failure reads differently to the user.
-    expect(seen.size).toBe(Object.keys(fixed).length)
+    expect(seen.size).toBe(fixed.length)
   })
 
   it('redacts a credential-shaped selector before it reaches the model or the row', () => {

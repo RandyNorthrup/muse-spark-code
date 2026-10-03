@@ -1,89 +1,201 @@
-// Finding and starting the system Chrome or Edge (M81, PLAN.md D49): the
-// well-known places, then absolute PATH entries only (D24); and a command
-// line with CDP over the pipe, never a port, a fresh profile, and the dead
-// proxy for whatever the Fetch domain cannot see.
+// How the browser check starts the pinned shell (M81 A1, design spec v4
+// §6.4): the fixed command line with the check's own proxy and profile, the
+// contract the browser's own report of it is held to, and the projected
+// environment.
 import { describe, expect, it } from 'vitest'
-import { browserLaunchArgs, findBrowserExecutable } from '../../src/core/browser/browserLaunch'
+import {
+  browserEnvironment,
+  browserLaunchArgs,
+  commandLineVerdict,
+} from '../../src/core/browser/browserLaunch'
+import {
+  BROWSER_FORBIDDEN_SWITCHES,
+  BROWSER_HOST_RESOLVER_RULES,
+  BROWSER_LAUNCH_FLAGS,
+} from '../../src/shared/constants'
 
-function discovery(
-  platform: NodeJS.Platform,
-  files: readonly string[],
-  options: { path?: string; variables?: Record<string, string> } = {},
-) {
-  return {
-    platform,
-    pathVariable: options.path,
-    variable: (name: string) => options.variables?.[name],
-    fileExists: (file: string) => files.includes(file),
-  }
-}
+const PROXY = 'http://127.0.0.1:41234'
+const PROFILE = '/storage/bc/0a1b2c3d/p'
+const LAUNCHED = browserLaunchArgs(PROXY, PROFILE)
+/** What the pin reports: the executable, what was launched, then its own switches and the page. */
+const REPORTED = [
+  '/storage/browser-runtime/154.0.8037.92/linux64/chrome-headless-shell',
+  ...LAUNCHED.slice(0, -1),
+  '--headless',
+  '--use-gl=angle',
+  '--ozone-platform=headless',
+  'about:blank',
+]
 
-const CHROME_MAC = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-const EDGE_MAC = '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
-
-describe('finding the system browser (M81)', () => {
-  it('takes the macOS app bundles first, Chrome before Edge', () => {
-    expect(findBrowserExecutable(discovery('darwin', [EDGE_MAC, CHROME_MAC]))).toBe(CHROME_MAC)
-    expect(findBrowserExecutable(discovery('darwin', [EDGE_MAC]))).toBe(EDGE_MAC)
+describe('the browser check’s command line (M81 A1)', () => {
+  it('is the fixed flags, the owned proxy, the profile and a blank page, and never a port', () => {
+    expect(LAUNCHED).toEqual([
+      ...BROWSER_LAUNCH_FLAGS,
+      `--proxy-server=${PROXY}`,
+      `--user-data-dir=${PROFILE}`,
+      'about:blank',
+    ])
+    expect(LAUNCHED).toEqual(
+      expect.arrayContaining([
+        '--remote-debugging-pipe',
+        '--proxy-bypass-list=<-loopback>',
+        '--host-resolver-rules=MAP * ^NOTFOUND, EXCLUDE 127.0.0.1, EXCLUDE ::1',
+        '--auth-server-allowlist=muse-spark-no-ambient-auth.invalid',
+        '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+        '--disable-quic',
+      ]),
+    )
+    expect(
+      LAUNCHED.filter((arg) => /remote-debugging-(?:port|address)|no-sandbox/.test(arg)),
+    ).toEqual([])
+    // Each switch once.
+    const names = LAUNCHED.filter((arg) => arg.startsWith('--')).map((arg) => arg.split('=', 1)[0])
+    expect(new Set(names).size).toBe(names.length)
   })
 
-  it('looks under each Windows program folder, and ignores one the environment gives as relative', () => {
-    const variables = {
-      ProgramFiles: String.raw`C:\Program Files`,
-      'ProgramFiles(x86)': String.raw`C:\Program Files (x86)`,
-      LocalAppData: String.raw`.\here`,
+  it('holds the browser’s report to it, counting the browser’s own switches only', () => {
+    expect(commandLineVerdict(REPORTED, LAUNCHED)).toEqual({ kind: 'ok', unknownSwitches: 3 })
+  })
+
+  it('refuses an own switch missing, doubled or changed, and names the resolver rule apart', () => {
+    const without = (prefix: string): string[] => REPORTED.filter((arg) => !arg.startsWith(prefix))
+    expect(commandLineVerdict(without('--proxy-server='), LAUNCHED)).toEqual({
+      kind: 'unrecognized',
+    })
+    expect(commandLineVerdict([...REPORTED, '--disable-quic'], LAUNCHED)).toEqual({
+      kind: 'unrecognized',
+    })
+    expect(
+      commandLineVerdict(
+        REPORTED.map((arg) =>
+          arg.startsWith('--proxy-bypass-list=') ? '--proxy-bypass-list=<-loopback>;*' : arg,
+        ),
+        LAUNCHED,
+      ),
+    ).toEqual({ kind: 'unrecognized' })
+    for (const resolver of [
+      without('--host-resolver-rules='),
+      [...REPORTED, `--host-resolver-rules=${BROWSER_HOST_RESOLVER_RULES}`],
+      REPORTED.map((arg) =>
+        arg.startsWith('--host-resolver-rules=')
+          ? '--host-resolver-rules=MAP * ^NOTFOUND, EXCLUDE *'
+          : arg,
+      ),
+    ]) {
+      expect(commandLineVerdict(resolver, LAUNCHED)).toEqual({ kind: 'resolver' })
     }
-    const edge = String.raw`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`
-    expect(findBrowserExecutable(discovery('win32', [edge], { variables }))).toBe(edge)
-    const local = String.raw`.\here\Google\Chrome\Application\chrome.exe`
-    expect(findBrowserExecutable(discovery('win32', [local], { variables }))).toBeUndefined()
   })
 
-  it('falls back to PATH by absolute entry only, so a browser in the workspace never runs', () => {
-    const linux = discovery('linux', ['/usr/bin/google-chrome', 'bin/google-chrome'], {
-      path: 'bin:/usr/local/bin:/usr/bin',
+  it('refuses every forbidden switch whatever its value, the certificate family by prefix', () => {
+    for (const name of [...BROWSER_FORBIDDEN_SWITCHES, 'ignore-certificate-errors-spki-list']) {
+      expect(
+        commandLineVerdict([...REPORTED.slice(0, -1), `--${name}=x`, 'about:blank'], LAUNCHED),
+        name,
+      ).toEqual({
+        kind: 'unrecognized',
+      })
+    }
+    // A single dash and upper case are the same switch to Chromium.
+    expect(
+      commandLineVerdict([...REPORTED.slice(0, -1), '-No-Sandbox', 'about:blank'], LAUNCHED),
+    ).toEqual({
+      kind: 'unrecognized',
     })
-    expect(findBrowserExecutable(linux)).toBe('/usr/bin/google-chrome')
-    const relativeOnly = discovery('linux', ['bin/google-chrome', './microsoft-edge'], {
-      path: 'bin:.:',
-    })
-    expect(findBrowserExecutable(relativeOnly)).toBeUndefined()
-    const windows = discovery('win32', [String.raw`D:\tools\msedge.exe`], {
-      path: String.raw`tools;D:\tools`,
-    })
-    expect(findBrowserExecutable(windows)).toBe(String.raw`D:\tools\msedge.exe`)
   })
 
-  it('answers undefined when no Chrome or Edge is installed', () => {
-    expect(findBrowserExecutable(discovery('linux', [], { path: '/usr/bin' }))).toBeUndefined()
-    expect(findBrowserExecutable(discovery('darwin', []))).toBeUndefined()
-    expect(findBrowserExecutable(discovery('win32', []))).toBeUndefined()
+  it('refuses any page but the one blank page', () => {
+    expect(commandLineVerdict(REPORTED.slice(0, -1), LAUNCHED)).toEqual({ kind: 'unrecognized' })
+    expect(commandLineVerdict([...REPORTED, 'https://evil.example/'], LAUNCHED)).toEqual({
+      kind: 'unrecognized',
+    })
   })
 })
 
-describe('the browser command line (M81)', () => {
-  const args = browserLaunchArgs('/tmp/muse-spark-browser-abc', ['dev.example.com', '[fd00::1]'])
+describe('the browser’s environment (M81 A1)', () => {
+  const folders = { profile: '/c/p', temp: '/c/t', home: '/c/h' }
+  const secrets = {
+    HTTPS_PROXY: 'http://user:secret@proxy:3128',
+    http_proxy: 'http://proxy:3128',
+    NO_PROXY: '*',
+    KRB5CCNAME: 'FILE:/tmp/krb5cc_1000',
+    SSLKEYLOGFILE: '/tmp/keys',
+    GOOGLE_API_KEY: 'AIza-secret',
+    CHROME_HEADLESS: '1',
+    OPENAI_API_KEY: 'sk-secret',
+    META_TOKEN: 'secret',
+    MUSE_SPARK_KEY: 'secret',
+    VSCODE_PID: '1',
+    ELECTRON_RUN_AS_NODE: '1',
+    NODE_OPTIONS: '--require /tmp/x.js',
+    LD_PRELOAD: '/tmp/x.so',
+    DYLD_INSERT_LIBRARIES: '/tmp/x.dylib',
+    DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
+    DISPLAY: ':0',
+    WAYLAND_DISPLAY: 'wayland-0',
+  }
 
-  it('speaks CDP over the pipe and never names a debugging port', () => {
-    expect(args).toContain('--remote-debugging-pipe')
-    expect(args).toContain('--headless')
-    expect(args.filter((arg) => /remote-debugging-(port|address)|port=/i.test(arg))).toEqual([])
-  })
-
-  it('uses only the fresh profile it is given, once', () => {
-    expect(args.filter((arg) => arg.startsWith('--user-data-dir'))).toEqual([
-      '--user-data-dir=/tmp/muse-spark-browser-abc',
-    ])
-    expect(args).toContain('--password-store=basic')
-    expect(args).toContain('--use-mock-keychain')
-  })
-
-  it('sends what Fetch cannot see to a dead proxy, bypassed for loopback and the allowed hosts only', () => {
-    expect(args).toContain('--proxy-server=http://127.0.0.1:9')
-    expect(args).toContain(
-      '--proxy-bypass-list=<-loopback>;localhost;127.0.0.1/8;[::1];dev.example.com;[fd00::1]',
+  it('keeps the locale and a few of the OS’s own variables, never a proxy, credential or loader variable', () => {
+    const env = browserEnvironment(
+      'linux',
+      {
+        ...secrets,
+        LANG: 'de_DE.UTF-8',
+        LC_TIME: 'C',
+        TZ: 'UTC',
+        FONTCONFIG_PATH: '/etc/fonts',
+        HOME: '/home/user',
+      },
+      folders,
     )
-    expect(args).toContain('--force-webrtc-ip-handling-policy=disable_non_proxied_udp')
-    expect(args.at(-1)).toBe('about:blank')
+    expect(env).toEqual({
+      LANG: 'de_DE.UTF-8',
+      TZ: 'UTC',
+      LC_TIME: 'C',
+      FONTCONFIG_PATH: '/etc/fonts',
+      PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+      TMPDIR: '/c/t',
+      HOME: '/c/h',
+      XDG_CONFIG_HOME: '/c/h',
+      XDG_CACHE_HOME: '/c/h',
+      XDG_DATA_HOME: '/c/h',
+      XDG_STATE_HOME: '/c/h',
+    })
+  })
+
+  it('on macOS keeps the user’s home (not a keychain boundary) and moves only the temporary folder', () => {
+    expect(
+      browserEnvironment(
+        'darwin',
+        { ...secrets, HOME: '/Users/u', USER: 'u', LOGNAME: 'u' },
+        folders,
+      ),
+    ).toEqual({
+      HOME: '/Users/u',
+      USER: 'u',
+      LOGNAME: 'u',
+      PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+      TMPDIR: '/c/t',
+    })
+  })
+
+  it('on Windows keeps its system folders by any case and puts the temporary folder under the check', () => {
+    const env = browserEnvironment(
+      'win32',
+      {
+        ...secrets,
+        SYSTEMROOT: String.raw`C:\Windows`,
+        LocalAppData: String.raw`C:\Users\u\AppData\Local`,
+        NUMBER_OF_PROCESSORS: '8',
+      },
+      { profile: String.raw`C:\s\p`, temp: String.raw`C:\s\t`, home: String.raw`C:\s\h` },
+    )
+    expect(env).toEqual({
+      SystemRoot: String.raw`C:\Windows`,
+      LOCALAPPDATA: String.raw`C:\Users\u\AppData\Local`,
+      NUMBER_OF_PROCESSORS: '8',
+      PATH: String.raw`C:\Windows\System32;C:\Windows`,
+      TEMP: String.raw`C:\s\t`,
+      TMP: String.raw`C:\s\t`,
+    })
   })
 })

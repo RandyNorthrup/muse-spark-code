@@ -1,6 +1,10 @@
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
+// The browser check's tunables are re-exported from browserCheckConstants.ts
+// (M81 A1), a module with no imports that its size-capped bundles read alone.
+
+import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 export const PRODUCT_NAME = 'Muse Spark'
 
@@ -313,6 +317,8 @@ export const SETTING_DEFAULTS = {
   // M81 (PLAN.md D49): the hosts beyond loopback the browser check may open
   // and reach. Empty: loopback only, unless a card widens one call.
   browserCheckExtraHosts: [] as readonly string[],
+  // M81 A1: ask before the browser check's runtime is downloaded.
+  browserCheckRuntime: 'ask' as BrowserRuntimeMode,
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -346,6 +352,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'turnCheckpoints',
   // Only the user widens what a page in the browser check may reach (M81).
   'browserCheckExtraHosts',
+  // Only the user consents to the browser check's download (M81 A1).
+  'browserCheckRuntime',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -1294,121 +1302,13 @@ export const NAT64_ABSENT_CODES: ReadonlySet<string> = new Set(['ENOTFOUND', 'EN
 // The DNS query's own bounds: per try, and tries (the fetch's deadline bounds the whole).
 export const NAT64_DISCOVERY_TIMEOUT_MS = 2000
 export const NAT64_DISCOVERY_TRIES = 2
-// --- Browser check (M81, PLAN.md D49) ---
+// --- Browser check (M81, PLAN.md D49; A1, design spec v4) ---
 //
-// The model opens a local page in a headless system Chrome or Edge and gets
-// back a screenshot (Model API only), the console errors and the failed
-// requests. The same tool on the `ide` session server for Muse Code.
-export const IDE_BROWSER_CHECK_TOOL = 'browserCheck'
-// The approval card's subjects on the Model API backend: `target` is the
-// URL; the second names a host only the card can widen the check to.
-export const BROWSER_CHECK_SUBJECT_KIND = 'browserCheck'
-export const BROWSER_CHECK_WIDEN_SUBJECT_KIND = 'browserCheckWiden'
-// The browser's own bundle (the pipe, the run, the profile), beside
-// dist/extension.js: loaded on the first check, not at activation.
-export const BROWSER_CHECK_BUNDLE_FILE = 'browserCheck.js'
-// Where a system Chrome or Edge lives, tried in order before PATH: macOS
-// app bundles, and on Windows these suffixes under each program folder the
-// variables name. PATH is read by absolute entry only (D24).
-export const BROWSER_MACOS_PATHS: readonly string[] = [
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-]
-export const BROWSER_WINDOWS_PROGRAM_DIR_VARIABLES: readonly string[] = [
-  'ProgramFiles',
-  'ProgramFiles(x86)',
-  'LocalAppData',
-]
-export const BROWSER_WINDOWS_PATH_SUFFIXES: readonly string[] = [
-  String.raw`Google\Chrome\Application\chrome.exe`,
-  String.raw`Microsoft\Edge\Application\msedge.exe`,
-]
-export const BROWSER_WINDOWS_PATH_NAMES: readonly string[] = ['chrome', 'msedge']
-export const BROWSER_POSIX_PATH_NAMES: readonly string[] = [
-  'google-chrome-stable',
-  'google-chrome',
-  'microsoft-edge-stable',
-  'microsoft-edge',
-]
-// How the browser starts. CDP runs over `--remote-debugging-pipe` (file
-// descriptors 3 and 4), never a port, and no flag names one. The browser
-// keeps off the user's keyring and keychain (a new profile would ask for
-// one), starts no extension, sync, update or other background traffic, and
-// sends every connection the Fetch domain cannot see (WebSockets,
-// preconnects) to a proxy that does not exist, except loopback and the
-// hosts the user widened: `<-loopback>` drops Chrome's own exemptions, which
-// include link-local 169.254.0.0/16, and the list puts loopback back. WebRTC
-// may not send UDP outside that proxy.
-export const BROWSER_LAUNCH_FLAGS: readonly string[] = [
-  '--headless',
-  '--remote-debugging-pipe',
-  '--no-first-run',
-  '--no-default-browser-check',
-  '--password-store=basic',
-  '--use-mock-keychain',
-  '--disable-extensions',
-  '--disable-component-extensions-with-background-pages',
-  '--disable-background-networking',
-  '--disable-component-update',
-  '--disable-sync',
-  '--disable-default-apps',
-  '--disable-domain-reliability',
-  '--no-pings',
-  '--proxy-server=http://127.0.0.1:9',
-  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
-  '--window-size=1280,800',
-]
-export const BROWSER_PROXY_BYPASS_FLAG = '--proxy-bypass-list='
-export const BROWSER_PROXY_BYPASS_LOOPBACK: readonly string[] = [
-  '<-loopback>',
-  'localhost',
-  '127.0.0.1/8',
-  '[::1]',
-]
-export const BROWSER_PROFILE_FLAG = '--user-data-dir='
-export const BROWSER_BLANK_PAGE = 'about:blank'
-// Each check's profile is a fresh folder under the OS temporary folder.
-export const BROWSER_PROFILE_PREFIX = 'muse-spark-browser-'
-// The whole check, from start to screenshot; the page's load (a dev server
-// with live reload may never finish loading: the check goes on with the
-// page as it stands); and the wait after each click or type for a load it
-// starts.
-export const BROWSER_CHECK_TIMEOUT_MS = 60_000
-export const BROWSER_CHECK_LOAD_TIMEOUT_MS = 15_000
-export const BROWSER_CHECK_ACTION_SETTLE_MS = 1000
-// How long the browser has to exit once asked, and again once killed.
-export const BROWSER_CHECK_CLOSE_GRACE_MS = 3000
-// A profile folder Windows still holds for a moment after the exit.
-export const BROWSER_PROFILE_REMOVE_RETRIES = 5
-export const BROWSER_PROFILE_REMOVE_RETRY_MS = 200
-// What one call may ask: the URL, and up to this many click or type steps.
-export const BROWSER_CHECK_URL_MAX_CHARS = 2048
-export const BROWSER_CHECK_MAX_ACTIONS = 8
-export const BROWSER_CHECK_SELECTOR_MAX_CHARS = 256
-export const BROWSER_CHECK_TYPE_TEXT_MAX_CHARS = 1000
-// What one check hands back: up to this many of each kind of entry (the
-// rest are counted), each cut to this length.
-export const BROWSER_CHECK_MAX_ENTRIES = 20
-export const BROWSER_CHECK_ENTRY_MAX_CHARS = 500
-// A CDP message larger than this ends the check (a screenshot is at most
-// MAX_IMAGE_BYTES, about a third more as base64).
-export const BROWSER_CHECK_MESSAGE_MAX_BYTES = 32 * BYTES_PER_MIB
-// Random bytes (as hex) in the markers around what the page produced.
-export const BROWSER_CHECK_MARKER_BYTES = 8
-// The hosts `museSpark.browserCheckExtraHosts` may name: how many, how long.
-export const BROWSER_CHECK_EXTRA_HOSTS_MAX = 32
-export const BROWSER_CHECK_HOST_MAX_CHARS = 253
-// The targets one check watches at once (the page, its frames and workers,
-// and those they start); one past the bound is never let run.
-export const BROWSER_CHECK_MAX_TARGETS = 64
-// The requests in flight whose URLs one check keeps (to name a request that
-// fails); past the bound the oldest is forgotten. Each URL is cut to
-// BROWSER_CHECK_ENTRY_MAX_CHARS.
-export const BROWSER_CHECK_MAX_TRACKED_REQUESTS = 512
-// The runtime's preparation (M81 A1, design spec v4 §4.1): consent, the
-// download and the verification have their own cancellable lifetime,
-// before the check's 60 seconds start.
-export const BROWSER_RUNTIME_PREPARATION_MS = 15 * 60_000
+// Its tunables live in browserCheckConstants.ts, a module with no imports,
+// so the check's own bundle (dist/browserCheck.js, 50 KiB) and the runtime's
+// (dist/browserRuntime.js) do not carry the rest of this file; every other
+// module reads them from here.
+export * from './browserCheckConstants'
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -1630,7 +1530,6 @@ export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
 // tool returns anyway: a background process it started (`server &`) can
 // hold the pipes open for as long as it runs (PLAN.md D25).
 export const SHELL_DRAIN_GRACE_MS = 250
-export const WINDOWS_TASKKILL_RELATIVE_PATH = String.raw`System32\taskkill.exe`
 // A child the shell starts while `taskkill /T` enumerates its tree outlives
 // the kill (PLAN.md D25, M27). On Windows each command therefore runs in a
 // job object of its own, named so a Stop can end it whole; the helper type

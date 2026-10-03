@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { ApprovalCard } from '../../src/webview/components/ApprovalCard'
 import { TodoPanel } from '../../src/webview/components/TodoPanel'
 import type { PendingApproval } from '../../src/webview/state/uiState'
@@ -172,6 +173,9 @@ describe('ApprovalCard', () => {
       )
       expect(screen.getByRole('group', { name: title })).toBeInTheDocument()
       expect(screen.getByText('http://localhost:5173/').tagName).toBe('CODE')
+      // M81 A1: widening says what it also allows, under that card only.
+      const residual = screen.queryByText(UI_TEXT.approvalBrowserCheckWidenResidual)
+      expect(residual === null, kind).toBe(kind !== 'browserCheckWiden')
       unmount()
     }
   })

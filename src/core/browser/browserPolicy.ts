@@ -11,7 +11,10 @@
 // `*`, `;` or `<` would mean more. Pure.
 
 import { isIPv4, isIPv6 } from 'node:net'
-import { BROWSER_CHECK_HOST_MAX_CHARS, BROWSER_CHECK_URL_MAX_CHARS } from '../../shared/constants'
+import {
+  BROWSER_CHECK_HOST_MAX_CHARS,
+  BROWSER_CHECK_URL_MAX_CHARS,
+} from '../../shared/browserCheckConstants'
 
 const LOCALHOST = 'localhost'
 const IPV6_LOOPBACK = '[::1]'

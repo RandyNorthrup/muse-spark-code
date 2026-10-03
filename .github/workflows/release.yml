@@ -48,6 +48,10 @@ jobs:
             echo "::error::tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main" >&2
             exit 1
           fi
+      # M81 A1: never ship an expired browser check runtime pin, or one more
+      # than 14 days behind the newest Stable (design spec v4 §4.2).
+      - name: the browser check runtime pin is current
+        run: node scripts/check-browser-runtime-pin.mjs
 
   build:
     needs: verify

@@ -540,9 +540,18 @@ export const EN = {
   // the extension for; the second sentence when the host is beyond loopback.
   browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
   browserCheckConfirmDetail:
-    'The page loads in a temporary browser profile that is deleted afterwards. Its requests to anything but this computer and the hosts in museSpark.browserCheckExtraHosts are blocked.',
+    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
   browserCheckConfirmDetailWiden:
-    '{host} is not this computer. Allowing lets this one check reach it.',
+    '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
+  // M81 A1: the question before the browser check's runtime is downloaded,
+  // the Download command's progress and outcome.
+  browserRuntimeConsentTitle: 'Download the browser for browser checks ({size})?',
+  browserRuntimeConsentDetail:
+    'Muse Spark Code will download Google’s Chrome for Testing headless shell {version} ({size}) from storage.googleapis.com and keep it in {location}. It is used only for browser checks, and each new version an extension update pins is downloaded again. Set museSpark.browserCheckRuntime to download to stop asking, or to off to turn the browser check off.',
+  browserRuntimeDownload: 'Download',
+  browserRuntimeNotNow: 'Not now',
+  browserRuntimePreparing: 'Getting the browser check’s browser ready…',
+  browserRuntimeReady: 'The browser check’s browser {version} is ready.',
   // The Model API row: what the check found, then each entry under its count.
   browserCheckDone: 'Checked {url}: {errors}, {failed}, {blocked}',
   browserCheckConsoleErrors: forms({
@@ -657,6 +666,9 @@ export const EN = {
   approvalBrowserCheck: 'Muse wants to open {action} in a headless browser',
   approvalBrowserCheckWiden:
     'Muse wants to open {action} in a headless browser, beyond this computer',
+  // M81 A1: what widening a host also allows, shown under that card.
+  approvalBrowserCheckWidenResidual:
+    'Allowing also lets this check reach the host over https and WebSockets. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // {paths} is the list of images an edit starts from, shown as code.
   approvalImageSources: 'Starting from {paths}',
   // M67: a rename's card names a few of its files ({files}) and counts the rest.

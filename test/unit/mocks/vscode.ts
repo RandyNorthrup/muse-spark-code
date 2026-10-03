@@ -90,6 +90,8 @@ export const window = {
   showErrorMessage: vi.fn<typeof vscode.window.showErrorMessage>(),
   showWarningMessage: vi.fn<typeof vscode.window.showWarningMessage>(),
   showInputBox: vi.fn<typeof vscode.window.showInputBox>(),
+  // The browser check's Download command's progress (M81 A1).
+  withProgress: vi.fn<typeof vscode.window.withProgress>(),
   showSaveDialog: vi.fn<typeof vscode.window.showSaveDialog>(),
   // Picking a session-export file to import or read (M84).
   showOpenDialog: vi.fn<typeof vscode.window.showOpenDialog>(),
@@ -130,6 +132,8 @@ export const workspace = {
 }
 
 export const EndOfLine = { LF: 1, CRLF: 2 } as const
+
+export const ProgressLocation = { SourceControl: 1, Window: 10, Notification: 15 } as const
 
 /** Fired by tests as a language server would report (M68). */
 export const diagnosticsChanged = new EventEmitter<vscode.DiagnosticChangeEvent>()

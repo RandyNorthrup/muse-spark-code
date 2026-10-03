@@ -8,6 +8,7 @@ import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
 import {
   BROWSER_CHECK_MARKER_BYTES,
+  MAX_IMAGE_BYTES,
   MODEL_TEXT,
   PNG_MEDIA_TYPE,
   UI_TEXT,
@@ -44,7 +45,11 @@ export function browserCheckOutcome(url: string, result: BrowserCheckResult): To
   if (!result.ok) {
     return browserCheckRefused(browserRefusal(result.failure))
   }
-  const { report } = result
+  // The image limit is the model's: a screenshot past it is left out.
+  const report =
+    result.report.screenshot !== undefined && result.report.screenshot.png.length > MAX_IMAGE_BYTES
+      ? { ...result.report, screenshot: undefined }
+      : result.report
   const output = browserReportText(
     url,
     report,

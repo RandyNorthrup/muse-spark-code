@@ -5,7 +5,11 @@
 // Muse Code stops waiting, and text only.
 import { describe, expect, it } from 'vitest'
 import { handleMcpMessage } from '../../src/core/mcp'
-import type { BrowserCheckRequest, BrowserCheckResult } from '../../src/core/browser/browserRun'
+import type {
+  BrowserCheckRequest,
+  BrowserCheckResult,
+  CheckAdmission,
+} from '../../src/core/browser/browserRun'
 import { type BrowserCheckScope, browserScopeKey } from '../../src/core/browser/browserTool'
 import { type IdeBrowserCheckDeps, ideBrowserCheckTools } from '../../src/host/ide/browserCheckTool'
 import { oneQuestionPerUrl } from '../../src/host/ide/webFetchTool'
@@ -44,6 +48,7 @@ function setup(
 ) {
   const asked: { url: string; widenedHost: string | undefined }[] = []
   const checked: BrowserCheckRequest[] = []
+  const admissions: CheckAdmission[] = []
   let isOffered = options.isOffered ?? true
   let extraHosts = options.extraHosts ?? []
   const offer = (isNowOffered: boolean) => {
@@ -62,8 +67,9 @@ function setup(
       isOffered: () => isOffered,
       extraHosts: () => extraHosts,
       confirm,
-      check: (request) => {
+      check: (request, admission) => {
         checked.push(request)
+        admissions.push(admission)
         options.onCheck?.(offer)
         return Promise.resolve(options.result ?? REPORTED)
       },
@@ -78,6 +84,7 @@ function setup(
   return {
     asked,
     checked,
+    admissions,
     tools,
     call,
     offer,
@@ -227,6 +234,25 @@ describe('the ide server browser check (M81)', () => {
     open.resolve(true)
     await expect(pending).rejects.toThrow(MODEL_TEXT.browserCheckScopeChanged)
     expect(changed.checked).toEqual([])
+  })
+
+  it('freezes the scope the modal covered and gives the check its admission: the offer and that scope, read again (M81 A1)', async () => {
+    const t = setup({ extraHosts: ['staging.example.com'] })
+    await t.call({ url: `${HTTP}//staging.example.com/` })
+    const [request] = t.checked
+    const [admission] = t.admissions
+    expect(request?.approvalKey).toBe(
+      browserScopeKey(`${HTTP}//staging.example.com/`, {
+        widenedHost: undefined,
+        allowedHosts: ['staging.example.com'],
+      }),
+    )
+    expect(admission?.()).toBe('ok')
+    t.setExtraHosts(['staging.example.com', 'other.example.com'])
+    expect(admission?.()).toBe('scopeChanged')
+    t.setExtraHosts(['staging.example.com'])
+    t.offer(false)
+    expect(admission?.()).toBe('notOffered')
   })
 
   it("throws the check's own reason when it did not finish", async () => {

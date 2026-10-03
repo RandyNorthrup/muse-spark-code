@@ -9,7 +9,7 @@
 
 import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
-import { BROWSER_CHECK_MESSAGE_MAX_BYTES } from '../../shared/constants'
+import { BROWSER_CHECK_MESSAGE_MAX_BYTES } from '../../shared/browserCheckConstants'
 
 /** The parent's end of file descriptor 3. */
 export interface PipeWriter {
@@ -50,26 +50,30 @@ function stillClosed(): void {
 export class CdpError extends Error {
   public constructor(message: string) {
     super(message)
-    this.name = 'CdpError'
   }
 }
 
 export class CdpConnection {
-  private nextId = 1
-  private readonly pending = new Map<number, (message: CdpMessage) => void>()
-  private readonly eventListeners = new Set<(event: CdpEvent) => void>()
-  private readonly closeListeners = new Set<(reason: Error) => void>()
-  private parts: Buffer[] = []
-  private partBytes = 0
-  private closeReason: Error | undefined
+  #nextId = 1
+  readonly #pending = new Map<number, (message: CdpMessage) => void>()
+  readonly #eventListeners = new Set<(event: CdpEvent) => void>()
+  readonly #closeListeners = new Set<(reason: Error) => void>()
+  #parts: Buffer[] = []
+  #partBytes = 0
+  #closeReason: Error | undefined
+
+  readonly #writer: PipeWriter
+  readonly #maxMessageBytes: number
 
   public constructor(
-    private readonly writer: PipeWriter,
+    writer: PipeWriter,
     reader: PipeReader,
-    private readonly maxMessageBytes: number = BROWSER_CHECK_MESSAGE_MAX_BYTES,
+    maxMessageBytes: number = BROWSER_CHECK_MESSAGE_MAX_BYTES,
   ) {
+    this.#writer = writer
+    this.#maxMessageBytes = maxMessageBytes
     reader.on('data', (chunk) => {
-      this.receive(Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength))
+      this.#receive(Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength))
     })
     // A browser that could not start reports why through the pipe's error.
     reader.on('error', (error) => {
@@ -86,39 +90,39 @@ export class CdpConnection {
    * adds) is checked against the bound before it is joined or parsed,
    * whether it ends in this chunk or not.
    */
-  private receive(chunk: Buffer): void {
+  #receive(chunk: Buffer): void {
     let rest = chunk
     let end = rest.indexOf(NUL)
-    while (end !== -1 && this.closeReason === undefined) {
-      if (this.partBytes + end > this.maxMessageBytes) {
-        this.tooLarge()
+    while (end !== -1 && this.#closeReason === undefined) {
+      if (this.#partBytes + end > this.#maxMessageBytes) {
+        this.#tooLarge()
         return
       }
-      const frame = Buffer.concat([...this.parts, rest.subarray(0, end)])
-      this.parts = []
-      this.partBytes = 0
+      const frame = Buffer.concat([...this.#parts, rest.subarray(0, end)])
+      this.#parts = []
+      this.#partBytes = 0
       rest = rest.subarray(end + 1)
-      this.route(frame.toString('utf8'))
+      this.#route(frame.toString('utf8'))
       end = rest.indexOf(NUL)
     }
-    if (rest.length === 0 || this.closeReason !== undefined) {
+    if (rest.length === 0 || this.#closeReason !== undefined) {
       return
     }
-    if (this.partBytes + rest.length > this.maxMessageBytes) {
-      this.tooLarge()
+    if (this.#partBytes + rest.length > this.#maxMessageBytes) {
+      this.#tooLarge()
       return
     }
-    this.partBytes += rest.length
-    this.parts.push(rest)
+    this.#partBytes += rest.length
+    this.#parts.push(rest)
   }
 
-  private tooLarge(): void {
-    this.parts = []
-    this.partBytes = 0
-    this.close(new CdpError('the browser sent a message larger than the check accepts'))
+  #tooLarge(): void {
+    this.#parts = []
+    this.#partBytes = 0
+    this.close(new CdpError('a message past the bound'))
   }
 
-  private route(frame: string): void {
+  #route(frame: string): void {
     let raw: unknown
     try {
       raw = JSON.parse(frame)
@@ -132,8 +136,8 @@ export class CdpConnection {
     }
     const message = parsed.data
     if (message.id !== undefined) {
-      const settle = this.pending.get(message.id)
-      this.pending.delete(message.id)
+      const settle = this.#pending.get(message.id)
+      this.#pending.delete(message.id)
       settle?.(message)
       return
     }
@@ -145,33 +149,33 @@ export class CdpConnection {
       params: message.params,
       sessionId: message.sessionId,
     }
-    for (const listener of this.eventListeners) {
+    for (const listener of this.#eventListeners) {
       listener(event)
     }
   }
 
   /** Why the connection ended; undefined while it is open. */
   public get closedBy(): Error | undefined {
-    return this.closeReason
+    return this.#closeReason
   }
 
   /** Every event from now on; the answer stops them. */
   public onEvent(listener: (event: CdpEvent) => void): () => void {
-    this.eventListeners.add(listener)
+    this.#eventListeners.add(listener)
     return () => {
-      this.eventListeners.delete(listener)
+      this.#eventListeners.delete(listener)
     }
   }
 
   /** Told once, when the connection ends; at once when it has ended already. */
   public onClose(listener: (reason: Error) => void): () => void {
-    if (this.closeReason !== undefined) {
-      listener(this.closeReason)
+    if (this.#closeReason !== undefined) {
+      listener(this.#closeReason)
       return stillClosed
     }
-    this.closeListeners.add(listener)
+    this.#closeListeners.add(listener)
     return () => {
-      this.closeListeners.delete(listener)
+      this.#closeListeners.delete(listener)
     }
   }
 
@@ -181,13 +185,13 @@ export class CdpConnection {
     params: Readonly<Record<string, unknown>> = {},
     sessionId?: string,
   ): Promise<unknown> {
-    if (this.closeReason !== undefined) {
-      return Promise.reject(this.closeReason)
+    if (this.#closeReason !== undefined) {
+      return Promise.reject(this.#closeReason)
     }
-    const id = this.nextId
-    this.nextId += 1
+    const id = this.#nextId
+    this.#nextId += 1
     return new Promise<unknown>((resolve, reject) => {
-      this.pending.set(id, (message) => {
+      this.#pending.set(id, (message) => {
         if (message.error === undefined) {
           resolve(message.result)
           return
@@ -195,11 +199,11 @@ export class CdpConnection {
         reject(new CdpError(message.error.message ?? `${method} failed`))
       })
       try {
-        this.writer.write(
+        this.#writer.write(
           `${JSON.stringify({ id, method, params, ...(sessionId !== undefined && { sessionId }) })}\0`,
         )
       } catch (error: unknown) {
-        this.pending.delete(id)
+        this.#pending.delete(id)
         reject(new CdpError(error instanceof Error ? error.message : String(error)))
       }
     })
@@ -207,18 +211,18 @@ export class CdpConnection {
 
   /** Ends the connection: every waiting call is rejected with `reason`. */
   public close(reason: Error): void {
-    if (this.closeReason !== undefined) {
+    if (this.#closeReason !== undefined) {
       return
     }
-    this.closeReason = reason
-    for (const settle of this.pending.values()) {
+    this.#closeReason = reason
+    for (const settle of this.#pending.values()) {
       settle({ error: { message: reason.message } })
     }
-    this.pending.clear()
-    this.eventListeners.clear()
-    for (const listener of this.closeListeners) {
+    this.#pending.clear()
+    this.#eventListeners.clear()
+    for (const listener of this.#closeListeners) {
       listener(reason)
     }
-    this.closeListeners.clear()
+    this.#closeListeners.clear()
   }
 }

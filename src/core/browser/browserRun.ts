@@ -1,48 +1,70 @@
-// One browser check (M81, PLAN.md D49): a system Chrome or Edge started
-// headless over `--remote-debugging-pipe` in a fresh temporary profile,
-// the page opened, the click and type steps run, then the console errors,
-// the failed requests and a screenshot read back, and the browser and its
-// profile gone again whatever happened.
+// One browser check (M81 A1, PLAN.md D49; design spec v4 §§4.1, 6): the
+// pinned Chrome-for-Testing headless shell, verified by the runtime bundle,
+// started over `--remote-debugging-pipe` in a fresh profile under the
+// extension's storage, confined by the check's own proxy, its confinement
+// tested before and after the model's page, and the browser, the proxy, the
+// fixtures and the profile gone again whatever happened.
 //
-// A request beyond loopback is blocked twice, and watched for a third time.
-// The Fetch domain is enabled on the browser itself, so it pauses every
-// request any target makes (the page, its frames in other processes, its
-// workers and service workers, every redirect), and each is failed unless it
-// is http(s) to loopback or a host this check may reach; the host is
-// compared by name, never looked up. What Fetch cannot see (a WebSocket, a
-// preconnect, the browser's own traffic) goes to the proxy that does not
-// exist (browserLaunch.ts). And every target is watched: the browser and
-// each target it attaches attach every target they start, each held before
-// its first line runs until its Network events (and Fetch, where it has the
-// domain) are on, so a WebSocket beyond those hosts, or any answer from
-// beyond, from the page or any frame or worker, stops the check at once and
-// hands back nothing from the page. What a connection sent before the stop
-// cannot be taken back (PLAN.md §9).
+// Two lifetimes, never one deadline across both (spec §4.1):
 //
-// The check ends at its deadline, when its caller stops it (Stop, the
-// session or the window closing), or when the browser goes away; the
-// connection is closed at that moment, so nothing more reaches the browser,
-// and the browser is then killed, with everything it started. Pure: the
-// browser, the profile folder and the clock's bounds are injected.
+// 1. The preparation (15 minutes): the runtime bundle checks, asks, downloads
+//    and verifies through `options.prepareRuntime`, joined to the caller's
+//    stop and to the host's admission (trust, mode, network posture, the
+//    runtime setting, the frozen scope). No browser, profile or proxy exists
+//    yet.
+// 2. Once a verified runtime is ready and admission is read again, the check
+//    (60 seconds): its folder, the proxy (ready before the spawn), the probe
+//    fixture, the verified executable's identity read again, the spawn with
+//    the fixed command line and a projected environment; then the browser's
+//    version, its command line and its first target held to the pin's
+//    contract; the gate and the watch; the default-context canaries; the
+//    private context with the same proxy, its cookie tripwire and its
+//    canaries; the model's page; the audit's canaries and the network
+//    service's id; admission once more before anything is returned.
+//
+// The first end wins (the deadline, a stop, the window, admission lost, a
+// leak, the pipe): the CDP connection closes at that moment, rejecting every
+// call still waiting, and the teardown (the browser closed or killed with
+// everything it started, the proxy, the fixtures, the folder) runs once,
+// bounded at 10 seconds. Pure: every process, folder, socket and clock is
+// injected (browserProcess.ts on the host).
 
-import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
+  BROWSER_CANARY_INITIAL_MS,
+  BROWSER_CANARY_NONCE_BYTES,
+  BROWSER_CANARY_PHASE_MS,
+  BROWSER_CANARY_SETTLE_MS,
   BROWSER_CHECK_ACTION_SETTLE_MS,
   BROWSER_CHECK_CLOSE_GRACE_MS,
   BROWSER_CHECK_LOAD_TIMEOUT_MS,
-  BROWSER_CHECK_MAX_ENTRIES,
-  BROWSER_CHECK_MAX_TARGETS,
+  BROWSER_CHECK_TEARDOWN_MS,
   BROWSER_CHECK_TIMEOUT_MS,
-  HTTP_STATUS,
-  MAX_IMAGE_BYTES,
-  PNG_MEDIA_TYPE,
-} from '../../shared/constants'
-import { readImageInfo } from '../imageDimensions'
-import { browserLaunchArgs } from './browserLaunch'
-import { isAllowedRequest, isNetworkUrl } from './browserPolicy'
-import { CdpConnection, CdpError, type CdpEvent, type PipeReader, type PipeWriter } from './cdpPipe'
-import { clipEntry, RequestLog } from './requestLog'
+  BROWSER_NETWORK_SERVICE_TYPE,
+  BROWSER_PRODUCT_PREFIX,
+  BROWSER_PROXY_BYPASS,
+  BROWSER_PROXY_MAX_OBSERVATIONS,
+  BROWSER_RUNTIME_CLEANUP_MS,
+  BROWSER_RUNTIME_PREPARATION_MS,
+} from '../../shared/browserCheckConstants'
+import {
+  browserEnvironment,
+  browserLaunchArgs,
+  type CheckFolders,
+  commandLineVerdict,
+} from './browserLaunch'
+import {
+  type CanaryPhase,
+  phasePlan,
+  phaseVerdict,
+  type ProbeFixture,
+  type ProbeReport,
+} from './canaries'
+import { CdpConnection, CdpError, type PipeReader, type PipeWriter } from './cdpPipe'
+import type { CheckProxy, FrozenScope, ProxyObservation } from './checkProxy'
+import { PageCheck } from './pageCheck'
+import type { RuntimePreparation, RuntimePrepareRequest, VerifiedRuntime } from './runtimeTypes'
+import { type BoundedLifetime, createLifetime } from './workLifetime'
 
 /** One click or type step, as the call's arguments gave it. */
 export interface BrowserAction {
@@ -57,10 +79,13 @@ export interface BrowserCheckRequest {
   readonly url: string
   readonly actions: readonly BrowserAction[]
   /**
-   * The hosts beyond loopback this check may reach: the user's setting, and
-   * the one an approval card widened for this call. Never the model's.
+   * The hosts beyond loopback the user explicitly allowed for this check:
+   * the setting, and the one a card or the modal widened. Never the
+   * model's. Implicit loopback is derived separately (plain HTTP only).
    */
   readonly allowedHosts: readonly string[]
+  /** What the user approved: the URL and its scope (`browserScopeKey`). */
+  readonly approvalKey: string
   /** False for Muse Code, until a capture shows an `ide` tool's image reaches its model. */
   readonly includeScreenshot: boolean
   readonly signal: AbortSignal
@@ -78,7 +103,7 @@ export interface BrowserCheckReport {
   readonly consoleErrors: BrowserEntries
   /** `url (reason)`: a network error, or an HTTP status of 400 or more. */
   readonly failedRequests: BrowserEntries
-  /** Requests beyond loopback the check failed. */
+  /** Requests beyond the approved hosts the check failed or the proxy refused. */
   readonly blockedRequests: BrowserEntries
   /** A PNG, read and measured, when the request asked for one. */
   readonly screenshot: BrowserScreenshot | undefined
@@ -160,7 +185,7 @@ export type PageEnd =
 
 export type BrowserFailure =
   | { readonly kind: PreparationFailure | ConfinementFailure | PageEnd }
-  /** The page did not load; `netError` matches NET_ERROR (`net::ERR_…`) or is absent. */
+  /** The page did not load; `netError` matches BROWSER_NET_ERROR (`net::ERR_…`) or is absent. */
   | { readonly kind: 'pageFailed'; readonly netError: string | undefined }
   /** A step's selector matched nothing: the model's own selector, bounded. */
   | { readonly kind: 'noElement'; readonly selector: string }
@@ -169,16 +194,34 @@ export type BrowserCheckResult =
   | { readonly ok: true; readonly report: BrowserCheckReport }
   | { readonly ok: false; readonly failure: BrowserFailure }
 
-/** The only page error text that crosses the boundary. */
-const NET_ERROR = /^net::ERR_[A-Z0-9_]+$/
-
-/** A page's error text as the closed failure keeps it: a `net::ERR_…` code, or nothing. */
-function pageFailed(errorText: string): BrowserFailure {
-  return { kind: 'pageFailed', netError: NET_ERROR.test(errorText) ? errorText : undefined }
-}
+/**
+ * Whether a caller's check is still allowed, read around every await: the
+ * workspace's trust, the mode, the network posture and the frozen scope.
+ */
+export type CheckAdmission = () => 'ok' | 'notOffered' | 'scopeChanged'
 
 /** What runs a check: the host's browser bundle, loaded on the first call. */
-export type BrowserChecker = (request: BrowserCheckRequest) => Promise<BrowserCheckResult>
+export type BrowserChecker = (
+  request: BrowserCheckRequest,
+  admission: CheckAdmission,
+) => Promise<BrowserCheckResult>
+
+/**
+ * The host's side of one check (spec §5, lead ruling v4-M1): consent is
+ * host-owned, so the runtime adapter takes the request without it and asks
+ * the user itself.
+ */
+export interface BrowserHostOptions {
+  readonly storageDir: string
+  readonly prepareRuntime: (
+    request: Omit<RuntimePrepareRequest, 'consent'>,
+  ) => Promise<RuntimePreparation>
+  /** Ends when the offer goes (trust, mode, posture, the setting, the scope); its reason says which. */
+  readonly admissionSignal: AbortSignal
+  readonly admissionStillValid: () => boolean
+  /** A fixed, closed-set fact for the log: never a value, a path or a raw error. */
+  readonly warn: (fact: string) => void
+}
 
 /** A started browser: the two pipe ends, its exit, and a kill for it and all it started. */
 export interface BrowserProcess {
@@ -191,149 +234,108 @@ export interface BrowserProcess {
 }
 
 export interface BrowserTimings {
+  readonly preparationMs: number
   readonly checkMs: number
   readonly loadMs: number
   readonly settleMs: number
   readonly closeGraceMs: number
+  readonly phaseMs: number
+  readonly initialCanaryMs: number
+}
+
+/** A check's folder: the profile, its temporary folder and home, under `root`. */
+export interface CheckFolder extends CheckFolders {
+  readonly root: string
 }
 
 export interface BrowserRunDeps {
-  /** The system Chrome or Edge, found anew for each check; undefined when none is installed. */
-  readonly findExecutable: () => string | undefined
-  /** A fresh, empty folder for the profile; never the user's. */
-  readonly createProfile: () => Promise<string>
-  readonly removeProfile: (directory: string) => Promise<void>
-  readonly spawn: (executable: string, args: readonly string[]) => BrowserProcess
-  /** A profile folder that could not be removed: reported, the check's result stands. */
-  readonly onProfileLeft: (directory: string, error: unknown) => void
+  readonly platform: NodeJS.Platform
+  /** This process's environment; the browser gets a projection of it. */
+  readonly env: Readonly<Record<string, string | undefined>>
+  /** A fresh folder under `<storage>/bc/`; never the user's profile. */
+  readonly createFolder: (storageDir: string) => Promise<CheckFolder>
+  readonly removeFolder: (folder: CheckFolder) => Promise<void>
+  /** The executable's length and modification time now; undefined when it is gone. */
+  readonly statExecutable: (
+    executable: string,
+  ) => Promise<{ readonly bytes: number; readonly mtimeMs: number } | undefined>
+  readonly startProxy: (scope: FrozenScope) => Promise<CheckProxy>
+  readonly startFixture: () => Promise<ProbeFixture>
+  /** Throws an error with code EPERM or EACCES when the OS refuses to run it. */
+  readonly spawn: (
+    executable: string,
+    args: readonly string[],
+    env: Readonly<Record<string, string>>,
+  ) => BrowserProcess
+  readonly randomHex: (bytes: number) => string
   /** The constants' bounds unless a test shortens them. */
   readonly timings?: Partial<BrowserTimings>
 }
 
 const DEFAULT_TIMINGS: BrowserTimings = {
+  preparationMs: BROWSER_RUNTIME_PREPARATION_MS,
   checkMs: BROWSER_CHECK_TIMEOUT_MS,
   loadMs: BROWSER_CHECK_LOAD_TIMEOUT_MS,
   settleMs: BROWSER_CHECK_ACTION_SETTLE_MS,
   closeGraceMs: BROWSER_CHECK_CLOSE_GRACE_MS,
+  phaseMs: BROWSER_CANARY_PHASE_MS,
+  initialCanaryMs: BROWSER_CANARY_INITIAL_MS,
 }
 
-// The shapes read off the protocol (Chrome 150 and Edge 154, probed over
-// the pipe on the test rigs, docs/certification/m81.md).
-const targetSchema = z.object({ targetId: z.string() })
-const attachedSchema = z.object({
-  sessionId: z.string(),
-  targetInfo: z.object({ targetId: z.string() }),
+const versionSchema = z.object({ product: z.string() })
+const commandLineSchema = z.object({ arguments: z.array(z.string()) })
+const targetsSchema = z.object({
+  targetInfos: z.array(z.object({ type: z.string(), url: z.string() })),
 })
-const detachedSchema = z.object({ sessionId: z.string() })
-const navigatedSchema = z.object({ errorText: z.optional(z.string()) })
-const targetInfoSchema = z.object({ targetInfo: z.object({ url: z.string() }) })
-const evaluatedSchema = z.object({
-  result: z.object({ value: z.optional(z.unknown()) }),
-  exceptionDetails: z.optional(z.unknown()),
+const processesSchema = z.object({
+  processInfo: z.array(z.object({ type: z.string(), id: z.number() })),
 })
-const screenshotSchema = z.object({ data: z.string() })
-const pausedSchema = z.object({ requestId: z.string(), request: z.object({ url: z.string() }) })
-const requestSchema = z.object({
-  requestId: z.string(),
-  request: z.object({ url: z.string() }),
-  redirectResponse: z.optional(z.object({ url: z.string() })),
-})
-const responseSchema = z.object({
-  requestId: z.string(),
-  response: z.object({
-    url: z.string(),
-    status: z.number(),
-    fromServiceWorker: z.optional(z.boolean()),
+const contextSchema = z.object({ browserContextId: z.string() })
+const cookiesSchema = z.object({ cookies: z.array(z.unknown()) })
+const probeReportSchema = z.object({
+  sockets: z.object({
+    c2: z.optional(z.string()),
+    c2s: z.optional(z.string()),
+    c5w: z.optional(z.string()),
   }),
-})
-const finishedSchema = z.object({ requestId: z.string() })
-const loadingFailedSchema = z.object({
-  requestId: z.string(),
-  errorText: z.string(),
-  canceled: z.optional(z.boolean()),
-  blockedReason: z.optional(z.string()),
-})
-// A WebSocket (`requestId`) or a WebTransport (`transportId`): what Fetch cannot pause.
-const socketSchema = z.object({ url: z.string() })
-const consoleSchema = z.object({ type: z.string(), args: z.array(z.unknown()) })
-const remoteObjectSchema = z.object({
-  type: z.optional(z.string()),
-  value: z.optional(z.unknown()),
-  description: z.optional(z.string()),
-})
-const exceptionSchema = z.object({
-  exceptionDetails: z.object({
-    text: z.string(),
-    exception: z.optional(z.object({ description: z.optional(z.string()) })),
-  }),
+  wt: z.string(),
+  candidates: z.array(z.string()),
+  ice: z.string(),
 })
 const nothing = z.object({})
 
-// Every target attached as it starts, held until the check lets it run.
-const AUTO_ATTACH = { autoAttach: true, waitForDebuggerOnStart: true, flatten: true }
-const EVERY_REQUEST = { patterns: [{ urlPattern: '*' }] }
-// Console calls the check reports: `console.error` and a failed `console.assert`.
-const CONSOLE_ERROR_TYPES: ReadonlySet<string> = new Set(['error', 'assert'])
-// What a request the check failed itself carries in `Network.loadingFailed`.
-const BLOCKED_BY_CHECK = 'inspector'
-// Page.navigate's error when the check failed the page's own request.
-const NAVIGATION_BLOCKED = 'net::ERR_BLOCKED_BY_CLIENT'
-const STEP_DONE = 'done'
-const STEP_MISSING = 'missing'
-// The page side of one step, in the page's own words: the element, then a
-// click, or the text set through the native value setter (so a framework
-// that watches the property sees it) and announced as input.
-const STEP_SCRIPT = `(kind, selector, text) => {
-  const element = document.querySelector(selector)
-  if (element === null) return '${STEP_MISSING}'
-  if (kind === 'click') { element.click(); return '${STEP_DONE}' }
-  element.focus()
-  const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value')?.set
-  if (setter === undefined) return '${STEP_MISSING}'
-  setter.call(element, text)
-  element.dispatchEvent(new Event('input', { bubbles: true }))
-  element.dispatchEvent(new Event('change', { bubbles: true }))
-  return '${STEP_DONE}'
-}`
+// A phase whose probe never reported: the audit's own failure, else the route's.
+const MISSING_REPORT = {
+  default: 'routeUnconfirmed',
+  page: 'routeUnconfirmed',
+  audit: 'auditFailed',
+} as const
+
+/** A failure that ends the check where it is found. */
+class CheckFailure extends Error {
+  public constructor(public readonly failure: BrowserFailure) {
+    super(failure.kind)
+  }
+}
+
+function fail(kind: PreparationFailure | ConfinementFailure | PageEnd): never {
+  throw new CheckFailure({ kind })
+}
+
+/** `work`'s value, or the check ends with `kind` when it rejects. */
+async function orFail<T>(
+  work: Promise<T>,
+  kind: PreparationFailure | ConfinementFailure | PageEnd,
+): Promise<T> {
+  try {
+    return await work
+  } catch {
+    return fail(kind)
+  }
+}
 
 function ignore(): void {
   // A call whose answer no longer matters: the check has ended.
-}
-
-/** Entries of one kind, kept up to the bound and cut to length; the rest are counted. */
-class EntryList {
-  private readonly entries: string[] = []
-  private extra = 0
-
-  public constructor(private readonly isDistinct: boolean) {}
-
-  public add(text: string): void {
-    const entry = clipEntry(text)
-    if (this.isDistinct && this.entries.includes(entry)) {
-      return
-    }
-    if (this.entries.length < BROWSER_CHECK_MAX_ENTRIES) {
-      this.entries.push(entry)
-      return
-    }
-    this.extra += 1
-  }
-
-  public get value(): BrowserEntries {
-    return { shown: [...this.entries], more: this.extra }
-  }
-}
-
-/** A console argument in words: its value, else its description, else its type. */
-function consoleArgText(argument: unknown): string {
-  const parsed = remoteObjectSchema.safeParse(argument)
-  if (!parsed.success) {
-    return ''
-  }
-  const { value, description, type } = parsed.data
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
-    ? String(value)
-    : (description ?? type ?? '')
 }
 
 /** Whether the browser exits within `ms`. */
@@ -355,545 +357,402 @@ async function hasExitedWithin(exited: Promise<void>, ms: number): Promise<boole
   }
 }
 
-// Ends after which the browser is killed at once rather than asked to close:
-// it is unresponsive, out of time, stopped by its caller, or leaking.
-const ABRUPT_ENDS: ReadonlySet<BrowserFailure['kind']> = new Set([
-  'browserFailed',
-  'timedOut',
-  'cancelled',
-  'leaked',
+/** Why admission ended, from the host's signal: a changed scope, or the offer gone. */
+function admissionFailure(options: BrowserHostOptions): BrowserFailure {
+  return { kind: options.admissionSignal.reason === 'scopeChanged' ? 'scopeChanged' : 'notOffered' }
+}
+
+/** Why the check may not go on now: stopped, or admission gone; undefined while it may. */
+function refusalNow(
+  request: BrowserCheckRequest,
+  options: BrowserHostOptions,
+): BrowserFailure | undefined {
+  if (request.signal.aborted) {
+    return { kind: 'cancelled' }
+  }
+  return options.admissionSignal.aborted || !options.admissionStillValid()
+    ? admissionFailure(options)
+    : undefined
+}
+
+/** The failure for a lifetime that ended before its work did. */
+function endedFailure(
+  lifetime: BoundedLifetime,
+  request: BrowserCheckRequest,
+  options: BrowserHostOptions,
+  onDeadline: 'timedOut' | 'preparationTimedOut',
+): BrowserFailure {
+  if (request.signal.aborted) {
+    return { kind: 'cancelled' }
+  }
+  if (options.admissionSignal.aborted) {
+    return admissionFailure(options)
+  }
+  return { kind: lifetime.endedBy === 'deadline' ? onDeadline : 'cancelled' }
+}
+
+/** The verified runtime, or why none is ready: the preparation's own lifetime. */
+async function prepare(
+  request: BrowserCheckRequest,
+  options: BrowserHostOptions,
+  timings: BrowserTimings,
+): Promise<VerifiedRuntime | BrowserFailure> {
+  const lifetime = createLifetime(
+    timings.preparationMs,
+    [request.signal, options.admissionSignal],
+    BROWSER_RUNTIME_CLEANUP_MS,
+  )
+  try {
+    const prepared = await lifetime.step(
+      async () =>
+        await options.prepareRuntime({
+          storageDir: options.storageDir,
+          lifetime,
+          admissionStillValid: options.admissionStillValid,
+        }),
+    )
+    if (prepared.ok) {
+      return prepared.runtime
+    }
+    // Admission's own reason (a changed scope, the offer gone) comes first.
+    return options.admissionSignal.aborted ? admissionFailure(options) : { kind: prepared.reason }
+  } catch {
+    return endedFailure(lifetime, request, options, 'preparationTimedOut')
+  } finally {
+    lifetime.end()
+    await lifetime.cleaned
+  }
+}
+
+/** The network service's process id, as the browser reports it; undefined when absent. */
+async function networkServiceId(page: PageCheck): Promise<number | undefined> {
+  const { processInfo } = await page.call('SystemInfo.getProcessInfo', processesSchema)
+  return processInfo.find((entry) => entry.type === BROWSER_NETWORK_SERVICE_TYPE)?.id
+}
+
+interface CheckContext {
+  readonly page: PageCheck
+  readonly fixture: ProbeFixture
+  readonly observations: readonly ProxyObservation[]
+  readonly request: BrowserCheckRequest
+  readonly deps: BrowserRunDeps
+  readonly timings: BrowserTimings
+}
+
+/**
+ * One canary phase on its own probe target (in the private context when
+ * one is given): fresh nonces, exceptions bound to that frame and revoked
+ * when it ends, then the verdict. Throws the confinement failure it finds.
+ */
+async function runPhase(
+  context: CheckContext,
+  phase: CanaryPhase,
+  browserContextId: string | undefined,
+  ms: number,
+): Promise<void> {
+  const { page, fixture, observations, request, deps } = context
+  const plan = phasePlan(
+    phase,
+    deps.randomHex(BROWSER_CANARY_NONCE_BYTES),
+    fixture,
+    request.allowedHosts,
+  )
+  let isOver = false
+  let report: ProbeReport | undefined
+  const run = async (): Promise<void> => {
+    const { sessionId } = await page.openTarget(browserContextId, true)
+    const frameId = await page.mainFrame(sessionId)
+    // A phase past its bound binds nothing: its exceptions stay revoked.
+    if (isOver) {
+      throw new CdpError('phase over')
+    }
+    page.bind({ frameId, urls: plan.exceptions })
+    const raw = await page.probe(sessionId, plan.pageUrl, plan.script)
+    const parsed = probeReportSchema.safeParse(typeof raw === 'string' ? JSON.parse(raw) : raw)
+    if (!parsed.success) {
+      throw new CdpError('probe report: unexpected shape')
+    }
+    report = parsed.data
+    // Let the proxy's last records land.
+    await page.waitUntil(
+      () => phaseVerdict(plan, observations, fixture, parsed.data) === undefined,
+      BROWSER_CANARY_SETTLE_MS,
+    )
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms)
+  })
+  try {
+    await Promise.race([run(), late])
+    // A probe page that never answered within the bound is a route not confirmed.
+    const verdict =
+      report === undefined
+        ? MISSING_REPORT[phase]
+        : phaseVerdict(plan, observations, fixture, report)
+    if (verdict !== undefined) {
+      fail(verdict)
+    }
+  } finally {
+    isOver = true
+    clearTimeout(timer)
+    page.bind(undefined)
+  }
+}
+
+/** Starts the browser on the verified runtime: its identity read again first. */
+async function launch(
+  runtime: VerifiedRuntime,
+  folder: CheckFolder,
+  proxy: CheckProxy,
+  deps: BrowserRunDeps,
+  lifetime: BoundedLifetime,
+): Promise<{ readonly browser: BrowserProcess; readonly args: readonly string[] }> {
+  // The file that runs is the file that was verified.
+  const identity = await lifetime.step(async () => await deps.statExecutable(runtime.executable))
+  if (
+    identity?.bytes !== runtime.executableBytes ||
+    identity.mtimeMs !== runtime.executableMtimeMs
+  ) {
+    fail('runtimeIntegrity')
+  }
+  const args = browserLaunchArgs(proxy.endpoint, folder.profile)
+  const env = browserEnvironment(deps.platform, deps.env, folder)
+  try {
+    return { browser: deps.spawn(runtime.executable, args, env), args }
+  } catch (error: unknown) {
+    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : ''
+    return fail(code === 'EPERM' || code === 'EACCES' ? 'runtimeBlocked' : 'launch')
+  }
+}
+
+/** The pin's contract: the exact product, the command line as launched, one blank page, the network service. */
+async function holdToContract(
+  page: PageCheck,
+  runtime: VerifiedRuntime,
+  args: readonly string[],
+  options: BrowserHostOptions,
+): Promise<number> {
+  const { product } = await page.call('Browser.getVersion', versionSchema)
+  if (product !== `${BROWSER_PRODUCT_PREFIX}${runtime.version}`) {
+    fail('unrecognized')
+  }
+  const commandLine = await page.call('Browser.getBrowserCommandLine', commandLineSchema)
+  const verdict = commandLineVerdict(commandLine.arguments, args)
+  if (verdict.kind === 'resolver') {
+    fail('resolverUnconfirmed')
+  } else if (verdict.kind === 'unrecognized') {
+    fail('unrecognized')
+  }
+  options.warn(
+    `Browser check: command line held, ${String(verdict.unknownSwitches)} other switches`,
+  )
+  const { targetInfos } = await page.call('Target.getTargets', targetsSchema)
+  const [first] = targetInfos
+  const serviceId = await networkServiceId(page)
+  if (
+    serviceId === undefined ||
+    targetInfos.length !== 1 ||
+    first?.type !== 'page' ||
+    first.url !== 'about:blank'
+  ) {
+    fail('unrecognized')
+  }
+  return serviceId
+}
+
+/** What `check` is told by its caller: how to end the whole check, and how it ends. */
+interface CheckHooks {
+  readonly connected: (connection: CdpConnection) => void
+  readonly endWith: (failure: BrowserFailure) => void
+  /** Whether the check came to its own end, so the browser may close itself. */
+  readonly isGraceful: () => boolean
+}
+
+/**
+ * The check inside its 60-second lifetime, after the runtime is ready.
+ * Throws a CheckFailure, or rejects when the browser fails it.
+ */
+async function check(
+  runtime: VerifiedRuntime,
+  context: Pick<CheckContext, 'request' | 'deps' | 'timings'> & {
+    readonly options: BrowserHostOptions
+  },
+  lifetime: BoundedLifetime,
+  hooks: CheckHooks,
+): Promise<BrowserCheckResult> {
+  const { request, deps, timings, options } = context
+  const folder = await orFail(
+    lifetime.step(async () => await deps.createFolder(options.storageDir)),
+    'profile',
+  )
+  lifetime.onEnd(async () => {
+    await deps.removeFolder(folder)
+  })
+  const scope: FrozenScope = {
+    url: request.url,
+    explicitHosts: request.allowedHosts,
+    approvalKey: request.approvalKey,
+  }
+  const proxy = await orFail(
+    lifetime.step(async () => await deps.startProxy(scope)),
+    'launch',
+  )
+  lifetime.onEnd(async () => {
+    await proxy.close()
+  })
+  const fixture = await orFail(
+    lifetime.step(async () => await deps.startFixture()),
+    'unverifiable',
+  )
+  lifetime.onEnd(async () => {
+    await fixture.close()
+  })
+  const { browser, args } = await launch(runtime, folder, proxy, deps, lifetime)
+  const connection = new CdpConnection(browser.writer, browser.reader)
+  hooks.connected(connection)
+  lifetime.onEnd(async () => {
+    if (hooks.isGraceful()) {
+      void connection.send('Browser.close').catch(ignore)
+      if (await hasExitedWithin(browser.exited, timings.closeGraceMs)) {
+        return
+      }
+    }
+    connection.close(new CdpError('the browser check has ended'))
+    await browser.kill()
+    await hasExitedWithin(browser.exited, timings.closeGraceMs)
+  })
+  const page = new PageCheck(connection, {
+    request,
+    timings,
+    proxyPort: Number(new URL(proxy.endpoint).port),
+    end: hooks.endWith,
+  })
+  const observations: ProxyObservation[] = []
+  proxy.observe((observation) => {
+    if (observations.length < BROWSER_PROXY_MAX_OBSERVATIONS) {
+      observations.push(observation)
+    }
+    page.poke()
+  })
+  const serviceId = await holdToContract(page, runtime, args, options)
+  await page.setup()
+  const canary: CheckContext = { page, fixture, observations, request, deps, timings }
+  const initialEnd = performance.now() + timings.initialCanaryMs
+  const remaining = (): number => Math.min(timings.phaseMs, initialEnd - performance.now())
+  await runPhase(canary, 'default', undefined, remaining())
+  const { browserContextId } = await orFail(
+    page.call('Target.createBrowserContext', contextSchema, {
+      proxyServer: proxy.endpoint,
+      proxyBypassList: BROWSER_PROXY_BYPASS,
+      disposeOnDetach: true,
+    }),
+    'profile',
+  )
+  const { cookies } = await page.call('Storage.getCookies', cookiesSchema, { browserContextId })
+  if (cookies.length > 0) {
+    fail('profile')
+  }
+  await page.call('Browser.setDownloadBehavior', nothing, { behavior: 'deny', browserContextId })
+  await runPhase(canary, 'page', browserContextId, remaining())
+  const result = await page.runPage(browserContextId)
+  if (!result.ok) {
+    return result
+  }
+  await runPhase(canary, 'audit', browserContextId, timings.phaseMs)
+  if ((await networkServiceId(page)) !== serviceId) {
+    fail('restartObserved')
+  }
+  return result
+}
+
+// Ends after which the browser may close itself: the check came to its own
+// end with the browser answering. Any other end kills it at once.
+const GRACEFUL_ENDS: ReadonlySet<BrowserFailure['kind']> = new Set([
+  'pageFailed',
+  'pageBlocked',
+  'noElement',
 ])
 
-/** Whether the check came to its own end, so the browser may close itself. */
-function isGracefulEnd(result: BrowserCheckResult | undefined): boolean {
-  return result !== undefined && (result.ok || !ABRUPT_ENDS.has(result.failure.kind))
-}
-
-/**
- * The browser gone: asked to close when the check came to its own end,
- * killed at once otherwise, and killed anyway if it is still there after
- * the grace.
- */
-async function stopBrowser(
-  browser: BrowserProcess,
-  connection: CdpConnection,
-  isGraceful: boolean,
-  graceMs: number,
-): Promise<void> {
-  if (isGraceful && connection.closedBy === undefined) {
-    void connection.send('Browser.close').catch(ignore)
-    if (await hasExitedWithin(browser.exited, graceMs)) {
-      return
-    }
-  }
-  await browser.kill()
-  await hasExitedWithin(browser.exited, graceMs)
-}
-
-/** The check's targets: the gate on every request, the watch on every target, and the steps. */
-class PageCheck {
-  private readonly allowed: ReadonlySet<string>
-  private readonly consoleErrors = new EntryList(false)
-  private readonly failedRequests = new EntryList(true)
-  private readonly blockedRequests = new EntryList(true)
-  private readonly requests = new RequestLog()
-  /** The sessions watched: the page's, its frames' and workers', and those they start. */
-  private readonly watched = new Set<string>()
-  /** The session of each target whose watch is up, by target id. */
-  private readonly ready = new Map<string, string>()
-  private readonly waiters = new Set<() => void>()
-  private pageSession: string | undefined
-  private loads = 0
-
-  public constructor(
-    private readonly connection: CdpConnection,
-    private readonly request: BrowserCheckRequest,
-    private readonly timings: BrowserTimings,
-    /** Ends the whole check at once with this failure. */
-    private readonly end: (failure: BrowserFailure) => void,
-  ) {
-    this.allowed = new Set(request.allowedHosts)
-    connection.onEvent((event) => {
-      this.onEvent(event)
-    })
-    connection.onClose(() => {
-      this.wakeWaiters()
-    })
-  }
-
-  private onEvent(event: CdpEvent): void {
-    switch (event.method) {
-      case 'Fetch.requestPaused': {
-        this.gate(event)
-        return
-      }
-      case 'Target.attachedToTarget': {
-        void this.watch(event.params)
-        return
-      }
-      case 'Target.detachedFromTarget': {
-        const detached = detachedSchema.safeParse(event.params)
-        if (detached.success) {
-          this.unwatch(detached.data.sessionId)
-        }
-        return
-      }
-      default: {
-        break
-      }
-    }
-    const { sessionId } = event
-    if (sessionId === undefined || !this.watched.has(sessionId)) {
-      return
-    }
-    this.onNetworkEvent(event, sessionId)
-    if (sessionId === this.pageSession) {
-      this.onPageEvent(event)
-    }
-  }
-
-  /**
-   * A target attached as it started, held before its first line runs: its
-   * Network events on (and Fetch, which a worker does not have: the
-   * browser's gate pauses its requests anyway), the targets it starts
-   * attached in turn, and only then let run. One whose watch could not be
-   * set up, or one past the bound, is never let run.
-   */
-  private async watch(params: unknown): Promise<void> {
-    const attached = attachedSchema.safeParse(params)
-    if (!attached.success || this.watched.size >= BROWSER_CHECK_MAX_TARGETS) {
-      return
-    }
-    const { sessionId, targetInfo } = attached.data
-    this.watched.add(sessionId)
-    try {
-      await this.connection.send('Network.enable', {}, sessionId)
-      await this.enableFetch(sessionId)
-      await this.connection.send('Target.setAutoAttach', AUTO_ATTACH, sessionId)
-      await this.connection.send('Runtime.runIfWaitingForDebugger', {}, sessionId)
-    } catch {
-      return
-    }
-    // Gone again while its watch went up: nothing of it is kept.
-    if (!this.watched.has(sessionId)) {
-      return
-    }
-    this.ready.set(targetInfo.targetId, sessionId)
-    this.wakeWaiters()
-  }
-
-  /** Fetch on a target's own session, where it has the domain (a worker does not). */
-  private async enableFetch(sessionId: string): Promise<void> {
-    try {
-      await this.connection.send('Fetch.enable', EVERY_REQUEST, sessionId)
-    } catch {
-      // The browser's own gate pauses this target's requests anyway.
-    }
-  }
-
-  /** A target gone (a worker ended, a frame removed): its session forgotten. */
-  private unwatch(sessionId: string): void {
-    this.watched.delete(sessionId)
-    for (const [targetId, watchedSession] of this.ready) {
-      if (watchedSession === sessionId) {
-        this.ready.delete(targetId)
-      }
-    }
-  }
-
-  /** Every paused request: on to loopback or an allowed host, failed otherwise. */
-  private gate(event: CdpEvent): void {
-    const paused = pausedSchema.safeParse(event.params)
-    if (!paused.success) {
-      return
-    }
-    const { requestId, request } = paused.data
-    if (isAllowedRequest(request.url, this.allowed)) {
-      void this.connection
-        .send('Fetch.continueRequest', { requestId }, event.sessionId)
-        .catch(ignore)
-      return
-    }
-    if (isNetworkUrl(request.url)) {
-      this.blockedRequests.add(request.url)
-    }
-    void this.connection
-      .send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' }, event.sessionId)
-      .catch(ignore)
-  }
-
-  /** Any watched target's traffic: the failed requests, and a way out that ends the check. */
-  private onNetworkEvent(event: CdpEvent, sessionId: string): void {
-    switch (event.method) {
-      case 'Network.requestWillBeSent': {
-        const sent = requestSchema.safeParse(event.params)
-        if (!sent.success) {
-          break
-        }
-        this.requests.add(sessionId, sent.data.requestId, sent.data.request.url)
-        // A redirect is an answer too: one from beyond the allowed hosts is a leak.
-        const redirect = sent.data.redirectResponse?.url
-        if (redirect !== undefined && this.isBeyondAllowed(redirect)) {
-          this.end({ kind: 'leaked' })
-        }
-        break
-      }
-      case 'Network.responseReceived': {
-        this.onResponse(event.params)
-        break
-      }
-      case 'Network.loadingFinished': {
-        const finished = finishedSchema.safeParse(event.params)
-        if (finished.success) {
-          this.requests.take(sessionId, finished.data.requestId)
-        }
-        break
-      }
-      case 'Network.loadingFailed': {
-        this.onLoadingFailed(event.params, sessionId)
-        break
-      }
-      case 'Network.webSocketCreated':
-      case 'Network.webTransportCreated': {
-        // Fetch cannot hold it back: beyond the allowed hosts, the check ends.
-        const socket = socketSchema.safeParse(event.params)
-        if (socket.success && this.isBeyondAllowed(socket.data.url)) {
-          this.end({ kind: 'leaked' })
-        }
-        break
-      }
-      default: {
-        break
-      }
-    }
-  }
-
-  /** The page's own events: its loads, and its console. */
-  private onPageEvent(event: CdpEvent): void {
-    switch (event.method) {
-      case 'Page.loadEventFired': {
-        this.loads += 1
-        this.wakeWaiters()
-        break
-      }
-      case 'Runtime.consoleAPICalled': {
-        const called = consoleSchema.safeParse(event.params)
-        if (called.success && CONSOLE_ERROR_TYPES.has(called.data.type)) {
-          this.consoleErrors.add(
-            called.data.args.map((argument) => consoleArgText(argument)).join(' '),
-          )
-        }
-        break
-      }
-      case 'Runtime.exceptionThrown': {
-        const thrown = exceptionSchema.safeParse(event.params)
-        if (thrown.success) {
-          const { text, exception } = thrown.data.exceptionDetails
-          this.consoleErrors.add(exception?.description ?? text)
-        }
-        break
-      }
-      default: {
-        break
-      }
-    }
-  }
-
-  private onResponse(params: unknown): void {
-    const received = responseSchema.safeParse(params)
-    if (!received.success) {
-      return
-    }
-    const { url, status, fromServiceWorker } = received.data.response
-    // A service worker's own requests pass the gate like any other; what it
-    // answers from itself never left the browser.
-    if (fromServiceWorker !== true && this.isBeyondAllowed(url)) {
-      this.end({ kind: 'leaked' })
-      return
-    }
-    if (status >= HTTP_STATUS.badRequest) {
-      this.failedRequests.add(`${url} (HTTP ${String(status)})`)
-    }
-  }
-
-  private onLoadingFailed(params: unknown, sessionId: string): void {
-    const failed = loadingFailedSchema.safeParse(params)
-    if (!failed.success) {
-      return
-    }
-    const url = this.requests.take(sessionId, failed.data.requestId)
-    if (failed.data.blockedReason === BLOCKED_BY_CHECK || failed.data.canceled === true) {
-      return
-    }
-    if (url !== undefined && isNetworkUrl(url)) {
-      this.failedRequests.add(`${url} (${failed.data.errorText})`)
-    }
-  }
-
-  /** A network URL to a host the check may not reach. */
-  private isBeyondAllowed(url: string): boolean {
-    return isNetworkUrl(url) && !isAllowedRequest(url, this.allowed)
-  }
-
-  private wakeWaiters(): void {
-    // A waiter that finishes takes itself out of the set; iteration allows it.
-    for (const wake of this.waiters) {
-      wake()
-    }
-  }
-
-  /** Until `isDone()` holds, at most `ms`; at once when the connection ends. */
-  private waitUntil(isDone: () => boolean, ms: number): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const wake = (): void => {
-        if (isDone() || this.connection.closedBy !== undefined) {
-          finish()
-        }
-      }
-      const timer = setTimeout(() => {
-        finish()
-      }, ms)
-      const finish = (): void => {
-        clearTimeout(timer)
-        this.waiters.delete(wake)
-        resolve()
-      }
-      this.waiters.add(wake)
-      wake()
-    })
-  }
-
-  /** Until the page's next load event, at most `ms`. */
-  private waitForLoad(ms: number): Promise<void> {
-    const seen = this.loads
-    return this.waitUntil(() => this.loads > seen, ms)
-  }
-
-  /** The session of a target the check created, once its watch is up. */
-  private async watchedSession(targetId: string): Promise<string> {
-    await this.waitUntil(() => this.ready.has(targetId), this.timings.loadMs)
-    const sessionId = this.ready.get(targetId)
-    if (sessionId === undefined) {
-      throw this.connection.closedBy ?? new CdpError('the page was not attached in time')
-    }
-    return sessionId
-  }
-
-  /** Nothing more is asked of a browser whose check has ended. */
-  private ensureOpen(): void {
-    const closed = this.connection.closedBy
-    if (closed !== undefined) {
-      throw closed
-    }
-  }
-
-  private async call<T>(
-    method: string,
-    schema: z.ZodMiniType<T>,
-    params: Readonly<Record<string, unknown>> = {},
-    sessionId?: string,
-  ): Promise<T> {
-    const parsed = schema.safeParse(await this.connection.send(method, params, sessionId))
-    if (!parsed.success) {
-      throw new CdpError(`${method} answered in an unexpected shape`)
-    }
-    return parsed.data
-  }
-
-  /** The page opened and loaded, or why it was not; undefined once it is there. */
-  private async open(sessionId: string): Promise<BrowserCheckResult | undefined> {
-    for (const domain of ['Page', 'Runtime']) {
-      await this.call(`${domain}.enable`, nothing, {}, sessionId)
-    }
-    const loaded = this.waitForLoad(this.timings.loadMs)
-    const navigated = await this.call(
-      'Page.navigate',
-      navigatedSchema,
-      { url: this.request.url },
-      sessionId,
-    )
-    if (navigated.errorText !== undefined) {
-      return {
-        ok: false,
-        failure:
-          navigated.errorText === NAVIGATION_BLOCKED
-            ? { kind: 'pageBlocked' }
-            : pageFailed(navigated.errorText),
-      }
-    }
-    // A page still loading at the bound is read as it stands.
-    await loaded
-    return undefined
-  }
-
-  /** The click and type steps, in order; the one whose element is missing ends them. */
-  private async step(sessionId: string): Promise<BrowserCheckResult | undefined> {
-    for (const action of this.request.actions) {
-      // Stopped, out of time or leaking: no further step reaches the page.
-      this.ensureOpen()
-      const settled = this.waitForLoad(this.timings.settleMs)
-      const stepped = await this.call(
-        'Runtime.evaluate',
-        evaluatedSchema,
-        {
-          expression: `(${STEP_SCRIPT})(${JSON.stringify(action.kind)}, ${JSON.stringify(action.selector)}, ${JSON.stringify(action.text ?? '')})`,
-          returnByValue: true,
-        },
-        sessionId,
-      )
-      if (stepped.exceptionDetails !== undefined || stepped.result.value !== STEP_DONE) {
-        return { ok: false, failure: { kind: 'noElement', selector: action.selector } }
-      }
-      await settled
-    }
-    return undefined
-  }
-
-  private async screenshot(sessionId: string): Promise<BrowserScreenshot> {
-    const shot = await this.call(
-      'Page.captureScreenshot',
-      screenshotSchema,
-      { format: 'png' },
-      sessionId,
-    )
-    const png = new Uint8Array(Buffer.from(shot.data, 'base64'))
-    const info = readImageInfo(png)
-    if (png.length > MAX_IMAGE_BYTES || info?.mediaType !== PNG_MEDIA_TYPE) {
-      throw new CdpError('the screenshot is not a PNG within the image limit')
-    }
-    return { png, width: info.width, height: info.height }
-  }
-
-  /** The check itself, start to screenshot. Rejects when the browser fails it. */
-  public async run(): Promise<BrowserCheckResult> {
-    // The gate and the watch go up on the browser before the page exists.
-    await this.call('Fetch.enable', nothing, EVERY_REQUEST)
-    await this.call('Target.setAutoAttach', nothing, AUTO_ATTACH)
-    const { targetId } = await this.call('Target.createTarget', targetSchema, {
-      url: 'about:blank',
-    })
-    const sessionId = await this.watchedSession(targetId)
-    this.pageSession = sessionId
-    const stopped = (await this.open(sessionId)) ?? (await this.step(sessionId))
-    if (stopped !== undefined) {
-      return stopped
-    }
-    this.ensureOpen()
-    const { targetInfo } = await this.call('Target.getTargetInfo', targetInfoSchema, { targetId })
-    const screenshot = this.request.includeScreenshot ? await this.screenshot(sessionId) : undefined
-    return {
-      ok: true,
-      report: {
-        finalUrl: targetInfo.url,
-        consoleErrors: this.consoleErrors.value,
-        failedRequests: this.failedRequests.value,
-        blockedRequests: this.blockedRequests.value,
-        screenshot,
-      },
-    }
-  }
-}
-
-/** The page's check, or why the browser failed it. */
-async function runPage(page: PageCheck): Promise<BrowserCheckResult> {
-  try {
-    return await page.run()
-  } catch {
-    return { ok: false, failure: { kind: 'browserFailed' } }
-  }
-}
-
-/**
- * The check, or the failure that ended it first: the deadline, the
- * caller's stop, the browser going away, or a leak. The first end closes
- * the connection there and then: every call still waiting is rejected and
- * nothing more is sent, before the browser's kill is even started.
- */
-async function checkUntilEnded(
-  connection: CdpConnection,
-  request: BrowserCheckRequest,
-  timings: BrowserTimings,
-): Promise<BrowserCheckResult> {
-  let isEnded = false
-  let end: (failure: BrowserFailure) => void = ignore
-  // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
-  const ended = new Promise<BrowserCheckResult>((resolve) => {
-    end = (failure) => {
-      if (isEnded) {
-        return
-      }
-      isEnded = true
-      resolve({ ok: false, failure })
-      connection.close(new CdpError('the browser check has ended'))
-    }
-  })
-  const timer = setTimeout(() => {
-    end({ kind: 'timedOut' })
-  }, timings.checkMs)
-  const onAbort = (): void => {
-    end({ kind: 'cancelled' })
-  }
-  request.signal.addEventListener('abort', onAbort, { once: true })
-  const stopWatchingClose = connection.onClose(() => {
-    end({ kind: 'browserFailed' })
-  })
-  const page = new PageCheck(connection, request, timings, end)
-  let checked = ended
-  if (request.signal.aborted) {
-    // Stopped while the profile was made or the browser started.
-    end({ kind: 'cancelled' })
-  } else {
-    checked = runPage(page)
-  }
-  try {
-    return await Promise.race([ended, checked])
-  } finally {
-    clearTimeout(timer)
-    request.signal.removeEventListener('abort', onAbort)
-    stopWatchingClose()
-  }
-}
-
-/** One check, from finding the browser to removing its profile. Never throws. */
+/** One check, from preparing the runtime to removing its folder. Never throws. */
 export async function runBrowserCheck(
   deps: BrowserRunDeps,
   request: BrowserCheckRequest,
+  options: BrowserHostOptions,
 ): Promise<BrowserCheckResult> {
-  if (request.signal.aborted) {
-    return { ok: false, failure: { kind: 'cancelled' } }
-  }
-  const executable = deps.findExecutable()
-  if (executable === undefined) {
-    return { ok: false, failure: { kind: 'runtimeMissing' } }
+  const before = refusalNow(request, options)
+  if (before !== undefined) {
+    return { ok: false, failure: before }
   }
   const timings = { ...DEFAULT_TIMINGS, ...deps.timings }
-  let profile: string
-  try {
-    profile = await deps.createProfile()
-  } catch {
-    return { ok: false, failure: { kind: 'profile' } }
+  const prepared = await prepare(request, options, timings)
+  if (!('executable' in prepared)) {
+    return { ok: false, failure: prepared }
   }
-  try {
-    let browser: BrowserProcess
-    try {
-      browser = deps.spawn(executable, browserLaunchArgs(profile, request.allowedHosts))
-    } catch {
-      return { ok: false, failure: { kind: 'launch' } }
+  // Ready: everything is read again before the check's own time starts.
+  const ready = refusalNow(request, options)
+  if (ready !== undefined) {
+    return { ok: false, failure: ready }
+  }
+  const lifetime = createLifetime(
+    timings.checkMs,
+    [request.signal, options.admissionSignal],
+    BROWSER_CHECK_TEARDOWN_MS,
+  )
+  let failure: BrowserFailure | undefined
+  let isGraceful = false
+  let connection: CdpConnection | undefined
+  const endWith = (found: BrowserFailure): void => {
+    if (lifetime.endedBy !== undefined) {
+      return
     }
-    const connection = new CdpConnection(browser.writer, browser.reader)
-    let result: BrowserCheckResult | undefined
-    try {
-      result = await checkUntilEnded(connection, request, timings)
-      return result
-    } finally {
-      await stopBrowser(browser, connection, isGracefulEnd(result), timings.closeGraceMs)
-      connection.close(new CdpError('the browser check has ended'))
+
+    failure = found
+    lifetime.end()
+  }
+  // The first end closes the connection at once (unless the check came to
+  // its own end): every waiting call is rejected and nothing more is sent.
+  lifetime.signal.addEventListener('abort', () => {
+    if (!isGraceful) {
+      connection?.close(new CdpError('the browser check has ended'))
     }
-  } finally {
+  })
+  const ended = new Promise<BrowserCheckResult>((resolve) => {
+    lifetime.signal.addEventListener('abort', () => {
+      resolve({
+        ok: false,
+        failure: failure ?? endedFailure(lifetime, request, options, 'timedOut'),
+      })
+    })
+  })
+  const checked = (async (): Promise<BrowserCheckResult> => {
     try {
-      await deps.removeProfile(profile)
+      return await check(prepared, { request, deps, timings, options }, lifetime, {
+        connected: (open) => {
+          connection = open
+          open.onClose(() => {
+            endWith({ kind: 'browserFailed' })
+          })
+        },
+        endWith,
+        isGraceful: () => isGraceful,
+      })
     } catch (error: unknown) {
-      deps.onProfileLeft(profile, error)
+      return {
+        ok: false,
+        failure: error instanceof CheckFailure ? error.failure : { kind: 'browserFailed' },
+      }
     }
+  })()
+  let result = await Promise.race([checked, ended])
+  // Nothing from the page is returned once it was stopped or admission has gone.
+  const after = result.ok ? refusalNow(request, options) : undefined
+  if (after !== undefined) {
+    result = { ok: false, failure: after }
   }
+  isGraceful =
+    lifetime.endedBy === undefined && (result.ok || GRACEFUL_ENDS.has(result.failure.kind))
+  lifetime.end()
+  await lifetime.cleaned
+  return result
 }

@@ -33,7 +33,7 @@ import {
   IDE_BROWSER_CHECK_DESCRIPTION,
   placeBrowserCall,
 } from '../../core/browser/browserTool'
-import type { BrowserChecker } from '../../core/browser/browserRun'
+import type { BrowserChecker, CheckAdmission } from '../../core/browser/browserRun'
 import {
   BROWSER_CHECK_MARKER_BYTES,
   IDE_BROWSER_CHECK_TOOL,
@@ -44,7 +44,10 @@ import type { Logger } from '../logger'
 import { unlessCancelled } from './webFetchTool'
 
 export interface IdeBrowserCheckDeps {
-  /** A trusted workspace whose sandbox network setting allows the network. */
+  /**
+   * A trusted workspace whose sandbox network setting allows the network,
+   * with `museSpark.browserCheckRuntime` not `off`.
+   */
   readonly isOffered: () => boolean
   /** `museSpark.browserCheckExtraHosts`, read at each use. */
   readonly extraHosts: () => readonly string[]
@@ -96,17 +99,29 @@ async function callBrowserCheck(
   if (!deps.isOffered()) {
     throw new Error(MODEL_TEXT.browserCheckNotOffered)
   }
-  // So may the setting: the answer covers only the scope the modal showed.
-  if (placedKey(args, deps.extraHosts()) !== browserScopeKey(placement.url, scope)) {
+  // So may the setting: the answer covers only the scope the modal showed,
+  // frozen here and read again while the check is prepared and runs.
+  const approvalKey = browserScopeKey(placement.url, scope)
+  const admission: CheckAdmission = () => {
+    if (!deps.isOffered()) {
+      return 'notOffered'
+    }
+    return placedKey(args, deps.extraHosts()) === approvalKey ? 'ok' : 'scopeChanged'
+  }
+  if (admission() === 'scopeChanged') {
     throw new Error(MODEL_TEXT.browserCheckScopeChanged)
   }
-  const result = await deps.check({
-    url: placement.url,
-    actions,
-    allowedHosts: scope.allowedHosts,
-    includeScreenshot: false,
-    signal,
-  })
+  const result = await deps.check(
+    {
+      url: placement.url,
+      actions,
+      allowedHosts: scope.allowedHosts,
+      approvalKey,
+      includeScreenshot: false,
+      signal,
+    },
+    admission,
+  )
   if (!result.ok) {
     throw new Error(browserRefusal(result.failure).model)
   }

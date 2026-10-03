@@ -26,8 +26,13 @@ const BUDGETS = [
   // M81: the browser check's pipe, run and processes, required on the first
   // check: 37.8 KiB when split out (zod/mini 14.8 of it). Measured size
   // plus 15%, rounded up to 25 KiB (PLAN.md D6). 44.5 KiB after the RV81
-  // fixes (policy reads, target watch, bounds); the budget is unchanged.
+  // fixes; 49.7 KiB with A1's proxy, canaries and lifetimes (design spec v4
+  // §9.1 holds it at 50; the runtime store went to its own bundle below).
   { path: 'dist/browserCheck.js', budgetKiB: 50 },
+  // M81 A1: the browser check's runtime acquisition (pin, download, bounded
+  // ZIP extraction, hashing, publication), loaded only to prepare a runtime:
+  // 36.4 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/browserRuntime.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.

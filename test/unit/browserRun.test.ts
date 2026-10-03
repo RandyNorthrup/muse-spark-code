@@ -1,36 +1,65 @@
-// One browser check (M81, PLAN.md D49) against a scripted browser on the
-// other end of the pipe: the framing and its bound, the browser-wide request
-// gate (every request beyond loopback failed, redirects and other targets
-// included, names never looked up), the watch on every target the page
-// starts, the refusal under an administrator's policy, what comes back and
-// what is kept meanwhile, nothing sent once the check has ended, and the
-// browser and its profile gone whatever ended it. The real browser runs in
-// browserCheckLive.test.ts.
+// One browser check (M81 A1, PLAN.md D49; design spec v4 §§4.1, 6) against a
+// scripted browser on the other end of the pipe, with a fake proxy and probe
+// fixture that record what the canaries' probes would make arrive: the
+// framing and its bound; the two lifetimes (preparation, then the check)
+// and admission read around them; the verified runtime's identity read
+// again before the spawn; the pin's contract (product, command line, first
+// target, network service); the gate and the watch; the canary phases and
+// the audit; the page's results; the closed failures; nothing sent once the
+// check has ended; and the browser, the proxy, the fixture and the folder
+// gone whatever ended it. The real browser runs in browserCheckLive.test.ts.
 import { Buffer } from 'node:buffer'
 import { PassThrough } from 'node:stream'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { browserLaunchArgs } from '../../src/core/browser/browserLaunch'
 import {
   type BrowserCheckRequest,
+  type BrowserCheckResult,
+  type BrowserHostOptions,
   type BrowserProcess,
   type BrowserRunDeps,
+  type CheckFolder,
   runBrowserCheck,
 } from '../../src/core/browser/browserRun'
+import type { ProbeFixture } from '../../src/core/browser/canaries'
 import { CdpConnection } from '../../src/core/browser/cdpPipe'
+import type { CheckProxy, ProxyObservation } from '../../src/core/browser/checkProxy'
 import { RequestLog } from '../../src/core/browser/requestLog'
+import type { RuntimePreparation, VerifiedRuntime } from '../../src/core/browser/runtimeTypes'
 import {
   BROWSER_CHECK_ENTRY_MAX_CHARS,
   BROWSER_CHECK_MAX_TRACKED_REQUESTS,
+  BROWSER_NETWORK_SERVICE_TYPE,
+  BROWSER_PROXY_BYPASS,
 } from '../../src/shared/constants'
 
 // A 1×1 PNG.
 const PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 const PAGE = 'http://localhost:3000/'
-// Plain HTTP to a named host is what these cases test; spelled so the
-// lint's HTTPS rule, whose fix would rewrite them, leaves them alone.
 const HTTP = 'http:'
-const PROFILE = '/tmp/muse-spark-browser-test'
 const SESSION = 'S1'
+const EXECUTABLE = '/storage/browser-runtime/154.0.8037.92/linux64/chrome-headless-shell'
+const PROXY_PORT = 47_001
+const PROXY = `http://127.0.0.1:${String(PROXY_PORT)}`
+const FIXTURE_PORT = 47_002
+const OWN = { address: '192.168.7.9', tcpPort: 47_003, udpPort: 47_004 }
+const RUNTIME: VerifiedRuntime = {
+  version: '154.0.8037.92',
+  platform: 'linux64',
+  executable: EXECUTABLE,
+  manifestDigest: 'm'.repeat(64),
+  executableDigest: 'e'.repeat(64),
+  executableBytes: 1000,
+  executableMtimeMs: 5,
+  publishedAtMs: 1_790_706_629_983,
+}
+const FOLDER: CheckFolder = {
+  root: '/storage/bc/0a1b2c3d',
+  profile: '/storage/bc/0a1b2c3d/p',
+  temp: '/storage/bc/0a1b2c3d/t',
+  home: '/storage/bc/0a1b2c3d/h',
+}
 /** Answer nothing: the call stays pending. */
 const HOLD = Symbol('hold')
 
@@ -43,9 +72,75 @@ interface Sent {
 
 type Handler = (params: Record<string, unknown>, sessionId: string | undefined) => unknown
 
+/** The probe page's input, as the script carries it. */
+interface ProbeInput {
+  readonly get: readonly string[]
+  readonly ws: Readonly<Record<string, string>>
+  readonly auth: string | null
+  readonly ice: { readonly address: string; readonly port: number } | null
+  readonly wt: string | null
+}
+
+/** What the fake proxy and fixture record, and the faults a test injects into a phase's probes. */
+interface Network {
+  readonly observations: ((record: ProxyObservation) => void)[]
+  readonly hits: Map<string, string[]>
+  readonly challenges: Map<string, number>
+  authorizations: number
+  tcpConnections: number
+  datagrams: number
+  own: typeof OWN | undefined
+  /** Probes that never arrive (by host), from the phase of this index on (0 default, 1 page, 2 audit). */
+  readonly dropped: { phase: number; host: string } | undefined
+  /** The probe page's report overrides. */
+  readonly report: Partial<{ wt: string; ice: string; candidates: string[]; open: boolean }>
+  readonly closed: string[]
+}
+
+function network(overrides: Partial<Network> = {}): Network {
+  return {
+    observations: [],
+    hits: new Map(),
+    challenges: new Map(),
+    authorizations: 0,
+    tcpConnections: 0,
+    datagrams: 0,
+    own: OWN,
+    dropped: undefined,
+    report: {},
+    closed: [],
+    ...overrides,
+  }
+}
+
 /** The browser's side of the pipe, scripted call by call. */
+function noUnsubscribe(): void {
+  // The fake proxy has no listener to take out.
+}
+
+/** The gate's answers to paused requests, in order: `continue <id>` or `fail <id>`. */
+function gateDecisions(browser: FakeBrowser): string[] {
+  const decisions: string[] = []
+  browser.on('Fetch.continueRequest', (params) => {
+    decisions.push(`continue ${String(params['requestId'])}`)
+    return {}
+  })
+  browser.on('Fetch.failRequest', (params) => {
+    decisions.push(`fail ${String(params['requestId'])}`)
+    return {}
+  })
+  return decisions
+}
+
+/** A setup step that fails with an OS message the check must never repeat. */
+function reject(): Promise<never> {
+  return Promise.reject(new Error('EACCES /secret'))
+}
+
 class FakeBrowser implements BrowserProcess {
   private exit: () => void = () => undefined
+  private targets = 0
+  public phase = -1
   public readonly sent: Sent[] = []
   public readonly handlers = new Map<string, Handler>()
   public kills = 0
@@ -53,6 +148,10 @@ class FakeBrowser implements BrowserProcess {
   public readonly exited: Promise<void>
   /** File descriptor 4 as the parent reads it. */
   public readonly reader = new PassThrough()
+  /** The command line it reports: set from what was launched. */
+  public commandLine: readonly string[] = []
+  public serviceIds = [41, 41]
+  public pageSession = ''
 
   public kill: () => Promise<void> = () => {
     this.kills += 1
@@ -72,17 +171,46 @@ class FakeBrowser implements BrowserProcess {
     },
   }
 
-  public constructor(public targetUrl = PAGE) {
+  public constructor(
+    public readonly net: Network,
+    public targetUrl = PAGE,
+  ) {
     this.exited = new Promise((resolve) => {
       this.exit = resolve
     })
-    // The browser attaches the new page (auto-attach) before it answers.
+    this.on('Browser.getVersion', () => ({ product: 'HeadlessChrome/154.0.8037.92' }))
+    this.on('Browser.getBrowserCommandLine', () => ({ arguments: this.commandLine }))
+    this.on('Target.getTargets', () => ({ targetInfos: [{ type: 'page', url: 'about:blank' }] }))
+    this.on('SystemInfo.getProcessInfo', () => ({
+      processInfo: [
+        { type: 'browser', id: 1 },
+        { type: BROWSER_NETWORK_SERVICE_TYPE, id: this.serviceIds.shift() ?? 41 },
+      ],
+    }))
     this.on('Target.createTarget', () => {
-      this.attach(SESSION, 'T1', 'page')
-      return { targetId: 'T1' }
+      this.targets += 1
+      const targetId = `T${String(this.targets)}`
+      const sessionId = `S${String(this.targets)}`
+      // The default phase's probe, the page phase's, then the model's page.
+      if (this.targets === 3) {
+        this.pageSession = sessionId
+      }
+      this.attach(sessionId, targetId, 'page')
+      return { targetId }
     })
-    this.on('Page.navigate', () => ({ frameId: 'F1' }))
-    this.on('Runtime.evaluate', () => ({ result: { type: 'string', value: 'done' } }))
+    this.on('Target.createBrowserContext', () => ({ browserContextId: 'CTX' }))
+    this.on('Storage.getCookies', () => ({ cookies: [] }))
+    this.on('Page.getFrameTree', (_params, sessionId) => ({
+      frameTree: { frame: { id: `F-${sessionId ?? ''}` } },
+    }))
+    this.on('Page.navigate', (_params, sessionId) => {
+      queueMicrotask(() => {
+        this.emit('Page.loadEventFired', {}, sessionId)
+      })
+      return { frameId: 'F1' }
+    })
+    this.on('Runtime.evaluate', (params) => this.answerProbe(String(params['expression'])))
+    this.on('WebAuthn.addVirtualAuthenticator', () => ({ authenticatorId: 'A1' }))
     this.on('Target.getTargetInfo', () => ({ targetInfo: { url: this.targetUrl } }))
     this.on('Page.captureScreenshot', () => ({ data: PNG_BASE64 }))
     this.on('Browser.close', () => {
@@ -93,7 +221,96 @@ class FakeBrowser implements BrowserProcess {
     })
   }
 
-  private answer(message: Sent): void {
+  /** A probe script makes its probes arrive where the construction routes them; a step is done. */
+  public answerProbe(expression: string): unknown {
+    const at = expression.lastIndexOf(')({')
+    if (at === -1 || !expression.startsWith('(async o=>')) {
+      return { result: { type: 'string', value: 'done' } }
+    }
+    this.phase += 1
+    const input = JSON.parse(expression.slice(at + 2, -1)) as ProbeInput
+    const nonce = /c1-([\da-f]+)\.invalid/.exec(input.get[0] ?? '')?.[1] ?? ''
+    const { net } = this
+    const isDropped = (host: string): boolean =>
+      net.dropped !== undefined && this.phase >= net.dropped.phase && host === net.dropped.host
+    const record = (record: ProxyObservation): void => {
+      if (!isDropped(record.host)) {
+        for (const listener of net.observations) {
+          listener(record)
+        }
+      }
+    }
+    const hits = net.hits.get(nonce) ?? []
+    for (const raw of input.get) {
+      const url = new URL(raw)
+      const host = url.hostname
+      if (['localhost', '127.0.0.1', '[::1]'].includes(host)) {
+        if (!isDropped(host)) {
+          hits.push(url.pathname.split('/').slice(2).join('/'))
+        }
+        record({
+          form: 'http',
+          host,
+          port: Number(url.port),
+          forwarded: true,
+          challengeStripped: false,
+        })
+      } else {
+        const isTls = url.protocol === 'https:'
+        record({
+          form: isTls ? 'connect' : 'http',
+          host,
+          port: url.port === '' ? (isTls ? 443 : 80) : Number(url.port),
+          forwarded: false,
+          challengeStripped: false,
+        })
+      }
+    }
+    net.hits.set(nonce, hits)
+    for (const raw of Object.values(input.ws)) {
+      const url = new URL(raw)
+      record({
+        form: 'connect',
+        host: url.hostname,
+        port: url.port === '' ? (url.protocol === 'wss:' ? 443 : 80) : Number(url.port),
+        forwarded: false,
+        challengeStripped: false,
+      })
+    }
+    if (input.auth !== null) {
+      net.challenges.set(nonce, 2)
+      for (let index = 0; index < 2; index += 1) {
+        record({
+          form: 'http',
+          host: 'localhost',
+          port: FIXTURE_PORT,
+          forwarded: true,
+          challengeStripped: true,
+        })
+      }
+    }
+    if (input.ice !== null) {
+      record({
+        form: 'connect',
+        host: input.ice.address,
+        port: input.ice.port,
+        forwarded: false,
+        challengeStripped: false,
+      })
+    }
+    const sockets = Object.fromEntries(
+      Object.keys(input.ws).map((key) => [key, net.report.open === true ? 'open' : 'error']),
+    )
+    const report = {
+      sockets,
+      wt: net.report.wt ?? (input.wt === null ? 'none' : 'rejected'),
+      candidates: net.report.candidates ?? [],
+      ice: net.report.ice ?? (input.ice === null ? 'none' : 'tried'),
+    }
+    return { result: { type: 'string', value: JSON.stringify(report) } }
+  }
+
+  public answer(message: Sent): void {
     if (this.isGone) {
       return
     }
@@ -124,8 +341,12 @@ class FakeBrowser implements BrowserProcess {
     this.raw(Buffer.from(`${JSON.stringify(message)}\0`))
   }
 
-  /** An event from a page's session, the check's own unless another is named. */
-  public emit(method: string, params: unknown, sessionId = SESSION): void {
+  /** An event from a session (the model's page unless another is named). */
+  public emit(
+    method: string,
+    params: unknown,
+    sessionId: string | undefined = this.pageSession,
+  ): void {
     this.send({ method, params, sessionId })
   }
 
@@ -138,21 +359,21 @@ class FakeBrowser implements BrowserProcess {
     })
   }
 
-  /** The calls sent to one session, in order. */
-  public callsTo(sessionId: string): string[] {
-    return this.sent.filter((message) => message.sessionId === sessionId).map((m) => m.method)
-  }
-
   /** A request the browser-wide Fetch gate paused: an event of the browser's own session. */
-  public paused(requestId: string, url: string): void {
+  public paused(requestId: string, url: string, frameId = 'F-page'): void {
     this.send({
       method: 'Fetch.requestPaused',
-      params: { requestId, request: { url }, resourceType: 'XHR' },
+      params: { requestId, frameId, request: { url }, resourceType: 'XHR' },
     })
   }
 
   public calls(method: string): Sent[] {
     return this.sent.filter((message) => message.method === method)
+  }
+
+  /** The calls sent to one session, in order. */
+  public callsTo(sessionId: string): string[] {
+    return this.sent.filter((message) => message.sessionId === sessionId).map((m) => m.method)
   }
 
   public end(): void {
@@ -165,32 +386,126 @@ class FakeBrowser implements BrowserProcess {
   }
 }
 
-function setup(browser: FakeBrowser, overrides: Partial<BrowserRunDeps> = {}) {
-  const spawned: { executable: string; args: readonly string[] }[] = []
-  const removed: string[] = []
-  const left: string[] = []
-  let created = 0
-  const deps: BrowserRunDeps = {
-    findExecutable: () => '/usr/bin/google-chrome',
-    createProfile: () => {
-      created += 1
-      return Promise.resolve(PROFILE)
+function fakeProxy(net: Network): CheckProxy {
+  return {
+    endpoint: PROXY,
+    bypassList: BROWSER_PROXY_BYPASS,
+    observe: (listener) => {
+      net.observations.push(listener)
+      return noUnsubscribe
     },
-    removeProfile: (directory) => {
-      removed.push(directory)
+    close: () => {
+      net.closed.push('proxy')
       return Promise.resolve()
     },
-    spawn: (executable, args) => {
-      spawned.push({ executable, args })
+  }
+}
+
+function fakeFixture(net: Network): ProbeFixture {
+  return {
+    port: FIXTURE_PORT,
+    loopbackHosts: ['localhost', '127.0.0.1', '[::1]'],
+    get own() {
+      return net.own
+    },
+    admit: (nonce) => {
+      net.hits.set(nonce, [])
+    },
+    hits: (nonce) => net.hits.get(nonce) ?? [],
+    challenges: (nonce) => net.challenges.get(nonce) ?? 0,
+    get authorizations() {
+      return net.authorizations
+    },
+    get tcpConnections() {
+      return net.tcpConnections
+    },
+    get datagrams() {
+      return net.datagrams
+    },
+    close: () => {
+      net.closed.push('fixture')
+      return Promise.resolve()
+    },
+  }
+}
+
+interface Setup {
+  readonly deps: BrowserRunDeps
+  readonly options: BrowserHostOptions
+  readonly admission: AbortController
+  readonly spawned: { executable: string; args: readonly string[]; env: Record<string, string> }[]
+  readonly removed: CheckFolder[]
+  readonly order: string[]
+  readonly prepared: number[]
+}
+
+function setup(
+  browser: FakeBrowser,
+  overrides: Partial<BrowserRunDeps> = {},
+  options: Partial<BrowserHostOptions> = {},
+): Setup {
+  const spawned: Setup['spawned'] = []
+  const removed: CheckFolder[] = []
+  const order: string[] = []
+  const prepared: number[] = []
+  let nonce = 0
+  const admission = new AbortController()
+  const deps: BrowserRunDeps = {
+    platform: 'linux',
+    env: { LANG: 'C.UTF-8', HTTPS_PROXY: 'https://proxy.example:3128', KRB5CCNAME: '/tmp/k' },
+    createFolder: () => {
+      order.push('folder')
+      return Promise.resolve(FOLDER)
+    },
+    removeFolder: (folder) => {
+      removed.push(folder)
+      order.push('folder gone')
+      return Promise.resolve()
+    },
+    statExecutable: () => Promise.resolve({ bytes: 1000, mtimeMs: 5 }),
+    startProxy: () => {
+      order.push('proxy')
+      return Promise.resolve(fakeProxy(browser.net))
+    },
+    startFixture: () => {
+      order.push('fixture')
+      return Promise.resolve(fakeFixture(browser.net))
+    },
+    spawn: (executable, args, env) => {
+      order.push('spawn')
+      spawned.push({ executable, args, env: { ...env } })
+      const launched = args.filter((arg) => arg.startsWith('-'))
+      browser.commandLine = [executable, ...launched, '--headless', '--use-gl=angle', 'about:blank']
       return browser
     },
-    onProfileLeft: (directory) => {
-      left.push(directory)
+    randomHex: (bytes) => {
+      nonce += 1
+      return String(nonce).padStart(bytes * 2, '0')
     },
-    timings: { checkMs: 2000, loadMs: 50, settleMs: 10, closeGraceMs: 50 },
+    timings: {
+      preparationMs: 2000,
+      checkMs: 5000,
+      loadMs: 200,
+      settleMs: 10,
+      closeGraceMs: 50,
+      phaseMs: 400,
+      initialCanaryMs: 1000,
+    },
     ...overrides,
   }
-  return { deps, spawned, removed, left, created: () => created }
+  const hostOptions: BrowserHostOptions = {
+    storageDir: '/storage',
+    prepareRuntime: () => {
+      prepared.push(Date.now())
+      order.push('prepare')
+      return Promise.resolve({ ok: true, runtime: RUNTIME })
+    },
+    admissionSignal: admission.signal,
+    admissionStillValid: () => !admission.signal.aborted,
+    warn: () => undefined,
+    ...options,
+  }
+  return { deps, options: hostOptions, admission, spawned, removed, order, prepared }
 }
 
 function request(overrides: Partial<BrowserCheckRequest> = {}): BrowserCheckRequest {
@@ -198,23 +513,36 @@ function request(overrides: Partial<BrowserCheckRequest> = {}): BrowserCheckRequ
     url: PAGE,
     actions: [],
     allowedHosts: [],
+    approvalKey: 'key',
     includeScreenshot: true,
     signal: new AbortController().signal,
     ...overrides,
   }
 }
 
-/** The page's traffic on navigation: what a dev server's page asks for. */
+async function run(
+  t: Setup,
+  overrides: Partial<BrowserCheckRequest> = {},
+): Promise<BrowserCheckResult> {
+  return await runBrowserCheck(t.deps, request(overrides), t.options)
+}
+
+/** The page's traffic once it is navigated: what a dev server's page asks for. */
 function scriptPage(browser: FakeBrowser, onNavigate: () => void): void {
-  browser.on('Page.navigate', () => {
-    queueMicrotask(onNavigate)
+  browser.on('Page.navigate', (_params, sessionId) => {
+    queueMicrotask(() => {
+      browser.emit('Page.loadEventFired', {}, sessionId)
+      if (sessionId === browser.pageSession) {
+        onNavigate()
+      }
+    })
     return { frameId: 'F1' }
   })
 }
 
 describe('the CDP pipe (M81)', () => {
   it('reads messages split across chunks and several in one, and skips what is not a message', async () => {
-    const browser = new FakeBrowser()
+    const browser = new FakeBrowser(network())
     browser.on('Browser.getVersion', () => HOLD)
     const connection = new CdpConnection(browser.writer, browser.reader)
     const events: string[] = []
@@ -238,15 +566,15 @@ describe('the CDP pipe (M81)', () => {
   })
 
   it('rejects a refused call, every waiting call when the pipe closes, and a message past its bound', async () => {
-    const browser = new FakeBrowser()
+    const browser = new FakeBrowser(network())
     browser.on('Page.navigate', () => new Error('Cannot navigate'))
     browser.on('Page.reload', () => HOLD)
     const connection = new CdpConnection(browser.writer, browser.reader, 64)
     await expect(connection.send('Page.navigate')).rejects.toThrow('Cannot navigate')
     const waiting = connection.send('Page.reload')
     browser.raw(Buffer.alloc(65, 'a'))
-    await expect(waiting).rejects.toThrow('larger than the check accepts')
-    await expect(connection.send('Page.enable')).rejects.toThrow('larger than the check accepts')
+    await expect(waiting).rejects.toThrow('a message past the bound')
+    await expect(connection.send('Page.enable')).rejects.toThrow('a message past the bound')
   })
 
   it('ends the connection at a whole message past its bound, in one chunk or split, before parsing it (RV81)', () => {
@@ -256,7 +584,7 @@ describe('the CDP pipe (M81)', () => {
     )
     expect(frame.length).toBeGreaterThan(64)
     for (const chunks of [[frame], [frame.subarray(0, 60), frame.subarray(60)]]) {
-      const browser = new FakeBrowser()
+      const browser = new FakeBrowser(network())
       const connection = new CdpConnection(browser.writer, browser.reader, 64)
       const events: string[] = []
       connection.onEvent((event) => {
@@ -266,9 +594,7 @@ describe('the CDP pipe (M81)', () => {
         browser.reader.emit('data', chunk)
       }
       expect(events).toEqual([])
-      expect(connection.closedBy?.message).toBe(
-        'the browser sent a message larger than the check accepts',
-      )
+      expect(connection.closedBy?.message).toBe('a message past the bound')
     }
   })
 })
@@ -295,601 +621,754 @@ describe('the URLs of requests in flight (RV81)', () => {
   })
 })
 
-describe('a browser check (M81)', () => {
-  it('starts the system browser over the pipe in a fresh profile, and removes it afterwards', async () => {
-    const browser = new FakeBrowser()
+describe('a browser check on the verified runtime (M81 A1)', () => {
+  it('prepares the runtime first, then folder, proxy and fixture before the spawn, and tears all down after', async () => {
+    const browser = new FakeBrowser(network())
     const t = setup(browser)
-    const result = await runBrowserCheck(t.deps, request())
+    const result = await run(t)
     expect(result.ok).toBe(true)
-    expect(t.spawned).toHaveLength(1)
-    const args = t.spawned[0]?.args ?? []
-    expect(args).toContain('--remote-debugging-pipe')
-    expect(args.filter((arg) => arg.includes('remote-debugging-port'))).toEqual([])
-    expect(args).toContain(`--user-data-dir=${PROFILE}`)
-    // Asked to close when the check came to its own end; never killed.
+    expect(t.order.slice(0, 5)).toEqual(['prepare', 'folder', 'proxy', 'fixture', 'spawn'])
+    expect(t.spawned[0]?.executable).toBe(EXECUTABLE)
+    expect(t.spawned[0]?.args).toEqual(browserLaunchArgs(PROXY, FOLDER.profile))
+    // The browser closed itself; the fixture, the proxy and the folder followed.
     expect(browser.calls('Browser.close')).toHaveLength(1)
     expect(browser.kills).toBe(0)
-    expect(t.removed).toEqual([PROFILE])
+    expect(browser.net.closed).toEqual(['fixture', 'proxy'])
+    expect(t.removed).toEqual([FOLDER])
+    expect(t.order.at(-1)).toBe('folder gone')
   })
 
-  it('puts the request gate and the watch on the browser itself before the page exists', async () => {
-    const browser = new FakeBrowser()
-    await runBrowserCheck(setup(browser).deps, request())
-    const order = browser.sent.map((message) => message.method)
-    expect(order.indexOf('Fetch.enable')).toBeLessThan(order.indexOf('Target.setAutoAttach'))
-    expect(order.indexOf('Target.setAutoAttach')).toBeLessThan(order.indexOf('Target.createTarget'))
-    expect(browser.calls('Fetch.enable')[0]).toMatchObject({
-      params: { patterns: [{ urlPattern: '*' }] },
-    })
-    expect(browser.calls('Fetch.enable')[0]?.sessionId).toBeUndefined()
-    expect(browser.calls('Target.setAutoAttach')[0]).toEqual({
-      id: expect.any(Number),
-      method: 'Target.setAutoAttach',
-      params: { autoAttach: true, waitForDebuggerOnStart: true, flatten: true },
-    })
-    // The page, attached by the browser, is watched before it is let run and opened.
-    expect(browser.callsTo(SESSION)).toEqual([
-      'Network.enable',
-      'Fetch.enable',
-      'Target.setAutoAttach',
-      'Runtime.runIfWaitingForDebugger',
-      'Page.enable',
-      'Runtime.enable',
-      'Page.navigate',
-      'Page.captureScreenshot',
-    ])
-    expect(browser.calls('Page.navigate')[0]).toMatchObject({
-      params: { url: PAGE },
-      sessionId: SESSION,
-    })
+  it('gives the browser a projected environment, never this process’s proxy or credential variables', async () => {
+    const t = setup(new FakeBrowser(network()))
+    await run(t)
+    const env = t.spawned[0]?.env ?? {}
+    expect(env['LANG']).toBe('C.UTF-8')
+    expect(env['HOME']).toBe(FOLDER.home)
+    expect(env['TMPDIR']).toBe(FOLDER.temp)
+    expect(env).not.toHaveProperty('HTTPS_PROXY')
+    expect(env).not.toHaveProperty('KRB5CCNAME')
   })
 
-  it('watches every target the page starts before it runs, and stops at its way out (RV81)', async () => {
-    const browser = new FakeBrowser()
-    browser.on('Target.getTargetInfo', () => HOLD)
-    scriptPage(browser, () => {
-      browser.emit('Page.loadEventFired', {})
-      // A worker of the page, attached through the page's session as Chrome does.
-      browser.attach('W1', 'TW1', 'worker', SESSION)
-    })
-    // A worker has no Fetch domain: the browser's gate covers it; it still runs.
-    browser.on('Fetch.enable', (_params, sessionId) =>
-      sessionId === 'W1' ? new Error("'Fetch.enable' wasn't found") : {},
-    )
-    browser.on('Runtime.runIfWaitingForDebugger', (_params, sessionId) => {
-      if (sessionId === 'W1') {
-        // Let run, the worker opens a WebSocket Fetch cannot hold back.
-        queueMicrotask(() => {
-          browser.emit(
-            'Network.webSocketCreated',
-            { requestId: 'w1', url: 'ws://10.0.0.5:8080/?data=secret' },
-            'W1',
-          )
-        })
-      }
-      return {}
-    })
-    const t = setup(browser)
-    expect(await runBrowserCheck(t.deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'leaked' },
-    })
-    expect(browser.callsTo('W1')).toEqual([
-      'Network.enable',
-      'Fetch.enable',
-      'Target.setAutoAttach',
-      'Runtime.runIfWaitingForDebugger',
-    ])
-    expect(
-      browser.calls('Target.setAutoAttach').find((call) => call.sessionId === 'W1'),
-    ).toMatchObject({
-      params: { autoAttach: true, waitForDebuggerOnStart: true, flatten: true },
-    })
-    expect(browser.kills).toBe(1)
-  })
-
-  it('never lets run a target whose watch could not be set up', async () => {
-    const browser = new FakeBrowser()
-    scriptPage(browser, () => {
-      browser.attach('W2', 'TW2', 'worker', SESSION)
-      browser.emit('Page.loadEventFired', {})
-    })
-    browser.on('Network.enable', (_params, sessionId) =>
-      sessionId === 'W2' ? new Error('Target closed') : {},
-    )
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    expect(result.ok).toBe(true)
-    expect(browser.callsTo('W2')).toEqual(['Network.enable'])
-  })
-
-  it('fails every request beyond loopback, redirects and other targets included, and never looks a name up', async () => {
-    const browser = new FakeBrowser()
-    scriptPage(browser, () => {
-      browser.paused('r1', PAGE)
-      browser.paused('r2', 'http://127.0.0.1:3000/app.js')
-      browser.paused('r3', 'ws://localhost:3000/hmr')
-      // A subresource, the redirect a loopback request was sent to, a name
-      // that may well resolve to loopback, the metadata address.
-      browser.paused('r4', 'http://192.168.1.20/x.png')
-      browser.paused('r5', `${HTTP}//evil.example/redirected`)
-      browser.paused('r6', `${HTTP}//lvh.me:3000/`)
-      browser.paused('r7', 'http://169.254.169.254/latest/meta-data/')
-      browser.paused('r8', 'chrome-extension://abc/x.js')
-      browser.paused('r4', 'http://192.168.1.20/x.png')
-      browser.emit('Page.loadEventFired', {})
-    })
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    const continued = browser.calls('Fetch.continueRequest').map((call) => call.params['requestId'])
-    const failed = browser.calls('Fetch.failRequest')
-    expect(continued).toEqual(['r1', 'r2', 'r3'])
-    expect(failed.map((call) => call.params['requestId'])).toEqual([
-      'r4',
-      'r5',
-      'r6',
-      'r7',
-      'r8',
-      'r4',
-    ])
-    expect(failed.every((call) => call.params['errorReason'] === 'BlockedByClient')).toBe(true)
-    // Answered on the browser's own session, where the gate is.
-    expect(failed.every((call) => call.sessionId === undefined)).toBe(true)
-    expect(result).toMatchObject({
-      ok: true,
-      report: {
-        blockedRequests: {
-          shown: [
-            'http://192.168.1.20/x.png',
-            `${HTTP}//evil.example/redirected`,
-            `${HTTP}//lvh.me:3000/`,
-            'http://169.254.169.254/latest/meta-data/',
-          ],
-          more: 0,
+  it('maps each preparation outcome to its closed failure and starts nothing', async () => {
+    for (const reason of [
+      'runtimeMissing',
+      'runtimeUnsupported',
+      'runtimeOutdated',
+      'runtimeIntegrity',
+      'runtimeBlocked',
+      'runtimeDeclined',
+      'preparationTimedOut',
+      'cancelled',
+    ] as const) {
+      const t = setup(
+        new FakeBrowser(network()),
+        {},
+        {
+          prepareRuntime: () => Promise.resolve<RuntimePreparation>({ ok: false, reason }),
         },
+      )
+      expect(await run(t), reason).toEqual({ ok: false, failure: { kind: reason } })
+      expect(t.spawned).toEqual([])
+      expect(t.order).toEqual([])
+    }
+  })
+
+  it('ends a preparation at its own bound, and the check’s 60 seconds start only after it', async () => {
+    const t = setup(
+      new FakeBrowser(network()),
+      { timings: { preparationMs: 30, checkMs: 5000 } },
+      { prepareRuntime: () => new Promise<RuntimePreparation>(() => undefined) },
+    )
+    expect(await run(t)).toEqual({ ok: false, failure: { kind: 'preparationTimedOut' } })
+    expect(t.spawned).toEqual([])
+
+    // A preparation longer than the whole check budget still leads to a check.
+    const slow = setup(
+      new FakeBrowser(network()),
+      { timings: { checkMs: 2000 } },
+      {
+        prepareRuntime: () =>
+          new Promise<RuntimePreparation>((resolve) => {
+            setTimeout(() => {
+              resolve({ ok: true, runtime: RUNTIME })
+            }, 2500)
+          }),
+      },
+    )
+    expect(await run(slow)).toMatchObject({ ok: true })
+  }, 15_000)
+
+  it('refuses before anything when stopped or no longer admitted, and reads admission again once ready', async () => {
+    const stopped = setup(new FakeBrowser(network()))
+    const stop = new AbortController()
+    stop.abort()
+    expect(await run(stopped, { signal: stop.signal })).toEqual({
+      ok: false,
+      failure: { kind: 'cancelled' },
+    })
+    expect(stopped.order).toEqual([])
+
+    const gone = setup(new FakeBrowser(network()))
+    gone.admission.abort('scopeChanged')
+    expect(await run(gone)).toEqual({ ok: false, failure: { kind: 'scopeChanged' } })
+    expect(gone.prepared).toEqual([])
+
+    // Admission lost while the runtime was prepared: nothing is created.
+    let isAdmitted = true
+    const late = setup(
+      new FakeBrowser(network()),
+      {},
+      {
+        admissionStillValid: () => isAdmitted,
+        prepareRuntime: () => {
+          isAdmitted = false
+          return Promise.resolve({ ok: true, runtime: RUNTIME })
+        },
+      },
+    )
+    expect(await run(late)).toEqual({ ok: false, failure: { kind: 'notOffered' } })
+    expect(late.order).toEqual([])
+  })
+
+  it('aborts a preparation under way when admission goes, with its reason', async () => {
+    const t = setup(
+      new FakeBrowser(network()),
+      {},
+      {
+        prepareRuntime: (prepare) =>
+          new Promise<RuntimePreparation>((resolve) => {
+            prepare.lifetime.signal.addEventListener('abort', () => {
+              resolve({ ok: false, reason: 'cancelled' })
+            })
+          }),
+      },
+    )
+    const pending = run(t)
+    setTimeout(() => {
+      t.admission.abort('scopeChanged')
+    }, 20)
+    expect(await pending).toEqual({ ok: false, failure: { kind: 'scopeChanged' } })
+  })
+
+  it('refuses a runtime whose executable changed after its verification, before any spawn', async () => {
+    for (const identity of [undefined, { bytes: 999, mtimeMs: 5 }, { bytes: 1000, mtimeMs: 6 }]) {
+      const t = setup(new FakeBrowser(network()), {
+        statExecutable: () => Promise.resolve(identity),
+      })
+      expect(await run(t)).toEqual({ ok: false, failure: { kind: 'runtimeIntegrity' } })
+      expect(t.spawned).toEqual([])
+      expect(t.removed).toEqual([FOLDER])
+    }
+  })
+
+  it('says the OS blocked the runtime when it refuses to run it, and that it could not start otherwise', async () => {
+    for (const [code, kind] of [
+      ['EPERM', 'runtimeBlocked'],
+      ['EACCES', 'runtimeBlocked'],
+      ['ENOENT', 'launch'],
+    ] as const) {
+      const t = setup(new FakeBrowser(network()), {
+        spawn: () => {
+          throw Object.assign(new Error(`spawn ${code} /secret/path`), { code })
+        },
+      })
+      expect(await run(t)).toEqual({ ok: false, failure: { kind } })
+      expect(t.removed).toEqual([FOLDER])
+    }
+  })
+
+  it('refuses a folder, proxy or fixture that cannot be made, with its own failure', async () => {
+    expect(await run(setup(new FakeBrowser(network()), { createFolder: reject }))).toEqual({
+      ok: false,
+      failure: { kind: 'profile' },
+    })
+    expect(await run(setup(new FakeBrowser(network()), { startProxy: reject }))).toEqual({
+      ok: false,
+      failure: { kind: 'launch' },
+    })
+    expect(await run(setup(new FakeBrowser(network()), { startFixture: reject }))).toEqual({
+      ok: false,
+      failure: { kind: 'unverifiable' },
+    })
+  })
+
+  it('holds the browser to the pin: its exact product, its command line, one blank page and its network service', async () => {
+    const cases: [(browser: FakeBrowser) => void, string][] = [
+      [
+        (browser) => {
+          browser.on('Browser.getVersion', () => ({ product: 'HeadlessChrome/154.0.8037.93' }))
+        },
+        'unrecognized',
+      ],
+      [
+        (browser) => {
+          browser.on('Browser.getBrowserCommandLine', () => ({
+            arguments: browser.commandLine.map((arg) =>
+              arg.startsWith('--host-resolver-rules=')
+                ? '--host-resolver-rules=MAP * ^NOTFOUND'
+                : arg,
+            ),
+          }))
+        },
+        'resolverUnconfirmed',
+      ],
+      [
+        (browser) => {
+          browser.on('Browser.getBrowserCommandLine', () => ({
+            arguments: [...browser.commandLine, '--remote-debugging-port=9222'],
+          }))
+        },
+        'unrecognized',
+      ],
+      [
+        (browser) => {
+          browser.on('Target.getTargets', () => ({
+            targetInfos: [
+              { type: 'page', url: 'about:blank' },
+              { type: 'service_worker', url: 'http://localhost/sw.js' },
+            ],
+          }))
+        },
+        'unrecognized',
+      ],
+      [
+        (browser) => {
+          browser.on('SystemInfo.getProcessInfo', () => ({
+            processInfo: [{ type: 'browser', id: 1 }],
+          }))
+        },
+        'unrecognized',
+      ],
+    ]
+    for (const [script, kind] of cases) {
+      const browser = new FakeBrowser(network())
+      script(browser)
+      const t = setup(browser)
+      expect(await run(t), kind).toEqual({ ok: false, failure: { kind } })
+      expect(browser.calls('Target.createTarget'), kind).toEqual([])
+      // Not a graceful end: the browser is killed at once.
+      expect(browser.kills, kind).toBe(1)
+    }
+  })
+
+  it('logs only the command line’s count of other switches, never their names or values', async () => {
+    const facts: string[] = []
+    const browser = new FakeBrowser(network())
+    const t = setup(
+      browser,
+      {},
+      {
+        warn: (fact) => {
+          facts.push(fact)
+        },
+      },
+    )
+    await run(t)
+    expect(facts).toEqual(['Browser check: command line held, 2 other switches'])
+    expect(facts.join(' ')).not.toContain('use-gl')
+  })
+
+  it('puts the gate, the watch and the download refusal on the browser before any page exists', async () => {
+    const browser = new FakeBrowser(network())
+    await run(setup(browser))
+    const browserCalls = browser.sent
+      .filter((message) => message.sessionId === undefined)
+      .map((message) => message.method)
+    const firstTarget = browserCalls.indexOf('Target.createTarget')
+    expect(browserCalls.slice(0, firstTarget)).toEqual([
+      'Browser.getVersion',
+      'Browser.getBrowserCommandLine',
+      'Target.getTargets',
+      'SystemInfo.getProcessInfo',
+      'Fetch.enable',
+      'Target.setAutoAttach',
+      'Browser.setDownloadBehavior',
+    ])
+    expect(browser.calls('Fetch.enable')[0]?.params).toEqual({
+      patterns: [{ urlPattern: '*' }],
+      handleAuthRequests: true,
+    })
+    expect(browser.calls('Target.setAutoAttach')[0]?.params).toEqual({
+      autoAttach: true,
+      waitForDebuggerOnStart: true,
+      flatten: true,
+    })
+  })
+
+  it('creates the private context with the same proxy and the loopback subtraction, its cookies empty and downloads denied', async () => {
+    const browser = new FakeBrowser(network())
+    expect(await run(setup(browser))).toMatchObject({ ok: true })
+    expect(browser.calls('Target.createBrowserContext')[0]?.params).toEqual({
+      proxyServer: PROXY,
+      proxyBypassList: '<-loopback>',
+      disposeOnDetach: true,
+    })
+    expect(browser.calls('Storage.getCookies')[0]?.params).toEqual({ browserContextId: 'CTX' })
+    expect(browser.calls('Browser.setDownloadBehavior').map((call) => call.params)).toEqual([
+      { behavior: 'deny' },
+      { behavior: 'deny', browserContextId: 'CTX' },
+    ])
+    // The model's page is in that context.
+    expect(
+      browser
+        .calls('Target.createTarget')
+        .map((call) => call.params['browserContextId'] ?? 'default'),
+    ).toEqual(['default', 'CTX', 'CTX', 'CTX'])
+  })
+
+  it('refuses a private context that cannot be made or is not fresh', async () => {
+    const failing = new FakeBrowser(network())
+    failing.on('Target.createBrowserContext', () => new Error('not supported'))
+    expect(await run(setup(failing))).toEqual({ ok: false, failure: { kind: 'profile' } })
+    const used = new FakeBrowser(network())
+    used.on('Storage.getCookies', () => ({ cookies: [{ name: 'sid' }] }))
+    expect(await run(setup(used))).toEqual({ ok: false, failure: { kind: 'profile' } })
+  })
+
+  it('sets every page and frame up before it runs: Network, a virtual authenticator without presence, the chooser held', async () => {
+    const browser = new FakeBrowser(network())
+    await run(setup(browser))
+    const page = browser.pageSession
+    expect(browser.callsTo(page).slice(0, 6)).toEqual([
+      'Network.enable',
+      'Target.setAutoAttach',
+      'WebAuthn.enable',
+      'WebAuthn.addVirtualAuthenticator',
+      'Page.setInterceptFileChooserDialog',
+      'Runtime.runIfWaitingForDebugger',
+    ])
+    const authenticator = browser
+      .calls('WebAuthn.addVirtualAuthenticator')
+      .find((call) => call.sessionId === page)
+    expect(authenticator?.params).toEqual({
+      options: {
+        protocol: 'ctap2',
+        transport: 'internal',
+        hasUserVerification: true,
+        isUserVerified: false,
+        automaticPresenceSimulation: false,
       },
     })
   })
 
-  it('lets through the hosts this check may reach, and those only', async () => {
-    const browser = new FakeBrowser(`${HTTP}//dev.example.com/`)
-    scriptPage(browser, () => {
-      browser.paused('r1', `${HTTP}//dev.example.com/`)
-      browser.paused('r2', `${HTTP}//cdn.dev.example.com/x.js`)
-      browser.emit('Page.loadEventFired', {})
+  it('watches a worker with Network only, and ends unwatchable on a failed setup, an unknown type or too many targets', async () => {
+    const worker = new FakeBrowser(network())
+    scriptPage(worker, () => {
+      worker.attach('W1', 'TW', 'worker', worker.pageSession)
     })
-    const t = setup(browser)
-    await runBrowserCheck(
-      t.deps,
-      request({ url: `${HTTP}//dev.example.com/`, allowedHosts: ['dev.example.com'] }),
-    )
-    expect(browser.calls('Fetch.continueRequest').map((call) => call.params['requestId'])).toEqual([
-      'r1',
+    expect(await run(setup(worker))).toMatchObject({ ok: true })
+    expect(worker.callsTo('W1')).toEqual([
+      'Network.enable',
+      'Target.setAutoAttach',
+      'Runtime.runIfWaitingForDebugger',
     ])
-    expect(browser.calls('Fetch.failRequest').map((call) => call.params['requestId'])).toEqual([
-      'r2',
-    ])
-    // The proxy that does not exist is bypassed for that host too.
-    expect(t.spawned[0]?.args).toContain(
-      '--proxy-bypass-list=<-loopback>;localhost;127.0.0.1/8;[::1];dev.example.com',
-    )
+
+    for (const attach of [
+      (browser: FakeBrowser) => {
+        browser.attach('X1', 'TX', 'auction_worklet', browser.pageSession)
+      },
+      (browser: FakeBrowser) => {
+        browser.on('Network.enable', (_params, sessionId) =>
+          sessionId === 'W2' ? new Error('Network.enable failed') : {},
+        )
+        browser.attach('W2', 'TW2', 'worker', browser.pageSession)
+      },
+      (browser: FakeBrowser) => {
+        for (let index = 0; index < 70; index += 1) {
+          browser.attach(`F${String(index)}`, `TF${String(index)}`, 'iframe', browser.pageSession)
+        }
+      },
+    ]) {
+      const browser = new FakeBrowser(network())
+      browser.on('Runtime.runIfWaitingForDebugger', (_params, sessionId) =>
+        sessionId === 'X1' ? HOLD : {},
+      )
+      scriptPage(browser, () => {
+        attach(browser)
+      })
+      expect(await run(setup(browser))).toEqual({ ok: false, failure: { kind: 'unwatchable' } })
+      expect(browser.kills).toBe(1)
+    }
   })
 
-  it('reads back the console errors, the failed requests and a screenshot', async () => {
-    const browser = new FakeBrowser()
+  it('runs three canary phases, each on its own probe target with fresh nonces and its own exceptions', async () => {
+    const browser = new FakeBrowser(network())
+    const t = setup(browser)
+    expect(await run(t)).toMatchObject({ ok: true })
+    const probes = browser
+      .calls('Runtime.evaluate')
+      .map((call) => String(call.params['expression']))
+      .filter((expression) => expression.startsWith('(async o=>'))
+    expect(probes).toHaveLength(3)
+    const nonces = probes.map((probe) => /c1-([\da-f]+)\.invalid/.exec(probe)?.[1])
+    expect(new Set(nonces).size).toBe(3)
+    expect(nonces.every((nonce) => nonce?.length === 32)).toBe(true)
+    // The default phase routes only; the page and audit phases test everything.
+    expect(probes[0]).toContain('"auth":null')
+    expect(probes[1]).toContain(`"ice":{"address":"${OWN.address}"`)
+    expect(probes[2]).toContain(`"wt":"https://${OWN.address}:${String(OWN.udpPort)}/`)
+  })
+
+  it('lets a phase’s exact probe URLs through from its own frame only, and fails them anywhere else or after it', async () => {
+    const browser = new FakeBrowser(network())
+    const decisions = gateDecisions(browser)
+    let probeUrl = ''
+    browser.on('Runtime.evaluate', (params) => {
+      const expression = String(params['expression'])
+      if (probeUrl === '' && expression.startsWith('(async o=>')) {
+        probeUrl = /"(http:\/\/c1-[\da-f]+\.invalid\/)"/.exec(expression)?.[1] ?? ''
+        // From the probe frame (its session S1's main frame), then from the page's frame.
+        browser.paused('p1', probeUrl, 'F-S1')
+        browser.paused('p2', probeUrl, 'F-other')
+      }
+      return browser.answerProbe(expression)
+    })
     scriptPage(browser, () => {
-      browser.emit('Network.requestWillBeSent', {
-        requestId: 'n1',
-        request: { url: 'http://localhost:3000/missing.json' },
-      })
-      browser.emit('Network.responseReceived', {
-        requestId: 'n1',
-        response: { url: 'http://localhost:3000/missing.json', status: 404 },
-      })
-      browser.emit('Network.requestWillBeSent', {
-        requestId: 'n2',
-        request: { url: 'http://localhost:4000/api' },
-      })
-      browser.emit('Network.loadingFailed', {
-        requestId: 'n2',
-        errorText: 'net::ERR_CONNECTION_REFUSED',
-      })
-      // The check's own block is reported once, as blocked, never as failed.
-      browser.emit('Network.requestWillBeSent', {
-        requestId: 'n3',
-        request: { url: 'http://10.0.0.1/' },
-      })
-      browser.emit('Network.loadingFailed', {
-        requestId: 'n3',
-        errorText: 'net::ERR_BLOCKED_BY_CLIENT.Inspector',
-        blockedReason: 'inspector',
-      })
-      browser.emit('Network.loadingFailed', {
-        requestId: 'n2',
-        errorText: 'net::ERR_ABORTED',
-        canceled: true,
-      })
+      browser.paused('p3', probeUrl, 'F-S1')
+    })
+    await run(setup(browser))
+    expect(decisions).toEqual(expect.arrayContaining(['continue p1', 'fail p2', 'fail p3']))
+  })
+
+  it('ends with the canary’s own failure when a probe does not arrive where the construction routes it', async () => {
+    const cases: [Partial<Network>, string][] = [
+      [{ dropped: { phase: 0, host: 'localhost' } }, 'routeUnconfirmed'],
+      [{ dropped: { phase: 1, host: OWN.address } }, 'webrtc'],
+      [{ report: { wt: 'ready' } }, 'transport'],
+      [
+        { report: { candidates: ['candidate:1 1 udp 2122260223 192.168.7.9 50000 typ host'] } },
+        'webrtc',
+      ],
+      [{ report: { open: true } }, 'routeUnconfirmed'],
+      [{ authorizations: 1 }, 'signIn'],
+      [{ own: undefined }, 'unverifiable'],
+    ]
+    for (const [faults, kind] of cases) {
+      const browser = new FakeBrowser(network(faults))
+      const t = setup(browser)
+      expect(await run(t), kind).toEqual({ ok: false, failure: { kind } })
+      // Nothing of the page ran.
+      expect(browser.pageSession, kind).toBe('')
+      expect(browser.kills, kind).toBe(1)
+    }
+  }, 30_000)
+
+  it('discards the page’s results when the audit after it fails, or the network service restarted', async () => {
+    const audit = new FakeBrowser(network({ dropped: { phase: 2, host: 'localhost' } }))
+    expect(await run(setup(audit))).toEqual({ ok: false, failure: { kind: 'auditFailed' } })
+    expect(audit.calls('Page.captureScreenshot')).toHaveLength(1)
+
+    const restarted = new FakeBrowser(network())
+    restarted.serviceIds = [41, 77]
+    expect(await run(setup(restarted))).toEqual({ ok: false, failure: { kind: 'restartObserved' } })
+  }, 15_000)
+
+  it('ends a phase that outlasts its bound', async () => {
+    const browser = new FakeBrowser(network())
+    browser.on('Page.getFrameTree', () => HOLD)
+    expect(await run(setup(browser))).toEqual({ ok: false, failure: { kind: 'routeUnconfirmed' } })
+    expect(browser.calls('Runtime.evaluate')).toEqual([])
+  })
+
+  it('reads back the console errors, the failed requests, what was blocked and a screenshot', async () => {
+    const browser = new FakeBrowser(network())
+    scriptPage(browser, () => {
       browser.emit('Runtime.consoleAPICalled', {
         type: 'error',
         args: [
-          { type: 'string', value: 'fixture console error' },
-          { type: 'object', description: 'Object' },
+          { type: 'string', value: 'boom' },
           { type: 'number', value: 7 },
         ],
       })
       browser.emit('Runtime.consoleAPICalled', {
         type: 'log',
-        args: [{ type: 'string', value: 'not an error' }],
+        args: [{ type: 'string', value: 'quiet' }],
       })
       browser.emit('Runtime.exceptionThrown', {
-        exceptionDetails: {
-          text: 'Uncaught',
-          exception: { description: 'TypeError: x is undefined' },
+        exceptionDetails: { text: 'Uncaught', exception: { description: 'TypeError: x' } },
+      })
+      browser.emit('Network.requestWillBeSent', {
+        requestId: 'r1',
+        request: { url: `${PAGE}missing.json` },
+      })
+      browser.emit('Network.responseReceived', {
+        requestId: 'r1',
+        response: {
+          url: `${PAGE}missing.json`,
+          status: 404,
+          remoteIPAddress: '127.0.0.1',
+          remotePort: PROXY_PORT,
         },
       })
-      // Another session's events are not this page's.
-      browser.emit(
-        'Runtime.consoleAPICalled',
-        { type: 'error', args: [{ type: 'string', value: 'elsewhere' }] },
-        'S2',
-      )
-      browser.emit('Page.loadEventFired', {})
+      browser.emit('Network.requestWillBeSent', { requestId: 'r2', request: { url: `${PAGE}api` } })
+      browser.emit('Network.loadingFailed', {
+        requestId: 'r2',
+        errorText: 'net::ERR_CONNECTION_REFUSED',
+      })
+      browser.emit('Network.requestWillBeSent', {
+        requestId: 'r3',
+        request: { url: `${HTTP}//10.0.0.5/x` },
+      })
+      browser.emit('Network.loadingFailed', {
+        requestId: 'r3',
+        errorText: 'net::ERR_BLOCKED_BY_CLIENT',
+        blockedReason: 'inspector',
+      })
+      browser.emit('Network.webSocketCreated', { requestId: 'w1', url: 'ws://10.0.0.5/live' })
     })
-    const result = await runBrowserCheck(setup(browser).deps, request())
+    const result = await run(setup(browser))
     expect(result).toEqual({
       ok: true,
       report: {
         finalUrl: PAGE,
-        consoleErrors: {
-          shown: ['fixture console error Object 7', 'TypeError: x is undefined'],
-          more: 0,
-        },
+        consoleErrors: { shown: ['boom 7', 'TypeError: x'], more: 0 },
         failedRequests: {
-          shown: [
-            'http://localhost:3000/missing.json (HTTP 404)',
-            'http://localhost:4000/api (net::ERR_CONNECTION_REFUSED)',
-          ],
+          shown: [`${PAGE}missing.json (HTTP 404)`, `${PAGE}api (net::ERR_CONNECTION_REFUSED)`],
           more: 0,
         },
-        blockedRequests: { shown: [], more: 0 },
-        screenshot: { png: new Uint8Array(Buffer.from(PNG_BASE64, 'base64')), width: 1, height: 1 },
+        blockedRequests: { shown: [`${HTTP}//10.0.0.5/x`, 'ws://10.0.0.5/live'], more: 0 },
+        screenshot: { png: expect.any(Uint8Array), width: 1, height: 1 },
       },
     })
   })
 
-  it('keeps at most twenty entries of a kind, each cut to length, and counts the rest', async () => {
-    const browser = new FakeBrowser()
-    scriptPage(browser, () => {
-      for (let index = 0; index < 25; index += 1) {
-        browser.emit('Runtime.consoleAPICalled', {
-          type: 'error',
-          args: [{ type: 'string', value: `${String(index)} ${'x'.repeat(600)}` }],
+  it('ends leaked, with nothing from the page, at an answer from beyond that did not come back through the proxy', async () => {
+    const answers: ((browser: FakeBrowser) => void)[] = [
+      (browser) => {
+        browser.emit('Network.responseReceived', {
+          requestId: 'r9',
+          response: {
+            url: `${HTTP}//10.0.0.5/`,
+            status: 200,
+            remoteIPAddress: '10.0.0.5',
+            remotePort: 80,
+          },
         })
-      }
-      browser.emit('Page.loadEventFired', {})
+      },
+      (browser) => {
+        browser.emit('Network.requestWillBeSent', {
+          requestId: 'r9',
+          request: { url: `${PAGE}next` },
+          redirectResponse: {
+            url: `${HTTP}//evil.example/`,
+            remoteIPAddress: '203.0.113.9',
+            remotePort: 80,
+          },
+        })
+      },
+      (browser) => {
+        browser.emit('Network.webSocketCreated', { requestId: 'w9', url: 'ws://10.0.0.5/' })
+        browser.emit('Network.webSocketHandshakeResponseReceived', { requestId: 'w9' })
+      },
+      (browser) => {
+        browser.emit('Network.webTransportCreated', {
+          transportId: 'x9',
+          url: 'https://10.0.0.5:4433/',
+        })
+        browser.emit('Network.webTransportConnectionEstablished', { transportId: 'x9' })
+      },
+    ]
+    for (const answer of answers) {
+      const browser = new FakeBrowser(network())
+      browser.on('Page.captureScreenshot', () => HOLD)
+      scriptPage(browser, () => {
+        answer(browser)
+      })
+      expect(await run(setup(browser))).toEqual({ ok: false, failure: { kind: 'leaked' } })
+      expect(browser.kills).toBe(1)
+    }
+  })
+
+  it('counts the proxy’s own refusal of a host beyond as blocked, not leaked, and lets a service worker’s answer be', async () => {
+    const browser = new FakeBrowser(network())
+    scriptPage(browser, () => {
+      browser.emit('Network.responseReceived', {
+        requestId: 'r1',
+        response: {
+          url: `${HTTP}//10.0.0.5/`,
+          status: 403,
+          remoteIPAddress: '127.0.0.1',
+          remotePort: PROXY_PORT,
+        },
+      })
+      browser.emit('Network.responseReceived', {
+        requestId: 'r2',
+        response: { url: `${HTTP}//10.0.0.6/`, status: 200, fromServiceWorker: true },
+      })
     })
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    if (!result.ok) {
-      throw new Error('expected a report')
-    }
-    expect(result.report.consoleErrors.shown).toHaveLength(20)
-    expect(result.report.consoleErrors.more).toBe(5)
-    expect(result.report.consoleErrors.shown[0]).toHaveLength(501)
-    expect(result.report.consoleErrors.shown[0]?.endsWith('…')).toBe(true)
+    const result = await run(setup(browser))
+    expect(result.ok && result.report.blockedRequests.shown).toEqual([`${HTTP}//10.0.0.5/`])
   })
 
-  it('leaves the screenshot out when the caller asked for text only', async () => {
-    const browser = new FakeBrowser()
-    const result = await runBrowserCheck(setup(browser).deps, request({ includeScreenshot: false }))
-    expect(result).toMatchObject({ ok: true, report: { screenshot: undefined } })
-    expect(browser.calls('Page.captureScreenshot')).toEqual([])
+  it('lets through approved hosts only, and every request beyond fails at the gate', async () => {
+    const browser = new FakeBrowser(network())
+    const decisions = gateDecisions(browser)
+    scriptPage(browser, () => {
+      browser.paused('a', `${HTTP}//127.0.0.1:5173/x`)
+      browser.paused('b', `${HTTP}//staging.example.com/api`)
+      browser.paused('c', `${HTTP}//other.example.com/api`)
+      browser.paused('d', 'file:///etc/passwd')
+    })
+    await run(setup(browser), { allowedHosts: ['staging.example.com'] })
+    expect(decisions).toEqual(
+      expect.arrayContaining(['continue a', 'continue b', 'fail c', 'fail d']),
+    )
   })
 
-  it('runs the click and type steps in order, the selector and text passed as data', async () => {
-    const browser = new FakeBrowser()
-    await runBrowserCheck(
-      setup(browser).deps,
-      request({
-        actions: [
-          { kind: 'type', selector: 'input[name="q"]', text: 'hi "there"\n' },
-          { kind: 'click', selector: '#go' },
-        ],
+  it('answers every sign-in challenge with CancelAuth on its own session, never with credentials', async () => {
+    const browser = new FakeBrowser(network())
+    scriptPage(browser, () => {
+      browser.send({
+        method: 'Fetch.authRequired',
+        params: { requestId: 'auth1', authChallenge: {} },
+      })
+    })
+    await run(setup(browser))
+    expect(browser.calls('Fetch.continueWithAuth')).toEqual([
+      expect.objectContaining({
+        params: { requestId: 'auth1', authChallengeResponse: { response: 'CancelAuth' } },
       }),
-    )
-    const steps = browser.calls('Runtime.evaluate')
+    ])
+  })
+
+  it('runs the click and type steps in order, the selector and text passed as data, and stops at a missing element', async () => {
+    const browser = new FakeBrowser(network())
+    await run(setup(browser), {
+      actions: [
+        { kind: 'type', selector: 'input[name="q"]', text: 'a"b' },
+        { kind: 'click', selector: '#go' },
+      ],
+    })
+    const steps = browser
+      .calls('Runtime.evaluate')
+      .map((call) => String(call.params['expression']))
+      .filter((expression) => !expression.startsWith('(async o=>'))
     expect(steps).toHaveLength(2)
-    expect(steps[0]?.sessionId).toBe(SESSION)
-    expect(steps[0]?.params['expression']).toContain(
-      String.raw`("type", "input[name=\"q\"]", "hi \"there\"\n")`,
-    )
-    expect(steps[1]?.params['expression']).toContain(`("click", "#go", "")`)
+    expect(steps[0]).toContain(String.raw`("type", "input[name=\"q\"]", "a\"b")`)
+
+    const missing = new FakeBrowser(network())
+    missing.on('Runtime.evaluate', (params) => {
+      const expression = String(params['expression'])
+      return expression.startsWith('(async o=>')
+        ? missing.answerProbe(expression)
+        : { result: { type: 'string', value: 'missing' } }
+    })
+    expect(await run(setup(missing), { actions: [{ kind: 'click', selector: '#nope' }] })).toEqual({
+      ok: false,
+      failure: { kind: 'noElement', selector: '#nope' },
+    })
   })
 
-  it('stops at a step whose selector matches nothing, or whose script threw', async () => {
-    for (const answer of [
-      { result: { type: 'string', value: 'missing' } },
-      { result: { type: 'object' }, exceptionDetails: { text: 'SyntaxError' } },
-    ]) {
-      const browser = new FakeBrowser()
-      browser.on('Runtime.evaluate', () => answer)
-      const result = await runBrowserCheck(
-        setup(browser).deps,
-        request({
-          actions: [
-            { kind: 'click', selector: '#nope' },
-            { kind: 'click', selector: '#b' },
-          ],
-        }),
-      )
-      expect(result).toEqual({ ok: false, failure: { kind: 'noElement', selector: '#nope' } })
-      expect(browser.calls('Runtime.evaluate')).toHaveLength(1)
-      expect(browser.calls('Browser.close')).toHaveLength(1)
-    }
-  })
-
-  it('says why the page did not load, and that a block stopped it', async () => {
+  it('keeps only a net::ERR_ code of a page that did not load, and says a block stopped it', async () => {
     for (const [errorText, failure] of [
       [
         'net::ERR_CONNECTION_REFUSED',
         { kind: 'pageFailed', netError: 'net::ERR_CONNECTION_REFUSED' },
       ],
-      // Anything but a net::ERR_ code never crosses the boundary (M81 A1).
       [
         'Cannot navigate to invalid URL /home/someone/secret',
         { kind: 'pageFailed', netError: undefined },
       ],
       ['net::ERR_BLOCKED_BY_CLIENT', { kind: 'pageBlocked' }],
     ] as const) {
-      const browser = new FakeBrowser()
-      browser.on('Page.navigate', () => ({ frameId: 'F1', errorText }))
-      const t = setup(browser)
-      expect(await runBrowserCheck(t.deps, request())).toEqual({ ok: false, failure })
-      expect(t.removed).toEqual([PROFILE])
+      const browser = new FakeBrowser(network())
+      browser.on('Page.navigate', (_params, sessionId) => {
+        if (sessionId === browser.pageSession) {
+          return { frameId: 'F1', errorText }
+        }
+        queueMicrotask(() => {
+          browser.emit('Page.loadEventFired', {}, sessionId)
+        })
+        return { frameId: 'F1' }
+      })
+      expect(await run(setup(browser))).toEqual({ ok: false, failure })
     }
   })
 
-  it('stops at once, kills the browser and hands back nothing when anything beyond the allowed hosts answers', async () => {
-    for (const leak of [
-      (browser: FakeBrowser) => {
-        browser.emit('Network.responseReceived', {
-          requestId: 'n9',
-          response: { url: 'http://10.0.0.9/secret', status: 200 },
-        })
-      },
-      (browser: FakeBrowser) => {
-        browser.emit('Network.requestWillBeSent', {
-          requestId: 'n9',
-          request: { url: 'http://localhost:3000/next' },
-          redirectResponse: { url: 'http://10.0.0.9/moved' },
-        })
-      },
-      (browser: FakeBrowser) => {
-        browser.emit('Network.webSocketCreated', { requestId: 'w1', url: 'ws://10.0.0.9/socket' })
-      },
-      (browser: FakeBrowser) => {
-        browser.emit('Network.webTransportCreated', {
-          transportId: 't1',
-          url: 'https://10.0.0.9/transport',
-        })
-      },
-      // From a frame the page started, as from the page itself.
-      (browser: FakeBrowser) => {
-        browser.attach('F2', 'TF2', 'iframe', SESSION)
-        browser.on('Runtime.runIfWaitingForDebugger', (_params, sessionId) => {
-          if (sessionId === 'F2') {
-            queueMicrotask(() => {
-              browser.emit(
-                'Network.responseReceived',
-                { requestId: 'n9', response: { url: 'http://10.0.0.9/secret', status: 200 } },
-                'F2',
-              )
-            })
-          }
-          return {}
-        })
-      },
-    ]) {
-      const browser = new FakeBrowser()
-      browser.on('Target.getTargetInfo', () => HOLD)
-      scriptPage(browser, () => {
-        browser.emit('Page.loadEventFired', {})
-        leak(browser)
-      })
-      const t = setup(browser)
-      expect(await runBrowserCheck(t.deps, request())).toEqual({
-        ok: false,
-        failure: { kind: 'leaked' },
-      })
-      expect(browser.kills).toBe(1)
-      expect(browser.calls('Page.captureScreenshot')).toEqual([])
-      expect(t.removed).toEqual([PROFILE])
-    }
-  })
-
-  it('lets a WebSocket to loopback, an allowed host and a service worker’s own answer through', async () => {
-    const browser = new FakeBrowser()
-    scriptPage(browser, () => {
-      browser.emit('Network.webSocketCreated', { requestId: 'w2', url: 'ws://localhost:3000/hmr' })
-      browser.emit('Network.webSocketCreated', {
-        requestId: 'w3',
-        url: 'wss://dev.example.com/live',
-      })
-      browser.emit('Network.responseReceived', {
-        requestId: 'n1',
-        response: { url: 'http://10.0.0.9/cached', status: 200, fromServiceWorker: true },
-      })
-      browser.emit('Page.loadEventFired', {})
-    })
-    const result = await runBrowserCheck(
-      setup(browser).deps,
-      request({ allowedHosts: ['dev.example.com'] }),
-    )
-    expect(result).toMatchObject({ ok: true, report: { blockedRequests: { shown: [], more: 0 } } })
-  })
-
-  it('keeps the URLs of requests in flight bounded, and forgets each one that finished (RV81)', async () => {
-    const browser = new FakeBrowser()
-    const total = 10_000
-    scriptPage(browser, () => {
-      for (let index = 0; index < total; index += 1) {
-        const requestId = `f${String(index)}`
-        browser.emit('Network.requestWillBeSent', {
-          requestId,
-          request: { url: `http://localhost:3000/x?${String(index)}${'q'.repeat(200)}` },
-        })
-        browser.emit('Network.loadingFinished', { requestId })
-      }
-      // Finished (the newest, so no bound forgot it): a late failure names nothing.
-      browser.emit('Network.loadingFailed', { requestId: 'f9999', errorText: 'net::ERR_FAILED' })
-      // Still in flight: only the newest 512 are kept.
-      for (let index = 0; index < 600; index += 1) {
-        browser.emit('Network.requestWillBeSent', {
-          requestId: `p${String(index)}`,
-          request: { url: `http://localhost:3000/p${String(index)}` },
-        })
-      }
-      for (const requestId of ['p0', 'p599']) {
-        browser.emit('Network.loadingFailed', { requestId, errorText: 'net::ERR_FAILED' })
-      }
-      browser.emit('Page.loadEventFired', {})
-    })
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    expect(result).toMatchObject({
-      ok: true,
-      report: {
-        failedRequests: { shown: ['http://localhost:3000/p599 (net::ERR_FAILED)'], more: 0 },
+  it('ends at its deadline and when stopped, killing the browser at once and sending nothing more', async () => {
+    const late = new FakeBrowser(network())
+    late.on('Page.captureScreenshot', () => HOLD)
+    const lateRun = setup(late, {
+      timings: {
+        checkMs: 300,
+        loadMs: 50,
+        phaseMs: 100,
+        initialCanaryMs: 200,
+        closeGraceMs: 50,
+        settleMs: 10,
       },
     })
-  })
+    expect(await run(lateRun)).toEqual({ ok: false, failure: { kind: 'timedOut' } })
+    expect(late.kills).toBe(1)
+    expect(late.calls('Browser.close')).toEqual([])
 
-  it('sends nothing more once stopped, though the browser answers while it is being killed (RV81)', async () => {
-    const browser = new FakeBrowser()
-    browser.on('Page.navigate', () => HOLD)
+    const stopped = new FakeBrowser(network())
     const stop = new AbortController()
-    // The kill takes a while (taskkill starting), and the browser answers meanwhile.
-    browser.kill = async () => {
-      browser.kills += 1
-      const navigate = browser.calls('Page.navigate')[0]
-      browser.send({ id: navigate?.id, result: { frameId: 'F1' } })
-      browser.emit('Page.loadEventFired', {})
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      browser.end()
-    }
-    const t = setup(browser)
-    const checking = runBrowserCheck(
-      t.deps,
-      request({ signal: stop.signal, actions: [{ kind: 'click', selector: '#delete' }] }),
-    )
-    await vi.waitFor(() => {
-      expect(browser.calls('Page.navigate')).toHaveLength(1)
+    stopped.on('Page.captureScreenshot', () => {
+      stop.abort()
+      return HOLD
     })
-    const sentAtStop = browser.sent.length
-    stop.abort()
-    expect(await checking).toEqual({ ok: false, failure: { kind: 'cancelled' } })
-    expect(browser.kills).toBe(1)
-    expect(browser.sent.slice(sentAtStop)).toEqual([])
-    expect(browser.calls('Runtime.evaluate')).toEqual([])
-    expect(browser.calls('Target.getTargetInfo')).toEqual([])
-  })
-
-  it('goes on with a page that never finishes loading, as it stands', async () => {
-    const browser = new FakeBrowser()
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    expect(result.ok).toBe(true)
-  })
-
-  it('kills the browser at its deadline and removes the profile', async () => {
-    const browser = new FakeBrowser()
-    browser.on('Page.navigate', () => HOLD)
-    const t = setup(browser, {
-      timings: { checkMs: 30, loadMs: 10, settleMs: 10, closeGraceMs: 20 },
-    })
-    expect(await runBrowserCheck(t.deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'timedOut' },
-    })
-    expect(browser.kills).toBe(1)
-    expect(browser.calls('Browser.close')).toEqual([])
-    expect(t.removed).toEqual([PROFILE])
-  })
-
-  it('kills the browser when its caller stops it, and starts nothing for a caller already gone', async () => {
-    const browser = new FakeBrowser()
-    browser.on('Page.navigate', () => HOLD)
-    const stop = new AbortController()
-    const t = setup(browser)
-    const checking = runBrowserCheck(t.deps, request({ signal: stop.signal }))
-    await vi.waitFor(() => {
-      expect(browser.calls('Page.navigate')).toHaveLength(1)
-    })
-    stop.abort()
-    expect(await checking).toEqual({ ok: false, failure: { kind: 'cancelled' } })
-    expect(browser.kills).toBe(1)
-    expect(t.removed).toEqual([PROFILE])
-
-    const late = setup(new FakeBrowser())
-    expect(await runBrowserCheck(late.deps, request({ signal: AbortSignal.abort() }))).toEqual({
+    const t = setup(stopped)
+    expect(await run(t, { signal: stop.signal })).toEqual({
       ok: false,
       failure: { kind: 'cancelled' },
     })
-    expect(late.spawned).toEqual([])
-    expect(late.created()).toBe(0)
+    const sentAfterStop = stopped.sent.slice(
+      stopped.sent.findIndex((m) => m.method === 'Page.captureScreenshot') + 1,
+    )
+    expect(sentAfterStop).toEqual([])
+    expect(stopped.kills).toBe(1)
+    expect(t.removed).toEqual([FOLDER])
   })
 
-  it('kills a browser that will not close when asked', async () => {
-    const browser = new FakeBrowser()
-    browser.on('Browser.close', () => ({}))
-    const result = await runBrowserCheck(setup(browser).deps, request())
-    expect(result.ok).toBe(true)
-    expect(browser.calls('Browser.close')).toHaveLength(1)
-    expect(browser.kills).toBe(1)
+  it('ends when admission goes during the check, with its reason, and returns nothing from the page after it', async () => {
+    const browser = new FakeBrowser(network())
+    const t = setup(browser)
+    browser.on('Page.captureScreenshot', () => {
+      t.admission.abort('notOffered')
+      return HOLD
+    })
+    expect(await run(t)).toEqual({ ok: false, failure: { kind: 'notOffered' } })
+
+    // Admission read once more before the result goes back.
+    let reads = 0
+    const lastRead = setup(
+      new FakeBrowser(network()),
+      {},
+      {
+        admissionStillValid: () => {
+          reads += 1
+          return reads < 3
+        },
+      },
+    )
+    expect(await run(lastRead)).toEqual({ ok: false, failure: { kind: 'notOffered' } })
   })
 
-  it('reports a browser that went away mid-check', async () => {
-    const browser = new FakeBrowser()
-    scriptPage(browser, () => {
-      browser.end()
+  it('reports a browser that went away mid-check, and kills one that will not close when asked', async () => {
+    const gone = new FakeBrowser(network())
+    scriptPage(gone, () => {
+      gone.end()
     })
-    expect(await runBrowserCheck(setup(browser).deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'browserFailed' },
-    })
+    expect(await run(setup(gone))).toEqual({ ok: false, failure: { kind: 'browserFailed' } })
+
+    const stubborn = new FakeBrowser(network())
+    stubborn.on('Browser.close', () => ({}))
+    expect(await run(setup(stubborn))).toMatchObject({ ok: true })
+    expect(stubborn.calls('Browser.close')).toHaveLength(1)
+    expect(stubborn.kills).toBe(1)
   })
 
   it('refuses a screenshot that is not a PNG', async () => {
-    const browser = new FakeBrowser()
+    const browser = new FakeBrowser(network())
     browser.on('Page.captureScreenshot', () => ({ data: Buffer.from('GIF89a').toString('base64') }))
-    expect(await runBrowserCheck(setup(browser).deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'browserFailed' },
-    })
+    expect(await run(setup(browser))).toEqual({ ok: false, failure: { kind: 'browserFailed' } })
   })
 
-  it('says so when no browser is installed, and starts nothing', async () => {
-    const t = setup(new FakeBrowser(), { findExecutable: () => undefined })
-    expect(await runBrowserCheck(t.deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'runtimeMissing' },
-    })
-    expect(t.created()).toBe(0)
-    expect(t.spawned).toEqual([])
-  })
-
-  it('removes the profile when the browser cannot start, and reports a profile it could not remove', async () => {
-    const t = setup(new FakeBrowser(), {
-      spawn: () => {
-        throw new Error('spawn EACCES')
-      },
-    })
-    expect(await runBrowserCheck(t.deps, request())).toEqual({
-      ok: false,
-      failure: { kind: 'launch' },
-    })
-    expect(t.removed).toEqual([PROFILE])
-
-    const stuck = setup(new FakeBrowser(), {
-      removeProfile: () => Promise.reject(new Error('EBUSY')),
-    })
-    const kept = await runBrowserCheck(stuck.deps, request())
-    expect(kept.ok).toBe(true)
-    expect(stuck.left).toEqual([PROFILE])
+  it('leaves the screenshot out when the caller asked for text only', async () => {
+    const browser = new FakeBrowser(network())
+    const result = await run(setup(browser), { includeScreenshot: false })
+    expect(result.ok && result.report.screenshot).toBeUndefined()
+    expect(browser.calls('Page.captureScreenshot')).toEqual([])
   })
 })
