@@ -4091,6 +4091,9 @@ export class ConversationController {
       // A composer send cannot steer the distillation's reply into a
       // different brief. Start's own brief send remains admitted. Check
       // before auth/session preparation too, so its refusal keeps the draft.
+      // Once the turn has ended its brief is read by turn id, so a send can
+      // no longer steer it; while admission is closed the refusal stays, as
+      // it is what keeps the draft.
       const requireNoDistillation = (): void => {
         const pending = this.pendingHandoff
         if (
@@ -4098,7 +4101,10 @@ export class ConversationController {
           brief === undefined &&
           pending?.hasSubmittedTurn === true &&
           pending.brief === undefined &&
-          this.isCurrentHandoff(pending)
+          this.isCurrentHandoff(pending) &&
+          (pending.turnId === undefined ||
+            !this.finishedTurns.has(pending.turnId) ||
+            !this.isAuthAdmitted())
         ) {
           throw new Error(UI_TEXT.handoffBusy)
         }

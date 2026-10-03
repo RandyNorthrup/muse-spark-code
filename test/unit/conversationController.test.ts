@@ -9660,6 +9660,52 @@ describe('ConversationController: handoff to a new conversation (M74)', () => {
     await expectBriefReady(t)
   })
 
+  it.each([true, false])(
+    'admits a composer send once the distillation turn ended, while its brief is read (admitted: %s)',
+    async (isAdmitted) => {
+      const { conversation, release } = await heldDistillation()
+      const { t, api, host } = conversation
+      const entered = Promise.withResolvers<undefined>()
+      const readReleased = Promise.withResolvers<undefined>()
+      const ordinaryReleased = Promise.withResolvers<unknown>()
+      const readSession = host.readSession.bind(host)
+      const reading = vi.spyOn(host, 'readSession').mockImplementationOnce(async (sessionId) => {
+        entered.resolve(undefined)
+        await readReleased.promise
+        return await readSession(sessionId)
+      })
+      try {
+        release.resolve(undefined)
+        await entered.promise
+        t.auth.isAdmitted = isAdmitted
+        const before = api.responseBodies().length
+        await startOrdinaryTurn(conversation, ordinaryReleased.promise)
+        if (isAdmitted) {
+          expect(t.surface.posted).toContainEqual(
+            expect.objectContaining({ type: 'turnAccepted', localId: 'ordinary' }),
+          )
+          await vi.waitFor(() => {
+            expect(api.responseBodies()).toHaveLength(before + 1)
+          })
+        } else {
+          expect(t.surface.posted).toContainEqual({
+            type: 'sendFailed',
+            localId: 'ordinary',
+            reason: UI_TEXT.handoffBusy,
+            attachmentsKept: true,
+          })
+          expect(api.responseBodies()).toHaveLength(before)
+        }
+      } finally {
+        t.auth.isAdmitted = true
+        readReleased.resolve(undefined)
+        ordinaryReleased.resolve(undefined)
+        reading.mockRestore()
+      }
+      await expectBriefReady(t)
+    },
+  )
+
   it('cancels held preparation without an older completion discarding the newer handoff', async () => {
     const gate = holdNextHandoffHost()
     const conversation = await handoffConversation(undefined, gate.beforeEnsureHost)
