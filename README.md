@@ -2440,15 +2440,22 @@ dispatch) calls
 - a `native-darwin` job that compiles the macOS helper and checks its
   disclaim;
 - a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
-  `muse-spark-code-vsix` artifact.
+  `muse-spark-code-vsix` artifact, checks its compressed size budget, and
+  packages the ACP agent with every locale table and both CycloneDX inventories.
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
 manifest and is on `main`, runs the same build, creates a GitHub Release with
-that `.vsix` and the CHANGELOG section as its notes, and publishes it to the
-Marketplace (publisher `RandyNorthrup`) from the `marketplace` environment,
-which only version tags reach; without `VSCE_PAT` the publish is skipped and
-reported. A `.vsix` packed locally has no macOS helper, so only CI's is
-published.
+that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
+CHANGELOG section as its notes and package provenance attestations. The same
+VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
+ACP tarball goes to npm with provenance. Each registry uses its token from the
+tag-only `marketplace` environment (`VSCE_PAT`, `OVSX_PAT`, `NPM_TOKEN`);
+missing tokens are reported as skips. Network errors get bounded retries;
+already-published versions require matching artifact hashes/integrity. A final
+summary reports every channel and fails if any channel failed. A `.vsix` packed
+locally has no macOS helper, so only CI's universal artifact is published.
+See [the release and recovery guide](docs/RELEASING.md) for half-published
+states, npm EOTP, signing decisions and the prepared M80 hooks.
 
 **Build troubleshooting.**
 

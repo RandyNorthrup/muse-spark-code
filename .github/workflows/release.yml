@@ -1,14 +1,11 @@
-# A version tag (v1.2.3) is a release: the shared build produces the .vsix,
-# the GitHub Release is created with it and the CHANGELOG section as notes,
-# and the Marketplace publish runs when the VSCE_PAT secret of the
-# `marketplace` environment is set (a Marketplace "Manage" PAT scoped to the
-# publisher's organisation; without it the publish step is skipped and
-# reported, and `npx vsce publish --packagePath` by hand still works). The
-# same .vsix goes to Open VSX, for VSCodium, Cursor, Kiro, Positron and the
-# other editors that install from it, when the environment's OVSX_PAT is
-# set (PLAN.md D62, M62), under the same rules. The ACP agent's package
-# (muse-spark-code-acp, M63) rides on the GitHub Release and goes to npm
-# when the environment's NPM_TOKEN is set (Q65).
+# A version tag (v1.2.3) runs the shared build, then publishes its universal
+# VSIX, ACP tarball, CycloneDX inventories and SHA256SUMS on GitHub with
+# CHANGELOG notes and package attestations. The identical packages go to
+# Marketplace/Open VSX/npm when the tag-only `marketplace` environment has
+# VSCE_PAT/OVSX_PAT/NPM_TOKEN. Registry reruns require matching bytes/SRI;
+# network retries are bounded. The final summary reports every channel,
+# including missing-secret skips, and fails any failed channel.
+# Recovery, npm auth and signing decisions: docs/RELEASING.md.
 #
 # Before anything is built, the tag must name the manifest's version and
 # point at a commit on main. The PAT reaches one step only, after an
@@ -63,6 +60,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      outcome: ${{ steps.outcome.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -78,16 +79,36 @@ jobs:
         with:
           name: muse-spark-code-acp
           path: release
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-sboms
+          path: release
+      - run: npm ci --ignore-scripts --no-audit
+      - name: checksums for both packages and their ingredient lists
+        working-directory: release
+        run: sha256sum ./*.vsix ./*.tgz ./*.cdx.json > SHA256SUMS
+      - name: attest the VSIX and ACP package from this build
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          create-storage-record: false
+          show-summary: false
+          subject-path: |
+            release/*.vsix
+            release/*.tgz
       - name: release notes from the CHANGELOG
         run: node scripts/changelog-notes.mjs "${GITHUB_REF_NAME#v}" > release/notes.md
-      - name: create the GitHub Release
+      - name: create or verify the GitHub Release without replacing assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${GITHUB_REF_NAME}" release/*.vsix release/*.tgz \
-            --title "${GITHUB_REF_NAME}" \
-            --notes-file release/notes.md \
-            --verify-tag
+        run: node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json release/SHA256SUMS
+      # M80 hook: inert until its schemas exist; never replace an existing asset.
+      - name: upload M80 schemas when present
+        if: hashFiles('docs/schemas/*.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md docs/schemas/*.json
+      - id: outcome
+        run: echo 'outcome=published' >> "$GITHUB_OUTPUT"
 
   publish:
     name: Marketplace publish
@@ -104,6 +125,8 @@ jobs:
       # conditionals", GitHub's secrets guide), and the value goes to the
       # publish step alone.
       HAS_VSCE_PAT: ${{ secrets.VSCE_PAT != '' }}
+    outputs:
+      outcome: ${{ steps.skipped.outputs.outcome || steps.published.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,8 +141,9 @@ jobs:
           name: muse-spark-code-vsix
           path: release
       - name: skipped without VSCE_PAT
+        id: skipped
         if: env.HAS_VSCE_PAT != 'true'
-        run: echo "VSCE_PAT is not set; the Marketplace publish was skipped. Publish by hand with npx vsce publish --packagePath release/*.vsix" >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'outcome=skipped-no-secret' >> "$GITHUB_OUTPUT"
       # The locked vsce, with no install script of any package run (vsce
       # needs none to publish an unsigned package: @vscode/vsce-sign's
       # binary is used only for --signTool or a signature manifest).
@@ -127,10 +151,11 @@ jobs:
         if: env.HAS_VSCE_PAT == 'true'
         run: npm ci --ignore-scripts --no-audit
       - name: publish to the Marketplace
+        id: published
         if: env.HAS_VSCE_PAT == 'true'
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: ./node_modules/.bin/vsce publish --packagePath release/*.vsix
+        run: node scripts/publish-registry.mjs marketplace release/*.vsix
 
   openvsx:
     name: Open VSX publish
@@ -142,6 +167,8 @@ jobs:
     environment: marketplace
     env:
       HAS_OVSX_PAT: ${{ secrets.OVSX_PAT != '' }}
+    outputs:
+      outcome: ${{ steps.skipped.outputs.outcome || steps.published.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,45 +181,38 @@ jobs:
           name: muse-spark-code-vsix
           path: release
       - name: skipped without OVSX_PAT
+        id: skipped
         if: env.HAS_OVSX_PAT != 'true'
-        run: echo "OVSX_PAT is not set; the Open VSX publish was skipped. Publish by hand with npx ovsx publish release/*.vsix" >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'outcome=skipped-no-secret' >> "$GITHUB_OUTPUT"
       # The locked ovsx, with no install script of any package run.
       - name: install the locked tools without install scripts
         if: env.HAS_OVSX_PAT == 'true'
         run: npm ci --ignore-scripts --no-audit
-      # Open VSX refuses a publish into a namespace that does not exist, and
-      # the package's publisher had none when this was checked (2026-09-27,
-      # `GET /api/RandyNorthrup` 404). The first run creates it with the same
-      # token; later runs find it (200) and skip. Any other answer stops here.
-      - name: create the Open VSX namespace if it is missing
-        if: env.HAS_OVSX_PAT == 'true'
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: |
-          namespace=$(node -p "require('./package.json').publisher")
-          status=$(curl -s -o /dev/null -w '%{http_code}' "https://open-vsx.org/api/${namespace}")
-          if [ "$status" = "404" ]; then
-            ./node_modules/.bin/ovsx create-namespace "$namespace"
-          elif [ "$status" != "200" ]; then
-            echo "Open VSX answered HTTP $status for namespace $namespace" >&2
-            exit 1
-          fi
       - name: publish to Open VSX
+        id: published
         if: env.HAS_OVSX_PAT == 'true'
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: ./node_modules/.bin/ovsx publish release/*.vsix
+        run: node scripts/publish-registry.mjs openvsx release/*.vsix
 
   npm:
     name: npm publish (ACP agent)
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
     # The same tag-only environment as the other registries' tokens.
     environment: marketplace
     env:
       HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    outputs:
+      outcome: ${{ steps.skipped.outputs.outcome || steps.published.outputs.outcome }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -202,12 +222,62 @@ jobs:
           name: muse-spark-code-acp
           path: release
       - name: skipped without NPM_TOKEN
+        id: skipped
         if: env.HAS_NPM_TOKEN != 'true'
-        run: echo "NPM_TOKEN is not set; muse-spark-code-acp was not published to npm. The GitHub Release carries its package." >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'outcome=skipped-no-secret' >> "$GITHUB_OUTPUT"
+      - name: install the verification tools without install scripts
+        if: env.HAS_NPM_TOKEN == 'true'
+        run: npm ci --ignore-scripts --no-audit
       # The packed tarball as it is: no install, no script of any package. The
       # leading ./ matters: npm reads `release/x.tgz` as a GitHub owner/repo.
       - name: publish muse-spark-code-acp to npm
+        id: published
         if: env.HAS_NPM_TOKEN == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish ./release/muse-spark-code-acp-*.tgz --access public --ignore-scripts
+        run: node scripts/publish-registry.mjs npm release/muse-spark-code-acp-*.tgz
+
+  summary:
+    name: release channel outcomes
+    needs: [release, publish, openvsx, npm]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: release-major-tag
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: report all channels and fail any incomplete job
+        id: report
+        env:
+          RELEASE_NEEDS: ${{ toJSON(needs) }}
+        run: node scripts/release-summary.mjs
+      # M80 hook: skip until action/ exists and every channel actually published.
+      - name: move the M80 v0 tag after all channels published
+        if: steps.report.outputs.all-published == 'true' && hashFiles('action/**') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git show-ref --verify --quiet refs/tags/v0; then
+            current=$(git rev-parse 'refs/tags/v0^{commit}')
+            if git merge-base --is-ancestor "$GITHUB_SHA" "$current"; then
+              echo 'v0 already points at this release or a newer descendant' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if ! git merge-base --is-ancestor "$current" "$GITHUB_SHA"; then
+              echo '::error::v0 is on a divergent history; owner review required' >&2
+              exit 1
+            fi
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/v0" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/v0 -f sha="$GITHUB_SHA" > /dev/null
+          fi

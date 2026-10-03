@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Release infrastructure
+
+- Release assets now include SHA-256 checksums, package provenance attestations
+  and CycloneDX inventories limited to the actual bundled dependencies, plus
+  the ACP package's native runtime dependencies. npm publication requests
+  provenance and retains token authentication.
+- Registry publishing retries only transient network failures with a bounded
+  20/60-second backoff. Existing versions require matching VSIX SHA-256 or
+  tarball SHA-512 integrity; GitHub reruns verify existing assets and add only
+  missing files. A final summary reports all channel outcomes and fails any
+  failed channel. The release guide documents partial publication and npm EOTP.
+- Packaging checks every ACP locale and enforces a measured universal VSIX
+  size budget. M80 schema-upload and fully-published `v0` tag hooks are prepared
+  and remain inert until their source directories exist.
+
 ### Added
 
 - **Session export, import and share** (M84, PLAN.md D49): **Export
