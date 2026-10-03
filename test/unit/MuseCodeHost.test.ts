@@ -25,6 +25,16 @@ import {
   taskAck,
 } from './helpers/m46Capture'
 import {
+  ledgerFault,
+  prefixLabel,
+  RACE_APPROVAL_ID,
+  raceRequested,
+  raceUpdated,
+  REPLAY_FAULT_MESSAGE,
+  replayFault,
+  staleRefusal,
+} from './helpers/stageRaceCapture'
+import {
   WORKFLOW_COMPLETED,
   WORKFLOW_ITEM_ID,
   WORKFLOW_MESSAGE,
@@ -388,10 +398,11 @@ describe('MuseCodeHost', () => {
       requirementId: { approvalId: 'a1', sourceIndex: 1 },
       feedback: 'use the file tool',
     })
+    // Another approval: a1's was terminal, and a stage is decided once (D26).
     await session.decideApproval({
-      approvalId: 'a1',
+      approvalId: 'a2',
       choiceId: 'allow_once',
-      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+      requirementId: { approvalId: 'a2', sourceIndex: 1 },
     })
     expect(server.requestsFor('approval/decide')[1]?.params).not.toHaveProperty('feedback')
     await session.answerQuestions('q1', [{ questionId: 'colour', selectedLabel: 'Red' }])
@@ -1081,22 +1092,28 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
   it('reports a decision or answer that arrived late as PromptSettledError', async () => {
     const { host, server } = setup()
     const session = await host.startSession(startOptions)
-    const decision = {
-      approvalId: 'a1',
-      choiceId: 'allow_once',
-      requirementId: { approvalId: 'a1', sourceIndex: 1 },
-    }
     const cases: readonly (readonly [string, string])[] = [
       ['approvalAlreadyResolved', 'alreadySettled'],
       ['approvalRequirementStale', 'movedOn'],
       ['approvalNotFound', 'gone'],
     ]
     for (const [kind, reason] of cases) {
+      // One approval each: a stage is decided once (D26).
+      const decision = {
+        approvalId: kind,
+        choiceId: 'allow_once',
+        requirementId: { approvalId: kind, sourceIndex: 1 },
+      }
       server.handle('approval/decide', refusalOf(kind))
       await expect(session.decideApproval(decision)).rejects.toMatchObject({
         name: 'PromptSettledError',
         reason,
       })
+    }
+    const decision = {
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
     }
     server.handle('userInput/answer', refusalOf('userInputAlreadySettled'))
     await expect(session.answerQuestions('u1', [])).rejects.toMatchObject({
@@ -1233,6 +1250,345 @@ function hostOn(platformOs: string, version: string) {
   const log = new FakeLogOutputChannel()
   return { ...handle, log, host: new MuseCodeHost(handle.host, log) }
 }
+
+/** A stage of the captured eight-stage approval. */
+function stage(sourceIndex: number) {
+  return { approvalId: RACE_APPROVAL_ID, sourceIndex }
+}
+
+/** Allow once on one stage of the captured approval. */
+function allowOnce(sourceIndex = 0) {
+  return { approvalId: RACE_APPROVAL_ID, choiceId: 'allow_once', requirementId: stage(sourceIndex) }
+}
+
+/** `approval/decide`'s ack, terminal or with stages to go. */
+function decideAck(isTerminal: boolean) {
+  return (params: Record<string, unknown>) => ({
+    ...ack(params),
+    approvalId: params['approvalId'],
+    terminal: isTerminal,
+  })
+}
+
+/** The decisions sent, as [stage, choice]. */
+function decisions(server: ReturnType<typeof setup>['server']) {
+  return server
+    .requestsFor('approval/decide')
+    .map((request) => [
+      (request.params?.['requirementId'] as { sourceIndex: number }).sourceIndex,
+      request.params?.['choiceId'],
+    ])
+}
+
+/** A listening session showing the captured approval at `waiting`; decisions ack with stages to go. */
+async function raceSession(waiting = 0, options: Parameters<typeof setup>[0] = {}) {
+  const fixture = setup(options)
+  fixture.server.handle('approval/decide', decideAck(false))
+  const { session, events } = await listeningSession(fixture.host)
+  fixture.server.notify('approval/requested', raceRequested(session.sessionId, waiting))
+  await settle()
+  return { ...fixture, session, events }
+}
+
+describe('MuseSession: one decision per approval stage (D26, captured 2026-10-02)', () => {
+  it('joins a duplicate caller to a pending decision and its confirmed refusal', async () => {
+    const { server, session } = await raceSession()
+    server.silence('approval/decide')
+    server.handle('approval/listPending', () => ({
+      approvals: [raceRequested(session.sessionId)],
+      userInputs: [],
+    }))
+    const decision = allowOnce()
+    const first = session.decideApproval(decision)
+    const second = session.decideApproval(decision)
+    let isDuplicateDone = false
+    void second
+      .then(() => {
+        isDuplicateDone = true
+      })
+      .catch(() => {
+        isDuplicateDone = true
+      })
+    const results = Promise.allSettled([first, second])
+    try {
+      await settle()
+      expect(isDuplicateDone).toBe(false)
+      expect(decisions(server)).toEqual([[0, 'allow_once']])
+    } finally {
+      const request = server.requestsFor('approval/decide')[0]
+      server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request?.id,
+          error: { code: -32_603, message: 'refused', data: { kind: 'internal' } },
+        })}\n`,
+      )
+    }
+    expect(await results).toEqual([
+      { status: 'rejected', reason: expect.objectContaining({ name: 'DecisionNotAppliedError' }) },
+      { status: 'rejected', reason: expect.objectContaining({ name: 'DecisionNotAppliedError' }) },
+    ])
+  })
+
+  it.each(['cancel', 'interrupt'] as const)(
+    'waits for an in-flight decision, then rejects the next stage before %s',
+    async (stop) => {
+      const { server, session } = await raceSession()
+      await session.decideApproval(allowOnce())
+      server.notify('approval/updated', raceUpdated(session.sessionId, 1))
+      await settle()
+      server.silence('approval/decide')
+      const deciding = session.decideApproval(allowOnce(1))
+      const stopping = session[stop]()
+      try {
+        await settle()
+        expect(server.requestsFor(`turn/${stop}`)).toHaveLength(0)
+      } finally {
+        const request = server.requestsFor('approval/decide')[1]
+        server.incoming.push(
+          `${JSON.stringify({
+            jsonrpc: '2.0',
+            id: request?.id,
+            result: decideAck(false)(request?.params ?? {}),
+          })}\n${JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'approval/updated',
+            params: raceUpdated(session.sessionId, 2),
+          })}\n`,
+        )
+        await deciding
+        await settle()
+        const reject = server.requestsFor('approval/decide')[2]
+        if (reject !== undefined) {
+          server.incoming.push(
+            `${JSON.stringify({
+              jsonrpc: '2.0',
+              id: reject.id,
+              result: decideAck(true)(reject.params ?? {}),
+            })}\n`,
+          )
+        }
+        await stopping
+      }
+      expect(decisions(server)).toEqual([
+        [0, 'allow_once'],
+        [1, 'allow_once'],
+        [2, 'abort'],
+      ])
+      expect(server.requestsFor(`turn/${stop}`)).toHaveLength(1)
+    },
+  )
+
+  it('sends one decision for a stage however often it is asked', async () => {
+    const { server, log, session } = await raceSession()
+    const decision = allowOnce()
+    await Promise.all([session.decideApproval(decision), session.decideApproval(decision)])
+    await session.decideApproval({ ...decision, choiceId: 'abort' })
+    expect(decisions(server)).toEqual([[0, 'allow_once']])
+    expect(log.info).toHaveBeenCalledWith(
+      `A second decision for approval ${RACE_APPROVAL_ID} stage 0 was not sent: one was sent already`,
+    )
+  })
+
+  it('sends no decision for a stage the approval has left, nor for a closed approval', async () => {
+    const { host, server } = setup()
+    server.handle('approval/decide', decideAck(true))
+    const { session } = await listeningSession(host)
+    server.notify('approval/requested', raceRequested(session.sessionId))
+    server.notify('approval/updated', raceUpdated(session.sessionId, 1))
+    await settle()
+    const late = { approvalId: RACE_APPROVAL_ID, choiceId: 'allow_once', requirementId: stage(0) }
+    await expect(session.decideApproval(late)).rejects.toMatchObject({
+      name: 'PromptSettledError',
+      reason: 'movedOn',
+    })
+    await session.decideApproval({ ...late, requirementId: stage(1) })
+    await expect(
+      session.decideApproval({ ...late, requirementId: stage(2) }),
+    ).rejects.toMatchObject({ reason: 'alreadySettled' })
+    expect(decisions(server)).toEqual([[1, 'allow_once']])
+  })
+
+  it('moves the card to the stage a stale refusal names, which Muse Code never announces', async () => {
+    const { server, session, events } = await raceSession(4)
+    server.handle('approval/decide', staleRefusal(5))
+    await expect(
+      session.decideApproval({
+        approvalId: RACE_APPROVAL_ID,
+        choiceId: 'allow_local_prefix',
+        requirementId: stage(4),
+      }),
+    ).rejects.toMatchObject({ name: 'PromptSettledError', reason: 'movedOn' })
+    expect(events.at(-1)).toMatchObject({
+      type: 'approvalUpdated',
+      requirementId: stage(5),
+      availableChoices: expect.arrayContaining([
+        expect.objectContaining({ choiceId: 'allow_local_prefix', label: prefixLabel(5) }),
+      ]) as unknown,
+    })
+    // The card's next choice goes to the stage Muse Code waits on.
+    server.handle('approval/decide', decideAck(true))
+    await session.decideApproval({
+      approvalId: RACE_APPROVAL_ID,
+      choiceId: 'allow_local_prefix',
+      requirementId: stage(5),
+    })
+    expect(decisions(server)).toEqual([
+      [4, 'allow_local_prefix'],
+      [5, 'allow_local_prefix'],
+    ])
+  })
+
+  it('names the replay fault that refuses every turn, and leaves other refusals as they are', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.handle('turn/start', replayFault)
+    server.handle('turn/steer', replayFault)
+    const parts = [{ type: 'text' as const, text: 'go on' }]
+    await expect(session.sendTurn(parts)).rejects.toMatchObject({
+      name: 'MuseCodeFaultError',
+      fault: 'approvalReplay',
+      message: REPLAY_FAULT_MESSAGE,
+    })
+    await expect(session.steer('t1', parts)).rejects.toMatchObject({ fault: 'approvalReplay' })
+    server.handle('turn/start', refusalOf('internal', -32_603))
+    await expect(session.sendTurn(parts)).rejects.not.toMatchObject({ name: 'MuseCodeFaultError' })
+  })
+
+  it('names the ledger fault and keeps its stage decided: the decision applied', async () => {
+    const { server, session } = await raceSession()
+    server.handle('approval/decide', ledgerFault)
+    const decision = allowOnce()
+    await expect(session.decideApproval(decision)).rejects.toMatchObject({
+      name: 'MuseCodeFaultError',
+      fault: 'approvalLedger',
+    })
+    await session.decideApproval(decision)
+    expect(decisions(server)).toHaveLength(1)
+    expect(server.requestsFor('approval/listPending')).toHaveLength(0)
+  })
+
+  it('lets a failed decision be made again only when the host still waits on its stage', async () => {
+    const { server, session } = await raceSession()
+    server.handle('approval/decide', refusalOf('internal', -32_603))
+    server.handle('approval/listPending', () => ({
+      approvals: [raceRequested(session.sessionId)],
+      userInputs: [],
+    }))
+    const decision = allowOnce()
+    await expect(session.decideApproval(decision)).rejects.toMatchObject({
+      name: 'DecisionNotAppliedError',
+    })
+    // It did not apply: the stage may be decided again, and is sent.
+    await expect(session.decideApproval(decision)).rejects.toMatchObject({
+      name: 'DecisionNotAppliedError',
+    })
+    expect(decisions(server)).toHaveLength(2)
+    // The host moved on: the error stands and the stage stays decided.
+    server.handle('approval/listPending', () => ({
+      approvals: [raceUpdated(session.sessionId, 1)],
+      userInputs: [],
+    }))
+    let failure: unknown
+    try {
+      await session.decideApproval(decision)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toMatchObject({ message: expect.stringContaining('refused') as string })
+    expect(failure).not.toMatchObject({ name: 'DecisionNotAppliedError' })
+    await session.decideApproval(decision)
+    expect(decisions(server)).toHaveLength(3)
+  })
+
+  it('rejects a part-decided approval through approval/decide before a Stop', async () => {
+    const { server, log, session } = await raceSession()
+    await session.decideApproval(allowOnce())
+    server.notify('approval/updated', raceUpdated(session.sessionId, 1))
+    await settle()
+    server.handle('approval/decide', decideAck(true))
+    await session.cancel()
+    expect(decisions(server)).toEqual([
+      [0, 'allow_once'],
+      [1, 'abort'],
+    ])
+    const order = server.requests.map((request) => request.method)
+    expect(order.lastIndexOf('approval/decide')).toBeLessThan(order.lastIndexOf('turn/cancel'))
+    expect(log.info).toHaveBeenCalledWith(
+      `Stop: approval ${RACE_APPROVAL_ID} stage 1 is rejected before the turn stops`,
+    )
+    // Nothing part decided: a Stop is the cancel alone.
+    await session.interrupt()
+    expect(decisions(server)).toHaveLength(2)
+  })
+
+  it('never offers again a decision that got no answer: it may still apply', async () => {
+    const { server, session, log } = await raceSession(0, {
+      timeouts: { normalMs: 50, longMs: 50 },
+    })
+    server.silence('approval/decide')
+    const decision = allowOnce()
+    let failure: unknown
+    try {
+      await session.decideApproval(decision)
+    } catch (error: unknown) {
+      failure = error
+    }
+    expect(failure).toMatchObject({
+      message: 'Muse Code did not answer approval/decide within 0 s',
+    })
+    expect(failure).not.toMatchObject({ name: 'DecisionNotAppliedError' })
+    // Not asked whether it waits: a queued command shows the stage waiting too.
+    expect(server.requestsFor('approval/listPending')).toHaveLength(0)
+    await session.decideApproval(decision)
+    expect(decisions(server)).toHaveLength(1)
+    expect(log.info).toHaveBeenCalledWith(
+      `Approval ${RACE_APPROVAL_ID} stage 0: no answer; it may still apply, so it is not offered again`,
+    )
+  })
+
+  it('stops anyway when the reject before the Stop is not answered', async () => {
+    const { server, session, log } = await raceSession(0, {
+      timeouts: { normalMs: 50, longMs: 50 },
+    })
+    await session.decideApproval(allowOnce())
+    server.notify('approval/updated', raceUpdated(session.sessionId, 1))
+    await settle()
+    server.silence('approval/decide')
+    await session.cancel()
+    expect(decisions(server)).toEqual([
+      [0, 'allow_once'],
+      [1, 'abort'],
+    ])
+    expect(server.requestsFor('turn/cancel')).toHaveLength(1)
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`Stop: rejecting approval ${RACE_APPROVAL_ID} failed`),
+    )
+  })
+
+  it('rejects the stage a stale refusal names when the Stop’s first reject is stale', async () => {
+    const { server, session } = await raceSession(3)
+    await session.decideApproval({
+      approvalId: RACE_APPROVAL_ID,
+      choiceId: 'allow_local_prefix',
+      requirementId: stage(3),
+    })
+    server.notify('approval/updated', raceUpdated(session.sessionId, 4))
+    await settle()
+    let calls = 0
+    server.handle('approval/decide', (params) => {
+      calls += 1
+      return calls === 1 ? staleRefusal(5)() : decideAck(true)(params)
+    })
+    await session.cancel()
+    expect(decisions(server)).toEqual([
+      [3, 'allow_local_prefix'],
+      [4, 'abort'],
+      [5, 'abort'],
+    ])
+    expect(server.requestsFor('turn/cancel')).toHaveLength(1)
+  })
+})
 
 describe('MuseCodeHost: the handshake facts (D26)', () => {
   it('offers rename and fork except on Windows, any version, and says so before forking', async () => {
