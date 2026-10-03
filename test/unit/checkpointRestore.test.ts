@@ -5,6 +5,8 @@
 import { chmod, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as identity from '../../src/core/fs/fileIdentity'
+import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
 import {
   done,
   harness,
@@ -24,12 +26,43 @@ import {
 } from './helpers/checkpointHarness'
 
 afterEach(async () => {
+  vi.restoreAllMocks()
   await removeCheckpointFolders()
 })
 
 const OWNER_EXECUTE_BIT = 0o100
 
 describe('restore by the tools’ own writes (M86)', () => {
+  it.each(['ino', 'dev'] as const)(
+    'refuses restore publication for distinct native %s IDs that round to one Number',
+    async (field) => {
+      const h = await harness()
+      await write(h.root, 'collision.txt', 'before')
+      await turn(h, 't1', (tool) => tool('collision.txt', 'after'))
+      const sampleHandle = identity.handleIdentity
+      const samplePath = identity.statIdentity
+      const native = (stats: Awaited<ReturnType<typeof sampleHandle>>, isOther: boolean) =>
+        Object.assign(stats, {
+          dev: 77n,
+          ino: 88n,
+          [field]: isOther ? 9_007_199_254_740_993n : 9_007_199_254_740_992n,
+        })
+      vi.spyOn(identity, 'handleIdentity').mockImplementation(async (handle) =>
+        native(await sampleHandle(handle), false),
+      )
+      vi.spyOn(identity, 'statIdentity').mockImplementation(async (file) =>
+        native(
+          await samplePath(file),
+          file.startsWith(h.root) && file.endsWith(ATOMIC_TEMPORARY_SUFFIX),
+        ),
+      )
+      const result = done(await restoreOutcome(h.store, 't1'))
+      expect(result.changed).toEqual([])
+      expect(result.refused.map((entry) => entry.path)).toEqual(['collision.txt'])
+      expect(await read(h.root, 'collision.txt')).toBe('after')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
   it(
     'keeps applied deletion/replacement results and Redo when done append fails',
     async () => {

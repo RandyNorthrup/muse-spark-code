@@ -1432,7 +1432,11 @@ Code has no stored file restore; its native rewind is separate.
   sequence; archiving hides the conversation's records from other windows.
   Small identity records keep retired owners and sequence numbers distinct
   from unexplained missing records. Shared journals keep their metadata until
-  their instance's units are all retired; retired file copies can go sooner.
+  their instance's units are all retired. Cleanup sweeps unreferenced copies,
+  including failed writes with no journal intent, after a one-hour grace period
+  while no writer is live. Each pass is bounded and resumes on the next pass.
+  Ordinary sends and trusted startup recover abandoned cleanup reservations;
+  live or uncertain owners remain protected.
 - **Off.** No new turns are recorded with `museSpark.turnCheckpoints` off
   or in Restricted Mode. A turn that started recording keeps recording
   until it ends, even if the setting is switched off. A restore range
@@ -2160,7 +2164,8 @@ stopped and the next message resumes the same session.
   The shadow repository and per-instance journals stay outside the
   workspace's `.git`; that folder is readable by your user only (on macOS
   and Linux). Copies stay on the machine and are removed by conversation
-  retention or by removing that directory. Shared journal metadata remains
+  retention or by removing that directory. Unreferenced file copies are swept
+  after a one-hour grace period when no writer is live. Shared journal metadata remains
   until all its instance's units are retired. See **Turn
   checkpoints** in [The panel](#the-panel).
 - Model API conversations are stored, per workspace, in VS Code's storage

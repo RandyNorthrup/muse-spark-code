@@ -204,6 +204,23 @@ export class WriteJournal {
     return path.join(instanceFolder(storageDir, instance), CHECKPOINT_BLOBS_DIR, oid)
   }
 
+  /** One journal, including a torn tail; absence means its first intent never came. */
+  public static async readInstance(
+    storageDir: string,
+    instance: string,
+    fs: JournalFs = NODE_JOURNAL_FS,
+  ): Promise<InstanceJournal | undefined> {
+    try {
+      const bytes = await fs.readFile(
+        path.join(instanceFolder(storageDir, instance), CHECKPOINT_JOURNAL_FILE),
+      )
+      return journalOf(Buffer.from(bytes).toString('utf8'), instance)
+    } catch (error: unknown) {
+      if (isMissingPath(error)) return undefined
+      throw error
+    }
+  }
+
   /** Every instance's journal under the storage folder, by instance id. */
   public static async readAll(
     storageDir: string,
@@ -224,17 +241,8 @@ export class WriteJournal {
       .filter((name) => SAFE_SEGMENT.test(name))
       .toSorted((a, b) => a.localeCompare(b))
     for (const instance of instances) {
-      let bytes: Uint8Array
-      try {
-        bytes = await fs.readFile(path.join(root, instance, CHECKPOINT_JOURNAL_FILE))
-      } catch (error: unknown) {
-        // A folder whose first intent never came, or not a folder at all.
-        if (isMissingPath(error)) {
-          continue
-        }
-        throw error
-      }
-      journals.set(instance, journalOf(Buffer.from(bytes).toString('utf8'), instance))
+      const journal = await this.readInstance(storageDir, instance, fs)
+      if (journal !== undefined) journals.set(instance, journal)
     }
     return journals
   }

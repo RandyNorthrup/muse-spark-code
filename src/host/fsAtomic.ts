@@ -31,20 +31,17 @@
 
 import { randomUUID } from 'node:crypto'
 import { constants, type BigIntStats } from 'node:fs'
-import {
-  access,
-  link,
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  stat,
-} from 'node:fs/promises'
+import { access, link, mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import {
+  type FileIdentity,
+  handleIdentity,
+  identityOf,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../core/fs/fileIdentity'
 import { isSamePath } from '../core/paths'
 import { bytesFingerprint } from '../core/verify/fingerprint'
 import {
@@ -121,15 +118,14 @@ function errorCode(error: unknown): string | undefined {
 /** A cleanup may remove only the same regular file, with exact inode IDs and captured metadata. */
 export async function isOwnedFile(
   target: string,
-  identity: Pick<BigIntStats, 'dev' | 'ino'> & Partial<Pick<BigIntStats, 'mtimeNs' | 'size'>>,
+  identity: FileIdentity & Partial<Pick<BigIntStats, 'mtimeNs' | 'size'>>,
 ): Promise<boolean> {
   try {
     // Windows file IDs exceed Number's safe range: rounded IDs can name two files.
-    const current = await lstat(target, { bigint: true })
+    const current = await lstatIdentity(target)
     return (
       current.isFile() &&
-      current.dev === identity.dev &&
-      current.ino === identity.ino &&
+      sameFile(current, identity) &&
       (identity.mtimeNs === undefined || current.mtimeNs === identity.mtimeNs) &&
       (identity.size === undefined || current.size === identity.size)
     )
@@ -315,7 +311,7 @@ async function writeAtomically(
   const destination = await destinationOf(target, options)
   await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
   const temporary = `${destination.path}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
-  let temporaryIdentity: Pick<BigIntStats, 'dev' | 'ino'> | undefined
+  let temporaryIdentity: FileIdentity | undefined
   let stagedMode = 0
   try {
     await assertBoundPath(temporary, temporary, options)
@@ -323,17 +319,17 @@ async function writeAtomically(
     options.assertCanWrite?.()
     const handle = await open(temporary, 'wx')
     try {
-      const held = await handle.stat({ bigint: true })
+      const held = await handleIdentity(handle)
       // The content is written through this handle only after path and inode
       // agree twice. Node cannot make a path-based rename handle-relative.
       for (let sample = 0; sample < 2; sample += 1) {
         await assertBoundPath(temporary, temporary, options)
-        const current = await stat(temporary, { bigint: true })
-        if (held.dev !== current.dev || held.ino !== current.ino) {
+        const current = await statIdentity(temporary)
+        if (!sameFile(held, current)) {
           throw new Error(MODEL_TEXT.pathChangedAfterApproval)
         }
       }
-      temporaryIdentity = { dev: held.dev, ino: held.ino }
+      temporaryIdentity = identityOf(held)
       options.beforeCommit?.()
       options.assertCanWrite?.()
       await (typeof content === 'string'
@@ -358,8 +354,8 @@ async function writeAtomically(
     await renameReplacing(temporary, destination.path, options, async () => {
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
-      const current = await stat(temporary, { bigint: true })
-      if (current.dev !== temporaryIdentity?.dev || current.ino !== temporaryIdentity.ino) {
+      const current = await statIdentity(temporary)
+      if (temporaryIdentity === undefined || !sameFile(current, temporaryIdentity)) {
         throw new Error(MODEL_TEXT.pathChangedAfterApproval)
       }
       await assertBoundPath(temporary, temporary, options)
@@ -520,15 +516,15 @@ export async function createFileExclusively(
     directory,
     `.${path.basename(absolutePath)}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`,
   )
-  let stageIdentity: Pick<BigIntStats, 'dev' | 'ino'> | undefined
+  let stageIdentity: FileIdentity | undefined
   let isPublished = false
   let stagedMode: number
   try {
     options.assertCanWrite?.()
     const handle = await open(stage, 'wx', options.mode)
     try {
-      const held = await handle.stat({ bigint: true })
-      stageIdentity = { dev: held.dev, ino: held.ino }
+      const held = await handleIdentity(handle)
+      stageIdentity = identityOf(held)
       stagedMode = Number(held.mode) & PERMISSION_BITS
       options.assertCanWrite?.()
       await handle.writeFile(content, 'utf8')

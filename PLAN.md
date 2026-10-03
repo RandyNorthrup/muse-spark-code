@@ -10009,6 +10009,19 @@ remain the lead's.
 
 ### M86 — Restore by the tools' own writes (D63)
 
+- **Round-3 redesign (RD86, 2026-10-03), in progress.** R1: one core
+  filesystem module owns exact BigInt identity samples and comparisons for
+  the recorder, tool reservations, atomic/exclusive publication, plan cleanup,
+  importer and ACP workspace fence; ESLint rejects identity reads elsewhere.
+  R2: one CAS lease state machine owns cleanup/restore reservations, remembers
+  failed releases and recovers abandoned values before every admission,
+  including ordinary sends and trusted native startup. Live and uncertain
+  owners remain fenced. R3: bounded mark-and-sweep removes unreferenced content
+  copies after an in-flight-write grace period on retention and startup, under
+  the cleanup lease with no live writer. F07's identity metadata exception stays.
+  Owning suites on Kubuntu/Windows, Kubuntu's full checkpoint suite, static/build
+  checks and byte-exact guard/gate drills belong in [m86.md](docs/certification/m86.md).
+  These replace the sibling patches confirmed incomplete by RVM86Q.
 - **FIX86 verified (2026-10-03).** `662be22c` fixes F01–F03 with twelve
   regression controls and seven byte-exact guard drills. `f6a33f5a` merges
   current main `17ba7deb`, including the M83 import adaptation below. Final

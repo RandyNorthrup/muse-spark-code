@@ -358,14 +358,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:crypto`          | 25    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 20    |
-| `node:fs/promises`     | 28    |
+| `node:fs`              | 21    |
+| `node:fs/promises`     | 29    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 57    |
+| `node:path`            | 59    |
 | `node:process`         | 1     |
 | `node:stream`          | 6     |
 | `node:string_decoder`  | 1     |

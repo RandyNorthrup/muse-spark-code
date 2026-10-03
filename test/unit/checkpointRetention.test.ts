@@ -1,20 +1,28 @@
+import { utimes } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseUnit } from '../../src/host/checkpoints/checkpointRecords'
 import { droppedRecords, type RetainedRecord } from '../../src/host/checkpoints/checkpointRetention'
 import { unitRef } from '../../src/host/checkpoints/recordRefs'
 import { WriteJournal } from '../../src/host/checkpoints/writeJournal'
+import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
+import { createFileExclusively } from '../../src/host/fsAtomic'
+import { createOwnerIo } from '../../src/host/checkpoints/writeRecorder'
+import { canonicalPath } from '../../src/host/canonicalPath'
+import { nativeToolIo } from './helpers/fakeToolIo'
 import type * as constants from '../../src/shared/constants'
 import {
   CHECKPOINT_SESSIONS_MAX,
   CHECKPOINTS_PER_SESSION_MAX,
   MILLISECONDS_PER_DAY,
+  MEMORY_STAGE_FILE_MODE,
 } from '../../src/shared/constants'
 import {
   done,
   harness,
   isPresent,
   owner,
+  recordingOf,
   read,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
@@ -42,6 +50,17 @@ afterEach(async () => {
 })
 
 const NOW = 100 * MILLISECONDS_PER_DAY
+
+async function ageBlobs(
+  storage: string,
+  instance: string,
+  oids: readonly (string | undefined)[],
+): Promise<void> {
+  for (const oid of oids) {
+    expect(oid).toBeDefined()
+    await utimes(WriteJournal.blobPath(storage, instance, oid ?? ''), 0, 0)
+  }
+}
 
 interface Unit extends RetainedRecord {
   readonly id: string
@@ -91,6 +110,94 @@ describe('droppedRecords (M72, M86)', () => {
 })
 
 describe('retention over real units (M86)', () => {
+  it.each(['text', 'exclusive memory'])(
+    'sweeps older copies from a refused %s write before its intent',
+    async (kind) => {
+      const h = await harness()
+      const unitOwner = owner(h.store, 'refused')
+      const relative = 'private.txt'
+      const file = path.join(h.root, relative)
+      const before = 'private before canary'
+      const proposed = 'private after canary'
+      if (kind === 'text') await write(h.root, relative, before)
+      await h.store.startUnit(unitOwner)
+      const { journal, lanes } = recordingOf(h.store)
+      const keep = journal.writeBlob.bind(journal)
+      const spy = vi.spyOn(journal, 'writeBlob').mockImplementation(async (bytes) => {
+        const oid = await keep(bytes)
+        if (oid === gitBlobOid(Buffer.from(proposed)))
+          await write(h.root, relative, 'user later bytes')
+        return oid
+      })
+      const io = createOwnerIo(nativeToolIo(), {
+        journal,
+        lanes,
+        owner: unitOwner,
+        workspaceRoot: h.root,
+        platform: process.platform,
+        canonicalPath,
+        newId: () => 'refused-write',
+        log: h.log,
+      })
+      if (kind === 'text') await expect(io.writeFile(file, proposed)).rejects.toThrow()
+      else
+        await expect(
+          io.recordNew(file, proposed, file, async (staged) => {
+            await createFileExclusively(file, proposed, {
+              ...(staged !== undefined && { staged }),
+              mode: MEMORY_STAGE_FILE_MODE,
+              warn: h.log.warn.bind(h.log),
+              assertCanWrite: () => {
+                throw new Error('exclusive staging refused')
+              },
+            })
+          }),
+        ).rejects.toThrow()
+      spy.mockRestore()
+      const copied = [
+        gitBlobOid(Buffer.from(proposed)),
+        ...(kind === 'text' ? [gitBlobOid(Buffer.from(before))] : []),
+      ]
+      for (const oid of copied)
+        expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${oid}`)).toBe(true)
+      const snapshot = await journal.snapshot()
+      expect((snapshot?.entries ?? []).filter((entry) => entry.kind === 'intent')).toEqual([])
+      await ageBlobs(h.storage, h.store.instance, copied)
+      await io.drain()
+      await h.store.endUnit(unitOwner, { ranProcesses: false })
+      await h.store.maintain()
+      for (const oid of copied)
+        expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${oid}`)).toBe(false)
+      expect(await read(h.root, relative)).toBe('user later bytes')
+      expect(await isPresent(h.storage, `m86/${h.store.instance}/journal.jsonl`)).toBe(true)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'sweeps a crash-left copy with no journal, but keeps a recent copy and every live reference',
+    async () => {
+      const h = await harness()
+      await turn(h, 'live', (tool) => tool('live.txt', 'live reference'))
+      const liveOid = storedUnit(h.storage, 'live').writes[0]?.after.oid
+      await ageBlobs(h.storage, h.store.instance, [liveOid])
+      const { journal } = recordingOf(h.store)
+      const recent = await journal.writeBlob(Buffer.from('recent orphan'))
+      const crashed = new WriteJournal({ storageDir: h.storage, instance: 'crash-before-intent' })
+      const orphan = await crashed.writeBlob(Buffer.from('crash orphan'))
+      await ageBlobs(h.storage, 'crash-before-intent', [orphan])
+      await h.store.maintain()
+      expect(await isPresent(h.storage, `m86/crash-before-intent/blobs/${orphan}`)).toBe(false)
+      expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${recent}`)).toBe(true)
+      expect(await isPresent(h.storage, `m86/${h.store.instance}/blobs/${liveOid ?? ''}`)).toBe(
+        true,
+      )
+      expect(done(await restoreOutcome(h.store, 'live')).changed).toEqual(['live.txt'])
+      await crashed.close()
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
   it(
     'retries retired blob cleanup when a peer ends without another retirement',
     async () => {
@@ -98,6 +205,10 @@ describe('retention over real units (M86)', () => {
       await write(h.root, 'private.txt', 'private before')
       await turn(h, 't1', (tool) => tool('private.txt', 'private after'))
       const retiredWrite = storedUnit(h.storage, 't1').writes[0]
+      await ageBlobs(h.storage, h.store.instance, [
+        retiredWrite?.before.oid,
+        retiredWrite?.after.oid,
+      ])
       const peer = h.reopen()
       await peer.markTurn('peer-running', true)
       const peerOwner = owner(peer, 'peer-turn', 's2')
@@ -146,6 +257,7 @@ describe('retention over real units (M86)', () => {
       await h.store.endUnit(unitOwner, { ranProcesses: false })
       const recorded = storedUnit(h.storage, 't1').writes[0]
       expect(recorded?.path).toBe(canonicalKey)
+      await ageBlobs(h.storage, h.store.instance, [recorded?.before.oid, recorded?.after.oid])
       for (const turnId of ['t2', 't3', 't4']) {
         await turn(h, turnId)
       }
@@ -190,6 +302,7 @@ describe('retention over real units (M86)', () => {
       await turn(h, 't1', (tool) => tool('a.txt', 'a\n'))
       const oid = storedUnit(h.storage, 't1').writes[0]?.after.oid
       expect(oid).toBeDefined()
+      await ageBlobs(h.storage, h.store.instance, [oid])
       await turn(h, 'u1', (tool) => tool('b.txt', 'b\n'), 's2')
       await turn(h, 'v1', (tool) => tool('c.txt', 'c\n'), 's3')
       expect(
@@ -213,6 +326,9 @@ describe('retention over real units (M86)', () => {
       const h = await harness()
       for (const turnId of ['t1', 't2', 't3', 't4']) {
         await turn(h, turnId, (tool) => tool(`${turnId}.txt`, `${turnId}\n`))
+        await ageBlobs(h.storage, h.store.instance, [
+          storedUnit(h.storage, turnId).writes[0]?.after.oid,
+        ])
       }
       // Retire only the oldest unit even while the instance remains live.
       expect(storedUnits(h.storage).map((entry) => entry.owner.unitId)).toEqual(['t2', 't3', 't4'])
@@ -244,6 +360,9 @@ describe('retention over real units (M86)', () => {
     async () => {
       const h = await harness()
       await turn(h, 't1', (tool) => tool('a.txt', 'a\n'))
+      await ageBlobs(h.storage, h.store.instance, [
+        storedUnit(h.storage, 't1').writes[0]?.after.oid,
+      ])
       h.store.dispose()
       const next = h.reopen()
       await next.forgetSession('s1')

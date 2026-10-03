@@ -22,9 +22,9 @@
 // recorded: a restore says when they ran.
 
 import { Buffer } from 'node:buffer'
-import type { Stats } from 'node:fs'
+import type { BigIntStats } from 'node:fs'
 import { constants } from 'node:fs'
-import { lstat, open, rmdir } from 'node:fs/promises'
+import { open, rmdir } from 'node:fs/promises'
 import path from 'node:path'
 import type {
   ConditionalWrite,
@@ -37,6 +37,7 @@ import { gitBlobHash, gitBlobOid } from '../../core/checkpoints/gitListings'
 import type { ContentState, Owner, WriteRecord } from '../../core/checkpoints/toolWrites'
 import { turnKey } from '../../core/checkpoints/turnKey'
 import type { MemoryWrites } from '../../core/memory/memoryStore'
+import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import { isSamePath } from '../../core/paths'
 import { bytesFingerprint } from '../../core/verify/fingerprint'
 import { isBelow } from '../../core/workspacePath'
@@ -154,19 +155,15 @@ interface KeptBytes {
 
 type WriteFields = Pick<WriteRecord, 'before' | 'after' | 'createdFolders' | 'isKept'>
 
-async function lstatOrMissing(absolutePath: string): Promise<Stats | undefined> {
+async function lstatOrMissing(absolutePath: string): Promise<BigIntStats | undefined> {
   try {
-    return await lstat(absolutePath)
+    return await lstatIdentity(absolutePath)
   } catch (error: unknown) {
     if (isMissingPath(error)) {
       return undefined
     }
     throw error
   }
-}
-
-function isSameFile(left: Stats, right: Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino
 }
 
 /** Whether a restore would call the two the same: presence and bytes (spec 3.7). */
@@ -281,7 +278,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /** Refuses, unopened, a destination that is not a regular file (spec 5.3, O2). */
-  const assertWritable = async (target: Target): Promise<Stats | undefined> => {
+  const assertWritable = async (target: Target): Promise<BigIntStats | undefined> => {
     const stats = await lstatOrMissing(target.absolute)
     if (stats !== undefined && !stats.isFile()) {
       throw new Error(`${target.path} ${MODEL_TEXT.fileNotRegular}`)
@@ -307,12 +304,12 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   }
 
   /** The path still leads, links resolved, where it did, and still names the opened file. */
-  const assertStillNamed = async (target: Target, held: Stats): Promise<void> => {
+  const assertStillNamed = async (target: Target, held: BigIntStats): Promise<void> => {
     if (!isSamePath(await deps.canonicalPath(target.absolute), target.absolute, deps.platform)) {
       throw changedPath()
     }
     const current = await lstatOrMissing(target.absolute)
-    if (current?.isFile() !== true || !isSameFile(current, held)) {
+    if (current?.isFile() !== true || !sameFile(current, held)) {
       throw changedPath()
     }
   }
@@ -337,13 +334,14 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
     }
     const handle = await open(target.absolute, readFlags)
     try {
-      const held = await handle.stat()
-      if (!held.isFile() || !isSameFile(held, seen)) {
+      const held = await handleIdentity(handle)
+      const size = Number(held.size)
+      if (!held.isFile() || !sameFile(held, seen)) {
         throw changedPath()
       }
       await assertStillNamed(target, held)
-      const isKept = held.size <= CHECKPOINT_FILE_MAX_BYTES
-      const hash = gitBlobHash(held.size)
+      const isKept = size <= CHECKPOINT_FILE_MAX_BYTES
+      const hash = gitBlobHash(size)
       const parts: Buffer[] = []
       let total = 0
       for (;;) {
@@ -353,7 +351,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
           break
         }
         total += bytesRead
-        if (total > held.size) {
+        if (total > size) {
           throw changedPath()
         }
         hash.update(part.subarray(0, bytesRead))
@@ -361,12 +359,12 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
           parts.push(part.subarray(0, bytesRead))
         }
       }
-      if (total !== held.size) {
+      if (total !== size) {
         throw changedPath()
       }
       await assertStillNamed(target, held)
       return {
-        state: { present: true, oid: hash.digest('hex'), mode: gitMode(held.mode) },
+        state: { present: true, oid: hash.digest('hex'), mode: gitMode(Number(held.mode)) },
         bytes: isKept ? Buffer.concat(parts, total) : undefined,
       }
     } finally {

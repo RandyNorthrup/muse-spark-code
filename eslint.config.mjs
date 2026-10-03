@@ -141,6 +141,29 @@ export default tseslint.config(
   },
 
   {
+    // R1: native identity reads belong only to the exact BigInt sampler.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/core/fs/fileIdentity.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'MemberExpression[computed=false][property.name=/^(ino|dev)$/], MemberExpression[computed=true][property.value=/^(ino|dev)$/], ObjectPattern > Property[key.name=/^(ino|dev)$/], ObjectPattern > Property[key.value=/^(ino|dev)$/]',
+          message:
+            'Native file identity belongs to src/core/fs/fileIdentity.ts; use its exact BigInt samples and sameFile.',
+        },
+        {
+          selector:
+            "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError)$/]",
+          message:
+            'Use the shared bundle-safe host error guards in src/core/agent/agentBackend.ts.',
+        },
+      ],
+    },
+  },
+
+  {
     // The constants module is the one place literals belong; the rule would be
     // unsatisfiable here.
     files: ['src/shared/constants.ts'],

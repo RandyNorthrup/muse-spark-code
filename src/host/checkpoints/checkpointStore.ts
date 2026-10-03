@@ -29,7 +29,7 @@
 //   it may edit a file (windowPresence.ts), and stays published until its unit
 //   is sealed. No restore or Redo runs while any turn runs, in this window or
 //   another live one, nor while a 0.10.0 window is live; one restore at a
-//   time holds `RESTORE_REF` across windows.
+//   time holds `CHECKPOINT_RESERVATION_REF` across windows.
 // - Within a window, one operation runs at a time.
 
 import type { Buffer } from 'node:buffer'
@@ -63,6 +63,7 @@ import { isSamePath } from '../../core/paths'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   CHECKPOINT_BLOB_BATCH_MAX_BYTES,
+  CHECKPOINT_BLOBS_DIR,
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_FILE_MAX_BYTES,
   CHECKPOINT_FOLD_ATTEMPTS,
@@ -98,20 +99,19 @@ import {
   type RestoreTarget,
   type StepResult,
 } from './checkpointFiles'
-import { parseRecord, type StoredRecord, type StoredUnit } from './checkpointRecords'
+import { type StoredUnit } from './checkpointRecords'
+import { CheckpointCopies } from './checkpointCopies'
+import { CheckpointLease } from './checkpointLease'
 import { droppedRecords } from './checkpointRetention'
 import {
   deleteRefs,
-  didWriteRef,
   type HeldRef,
-  keepTree,
   type ListedRecord,
   type ListedUnit,
   listRecords,
   listUnits,
   readUnit,
   recordRef,
-  refValue,
   sessionKey,
   unitRef,
   writeUnit,
@@ -307,7 +307,6 @@ const REF_ROOT = 'refs/muse-spark/'
 // Refs and files an M72 window kept: its captures' pins, its index's ref and file, its staged copies.
 const PIN_REF_PREFIX = `${REF_ROOT}pin/`
 const WORK_REF_PREFIX = `${REF_ROOT}work/`
-const RESTORE_REF = `${REF_ROOT}restore-active`
 const LEGACY_REF_PREFIXES = [`${REF_ROOT}keep/`, `${REF_ROOT}journal/`] as const
 const LEGACY_INDEX_REF = `${REF_ROOT}index`
 const LEGACY_FILES: ReadonlySet<string> = new Set([
@@ -504,6 +503,8 @@ export class CheckpointStore {
   private readonly ownInstance: string
   private readonly ownJournal: WriteJournal
   private readonly presence: WindowPresence
+  private readonly lease: CheckpointLease
+  private readonly copies: CheckpointCopies
   private heartbeat: ReturnType<typeof setInterval> | undefined
   private lastPruneAt = 0
   private isPruneDue = false
@@ -512,6 +513,7 @@ export class CheckpointStore {
   public constructor(private readonly deps: CheckpointStoreDeps) {
     this.ownInstance = deps.instance
     this.ownJournal = deps.journal
+    this.copies = new CheckpointCopies(deps.storageDir)
     this.presence = new WindowPresence({
       storageDir: deps.storageDir,
       instance: this.ownInstance,
@@ -519,6 +521,16 @@ export class CheckpointStore {
       isProcessAlive: deps.isProcessAlive,
       sleep: pause,
       signal: this.presenceStopping.signal,
+    })
+    this.lease = new CheckpointLease({
+      instance: this.ownInstance,
+      storageDir: deps.storageDir,
+      now: deps.now,
+      log: deps.log,
+      isGone: async (instance) => {
+        const live = await this.presence.liveWindows()
+        return !live.has(instance)
+      },
     })
   }
 
@@ -557,16 +569,6 @@ export class CheckpointStore {
       log: this.deps.log,
       signal: this.stopping.signal,
     }
-  }
-
-  private async hasReservedFiles(): Promise<boolean> {
-    for (const refPath of [RESTORE_REF, 'packed-refs']) {
-      const file = path.join(this.deps.storageDir, 'shadow.git', refPath)
-      if ((await lstatOrUndefined(file)) !== undefined) {
-        return true
-      }
-    }
-    return false
   }
 
   /** The window's presence is written again every beat while the store is in use. */
@@ -689,6 +691,7 @@ export class CheckpointStore {
    */
   private async ready(): Promise<Setup> {
     const { opened } = await this.open()
+    await this.lease.recoverAbandoned(opened)
     const listedUnits = await listUnits(opened.shadow)
     const listedRecords = await listRecords(opened.shadow)
     const archives = await readArchives(this.deps.storageDir)
@@ -835,9 +838,10 @@ export class CheckpointStore {
           const owner = ownerOf(entry)
           return owner !== undefined && retired.every((candidate) => !isSameOwner(candidate, owner))
         })
-      if (!isStillNeeded) {
+      if (isStillNeeded || this.copies.isScanning(instance)) continue
+      const copies = await this.namesIn(path.join(journalsRoot, instance, CHECKPOINT_BLOBS_DIR))
+      if (copies.length === 0)
         await rm(path.join(journalsRoot, instance), { recursive: true, force: true })
-      }
     }
   }
 
@@ -944,77 +948,21 @@ export class CheckpointStore {
     return [...retired, ...(await deleteRefs(setup.shadow, legacy))]
   }
 
-  /** Drop only blobs known to belong exclusively to retired owners, with all writers fenced. */
-  private async dropRetiredBlobs(shadow: ShadowGit): Promise<void> {
-    const live = await this.presence.liveWindows()
-    if (hasLiveWriter(live)) {
-      return
-    }
+  /** Mark live journal/record references and sweep all older unreferenced copies. */
+  private async sweepCopies(shadow: ShadowGit): Promise<void> {
     const units = await listUnits(shadow)
+    if (
+      units.some((unit) => unit.record === undefined) ||
+      hasLiveWriter(await this.presence.liveWindows())
+    )
+      return
     const retired = units.flatMap((unit) =>
       unit.record?.isRetired === true ? [unit.record.owner] : [],
     )
-    const journals = await WriteJournal.readAll(this.deps.storageDir)
-    for (const [instance, journal] of journals) {
-      if (journal.tornTail !== 'none') {
-        continue
-      }
-      const needed = new Set<string>()
-      const droppable = new Set<string>()
-      for (const entry of journal.entries) {
-        if (entry.kind !== 'intent') {
-          continue
-        }
-        const target = retired.some((owner) => isSameOwner(owner, entry.write.owner))
-          ? droppable
-          : needed
-        for (const oid of neededOids(entry.write)) {
-          target.add(oid)
-        }
-      }
-      for (const oid of droppable) {
-        if (!needed.has(oid)) {
-          await rm(WriteJournal.blobPath(this.deps.storageDir, instance, oid), { force: true })
-        }
-      }
-    }
-  }
-
-  /** M72-readable payload for the shared restore/cleanup CAS reservation. */
-  private async reservationTree(setup: Opened): Promise<string> {
-    const lease: StoredRecord = {
-      kind: 'restore',
-      top: setup.top,
-      prefix: setup.prefix,
-      id: this.ownInstance,
-      sessionId: '',
-      createdAt: this.deps.now(),
-      owner: this.ownInstance,
-      entries: [],
-    }
-    return await keepTree(setup.shadow, JSON.stringify(lease), [])
-  }
-
-  /** Restore and cleanup are serial here; only an abandoned lease may be replaced. */
-  private async acquireRestoreLease(setup: Opened): Promise<string | undefined> {
-    const { shadow } = setup
-    const keep = await this.reservationTree(setup)
-    if (await didWriteRef(shadow, RESTORE_REF, keep, undefined)) {
-      return keep
-    }
-    const previous = await refValue(shadow, RESTORE_REF)
-    if (previous === undefined) {
-      return undefined
-    }
-    const held = parseRecord(await shadow.text(['cat-file', 'blob', `${previous}:record.json`]))
-    const owner = held?.kind === 'restore' ? held.owner : undefined
-    const live = await this.presence.liveWindows()
-    // A failed release is abandoned in this serial instance. Other owners
-    // remain protected until presence proves they are gone, including uncertainty.
-    if (owner === undefined || (owner !== this.ownInstance && live.has(owner))) {
-      return undefined
-    }
-    return (await didWriteRef(shadow, RESTORE_REF, keep, previous)) ? keep : undefined
+    const writes = units.flatMap((unit) =>
+      unit.record?.isRetired === true ? [] : (unit.record?.writes ?? []),
+    )
+    await this.copies.sweep(retired, writes)
   }
 
   /** Cleanup and restore share one CAS lease; a precheck alone cannot protect source copies. */
@@ -1022,7 +970,7 @@ export class CheckpointStore {
     if (this.isLegacyLive(setup)) {
       return
     }
-    const keep = await this.acquireRestoreLease(setup)
+    const keep = await this.lease.acquire(setup)
     if (keep === undefined) {
       return
     }
@@ -1031,7 +979,7 @@ export class CheckpointStore {
         await task()
       }
     } finally {
-      await this.releaseRestoreLease(setup.shadow, keep)
+      await this.lease.release(setup.shadow, keep)
     }
   }
 
@@ -1075,8 +1023,8 @@ export class CheckpointStore {
         this.isPruneDue = true
       }
       await this.dropGoneFiles()
+      await this.sweepCopies(setup.shadow)
       await this.dropGoneJournals(setup.shadow)
-      await this.dropRetiredBlobs(setup.shadow)
       await this.dropOldArchives(setup, deleted)
       const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
       if (this.isPruneDue && (isPruneForced || isIntervalOver)) {
@@ -1107,10 +1055,9 @@ export class CheckpointStore {
       const deleted = await this.retireRefs(setup)
       if (deleted.length > 0) {
         this.isPruneDue = true
-        await this.dropGoneJournals(setup.shadow)
       }
-      // A peer may have deferred the previous sweep; retry even with no new retirement.
-      await this.dropRetiredBlobs(setup.shadow)
+      await this.sweepCopies(setup.shadow)
+      await this.dropGoneJournals(setup.shadow)
       const isIntervalOver = this.deps.now() - this.lastPruneAt > CHECKPOINT_PRUNE_INTERVAL_MS
       if (isIntervalOver && this.isPruneDue) {
         await this.prune(setup.shadow)
@@ -1813,7 +1760,7 @@ export class CheckpointStore {
     task: (fresh: Setup) => Promise<RestoreOutcome>,
   ): Promise<RestoreOutcome> {
     const { shadow } = setup
-    const keep = await this.acquireRestoreLease(setup)
+    const keep = await this.lease.acquire(setup)
     if (keep === undefined) {
       return { ok: false, reason: 'turnElsewhere' }
     }
@@ -1825,31 +1772,7 @@ export class CheckpointStore {
       const blocking = this.turnBlocking(fresh)
       return blocking === undefined ? await task(fresh) : { ok: false, reason: blocking }
     } finally {
-      await this.releaseRestoreLease(shadow, keep)
-    }
-  }
-
-  /**
-   * Lets go of this window's restore lease. It runs after the files were
-   * restored, so a failure here (a ref lock held for a moment) must not replace
-   * the restore's outcome with a failure and hide its Redo: it is tried once
-   * more, then logged. A lease this window still holds is taken over by its next
-   * restore or cleanup (see `acquireRestoreLease`).
-   */
-  private async releaseRestoreLease(shadow: ShadowGit, keep: string): Promise<void> {
-    const release = () =>
-      shadow.run(['update-ref', '-d', RESTORE_REF, keep], { signal: new AbortController().signal })
-    try {
-      await release()
-      return
-    } catch {
-      // Tried once more below.
-    }
-    await pause(CHECKPOINT_PUBLISH_RETRY_MS)
-    try {
-      await release()
-    } catch (error: unknown) {
-      this.deps.log.warn(`The restore lease could not be released: ${failureForLog(error)}`)
+      await this.lease.release(shadow, keep)
     }
   }
 
@@ -1900,10 +1823,11 @@ export class CheckpointStore {
 
   /**
    * Before a workspace-capable native process starts, even with checkpoints off.
-   * Presence precedes the reservation check, without invoking Git. A packed
+   * Presence precedes the reservation check. Trusted startup recovers abandoned leases;
+   * Restricted Mode only checks reservation files, without invoking Git. A packed
    * ref file is conservatively refused too; this implementation never packs refs.
    */
-  public async markNativeBackend(): Promise<void> {
+  public async markNativeBackend(canRunGit = false): Promise<void> {
     if (this.stopping.signal.aborted) {
       throw new Error(UI_TEXT.sendMarkFailed)
     }
@@ -1913,7 +1837,13 @@ export class CheckpointStore {
     this.startHeartbeat()
     try {
       await this.presence.publish(this.publishedTurns())
-      if (await this.hasReservedFiles()) {
+      if (canRunGit) {
+        await this.serial(async () => {
+          const opened = await this.openIfUsable()
+          if (opened !== undefined) await this.lease.recoverAbandoned(opened)
+        })
+      }
+      if (await this.lease.isReserved()) {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
@@ -1954,11 +1884,16 @@ export class CheckpointStore {
     try {
       await this.presence.publish(this.publishedTurns())
       if (isRunning && canRunGit) {
+        // Share first setup outside the queue, as the first conversation read does.
         const opened = await this.openIfUsable()
-        if (opened !== undefined && (await refValue(opened.shadow, RESTORE_REF)) !== undefined) {
-          throw new Error(UI_TEXT.restoreTurnElsewhere)
-        }
-      } else if (isRunning && (await this.hasReservedFiles())) {
+        await this.serial(async () => {
+          if (opened === undefined) return
+          await this.lease.recoverAbandoned(opened)
+          if (await this.lease.isReserved(opened.shadow)) {
+            throw new Error(UI_TEXT.restoreTurnElsewhere)
+          }
+        })
+      } else if (isRunning && (await this.lease.isReserved())) {
         throw new Error(UI_TEXT.restoreTurnElsewhere)
       }
     } catch (error: unknown) {
@@ -2175,7 +2110,8 @@ export class CheckpointStore {
    */
   public dispose(): void {
     this.stopping.abort()
-    void this.queue.then(() => {
+    void this.queue.then(async () => {
+      await this.copies.close()
       clearInterval(this.heartbeat)
       this.presenceStopping.abort()
       if (!this.hasUnprovedLocalWork()) {

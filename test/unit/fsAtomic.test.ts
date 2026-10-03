@@ -23,6 +23,8 @@ import {
   writeFileIfUnchanged,
 } from '../../src/host/fsAtomic'
 import { fingerprint } from '../../src/core/verify/fingerprint'
+import * as identity from '../../src/core/fs/fileIdentity'
+import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
 import { isSamePath } from '../../src/core/paths'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -45,6 +47,67 @@ it('compares exact inode identities and captured metadata for owned-file cleanup
   expect(await isOwnedFile(target, { ...identity, mtimeNs: identity.mtimeNs + 1n })).toBe(false)
   expect(await isOwnedFile(target, { ...identity, size: identity.size + 1n })).toBe(false)
 })
+
+it.each([
+  ['ino', 'atomic'],
+  ['dev', 'atomic'],
+  ['ino', 'exclusive'],
+  ['dev', 'exclusive'],
+] as const)(
+  'refuses publication and cleanup for distinct native %s IDs in %s writes',
+  async (field, kind) => {
+    const folder = path.join(paths.root, `collision-${field}-${kind}`)
+    await mkdir(folder)
+    const target = path.join(folder, 'target.txt')
+    const moved = path.join(folder, 'moved.txt')
+    if (kind === 'atomic') await writeFile(target, 'before')
+    const heldSample = identity.handleIdentity
+    const pathSample = identity.statIdentity
+    const linkSample = identity.lstatIdentity
+    let stage = ''
+    let isReplaced = false
+    const native = (stats: Awaited<ReturnType<typeof heldSample>>, isOther: boolean) =>
+      Object.assign(stats, {
+        dev: 77n,
+        ino: 88n,
+        [field]: isOther ? 9_007_199_254_740_993n : 9_007_199_254_740_992n,
+      })
+    const heldSpy = vi
+      .spyOn(identity, 'handleIdentity')
+      .mockImplementation(async (handle) => native(await heldSample(handle), false))
+    const statSpy = vi
+      .spyOn(identity, 'statIdentity')
+      .mockImplementation(async (file) => native(await pathSample(file), isReplaced))
+    const linkSpy = vi
+      .spyOn(identity, 'lstatIdentity')
+      .mockImplementation(async (file) => native(await linkSample(file), isReplaced))
+    try {
+      const staged = async () => {
+        const entries = await readdir(folder)
+        const name = entries.find((entry) => entry.endsWith(ATOMIC_TEMPORARY_SUFFIX))
+        expect(name).toBeDefined()
+        stage = path.join(folder, name ?? '')
+        await rename(stage, moved)
+        await writeFile(stage, 'foreign stage')
+        isReplaced = true
+      }
+      await expect(
+        kind === 'atomic'
+          ? writeFileAtomically(target, 'after', { sleep: noWait, staged })
+          : createFileExclusively(target, 'after', { staged, mode: 0o600, warn: () => undefined }),
+      ).rejects.toThrow()
+      if (kind === 'atomic') expect(await readFile(target, 'utf8')).toBe('before')
+      else await expect(readFile(target, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(await readFile(stage, 'utf8')).toBe('foreign stage')
+      expect(await readFile(moved, 'utf8')).toBe('after')
+      expect(await isOwnedFile(stage, native(await linkSample(stage), false))).toBe(false)
+    } finally {
+      heldSpy.mockRestore()
+      statSpy.mockRestore()
+      linkSpy.mockRestore()
+    }
+  },
+)
 
 /** A file-system error with its code, as Node raises one. */
 function coded(code: string): Error {

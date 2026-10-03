@@ -146,7 +146,7 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
         throw new Error(UI_TEXT.checkpointsNativeUnsafe)
       }
       try {
-        await deps.store?.markNativeBackend()
+        await deps.store?.markNativeBackend(gitStore() !== undefined)
       } finally {
         deps.onAvailabilityChanged?.()
       }

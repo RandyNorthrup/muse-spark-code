@@ -733,6 +733,13 @@ export const CHECKPOINT_RECORD_READ_BATCH = 500
 // written them for a record it has not yet named by a ref. Far over the time
 // any record write takes (each git call stops at CHECKPOINT_GIT_TIMEOUT_MS).
 export const CHECKPOINT_PRUNE_GRACE_MS = 60 * 60 * 1000
+/** One admission's CAS recovery/release budget, shared across its Git calls. */
+export const CHECKPOINT_LEASE_RECOVERY_MS = 5000
+/** An hour exceeds every bounded Git/tool publication; a live or uncertain writer also fences sweeping. */
+export const CHECKPOINT_COPY_GRACE_MS = 60 * 60 * 1000
+/** A retention pass yields after either budget; its directory cursors resume next time. */
+export const CHECKPOINT_COPY_SWEEP_MAX_FILES = 256
+export const CHECKPOINT_COPY_SWEEP_MAX_MS = 50
 // How long an archive file is kept (it hides the conversation's records in
 // every window), once the records it archived are gone.
 export const CHECKPOINT_FORGOTTEN_KEEP_MS = 24 * 60 * 60 * 1000

@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { FileReservation, ToolIo } from '../../src/core/backends/modelapi/tools'
+import * as identity from '../../src/core/fs/fileIdentity'
 import { gitBlobOid } from '../../src/core/checkpoints/gitListings'
 import type { JournalEntry, Owner } from '../../src/core/checkpoints/toolWrites'
 import { fingerprint } from '../../src/core/verify/fingerprint'
@@ -145,6 +146,53 @@ async function setup(options: { readonly fs?: JournalFs } = {}) {
 }
 
 type Setup = Awaited<ReturnType<typeof setup>>
+
+it.each(['ino', 'dev'] as const)(
+  'copies no outside bytes from distinct native %s IDs that round to one Number',
+  async (field) => {
+    const t = await setup()
+    const file = t.file('collision.txt')
+    const moved = path.join(t.folder, 'outside.txt')
+    await writeFile(file, 'inside before')
+    const samplePath = identity.lstatIdentity
+    const sampleHandle = identity.handleIdentity
+    let isMoved = false
+    const baseId = 9_007_199_254_740_992n
+    const otherId = 9_007_199_254_740_993n
+    expect(Number(baseId)).toBe(Number(otherId))
+    const pathSpy = vi.spyOn(identity, 'lstatIdentity').mockImplementation(async (target) => {
+      const stats = await samplePath(target)
+      return target === file
+        ? Object.assign(stats, { dev: 77n, ino: 88n, [field]: isMoved ? otherId : baseId })
+        : stats
+    })
+    const handleSpy = vi.spyOn(identity, 'handleIdentity').mockImplementation(async (handle) => {
+      const stats = await sampleHandle(handle)
+      const id = isMoved ? otherId : baseId
+      if (!isMoved) {
+        await rename(file, moved)
+        await writeFile(moved, 'outside secrets')
+        await writeFile(file, 'replacement bytes')
+        isMoved = true
+      }
+      return Object.assign(stats, { dev: 77n, ino: 88n, [field]: id })
+    })
+    const blobSpy = vi.spyOn(t.journal, 'writeBlob')
+    try {
+      await expect(t.ownerIo().writeFile(file, 'proposed bytes')).rejects.toThrow()
+      expect(blobSpy).not.toHaveBeenCalled()
+      expect(await t.blobs()).toEqual([])
+      expect(await readFile(file, 'utf8')).toBe('replacement bytes')
+      expect(await readFile(moved, 'utf8')).toBe('outside secrets')
+    } finally {
+      pathSpy.mockRestore()
+      handleSpy.mockRestore()
+      blobSpy.mockRestore()
+      await t.journal.close()
+    }
+  },
+  REAL_FS_TIMEOUT_MS,
+)
 
 /** A tool io whose conditional writer runs `afterIntent` once the intent is journaled, before the rename. */
 function pausedAfterIntent(t: Setup, afterIntent: () => Promise<void>): ToolIo {

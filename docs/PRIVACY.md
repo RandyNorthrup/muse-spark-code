@@ -343,7 +343,10 @@ generation fields, never raw configuration or failed-command output.
   anywhere. Earlier M72 captures remain as read-only history; M86 creates
   no new ones.
   Retention retires oldest units by conversation sequence and removes
-  their unneeded file copies. Small identity-only records preserve owners
+  their unneeded file copies. Cleanup also sweeps unreferenced copies from
+  refused writes and crashes before an intent, after a one-hour grace period
+  and while no writer is live. Bounded passes resume on later retention or
+  startup maintenance. Small identity-only records preserve owners
   and sequence numbers so retirement differs from unexplained record loss.
   Identity records without file contents may outlive their copies until the window that wrote them retires.
   Shared journal metadata remains until every unit of its instance is

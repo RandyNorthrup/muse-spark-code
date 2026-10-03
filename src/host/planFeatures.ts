@@ -3,8 +3,9 @@
 // commands/planCommands.ts, the files in core/plans/planStore.ts, and what a
 // plan does in the conversation in conversation/conversationController.ts.
 
-import { lstat, rm } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
+import { lstatIdentity } from '../core/fs/fileIdentity'
 import type { PlanMarkdown } from '../core/plans/planDocument'
 import { isSamePath } from '../core/paths'
 import {
@@ -119,7 +120,7 @@ export function createPlanIo(options: PlanIoOptions): PlanIo {
           }
           const stage = path.join(absolutePath, entry.name)
           try {
-            const stats = await lstat(stage, { bigint: true })
+            const stats = await lstatIdentity(stage)
             if (stats.isFile() && options.now() - Number(stats.mtimeMs) > PLAN_STAGE_STALE_MS) {
               if (
                 !isSamePath(await canonicalPath(stage), stage, process.platform) ||

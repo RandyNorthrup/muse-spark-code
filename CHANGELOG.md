@@ -17,11 +17,13 @@ happened, not what was planned; superseded entries are kept.
   replaced workspace roots, swapped junctions, dirty editor aliases and
   incomplete later transcripts. Durable recovery inputs survive unreadable
   records; applied batches keep their results and Redo after lost outcomes.
-  Retention releases old units and file copies by sequence, retrying copy
-  cleanup after another window finishes. Abandoned cleanup reservations
-  recover on reopening or maintenance so ordinary sends can resume. Image
-  reservations compare exact native file identities before filling or
-  releasing, preserving replacement files. Children keep
+  Retention releases old units by sequence and sweeps every unreferenced
+  content copy, including failed writes without an intent, after a one-hour
+  grace period with no live writer. Bounded passes resume next time.
+  One CAS lease manager recovers abandoned cleanup reservations before ordinary
+  sends, trusted startup, cleanup and restore, preserving live and uncertain
+  owners. One BigInt identity module protects copies, reservations, publication,
+  cleanup and workspace fences; ESLint rejects identity reads elsewhere. Children keep
   their inherited recording decision across reloads, and folder cleanup
   uses actual creation ownership. Imports from other agents keep their edit
   and storage guards while remaining outside the model's recorder.
