@@ -12931,6 +12931,22 @@ function npmTestAllowed(): PermissionSettings {
 
 const SYNTHETIC_PRIVATE = 'SYNTHETIC-PRIVATE-TEXT'
 
+/** A Bypass add_memory of a new note, held as its index line (`MEMORY.md`) is about to be written. */
+async function heldIndexLineAdd(options: Parameters<typeof setup>[0]) {
+  const write = heldWait()
+  const t = setup({
+    ...options,
+    beforeMemoryWrite: async (path) => {
+      if (path.endsWith('/MEMORY.md')) await write.hold()
+    },
+  })
+  const { session, events, turnDone } = await startSession(t, 'allowAll')
+  t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
+  await session.sendTurn([{ type: 'text', text: 'remember' }])
+  await write.entered
+  return { t, session, events, turnDone, write }
+}
+
 /** The row a refused call completed with. */
 function completedRow(events: readonly AgentEvent[], tool: string) {
   return events.find(
@@ -13223,16 +13239,7 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
   })
 
   it('ends add_memory as a stop when Stop comes while its index line is written (RV78g P2-3)', async () => {
-    const write = heldWait()
-    const t = setup({
-      beforeMemoryWrite: async (path) => {
-        if (path.endsWith('/MEMORY.md')) await write.hold()
-      },
-    })
-    const { session, events, turnDone } = await startSession(t, 'allowAll')
-    t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
-    await session.sendTurn([{ type: 'text', text: 'remember' }])
-    await write.entered
+    const { t, session, events, turnDone, write } = await heldIndexLineAdd({})
     const stopping = session.cancel()
     write.release()
     await stopping
@@ -13248,17 +13255,9 @@ describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 revi
 
   it('keeps a note reported written when only its new index line is denied during the write (RV78)', async () => {
     let settings = m78Settings()()
-    const write = heldWait()
-    const t = setup({
+    const { t, events, turnDone, write } = await heldIndexLineAdd({
       permissionSettings: () => settings,
-      beforeMemoryWrite: async (path) => {
-        if (path.endsWith('/MEMORY.md')) await write.hold()
-      },
     })
-    const { session, events, turnDone } = await startSession(t, 'allowAll')
-    t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
-    await session.sendTurn([{ type: 'text', text: 'remember' }])
-    await write.entered
     settings = { ...settings, repositoryRules: { denyRead: ['.agents/memory/MEMORY.md'] } }
     write.release()
     await turnDone()
