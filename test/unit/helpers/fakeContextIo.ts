@@ -59,10 +59,12 @@ export function memoryContextIo(
     return path
   }
   return {
-    readFile: (absolutePath) => {
+    readFile: (absolutePath, maxBytes) => {
       const content = files.get(through(absolutePath))
+      const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content
+      // The contract of a capped read: one byte past the cap, never the whole file.
       return Promise.resolve(
-        typeof content === 'string' ? new TextEncoder().encode(content) : content,
+        bytes === undefined || maxBytes === undefined ? bytes : bytes.subarray(0, maxBytes + 1),
       )
     },
     listDirectory: (absolutePath) => {

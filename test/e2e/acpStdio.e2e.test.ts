@@ -89,7 +89,7 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
-  buildModelApiBundle(path.dirname(AGENT))
+  await buildModelApiBundle(path.dirname(AGENT))
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })

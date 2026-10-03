@@ -1287,8 +1287,11 @@
   "usagePaidSubagentReported": "已回報權杖的估算費用：{cost}",
   "usagePaidTotal": "估計付費總額",
   "usagePaidNote": "依據 Meta 公布的價格（讀取於 {date}）估算此視窗開啟以來的費用；實際帳單以 dev.meta.ai 儀表板為準。",
+  "agentToolNotOffered": "此工具不在此智慧代理的允許清單中。請僅使用其指示中提供的工具。",
+  "agentUnloaded": "代理程式「{id}」未啟動：無法載入 {path}，而其中的定義會優先生效。請修正問題或移除該定義，然後開始新的對話。",
   "subagentPaidOff": "付費子代理程式已關閉。開始子工作前請先啟用並接受價格。",
   "subagentConsentDeclined": "付費子工作未獲核准。",
+  "subagentContributorBlocked": "自訂代理指定了貢獻者層級模型，在此工作區處於機密狀態時無法執行 (museSpark.confidentialWorkspace)。",
   "subagentRequestLimit": "子工作已達到核准的{limit}次請求上限，包含重試。",
   "subagentKeyChanged": "核准後 Model API 金鑰已變更。請核准新的子工作以繼續。",
   "subagentModelChanged": "核准後模型已變更。請核准新的子工作以繼續。",
@@ -1432,6 +1435,7 @@
   },
   "thenRunLabel": "隨後執行",
   "thenRunNotRun": "未執行：{reason}",
+  "hookInputNoCommand": "鉤子更新後的輸入未指定命令。",
   "thenRunTimedOut": "已在時間限制處停止",
   "checksStoppedNotice": {
     "other": "連續修正 {count} 次後檢查仍然失敗，在你傳送下一則訊息之前不再自動執行檢查。"

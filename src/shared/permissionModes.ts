@@ -52,6 +52,11 @@ const FULL_MAPPING: Readonly<Record<PermissionMode, ApprovalMode>> = {
   bypassPermissions: 'allowAll',
 }
 
+/** The MSP mode a UI permission mode selects, with approval UI present. */
+export function mspApprovalMode(mode: PermissionMode): ApprovalMode {
+  return FULL_MAPPING[mode]
+}
+
 /** Modes whose MSP counterpart needs the approval cards before it is safe. */
 const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', 'onRequest'])
 
@@ -61,7 +66,7 @@ const PROMPTING_MODES: ReadonlySet<ApprovalMode> = new Set(['promptUnmatched', '
  * would hang the turn, so it degrades to `denyUnmatched`.
  */
 export function approvalModeFor(mode: PermissionMode, hasApprovalUi: boolean): ApprovalMode {
-  const mapped = FULL_MAPPING[mode]
+  const mapped = mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
