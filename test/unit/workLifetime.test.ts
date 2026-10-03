@@ -15,9 +15,10 @@ describe('a bounded lifetime (M81 A1)', () => {
     await expect(lifetime.step(never)).rejects.toBeInstanceOf(LifetimeEndedError)
     expect(lifetime.endedBy).toBe('deadline')
     expect(lifetime.signal.aborted).toBe(true)
-    await expect(lifetime.step(() => Promise.resolve(1))).rejects.toThrow(
-      'the work has ended (deadline)',
-    )
+    // A step asked after the end never starts its work.
+    const late = vi.fn(() => Promise.resolve(1))
+    await expect(lifetime.step(late)).rejects.toThrow('the work has ended (deadline)')
+    expect(late).not.toHaveBeenCalled()
   })
 
   it('ends when any joined signal aborts, already aborted or later', async () => {

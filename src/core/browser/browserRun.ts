@@ -468,6 +468,10 @@ async function runPhase(
     }
     page.bind({ frameId, urls: plan.exceptions })
     const raw = await page.probe(sessionId, plan.pageUrl, plan.script)
+    // No probe page, no report: the phase's own failure below.
+    if (raw === undefined) {
+      return
+    }
     const parsed = probeReportSchema.safeParse(typeof raw === 'string' ? JSON.parse(raw) : raw)
     if (!parsed.success) {
       throw new CdpError('probe report: unexpected shape')

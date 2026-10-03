@@ -130,6 +130,14 @@ function finalDir(dir: string): string {
   return path.join(dir, 'browser-runtime', '154.0.8037.92', 'linux64')
 }
 
+/** The shell and one stored auxiliary file holding `pak`. */
+function shellAndPak(pak: string): ZipFileSpec[] {
+  return [
+    { name: EXECUTABLE, data: SHELL, mode: 0o10_0755 },
+    { name: 'chrome-headless-shell-linux64/locales/en-US.pak', data: Buffer.from(pak), method: 0 },
+  ]
+}
+
 /** A redirect to `location`. */
 function hop(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } })
@@ -319,6 +327,82 @@ describe('the runtime store (M81 A1)', () => {
       ok: false,
       reason: 'runtimeMissing',
     })
+    // Refused at the redirect itself, even when what it names would answer.
+    for (const location of [
+      'https://storage.googleapis.com/other-bucket/x.zip',
+      'https://evil.example/chrome-for-testing-public/154.0.8037.92/linux64/x.zip',
+    ]) {
+      const asked: string[] = []
+      const served = deps(test, (url) => {
+        asked.push(url)
+        return asked.length === 1
+          ? hop(location)
+          : new Response(new Uint8Array(test.archive), { status: 200 })
+      })
+      expect(await prepareRuntime(request(storage()), served.store), location).toEqual({
+        ok: false,
+        reason: 'runtimeMissing',
+      })
+      expect(asked, location).toEqual([URL_LINUX])
+    }
+    // Three redirects are followed; a fourth is refused, though a fifth answer would serve.
+    const asked: string[] = []
+    const chain = deps(test, (url) => {
+      asked.push(url)
+      return asked.length <= 4
+        ? hop(`${within.slice(0, -'mirror.zip'.length)}mirror-${String(asked.length)}.zip`)
+        : new Response(new Uint8Array(test.archive), { status: 200 })
+    })
+    expect(await prepareRuntime(request(storage()), chain.store)).toEqual({
+      ok: false,
+      reason: 'runtimeMissing',
+    })
+    expect(asked).toHaveLength(4)
+  })
+
+  it('stops reading an endless transfer at the pinned length plus 1%', async () => {
+    const test = pin()
+    const cap = Math.ceil(test.archive.length * 1.01)
+    const chunk = 1024
+    let delivered = 0
+    const endless = (): Response =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            const part =
+              delivered < test.archive.length
+                ? test.archive.subarray(delivered, delivered + chunk)
+                : new Uint8Array(chunk)
+            delivered += part.length
+            controller.enqueue(new Uint8Array(part))
+          },
+        }),
+        { status: 200 },
+      )
+    expect(await prepareRuntime(request(storage()), deps(test, endless).store)).toEqual({
+      ok: false,
+      reason: 'runtimeIntegrity',
+    })
+    // The cap plus at most what the stream had queued ahead.
+    expect(delivered).toBeLessThanOrEqual(cap + 4 * chunk)
+  })
+
+  it('refuses a valid archive of the pinned length whose bytes are not the pin’s (its hash, not the ZIP reader)', async () => {
+    const test = pin(shellAndPak('pak'))
+    // Same names, sizes and executable; one auxiliary file's bytes changed and its CRC recomputed.
+    const other = buildZip(shellAndPak('PAK'))
+    expect(other.length).toBe(test.archive.length)
+    expect(sha256(other)).not.toBe(test.manifest.platforms.linux64.archiveSha256)
+    const dir = storage()
+    expect(
+      await prepareRuntime(
+        request(dir),
+        deps(test, () => new Response(new Uint8Array(other), { status: 200 })).store,
+      ),
+    ).toEqual({ ok: false, reason: 'runtimeIntegrity' })
+    expect(existsSync(finalDir(dir))).toBe(false)
+    // The untampered archive installs.
+    expect(await prepareRuntime(request(dir), deps(test).store)).toMatchObject({ ok: true })
   })
 
   it('refuses a failed request, a wrong length, a transfer past its 1% slack and a wrong hash', async () => {

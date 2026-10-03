@@ -684,7 +684,11 @@ export class PageCheck {
     this.#binding = binding
   }
 
-  /** Navigates a probe target to its probe page and runs its script; the script's JSON. */
+  /**
+   * Navigates a probe target to its probe page and runs its script; the
+   * script's JSON, or undefined when the probe page did not load (its route
+   * is not the one constructed: the phase reads it as no report).
+   */
   public async probe(sessionId: string, url: string, script: string): Promise<unknown> {
     // Its script runs in the probe page once that page has loaded.
     await this.call('Page.enable', nothing, {}, sessionId)
@@ -695,7 +699,7 @@ export class PageCheck {
     const navigated = await this.call('Page.navigate', navigatedSchema, { url }, sessionId)
     await loaded
     if (navigated.errorText !== undefined || !this.#probeLoads.has(sessionId)) {
-      throw new CdpError('the probe page did not load')
+      return undefined
     }
     const evaluated = await this.call(
       'Runtime.evaluate',

@@ -1013,21 +1013,32 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
     const browser = new FakeBrowser(network())
     const decisions = gateDecisions(browser)
     let probeUrl = ''
+    let pagePhaseUrl = ''
     browser.on('Runtime.evaluate', (params) => {
       const expression = String(params['expression'])
-      if (probeUrl === '' && expression.startsWith('(async o=>')) {
-        probeUrl = /"(http:\/\/c1-[\da-f]+\.invalid\/)"/.exec(expression)?.[1] ?? ''
-        // From the probe frame (its session S1's main frame), then from the page's frame.
-        browser.paused('p1', probeUrl, 'F-S1')
-        browser.paused('p2', probeUrl, 'F-other')
+      if (expression.startsWith('(async o=>')) {
+        const url = /"(http:\/\/c1-[\da-f]+\.invalid\/)"/.exec(expression)?.[1] ?? ''
+        if (probeUrl === '') {
+          probeUrl = url
+          // From the probe frame (its session S1's main frame), then from the page's frame.
+          browser.paused('p1', probeUrl, 'F-S1')
+          browser.paused('p2', probeUrl, 'F-other')
+        } else if (pagePhaseUrl === '') {
+          pagePhaseUrl = url
+        }
       }
       return browser.answerProbe(expression)
     })
     scriptPage(browser, () => {
       browser.paused('p3', probeUrl, 'F-S1')
+      // The page phase's own frame and URL, once that phase has ended: revoked.
+      browser.paused('p4', pagePhaseUrl, 'F-S2')
     })
     await run(setup(browser))
-    expect(decisions).toEqual(expect.arrayContaining(['continue p1', 'fail p2', 'fail p3']))
+    expect(pagePhaseUrl).not.toBe('')
+    expect(decisions).toEqual(
+      expect.arrayContaining(['continue p1', 'fail p2', 'fail p3', 'fail p4']),
+    )
   })
 
   it('ends with the canary’s own failure when a probe does not arrive where the construction routes it', async () => {
@@ -1062,6 +1073,28 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
     restarted.serviceIds = [41, 77]
     expect(await run(setup(restarted))).toEqual({ ok: false, failure: { kind: 'restartObserved' } })
   }, 15_000)
+
+  it('reads a probe page that never loaded (its route not the one built) as the phase’s own failure', async () => {
+    // As on the pinned shell with the proxy or its loopback subtraction gone:
+    // localhost goes direct, where the resolver rule fails it.
+    for (const [phase, kind] of [
+      ['S1', 'routeUnconfirmed'],
+      ['S2', 'routeUnconfirmed'],
+    ] as const) {
+      const browser = new FakeBrowser(network())
+      browser.on('Page.navigate', (_params, sessionId) => {
+        if (sessionId === phase) {
+          return { frameId: `F-${phase}`, errorText: 'net::ERR_NAME_NOT_RESOLVED' }
+        }
+        queueMicrotask(() => {
+          browser.emit('Page.loadEventFired', {}, sessionId)
+        })
+        return { frameId: 'F1' }
+      })
+      expect(await run(setup(browser)), phase).toEqual({ ok: false, failure: { kind } })
+      expect(browser.pageSession, phase).toBe('')
+    }
+  })
 
   it('ends a phase that outlasts its bound', async () => {
     const browser = new FakeBrowser(network())
@@ -1142,6 +1175,18 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
             status: 200,
             remoteIPAddress: '10.0.0.5',
             remotePort: 80,
+          },
+        })
+      },
+      // Loopback, but not the check's proxy: another local process answered.
+      (browser) => {
+        browser.emit('Network.responseReceived', {
+          requestId: 'r8',
+          response: {
+            url: `${HTTP}//10.0.0.5/`,
+            status: 200,
+            remoteIPAddress: '127.0.0.1',
+            remotePort: PROXY_PORT + 1,
           },
         })
       },

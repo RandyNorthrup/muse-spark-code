@@ -240,6 +240,29 @@ describe('the runtime’s ZIP reader (M81 A1)', () => {
     )
   })
 
+  it('keeps every write inside its destination even for an entry the name checks did not see', async () => {
+    // The backstop under the name rules: an entry handed to extraction directly.
+    const files = good()
+    const { file, entries } = await readEntries(buildZip(files), planFor(files))
+    const parent = folder()
+    const destination = path.join(parent, 'unpack')
+    mkdirSync(destination)
+    for (const name of ['../escape', 'shell/../../escape']) {
+      const escaping = entries.map((entry, index) => (index === 0 ? { ...entry, name } : entry))
+      await expect(
+        extractZipEntries(
+          file,
+          escaping,
+          destination,
+          planFor(files),
+          new AbortController().signal,
+        ),
+        name,
+      ).rejects.toBeInstanceOf(ZipRefused)
+      expect(existsSync(path.join(parent, 'escape')), name).toBe(false)
+    }
+  })
+
   it('stops at once when its signal ends', async () => {
     const files = good()
     const stop = new AbortController()
