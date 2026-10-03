@@ -175,7 +175,10 @@ if (
     }
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
     await publishRegistry(channel, artifact, manifest)
-    appendFileSync(process.env.GITHUB_OUTPUT, 'outcome=published\n')
+    // Outside Actions there is no step output to write; the publish still succeeded.
+    if (process.env.GITHUB_OUTPUT !== undefined) {
+      appendFileSync(process.env.GITHUB_OUTPUT, 'outcome=published\n')
+    }
     console.log(`${channel}: published (existing versions require matching integrity)`)
   } catch (error) {
     // CLI diagnostics may contain credentials. Print a fixed label only.

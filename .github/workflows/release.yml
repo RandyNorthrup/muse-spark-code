@@ -84,29 +84,39 @@ jobs:
           name: muse-spark-code-sboms
           path: release
       - run: npm ci --ignore-scripts --no-audit
-      - name: checksums for both packages and their ingredient lists
+      # M80 hook: inert until its schemas exist. They ship as assets beside
+      # the packages, listed in SHA256SUMS and attested like them.
+      - name: stage the M80 schemas when present
+        shell: bash
+        run: |
+          shopt -s nullglob
+          schemas=(docs/schemas/*.json)
+          : > release/.schemas
+          if [ "${#schemas[@]}" -gt 0 ]; then
+            cp "${schemas[@]}" release/
+            printf '%s\n' "${schemas[@]##*/}" > release/.schemas
+          fi
+      - name: checksums for every release asset
+        shell: bash
         working-directory: release
-        run: sha256sum ./*.vsix ./*.tgz ./*.cdx.json > SHA256SUMS
-      - name: attest the VSIX and ACP package from this build
+        run: |
+          mapfile -t schemas < .schemas
+          sha256sum ./*.vsix ./*.tgz ./*.cdx.json "${schemas[@]/#/./}" > SHA256SUMS
+      - name: attest every asset SHA256SUMS lists
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           create-storage-record: false
           show-summary: false
-          subject-path: |
-            release/*.vsix
-            release/*.tgz
+          subject-checksums: release/SHA256SUMS
       - name: release notes from the CHANGELOG
         run: node scripts/changelog-notes.mjs "${GITHUB_REF_NAME#v}" > release/notes.md
       - name: create or verify the GitHub Release without replacing assets
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json release/SHA256SUMS
-      # M80 hook: inert until its schemas exist; never replace an existing asset.
-      - name: upload M80 schemas when present
-        if: hashFiles('docs/schemas/*.json') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md docs/schemas/*.json
+        run: |
+          mapfile -t schemas < release/.schemas
+          node scripts/github-release.mjs "$GITHUB_REF_NAME" release/notes.md release/*.vsix release/*.tgz release/*.cdx.json "${schemas[@]/#/release/}" release/SHA256SUMS
       - id: outcome
         run: echo 'outcome=published' >> "$GITHUB_OUTPUT"
 
@@ -263,7 +273,7 @@ jobs:
         run: node scripts/release-summary.mjs
       # M80 hook: skip until action/ exists and every channel actually published.
       - name: move the M80 v0 tag after all channels published
-        if: steps.report.outputs.all-published == 'true' && hashFiles('action/**') != ''
+        if: steps.report.outputs.all-published == 'true' && hashFiles('action/action.yml') != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

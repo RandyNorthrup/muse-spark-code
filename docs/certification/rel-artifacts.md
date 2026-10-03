@@ -144,3 +144,13 @@ rel-drill.py`). The EOTP case failed (1 failed, 7 passed). The file was
     case went green again.
 - Kubuntu: `releasePublish` and `releaseIntegrity`, 68 passed; ESLint clean;
   actionlint 1.7.12 with shellcheck clean on release.yml and build.yml.
+- **Muse review (0 P1, 1 P2, 2 P3), all fixed.**
+  - P2: M80 schemas would have shipped outside `SHA256SUMS` and the
+    attestation. They are now staged beside the packages, listed in
+    `SHA256SUMS`, attested through `subject-checksums` (every listed asset),
+    and uploaded in the same verify-before-upload call. Simulated with no
+    schemas and with one; both give the expected list.
+  - P3: the `v0` hook keys on `action/action.yml`, not on any file under
+    `action/`.
+  - P3: run outside Actions, a successful publish no longer reports failure
+    for want of `GITHUB_OUTPUT`.

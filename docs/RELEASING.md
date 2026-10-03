@@ -15,8 +15,9 @@ release artifact.
 
 GitHub also carries `SHA256SUMS` (the standard `sha256sum` format) and two
 CycloneDX inventories: `muse-spark-code.cdx.json` and
-`muse-spark-code-acp.cdx.json`. All four package/inventory files are checksummed.
-Pinned `actions/attest-build-provenance` attests both package files. The release
+`muse-spark-code-acp.cdx.json`. `SHA256SUMS` lists every asset: both
+packages, both inventories and, once M80 lands, its schemas. Pinned
+`actions/attest-build-provenance` attests every file `SHA256SUMS` lists. The release
 job alone receives `attestations: write`; it and the npm job receive
 `id-token: write`. npm uses `npm publish --provenance`, while still receiving
 `NODE_AUTH_TOKEN` from the environment's `NPM_TOKEN`.
@@ -139,7 +140,8 @@ Decisions are recorded in `PLAN.md` §8.
 
 M80 is not implemented here. If `docs/schemas/*.json` exists at the release
 commit, its schemas are uploaded as additional GitHub Release assets with the
-same verify-before-upload behavior. If `action/` exists, the final summary job
+same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
+packages. If `action/action.yml` exists, the final summary job
 moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
 cannot move it backwards to an ancestor. Divergent history requires review.
@@ -152,7 +154,7 @@ listing: the Action lives in a subfolder. Until M80 lands, both hooks are inert.
 
 The certification record distinguishes the dry script exercises from live
 publication. On the first release after this change, the lead must watch the
-two package attestations, npm provenance, actual registry duplicate-error
+attestations of every `SHA256SUMS` entry, npm provenance, actual registry duplicate-error
 wording, gallery gzip/byte identity, and the final channel summary. Verify
 downloaded `SHA256SUMS` and both SBOM assets against the original run. After
 M80 lands, verify its schema upload and major-tag update on a fully published
