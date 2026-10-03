@@ -22,9 +22,9 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // src/core/agent/agentBackend.ts read the name and the field instead.
 const BUNDLE_SAFE_ERRORS = {
   selector:
-    "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError|MuseCodeFaultError|DecisionNotAppliedError)$/]",
+    "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError|MuseCodeFaultError|DecisionNotAppliedError|SteerRefusedError)$/]",
   message:
-    'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError or isDecisionNotAppliedError (src/core/agent/agentBackend.ts).',
+    'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError, isDecisionNotAppliedError or isSteerRefusedError (src/core/agent/agentBackend.ts).',
 }
 
 export default tseslint.config(

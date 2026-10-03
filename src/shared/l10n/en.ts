@@ -821,6 +821,10 @@ export const EN = {
   redoAction: 'Redo',
   redoLabel: 'Redo: put back the files this restore replaced',
   redoGone: 'This restore can no longer be redone.',
+  // PLAN.md D26: a notice said again is one row with a count, not a new row.
+  // {count}: how many times it was said in all (2 or more).
+  noticeRepeatBadge: '{count}×',
+  noticeRepeated: forms({ one: 'Shown {count} time', other: 'Shown {count} times' }),
   restoreRefusedUnsaved: 'Left as they are, with unsaved changes: {files}',
   restoreRefusedChanged: 'Left as they are, changed by something else in the meantime: {files}',
   restoreRefusedBetween:
@@ -940,6 +944,21 @@ export const EN = {
     'Muse Code applies your approvals in this conversation but reports an error for each one (a fault in its approval record, not in your choices). Each card follows what Muse Code does next; a new conversation does not have the fault.',
   museCodeRestartAsked:
     'Muse Code was stopped. Your next message starts it again and continues this conversation.',
+  // CLI recovery (2026-10-03): a steer whose answer never came may still reach the turn.
+  steerUnconfirmed:
+    'Muse Code did not confirm your message reached the running turn. It may still arrive; check before you send it again.',
+  // The watchdog: a command refused at once while Muse Code answers nothing.
+  museCodeNotAnswering:
+    'Muse Code is not answering. Restart it with "Muse Spark: Restart Muse Code".',
+  museCodeRestartedUnresponsive: 'Muse Code stopped answering and was restarted.',
+  // Its notice offers Restart now (D26's action).
+  museCodeUnresponsiveTurn:
+    'Muse Code stopped answering while a turn runs. Restarting it stops that turn; the conversation continues with your next message.',
+  // After "Muse Spark: Restart Muse Code".
+  museCodeRestarted: 'Muse Code was restarted. Your next message continues this conversation.',
+  // A session whose Muse Code event log failed (a CLI fault) takes no new message.
+  sessionLogDamaged:
+    'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',

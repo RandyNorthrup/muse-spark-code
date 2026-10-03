@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "Usuń drzewo robocze…",
   "command.moveToBackground.title": "Przenieś uruchomione polecenie w tło",
   "command.stopBackgroundTasks.title": "Zatrzymaj zadania w tle",
+  "command.restartMuseCode.title": "Uruchom ponownie Muse Code",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Gdzie otwierają się nowe rozmowy.",
   "config.preferredLocation.enumDescriptions.sidebar": "Otwieraj nowe rozmowy w widoku Muse Spark na pasku bocznym.",

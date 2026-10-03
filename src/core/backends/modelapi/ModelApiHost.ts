@@ -140,6 +140,7 @@ import {
   type SessionRecord,
   type SkillSummary,
   type StartSessionOptions,
+  SteerRefusedError,
   type TurnPart,
   type TurnSubmission,
 } from '../../agent/agentBackend'
@@ -7230,22 +7231,26 @@ export class ModelApiSession implements AgentSession {
     return Promise.resolve({ turnId, disposition: 'queued', userMessageId })
   }
 
+  /**
+   * Input for the running turn. Each refusal takes nothing (a
+   * `SteerRefusedError`), so the conversation may send it as a new turn.
+   */
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
     }
     if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
-      return Promise.reject(new Error(TURN_NOT_RUNNING))
+      return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
     }
     const addedTextBytes = textAttachmentBytes(parts)
     const textBudgetError = textAttachmentBudgetError(
       this.active.acceptedTextAttachmentBytes + addedTextBytes,
     )
     if (textBudgetError !== undefined) {
-      return Promise.reject(textBudgetError)
+      return Promise.reject(new SteerRefusedError(textBudgetError.message))
     }
     if (!this.canQueueSteeredMedia(parts)) {
-      return Promise.reject(new Error(UI_TEXT.mediaTotalTooLarge))
+      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
     }
     const userMessageId = this.deps.newId()
     this.active.acceptedTextAttachmentBytes += addedTextBytes

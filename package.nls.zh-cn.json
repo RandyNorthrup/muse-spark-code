@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "删除工作树…",
   "command.moveToBackground.title": "将正在运行的命令移到后台",
   "command.stopBackgroundTasks.title": "停止后台任务",
+  "command.restartMuseCode.title": "重启 Muse Code",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "新对话的打开位置。",
   "config.preferredLocation.enumDescriptions.sidebar": "在 Muse Spark 侧边栏视图中打开新对话。",

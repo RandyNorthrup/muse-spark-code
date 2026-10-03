@@ -629,6 +629,12 @@
   "approvalReplayRefused": "Muse Code 拒絕此對話中的每則訊息：一個多步驟命令只獲得部分核准時回合停止了，Muse Code 無法重播該核准（這是 Muse Code 的故障，而非你的選擇所致）。重新啟動 Muse Code 以繼續此對話，或開始新對話。",
   "approvalLedgerFault": "Muse Code 會執行你在此對話中的核准，但每次都會回報錯誤（這是其核准紀錄的故障，而非你的選擇所致）。每張卡片都會跟隨 Muse Code 的下一步動作；新對話沒有此故障。",
   "museCodeRestartAsked": "Muse Code 已停止。你的下一則訊息會重新啟動它並繼續此對話。",
+  "steerUnconfirmed": "Muse Code 未確認你的訊息已送達正在執行的回合。它可能仍會送達；再次傳送前請先確認。",
+  "museCodeNotAnswering": "Muse Code 沒有回應。請使用「Muse Spark: 重新啟動 Muse Code」重新啟動它。",
+  "museCodeRestartedUnresponsive": "Muse Code 停止回應，已重新啟動。",
+  "museCodeUnresponsiveTurn": "Muse Code 在回合執行時停止回應。重新啟動會停止該回合；對話會在你傳送下一則訊息時繼續。",
+  "museCodeRestarted": "Muse Code 已重新啟動。你的下一則訊息會繼續此對話。",
+  "sessionLogDamaged": "此對話的 Muse Code 記錄檔已損毀（Muse Code 的故障），因此無法接收新訊息。請開始新對話；此對話會保留在歷程記錄中。",
   "turnUnqueued": "未傳送：排入佇列的訊息已撤回",
   "turnRetracted": "另一個 Muse Code 用戶端從此對話撤回了一則訊息；請從歷程記錄重新開啟對話，以檢視已儲存的版本。",
   "modelRouteUnserved": "已登入的帳戶無法為此對話的模型提供服務；請從模型功能表選擇其他模型。",
@@ -1341,6 +1347,10 @@
   "redoAction": "重做",
   "redoLabel": "重做：恢復此次還原取代的檔案",
   "redoGone": "此次還原已無法重做。",
+  "noticeRepeatBadge": "{count}×",
+  "noticeRepeated": {
+    "other": "已顯示 {count} 次"
+  },
   "restoreRefusedUnsaved": "保持原樣，有未儲存的變更：{files}",
   "restoreRefusedChanged": "保持原樣，在此期間被其他原因變更：{files}",
   "restoreRefusedBetween": "保持原樣，模型兩次編輯之間被其他操作變更：{files}",

@@ -46,6 +46,8 @@ export const COMMAND_IDS = {
   // stops every background task of the conversation.
   moveToBackground: 'museSpark.moveToBackground',
   stopBackgroundTasks: 'museSpark.stopBackgroundTasks',
+  // CLI recovery: a fresh `muse serve` without reloading the window.
+  restartMuseCode: 'museSpark.restartMuseCode',
 } as const
 
 // Extension-private `globalState` keys (never machine-wide configuration).
@@ -448,8 +450,14 @@ export const GOAL_RECOVERY_MAX_PAGES = 100
 // resumes it (the Claude Code sidebar rule: "if a message was sent in the
 // last 10 minutes").
 export const SESSION_RESTORE_WINDOW_MS = 10 * 60 * 1000
+// Sessions whose Muse Code event log failed (CLI recovery): kept per
+// workspace, newest last, at most this many; an older one past the cap is
+// forgotten, and its next message then gets Muse Code's own error again.
+export const DAMAGED_SESSIONS_KEPT = 50
 export const WORKSPACE_STATE_KEYS = {
   archivedSessions: 'museSpark.archivedSessions',
+  /** Sessions whose Muse Code event log failed: they take no new message (CLI recovery). */
+  damagedSessions: 'museSpark.damagedSessions',
   lastSession: 'museSpark.lastSession',
   /** The paid features allowed always in this workspace, with their grant generation (M58). */
   paidWorkspaceGrants: 'museSpark.paidWorkspaceGrants',
@@ -2035,6 +2043,39 @@ export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
 // is ample, and a host that does not answer delays the Stop by 20 s at most.
 export const APPROVAL_REJECT_ATTEMPTS = 2
 export const APPROVAL_REJECT_DEADLINE_MS = 10_000
+// The unresponsive-host watchdog (CLI recovery, the owner's session of
+// 2026-10-03): a wedged `muse serve` (one core at 100%, not a frame written)
+// left every command waiting out its whole deadline, a new chat and Stop
+// included. Muse Code counts as not answering once this many commands in a
+// row missed their deadline AND nothing at all (an answer, an event, a
+// request) came from it for this long. Any frame clears it. While it is not
+// answering, a new command fails at once instead of waiting 60 s. A host
+// that is only slow still streams events, which reset the count; three
+// missed deadlines with 90 s of silence is not a busy host.
+export const MSP_UNRESPONSIVE_MISSES = 3
+export const MSP_UNRESPONSIVE_SILENCE_MS = 90_000
+// What MSP calls a refused command's reason when no turn is there to take a
+// `turn/steer` (MSP `commandRejected`, -32030; its `data.reason` vocabulary
+// is the CLI's CommandRejectionReason, read from the 1.4.2 binary
+// 2026-10-03): the named turn is not the running one, there is no run, or
+// the turn has ended. Only then does a message go as a new turn instead;
+// any other steer failure may still have reached the turn, so nothing more
+// is sent (CLI recovery; no steer refusal was captured live, PLAN.md §3).
+export const MSP_STEER_NO_TURN_REASONS: ReadonlySet<string> = new Set([
+  'invalid_target',
+  'missing_run',
+  'already_terminal',
+])
+// The words Muse Code 1.4.2 starts a failed session event log's error with
+// (a turn's failure reason, or a command's error; the owner's session of
+// 2026-10-02/03): "event log failed: Origin read requires …" and "… event id
+// … conflicts with an existing event". Such a session failed every message
+// after (CLI recovery: it is marked damaged and refused before the CLI).
+export const MUSE_EVENT_LOG_FAULT = 'event log failed'
+// Stored-output reads (`item/readOutput`) one conversation sends at once;
+// the rest wait in order (CLI recovery: after a resume every open edit row
+// read its diff at the same instant, 26 of them on a host already behind).
+export const MSP_READ_OUTPUT_CONCURRENCY = 4
 // The frame cap `muse serve` holds in both directions (the SDK's
 // DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
 // a message, where the host would drop the frame and never answer (D26).

@@ -33,6 +33,7 @@
   "command.removeWorktree.title": "Worktree entfernen…",
   "command.moveToBackground.title": "Laufenden Befehl in den Hintergrund verschieben",
   "command.stopBackgroundTasks.title": "Hintergrundaufgaben anhalten",
+  "command.restartMuseCode.title": "Muse Code neu starten",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "Wo neue Unterhaltungen geöffnet werden.",
   "config.preferredLocation.enumDescriptions.sidebar": "Neue Unterhaltungen in der Muse Spark-Ansicht der Seitenleiste öffnen.",

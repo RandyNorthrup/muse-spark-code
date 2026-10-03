@@ -2114,6 +2114,7 @@ What stays in English:
 | Muse Spark: Remove Worktree…                        | —                                                                                    | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                           |
 | Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command        | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                               |
 | Muse Spark: Stop Background Tasks                   | —                                                                                    | Stop every background task of the conversation in view                                                                                                                                            |
+| Muse Spark: Restart Muse Code                       | —                                                                                    | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                            |
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                    | Tap to start or stop voice dictation, hold to record while held                                                                                                                                   |
 | (composer) Run a shell command                      | Start the message with `!`                                                           | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                        |
 
@@ -2478,7 +2479,28 @@ stopped and the next message resumes the same session.
 - **"Could not load the output: Muse Code did not answer item/readOutput
   within 60 s"** — a busy Muse Code answers stored-output reads one after
   another. The panel says it once per conversation; the row keeps the diff it
-  already has, and collapsing and expanding the row asks again.
+  already has, and collapsing and expanding the row asks again. At most four
+  reads go to Muse Code at a time.
+- **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
+  Spark: Restart Muse Code**. It stops `muse serve` and starts it again
+  without reloading the window; a running turn is stopped, and each
+  conversation continues with your next message.
+- **"Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."** — three commands in a row went unanswered and nothing at all
+  came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
+  one. When no turn was running, Muse Code was restarted already ("Muse Code
+  stopped answering and was restarted."); while a turn runs, its notice
+  offers **Restart now**, which stops the turn. If Muse Code answers again
+  on its own, commands go through again.
+- **"Muse Code did not confirm your message reached the running turn"** —
+  the message was for the running turn, and Muse Code did not answer in
+  time. It may still reach the turn, so it is not sent again; the composer
+  keeps it. Look at the conversation before you send it again.
+- **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
+  failed the session's event log ("event log failed: …"), after which it
+  fails every message of that session. The panel refuses new messages to it
+  instead and offers **New conversation**; the conversation stays in History
+  to read, and is not resumed by itself after a restart.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   log says which credential it started with). If the CLI itself holds a

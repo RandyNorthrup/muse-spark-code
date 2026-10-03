@@ -2918,9 +2918,12 @@ describe('ModelApiSession: turns', () => {
     t.api.script({ text: 'first', hold: held.promise }, { text: 'after first steer' })
     const turn = await session.sendTurn([{ type: 'text', text: 'Read the next file' }])
     await session.steer(turn.turnId, [halfBudgetTextPart('first.txt')])
-    await expect(session.steer(turn.turnId, [halfBudgetTextPart('second.txt')])).rejects.toThrow(
-      UI_TEXT.textFilesOverModelApiBudget,
-    )
+    await expect(
+      session.steer(turn.turnId, [halfBudgetTextPart('second.txt')]),
+    ).rejects.toMatchObject({
+      name: 'SteerRefusedError',
+      message: UI_TEXT.textFilesOverModelApiBudget,
+    })
     held.resolve(undefined)
     await turnDone()
     expect(t.api.responseBodies().length).toBeGreaterThan(0)
@@ -10155,9 +10158,10 @@ describe('ModelApiHost: the session goal (M45, PLAN.md D38)', () => {
       expect(t.api.responseBodies()).toHaveLength(1)
     })
     await session.cancel()
+    // Nothing taken, so the conversation may send it as a new turn (CLI recovery).
     await expect(
       session.steer(running.turnId, [{ type: 'text', text: 'Too late' }]),
-    ).rejects.toThrow('the turn is not running')
+    ).rejects.toMatchObject({ name: 'SteerRefusedError', message: 'the turn is not running' })
     held.resolve(undefined)
     await turnDone()
   })

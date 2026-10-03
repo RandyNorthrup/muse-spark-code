@@ -11,7 +11,7 @@
 import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
-import { plural } from '../../shared/l10n/text'
+import { fill, plural } from '../../shared/l10n/text'
 import { hasFileAttachment } from '../state/transcriptEntries'
 import {
   forkCutBefore,
@@ -652,9 +652,34 @@ function OtherRow({
       return <li className="message message-error-card">{entry.text}</li>
     }
     case 'notice': {
-      return <li className={`notice notice-${entry.level}`}>{entry.text}</li>
+      return (
+        <li className={`notice notice-${entry.level}`}>
+          {entry.text}
+          <RepeatCount count={entry.repeatCount} />
+        </li>
+      )
     }
   }
+}
+
+/**
+ * How many times a notice was said (D26): a small muted count after its
+ * text, read out in words, as the count's glyph alone says little.
+ */
+function RepeatCount({ count }: { readonly count: number | undefined }) {
+  if (count === undefined) {
+    return null
+  }
+  const label = plural(UI_TEXT.noticeRepeated, count)
+  return (
+    <>
+      {' '}
+      <span className="notice-repeat" title={label} aria-hidden="true">
+        {fill(UI_TEXT.noticeRepeatBadge, { count })}
+      </span>
+      <span className="sr-only">{label}</span>
+    </>
+  )
 }
 
 const MemoOtherRow = memo(OtherRow)
@@ -713,6 +738,7 @@ const ActionNotice = memo(function ActionNotice({
   return (
     <li className={`notice notice-${entry.level}`}>
       {entry.text}
+      <RepeatCount count={entry.repeatCount} />
       {actions.map((action) => (
         <button
           key={action}
