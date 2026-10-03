@@ -168,6 +168,8 @@ class FakeBrowser implements BrowserProcess {
   public kills = 0
   public isGone = false
   public readonly exited: Promise<void>
+  /** The spawn's own error code: a test refuses the executable after it returned by resolving one. */
+  public spawnError: Promise<string | undefined> = Promise.resolve(undefined)
   /** File descriptor 4 as the parent reads it. */
   public readonly reader = new PassThrough()
   /** The command line it reports: set from what was launched. */
@@ -826,6 +828,37 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
       expect(await run(t)).toEqual({ ok: false, failure: { kind } })
       expect(t.removed).toEqual([FOLDER])
     }
+  })
+
+  it('says the OS blocked the runtime when the spawn fails only after it returned', async () => {
+    for (const code of ['EPERM', 'EACCES'] as const) {
+      const browser = new FakeBrowser(network())
+      browser.spawnError = Promise.resolve(code)
+      const t = setup(browser)
+      expect(await run(t), code).toEqual({ ok: false, failure: { kind: 'runtimeBlocked' } })
+      expect(t.removed).toEqual([FOLDER])
+    }
+  })
+
+  it('returns nothing from the page when stopped during teardown, after the last admission read', async () => {
+    const browser = new FakeBrowser(network())
+    const inner = setup(browser)
+    const stop = new AbortController()
+    const t: Setup = {
+      ...inner,
+      deps: {
+        ...inner.deps,
+        removeFolder: (folder) => {
+          stop.abort()
+          return inner.deps.removeFolder(folder)
+        },
+      },
+    }
+    expect(await run(t, { signal: stop.signal })).toEqual({
+      ok: false,
+      failure: { kind: 'cancelled' },
+    })
+    expect(t.removed).toEqual([FOLDER])
   })
 
   it('refuses a folder, proxy or fixture that cannot be made, with its own failure', async () => {

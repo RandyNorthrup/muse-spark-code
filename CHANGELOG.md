@@ -181,6 +181,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The browser check names the OS refusal whenever it arrives, and keeps nothing after a Stop.** A runtime the OS refuses to run (`EACCES`/`EPERM`) reads `runtimeBlocked` whether the refusal throws or arrives after the spawn returned (which used to read `browserFailed`); a Stop or lost admission during teardown refuses the page instead of returning its report; and the release pin gate fails a pin dated in the future, as the check itself does.
 - Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,

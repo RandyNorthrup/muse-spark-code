@@ -8,6 +8,7 @@ import {
   browserLaunchArgs,
   commandLineVerdict,
 } from '../../src/core/browser/browserLaunch'
+import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import {
   BROWSER_FORBIDDEN_SWITCHES,
   BROWSER_HOST_RESOLVER_RULES,
@@ -108,6 +109,20 @@ describe('the browser check’s command line (M81 A1)', () => {
     expect(commandLineVerdict([...REPORTED, 'https://evil.example/'], LAUNCHED)).toEqual({
       kind: 'unrecognized',
     })
+  })
+
+  it('reports the spawn’s own error code when the OS refuses it after the spawn returned', async () => {
+    const deps = hostBrowserRunDeps({
+      platform: process.platform,
+      env: {},
+      warn: () => undefined,
+    })
+    const browser = deps.spawn('/definitely-not-here/chrome-headless-shell', [], {})
+    // The refused pipe's own error goes nowhere else: it is read here.
+    browser.reader.on('error', () => undefined)
+    await expect(browser.spawnError).resolves.toBe('ENOENT')
+    await browser.exited
+    await browser.kill()
   })
 })
 

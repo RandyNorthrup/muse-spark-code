@@ -47,6 +47,16 @@ function ignore(): void {
   // The pipe's loss is reported by its other end.
 }
 
+/** A spawn `error`'s own code, when it has one. */
+function spawnCodeOf(error: unknown): string | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : undefined
+}
+
 /** Ends the browser and everything it started, at once. */
 async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<void> {
   const { pid } = child
@@ -102,6 +112,25 @@ function spawnBrowser(
   // File descriptors 3 and 4: what Chrome reads, and what it writes.
   const writer = child.stdio[3]
   const reader = child.stdio[4]
+  // The spawn's own error code, once known: the OS reports a refused
+  // executable (EACCES/EPERM from application control, permissions or
+  // signing) asynchronously on `error` rather than throwing, so its code is
+  // kept for the run's own mapping; `undefined` once the browser started.
+  const spawnError = new Promise<string | undefined>((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve(undefined)
+      return
+    }
+    child.once('spawn', () => {
+      resolve(undefined)
+    })
+    child.once('error', (error: unknown) => {
+      resolve(spawnCodeOf(error))
+    })
+    child.once('exit', () => {
+      resolve(undefined)
+    })
+  })
   const exited = new Promise<void>((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null) {
       resolve()
@@ -128,6 +157,7 @@ function spawnBrowser(
     writer,
     reader,
     exited,
+    spawnError,
     kill: async () => {
       await killBrowser(child, deps)
     },

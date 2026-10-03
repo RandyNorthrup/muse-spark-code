@@ -4,7 +4,8 @@
 // Read-only GETs; it publishes and changes nothing.
 //
 // - The pin (src/host/browser/runtime/browserRuntime.json) must not be
-//   expired: a release whose checks would refuse at once fails.
+//   expired, nor dated in the future: a release whose checks would refuse
+//   at once fails.
 // - The newest Stable Chrome for Testing version comes from its own
 //   metadata (last-known-good-versions.json). When it is newer than the pin,
 //   its ChromiumDash Stable records for that exact version (Windows, Linux,
@@ -86,6 +87,9 @@ if (!Number.isSafeInteger(pinned) || typeof pin.version !== 'string') {
   fail('the pin has no valid version or publication date')
 }
 const now = Date.now()
+if (pinned > now) {
+  fail(`the pin's publication date ${new Date(pinned).toISOString()} is in the future`)
+}
 if (now >= pinned + EXPIRY_DAYS * DAY_MS) {
   fail(`${pin.version} expired on ${new Date(pinned + EXPIRY_DAYS * DAY_MS).toISOString()}`)
 }

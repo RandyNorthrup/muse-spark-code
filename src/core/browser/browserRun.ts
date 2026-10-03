@@ -20,7 +20,8 @@
 //    contract; the gate and the watch; the default-context canaries; the
 //    private context with the same proxy, its cookie tripwire and its
 //    canaries; the model's page; the audit's canaries and the network
-//    service's id; admission once more before anything is returned.
+//    service's id; admission read again before anything is returned, even
+//    after teardown.
 //
 // The first end wins (the deadline, a stop, the window, admission lost, a
 // leak, the pipe): the CDP connection closes at that moment, rejecting every
@@ -229,6 +230,13 @@ export interface BrowserProcess {
   readonly reader: PipeReader
   /** Resolves once the browser has exited (or never started). */
   readonly exited: Promise<void>
+  /**
+   * The spawn's own error code once known: EPERM or EACCES when the OS
+   * refused to run the executable; undefined once the browser started. The
+   * OS reports those asynchronously, so this is read after the spawn
+   * returns rather than thrown.
+   */
+  readonly spawnError: Promise<string | undefined>
   /** Ends the browser and everything it started, at once. */
   kill(): Promise<void>
 }
@@ -261,7 +269,11 @@ export interface BrowserRunDeps {
   ) => Promise<{ readonly bytes: number; readonly mtimeMs: number } | undefined>
   readonly startProxy: (scope: FrozenScope) => Promise<CheckProxy>
   readonly startFixture: () => Promise<ProbeFixture>
-  /** Throws an error with code EPERM or EACCES when the OS refuses to run it. */
+  /**
+   * Throws an error with code EPERM or EACCES when the OS refuses to run it
+   * at once, and reports the same codes through the process's `spawnError`
+   * when the refusal arrives after the spawn returned.
+   */
   readonly spawn: (
     executable: string,
     args: readonly string[],
@@ -529,12 +541,17 @@ async function launch(
   }
   const args = browserLaunchArgs(proxy.endpoint, folder.profile)
   const env = browserEnvironment(deps.platform, deps.env, folder)
+  let browser: BrowserProcess
   try {
-    return { browser: deps.spawn(runtime.executable, args, env), args }
+    browser = deps.spawn(runtime.executable, args, env)
   } catch (error: unknown) {
     const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : ''
     return fail(code === 'EPERM' || code === 'EACCES' ? 'runtimeBlocked' : 'launch')
   }
+  // A refusal that arrives after the spawn returned carries the same codes
+  // as a thrown one.
+  const code = await browser.spawnError
+  return code === 'EPERM' || code === 'EACCES' ? fail('runtimeBlocked') : { browser, args }
 }
 
 /** The pin's contract: the exact product, the command line as launched, one blank page, the network service. */
@@ -777,5 +794,11 @@ export async function runBrowserCheck(
     lifetime.endedBy === undefined && (result.ok || GRACEFUL_ENDS.has(result.failure.kind))
   lifetime.end()
   await lifetime.cleaned
+  // A stop or lost admission during teardown still refuses the page: the end
+  // above detached the joined signals, so this is read again.
+  const late = result.ok ? refusalNow(request, options) : undefined
+  if (late !== undefined) {
+    result = { ok: false, failure: late }
+  }
   return result
 }
