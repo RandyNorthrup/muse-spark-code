@@ -487,7 +487,8 @@ says why when it cannot.
 
 A side chat stays in Plan mode, so it offers only Save plan. Implementing a
 saved plan is refused in Restricted Mode, because its content goes to the
-model as workspace text.
+model as workspace text. Implement and handoff Start share one operation
+lock: either asks you to wait while the other is still starting.
 
 ### Handoff to a new conversation
 
@@ -506,6 +507,12 @@ the first request. The generated or edited brief may be up to 256 KB in
 UTF-8. Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
+
+While the model distils the brief, a composer send is refused with the
+busy reason. Its images come back, and its exact draft comes back if you
+have not edited it meanwhile. A brief read held by sign-in or key activation says
+why and retries when sign-in completes, including a read that failed
+while admission was held. Cancel still releases the waiting handoff.
 
 The model wrote the brief, so the new conversation starts in your
 starting mode (`museSpark.initialPermissionMode`, as an implemented plan
@@ -2715,15 +2722,22 @@ dispatch) calls
 - a `native-darwin` job that compiles the macOS helper and checks its
   disclaim;
 - a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
-  `muse-spark-code-vsix` artifact.
+  `muse-spark-code-vsix` artifact, checks its compressed size budget, and
+  packages the ACP agent with every locale table and both CycloneDX inventories.
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
 manifest and is on `main`, runs the same build, creates a GitHub Release with
-that `.vsix` and the CHANGELOG section as its notes, and publishes it to the
-Marketplace (publisher `RandyNorthrup`) from the `marketplace` environment,
-which only version tags reach; without `VSCE_PAT` the publish is skipped and
-reported. A `.vsix` packed locally has no macOS helper, so only CI's is
-published.
+that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
+CHANGELOG section as its notes and package provenance attestations. The same
+VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
+ACP tarball goes to npm with provenance. Each registry uses its token from the
+tag-only `marketplace` environment (`VSCE_PAT`, `OVSX_PAT`, `NPM_TOKEN`);
+missing tokens are reported as skips. Network errors get bounded retries;
+already-published versions require matching artifact hashes/integrity. A final
+summary reports every channel and fails if any channel failed. A `.vsix` packed
+locally has no macOS helper, so only CI's universal artifact is published.
+See [the release and recovery guide](docs/RELEASING.md) for half-published
+states, npm EOTP, signing decisions and the prepared M80 hooks.
 
 **Build troubleshooting.**
 

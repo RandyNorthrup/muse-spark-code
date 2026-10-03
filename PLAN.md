@@ -217,23 +217,24 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                     |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                            |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                        |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)      |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                  |
-| `.vsix`                   | not gated; 0.8.0 is 905,941 bytes (the GitHub Release asset, §10)                                                               |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                               |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                          |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
+| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                          |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
+| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                             |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                               |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
 
-`npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
-and fails the build over budget or when a bundle is missing. This table mirrors
-the script and changes with it, with a CHANGELOG entry.
+`npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
+numbers and fails over budget or when a bundle is missing. The compressed VSIX
+has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
+mirrors both scripts and changes with them, with a CHANGELOG entry.
 
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
 The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
@@ -5332,6 +5333,24 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
 
 ### M26 — The audit: packaging, CI, platform and voice (D29)
 
+**Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
+Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
+CycloneDX ingredient lists from the shipped bundle inputs and the ACP native
+dependency; retry only transient registry failures (three attempts, 20/60-second
+backoff); accept an existing version only after its downloaded hash or npm
+integrity matches; aggregate every channel's outcome and make GitHub Release
+reruns safe. Add a measured VSIX size gate, check every packaged ACP locale,
+trace the Windows launcher's actual runtime use, document signing/auth/recovery,
+and prepare inert M80 schema/major-tag hooks. No publication, version/tag change,
+M80 implementation or budget relaxation in this lane. Acceptance: owning script
+tests and deliberate guard removals on Kubuntu, actionlint and shellcheck there,
+the lane's scoped local checks and production build/package measurement.
+`docs/certification/rel-artifacts.md` binds results: 60 owning tests, 20
+byte-exact guard-removal controls, actual corrupted-tar/checksum exercises,
+workflow lint, scoped local checks and a universal package. The lead owns
+aggregate quality and hosted release verification. Existing build, package,
+esbuild metafiles, tag/environment policy and release ledger are reused.
+
 **Status 2026-09-23: built and certified** (`docs/certification/m26.md`);
 merged through pull request #7 from `hardening/m26-platform`, shipped in
 0.6.0.
@@ -9503,6 +9522,25 @@ evaluation is authorized by these repairs.
 
 ### M74 — Long tasks: automatic compaction and handoff (D49)
 
+**M74fu follow-ups verified, 2026-10-02 (`fix/m74-followups`).** The four
+review findings after PR #71 are fixed: share one conversation-replacing operation
+lock between handoff Start and plan actions (P2-2); explain a deferred
+brief read and retry it after sign-in/key activation completes (P2-1);
+retain a current handoff when its brief read throws while admission is
+closed (P3-4); and refuse a composer send during distillation, keeping its
+draft and attachments, while allowing Start's own brief send (P3-3).
+The composer guard runs before the first auth/session await as well as
+after preparation awaits, so an admission hold cannot lose that draft.
+The existing controller and reducer reuse the busy and sign-in text.
+The four owning suites and the UI-state suite pass 606 tests on Kubuntu;
+nine guard drills fail as intended and restore byte-exact by SHA-256.
+The five TypeScript projects, ESLint, Prettier, dead code, duplication,
+localization, host API and production build pass there too, with unchanged
+caps (extension 552.2/600 KiB, Model API 353.5/400). Evidence and exact
+bindings are in `docs/certification/m74.md`. The full quality gate remains
+the lead's per the lane brief. No origin push,
+live call, new dependency, setting, wire shape or escape hatch.
+
 **Main merge, 2026-10-02 (M74m).** Merge `origin/main` at `2a03a79b`
 (M84, M75 and 0.10.1) into the handoff branch at `aa37274e` (`91329eb8`),
 then include PR #74's documentation audit at `2067d2f9`. Keep both
@@ -9652,7 +9690,12 @@ integration tests, a production build with a real `node_modules` and
     so M79's Implement gets it too. A refusal for admission leaves the
     operation waiting with its dialog intact: Start works again once
     admission returns, and a brief whose read admission put off is read
-    on the next `/handoff` or a rebuilt panel.
+    after sign-in/key activation completes, on the next `/handoff` or a
+    rebuilt panel, with the sign-in reason said while the read waits. A
+    read that throws while admission is closed keeps its operation. Start
+    shares the plan actions' operation lock through the new brief's send,
+    and composer sends cannot steer a submitted distillation, even before
+    its acceptance arrives; refusal restores the exact draft unless edited.
   - One modal at a time (RV74c N2): a brief that arrives while Account &
     usage, the Agent map or the install confirmation is open waits,
     unmounted, until that dialog closes, then opens with the focus, so
@@ -12472,6 +12515,17 @@ remain available.
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+**REL signing decisions (2026-10-02).** The extension relies on the VS Code
+Marketplace's signing of published extensions and does not self-sign the VSIX:
+no new signing credentials or alternate package bytes. GitHub/Open VSX assets
+are verified with checksums and build attestations. Version tags remain unsigned
+because no maintainer signing identity/rotation process is configured; manifest
+version and `main` ancestry checks remain mandatory, and signed provenance binds
+the distributed packages to the workflow commit. These are not signed-tag
+verification. M80's prepared `v0` alias is intentionally unsigned and mutable,
+updated only after every channel published, never rolled back by an older rerun.
+No tag is created or moved by this implementation lane.
 
 M72's `src/host/checkpoints/checkpointStoreBundle.ts` uses the type predicate
 `isCheckpointStoreBundle`: the required module is unknown; both exported
