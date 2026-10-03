@@ -36,6 +36,7 @@ import {
   DICTATION_KEY,
   type DictationAction,
   GOAL_SLASH_COMMAND,
+  HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -631,21 +632,39 @@ export function Composer(props: ComposerProps) {
   }
 
   /**
-   * Enter runs a command; a skill, `/goal` (M45) or Tab completes the name
-   * instead, a skill and `/goal` ready for what follows them.
+   * Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
+   * completes the name instead, a skill and those commands ready for what
+   * follows them.
    */
   const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
     const { action } = command
-    if (action.type === 'insertSkill') {
-      replaceDraft(`/${action.selector} `)
-    } else if (action.type === 'startGoal' || action.type === 'startLoop') {
-      replaceDraft(
-        action.type === 'startGoal' ? `/${GOAL_SLASH_COMMAND} ` : `/${LOOP_SLASH_COMMAND} `,
-      )
-    } else if (isCompleting) {
-      replaceDraft(`/${command.name}`)
-    } else {
-      onSlashCommand(command)
+    // A command with arguments stays in the prompt, ready for them; any
+    // other command runs on Enter, and Tab only completes its name.
+    switch (action.type) {
+      case 'insertSkill': {
+        replaceDraft(`/${action.selector} `)
+        break
+      }
+      case 'startGoal': {
+        replaceDraft(`/${GOAL_SLASH_COMMAND} `)
+        break
+      }
+      case 'startLoop': {
+        replaceDraft(`/${LOOP_SLASH_COMMAND} `)
+        break
+      }
+      case 'startHandoff': {
+        replaceDraft(`/${HANDOFF_SLASH_COMMAND} `)
+        break
+      }
+      default: {
+        if (isCompleting) {
+          replaceDraft(`/${command.name}`)
+        } else {
+          onSlashCommand(command)
+        }
+        break
+      }
     }
   }
 

@@ -68,6 +68,8 @@ import {
   type EffortLevel,
   type ExportFormat,
   type GoalCommandVerb,
+  HANDOFF_LOCAL_ID_PREFIX,
+  HANDOFF_OPEN_TODO_STATUSES,
   IDE_MCP_SERVER_NAME,
   IMAGE_EXTENSIONS,
   MAX_DOCUMENT_BYTES,
@@ -76,6 +78,7 @@ import {
   PDF_EXTENSION,
   PLAN_BRIEF_LOCAL_ID_PREFIX,
   PLAN_FILE_MAX_BYTES,
+  PLAN_FILE_MAX_KB,
   PLAN_TODO_PENDING_STATUS,
   MENTION_RESULT_LIMIT,
   MODEL_TEXT,
@@ -439,6 +442,10 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'importSession',
   'savePlan',
   'implementPlan',
+  // A handoff's Cancel is not here (M74): releasing an operation the panel
+  // owns needs no admission, and the panel has already closed its dialog.
+  'requestHandoff',
+  'confirmHandoff',
 ])
 const QUEUED_DISPOSITION = 'queued'
 const TOOL_CALL_KIND = 'toolCall'
@@ -611,6 +618,12 @@ export interface ConversationBrief {
    * whatever `museSpark.initialPermissionMode` says.
    */
   readonly isApproved: boolean
+  /**
+   * Whether the new conversation stays in Plan mode, whatever the above
+   * says: a handoff from a Plan-mode conversation (M74) never leaves Plan
+   * for a mode that acts.
+   */
+  readonly shouldKeepPlanMode: boolean
 }
 
 /** What `send` takes from a brief for its first message. */
@@ -620,6 +633,8 @@ type BriefExtras = Pick<ConversationBrief, 'displayText' | 'modelNote' | 'todos'
 interface SendOutcome {
   readonly isAccepted: boolean
   readonly hasSetTodos: boolean
+  /** The turn the message started, where one did (M74 names its handoff's). */
+  readonly turnId: string | undefined
 }
 
 /** What `startFromBrief` did; a refusal has already said why. */
@@ -673,7 +688,64 @@ function planBrief(
     },
     todos: steps.map((step) => ({ text: step, status: PLAN_TODO_PENDING_STATUS })),
     isApproved,
+    shouldKeepPlanMode: false,
   }
+}
+
+/**
+ * A distilled brief as a conversation's brief (M74): the reviewed text
+ * itself is the first message — no file travels — with the goal and the
+ * open items as the model's note. The model wrote it, so it counts as
+ * approved, and starts in the starting mode, only when the dialog showed
+ * the user all of it before Start: the brief and the open items it lists,
+ * neither holding a character the dialog does not show. Otherwise it is
+ * untrusted content and starts in a mode that asks, as a plan file does; a
+ * handoff from Plan mode stays in Plan. The [untrusted] labels it carries
+ * keep their meaning through the note (PLAN.md D49).
+ */
+function handoffBrief(
+  briefText: string,
+  goal: string | undefined,
+  todos: readonly TodoItem[],
+  shouldKeepPlanMode: boolean,
+): ConversationBrief {
+  return {
+    label: 'handoff brief',
+    displayText: briefText,
+    modelText: briefText,
+    attachment: undefined,
+    modelNote: (hasSetTodos) => {
+      const lead =
+        goal === undefined ? MODEL_TEXT.handoffNote : fill(MODEL_TEXT.handoffNoteWithGoal, { goal })
+      if (todos.length === 0) {
+        return lead
+      }
+      const steps = todos.map((todo) => todo.text)
+      const list = hasSetTodos
+        ? fill(MODEL_TEXT.handoffTodosSet, { steps: numberedSteps(steps) })
+        : MODEL_TEXT.handoffTodosAsk
+      return `${lead} ${list}`
+    },
+    todos,
+    isApproved:
+      !hasUnshownCharacters(briefText) && todos.every((todo) => !hasUnshownCharacters(todo.text)),
+    shouldKeepPlanMode,
+  }
+}
+
+/** A `/handoff` whose distillation turn is running, or whose brief waits. */
+interface PendingHandoff {
+  readonly requestId: string
+  readonly goal: string | undefined
+  turnId: string | undefined
+  session: AgentSession | undefined
+  /** The brief, once the distillation turn completed and it was shown. */
+  brief: string | undefined
+  todos: readonly TodoItem[]
+  /** The completed turn's reply being read back as the brief. */
+  isReadingBrief: boolean
+  isStarting: boolean
+  readonly generation: number
 }
 
 /** An error's kind for the log (its code or name), never its message, which may name the plan. */
@@ -801,6 +873,8 @@ export class ConversationController {
   private gapCount = 0
   /** Live goal events after a gap read began take precedence over that read. */
   private goalEventCount = 0
+  /** The session whose goal is read back before its next action (`goalOutcomeUnknown`). */
+  private goalRefreshSessionId: string | undefined
   /** The turns under way, timed for the log (M39). */
   private readonly turnClocks = new Map<string, TurnClock>()
   /** Streamed text not yet posted, and the frame timer that posts it (M39). */
@@ -861,6 +935,11 @@ export class ConversationController {
   private isPlanActionRunning = false
   /** This conversation's turn checkpoints (M72). */
   private readonly checkpoints: ConversationCheckpoints
+  /**
+   * A `/handoff` (M74) in flight: its distillation turn, then its brief
+   * waiting in the dialog. One at a time; a new conversation drops it.
+   */
+  private pendingHandoff: PendingHandoff | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1372,6 +1451,10 @@ export class ConversationController {
         this.turnClocks.delete(event.turnId)
         this.planHold?.hold.turnEnded(event.turnId)
         this.pendingPlanTurnIds.delete(event.turnId)
+        if (this.pendingHandoff?.turnId === event.turnId) {
+          this.pendingHandoff = undefined
+          this.notice('warning', UI_TEXT.handoffInterrupted)
+        }
         break
       }
       case 'turnCompleted': {
@@ -1384,6 +1467,18 @@ export class ConversationController {
           this.planTurnIds.add(event.turnId)
         }
         this.checkpoints.turnCompleted(event.turnId)
+        // A handoff's distillation turn (M74): its reply is the brief.
+        if (
+          this.pendingHandoff?.turnId === event.turnId &&
+          this.pendingHandoff.brief === undefined
+        ) {
+          if (event.terminal === 'completed') {
+            void this.finishHandoff(event.turnId)
+          } else {
+            this.pendingHandoff = undefined
+            this.notice('warning', UI_TEXT.handoffInterrupted)
+          }
+        }
         // Another turn completing (a subagent's) leaves this one running.
         if (this.activeTurnId === event.turnId) {
           this.activeTurnId = undefined
@@ -2430,7 +2525,16 @@ export class ConversationController {
       }
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
-    return this.isCurrentSessionAction(session, generation) ? session : undefined
+    if (!this.isCurrentSessionAction(session, generation)) {
+      return undefined
+    }
+    // A goal command's unknown outcome (M45): the strip gets the backend's
+    // goal back now that the conversation is reachable again.
+    if (this.goalRefreshSessionId === session.sessionId) {
+      this.goalRefreshSessionId = undefined
+      void this.refreshGoal(session, generation)
+    }
+    return session
   }
 
   // --- Session history (M6) ---
@@ -3226,6 +3330,14 @@ export class ConversationController {
     return this.deps.initialPermissionMode === PLAN_MODE ? PLAN_MODE : FALLBACK_MODE
   }
 
+  /** The mode a brief's conversation starts in: Plan where the brief keeps it, else by its trust. */
+  private briefStartMode(brief: ConversationBrief): PermissionMode {
+    if (brief.shouldKeepPlanMode) {
+      return PLAN_MODE
+    }
+    return brief.isApproved ? this.briefMode() : this.untrustedBriefMode()
+  }
+
   /**
    * Starts a new conversation on this backend from a brief (M79; M74's
    * `/handoff` reuses it). The attachment is checked before anything is
@@ -3234,7 +3346,11 @@ export class ConversationController {
    * brief's mode, and the brief is sent as the first message, with its card,
    * its note for the model and, where the backend takes one, its todo list.
    */
-  private async startFromBrief(brief: ConversationBrief, generation: number): Promise<BriefStart> {
+  private async startFromBrief(
+    brief: ConversationBrief,
+    generation: number,
+    canStart: () => boolean = () => true,
+  ): Promise<BriefStart> {
     if (this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       return { status: 'refused' }
@@ -3243,8 +3359,14 @@ export class ConversationController {
       return { status: 'refused' }
     }
     const host = await this.deps.ensureHost()
-    if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+    if (generation !== this.sendInvalidationEpoch || this.isDisposed || !canStart()) {
       return { status: 'changed' }
+    }
+    // Admission may have closed during the lookup (a key activation):
+    // refused before anything is left, so the plan or the handoff's
+    // reviewed brief stays to start again.
+    if (this.refuseAction() !== undefined) {
+      return { status: 'refused' }
     }
     if (brief.attachment !== undefined && !this.canUsePlans()) {
       return { status: 'refused' }
@@ -3269,7 +3391,7 @@ export class ConversationController {
     }
     this.deps.log.info(`Starting a new conversation from the brief ${brief.label}`)
     this.clear()
-    this.permissionMode = brief.isApproved ? this.briefMode() : this.untrustedBriefMode()
+    this.permissionMode = this.briefStartMode(brief)
     this.postComposerState()
     // The same checks on the emptied store as on the staged one above.
     const added =
@@ -3440,6 +3562,370 @@ export class ConversationController {
       }
     } else if (choice?.action === 'implement') {
       await this.implementPlan({ kind: 'file', fileName: choice.plan.fileName })
+    }
+  }
+
+  /** The handoff request turn's card, in the user's language. */
+  private handoffCardText(goal: string | undefined): string {
+    return goal === undefined
+      ? UI_TEXT.handoffRequestCard
+      : fill(UI_TEXT.handoffRequestCardWithGoal, { goal })
+  }
+
+  /** A handoff failed before its brief: the reason in the panel, only its kind in the log (M39). */
+  private handoffFailed(error: unknown): void {
+    this.deps.log.warn(`A handoff failed (${errorKind(error)})`)
+    if (!this.isDisposed) {
+      this.say('error', `${UI_TEXT.handoffFailed}: ${describe(error)}`)
+    }
+  }
+
+  private isCurrentHandoff(pending: PendingHandoff): boolean {
+    return (
+      this.pendingHandoff === pending &&
+      pending.generation === this.sendInvalidationEpoch &&
+      !this.isDisposed &&
+      (pending.session === undefined || this.session === pending.session)
+    )
+  }
+
+  /**
+   * The one check after every await of a handoff's request, brief read and
+   * Start (M74): the operation still owns the slot in the same
+   * conversation (`isCurrentHandoff`), and the backend still admits it.
+   * Where only admission fails (a key activation), the operation is
+   * refused but kept, its brief and dialog intact, to be retried.
+   */
+  private isStillCurrent(pending: PendingHandoff): boolean {
+    return this.isCurrentHandoff(pending) && this.isAuthAdmitted()
+  }
+
+  private dropHandoff(pending: PendingHandoff): void {
+    if (this.pendingHandoff === pending) {
+      this.pendingHandoff = undefined
+    }
+  }
+
+  private canDistilHandoff(pending: PendingHandoff): boolean {
+    if (!this.isStillCurrent(pending)) {
+      // Admission closed meanwhile: refused with the reason.
+      if (this.isCurrentHandoff(pending)) {
+        this.notice('warning', UI_TEXT.notSignedInReason)
+      }
+      return false
+    }
+    if (this.activeTurnId !== undefined) {
+      this.notice('info', UI_TEXT.handoffWaitTurn)
+      return false
+    }
+    return true
+  }
+
+  /**
+   * `/handoff …` (M74): the host says whether it took the command
+   * (`handoffCommandResult`, correlated by `requestId`), and the composer
+   * keeps the typed command until it did, so a refused handoff keeps its
+   * goal, as `/goal` does.
+   */
+  private async requestHandoff(requestId: string, goal: string | undefined): Promise<void> {
+    let isAccepted = false
+    try {
+      isAccepted = await this.distilHandoff(requestId, goal)
+    } finally {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: isAccepted })
+    }
+  }
+
+  /**
+   * Asks the model, as the user's own turn in this conversation, for a
+   * distilled brief: true once that turn was accepted. Model API only:
+   * Muse Code compacts itself. The brief lands in the dialog through
+   * `finishHandoff`; nothing starts before the user confirms it.
+   */
+  private async distilHandoff(requestId: string, goal: string | undefined): Promise<boolean> {
+    if (this.isSideChat) {
+      this.notice('info', UI_TEXT.handoffSideChat)
+      return false
+    }
+    const previous = this.pendingHandoff
+    if (previous !== undefined && !this.isCurrentHandoff(previous)) {
+      this.dropHandoff(previous)
+    }
+    if (this.pendingHandoff !== undefined) {
+      // A brief whose read admission put off is read now, and its dialog
+      // is the answer; otherwise this request waits on a running one.
+      if (!this.readWaitingBrief()) {
+        this.notice('info', UI_TEXT.handoffBusy)
+      }
+      return false
+    }
+    // A running reply refuses the request in `canDistilHandoff`, after the
+    // host lookup and again after each later await, so no path sends the
+    // distillation beside it.
+    const generation = this.sendInvalidationEpoch
+    const pending: PendingHandoff = {
+      requestId,
+      goal,
+      generation,
+      turnId: undefined,
+      session: this.session,
+      brief: undefined,
+      todos: [],
+      isReadingBrief: false,
+      isStarting: false,
+    }
+    // This operation owns the slot before host/session/history preparation can yield.
+    this.pendingHandoff = pending
+    try {
+      const host = await this.deps.ensureHost()
+      if (!this.canDistilHandoff(pending)) {
+        return false
+      }
+      if (host.info.kind !== 'modelApi') {
+        this.notice('info', UI_TEXT.handoffUnavailable)
+        return false
+      }
+      if (
+        this.session === undefined &&
+        this.resumeTarget === undefined &&
+        this.sessionOpening === undefined
+      ) {
+        this.notice('info', UI_TEXT.handoffEmpty)
+        return false
+      }
+      const session = await this.sessionForAction()
+      if (
+        session === undefined ||
+        !this.canDistilHandoff(pending) ||
+        !this.isCurrentSessionAction(session, generation)
+      ) {
+        return false
+      }
+      pending.session = session
+      const history = await host.readSession(session.sessionId)
+      if (!this.canDistilHandoff(pending) || !this.isCurrentSessionAction(session, generation)) {
+        return false
+      }
+      if (history.items.length === 0) {
+        this.notice('info', UI_TEXT.handoffEmpty)
+        return false
+      }
+      const cardText = this.handoffCardText(goal)
+      const localId = `${HANDOFF_LOCAL_ID_PREFIX}${this.deps.newAttachmentId()}`
+      this.post({ type: 'briefSubmitted', localId, text: cardText, attachments: [] })
+      const modelText =
+        goal === undefined
+          ? MODEL_TEXT.handoffRequest
+          : `${MODEL_TEXT.handoffRequest} ${fill(MODEL_TEXT.handoffRequestGoal, { goal })}`
+      const sent = await this.send(
+        localId,
+        modelText,
+        [],
+        false,
+        undefined,
+        undefined,
+        cardText,
+        pending,
+      )
+      // The send's outcome and the operation's ownership: a restart while
+      // it ran leaves no handoff behind. Admission closing once the turn
+      // was taken leaves the operation waiting for it: the turn is the
+      // backend's, and its brief is read when admission is back.
+      if (!sent.isAccepted || sent.turnId === undefined || !this.isCurrentHandoff(pending)) {
+        return false
+      }
+      pending.turnId = sent.turnId
+      this.deps.log.info(`Handoff ${requestId} distilling in turn ${sent.turnId}`)
+      if (this.finishedTurns.has(sent.turnId)) {
+        // The turn already completed before its acceptance was handled, so
+        // no completion event will arrive for it: read its reply now.
+        await this.finishHandoff(sent.turnId)
+      }
+      return true
+    } catch (error: unknown) {
+      if (this.isCurrentHandoff(pending)) {
+        this.handoffFailed(error)
+      }
+      return false
+    } finally {
+      if (this.pendingHandoff === pending && pending.turnId === undefined) {
+        this.pendingHandoff = undefined
+      }
+    }
+  }
+
+  /**
+   * The distillation turn completed: read its reply back as the brief and
+   * show it in the dialog, with the open todo items. The turn's own card
+   * stays in the transcript; the new conversation starts only on confirm.
+   */
+  private async finishHandoff(turnId: string): Promise<void> {
+    const pending = this.pendingHandoff
+    if (pending?.turnId !== turnId || pending.brief !== undefined || pending.isReadingBrief) {
+      return
+    }
+    pending.isReadingBrief = true
+    try {
+      // While admission is closed the operation waits, its turn done, and
+      // `readWaitingBrief` reads the brief when the panel next asks.
+      if (!this.isStillCurrent(pending)) {
+        return
+      }
+      const host = await this.deps.ensureHost()
+      const session = pending.session
+      if (session === undefined || !this.isStillCurrent(pending)) {
+        return
+      }
+      const history = await host.readSession(session.sessionId)
+      // A restart, a stop, or a cancel while the read ran leaves no brief
+      // behind; admission closing leaves it to be read again.
+      if (!this.isStillCurrent(pending)) {
+        return
+      }
+      const reply = history.items.findLast(
+        (item) => item.kind === AGENT_MESSAGE_KIND && item.turnId === turnId,
+      )
+      const text = reply?.text ?? ''
+      if (reply === undefined || reply.status === IN_PROGRESS_STATUS || text.trim() === '') {
+        this.pendingHandoff = undefined
+        this.handoffFailed(new Error(UI_TEXT.handoffNoBrief))
+        return
+      }
+      if (new TextEncoder().encode(text).byteLength > PLAN_FILE_MAX_BYTES) {
+        this.pendingHandoff = undefined
+        this.notice('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
+        return
+      }
+      pending.brief = text
+      pending.todos = history.todos.filter((todo) => HANDOFF_OPEN_TODO_STATUSES.has(todo.status))
+      this.postHandoffReady()
+    } catch (error: unknown) {
+      if (this.isCurrentHandoff(pending)) {
+        this.pendingHandoff = undefined
+        this.handoffFailed(error)
+      }
+    } finally {
+      pending.isReadingBrief = false
+    }
+  }
+
+  /**
+   * A distillation turn that completed while admission was closed (M74):
+   * its brief is read now, when the backend admits it again. True when a
+   * read started, so the dialog is on its way.
+   */
+  private readWaitingBrief(): boolean {
+    const pending = this.pendingHandoff
+    if (
+      pending?.turnId === undefined ||
+      pending.brief !== undefined ||
+      pending.isReadingBrief ||
+      !this.finishedTurns.has(pending.turnId) ||
+      !this.isStillCurrent(pending)
+    ) {
+      return false
+    }
+    void this.finishHandoff(pending.turnId)
+    return true
+  }
+
+  /**
+   * The waiting brief's dialog: posted when the distillation turn completed,
+   * and again to a rebuilt panel, whose dialog went with its webview while
+   * the brief waits here, so a later `/handoff` is never refused as busy
+   * with nothing to answer; never one whose conversation is gone (a restart
+   * left it stale), which the next request drops. The open items show in it
+   * too, so before Start the user sees all the model wrote that the new
+   * conversation reads (D49).
+   */
+  private postHandoffReady(): void {
+    const pending = this.pendingHandoff
+    if (pending?.brief === undefined || !this.isCurrentHandoff(pending)) {
+      return
+    }
+    this.post({
+      type: 'handoffReady',
+      requestId: pending.requestId,
+      brief: pending.brief,
+      ...(pending.goal !== undefined && { goal: pending.goal }),
+      todos: pending.todos.map((todo) => todo.text),
+    })
+  }
+
+  /**
+   * The handoff dialog's Start: the reviewed brief seeds a new
+   * conversation through the same path as a plan's (M79's
+   * `startFromBrief`): the old conversation is left as it is, and the
+   * brief alone is the first message, with the open items as its list. Its
+   * mode is `handoffBrief`'s: the starting mode only for a brief the dialog
+   * showed whole, and Plan kept from a Plan-mode conversation.
+   */
+  private async confirmHandoff(requestId: string, brief: string): Promise<void> {
+    const pending = this.pendingHandoff
+    if (pending?.requestId !== requestId || pending.brief === undefined || pending.isStarting) {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      return
+    }
+    const generation = pending.generation
+    if (!this.isCurrentHandoff(pending)) {
+      this.pendingHandoff = undefined
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.say('info', UI_TEXT.handoffChangedNotStarted)
+      return
+    }
+    if (brief.trim() === '') {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.say('warning', UI_TEXT.handoffEmpty)
+      return
+    }
+    if (new TextEncoder().encode(brief).byteLength > PLAN_FILE_MAX_BYTES) {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.say('warning', fill(UI_TEXT.handoffTooLarge, { size: PLAN_FILE_MAX_KB }))
+      return
+    }
+    pending.isStarting = true
+    const seeded = handoffBrief(
+      brief,
+      pending.goal,
+      pending.todos,
+      this.permissionMode === PLAN_MODE,
+    )
+    let started: BriefStart
+    try {
+      started = await this.startFromBrief(seeded, generation, () => this.isCurrentHandoff(pending))
+    } catch (error: unknown) {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      if (this.isCurrentHandoff(pending)) {
+        this.handoffFailed(error)
+      }
+      return
+    } finally {
+      pending.isStarting = false
+    }
+    if (started.status === 'changed') {
+      this.dropHandoff(pending)
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      this.say('info', UI_TEXT.handoffChangedNotStarted)
+      return
+    }
+    if (started.status !== 'started') {
+      this.post({ type: 'handoffCommandResult', requestId, accepted: false })
+      return
+    }
+    this.dropHandoff(pending)
+    this.post({ type: 'handoffCommandResult', requestId, accepted: true })
+    if (!seeded.isApproved) {
+      this.say(
+        'info',
+        fill(UI_TEXT.handoffUnshownMode, { mode: UI_TEXT.permissionModes[this.permissionMode] }),
+      )
+    }
+  }
+
+  /** The handoff dialog's Cancel: the brief is dropped, nothing starts. */
+  private cancelHandoff(requestId: string): void {
+    if (this.pendingHandoff?.requestId === requestId) {
+      this.pendingHandoff = undefined
     }
   }
 
@@ -3678,16 +4164,19 @@ export class ConversationController {
     isEditorContextIncluded: boolean,
     reference: ChatReference | undefined,
     brief?: BriefExtras,
+    cardText?: string,
+    handoff?: PendingHandoff,
   ): Promise<SendOutcome> {
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
     // The capture this message's turn takes (M72), dropped if it is not sent.
     let checkpoint: PendingCapture | undefined
+    let hasSubmittedHandoff = false
     try {
       const sendEpoch = this.sendInvalidationEpoch
       const session = await this.sessionForAction(localId, isComposerMessage)
       if (session === undefined) {
-        return { isAccepted: false, hasSetTodos: false }
+        return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
       let expectedGeneration = this.attachmentGeneration
       let submittedSession = session
@@ -3699,6 +4188,19 @@ export class ConversationController {
           this.attachmentGeneration !== expectedGeneration
         ) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
+        }
+        if (handoff !== undefined && !this.isCurrentHandoff(handoff)) {
+          throw new Error(UI_TEXT.turnStoppedByRestart)
+        }
+        // Nor is its request sent once admission closed (M74): refused as
+        // the reason its card failed, and the composer keeps the command.
+        if (handoff !== undefined && !hasSubmittedHandoff && !this.isAuthAdmitted()) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+        // A turn that started meanwhile refuses the handoff's request once,
+        // as the reason its card failed, with no notice besides (M74).
+        if (handoff !== undefined && !hasSubmittedHandoff && this.activeTurnId !== undefined) {
+          throw new Error(UI_TEXT.handoffWaitTurn)
         }
       }
       requireCurrent(session)
@@ -3712,7 +4214,7 @@ export class ConversationController {
           reason: UI_TEXT.nothingToSendReason,
           attachmentsKept: isComposerMessage,
         })
-        return { isAccepted: false, hasSetTodos: false }
+        return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
       // A reply to an output or a quoted passage rides as its own part (M17),
       // before the editor context, like the ide_selection part of M5.
@@ -3753,12 +4255,16 @@ export class ConversationController {
         ...(context === undefined ? [] : [context]),
         ...note,
       ]
-      // What the card shows: a brief's own words, else what was typed.
-      const shownText = brief?.displayText ?? text
+      // What the card shows: a brief's own words, a handoff's request card
+      // (M74, in the user's language), else what was typed.
+      const shownText = brief?.displayText ?? cardText ?? text
       // MSP stores no text-file attachment metadata: keep each name in the
       // durable card while the full content travels only to the model (M54).
       const textFileNames = typed.flatMap((part) => (part.type === 'textFile' ? [part.name] : []))
-      let displayText = brief === undefined && parts.length === typed.length ? undefined : shownText
+      let displayText =
+        brief === undefined && cardText === undefined && parts.length === typed.length
+          ? undefined
+          : shownText
       if (textFileNames.length > 0) {
         displayText =
           host.info.kind === 'museCode'
@@ -3778,6 +4284,9 @@ export class ConversationController {
         // owns the new generation. An unrelated restart still fails admission.
         if (current !== session) {
           expectedGeneration = this.attachmentGeneration
+          if (handoff !== undefined && this.pendingHandoff === handoff) {
+            handoff.session = current
+          }
         }
         requireCurrent(current)
         submittedSession = current
@@ -3787,11 +4296,12 @@ export class ConversationController {
           current.setTodos(brief.todos)
           seededSession = current
         }
+        hasSubmittedHandoff = handoff !== undefined
         return this.submit(
           current,
           parts,
           displayText,
-          host.info.kind === 'museCode' && textFileNames.length > 0,
+          handoff !== undefined || (host.info.kind === 'museCode' && textFileNames.length > 0),
           () =>
             !this.isDisposed &&
             this.sendInvalidationEpoch === sendEpoch &&
@@ -3803,7 +4313,7 @@ export class ConversationController {
       // The images go only once the host has the message (D26).
       this.attachments.release(attachmentIds)
       if (this.isDisposed) {
-        return { isAccepted: false, hasSetTodos: false }
+        return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
       const { turnId } = submission
       this.checkpoints.accepted(
@@ -3828,7 +4338,7 @@ export class ConversationController {
         }
       }
       this.acceptSubmission(localId, shownText, submission)
-      return { isAccepted: true, hasSetTodos: seededSession !== undefined }
+      return { isAccepted: true, hasSetTodos: seededSession !== undefined, turnId }
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
@@ -3844,7 +4354,7 @@ export class ConversationController {
       // says why, so whatever else waited on the same start only logs it.
       this.noteShown(error)
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
-      return { isAccepted: false, hasSetTodos: false }
+      return { isAccepted: false, hasSetTodos: false, turnId: undefined }
     }
   }
 
@@ -4445,6 +4955,9 @@ export class ConversationController {
       return
     }
     let targetSessionId: string | undefined
+    // Every exit before the host has the command answers it, so the panel
+    // never waits on a command nothing took.
+    let hasReachedHost = false
     try {
       const session = await this.sessionForAction()
       if (!this.isCurrentSessionAction(session, generation)) {
@@ -4453,13 +4966,19 @@ export class ConversationController {
       }
       targetSessionId = session.sessionId
       const host = await this.deps.ensureHost()
-      if (
-        this.accountStopEpoch > generation ||
-        this.accountStopsInFlight > 0 ||
-        this.deps.auth.backend === undefined
-      ) {
+      if (this.accountStopEpoch > generation || this.accountStopsInFlight > 0) {
+        // The conversation ended with the account: nothing to say in it.
+        result(false)
         return
       }
+      if (this.deps.auth.backend === undefined) {
+        // Admission closed during the lookup (a key activation, with the
+        // panel still signed in): refused as the sign-in guard refuses.
+        this.notice('warning', UI_TEXT.notSignedInReason)
+        result(false)
+        return
+      }
+      hasReachedHost = true
       const outcome = await this.runResuming(host, session, (current) =>
         current.controlGoal(command),
       )
@@ -4468,6 +4987,7 @@ export class ConversationController {
         !this.isAuthAdmitted() ||
         this.session?.sessionId !== targetSessionId
       ) {
+        this.goalOutcomeUnknown(targetSessionId, generation, result)
         return
       }
       this.deps.log.info(
@@ -4482,6 +5002,13 @@ export class ConversationController {
         this.accountStopsInFlight > 0 ||
         (targetSessionId !== undefined && this.session?.sessionId !== targetSessionId)
       ) {
+        // A command the host never had is answered and nothing is said; one
+        // it had may have taken effect.
+        if (!hasReachedHost) {
+          result(false)
+        } else if (targetSessionId !== undefined) {
+          this.goalOutcomeUnknown(targetSessionId, generation, result)
+        }
         return
       }
       if (isGoalRefusedError(error)) {
@@ -4492,6 +5019,62 @@ export class ConversationController {
       }
       this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
       result(false)
+    }
+  }
+
+  /**
+   * A goal command the host had when a key activation closed admission or
+   * the backend restarted (M45): whether it took is not known. While the
+   * panel still shows that conversation (attached, or waiting to resume
+   * after the restart) the command is answered refused, so it stays in
+   * the prompt, the panel says the outcome is unknown, and the goal is
+   * read back from the backend before the conversation's next action. A
+   * conversation the panel no longer shows (another one, or the account's
+   * end) was reset there: nothing is said.
+   */
+  private goalOutcomeUnknown(
+    sessionId: string,
+    generation: number,
+    result: (isAccepted: boolean) => void,
+  ): void {
+    // Attached, or waiting to be resumed after a restart.
+    const shownSessionId = (this.session ?? this.resumeTarget)?.sessionId
+    if (
+      shownSessionId !== sessionId ||
+      this.accountStopEpoch > generation ||
+      this.accountStopsInFlight > 0
+    ) {
+      return
+    }
+    this.goalRefreshSessionId = sessionId
+    this.notice('warning', UI_TEXT.goalOutcomeUnknown)
+    result(false)
+  }
+
+  /**
+   * The goal as the backend has it, back in the strip after an unknown
+   * outcome (`goalOutcomeUnknown`). A goal event that arrives during the
+   * read is newer and wins; a failed read is logged, the notice having
+   * said to check the goal.
+   */
+  private async refreshGoal(session: AgentSession, generation: number): Promise<void> {
+    const goalEventsAtStart = this.goalEventCount
+    try {
+      const host = await this.deps.ensureHost()
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      const { goal } = await host.readSession(session.sessionId, { recoverGoal: true })
+      if (
+        goal === undefined ||
+        goalEventsAtStart !== this.goalEventCount ||
+        !this.isCurrentSessionAction(session, generation)
+      ) {
+        return
+      }
+      this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
+    } catch (error: unknown) {
+      this.deps.log.warn(`goal refresh failed: ${describe(error)}`)
     }
   }
 
@@ -4830,6 +5413,10 @@ export class ConversationController {
   private clear(): void {
     this.webviewAttachmentEpoch += 1
     const wasSideChat = this.isSideChat
+    // A new conversation drops a handoff in flight: its dialog goes with
+    // the transcript (`conversationCleared`), and its confirm can no longer
+    // name this conversation.
+    this.pendingHandoff = undefined
     this.dropSession()
     this.isSideChat = this.deps.surface.isSideChat === true
     // A new conversation is new: the session a restart or crash left to
@@ -5611,6 +6198,14 @@ export class ConversationController {
   private async dispatch(message: ConversationMessage): Promise<void> {
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
+      // A command the panel waits on hears the refusal too (M45, M74), or
+      // the prompt's `/goal …` or `/handoff …`, the goal strip's Save and the
+      // handoff dialog's Start stay waiting after admission returns.
+      if (message.type === 'goalCommand') {
+        this.post({ type: 'goalCommandResult', requestId: message.requestId, accepted: false })
+      } else if (message.type === 'requestHandoff' || message.type === 'confirmHandoff') {
+        this.post({ type: 'handoffCommandResult', requestId: message.requestId, accepted: false })
+      }
       return
     }
     switch (message.type) {
@@ -5803,6 +6398,18 @@ export class ConversationController {
         await this.compact()
         break
       }
+      case 'requestHandoff': {
+        await this.requestHandoff(message.requestId, message.goal)
+        break
+      }
+      case 'confirmHandoff': {
+        await this.confirmHandoff(message.requestId, message.brief)
+        break
+      }
+      case 'cancelHandoff': {
+        this.cancelHandoff(message.requestId)
+        break
+      }
       case 'goalCommand': {
         await this.controlGoal(message.requestId, message.verb, message.objective)
         break
@@ -5985,6 +6592,11 @@ export class ConversationController {
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
     }
+    // A waiting handoff's dialog (M74), after the surface state, whose
+    // clearing of a stale restored conversation would drop it again; or
+    // its brief, when admission put the read off.
+    this.postHandoffReady()
+    this.readWaitingBrief()
     void this.warmModels()
     this.postStartupNotice()
   }

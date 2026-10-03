@@ -80,7 +80,10 @@ The PNGs beside the records are that day's harness renders.
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
+- [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
+- [M73](m73.md): observation packing on the Model API, `recall_output`, the savings ledger and the M75 packing arm; built and held, its live M75 run not run (PLAN.md D49)
 - [M79](m79.md): plans as files: Save plan and Implement in a fresh conversation, Muse Code's `.agents/plans` convention, the plan's steps as the todo list (PLAN.md D49, D13)
+- [M74](m74.md): long tasks, `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts; automatic compaction, the hidden follow-up and the memory flush not built (blocked on M75 and Q-M74), so M74 is not complete (PLAN.md D49)
 - [M69](m69.md): web fetch on both backends: public HTTPS pages, every DNS answer checked and the connection pinned (through VS Code's proxy too), per-host approval, untrusted-content markers; Muse Code through the `ide` server (PLAN.md D49, folds in M44b)
 - [Sign-in detection](sign-in-detection.md): the CLI's sign-in read from its credential file's structure and confirmed by the CLI, sign-out through `account/logout`, and every way a browser sign-in ends (PLAN.md D26 amendment)
 - [M84](m84.md): session export, import and share: redacted by default and previewed, every imported byte parsed, imported conversations asking every time (PLAN.md D49)

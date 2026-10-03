@@ -72,6 +72,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
+  /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
+  readonly isObservationPackingOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
   /** The verify loop's settings and the editor's diagnostics and formatter (M68, PLAN.md D49). */
@@ -204,6 +206,7 @@ export class ModelApiBackendManager {
         webFetch: this.deps.webFetch,
         codeIntel: this.deps.codeIntel,
         isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
+        observationPacking: this.deps.isObservationPackingOn,
         allowsPaidUse: this.deps.allowsPaidUse,
         isPaidUseRemembered: this.deps.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,

@@ -62,6 +62,8 @@ const LAZY_ONLY = [
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',
+  // M73: observation packing's store, its placeholder and recall_output.
+  'observationPack.ts',
   'permissions.ts',
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).

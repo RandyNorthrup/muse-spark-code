@@ -105,6 +105,7 @@ export const SCENARIOS = [
   'plan',
   'plan-brief',
   'plan-narrow',
+  'handoff',
   'code-intel',
   'review-findings',
   'review-pane',

@@ -293,6 +293,8 @@ export const usageSummarySchema = z.object({
   outputTokens: z.number(),
   // Absent where the backend cannot total it (Muse Code, PLAN.md D26).
   cachedTokens: z.optional(z.number()),
+  // The packing ledger's estimate (M73): absent unless packing runs.
+  packedTokensAvoided: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 

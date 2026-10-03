@@ -159,7 +159,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       git material, prompt and Plan-mode hold), the verify
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
-                      restore plan, the paired efficiency evaluation)
+                      restore plan, the paired efficiency evaluation,
+                      observation packing)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`

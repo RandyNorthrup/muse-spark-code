@@ -45,6 +45,10 @@ export const evalTaskResultSchema = z.object({
   paidRefusals: z.number(),
   /** Where this arm's run of the task fell among the arms: 1 when it went first. */
   order: z.number(),
+  /** The packing ledger's estimate (M73); absent where nothing packed. */
+  packedTokensAvoided: z.optional(z.number()),
+  /** `recall_output` calls that succeeded (M73); absent in reports made before it. */
+  recalls: z.optional(z.number()),
 })
 export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 
@@ -54,6 +58,8 @@ const legacyTaskResultSchema = z.object({
   questions: z.optional(z.never()),
   paidRefusals: z.optional(z.never()),
   order: z.optional(z.never()),
+  packedTokensAvoided: z.optional(z.never()),
+  recalls: z.optional(z.never()),
 })
 
 export const evalSplitSummarySchema = z.object({
@@ -93,9 +99,27 @@ const evalReportFields = {
   model: z.string(),
   generatedAt: z.string(),
   floors: z.array(evalFloorResultSchema),
-  /** `incomplete`: every floor that ran held, but a split did not run. */
+  /**
+   * `incomplete`: every floor that ran held, but a split did not run.
+   * `fail`: a floor fell, or a mechanism's own acceptance failed (M73's
+   * packing engagement, below).
+   */
   verdict: z.enum(EVAL_VERDICTS),
 }
+
+/**
+ * M73's acceptance beside the floors: the packing arm sent a packed
+ * placeholder on every long-output task it ran. A run that holds the floors
+ * without packing proves nothing about packing, so it fails the run.
+ */
+const evalPackingEngagementSchema = z.object({
+  arm: z.string(),
+  /** The long-output tasks the run selected. */
+  longOutputTasks: z.array(z.string()),
+  /** Those on which the arm never sent a placeholder. */
+  unengaged: z.array(z.string()),
+  held: z.boolean(),
+})
 
 export const evalReportSchema = z.discriminatedUnion('version', [
   z.object({
@@ -107,6 +131,8 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     ...evalReportFields,
     version: z.literal(EVAL_REPORT_VERSION),
     arms: z.array(evalArmReportSchema),
+    /** Recorded by a run with a packing arm (M73); absent otherwise. */
+    packingEngagement: z.optional(evalPackingEngagementSchema),
   }),
 ])
 export type EvalReport = z.infer<typeof evalReportSchema>
@@ -171,6 +197,18 @@ function armLines(arm: ReportArm): string[] {
     )
   }
   lines.push(``)
+  const packed = arm.results.filter((result) => result.packedTokensAvoided !== undefined)
+  if (packed.length > 0) {
+    lines.push(
+      `| Task | Packing saved (estimated tokens) | Recalls |`,
+      `| --- | --- | --- |`,
+      ...packed.map(
+        (result) =>
+          `| ${result.taskId} | ${recordedCount(result.packedTokensAvoided)} | ${recordedCount(result.recalls)} |`,
+      ),
+      ``,
+    )
+  }
   for (const summary of arm.summaries) {
     lines.push(
       summary.tasks === 0
@@ -240,5 +278,17 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
     )
   }
   lines.push(``)
+  if (report.version === EVAL_REPORT_VERSION && report.packingEngagement !== undefined) {
+    const engagement = report.packingEngagement
+    const listed = (ids: readonly string[]) => (ids.length === 0 ? 'none' : ids.join(', '))
+    lines.push(
+      `## Packing engaged (M73)`,
+      ``,
+      `| Arm | Long-output tasks | Never packed | Held |`,
+      `| --- | --- | --- | --- |`,
+      `| ${engagement.arm} | ${listed(engagement.longOutputTasks)} | ${listed(engagement.unengaged)} | ${engagement.held ? 'yes' : 'no'} |`,
+      ``,
+    )
+  }
   return lines.join('\n')
 }
