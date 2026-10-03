@@ -14,6 +14,7 @@ export function buildModelApiBundle(folder: string): string {
     entryPoints: {
       [path.parse(MODEL_API_BUNDLE_FILE).name]: path.resolve('src/host/backend/modelApiEntry.ts'),
       [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
+      reviewerEntry: path.resolve('src/core/backends/modelapi/reviewerEntry.ts'),
     },
     outdir: folder,
     bundle: true,
@@ -22,6 +23,7 @@ export function buildModelApiBundle(folder: string): string {
     // The extension host of the floor, VS Code 1.99 (scripts/build.mjs, PLAN.md M62).
     target: 'node20.18',
     logLevel: 'silent',
+    external: ['./reviewerEntry.js'],
   })
   return file
 }

@@ -46,34 +46,8 @@ const HEAD_ARGS = ['rev-parse', '--verify', 'HEAD^{commit}']
 const CLEAN_ARGS = ['status', '--porcelain=v1', '-z', '--untracked-files=normal']
 const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 
-/** Why a run command was refused; the host says it in the user's language. */
-export type BestOfNRefusal =
-  | 'noWorkspace'
-  | 'untrusted'
-  | 'wrongBackend'
-  | 'paidOff'
-  | 'invalid'
-  | 'unknownModel'
-  | 'consentDeclined'
-  | 'worktreeFailed'
-  | 'alreadyRunning'
-  | 'noRun'
-  | 'unknownAttempt'
-  | 'attemptNotDone'
-  | 'alreadyTaken'
-  | 'contextChanged'
-  | 'targetChanged'
-  | 'budgetUnavailable'
-
-export class BestOfNError extends Error {
-  public constructor(
-    public readonly refusal: BestOfNRefusal,
-    public readonly detail?: string,
-  ) {
-    super(detail === undefined ? refusal : `${refusal}: ${detail}`)
-    this.name = 'BestOfNError'
-  }
-}
+import { BestOfNError, isBestOfNError } from './bestOfNError'
+export { BestOfNError } from './bestOfNError'
 
 /** An attempt's conversation, started by the host around a worktree. */
 export interface BestOfNAttemptDriver {
@@ -826,7 +800,7 @@ export class BestOfNRunner {
         this.disposeOf(entry)
       }
       run.controller.abort()
-      if (error instanceof BestOfNError) {
+      if (isBestOfNError(error)) {
         throw error
       }
       const detail = error instanceof Error ? error.message : String(error)
@@ -912,7 +886,7 @@ export class BestOfNRunner {
       }
       run.takenBranch = entry.attempt.branch
     } catch (error: unknown) {
-      if (error instanceof BestOfNError) {
+      if (isBestOfNError(error)) {
         throw error
       }
       const detail = error instanceof Error ? error.message : String(error)

@@ -27,7 +27,14 @@ import path from 'node:path'
 import process from 'node:process'
 
 const STAGE = path.join('dist', 'acp-package')
-const BUNDLES = ['acp.js', 'modelApi.js', 'uiText.js', 'searchWorker.js', 'pageWorker.js']
+const BUNDLES = [
+  'acp.js',
+  'modelApi.js',
+  'reviewer.js',
+  'uiText.js',
+  'searchWorker.js',
+  'pageWorker.js',
+]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
 const JOB_SOURCES = [

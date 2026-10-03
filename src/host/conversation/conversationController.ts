@@ -47,7 +47,8 @@ import {
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
-import { BestOfNError, type BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
+import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
+import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { chatReferenceText } from '../../core/chatReference'
@@ -143,8 +144,8 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
-import { BestOfNManager } from '../bestOfN/bestOfNManager'
-import { collectSessionBoard } from '../sessionBoard'
+import type { BestOfNManager } from '../bestOfN/bestOfNManager'
+import { uiLocale } from '../../shared/l10n/text'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { SubagentUsage } from '../../shared/paid'
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
@@ -2633,44 +2634,53 @@ export class ConversationController {
 
   // --- Session board and best-of-N (M77) ---
 
-  private bestOfN(): BestOfNManager {
-    this.bestOfNManager ??= new BestOfNManager({
-      coordinator: this.deps.bestOfNCoordinator,
-      getAccountId: this.deps.modelApiAccountId,
-      getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
-      openWorktree: this.deps.openBestOfNWorktree,
-      noteAttemptRequest: this.deps.noteBestOfNRequest,
-      noteAttemptUsage: this.deps.noteBestOfNUsage,
-      hasDirtyEditors: () => this.deps.unsavedFiles().length > 0,
-      contextId: () =>
-        `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
-      isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
-      allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
-      notePaidUse: (attempts) => {
-        this.deps.notePaidUse('bestOfN', attempts)
+  private async bestOfN(): Promise<BestOfNManager> {
+    const generation = this.sendInvalidationEpoch
+    const { createBestOfNManager } = await import('../sessionBoardEntry')
+    if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+      throw new Error(UI_TEXT.bestOfNContextChanged)
+    }
+    this.bestOfNManager ??= createBestOfNManager(
+      {
+        coordinator: this.deps.bestOfNCoordinator,
+        getAccountId: this.deps.modelApiAccountId,
+        getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
+        openWorktree: this.deps.openBestOfNWorktree,
+        noteAttemptRequest: this.deps.noteBestOfNRequest,
+        noteAttemptUsage: this.deps.noteBestOfNUsage,
+        hasDirtyEditors: () => this.deps.unsavedFiles().length > 0,
+        contextId: () =>
+          `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
+        isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
+        allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+        notePaidUse: (attempts) => {
+          this.deps.notePaidUse('bestOfN', attempts)
+        },
+        runGit: (args, cwd, timeoutMs, input, beforeRun) =>
+          (this.deps.runBestOfNGit ?? this.deps.runGit)(args, cwd, timeoutMs, input, beforeRun),
+        repositoryRoot: () => this.deps.workspaceRoot,
+        platform: this.deps.platform,
+        buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
+          this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
+        modelId: () => this.modelId,
+        wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+        isTrusted: () => this.deps.isWorkspaceTrusted(),
+        realPath: (absolutePath) => this.deps.realPath(absolutePath),
+        onUpdate: (run) => {
+          this.lastBestOfNRun = run
+          this.post({ type: 'bestOfNUpdate', run })
+        },
+        log: this.deps.log,
       },
-      runGit: (args, cwd, timeoutMs, input, beforeRun) =>
-        (this.deps.runBestOfNGit ?? this.deps.runGit)(args, cwd, timeoutMs, input, beforeRun),
-      repositoryRoot: () => this.deps.workspaceRoot,
-      platform: this.deps.platform,
-      buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
-        this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
-      modelId: () => this.modelId,
-      wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
-      isTrusted: () => this.deps.isWorkspaceTrusted(),
-      realPath: (absolutePath) => this.deps.realPath(absolutePath),
-      onUpdate: (run) => {
-        this.lastBestOfNRun = run
-        this.post({ type: 'bestOfNUpdate', run })
-      },
-      log: this.deps.log,
-    })
+      UI_TEXT,
+      uiLocale(),
+    )
     return this.bestOfNManager
   }
 
   /** A settled best-of-N call's failure as a notice; the callers share it. */
   private noticeBestOfNFailure(error: unknown, attemptId?: string): void {
-    if (error instanceof BestOfNError) {
+    if (isBestOfNError(error)) {
       this.notice('warning', this.bestOfNErrorText(error, attemptId))
     } else {
       this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`)
@@ -2746,22 +2756,29 @@ export class ConversationController {
       return
     }
     const generation = this.sendInvalidationEpoch
+    const isCurrent = () => generation === this.sendInvalidationEpoch && !this.isDisposed
     try {
-      const rows = await collectSessionBoard({
-        ensureHost: () => this.deps.ensureHost(),
-        backendOf: (host) => host.info.kind,
-        workspaceRoot: this.deps.workspaceRoot,
-        isWorkspaceTrusted: () => this.deps.isWorkspaceTrusted(),
-        runGit: (args, cwd, timeoutMs) => this.deps.runGit(args, cwd, timeoutMs),
-        platform: this.deps.platform,
-        currentSessionId: this.session?.sessionId,
-        currentTurnId: this.activeTurnId,
-        pendingPrompts: this.deps.pendingPrompts,
-        attemptRuns: this.deps.bestOfNCoordinator.snapshots(),
-        liveSessions: this.deps.boardSessions?.(),
-        log: this.deps.log,
-      })
-      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+      const { readSessionBoard } = await import('../sessionBoardEntry')
+      if (!isCurrent()) return
+      const rows = await readSessionBoard(
+        {
+          ensureHost: () => this.deps.ensureHost(),
+          backendOf: (host) => host.info.kind,
+          workspaceRoot: this.deps.workspaceRoot,
+          isWorkspaceTrusted: () => this.deps.isWorkspaceTrusted(),
+          runGit: (args, cwd, timeoutMs) => this.deps.runGit(args, cwd, timeoutMs),
+          platform: this.deps.platform,
+          currentSessionId: this.session?.sessionId,
+          currentTurnId: this.activeTurnId,
+          pendingPrompts: this.deps.pendingPrompts,
+          attemptRuns: this.deps.bestOfNCoordinator.snapshots(),
+          liveSessions: this.deps.boardSessions?.(),
+          log: this.deps.log,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      if (!isCurrent()) {
         return
       }
       this.post({ type: 'sessionBoard', rows: [...rows] })
@@ -2783,7 +2800,8 @@ export class ConversationController {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
-      await this.bestOfN().start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const manager = await this.bestOfN()
+      await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch) {
         return
@@ -2798,7 +2816,8 @@ export class ConversationController {
       const beginWorkspaceEdits = this.deps.bestOfNWorkspaceEdits?.(
         this.sessionKind === 'modelApi' ? this.session : undefined,
       )
-      const run = await this.bestOfN().take(attemptId, runId, beginWorkspaceEdits)
+      const manager = await this.bestOfN()
+      const run = await manager.take(attemptId, runId, beginWorkspaceEdits)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -2816,7 +2835,8 @@ export class ConversationController {
   private async cancelBestOfN(runId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      await this.bestOfN().cancel(runId)
+      const manager = await this.bestOfN()
+      await manager.cancel(runId)
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch) {
         return
@@ -6299,7 +6319,8 @@ export class ConversationController {
       }
       case 'openBestOfNAttempt': {
         try {
-          await this.bestOfN().open(message.attemptId, message.runId)
+          const manager = await this.bestOfN()
+          await manager.open(message.attemptId, message.runId)
         } catch (error: unknown) {
           this.noticeBestOfNFailure(error, message.attemptId)
         }

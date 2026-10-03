@@ -156,6 +156,36 @@ const START: BestOfNStart = {
   isCurrent: () => true,
 }
 
+class OtherBundleError extends Error {
+  public constructor(public readonly refusal: string) {
+    super(refusal)
+    this.name = 'BestOfNError'
+  }
+}
+
+describe('best-of-N errors from another bundle', () => {
+  it('preserves the eager host refusal instead of relabeling it as a worktree failure', async () => {
+    const refusal = new OtherBundleError('budgetUnavailable')
+    const t = runnerWith({ deps: { getBudgetScope: () => Promise.reject(refusal) } })
+    await expect(t.runner.start(START)).rejects.toBe(refusal)
+    expect(t.noted).toEqual([])
+  })
+  it('preserves a refusal from the eager write boundary during Take', async () => {
+    const refusal = new OtherBundleError('contextChanged')
+    const t = runnerWith({
+      git: (args) => {
+        if (args[0] === 'apply') throw refusal
+        if (args[1] === '--numstat') return ''
+        return args[0] === 'diff' ? 'diff --git a/src/a.ts b/src/a.ts\n' : ''
+      },
+    })
+    await t.runner.start(START)
+    completeAll(t.drivers, ['bon-m1-1-0', 'bon-m1-1-1', 'bon-m1-1-2'])
+    await awaitCompletedRun(t.updates)
+    await expect(t.runner.take('bon-m1-1-0')).rejects.toBe(refusal)
+  })
+})
+
 function fire(
   drivers: Map<string, ScriptedDriver>,
   attemptId: string,

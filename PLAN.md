@@ -223,12 +223,25 @@ quality`) and as a CI job.
 | `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
 | `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
+| `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                 |
+| `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                               |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
 
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
+**M78b implementation scope (2026-10-02): deferred cohort bundles.**
+Kubuntu's production metafiles at `12060f84` measure activation at 613.0 KiB
+and the Model API backend at 406.0 KiB, above their unchanged 600/400 KiB
+caps. Defer the session board and best-of-N implementation until a board
+or best-of-N action, and the Auto review execution until paid consent.
+Use dynamic imports, transfer the installed localization table, retain
+current policy/budget/cancellation guards across loading, and verify both
+metafile separation and ordinary startup/first-turn behavior. New artifact
+caps use measured size plus 15%, rounded up to 25 KiB. Certification goes
+in `docs/certification/m78.md`; no existing cap is raised.
+
 The build emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
 the Model API backend, the checkpoint store and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
@@ -3286,6 +3299,16 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### Q-M78b — Remaining Model API bundle overage (2026-10-02)
+
+After the action-only splits, activation is 589.1/600 KiB, the board is
+61.0/75 KiB and the reviewer is 55.2/75 KiB. Model API is 412,447 bytes:
+2,847 bytes (2.780273438 KiB) over its unchanged 400 KiB cap. This
+needs the lead's bounded next extraction or an explicit owner budget decision;
+no cap was raised. Metafile tables, first-use tests, red drills and scoped
+receipts are in `docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
+Production build and aggregate certification remain open.
 
 ### Q-M74 — Remaining automatic work (2026-09-29)
 
@@ -10737,6 +10760,8 @@ persistent Chrome profile; those attempted script changes were reverted.
 Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
+M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. The Model API budget stays 400 KiB. After deferring paid review it remains over cap; this is an open lead decision, not a waived or passing production build. See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
@@ -10752,8 +10777,8 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | File                                            | Construct                        | Reason                                                                                                                                                                                                | Added      |
 | ----------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                               | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`          | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                          | 2026-10-02 |
 | `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`    | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports. | 2026-09-30 |
-| `src/core/bestOfN/bestOfN.ts`                   | `error is BestOfNError`          | Checks Error name, a known refusal and optional string detail across the controller and activation bundles; no constructor identity is assumed.                                                       | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

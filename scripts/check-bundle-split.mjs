@@ -32,6 +32,26 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
+const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED = [
+  {
+    output: 'dist/sessionBoard.js',
+    metafile: 'dist/meta/sessionBoard.json',
+    files: [
+      'src/host/sessionBoardEntry.ts',
+      'src/host/sessionBoard.ts',
+      'src/host/bestOfN/bestOfNManager.ts',
+      'src/core/bestOfN/bestOfNRunner.ts',
+      'src/core/bestOfN/worktreeConversationHost.ts',
+      'src/core/bestOfN/bestOfN.ts',
+    ],
+  },
+  {
+    output: 'dist/reviewer.js',
+    metafile: 'dist/meta/reviewer.json',
+    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+]
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -111,14 +131,17 @@ const problems = []
 const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
-  const lists = Number(ACTIVATION_ALLOWED.has(name)) + Number(lazy.has(name))
+  const lists =
+    Number(ACTIVATION_ALLOWED.has(name)) +
+    Number(lazy.has(name)) +
+    Number(DEFERRED_ONLY.includes(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
     )
   }
 }
-for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy]) {
+for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)
   }
@@ -127,6 +150,17 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+for (const bundle of DEFERRED) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file)) {
+        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
+      }
+    }
+    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],
@@ -226,7 +260,13 @@ const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
 }
-for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, CHECKPOINT_STORE]) {
+for (const bundle of [
+  BUNDLES.activation,
+  BUNDLES.modelApi,
+  BUNDLES.acp,
+  CHECKPOINT_STORE,
+  ...DEFERRED,
+]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
     problems.push(`${bundle.output} duplicates ${ENGLISH_TABLE}`)
@@ -310,3 +350,4 @@ console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)

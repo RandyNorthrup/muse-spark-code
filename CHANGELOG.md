@@ -224,6 +224,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Defer the session board and best-of-N execution to their first action, and
+  Auto reviewer execution until paid consent. Each loads its own bundle with
+  the installed language, retaining current policy and budget admission.
+  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB;
+  the activation and Model API caps remain 600/400 KiB.
+
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid

@@ -790,6 +790,24 @@ function setup(
   }
 }
 
+describe('ConversationController: deferred best-of-N', () => {
+  it('loads the manager on its first action and recognizes its refusal across the boundary', async () => {
+    const t = setup()
+    try {
+      expect(
+        await lastNoticeText(t, {
+          type: 'startBestOfN',
+          prompt: 'refactor this',
+          attempts: 2,
+          requestCeilingPerAttempt: 2,
+        }),
+      ).toBe(UI_TEXT.bestOfNModelApiOnly)
+    } finally {
+      t.controller.dispose()
+    }
+  })
+})
+
 describe('ConversationController.surfaceReady', () => {
   it('does not restore an old account session while cancellation is pending', async () => {
     const t = setup()

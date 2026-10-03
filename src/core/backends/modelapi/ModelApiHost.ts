@@ -17,9 +17,7 @@ import type {
 import {
   AUTH_REQUIRED_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
-  AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
   AUTO_REVIEWER_RECENT_CALLS,
-  AUTO_REVIEWER_TIMEOUT_MS,
   BACKGROUND_INITIATOR_USER,
   CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
@@ -188,12 +186,8 @@ import {
   runCodeIntelRead,
 } from './codeIntelCalls'
 import type { PermissionSettings } from '../../permissionSettings'
-import {
-  parseReviewerAnswer,
-  type ReviewAnswer,
-  ReviewBreaker,
-  reviewerInput,
-} from './autoReviewer'
+import { ReviewBreaker } from './autoReviewer'
+import type { reviewPaidCall as ReviewPaidCall } from './reviewerEntry'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -236,6 +230,7 @@ import {
   type SessionBudgetClaim,
   SessionBudgetExceededError,
 } from './sessionBudget'
+import { uiLocale } from '../../../shared/l10n/text'
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
@@ -646,7 +641,7 @@ interface OpenReservation extends BudgetReservation {
 }
 
 /** A direct paid response owns its claim instead of borrowing the main request's state. */
-interface DirectResponseBudget {
+export interface DirectResponseBudget {
   readonly scope: OwnedSessionBudgetScope | undefined
   readonly claim: SessionBudgetClaim | undefined
   isSent: boolean
@@ -1178,32 +1173,6 @@ function cardNote(judgement: PermissionJudgement | undefined): string | undefine
   }
   const why = judgement.rule?.justification?.trim() ?? ''
   return why === '' ? UI_TEXT.approvalAskRuleNote : fill(UI_TEXT.approvalAskRuleWhy, { why })
-}
-
-/** What one stream event adds to an Auto review (M78): text, the usage, or how it failed. */
-function reviewPart(event: StreamEvent): {
-  readonly text: string
-  readonly usage?: Usage | null | undefined
-  readonly failure?: string
-} {
-  switch (event.type) {
-    case 'response.output_text.delta': {
-      return { text: event.delta }
-    }
-    case 'response.completed': {
-      return { text: '', usage: event.response.usage }
-    }
-    case 'response.failed':
-    case 'response.incomplete': {
-      return { text: '', usage: event.response.usage, failure: event.type }
-    }
-    case 'error': {
-      return { text: '', failure: `error ${event.code ?? 'unknown'}` }
-    }
-    default: {
-      return { text: '' }
-    }
-  }
 }
 
 /** A shell command a forbid rule refused (M78): the model hears the rule's reason, if it has one. */
@@ -3724,221 +3693,62 @@ export class ModelApiSession implements AgentSession {
     if (!isAllowed || !isCurrent()) {
       return undefined
     }
+    let reviewPaidCall: typeof ReviewPaidCall
+    try {
+      const entry = await import('./reviewerEntry.js')
+      // The packaged function's signature comes from this same source build.
+      const exported: unknown = entry.reviewPaidCall
+      if (typeof exported !== 'function') throw new Error('Invalid Auto reviewer export')
+      reviewPaidCall = entry.reviewPaidCall
+    } catch {
+      if (signal.aborted) throw new AbortedError()
+      this.deps.log.warn('The Auto reviewer bundle could not be loaded; the user decides')
+      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+    }
+    if (!isCurrent()) return undefined
     const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-    const started: ItemSnapshot = {
-      itemId: this.deps.newId(),
-      kind: 'toolCall',
-      status: IN_PROGRESS,
-      turnId,
-      tool: AUTO_REVIEW_ROW_TOOL,
-      args: JSON.stringify({ tool: call.name, action }),
-      paid: 'autoReviewer',
-    }
-    // The row is the transcript's, never the model's: it is not replayed.
-    this.recordTranscript(turnId, started)
-    this.emit({ type: 'itemStarted', item: started })
-    let answer: ReviewAnswer | 'failed' | 'unreadable'
-    try {
-      answer = await this.callReviewer(
-        call.name,
-        action,
-        turnId,
-        signal,
-        {
-          modelId,
-          keyDigest,
-          isStillAllowed: () =>
-            isCurrent() &&
-            (budgetScope === undefined
-              ? this.deps.sessionBudgetUsd() === 0
-              : budgetScope.isStillAllowed(keyDigest)),
-          onRequestStarted: () => {
-            this.deps.notePaidUse('autoReviewer', 1)
-          },
+    return await reviewPaidCall(
+      {
+        deps: this.deps,
+        table: UI_TEXT,
+        locale: uiLocale(),
+        breaker: this.reviewBreaker,
+        userRequest: this.lastUserText(),
+        recentCalls: this.recentCalls(turnId),
+        keyed: (request) => this.keyed(request),
+        guard: (body, budget) => this.responseAttemptGuard(body, budget),
+        isCountedUsage,
+        abortError: () => new AbortedError(),
+        isRefused: (error) =>
+          error instanceof ModelApiError &&
+          (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
+        emit: (event) => {
+          this.emit(event)
         },
-        budgetScope,
-      )
-    } catch (error: unknown) {
-      const completed: ItemSnapshot = { ...started, status: CANCELLED }
-      this.emit({ type: 'itemCompleted', item: completed })
-      this.rerecordTranscript(completed)
-      throw error
-    }
-    if (!isCurrent()) {
-      answer = 'failed'
-    }
-    const isAllowedByReviewer =
-      isCurrent() && typeof answer !== 'string' && answer.decision === 'allow'
-    if (this.reviewBreaker.record(isAllowedByReviewer)) {
-      this.deps.log.warn('The Auto reviewer stopped for the rest of the turn: its breaker tripped')
-      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoReviewerTripped })
-    }
-    let note: string
-    if (answer === 'failed') {
-      note = UI_TEXT.autoReviewerFailed
-    } else if (answer === 'unreadable') {
-      note = UI_TEXT.autoReviewerUnreadable
-    } else {
-      note = fill(
-        answer.decision === 'allow' ? UI_TEXT.autoReviewAllowed : UI_TEXT.autoReviewAsked,
-        { reason: answer.reason },
-      )
-    }
-    const completed: ItemSnapshot = {
-      ...started,
-      status: answer === 'failed' ? FAILED : COMPLETED,
-      visibleOutput: note,
-      ...(answer === 'failed' && { failureReason: note }),
-    }
-    this.emit({ type: 'itemCompleted', item: completed })
-    this.rerecordTranscript(completed)
-    return isAllowedByReviewer ? { decision: 'allow' } : { decision: 'ask', note }
-  }
-
-  /**
-   * The reviewer's one request: no tools, no retry, its own deadline, billed
-   * as it is admitted and only while the feature is still on. Its tokens are
-   * counted for Account & usage, never in the conversation's.
-   */
-  private async callReviewer(
-    tool: string,
-    action: string,
-    turnId: string,
-    signal: AbortSignal,
-    confirmed: ConfirmedModelRequest,
-    budgetScope: OwnedSessionBudgetScope | undefined,
-  ): Promise<ReviewAnswer | 'failed' | 'unreadable'> {
-    const input = reviewerInput({
-      userRequest: this.lastUserText(),
-      recentCalls: this.recentCalls(turnId),
-      tool,
+        record: (item, isStarted) => {
+          if (isStarted) this.recordTranscript(turnId, item)
+          else this.rerecordTranscript(item)
+        },
+      },
+      call.name,
       action,
-      workspaceRoot: this.deps.workspaceRoot,
-      platform: this.deps.platform,
-    })
-    let body = this.keyed({
-      model: confirmed.modelId,
-      input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: input }] }],
-      instructions: MODEL_TEXT.autoReviewerInstructions,
-      tools: [],
-      tool_choice: 'auto',
-      reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
-      stream: true,
-      store: false,
-      include: ['reasoning.encrypted_content'],
-      max_output_tokens: AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
-    })
-    const modelId = confirmed.modelId
-    let text = ''
-    let usage: Usage | null | undefined
-    let claim: SessionBudgetClaim | undefined
-    let directBudget: DirectResponseBudget | undefined
-    let reservedUsd = 0
-    let wasRefused = false
-    try {
-      if (budgetScope !== undefined) {
-        const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-        const capUsd = budgetScope.capUsd()
-        const input = estimateInput(requestParts(body), undefined).inputTokens
-        if (capUsd > 0) {
-          const reservation = reserveRequest({
-            capUsd,
-            spentUsd: total.spentUsd,
-            estimatedInputTokens: input,
-            modelId,
-          })
-          body = {
-            ...body,
-            max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-          }
-        }
-        reservedUsd = estimateCostUsd(
-          { inputTokens: input, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-          modelId,
-        )
-        claim = await budgetScope.journal.reserve(
-          budgetScope.sessionId,
-          budgetScope.accountId,
-          reservedUsd,
-          { isUnbounded: capUsd === 0 },
-        )
-      }
-      directBudget = { scope: budgetScope, claim, isSent: false }
-      const required = this.responseAttemptGuard(body, directBudget)
-      const admission: ResponseAttemptGuard = Object.assign(
-        (actualKeyDigest: string | undefined) => {
-          required(actualKeyDigest)
+      turnId,
+      signal,
+      {
+        modelId,
+        keyDigest,
+        isStillAllowed: () =>
+          isCurrent() &&
+          (budgetScope === undefined
+            ? this.deps.sessionBudgetUsd() === 0
+            : budgetScope.isStillAllowed(keyDigest)),
+        onRequestStarted: () => {
+          this.deps.notePaidUse('autoReviewer', 1)
         },
-        {
-          onRequestStarted: () => {
-            required.onRequestStarted?.()
-            confirmed.onRequestStarted()
-          },
-        },
-      )
-      const events = this.deps.client.streamResponse(
-        body,
-        AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
-        undefined,
-        // Its one attempt: a failed review asks the user, it is never sent again.
-        { retriesUsed: MODEL_API_MAX_RETRIES },
-        admission,
-        {
-          ...confirmed,
-          onRequestStarted: () => {
-            // The combined admission observer above counts this paid use once.
-          },
-        },
-      )
-      for await (const event of events) {
-        const part = reviewPart(event)
-        text += part.text
-        if (part.usage !== undefined) {
-          if (part.usage !== null && !isCountedUsage(part.usage)) {
-            usage = undefined
-            throw new Error('Invalid reviewer usage')
-          }
-          usage = part.usage
-        }
-        if (part.failure !== undefined) {
-          throw new Error(`the review ended with ${part.failure}`)
-        }
-      }
-    } catch (error: unknown) {
-      wasRefused =
-        error instanceof ModelApiError &&
-        (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
-      if (signal.aborted) {
-        throw new AbortedError()
-      }
-      this.deps.log.warn('The Auto reviewer call failed; the user decides')
-      return 'failed'
-    } finally {
-      if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
-        this.deps.noteReviewerUsage(modelId, {
-          inputTokens: usage.input_tokens,
-          outputTokens: usage.output_tokens,
-          cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-        })
-      }
-      if (claim !== undefined) {
-        const wasSent = directBudget?.isSent === true
-        const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
-        let costUsd = wasSent && !wasRefused ? reservedUsd : 0
-        if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
-          costUsd = estimateCostUsd(
-            {
-              inputTokens: usage.input_tokens,
-              outputTokens: usage.output_tokens,
-              cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-            },
-            modelId,
-          )
-        }
-        await claim.settle(costUsd, wasSent && !wasRefused && !hasUsage)
-      }
-    }
-    return parseReviewerAnswer(text) ?? 'unreadable'
+      },
+      budgetScope,
+      isCurrent,
+    )
   }
 
   /** The user's latest message as they typed it, for the reviewer. */

@@ -176,6 +176,7 @@ jobs:
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
             extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js extension/dist/uiText.js \
+            extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
@@ -194,7 +195,7 @@ jobs:
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
-          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js \
+          for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/reviewer.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json; do
