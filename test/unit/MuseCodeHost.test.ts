@@ -1987,6 +1987,21 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(log.info).toHaveBeenCalledWith('Muse Code answers again; commands are sent again')
   })
 
+  it('sends again once Muse Code asks something of its own', async () => {
+    const { host, server } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 0 } })
+    server.silence('model/list')
+    for (let miss = 0; miss < MSP_UNRESPONSIVE_MISSES; miss += 1) {
+      await expect(host.listModels()).rejects.toThrow('Muse Code did not answer model/list')
+    }
+    await expect(host.startSession(startOptions)).rejects.toThrow(UI_TEXT.museCodeNotAnswering)
+    // A prompt for a session this connection never opened is still a frame.
+    server.serverRequest('approval/request', { sessionId: 'elsewhere' })
+    await settle()
+    await expect(host.startSession(startOptions)).resolves.toMatchObject({
+      sessionId: 'session-for-muse-spark-1.3',
+    })
+  })
+
   it('keeps sending while Muse Code was heard within the silence, however many deadlines pass', async () => {
     const { host, server } = setup({ timeouts: { ...FAST, unresponsiveSilenceMs: 60_000 } })
     const told = vi.fn()

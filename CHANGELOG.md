@@ -345,6 +345,46 @@ happened, not what was planned; superseded entries are kept.
     retry; later ones go to the log until a read succeeds.
   - Collapsing and expanding the row asks again. The row keeps the diff it
     already shows, and the turn goes on meanwhile.
+- **A message sent while a turn runs is never sent twice (0.10.x).** When
+  Muse Code did not answer the steer within 60 s, the panel sent the same
+  message again as a new turn, and a slow Muse Code took both: the copy
+  waited in its queue and ran (or failed) after the turn. Now only Muse
+  Code saying no turn is there to take it sends the message as a new turn.
+  A steer with no answer fails the message's card with "Muse Code did not
+  confirm your message reached the running turn. It may still arrive; check
+  before you send it again.", and the composer keeps the text; any other
+  refusal is said in its own words.
+- **A Muse Code that stops answering no longer leaves every action waiting
+  60 s.** On 2026-10-03 `muse serve` stopped writing anything at all (one
+  core busy), and every command (a message, a new chat, Stop) waited out
+  its deadline, with no way out but reloading the window. Now, after three
+  commands in a row missed their deadline with nothing at all from Muse
+  Code for 90 s, it counts as not answering: new commands fail at once
+  ("Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
+  Code"."), and anything Muse Code sends clears it. With no turn running in
+  the window it is restarted at once and the panel says so; while a turn
+  runs, that panel's notice offers **Restart now**, which stops the turn.
+- **Muse Spark: Restart Muse Code** starts a fresh `muse serve` without
+  reloading the window. A running turn is stopped, and each conversation
+  continues with its next message. A fault notice's **Restart now** does
+  the same.
+- **A conversation whose Muse Code log is damaged says so.** Muse Code
+  1.4.2 can fail a session's event log ("event log failed: …", a fault in
+  Muse Code), after which it fails every message of that session. The
+  panel now remembers such a session (the newest 50 in each workspace): it
+  is never resumed by itself after a restart or a reload, and a message to
+  it is refused before Muse Code hears of it, with a notice offering **New
+  conversation**. The conversation stays in History.
+- **Moving the effort slider no longer sends a change per step.** Eight
+  quick steps sent eight `session/setReasoningEffort` at once, and a busy
+  Muse Code failed each with its own warning. Now one change per
+  conversation is in flight, the newest waits, and a failed burst is said
+  once.
+- **Edit rows no longer read all their diffs at once after a resume.**
+  Every open edit row asked for its stored diff at the same instant (26 at
+  once in the owner's session). At most four reads go to Muse Code at a
+  time, in order, and one for a conversation no longer shown is never
+  sent.
 
 ## [0.10.1] - 2026-10-02
 

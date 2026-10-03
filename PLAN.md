@@ -1241,6 +1241,52 @@ and record Kubuntu results in `docs/certification/approval-decisions.md`.
 FIX90 explicitly delegates full quality and publication to the lead; this lane
 runs its focused tests and checks on the rig, with the configured commit hooks.
 
+**CLI recovery (2026-10-03).** The owner's session of 2026-10-02/03 on Muse
+Code 1.4.2: a steer that missed its 60 s deadline was sent again as a new
+turn, and Muse Code took both; the session's event log then failed every
+message; at last `muse serve` stopped answering (one core busy, no frame
+written), every command waited out its deadline, and only a window reload
+got out. Released-behaviour fixes within D25 and D26, the lead's design
+(`docs/certification/cli-recovery.md`):
+
+- **Steer.** Only a `commandRejected` whose reason says no turn took it
+  (`MSP_STEER_NO_TURN_REASONS`) is a `SteerRefusedError`, after which the
+  message goes as a new turn. A steer with no answer fails the message's
+  card in words that say it may still arrive (`steerUnconfirmed`); any other
+  refusal keeps its own words. Nothing is sent twice. The Model API's own
+  steer refusals are all `SteerRefusedError`, so its fallback is unchanged.
+  The reason Muse Code sends was not captured live (§3).
+- **The watchdog.** Every frame from `muse serve` is heard. At
+  `MSP_UNRESPONSIVE_MISSES` (3) missed deadlines in a row with nothing heard
+  for `MSP_UNRESPONSIVE_SILENCE_MS` (90 s), Muse Code is not answering: one
+  log line, one event, and new commands fail at once until a frame comes.
+  With no turn running in the window, Muse Code alone is restarted and each
+  panel on it says so in a plain notice; while a turn runs, that panel's
+  notice offers D26's Restart now. The lead moved both off VS Code's own
+  messages so they sit in the chat. The ACP agent has no window to decide:
+  there commands fail at once and the log says why.
+- **Muse Spark: Restart Muse Code** (`museSpark.restartMuseCode`), the same
+  restart as a notice's Restart now: Muse Code alone stops, a fresh host
+  starts, and each conversation resumes with its next message (D25).
+- **A damaged session log.** A turn that failed, or a session command
+  refused, with `MUSE_EVENT_LOG_FAULT` ("event log failed") marks its session
+  damaged in `workspaceState` (`museSpark.damagedSessions`, the newest
+  `DAMAGED_SESSIONS_KEPT` = 50). Such a session is never resumed by itself
+  (after a restart, a crash or a reload) and a message or action for it is
+  refused before any Muse Code command, with a notice offering New
+  conversation; History still opens it. `turn/unqueue` is not used: its
+  effect on the stale queued turn is unverified.
+- **Effort changes.** One `session/setReasoningEffort` in flight per
+  session; a newer value replaces the one waiting and is sent when the
+  first settles if it differs; a failed burst is said once.
+- **Stored-output reads.** At most `MSP_READ_OUTPUT_CONCURRENCY` (4)
+  `item/readOutput` per conversation at once, in order (`FifoLimiter`); a
+  read whose conversation is no longer shown when its turn comes is never
+  sent, and fails silently as a stale read does.
+
+Full `npm run quality` and publication remain the lead's work; this lane ran
+its focused tests on the Win11 rig and the static gates on the host.
+
 ### D27 — The audit: editing correctness (2026-09-23)
 
 Section D of the audit (D24): the Model API's file tools, Edit Review and
@@ -3379,6 +3425,16 @@ focused behavioral evidence and SHA-256-restored red drills go in
 
 ## 3. Open questions (need the owner)
 
+- **CLI recovery, the steer refusal's reason:** which `commandRejected`
+  reason does Muse Code send for a `turn/steer` whose `expectedTurnId` is no
+  longer the running turn? It was not captured live (this lane had no model
+  call): the 1.4.2 binary documents "an id that is not the running turn is
+  refused", and its CommandRejectionReason vocabulary holds
+  `invalid_target`, `missing_run` and `already_terminal`, which the
+  extension takes as "no turn took it" (D26, CLI recovery). A different
+  reason now fails the message in its own words instead of sending it as a
+  new turn. Default: those three, until one short live turn (start a turn,
+  let it end, steer it) captures the real one.
 - **M72 native/process exclusion:** what upstream pre-edit fence and locally
   owned full-descendant shutdown proof can make native/command/hook snapshots
   destructively restorable? Current availability refuses unproved process
