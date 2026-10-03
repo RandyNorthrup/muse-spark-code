@@ -786,16 +786,18 @@ describe('uiReducer: agent events', () => {
       host({ type: 'notice', level: 'warning', text: timeout }),
     ])
     expect(state.transcript).toEqual([
+      // Said before the message: it stays where it was said.
+      { kind: 'notice', id: 'notice:1', level: 'warning', text: timeout },
       expect.objectContaining({ kind: 'user', id: 'l1' }),
       expect.objectContaining({ kind: 'notice', text: 'Reasoning effort could not be applied' }),
-      { kind: 'notice', id: 'notice:4', level: 'warning', text: timeout, repeatCount: 3 },
+      { kind: 'notice', id: 'notice:4', level: 'warning', text: timeout, repeatCount: 2 },
     ])
-    expect(state.transcript[1]).not.toHaveProperty('repeatCount')
+    expect(state.transcript[2]).not.toHaveProperty('repeatCount')
     // Each one is still read out.
     expect(state.announcement).toEqual({ text: timeout, sequence: 4 })
     // The count survives a reload.
     expect(restoredUiState(webviewStateOf(state, true)).transcript.at(-1)).toMatchObject({
-      repeatCount: 3,
+      repeatCount: 2,
     })
   })
 

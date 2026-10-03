@@ -350,9 +350,10 @@ happened, not what was planned; superseded entries are kept.
   the same notice: "Could not load the output: … within 60 s" five times,
   "Reasoning effort could not be applied: …" seven times. That buried the
   chat. Now:
-  - A notice with the same level and text as one already shown replaces
-    it. The one row moves to the end of the conversation, with a small
-    count after its text ("7×", read out as "Shown 7 times").
+  - A notice with the same level and text as one in the run of notices
+    that ends the conversation replaces it. The one row moves to the end,
+    with a small count after its text ("7×", read out as "Shown 7 times").
+    A notice said before the last message stays where it was said.
   - Notices with a different text or level stay apart.
   - Each file restore's notice keeps its own row and its Redo.
   - A Muse Code fault said again offers its buttons again.

@@ -777,12 +777,27 @@ function isSameNotice(entry: TranscriptEntry, level: NoticeLevel, text: string):
   )
 }
 
+/** The index of a same notice among the notices that end the transcript, or -1. */
+function trailingRepeatIndex(
+  transcript: readonly TranscriptEntry[],
+  level: NoticeLevel,
+  text: string,
+): number {
+  for (let index = transcript.length - 1; index >= 0; index -= 1) {
+    const entry = transcript[index]
+    if (entry?.kind !== 'notice') return -1
+    if (isSameNotice(entry, level, text)) return index
+  }
+  return -1
+}
+
 /**
- * A notice at the end of the transcript. One said again (the same level and
- * text, D26: a busy Muse Code fails the same way many times) replaces the
- * earlier row rather than stacking: that row goes, and this one, at the end,
- * counts how many times it was said. A new id, so a spent button comes back
- * for the new failure.
+ * A notice at the end of the transcript. One said again among the notices
+ * that end it (the same level and text, D26: a busy Muse Code fails the same
+ * way many times) replaces the earlier row rather than stacking: that row
+ * goes, and this one, at the end, counts how many times it was said. A new
+ * id, so a spent button comes back for the new failure. A notice before the
+ * last message or tool row stays where it was said.
  */
 function withNotice(
   state: UiState,
@@ -793,9 +808,7 @@ function withNotice(
 ): UiState {
   const localSequence = state.localSequence + 1
   const repeatIndex =
-    redoRestoreId === undefined
-      ? state.transcript.findLastIndex((entry) => isSameNotice(entry, level, text))
-      : -1
+    redoRestoreId === undefined ? trailingRepeatIndex(state.transcript, level, text) : -1
   const repeated = state.transcript[repeatIndex]
   const repeatCount = repeated?.kind === 'notice' ? (repeated.repeatCount ?? 1) + 1 : undefined
   const transcript =

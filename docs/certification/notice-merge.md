@@ -28,10 +28,15 @@ reducer, the components and the harness's fake host.
 
 ## What changed
 
-- **The reducer** (`uiState.ts`, `isSameNotice` and `withNotice`):
-  - A notice with the same level and text as one already in the
-    transcript replaces it. The earlier row is removed, and the new row is
-    appended at the end with `repeatCount` (2, 3, …).
+- **The reducer** (`uiState.ts`, `isSameNotice`, `trailingRepeatIndex` and
+  `withNotice`):
+  - A notice with the same level and text as one among the notices that end
+    the transcript replaces it. The earlier row is removed, and the new row
+    is appended at the end with `repeatCount` (2, 3, …).
+  - A notice said before the last message or tool row stays where it was
+    said (lead's review: merging across the whole transcript would move an
+    old notice away from the turn it belongs to). The incident's burst is one
+    trailing run of notices, so it still collapses.
   - The row takes a new id, so a fault notice whose button was spent
     offers its buttons again for the new failure. `ActionNotice` is keyed
     by the id, so its local "spent" state starts over.
@@ -117,7 +122,7 @@ New tests:
 
 - `uiState.test.ts`:
   - "merges a notice said again into one row at the end, with its count":
-    three timeouts around a user message and another notice, count 3, a
+    three timeouts around a user message and another notice: the one before the message stays, the two after merge to count 2, a
     new id, announced each time, and the count restored from a snapshot.
   - "keeps notices apart when the text or the level differs, and each
     restore's own": the negative case, two texts, two levels and two
@@ -156,6 +161,13 @@ its SHA-256 checked (scratchpad `notice-merge/drills.mjs`, `drills.jsonl`,
 | 12  | row: the glyph is hidden from screen readers                       | `webview/components/Transcript.tsx`  | 1    | 1 failed, 289 passed (290) |
 | 13  | row: the count is read out in words                                | `webview/components/Transcript.tsx`  | 1    | 2 failed, 288 passed (290) |
 | 14  | tool row: a collapsed edit row reads nothing until expanded        | `webview/components/ToolRow.tsx`     | 1    | 2 failed, 288 passed (290) |
+
+| 15 | reducer: only the trailing run of notices merges (lead's change) | `webview/state/uiState.ts` | 1 | 1 failed, 130 passed (131) |
+
+Drill 15 ran on `uiState.test.ts` alone after the lead narrowed the merge to
+the trailing run of notices: searching past a non-notice row again failed
+"merges a notice said again into one row at the end", which now expects the
+notice said before the user's message to stay in place.
 
 Drill 14 breaks code this lane did not change. It shows that the new
 item-2 test, and PR #90's re-expand test beside it, both guard the
