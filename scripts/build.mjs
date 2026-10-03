@@ -2,7 +2,8 @@
 // Bundles the extension host entry, the Model API backend, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
-// webview, and (in dev mode) the integration tests with esbuild.
+// import from other agents (M83: the scan, the converters, the file access and
+// smol-toml, loaded on the first import), the webview, and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -48,6 +49,8 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
+const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
@@ -124,6 +127,18 @@ const planMarkdownOptions = {
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const agentImportOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [AGENT_IMPORT_ENTRY],
+  outfile: AGENT_IMPORT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -222,6 +237,7 @@ if (isWatch) {
     esbuild.context(modelApiOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(agentImportOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -235,6 +251,7 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    agentImport: esbuild.build(agentImportOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -261,6 +278,7 @@ if (isWatch) {
   reportSize(MODEL_API_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
+  reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

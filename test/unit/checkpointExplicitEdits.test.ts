@@ -3,9 +3,11 @@ import { renameSync, writeFileSync } from 'node:fs'
 import { link, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { applyImportWrites, type ImportWrite } from '../../src/core/import/agentImport'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { type CheckpointPort, withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { EditReview } from '../../src/host/editor/editReview'
+import { fileImportWriter } from '../../src/host/importIo'
 import { createPlanIo, type PlanIoOptions } from '../../src/host/planFeatures'
 import { ATOMIC_TEMPORARY_SUFFIX, PLAN_STAGE_STALE_MS, UI_TEXT } from '../../src/shared/constants'
 import {
@@ -81,14 +83,73 @@ function holdEditAdmission(port: CheckpointPort) {
   return { entered, resume }
 }
 
-type EditFamily = 'plan create' | 'plan cleanup' | 'review write' | 'review delete'
+type EditFamily =
+  | 'plan create'
+  | 'plan cleanup'
+  | 'review write'
+  | 'review delete'
+  | 'import create'
+  | 'import append'
+
+const IMPORTED_SKILL = "---\nname: imported\ndescription: 'Imported'\n---\n\nImported.\n"
+const IMPORTED_SECTION = '## Imported from Claude Code (CLAUDE.md)\n\nImported rules.'
+const RULES_BEFORE = 'base\n'
+
+/** An import from other agents (M83) as activation wires its publication: under the lease, a copy first, the user's once written. */
+async function importFile(
+  h: Harness,
+  family: Extract<EditFamily, `import ${string}`>,
+  { port, edit }: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
+): Promise<void> {
+  const isAppend = family === 'import append'
+  const write: ImportWrite = {
+    sourceExposure: 'project-tracked',
+    homeDir: h.root,
+    workspaceRoot: h.root,
+    candidateIds: ['imported'],
+    absolutePath: isAppend
+      ? path.join(h.root, 'AGENTS.md')
+      : path.join(h.root, '.agents', 'skills', 'imported', 'SKILL.md'),
+    content: isAppend ? `${IMPORTED_SECTION}\n` : IMPORTED_SKILL,
+    mode: isAppend ? 'append' : 'create',
+    sections: isAppend
+      ? [
+          {
+            candidateId: 'imported',
+            heading: IMPORTED_SECTION.split('\n', 1)[0] ?? '',
+            text: IMPORTED_SECTION,
+          },
+        ]
+      : [],
+    root: h.root,
+    isProject: true,
+    rootIdentity: await fileImportWriter.identifyRoot(h.root),
+  }
+  await edit(async (assertCanWrite) => {
+    const result = await applyImportWrites([write], fileImportWriter, process.platform, {
+      beforeWrite: () => assertCanWrite?.(),
+      beforeProjectWrite: (file) => {
+        port.refuseStorageWrite(file)
+      },
+    })
+    const [failure] = result.failures
+    if (failure !== undefined) {
+      throw new Error(failure.code)
+    }
+  })
+}
 
 /** One edit, wired as activation wires it: under the lease, never recorded (M86). */
 async function startEdit(
   h: Harness,
   family: EditFamily,
-  { edit }: Pick<ReturnType<typeof editLease>, 'edit'>,
+  lease: Pick<ReturnType<typeof editLease>, 'port' | 'edit'>,
 ) {
+  const { edit } = lease
+  if (family === 'import create' || family === 'import append') {
+    await importFile(h, family, lease)
+    return
+  }
   const io = planIo(h, edit)
   const folder = path.join(h.root, '.agents', 'plans')
   if (family === 'plan create') {
@@ -303,12 +364,18 @@ describe('current-main explicit workspace edits (M72/M79/M86)', () => {
   it.each<[EditFamily, string, string | undefined]>([
     ['plan create', `.agents/plans/${PLAN_NAME}`, '# Owned\n'],
     ['plan cleanup', `.agents/plans/${STALE_STAGE}`, undefined],
+    ['review write', 'review.txt', 'before\n'],
+    ['review delete', 'review.txt', undefined],
+    // RV83d #5: an accepted import is the user's, not the running turn's.
+    ['import create', '.agents/skills/imported/SKILL.md', IMPORTED_SKILL],
+    ['import append', 'AGENTS.md', `${RULES_BEFORE}\n${IMPORTED_SECTION}\n`],
   ])(
     "never records a %s the user made while a turn ran, so the turn's restore leaves it",
     async (family, relative, kept) => {
       const h = await harness()
       await write(h.root, 'a.txt', 'a0\n')
       await write(h.root, 'review.txt', 'after\n')
+      await write(h.root, 'AGENTS.md', RULES_BEFORE)
       // A save that failed long ago left its stage, which a plan action removes.
       await write(h.root, `.agents/plans/${STALE_STAGE}`, 'stale stage')
       const stale = new Date(Date.now() - PLAN_STAGE_STALE_MS - 1)

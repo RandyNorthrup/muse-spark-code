@@ -21,6 +21,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await rm(path.join(paths.root, 'elsewhere'), { force: true })
+  await rm(path.join(paths.root, 'dangling'), { force: true })
   await removeFolder(paths.root)
   await removeFolder(paths.outside)
 })
@@ -41,6 +42,21 @@ describe('canonicalPath', () => {
   it('resolves a link on the way, even to a file that does not exist yet', async () => {
     await expect(canonicalPath(path.join(paths.root, 'elsewhere', 'new.txt'))).resolves.toBe(
       path.join(paths.outside, 'new.txt'),
+    )
+  })
+})
+
+describe('canonicalPath and broken links (M83)', () => {
+  it('follows a broken link to where it leads only when asked', async () => {
+    await symlink(
+      path.join(paths.outside, 'missing'),
+      path.join(paths.root, 'dangling'),
+      'junction',
+    )
+    const inside = path.join(paths.root, 'dangling', 'AGENTS.md')
+    await expect(canonicalPath(inside)).resolves.toBe(inside)
+    await expect(canonicalPath(inside, { followsBrokenLinks: true })).resolves.toBe(
+      path.join(paths.outside, 'missing', 'AGENTS.md'),
     )
   })
 })

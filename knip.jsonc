@@ -21,6 +21,8 @@
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    // The import from other agents' own bundle (M83), required by path on the first import.
+    "src/host/agentImportEntry.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",

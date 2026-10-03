@@ -230,7 +230,8 @@ const storedSessionFields = {
     cachedTokens: z.number(),
     reasoningTokens: z.number(),
   }),
-  // Optional, so a session saved before M73 kept its ledger still reads.
+  // Optional, so a session saved before M73 kept its ledger still reads; a
+  // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
 } as const
 
@@ -268,9 +269,26 @@ export type StoredSessionParse =
   | { readonly ok: true; readonly session: StoredSession }
   | { readonly ok: false; readonly reason: string }
 
+/**
+ * A missing or corrupt packed-token estimate restarts at zero without losing
+ * the conversation (M73). zod's `catch` would do this too, but it keeps
+ * zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
+ */
+function withoutCorruptEstimate(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null || !('packedTokensAvoided' in raw)) {
+    return raw
+  }
+  const value: unknown = raw.packedTokensAvoided
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+    return raw
+  }
+  const { packedTokensAvoided: _dropped, ...rest } = raw
+  return rest
+}
+
 /** Validates one parsed JSON document. */
 export function parseStoredSession(raw: unknown): StoredSessionParse {
-  const result = storedSessionSchema.safeParse(raw)
+  const result = storedSessionSchema.safeParse(withoutCorruptEstimate(raw))
   if (!result.success) {
     return { ok: false, reason: z.prettifyError(result.error) }
   }

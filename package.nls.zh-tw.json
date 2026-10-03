@@ -22,6 +22,7 @@
   "command.openWalkthrough.title": "開啟逐步解說",
   "command.manageSkills.title": "管理技能",
   "command.importSkills.title": "從 Claude Code 或 Codex 匯入技能",
+  "command.importFromAgents.title": "從其他代理匯入",
   "command.exportConversation.title": "匯出對話",
   "command.importSession.title": "匯入工作階段",
   "command.openShareFile.title": "開啟共用檔案",

@@ -26,6 +26,18 @@ happened, not what was planned; superseded entries are kept.
   uses actual creation ownership.
   Identity metadata without file contents may outlive retired copies until
   the window that wrote it retires; removing extension storage clears it.
+- **Import from Claude Code, Codex and Cursor** (M83, PLAN.md D49, D64):
+  commands become skills, compatible agents become M76 agent files, project
+  rules append to `AGENTS.md`, and MCP servers/hooks open as unsaved target
+  editor edits for review and save. Import preserves source exposure:
+  personal stays personal and git-ignored files never enter tracked targets;
+  target exposure and path guards are checked again at publication/edit.
+  Values stay unchanged; no credential detector or clipboard operation.
+  Preview/picker output shows names, scopes and targets only, logs counts
+  and fixed reasons only. Only active MCP transport fields are copied;
+  inactive/unknown fields are dropped by name. Existing files and running
+  turn checkpoint ownership remain protected. Codex TOML uses `smol-toml`
+  1.8.0 in the existing lazy importer bundle. Lead certification pending.
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
@@ -49,7 +61,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -76,18 +90,56 @@ happened, not what was planned; superseded entries are kept.
     fresh random markers around the unchanged slice, so a page from the
     middle of a fetched web page keeps its boundary.
   - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
   - **The recall row speaks the display language.** Its heading and its
     refusals are in the installed language, with counts in its number
     format; the recalled text is shown as it was, and the model's text
     stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
   - **The live report records the packing acceptance.** The report says
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
     its Markdown.
+- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
+  optionally with a goal after it, asks the model — as your own turn in the
+  current conversation — for a distilled brief: the goal, the decisions,
+  the files touched, the open work and the todo list. Anything drawn from
+  tool output, fetched pages or imported files is marked `[untrusted]` in
+  the brief, and the new conversation is told what that means. The brief
+  opens in a dialog before anything starts, with the open items the new
+  todo list will hold: review it, edit it, then start the new
+  conversation, or cancel and nothing starts; a reloaded panel shows it
+  again, and a brief that is ready while Account & usage, the Agent map or a share file
+  is open waits until you close it. Starting leaves the old conversation
+  in History and seeds the new one through the plan brief path, with the
+  open items (never completed or dropped ones) as its todo list before
+  the first request. The model wrote the brief, so the new conversation
+  starts in your starting mode only when the dialog showed all of it: a
+  brief or an item holding a character the dialog does not show (a
+  direction override, a zero-width character) starts in a mode that asks,
+  and the panel says so. A handoff from Plan mode stays in Plan. Model API
+  backend only (on Muse Code the command says it is unavailable there).
+  Side chats are refused; one handoff runs at a time; a `/handoff` while a
+  reply runs is refused ("Wait for the reply to finish, or stop it,
+  first."), nothing queued; an oversized (over 256 KB) or empty brief is
+  refused with the reason; a refused `/handoff` stays in the prompt with
+  its goal. While a new API key is being activated, a Start is refused
+  before anything is left and the brief stays to start again, Cancel
+  still works, and a brief that arrives meanwhile opens with the next
+  `/handoff`. No new setting: nothing automatic runs. Automatic
+  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Changed
 
+- README: an install guide for the most used editors (VS Code, Cursor,
+  Windsurf/Devin Desktop, VSCodium, Kiro, Positron, JetBrains IDEs, Zed,
+  Neovim, Emacs), with the ACP agent's install command and Zed and JetBrains
+  settings; the README, banner and social preview now name no single editor
+  ("a coding agent in your editor"), and the README links every channel:
+  the VS Code Marketplace, Open VSX, npm and GitHub Releases.
 - Upgrade `html-encoding-sniffer` to 7.0.0 while preserving HTML's byte-order-mark
   and HTTP-header priority. XML declarations and BOM-less UTF-16 signatures stay
   tentative; HTML meta declarations still win or trigger a later reparse. Valid
@@ -96,6 +148,11 @@ happened, not what was planned; superseded entries are kept.
   bundle loads and converts pages in VS Code 1.99.0 (Node 20.18.3, the
   extension's floor), now in the integration run's `minimum` label too
   (`docs/certification/pr60-sniffer7.md`).
+- The dependency audit accepts GHSA-vfj7-8cjw-p6xm (`braces`, high) until
+  2026-11-01. No fixed release exists, and `braces` reaches only development
+  tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
+  VSIX or the ACP package loads it. The exception is removed when a fix ships
+  or npm stops reporting it (PLAN §7).
 - **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
   optionally with a goal after it, asks the model — as your own turn in the
   current conversation — for a distilled brief: the goal, the decisions,
