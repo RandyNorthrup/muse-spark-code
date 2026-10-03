@@ -1160,6 +1160,87 @@ action that fails is worse than hiding one that would work.
   #38/#53 and the launcher updates itself; the README names the switch
   only for someone stuck on R4161.1.
 
+**Amendment 2026-10-02: one decision per approval stage, and Muse Code's
+approval faults.** The owner's session of 2026-10-02 (0.10.0; Muse Code
+1.4.0-R4302.1, then 1.4.2-R4684.1) was read from its durable log and its
+view journal. The faults were then reproduced live with no model and no
+credential: `muse serve --provider meta` against a loopback fake of the
+Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
+
+- **What the "repeated answers" were.** Each "answered" line was a
+  separate stage of one multi-command line, except the decisions the card
+  sent again. The card reopened after every decide error and after every
+  60 s deadline. 1.4.2 reports its ledger fault (#29) for decisions it has
+  applied, and a busy host took one command in three minutes after it was
+  sent (23:49:40 → 23:52:33). The two decisions sent again were refused as
+  stale ("moved on").
+- **One decision per stage.**
+  - The card keeps the stage it sent in a ref, set at once (two clicks in
+    one frame send one). It also keeps a decided stage locked when the same
+    request is announced again.
+  - The session's `PromptLedger` records the stages sent. A second decision
+    for a stage, or one for a stage the approval has left, is never sent.
+  - A decision with no answer is never offered again, nor one Muse Code
+    applied while reporting its ledger fault. `approvalReopened` is posted
+    only when the host refused it and `approval/listPending` still names
+    that very stage.
+- **A stage moved by policy.** After a policy amendment, 1.4.2 can present
+  a stage that the new rule allows. It then refuses a decision for it with
+  `approvalRequirementStale`, naming the next stage, and never sends an
+  `approval/updated` for that one; `approval/listPending` also lags. The
+  card moves to the stage the refusal names (`advanceTo`), with that
+  stage's own `suggestedPrefix` label for the rule choice (or without the
+  choice), and says on itself that it moved (`approvalMovedOn`).
+  - **Not taken: carrying the choice to the next stage.** The next stage is
+    a different command, so an Allow carried over approves what the user
+    never saw, and an Always allow adds a different rule.
+- **The replay fault.** A turn cancelled under an approval with a stage
+  decided and one waiting leaves 1.4.2 refusing every `turn/start` with
+  -32603 "approval replay failed: decision stage evidence contains an
+  unrecorded human resolution", on Windows and Linux, until `muse serve`
+  restarts. On Windows, each decide of that session then reports the
+  ledger fault.
+  - Rejecting the waiting stage through `approval/decide` before the cancel
+    does not wedge. A Stop therefore rejects first (`rejectPartlyDecided`,
+    10 s at most per try).
+  - Both faults become `MuseCodeFaultError`. The controller names them
+    once per session, with the way on: Restart now (the `restartMuseCode`
+    host action, then D25's resume) and New conversation.
+  - Filed as a draft for meta-models/muse-code-sdk, not sent; it reuses
+    #29.
+- **Stored outputs.** An edit's `patchRef` arrives while the item is
+  `inProgress`, and a read then can answer `notFound`. The row reads its
+  patch only once the item is finished. A read in flight is joined. A
+  failed read is said once per conversation, at warning level, with how to
+  retry (collapse and expand the row, which asks again).
+- **Startup (no change).** 0.10.1's slow-start wait already covers the
+  owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
+  The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s
+  leaves six times the slowest observed.
+- **The dock (the owner's request, 2026-10-03).** A waiting approval's card
+  is docked above the composer (`ApprovalDock`), outside the scrolled
+  transcript. Its row keeps a compact record, then the decision.
+  - **Several waiting.** The oldest is docked, in the order its row stands,
+    which is the order Muse asked, with "Approvals waiting: N". Stacking all
+    of them would push the composer off a 320 px panel, and Muse Code takes
+    them in order anyway.
+  - **Focus.** An arriving card takes focus, on the card itself, not on a
+    choice a stray Enter would make. It does not when the user is typing (a
+    field holding text, or a key within `DOCK_TYPING_GRACE_MS`) or a modal
+    is open; the reducer's live-region announcement covers those cases.
+  - The single-decision lock is the card's, so it holds in the dock.
+
+**PR #90 review follow-up (FIX90, 2026-10-03).** Keep this correction within
+D26: join simultaneous callers to the same in-flight decision and its eventual
+failure; Stop waits for those decisions before rejecting the newest waiting
+stage; a fault recovery restarts only Muse Code and its conversations; a
+notice's recovery actions are retired on their first use, including in saved
+webview state; the dock count uses every language's plural forms. Extend the
+existing session, controller, App, Transcript and dock tests, drill each guard,
+and record Kubuntu results in `docs/certification/approval-decisions.md`.
+FIX90 explicitly delegates full quality and publication to the lead; this lane
+runs its focused tests and checks on the rig, with the configured commit hooks.
+
 ### D27 — The audit: editing correctness (2026-09-23)
 
 Section D of the audit (D24): the Model API's file tools, Edit Review and

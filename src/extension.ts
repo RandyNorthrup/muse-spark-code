@@ -72,6 +72,7 @@ import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
 import {
   ConversationController,
+  restartConversationBackends,
   type FileAccess,
   type PickedFile,
   type SessionMemory,
@@ -721,18 +722,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const workflowTriggerMode = () =>
     readWorkflowTriggerMode({ ...museConfig(), readTextFile: readTextFileSync })
   /**
-   * Stops both hosts (PLAN.md D25). The conversations hear it first: a
+   * Stops both hosts (PLAN.md D25), or Muse Code alone for fault recovery.
+   * The affected conversations hear it first: a
    * running turn is cancelled, and unless they end (sign-out, shutdown) the
    * next message resumes the same session on the new host.
    */
-  const restartBackend = async (reason: string, isConversationEnding = false): Promise<void> => {
-    log.info(`Restarting the backends: ${reason}`)
-    await Promise.all(
-      Array.from(controllers.values(), (controller) =>
-        controller.backendStopping(isConversationEnding),
-      ),
+  const restartBackend = async (
+    reason: string,
+    isConversationEnding = false,
+    isMuseCodeOnly = false,
+  ): Promise<void> => {
+    log.info(`Restarting ${isMuseCodeOnly ? 'Muse Code' : 'the backends'}: ${reason}`)
+    await restartConversationBackends(
+      controllers.values(),
+      backend,
+      modelApi,
+      isConversationEnding,
+      isMuseCodeOnly,
     )
-    await Promise.all([backend.dispose(), modelApi.dispose()])
   }
   /**
    * The CLI in a terminal (`muse logout`, `muse mcp login`, Open in
@@ -1607,6 +1614,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       case 'removeWorktree': {
         await worktrees.removeWorktree()
+        break
+      }
+      case 'restartMuseCode': {
+        // A Muse Code fault's notice (D26): the next message starts it afresh
+        // and continues the conversation (D25).
+        await restartBackend('asked for from the panel after a Muse Code fault', false, true)
         break
       }
     }

@@ -43,6 +43,8 @@ export interface HostExit {
 const SESSION_NOT_LOADED_ERROR = 'SessionNotLoadedError'
 const PROMPT_SETTLED_ERROR = 'PromptSettledError'
 const GOAL_REFUSED_ERROR = 'GoalRefusedError'
+const MUSE_CODE_FAULT_ERROR = 'MuseCodeFaultError'
+const DECISION_NOT_APPLIED_ERROR = 'DecisionNotAppliedError'
 
 /** An `Error` of either bundle carrying the given name. */
 function isNamedError(error: unknown, name: string): error is Error {
@@ -103,6 +105,61 @@ export function isPromptSettledError(error: unknown): error is PromptSettledErro
     'reason' in error &&
     PROMPT_SETTLED_REASONS.includes(error.reason)
   )
+}
+
+/**
+ * A fault inside Muse Code that no choice of the user's caused (PLAN.md D26,
+ * captured live 2026-10-02 on Muse Code 1.4.2):
+ * - `approvalReplay`: every `turn/start` of the session fails with "approval
+ *   replay failed: decision stage evidence contains an unrecorded human
+ *   resolution" after a turn stopped while a multi-stage approval had a
+ *   decided stage. A restart of `muse serve` lets the session run again.
+ * - `approvalLedger`: `approval/decide` applied the decision, then answered
+ *   "approval decide settlement failed: approval ledger durability fence…"
+ *   (meta-models/muse-code-sdk#29); after the replay fault it does so for
+ *   every decision of that session.
+ */
+export type MuseCodeFault = 'approvalReplay' | 'approvalLedger'
+
+const MUSE_CODE_FAULTS: readonly unknown[] = [
+  'approvalReplay',
+  'approvalLedger',
+] satisfies readonly MuseCodeFault[]
+
+export class MuseCodeFaultError extends Error {
+  public constructor(
+    public readonly fault: MuseCodeFault,
+    message: string,
+  ) {
+    super(message)
+    this.name = MUSE_CODE_FAULT_ERROR
+  }
+}
+
+/** Whether Muse Code failed a command on a fault of its own (`MuseCodeFaultError`). */
+export function isMuseCodeFaultError(error: unknown): error is MuseCodeFaultError {
+  return (
+    isNamedError(error, MUSE_CODE_FAULT_ERROR) &&
+    'fault' in error &&
+    MUSE_CODE_FAULTS.includes(error.fault)
+  )
+}
+
+/**
+ * A decision that failed, and that the host confirmed did not apply: its
+ * stage is still the one waiting. Only then may the card offer the choice
+ * again (one decision per stage, PLAN.md D26).
+ */
+export class DecisionNotAppliedError extends Error {
+  public constructor(message: string) {
+    super(message)
+    this.name = DECISION_NOT_APPLIED_ERROR
+  }
+}
+
+/** Whether a failed decision is known not to have applied. */
+export function isDecisionNotAppliedError(error: unknown): error is DecisionNotAppliedError {
+  return isNamedError(error, DECISION_NOT_APPLIED_ERROR)
 }
 
 /**
