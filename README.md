@@ -2603,13 +2603,16 @@ stopped and the next message resumes the same session.
   on 1.3.0 the first command also takes about half a minute) cannot enter
   folders under `C:\Users\<you>`
   ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
+  This sandbox issue was not retested on 1.4.2 in the October 2 probes;
+  the workaround remains until a fix is verified.
   With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
   without the sandbox for such workspaces: commands run directly as you, in
   the project, still gated by the approval cards, and the panel says so once
   per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
-  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0
-  and 1.4.0; [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
+  Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
+  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore

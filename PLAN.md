@@ -103,10 +103,10 @@ Constraints and decisions:
    keeps Meta's hourly self-update logic.
 2. On Linux/macOS the bash launcher is spawned directly (shebang, no shell).
 3. The child `PSModulePath` must be sanitised on Windows (M2 hazard note).
-4. `muse serve` accepts no provider flag: it always uses the Meta provider, so a
-   signed-in CLI (or `META_API_KEY` in the child env) is required even for
-   smoke tests. The credential-free `--provider echo` exists only for the TUI
-   and `exec`.
+4. Since 1.4.2, `muse serve` accepts `--provider` and `--model`; the Meta
+   provider remains the default. The credential-free `--provider echo` also
+   works over MSP (October 2 isolated-home capture). The extension keeps
+   its Meta startup; older CLI builds required Meta sign-in for serve.
 5. MSP `initialize` rejects `clientInfo.name` outside `^[a-z0-9_]+$`; ours is
    `muse_spark_code`.
 6. Discovery order everywhere: `museSpark.museBinaryPath` setting, then
@@ -161,6 +161,11 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
 | `smol-toml`                                                                                          | 1.8.0                             | Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.                                                                                                                                                                                                              |
+
+SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
+matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
+the extension. It waits for `.npmrc`'s seven-day release-age rule until
+2026-10-07; the SDK pin and package lock stay at 1.3.0.
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
@@ -428,9 +433,13 @@ replaced by this setting on 2026-09-21 (owner request for parity).
 
 ### D10 — Effort tiers offered per model (verified live 2026-09-21)
 
-`model/list` carries no per-model effort information and
-`session/setReasoningEffort` only checks the closed vocabulary, so the tiers a
-model serves can only be learned by running a turn per tier. The probe
+In the 1.3.0 capture, `model/list` carried no per-model effort information and
+`session/setReasoningEffort` only checked the closed vocabulary, so the tiers a
+model served were learned by running a turn per tier. Since 1.4.1,
+`model/list` carries optional `reasoningEffortVariants` and
+`defaultReasoningEffort` (with `variants` added in 1.4.0). The extension
+still uses its verified family table; consuming catalog effort metadata
+is separate feature work. The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …
@@ -1625,7 +1634,7 @@ milestone that closes each gap (the rows updated on 2026-09-27 to what
 | Questions: clarify                | `userInput/clarify` wired to Explain instead (M46)                                                                                                                                                        | `ask_user` accepts the explanation (M46)                                                                                                           | M46 (merged)        |
 | Sign-in in the panel, install     | `account/*` device-code sign-in in the panel; **Install Muse Code** runs Meta's installer in a terminal (M55)                                                                                             | key pasted, or added from Account & usage while Muse Code is signed in                                                                             | M55 (M41; merged)   |
 | Network posture, enterprise       | `--sandbox-network` from `museSpark.sandboxNetwork`; VS Code's proxy handed to Muse Code; `muse config status` in Diagnostics (M56); `--no-session-log` not offered (D43)                                 | fetch and the voice socket through VS Code's proxy and certificates; network failures named; a stable prompt-cache key and retention setting (M56) | M56 (merged)        |
-| Voice                             | the OS recogniser (free); Muse Code's own voice is TUI-only and not on Windows                                                                                                                            | the OS recogniser, or Muse Voice (paid, M35)                                                                                                       | —                   |
+| Voice                             | the OS recogniser (free); Muse Code's live dictation is TUI-only and unavailable on Windows; 1.4.2 also has `muse voice transcribe <file>` outside MSP                                                    | the OS recogniser, or Muse Voice (paid, M35)                                                                                                       | —                   |
 | Everything else already at parity | sessions, history, fork, rename, compaction, export, steering, queue, approvals with stages and scopes, questions, todos, usage, model, effort, modes, skills, rules, worktrees, attachments, diagnostics | the same, through the extension's own harness                                                                                                      | —                   |
 
 Rulings carried: the subscription never pays for a Model API call, and the
@@ -1634,8 +1643,12 @@ key is never handed to `muse serve` (D1); a paid call is opt in and loud
 own session MCP server (the `ide` server Muse Code already loads, M5) with
 the key, billed and announced exactly as on the Model API backend (M44).
 What Muse Code keeps to its TUI and cannot be reached over MSP (its theme,
-keymap, vim mode, HUD, deep research, feedback upload, voice) is listed and
-not imitated, except where the panel has its own equivalent.
+keymap, vim mode, HUD, deep research, live voice dictation) is listed and
+not imitated, except where the panel has its own equivalent. Since 1.4.2,
+`feedback/submit` is available to MSP clients granted the `feedback`
+capability; the extension does not request it or upload feedback. Adding
+that feature requires a privacy decision. File transcription is a CLI
+command, not an MSP method.
 
 ### D37 — The key's paid features on the Muse Code backend (2026-09-25)
 
@@ -3484,10 +3497,12 @@ rationale survives without the research transcript.
   or `irm https://dev.meta.ai/install.ps1 | iex`; auth precedence
   `META_API_KEY` env → stored key → stored browser session; `muse login`,
   `muse auth set`, `muse logout`. `muse serve` hosts MSP over stdio.
-- SDK exports used: `spawnMspConnection({command,args,cwd,env,onStderr})`,
-  `MspHandshake.initialize({clientInfo, capabilities})`, `Connection.command`,
-  `onNotification`, server-request handlers, `SessionFold`, error classes,
-  `checkServedFingerprint`.
+- SDK imports used: `Connection`, `MspError`, `spawnMspConnection` and the
+  `FingerprintWarning` type. The raw connection supplies commands,
+  notifications and server-request handlers; the spawned handshake supplies
+  `initialize({clientInfo, capabilities})`. The extension does not import
+  `SessionFold` or `checkServedFingerprint`; tests reference only
+  `EXPECTED_SCHEMA_FINGERPRINT`.
 - Wire vocabulary (from the package's `msp.d.ts`, authoritative over the
   summarised docs): methods `session/start|resume|fork|list|read|compact|
 setModel|rename|setReasoningEffort|setApprovalMode|userShell`,
@@ -3616,6 +3631,36 @@ acceptance criteria. **A milestone is not complete until its checklist passes.**
 - [ ] Visual milestones: screenshot or manual-check record in
       `docs/certification/<milestone>.md`.
 - [ ] Commit with a message describing what changed and why.
+
+### SDK142 — Muse Code 1.4.2 fingerprint and documentation (2026-10-02)
+
+Scoped maintenance: recognize the captured additive MSP fingerprint of
+1.4.2-R4684.1. 1.4.1-R4503.1 is not added: it never reached npm and no live
+frame of it was captured, so a 1.4.1 host still warns. Keep the SDK at 1.3.0, its own
+1.3.0-R3401.1 fingerprint outside the successor map, and the existing
+additive-successor log wording. Unknown fingerprints still warn.
+Correct CLI facts from the October 2 research without building features.
+
+- [x] Verify all three digests against the SDK research artifacts and release evidence.
+- [x] Test both successor mappings and log outcomes, plus the SDK's own pin;
+      remove the 1.4.2 entry, observe failure, then restore byte-exact.
+- [x] Run the backend/host/account tests and the process-level fake CLI e2e
+      on Kubuntu, including an explicit 1.4.2 served fingerprint while the
+      default fake continues to use SDK 1.3.0's `EXPECTED_SCHEMA_FINGERPRINT`.
+- [x] Correct provider selection, model effort metadata, session deletion,
+      feedback, voice and Windows workaround facts; preserve dated evidence
+      and append dated notes where needed.
+- [x] Run typecheck, scoped lint/format, deadcode, duplication, localization,
+      host API and production build on Kubuntu; keep package files unchanged.
+- [x] Record results in `docs/certification/sdk142.md` and update its index.
+
+Scoped gates verified on Kubuntu; see `docs/certification/sdk142.md`.
+The named CLI research report is missing. The listed corrections were
+checked against its available raw captures and release evidence; the lead
+should reconcile that report when it is supplied.
+
+The lane brief overrides §6.0's full local quality run: the lead owns the
+aggregate gate. This lane commits with configured hooks and does not push.
 
 ### M0 — Scaffold and gates (this session)
 
@@ -3966,8 +4011,10 @@ direction?}` pages the raw view events when history came back `none`;
   for the **new** session with `forkedFrom`; `session/rename {name}` → the
   canonical name (or `session/nameChanged` later); the `sessionListStream`
   capability (granted, M5 probe) adds `session/listChanged` rows next to
-  `session/started` / `session/closed`. There is **no archive or delete
-  method**: archiving is client-side. `Item` carries `turnId`, `commandId`,
+  `session/started` / `session/closed`. The 1.3.0 schema has no archive or
+  delete method; since 1.4.0-R4302.1, MSP has `session/delete` and
+  `session/deleteCompleted`. The extension does not call them: archiving
+  remains client-side. `Item` carries `turnId`, `commandId`,
   `displayText` and attachment metadata for `userMessage`, which is what a
   replayed transcript needs.
 - **History dialog**: the header clock opens a History overlay above the
