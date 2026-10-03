@@ -80,7 +80,8 @@ export function CodeBlock({
           )}
         </span>
       </div>
-      <pre className="code-block-body">
+      {/* Keyboard users need to reach and scroll long lines, including in share files. */}
+      <pre className="code-block-body" tabIndex={0}>
         {html === undefined ? (
           <code className="hljs">{code}</code>
         ) : (

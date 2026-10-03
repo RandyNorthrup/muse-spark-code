@@ -85,6 +85,7 @@ The PNGs beside the records are that day's harness renders.
 - [M74](m74.md): long tasks, `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts; automatic compaction, the hidden follow-up and the memory flush not built (blocked on M75 and Q-M74), so M74 is not complete (PLAN.md D49)
 - [M69](m69.md): web fetch on both backends: public HTTPS pages, every DNS answer checked and the connection pinned (through VS Code's proxy too), per-host approval, untrusted-content markers; Muse Code through the `ide` server (PLAN.md D49, folds in M44b)
 - [Sign-in detection](sign-in-detection.md): the CLI's sign-in read from its credential file's structure and confirmed by the CLI, sign-out through `account/logout`, and every way a browser sign-in ends (PLAN.md D26 amendment)
+- [M83e](m83e.md): exposure-preserving import, metadata-only preview, unsaved target editor edits and scoped rig/red-drill evidence (PLAN.md D49, D64); [M83](m83.md), [M83b](m83b.md) and [M83d](m83d.md) are superseded history.
 - [M84](m84.md): session export, import and share: redacted by default and previewed, every imported byte parsed, imported conversations asking every time (PLAN.md D49)
 - [M68](m68.md): the verify loop: diagnostics and check commands after edits, `run_checks`, `then_run`, format on edit, and the Muse Code note (PLAN.md D49; merged as PR #54)
 - [M67](m67.md): code intelligence tools from VS Code's language services on both backends, `rename_symbol` through the edit path, and the opt-in repo map (PLAN.md D49)

@@ -160,6 +160,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `html-encoding-sniffer`                                                                              | 7.0.0                             | PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                     |
 | `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
+| `smol-toml`                                                                                          | 1.8.0                             | Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.                                                                                                                                                                                                              |
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
@@ -223,14 +224,16 @@ quality`) and as a CI job.
 | `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer) |
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)            |
 | `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)   |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                          |
 
 `npm run build` prints sizes; `scripts/check-bundle-size.mjs` holds the numbers
 and fails the build over budget or when a bundle is missing. This table mirrors
 the script and changes with it, with a CHANGELOG entry.
 
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
-The build emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
-the Model API backend, the checkpoint store and the ACP agent require it
+The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
+emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
+the Model API backend, the checkpoint store, the import bundle and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
 The browser and integration-test bundles retain their inline fallback. The
 development build writes the table beside the extension, so the integration
@@ -268,14 +271,16 @@ instead.
   (now `src/core/workspacePath.ts`) and the goal record
   (`modelapi/goalRecord.ts`) moved out of the backend's modules so that the
   activation bundle takes only them.
-- **Two copies of shared code.** Each bundle has its own copy of what both
-  import (44 inputs, 129 KiB of `modelApi.js`: the English table, constants,
+- **Shared code and per-bundle state.** Each bundle has its own copy of what both
+  import (originally 44 inputs, 129 KiB of `modelApi.js`: constants,
   zod, the key client…). What that could break was audited (M57): the three
   errors a host throws to the conversation controller are tested by name and
   field (`isGoalRefusedError` and its two siblings in `agentBackend.ts`), not
   `instanceof`, which a lint rule now refuses in `src/`; the display
   language's table and locale are module state, so the factory installs the
-  activation bundle's before it builds anything. The rest of the audit is in
+  activation bundle's before it builds anything. Since the approved shared-table
+  amendment, the immutable English fallback is loaded from `dist/uiText.js`
+  rather than copied into each Node bundle. The rest of the audit is in
   `docs/certification/m57.md`.
 - **Budget for `dist/modelApi.js`: 400 KiB**, 295.6 KiB measured plus about a
   third. The Model API work already planned lands here; M50's MCP client
@@ -3230,6 +3235,35 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
   multi-window, overlap, tie and clock races cannot arise. A shell command's
   changes are listed, not undone, as Claude Code's own rewind does; this
   narrows D51, which promised to undo them.
+
+### D64 — Exposure-preserving import, replacing credential detection (2026-10-02)
+
+Five independent review rounds found spellings that bypassed credential
+detection. M83 now controls destinations instead of inspecting content.
+Personal files stay personal; a git-ignored project source goes only to an
+ignored project target or a personal target; a tracked project source may
+go to any of those places. A non-repository folder counts as tracked.
+Canonical path checks and the safe metadata git runner classify sources;
+targets are classified again after final path checks at publication or
+editor edit time. Unknown classification refuses the item.
+
+The preview lists kind, source item name, scope and target path, never
+bodies, commands, arguments, environment/header values or URLs. Picker
+details give scope, never source paths. Logs contain counts, kinds and
+fixed refusal reasons only. Item names remain visible as the source tool
+shows them. Hooks and MCP servers open as unsaved WorkspaceEdits in their
+same-scope target, for the user to review and save; no clipboard operation.
+Only active MCP transport fields are copied unchanged; inactive and
+unknown fields are listed as dropped by name, never emitted by value.
+Candidate IDs use one Set across registration calls.
+
+Readiness: the lead's M83x brief and REDESIGN-EXPOSURE.md settle scope and
+all ten RV83e findings. Reuse the scanner, native editor, path guards,
+exclusive publication and safe git metadata options. No dependency,
+detector, heuristic, option or plan-format migration. The delivery ledger
+validator remains deferred because this canonical plan has no ledger;
+focused behavioral evidence and SHA-256-restored red drills go in
+`docs/certification/m83e.md`. Full quality and native UI remain lead-owned.
 
 ## 3. Open questions (need the owner)
 
@@ -8999,7 +9033,10 @@ integration tests, a production build with a real `node_modules` and
     the user folder. The folder follows Muse Code's own convention if its
     binary or docs name one (D13: no invented file names); otherwise the
     name chosen is recorded in D13 as the extension's own. Claude Code's
-    and Codex's formats are imported (M83).
+    and Codex's formats are imported (M83). M83, built first, writes
+    imported agents to `.agents/agents/<id>/AGENT.md` and
+    `<config>/muse/agents/<id>/AGENT.md` (`PROJECT_AGENTS_DIR_SEGMENTS`,
+    `PERSONAL_AGENTS_DIR_SEGMENTS`): M76 loads from there, or moves both.
   - Built-in agents:
     - **Explore**: read-only, context-saving;
     - **Reviewer**: built in M70, and becomes the first definition in
@@ -9390,34 +9427,295 @@ independent review and the full candidate gates remain required.**
 
 ### M83 — Import from other agents (D49)
 
+**Status 2026-10-02 (round 5): exposure-preserving import (D64) implemented;
+prescribed scoped rig verification complete, lead certification pending.** Five
+reviews found new credential spellings, so the detector and masking are
+removed. Preview/picker output is metadata only; no clipboard; unchanged
+config values open in unsaved target edits. Sources and targets follow the
+three-class exposure matrix, with target classification repeated after final
+path checks. Candidate registration reuses one Set. Latest main/M75 joined
+in `f08d2f26`. Current evidence: `docs/certification/m83e.md`.
+
+**Superseded history — round 4, replaced by D64 and m83e:**
+**Historical status 2026-10-02 (round 4): refuses items that may hold a credential
+instead of masking them; lead certification pending.** The fourth
+independent review (RV83d, on `527da984`) found the round-3 masker still
+publishing credentials: a value on the next line or after a shell line
+continuation, a credential name joined from quoted parts (`Authori''zation`,
+`--to''ken`), a JSON-escaped or Unicode-suffixed name, and a query after
+whitespace or without a scheme (five P1s with the checkpoint finding below,
+three P2s); the Muse review (mr83) found the multi-line value too. Four
+review rounds each found a spelling that hid a value from span masking,
+so the lead changed the approach (2026-10-01): refuse, do not mask.
+`importMask.ts` is removed. `importCredentials.ts` reads each imported item
+whole (a rules file, a command or agent with its file name, a hook's
+command, matcher and status line, an MCP server's command, arguments, `env`
+and header names and values, URL and copied tool names) in three spellings:
+as written (NFKC, format characters removed, Cyrillic and Greek look-alikes
+read as Latin); as a shell, a JSON reader or a URL decoder would join it
+(escapes, percent and entity escapes decoded, continuations and quote marks
+removed); and with other punctuation removed. A name cue with a value (on
+its line or a later one), URL user-info or a credential query parameter, a
+known token shape, or a long base64/hex run mixing digits and letter cases
+refuses the whole item: nothing is published or copied; the preview lists
+it under "Not imported: may hold a credential — copy it yourself" with the
+cue's kind; a name holding a cue is hidden; the log counts kinds only. An
+MCP server whose fields hold a cue is refused whole, and so is a server URL
+with user-info, a query or a fragment; an admitted server's `env` and
+header values stay masked whole. False positives are accepted (fail
+closed): 25 of 200 open-source rule files refuse (12.5%; 8 hold a key, a
+password or a placeholder for one), and this repository's own corpus 4 of
+52, inside the test's 15% budget. Also fixed: a publication is noted as the
+user's own write (`noteUserSave`, as `asUserEdit` does; RV83d #5); the
+root check rechecks the window's folder after its awaited identity lookup
+and in the clipboard's synchronous guard (#6); the generated SKILL.md is no
+longer masked after serializing, so its front matter stays whole (#7);
+`fenced` finds the longest backtick run in a loop (#8); a blank MCP command
+is unsupported and the preview says when source files were skipped (mr83).
+Merged `origin/main` `2a30b1a0` (PR #67), keeping its shared-table files
+exactly. Details: `docs/certification/m83d.md`. Lead next action: full
+quality, a fresh review, native VS Code import UI, other platforms and M76
+runtime admission.
+
+**Status 2026-10-01 (round 3, historical): masking redesigned.**
+The third independent review (RV83c, `6db3cc9d`→`a895dbb4`) found credentials
+still shown through shell word-joining (`'…?k='-value`, `'…'"value"`),
+whitespace inside a quoted value, the name and scheme length caps (which
+failed open), and two quadratic scans (13.8 s and 3.0 s for 64,000
+characters on Kubuntu). At the third round the masker was redesigned
+instead of patched (the owner's rule): free text now fails closed, line by
+line. From a line's first credential cue to the line's end, everything is
+masked. The cues are a URL (`://`) with a `?` or `@` before the next
+whitespace, a name holding a credential word followed by `=`, `:` or
+whitespace, and a known token shape, now including a JSON Web Token's start.
+An argument is masked the same way as one line, and the argument after a bare
+credential flag is masked whole. Dedicated `env`, header and URL fields are
+unchanged. The quote and shell-join helpers and every length cap are removed;
+`redact.ts` is untouched. A shared table of every reported leak (33 cases) is
+checked through `maskText`, `maskArgs` and the production flow. The preview,
+clipboard, published `AGENTS.md` and log hold no secret, and ordinary lines
+stay unchanged. Against `a895dbb4`'s masker, 41 of 139 tests fail. Fourteen
+guard drills on Kubuntu go red and restore byte-exact by SHA-256. Long lines
+of 64,000 characters take 15–132 ms on the Windows host, and nine import
+test files pass 260 tests on Kubuntu and the Mac mini. Scoped checks pass:
+five type projects, ESLint, Prettier, zero jscpd clones, host API, knip,
+localization and the build (importer 104.1/125 KiB). Lead next action: full quality, a fresh review, native VS
+Code import UI, other platforms and M76 runtime admission. Details are in
+`docs/certification/m83b.md`, "RV83c: masking redesigned".
+
+**Round 2 follow-up status (historical), 2026-10-01: RV83b repairs done.**
+The importer cap blocker below is fixed: the lead's `6db3cc9d` imports
+`zod/mini`, as the converter does (importer 104.0/125 KiB; seven import
+suites, 190 tests passed on Kubuntu). The second independent review (RV83b,
+`57d01413`→`6db3cc9d`) found RV83 findings 2–4 fixed and finding 1 only in
+part: a query value in quote marks or backticks (`?signature='…'`) left the
+credential after the mask in MCP arguments and rules (P1), and this status
+was stale (P3). `maskText` now takes a quoted value onto its URL before the
+one `maskUrl` masks it: a closed quote, parts a shell joins (`'a'"b"`), and
+a quote left open where a value starts. The mark the URL is wrapped in still
+closes it, so the text around it is kept. The new pattern is linear. Eight
+new regressions failed on `6db3cc9d` and pass now; four red drills are 0/1/0
+with byte-exact SHA-256 restores. Scoped checks pass: five type projects,
+changed-file ESLint/Prettier, zero jscpd clones, localization, and the build
+(importer 104.4/125 KiB). The eight import test files pass on Kubuntu
+(202 tests). A follow-up makes masking linear. The URL scheme is bounded to
+32 characters, as the release candidate's `16f1e908` bounds the log
+redactor's; `redact.ts` here is byte-identical to it. The masker's flag and
+assignment scans are bounded too, and the argument checks are split into
+linear tests. Long-line tests take 24–133 ms, against 30–47 s on
+`6db3cc9d`, and six drills are 0/1/0. With `redact.test.ts`, 222 tests pass
+on Kubuntu. Lead next action: full quality, native VS Code import UI, other
+platforms and M76 runtime admission. Details are in
+`docs/certification/m83b.md`.
+
+**Round 2 status (historical), 2026-10-01: blocked by the hard import-bundle cap.**
+Removal `04b3859f`, approved shared-table merge `a6672749`, and RV83 fixes
+`757a4773`, `328e10df`, `4e83666e`, `490c2cc9` are committed. The initial
+shared build passed; final build on `490c2cc9` failed at **530.7/125 KiB**
+(`dist/agentImport.js`, 543,471 bytes). The copy-reconciliation helper's
+new root `zod` import carries classic schemas and locales; the existing
+converter uses `zod/mini`. Metadata measures 454,779 Zod bytes across 97
+inputs. The lane brief explicitly requires reporting an exceeded cap and
+stopping, so no code repair, cap/layout change or rerun followed the failure.
+Seven final scoped checks pass (five type projects, changed-file lint and
+format, knip, zero duplication, localization, host API); the final affected
+suite batch did not run because build failed first. Per-finding tests and
+28 red/restored drills passed on their recorded source snapshots. The lead
+reconciled the helper in `6db3cc9d` (above). Details and actual gate exits
+are in `docs/certification/m83b.md` and `docs/certification/m83b-gates.json`.
+
+**Round 2 repair scope (2026-10-01, M83b):** remove the lane's empty
+English-table stand-in, then merge the approved `build/shared-ui-text`
+branch (`44d920fd`) and retain the importer's existing lazy bundle. Update
+D6's artifact inventory and shared-table contract; no other build layout or
+cap changes are authorized. Fix RV83 findings 1–4 in priority order using
+focused failing regressions and SHA-256-checked red/restored drills: embedded
+URL credentials, live scan trust/activation, current copy-target existence,
+and refused-copy accounting. Reuse the existing masker, scanner, copy flow
+and native UI; no new dependency, abstraction or UI is needed. The lane
+brief forbids full quality and another release-candidate merge this round;
+the lead owns those checks. The skill ledger validator is deferred because
+this canonical milestone plan has no `quality-ledger` block and the brief
+requires scoped repairs, not a plan-format migration. Readiness review:
+the brief and RV83 identify observable regressions, safe synthetic fixtures,
+ordered dependencies and hard caps; no owner decision remains unresolved.
+
+**Status 2026-09-30: lane complete on the current M72 candidate; lead certification pending.**
+Worktree `muse-extension-m83`, branch `feature/m83-import`, starts at
+`1fd98aaf`; the initial port is `6eba5169`. The prepared integration tree
+and archived work are read-only sources. The original uncommitted repair
+is saved in `3dd3a450`: one host-wide import gate refuses a second request while the
+first awaits any answer, and unexpected failures are reported honestly.
+Project import publications use M68's existing begin/finally workspace notices,
+capturing the exact live owner before the first await and counting only a true
+write. Personal imports neither notify this workspace nor load the lazy host.
+The append guard also reaches every native atomic write boundary.
+M76 is being finished separately and is not imported into this lane. The
+existing import validator checks its planned agent format until M76's
+canonical reader is available. Focused checks and red drills belong to this
+lane; independent review and full multi-platform gates belong to the lead.
+The named `muse-extension-pr32/temp/HANDOFF_2026-09-30.md` is unavailable
+on this machine; the lane brief, prepared source and preserved evidence
+provide the recovery context. No model or network call is needed.
+`667dd5fa` closes the request-root gaps; `66706553` joins candidate
+`8e9d3a1e`, `dec33da2` joins checkpoint protection `1e8fbbde`, and
+`940acc25` joins catalog retention `8d59fb5c`. Verification is pinned to
+that named snapshot while the lead continues integration. `origin/main`
+did not contain the candidate when the required join began.
+
+The catalog update pushed activation to 600.1 KiB (build exit 1). Fix
+`d4ad53a3` leaves a synchronous activation shim and tree-shakes the existing
+picker/editor implementation into `dist/agentImport.js`. No new bundle,
+dependency, option or cap change is needed. Both entry functions are
+validated, and the display table is installed before either one shows
+text. A real built-module test proves localization and pre-await owner
+capture. Twenty-three guard drills fail as intended, restore exact source
+bytes by SHA-256 and pass again.
+
+All prescribed scoped checks pass on this source: five type projects,
+changed-file ESLint/Prettier, knip, zero jscpd clones, localization and
+host API inventory with zero problems, production build and eleven
+owned/affected test files (219 passed; three existing Windows file-symlink
+cases remain unproved). Activation is 612,881 bytes (598.5/600 KiB);
+import 102.5/125 KiB, Model API 326.5/400 KiB and checkpoint store
+118.7/225 KiB. Full quality, independent review, other platforms and M76
+runtime admission remain lead-owned. No push or live/paid call ran.
+Current receipts: `docs/certification/m83-lane-gates.json` and
+`docs/certification/m83-lane-drills.json`. Prior gate records stay in Git
+history and describe their own source snapshots.
+The 2026-09-28 certification is historical (`docs/certification/m83.md`).
+
 - **Goal.** Switching to Muse Spark Code takes minutes.
-- **Scope.**
-  - Import from Claude Code, Codex and Cursor, beyond M30's skills and
-    sessions:
-    - MCP servers;
-    - hooks, where their events map;
-    - custom agents (M76);
-    - custom slash commands, which become project skills
-      (`.agents/skills/<id>/SKILL.md`);
-    - rules files, which become sections of `AGENTS.md`, shown in the
-      preview.
-  - Preview first, nothing overwritten. The preview shows each hook's and
-    server's full command, with secret values masked.
-  - MCP servers and hooks live in Muse Code's `settings.json` and
-    `.muse/hooks.json`, which the extension never writes (D17, D30). Their
-    converted entries are shown, masked, for the user to copy into the
-    file the preview opens.
-  - Entries found in a repository's `.claude`, `.cursor` or `.codex`
-    folder are offered only for that project's files, and only in a
-    trusted workspace. Only the user's own folders are offered for user
-    files.
+- **Scope.** MCP servers, mapped hooks, compatible custom agents, commands
+  as skills, and project rules as `AGENTS.md` sections, from Claude Code,
+  Codex and Cursor. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+  Metadata preview first; no overwrite, clipboard, detector or masking.
+  Config entries open unsaved in the same-scope target for review/save.
+  Only active MCP transport fields are copied; inactive/unknown fields are
+  listed as dropped by name. Names remain visible as the source tool shows
+  them; no bodies, commands, arguments, environment/header values or URLs
+  in preview/picker output; no names, paths or content in logs.
 - **Backends.** Both.
-- **Acceptance.** Nothing is written before the preview is accepted; the
-  CLI's settings and hooks files are never written; a project's entries are
-  never offered for user files.
-- **Tests.** Fixture folders for each tool, and a drill for the scope
-  rule.
+- **Acceptance.** All nine exposure moves follow D64. Real git ignores
+  refuse ignored-to-tracked and admit ignored-to-ignored. Recheck target
+  classification after final path checks at publication/editor edit time.
+  Unknown classification refuses. Personal means under home and outside
+  every open workspace; non-repositories count as tracked.
+  Preserve bounded handle reads, exclusive complete-file publication,
+  changed-prior-text/rules-size refusal, project link/junction refusal,
+  request-root identity binding, live trust/activation, checkpoint leases
+  and successful-publication user ownership. Apply the synchronous current
+  folder guard after the last await before editor show and edit. Keep one
+  host-wide import gate through all questions and effects. Personal imports
+  remain available in Restricted Mode. Agents and command restrictions stay
+  intact; unsupported metadata remains refused. M76 runtime admission is
+  lead-owned until its canonical reader lands.
+- **Tests.** Production scan/plan/apply with memoryImportIo and a fake ignore
+  oracle; real git ignored source/targets and real junction cases; no
+  clipboard API in host adapter; old leak corpus as metadata/log isolation
+  input; final editor interleaving; Set construction work at 1k/2k/4k/8k.
+  Red drills: class check, ignore query, clipboard absence, log scrub,
+  current-folder guard and Set reuse; byte-exact SHA-256 restoration.
 - **Size.** S.
+- **As built (decisions).** A first draft by Muse Code (5094e6b4) was
+  reviewed and largely rewritten; the certification record lists what
+  changed and why.
+  - **Sources, from each tool's documentation (2026-09-28) and Muse Code
+    1.4.0-R4302.1's bundled `migrate` skill.** Claude Code: user and
+    local-scope MCP servers in `~/.claude.json` (`mcpServers`,
+    `projects[<root>].mcpServers`, the drive letter matched in either
+    case; the file's account and usage data are parsed past and dropped),
+    project servers in `.mcp.json`, hooks in `~/.claude/settings.json` and
+    the project's `.claude/settings.json` and `settings.local.json`,
+    agents and commands (namespaced subfolders, three deep) in `agents/`
+    and `commands/`, rules in the project's `CLAUDE.md` and
+    `.claude/CLAUDE.md`; `CLAUDE_CONFIG_DIR` honoured. Codex:
+    `config.toml` `[mcp_servers.*]` (read with `smol-toml`, D3), prompts
+    in `~/.codex/prompts` (Codex has no project prompts), `CODEX_HOME`
+    honoured when absolute and refused with a warning when relative; the
+    project's root `AGENTS.md` is Muse Code's own rules file, so it is not
+    a source. Cursor: `mcp.json`, `agents/` and `commands/` in `~/.cursor`
+    and the project's `.cursor`, rules in `.cursor/rules/*.mdc` (their
+    `description` and `globs` kept in the section) and `.cursorrules`.
+    Cursor's and Codex's hooks are not read: their events do not share
+    Muse Code's names.
+  - **The scope rule.** The user's own folders go only to the user's
+    files; they are theirs, so links in them are followed. A repository's
+    folders are read only in a trusted workspace that is not the home
+    folder itself, every path confined by its canonical form
+    (`confineWorkspacePath`, D24), and go only to that project's files.
+    Muse Code reads MCP servers only from the user's `settings.json`
+    (M31), so a repository's servers are listed and never offered there.
+    The user's `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` are Muse
+    Code's own `/rules import` (it names both files; the user rules file's
+    name is Q9), so they are listed and not offered for a project's
+    `AGENTS.md`.
+  - **Preview first, nothing replaced.** A read-only Markdown document
+    (M15's read-only documents, now opened before the CLI features are
+    built) lists kind, item name, source scope, target path
+    and every entry left out with its reason; content is not shown, beside a non-modal
+    notification that asks, so the preview stays readable; nothing is
+    written until Import. Complete bytes are staged with `wx` and published
+    by an exclusive hard link, each destination confined again at publication, a
+    project's to the workspace root itself (not its `.agents` folder, so a
+    linked `.agents` is refused); a rules section is appended only if its
+    heading is not in `AGENTS.md` when it is written.
+  - **Never written: Muse Code's `settings.json` and `.muse/hooks.json`
+    (D17, D30).** MCP entries are the `migrate` skill's shape: `type:
+"stdio"` or `"streamable-http"`, always `mode: "optional"`, Codex's
+    `enabled`, `tool_timeout_sec`, `startup_timeout_sec`, `enabled_tools`
+    and `disabled_tools` copied, every other field named as not carried
+    over; `sse`, `ws`, `sdk`, OAuth and header helpers are not converted,
+    nor is a server turned off. Hook entries keep their matcher (Muse
+    Code's matchers take Claude Code's tool names for its own tools),
+    except where Claude Code ignores one (`UserPromptSubmit`,
+    `PostToolBatch`, `Stop`); a handler converts only as a plain `command`
+    with `timeout` (at most 600 s), `async` and `statusMessage`, so nothing
+    that narrowed (`if`, `args`, `shell`) is widened. Only active transport fields are copied unchanged; inactive and unknown
+    fields are dropped by name. The editor text is the
+    whole file when it is missing (`schema_version: 1` for the settings),
+    else the members to merge, with a warning for the legacy
+    `mcp_servers` key; it is applied as an unsaved WorkspaceEdit in the target,
+    so the user reviews and saves it.
+  - **Exposure (D64, round 5).** The detector, its three readings, NFKC
+    normalization and value masking are deleted. Canonical paths and safe
+    git metadata classify sources, with target exposure checked again at
+    publication or editor edit time. Logs contain counts and fixed reasons.
+    Historical masking/refusal claims and corpora describe their old trees
+    only (`m83.md`, `m83b.md`, `m83d.md`); m83e supersedes them.
+  - **Custom agents before M76.** The agent files land in
+    `.agents/agents/<id>/AGENT.md` and `<config>/muse/agents/<id>/AGENT.md`,
+    M76's planned extension-owned layout. The directory id is the planned
+    selector passed to `subagent_spawn`; frontmatter name is presentation.
+    Import checks supported fields and tool restrictions; incompatible
+    entries are shown as unsupported. Runtime use awaits M76 integration.
+    Muse Code's own agents stay native; the
+    captured CLI names no user agent folder.
+  - No new setting, no model call, no paid use: D49's paid-call rules do
+    not apply. Restricted Mode reads and offers only the user's own
+    files. `agentImportKindHook` and `agentImportKindAgent` join
+    `l10n/untranslated.json` only for the languages that use the English
+    word.
 
 ### M84 — Session export, import and share (D49)
 
@@ -9429,13 +9727,21 @@ this tree in `docs/certification/m84.md`, as are the drills of the
 2026-10-01, are now fixed too (see "Follow-up reviews" below), as is #9's
 single-string residual. The `m84-share.png` capture was taken on Kubuntu
 on 2026-10-02 (the accessibility gate passed on its `share` scenario).
-Not run on this tree: `npm run quality`, the whole accessibility gate, the
-other harness shots and the integration tests. The port had put `extension.js` and `modelApi.js` over
+The original export lane did not run `npm run quality`, the whole accessibility
+gate, the other harness shots or the integration tests. The port had put `extension.js` and `modelApi.js` over
 their size budgets. They are back under after merging
 `build/shared-ui-text`, the shared English table (`15f847a4`). The
 redaction prefilter is proven a superset of every rule (`5df6d5c2`).
 History: original `c2eb4da2` and the repair drafts are preserved; the port
 to the release candidate is described below.
+
+**M84f narrow-focus follow-up, verified 2026-10-02.** `fix/m84-share-focus`
+includes main `e66263f1` (M73 and M74). Kubuntu passes 127 owning tests,
+392 accessibility pages including the real 320 px share scenario in four
+themes, native keyboard/focus/scroll checks, all scoped static gates and
+the production build. Byte-exact red drills and current source hashes are
+in `docs/certification/m84.md`. Full quality and the four-machine gate
+remain the lead's.
 
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
@@ -9450,6 +9756,11 @@ to the release candidate is described below.
     `museSpark.initialPermissionMode` is Plan, whatever else that setting
     says; only the user's own mode change relaxes it.
   - A local share file, rendered read-only in the panel.
+    - M84f: at a true 320 px viewport, code output and every control take
+      keyboard focus with the VS Code focus border; Tab stays in document
+      order, Escape returns to the composer, and nothing overflows the panel.
+      Add `share-narrow` to all four accessibility themes and prove the
+      keyboard regression by a byte-exact red drill (`docs/certification/m84.md`).
   - No hosted sharing.
 - **Backends.** The Model API resumes; Muse Code exports its own log (M30).
 - **Acceptance.** An export never holds the key digest or a credential of
@@ -10248,6 +10559,19 @@ raised. Main's M57 took the Model API backend out of both: the extension is
 `dist/modelApi.js`, 713.2 KiB, whose budget is now 850 KiB (D6 amendments;
 `docs/certification/pr32-integration.md`).
 
+**Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
+high).** The advisory turned the dependency audit red on every branch.
+`braces` 3.0.3 and earlier overflow the stack on deeply nested brace
+patterns, and no fixed release exists. It reaches only development
+tooling: stylelint's micromatch and fast-glob, and secretlint under
+`@vscode/vsce` and `ovsx`. Nothing in the VSIX or the ACP package imports
+braces, micromatch, fast-glob or globby. Those tools expand only patterns
+from this repository's own configuration, never input from a user or a
+model. The exception lives in `.github/audit-exceptions.json`, and
+`scripts/audit.mjs` fails again once it expires. Remove it when braces
+publishes a fix (then update or override), or when npm stops reporting the
+advisory.
+
 Aggregates: `quality:gates` = format:check, lint, typecheck, check:l10n, check:host-api, deadcode, cycles, duplication, test:unit, build, security:audit; `quality` = quality:gates + test:a11y + security:secrets + security:sast; `quality:ci` = quality:gates + test:a11y + test:integration (secrets and SAST are separate CI jobs). Integration tests run only in CI or via `npm run test:integration`.
 
 The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
@@ -10275,9 +10599,10 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                        | Reason                                                                                                                                                  | Added      |
-| ----------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle` | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised. | 2026-09-30 |
+| File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
+| ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -10932,3 +11257,36 @@ by PR #66; the owner chose to let `muse-spark-code-acp` reach npm first with
 host, the Windows 11 VM, the Mac mini and Kubuntu (throwaway profiles); no
 machine has code-server for a panel check, which CI's Hosts run on the tag
 covered (run 36947211712).
+
+**0.10.1 released (2026-10-02, tag `v0.10.1` on release commit `68e6c1ab`, release run 37053034173).**
+The release contains PR #66 (the ACP agent's npm path), #67 (the Node
+bundles' shared English fallback, `dist/uiText.js`, with package member
+checks), #68 (Windows hooks
+without PowerShell's module scan and the log redactor's linear JWT pattern),
+#73 (up to 120 s for a slow Muse Code start, a failed start shown once, the
+retained-turn flake fix and Theia failure evidence), and M75's paired
+evaluation (developer tooling, an opt-in script, shipping nothing in the
+VSIX). Published: the GitHub Release (`muse-spark-code-0.10.1.vsix`,
+1,578,856 bytes, SHA-256
+`dbc969bb35f9db41317048080550757b5a926d1fa8cb4cdbc4d6aa438f2255ae`;
+`muse-spark-code-acp-0.10.1.tgz`, 782,128 bytes, `c188a374…f4a`), Open VSX and
+the VS Code Marketplace, all serving byte-identical VSIX files (each
+downloaded and hashed). The Marketplace publish
+first failed with `write ECONNRESET` and succeeded on a rerun of that job.
+npm (`muse-spark-code-acp`) failed with `EOTP`: the `NPM_TOKEN` secret
+requires a one-time password. It awaits the owner: either a one-time manual
+publish with an OTP or a 2FA-bypass granular token, then trusted publishing.
+The ACP tarball is on the GitHub Release. Install smoke: the released VSIX
+installs as 0.10.1 in throwaway profiles on the Windows host (VS Code
+1.140.0), the Windows 11 VM (1.139.1), the Mac mini (1.139.1) and Kubuntu
+(1.130.0), each from a download checked against the digest above; the
+GitHub tarball installs on Kubuntu and `muse-spark-code-acp --version`
+prints 0.10.1. As for 0.10.0, no machine has code-server for a desktop panel
+check; the Hosts run on the release commit (run 37029127601, all 12 jobs:
+VSCodium, Theia, code-server, the ACP clients and the agent package on three
+systems) covered activation. npm stays open until it is published.
+Process note: PR #72 (M84) merged to main before the tag because a stopped
+merge queue's child process kept running. The tag therefore names the
+release commit, based on main `44b76f24` before M84 merged, rather than
+main's tip; the release workflow's ancestor check allows this. The release
+commit is an ancestor of main through PR #75 (merge `2a03a79b`).

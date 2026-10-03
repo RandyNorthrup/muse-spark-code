@@ -285,6 +285,25 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Windows each stdio server runs in a job object that ends its descendants.
   Remote error bodies and authentication challenges stay out of tool
   errors and logs.
+- **Import from other agents (D64).** Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
+  Canonical paths classify personal versus project scope; `git check-ignore`
+  through the safe metadata runner distinguishes ignored from tracked.
+  A non-repository folder counts as tracked; unknown classification refuses
+  the item. Targets are classified again after final path checks at write
+  or editor edit time. Project sources require trust. Project target
+  components refuse symbolic links and junctions, including dangling links;
+  bounded reads verify file identity, creates publish whole exclusively,
+  and rules appends refuse changed prior text or a result past the limit.
+  The current folder, trust and activation are checked synchronously after
+  the last await and before showing or editing a project target. Config
+  entries are unsaved WorkspaceEdits for user review and save, never direct
+  writes or clipboard transfers. Preview/picker output contains metadata
+  only; logs contain counts and fixed reasons only. Active MCP transport
+  values stay unchanged; inactive and unknown fields are dropped by name.
+  Unsupported hook restrictions are refused, so nothing is widened.
+  Item names remain visible; the import makes no content-based promise that
+  a file is free of credentials. Native writer races at the last filesystem
+  step remain bounded by the existing checks, not eliminated.
 - **Web fetch (both backends).** The model can ask the extension to read a
   page. Only `https://` URLs without credentials, of at most 2,048
   characters, on public internet addresses: the name is resolved on the
