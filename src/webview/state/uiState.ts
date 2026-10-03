@@ -45,6 +45,7 @@ import type {
   HostToWebviewMessage,
   MentionItem,
   ModelOption,
+  NoticeAction,
   SettingsSnapshot,
   SignInMethod,
   SkillOption,
@@ -259,6 +260,9 @@ export interface UiState {
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
+  /** The latest pending send's exact draft, restored only on a handoff refusal. */
+  readonly pendingSendDraft:
+    { readonly localId: string; readonly text: string; readonly revision: number } | undefined
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -364,6 +368,8 @@ export type UiAction =
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
   /** A restore notice's Redo was pressed (M72): it waits for the host's answer. */
   | { readonly type: 'redoRequested'; readonly entryId: string }
+  /** A fault notice offers one recovery attempt, kept spent in saved state. */
+  | { readonly type: 'noticeActionRequested'; readonly entryId: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
@@ -422,6 +428,7 @@ export const initialUiState: UiState = {
   childOwners: {},
   strayItems: {},
   unsentAttachments: {},
+  pendingSendDraft: undefined,
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
@@ -769,6 +776,7 @@ function withNotice(
   level: NoticeLevel,
   text: string,
   redoRestoreId?: string,
+  actions?: readonly NoticeAction[],
 ): UiState {
   const localSequence = state.localSequence + 1
   return {
@@ -782,6 +790,7 @@ function withNotice(
         level,
         text,
         ...(redoRestoreId !== undefined && { redoRestoreId }),
+        ...(actions !== undefined && actions.length > 0 && { actions }),
       },
     ],
   }
@@ -1555,7 +1564,24 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
               tool: event.toolName,
               args: event.rawArgs,
             }),
-          (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+          (entry) => {
+            if (entry.kind !== 'tool') {
+              return entry
+            }
+            // The same stage announced again (a resume, a panel reattached)
+            // keeps its decision's lock: one decision per stage (D26).
+            const shown = entry.approval
+            const isSameStage =
+              shown?.approvalId === approval.approvalId &&
+              shown.requirementId.sourceIndex === approval.requirementId.sourceIndex
+            return {
+              ...entry,
+              approval:
+                isSameStage && shown.decidedSourceIndex !== undefined
+                  ? { ...approval, decidedSourceIndex: shown.decidedSourceIndex }
+                  : approval,
+            }
+          },
         ),
         fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
@@ -1762,6 +1788,7 @@ function clearedConversation(state: UiState): UiState {
     strayItems: {},
     pendingReplayTurns: {},
     unsentAttachments: {},
+    pendingSendDraft: undefined,
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
@@ -2023,6 +2050,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ),
       }
     }
+    case 'approvalMovedOn': {
+      // The card already shows the step Muse Code waits on (its update came
+      // first); it says so on itself, and the live region reads it once.
+      const hasCard = state.transcript.some(
+        (entry) => entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId,
+      )
+      if (!hasCard) {
+        return state
+      }
+      return announce(
+        {
+          ...state,
+          transcript: state.transcript.map((entry) =>
+            entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId
+              ? { ...entry, approval: { ...entry.approval, hasMovedOn: true } }
+              : entry,
+          ),
+        },
+        UI_TEXT.promptMovedOn,
+      )
+    }
     case 'promptDropped': {
       return {
         ...state,
@@ -2180,6 +2228,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDraft:
+          state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user'
             ? {
@@ -2261,9 +2311,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         unsent.every((chip) => chip.id !== attachment.id),
       )
       const isKept = message.attachmentsKept === true
+      // A composer send refused during handoff distillation keeps its
+      // text too. Never replace a newer draft the user already typed.
+      const pending = state.pendingSendDraft
+      const shouldRestoreDraft =
+        isKept &&
+        message.reason === UI_TEXT.handoffBusy &&
+        pending?.localId === message.localId &&
+        pending.revision === state.draftRevision
       return announce(
         {
           ...state,
+          draft: shouldRestoreDraft ? pending.text : state.draft,
+          pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2331,7 +2391,13 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // The host reports a refused answer or cancel only with an error notice,
       // so an error unlocks the question cards waiting on the host (M25): the
       // user can try again instead of facing a card locked for good.
-      const noticed = withNotice(state, message.level, message.text, message.redoRestoreId)
+      const noticed = withNotice(
+        state,
+        message.level,
+        message.text,
+        message.redoRestoreId,
+        message.actions,
+      )
       return announce(
         message.level === 'error'
           ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
@@ -2469,6 +2535,16 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     case 'insertApplied': {
       return { ...state, pendingInsert: undefined }
     }
+    case 'noticeActionRequested': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.id === action.entryId
+            ? { ...entry, actions: [] }
+            : entry,
+        ),
+      }
+    }
     case 'redoRequested': {
       return {
         ...state,
@@ -2488,6 +2564,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           ...state,
           draft: '',
           draftRevision: state.draftRevision + 1,
+          pendingSendDraft: {
+            localId: action.localId,
+            text: state.draft,
+            revision: state.draftRevision + 1,
+          },
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
           attachments: [],
@@ -2518,6 +2599,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
                 approval: {
                   ...entry.approval,
                   decidedSourceIndex: action.requirementId.sourceIndex,
+                  hasMovedOn: undefined,
                 },
               }
             : entry,
@@ -2698,6 +2780,26 @@ export function backgroundTasksOf(state: UiState): readonly ToolEntry[] {
 /** Whether a background task still runs, so Stop can reach it (M46). */
 export function isRunningTask(entry: ToolEntry): boolean {
   return entry.isBackground && entry.status === IN_PROGRESS
+}
+
+/** An approval the dock shows (D26): the card's state, and the tool it gates. */
+export interface WaitingApproval {
+  readonly entryId: string
+  readonly toolName: string
+  readonly approval: PendingApproval
+}
+
+/** The approvals waiting, oldest first: the order their rows stand in. */
+export function waitingApprovals(
+  transcript: readonly TranscriptEntry[],
+): readonly WaitingApproval[] {
+  const waiting: WaitingApproval[] = []
+  for (const entry of transcript) {
+    if (entry.kind === 'tool' && entry.approval !== undefined) {
+      waiting.push({ entryId: entry.id, toolName: entry.tool, approval: entry.approval })
+    }
+  }
+  return waiting
 }
 
 /** Whether any tool row is waiting on the user (approval or question). */

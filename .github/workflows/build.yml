@@ -162,6 +162,8 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate
       - run: npm ci
       - run: npm run package
+      - name: the universal VSIX stays within its measured budget
+        run: node scripts/check-vsix-size.mjs ./*.vsix
       # What must be inside the package: the licence, the third-party
       # notices, the native helpers and every runtime bundle (the webview
       # loads main.css beside main.js; the extension requires modelApi.js
@@ -197,10 +199,16 @@ jobs:
           for entry in package/package.json package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
-            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md package/l10n/ui.de.json \
+            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
             package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
+              exit 1
+            fi
+          done
+          for table in l10n/ui.*.json; do
+            if ! grep -Fxq -- "package/$table" <<< "$listing"; then
+              echo "::error::$table is missing from the agent's package" >&2
               exit 1
             fi
           done
@@ -221,6 +229,13 @@ jobs:
         with:
           name: muse-spark-code-acp
           path: dist/muse-spark-code-acp-*.tgz
+          if-no-files-found: error
+      - name: CycloneDX inventories for shipped bundles and native runtime dependencies
+        run: node scripts/release-sbom.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-sboms
+          path: dist/sbom/*.cdx.json
           if-no-files-found: error
 
   secrets:

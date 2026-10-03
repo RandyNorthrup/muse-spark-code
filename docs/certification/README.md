@@ -96,5 +96,5 @@ The PNGs beside the records are that day's harness renders.
 - [M63a–M63c](m63.md): the ACP agent for other editors, the Model API key in the OS credential store, and the agent's package; Zed, Emacs with agent-shell, Neovim with CodeCompanion, JupyterLab with Jupyter AI; the editors' MCP servers; the host checks in CI (PLAN.md D61, D62)
 - [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
 - [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
-
+- [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
 - [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.

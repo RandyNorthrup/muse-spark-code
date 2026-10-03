@@ -31,6 +31,9 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = ['acp.js', 'modelApi.js', 'uiText.js', 'searchWorker.js', 'pageWorker.js']
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
+// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
+// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
+// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
 const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),

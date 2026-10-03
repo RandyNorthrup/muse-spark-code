@@ -150,7 +150,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       diagnostics, format on edit and turn checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
-                      context, Muse Code's memory, export, worktrees, usage,
+                      context (rules, skills, custom agents), Muse Code's
+                      memory, export, worktrees, usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the verify

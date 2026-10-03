@@ -38,6 +38,12 @@ const snapshotSchema = z.object({
   lastCompletedTurnId: z.optional(z.string()),
   /** A bounded promoted-steer correction that beat `turnAccepted`. */
   pendingReplayTurns: z.optional(z.record(z.string(), z.string())),
+  /** The latest pending send's exact draft (M74), restored only on a handoff refusal. */
+  pendingSendDraft: z.optional(
+    z.object({ localId: z.string(), text: z.string(), revision: z.number() }),
+  ),
+  /** The composer's change counter the pending draft was taken at. */
+  draftRevision: z.optional(z.number()),
 })
 type UiSnapshot = z.infer<typeof snapshotSchema>
 
@@ -71,6 +77,8 @@ function snapshotOf(state: UiState): UiSnapshot {
     reference: state.reference,
     lastCompletedTurnId: state.lastCompletedTurnId,
     pendingReplayTurns: state.pendingReplayTurns,
+    pendingSendDraft: state.pendingSendDraft,
+    draftRevision: state.draftRevision,
   }
 }
 
@@ -149,6 +157,8 @@ export function restoredUiState(raw: unknown): UiState {
       reference: saved.reference,
       lastCompletedTurnId: saved.lastCompletedTurnId,
       pendingReplayTurns: saved.pendingReplayTurns ?? {},
+      pendingSendDraft: saved.pendingSendDraft,
+      draftRevision: saved.draftRevision ?? 0,
       pendingRestore: { sessionId: saved.sessionId, isTranscriptOmitted: false },
     }
   }

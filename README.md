@@ -190,7 +190,7 @@ harness:shots`) against a scripted session, so they match the build.
     <td align="center"><img src="media/readme/slash-commands.png" alt="The prompt holding /co and the Slash commands list above it: /compact, /config, /cost, /clear, /export, /resume, /usage, each with its description"><br><sub>A letter more: the slash commands, ranked as you type</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="media/readme/approval.png" alt="An approval card: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject"><br><sub>An approval card with the CLI's own choices</sub></td>
+    <td align="center"><img src="media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, Allow once, Always allow in this workspace, Reject; its row in the conversation says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
     <td align="center"><img src="media/readme/question.png" alt="A question card with Colour and Toppings tabs, radio buttons, an Other answer, Submit greyed out, Explain instead and Cancel"><br><sub>A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel</sub></td>
   </tr>
   <tr>
@@ -487,7 +487,8 @@ says why when it cannot.
 
 A side chat stays in Plan mode, so it offers only Save plan. Implementing a
 saved plan is refused in Restricted Mode, because its content goes to the
-model as workspace text.
+model as workspace text. Implement and handoff Start share one operation
+lock: either asks you to wait while the other is still starting.
 
 ### Handoff to a new conversation
 
@@ -506,6 +507,12 @@ the first request. The generated or edited brief may be up to 256 KB in
 UTF-8. Cancel closes a handoff before the new conversation commits. A
 brief that is ready while Account & usage, the Agent map or a share file is open waits
 until you close that dialog, then opens.
+
+While the model distils the brief, a composer send is refused with the
+busy reason. Its images come back, and its exact draft comes back if you
+have not edited it meanwhile. A brief read held by sign-in or key activation says
+why and retries when sign-in completes, including a read that failed
+while admission was held. Cancel still releases the waiting handoff.
 
 The model wrote the brief, so the new conversation starts in your
 starting mode (`museSpark.initialPermissionMode`, as an implemented plan
@@ -536,6 +543,12 @@ In a trusted workspace the agent follows the same files Muse Code does:
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
   matter keeps a skill out of the palette.
+- **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
+  workspace (project scope) and the personal root `~/.config/muse/agents`
+  (`$XDG_CONFIG_HOME/muse/agents` when set), plus the built-in `explore` and
+  `second-opinion`. The folder is this extension's own: the Muse Code CLI
+  names none. The model runs one through `subagent_spawn` with `agent` set to
+  its id; see [Custom agents](#custom-agents).
 - **Memory:** Markdown notes the agent keeps for later conversations, in
   Muse Code's three places, on both backends; see [Memory](#memory).
 
@@ -549,23 +562,24 @@ it with `--trust-workspace`), plus its bundled skills and your user rules.
 On the Model API backend the extension loads the files above and nothing
 else:
 
-- **Sizes:** a rules file or a `SKILL.md` over 64 KB is skipped with a
-  warning in the log; the rules together are cut at 256 KB, and each
-  scope's `MEMORY.md` at 200 lines or 32 KB.
+- **Sizes:** a rules file, a `SKILL.md` or an `AGENT.md` over 64 KB is
+  skipped with a warning in the log (a skill or agent file is read only up to
+  that size, and only when it is a regular file); the rules together are cut
+  at 256 KB, and each scope's `MEMORY.md` at 200 lines or 32 KB.
 - **Encodings:** UTF-8, or UTF-16 with a byte-order mark; a file that is not
   text is skipped with a line in the log. Memory notes are UTF-8 only, as
   Muse Code reads them.
-- **Links:** a skill folder may be a symbolic link or junction. In the
-  workspace it must lead to a place inside it or it is skipped; links in the
-  personal root are followed wherever they lead.
+- **Links:** a skill or agent folder may be a symbolic link or junction. In
+  the workspace it must lead to a place inside it or it is skipped; links in
+  the personal root are followed wherever they lead.
 - **The system prompt** also carries the date, the git branch, the number of
   changed files and the latest commit subjects at session start (metadata
   only), and a short set of working rules (read before editing, no commits
   unless asked, `path:line` references).
 
 In VS Code's **Restricted Mode** (an untrusted folder), neither backend loads
-rules or skills. The Model API backend loads no memory, offers no memory
-tools, starts no MCP servers and runs no hooks. No shell command or `git`
+rules or skills. The Model API backend loads no custom agents or memory,
+offers no memory tools, starts no MCP servers and runs no hooks. No shell command or `git`
 runs (git reads
 the repository's own config, which can name programs to run): `@` mentions
 come from VS Code's file search and the prompt carries no git facts. Trust
@@ -626,6 +640,93 @@ lock, so two agents updating the same note or index in the same instant could
 lose one of the writes.
 The `.muse-memory.lock` file can remain after its owner exits; its presence
 or stored PID alone does not show that a write is in progress.
+
+### Custom agents
+
+On the Model API backend the model can run specialised agents, each with its
+own prompt, tools, model or effort, and permissions: the built-in `explore`
+(read-only reconnaissance: it reads, searches and lists, and reports back with
+`path:line` references) and `second-opinion` (a high-effort consult that
+advises without acting), plus your own. A custom agent is an `AGENT.md` with
+front matter above a Markdown prompt:
+
+```md
+---
+name: reviewer
+description: Reviews a change for risks
+tools: read_file, edit_file
+permission-mode: plan
+---
+
+You are a reviewer. Read the change, then report ...
+```
+
+Put it in `.agents/agents/<id>/AGENT.md` in the workspace (project scope) or
+`~/.config/muse/agents/<id>/AGENT.md` (`$XDG_CONFIG_HOME/muse/agents` when
+set), following the skill layout; the folder name is the agent's id, and a
+file agent shadows a built-in or personal one with the same id. Agents load
+once, when the conversation starts. Each folder loads on its own: one that
+cannot be read is named in the log and the others still load. An agent that
+folder might define, or that a file there defines but was skipped (unreadable,
+too large, refused), is refused by name with the folder or file it names,
+never replaced by a personal or built-in agent of the same id; fix or remove
+it and start a new conversation.
+
+- **Front matter.** `name` and `description` are required (at most 64 and 240
+  characters). `tools` is a comma-separated allowlist of tool names,
+  `model` a model id, `effort` one of `minimal`, `low`, `medium`, `high`,
+  `xhigh` or `max`, and `permission-mode` one of `manual`, `acceptEdits`,
+  `plan`, `auto` or `bypassPermissions`; all four are optional. Write each
+  key on one line as `key: value`: a file whose front matter is a list, an
+  indented value or a repeated key, whose `tools` line names no tool, or that
+  holds a control or direction character in a name, description or model is
+  skipped with a line in the log, never guessed at. At most 32 agent files
+  load.
+- **What an agent can do.** It can only narrow what the session already has.
+  A tool outside its `tools` list is not offered and, if the model names it
+  anyway, refused, memory tools included. A refused call's row, and the line
+  under an edit whose `then_run` it refused, use the installed display
+  language; the model is told in English, as is the body of a **Check edits**
+  row, which shows the note the model read. Automatic check commands need
+  `run_checks` or the platform shell in the list, and `then_run` (which
+  runs any command line) needs the shell. A
+  `permission-mode` wider than the session's gets the session's, and a mode
+  switch later keeps the ceiling. A child's writes are answered under the
+  less automatic of your mode and its own (Plan, Manual, Edit automatically,
+  Auto, Bypass permissions, in that order): a child defined as `manual` still
+  asks before ordinary writes when its parent uses Edit automatically, a
+  child defined as `acceptEdits` cannot automate writes under a Manual
+  parent, and keeps its automation under an Auto or Bypass parent. A
+  protected, replayed or escalated write always asks.
+  This policy survives saving, resuming and forking. Admission uses the tools
+  the child can actually use: questions, todos/goals and subagent controls
+  belong to the parent. A list with no usable child tool fails the spawn
+  before the paid-use popup or the contributor question asks, so nothing is
+  asked or billed for it.
+- **What it costs.** The run is a paid child task like any subagent (off
+  unless paid subagents are on, asking in the paid-use popup before each use,
+  Plan refuses it). An agent's `model` goes through the same checks as your
+  own choice, and the popup names it: contributor models are blocked while
+  `museSpark.confidentialWorkspace` is on and otherwise ask once for each
+  spawn, and a model other than the session's asks in the popup even when
+  subagents are allowed always here. Whatever a question's wait changes
+  (trust, a confidential workspace, the key, the model, the agent's tools)
+  is checked before the next question and again before the child starts, so
+  no popup follows a spawn that can no longer run. A retry under the same
+  `command_id` answers with its child before any of this.
+- **Whose words.** The model sees each agent's source (`project`,
+  `personal` or `built-in`) in the catalogue, and a child's role below the
+  workspace rules, labelled with its source and id, as text that cannot add
+  tools or permissions, explicitly marked as untrusted text. A repository's
+  files load only in a trusted workspace: a session that loses trust offers
+  no agent, including when trust is revoked during the paid-use popup, and a resumed child's
+  project role is left out while the workspace is untrusted.
+  Project files are read through their approved canonical path, so replacing
+  the original link or junction after confinement does not redirect the read.
+- **The model runs one** through `subagent_spawn` with `agent` set to its id;
+  the catalogue appears in its instructions only while paid subagents are on.
+  On the CLI backend Muse Code reads its own agents and this extension sends
+  it none.
 
 ## Muse Code's own tools
 
@@ -1312,12 +1413,30 @@ the text as it is.
   shows a chip for either; × drops it.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
-  multi-step shell lines are approved one step at a time. Question cards
-  stack radio buttons for one answer and checkboxes for several, put
-  multiple questions on tabs, always offer **Other**, and keep **Submit**
-  greyed until every question has an answer; **Cancel** declines the prompt,
-  and **Explain instead** answers in your own words (up to 500 characters)
-  rather than choosing, so the agent reads it and decides again.
+  multi-step shell lines are approved one step at a time.
+  - **The card is docked** just above the message box while it waits, in
+    view wherever you have scrolled. Its row in the conversation says it is
+    waiting, then shows the decision.
+  - **Several approvals** are taken in the order Muse asked: the oldest is
+    docked, with a count of how many wait.
+  - **Focus** moves to an arriving card unless you are typing; it is
+    announced either way.
+  - **Each step takes one decision.** The card locks at your first click and
+    stays locked until Muse Code answers. A step that moved on before your
+    choice arrived shows the step Muse Code now waits on, and says so on the
+    card.
+- If Stop follows a choice immediately, it waits for that decision and
+  rejects the next waiting step before stopping the turn. Panels showing
+  the same session share the decision's result.
+- A Muse Code replay fault offers **Restart now**, which restarts Muse
+  Code and preserves running Model API conversations. A fault notice's
+  recovery buttons can be used once, including after the panel is restored;
+  **New conversation** in the header remains available.
+- Question cards stack radio buttons for one answer and checkboxes for
+  several, put multiple questions on tabs, always offer **Other**, and keep
+  **Submit** greyed until every question has an answer; **Cancel** declines
+  the prompt, and **Explain instead** answers in your own words (up to 500
+  characters) rather than choosing, so the agent reads it and decides again.
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
@@ -1696,7 +1815,11 @@ tokens, the background tasks, and each agent's own transcript.
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are off by default. Enabling them accepts the published model
   rates; each new child task then asks again before it starts, including in
-  Bypass mode. Plan refuses the task. One approval allows at most four actual
+  Bypass mode. Plan refuses the task. A spawn that would start no child asks
+  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  an earlier spawn's command id for a different task is refused first, and a
+  retry of the same spawn under its command id answers with that child.
+  One approval allows at most four actual
   response requests, including retries and tool rounds. A running note uses
   that same allowance; a follow-up or reopen needs a new approval. This is
   a request limit, not a dollar limit. Failed requests without a usage report
@@ -2403,11 +2526,25 @@ stopped and the next message resumes the same session.
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind code to here** and **Restore
   files to here** still work, and the Model API backend offers all of them.
-- **A warning that "Muse Code reported an error for the decision (the tool
-  may have run anyway): … approval ledger durability fence …"** — Muse Code
-  on Windows (seen on 1.3.0) sometimes fails its own ledger write after applying your
-  decision ([#29](https://github.com/meta-models/muse-code-sdk/issues/29)).
-  The tool row shows what happened; nothing needs redoing.
+- **"Muse Code applies your approvals in this conversation but reports an
+  error for each one"** — Muse Code on Windows can fail its own approval
+  ledger after applying a decision ("approval ledger durability fence",
+  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). Since
+  1.4.2 it does this for every decision of a conversation that went through
+  the fault below. The panel says so once. The card follows what Muse Code
+  does next and is never offered again, because the decision applied. **New
+  conversation** avoids the fault.
+- **"Muse Code refuses every message in this conversation"** — Muse Code 1.4
+  ("approval replay failed: decision stage evidence contains an unrecorded
+  human resolution") fails every message of a conversation whose turn
+  stopped while a multi-step command was partly approved. **Restart now**
+  stops Muse Code, and your next message starts it again and continues the
+  conversation. **New conversation** starts afresh. The panel now rejects
+  the waiting step before a Stop, which keeps the conversation usable.
+- **"Could not load the output: Muse Code did not answer item/readOutput
+  within 60 s"** — a busy Muse Code answers stored-output reads one after
+  another. The panel says it once per conversation; the row keeps the diff it
+  already has, and collapsing and expanding the row asks again.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
   log says which credential it started with). If the CLI itself holds a
@@ -2671,15 +2808,22 @@ dispatch) calls
 - a `native-darwin` job that compiles the macOS helper and checks its
   disclaim;
 - a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
-  `muse-spark-code-vsix` artifact.
+  `muse-spark-code-vsix` artifact, checks its compressed size budget, and
+  packages the ACP agent with every locale table and both CycloneDX inventories.
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
 manifest and is on `main`, runs the same build, creates a GitHub Release with
-that `.vsix` and the CHANGELOG section as its notes, and publishes it to the
-Marketplace (publisher `RandyNorthrup`) from the `marketplace` environment,
-which only version tags reach; without `VSCE_PAT` the publish is skipped and
-reported. A `.vsix` packed locally has no macOS helper, so only CI's is
-published.
+that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
+CHANGELOG section as its notes and package provenance attestations. The same
+VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
+ACP tarball goes to npm with provenance. Each registry uses its token from the
+tag-only `marketplace` environment (`VSCE_PAT`, `OVSX_PAT`, `NPM_TOKEN`);
+missing tokens are reported as skips. Network errors get bounded retries;
+already-published versions require matching artifact hashes/integrity. A final
+summary reports every channel and fails if any channel failed. A `.vsix` packed
+locally has no macOS helper, so only CI's universal artifact is published.
+See [the release and recovery guide](docs/RELEASING.md) for half-published
+states, npm EOTP, signing decisions and the prepared M80 hooks.
 
 **Build troubleshooting.**
 

@@ -523,9 +523,9 @@ describe('createRuntimeBackend', () => {
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   // The agent's dist/ folder, with the Model API backend's own bundle (M57).
   const dist = { folder: '' }
-  beforeAll(() => {
+  beforeAll(async () => {
     dist.folder = folder()
-    buildModelApiBundle(dist.folder)
+    await buildModelApiBundle(dist.folder)
   })
   function backend(
     options: Partial<ServeOptions>,

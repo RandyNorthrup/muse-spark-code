@@ -156,6 +156,54 @@ describe('parseStoredSession', () => {
       parseStoredSession({ ...full, replay: [{ turnId: 't', item: { type: 'unknown' } }] }),
     ).toMatchObject({ ok: false })
   })
+
+  it('round-trips a child agent runtime and reads older files without one (M76 review)', () => {
+    const agent = {
+      id: 'reviewer',
+      source: 'project' as const,
+      prompt: 'Prompt of reviewer',
+      toolAllowlist: ['read_file', 'write_file'],
+      effort: 'max' as const,
+      approvalMode: 'denyUnmatched' as const,
+      permissionMode: 'manual' as const,
+    }
+    const narrowed: StoredSession = { ...full, agent }
+    expect(parseStoredSession(structuredClone(narrowed))).toEqual({
+      ok: true,
+      session: narrowed,
+    })
+    const minimal: StoredSession = {
+      ...full,
+      agent: {
+        id: 'explore',
+        source: 'builtin' as const,
+        prompt: 'Prompt',
+        effort: 'high' as const,
+      },
+    }
+    expect(parseStoredSession(structuredClone(minimal))).toEqual({
+      ok: true,
+      session: minimal,
+    })
+    const parsed = parseStoredSession(structuredClone(full))
+    expect(parsed).toEqual({ ok: true, session: full })
+    expect(parsed.ok && 'agent' in parsed.session).toBe(false)
+    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
+      ok: false,
+    })
+    expect(
+      parseStoredSession({ ...full, agent: { ...agent, permissionMode: 'unattended' } }),
+    ).toMatchObject({
+      ok: false,
+    })
+    // A run whose source is unknown, or missing, is not read back as a trusted one.
+    expect(parseStoredSession({ ...full, agent: { ...agent, source: 'web' } })).toMatchObject({
+      ok: false,
+    })
+    const { source: omitted, ...withoutSource } = agent
+    expect(omitted).toBe('project')
+    expect(parseStoredSession({ ...full, agent: withoutSource })).toMatchObject({ ok: false })
+  })
 })
 
 describe('recordOf', () => {

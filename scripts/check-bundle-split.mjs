@@ -322,7 +322,7 @@ console.log(
   `ok   ${BUNDLES.acp.output}: ${String(acpCarried.length)} of the backend's files, all on the allowed list`,
 )
 console.log(
-  `ok   ${BUNDLES.modelApi.output}: carries the ${String(lazy.size)} files that load only with the backend`,
+  `ok   ${BUNDLES.modelApi.output}: carries the ${String(lazy.size)} files that load only with the backend, and no English table`,
 )
 console.log(
   `ok   ${PLAN_READER.output}: carries the plan reader; ${BUNDLES.activation.output} carries none of its parser`,
