@@ -98,14 +98,13 @@ import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
-  asUserEdit,
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
   withCheckpointEdit,
   withCheckpointEditAt,
 } from './host/checkpoints/checkpointHost'
-import { turnKey } from './core/checkpoints/turnKey'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
@@ -547,26 +546,41 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   } catch {
     log.warn('Checkpoint workspace identity could not be established')
   }
-  // Turn checkpoints (M72, PLAN.md D51): a shadow repository under global
-  // storage, keyed by the canonical first folder. Current-version windows in
-  // this namespace share per-record refs independently of workspace identity.
-  // Captures require trust, git and the setting. Startup admission precedes auth
-  // request any workspace-cwd serve, independently of the capture setting.
-  // Closing the window ends its git; native uncertainty remains durable. Opening
-  // it (or trusting the workspace) applies cleanup and retention.
+  // Turn checkpoints (M72, M86; PLAN.md D51, D63): a shadow repository and
+  // the windows' write journals under global storage, keyed by the canonical
+  // first folder. Current-version windows in this namespace share per-record
+  // refs independently of workspace identity. Recording requires trust, git
+  // and the setting. Startup admission precedes auth request any workspace-cwd
+  // serve, independently of the recording setting. Closing the window ends its
+  // git; native uncertainty remains durable. Opening it (or trusting the
+  // workspace) recovers gone windows' journals and applies cleanup and retention.
   const checkpointBundle = checkpointStoreLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CHECKPOINT_STORE_BUNDLE_FILE)
       .fsPath,
     log,
   })
-  const checkpointStore =
+  // This window's instance (M86): one journal and one order of writes, which
+  // the turns' recorder (made below, over the window's tool io) and the
+  // store's restores and Redos share.
+  const writeRecording =
     checkpointRoot === undefined
+      ? undefined
+      : checkpointBundle().createTurnRecording({
+          storageDir: checkpointRoot.storageDir,
+          instance: crypto.randomUUID(),
+          platform: process.platform,
+        })
+  const checkpointStore =
+    checkpointRoot === undefined || writeRecording === undefined
       ? undefined
       : checkpointBundle().createCheckpointStore(
           {
             workspaceRoot: checkpointRoot.canonicalRoot,
             displayRoot: workspaceRoot,
             storageDir: checkpointRoot.storageDir,
+            instance: writeRecording.instance,
+            journal: writeRecording.journal,
+            lanes: writeRecording.lanes,
             // Every window's checkpoint storage: no tool writes below it (Codex, PR #55).
             storageRoot: path.join(context.globalStorageUri.fsPath, CHECKPOINTS_DIR),
             platform: process.platform,
@@ -586,6 +600,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push({
       dispose: () => {
         checkpointStore.dispose()
+      },
+    })
+  }
+  if (writeRecording !== undefined) {
+    context.subscriptions.push({
+      dispose: () => {
+        void writeRecording.journal.close().catch(logRejection(log, 'closing the write journal'))
       },
     })
   }
@@ -618,17 +639,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
-  // The user's saves while a turn runs are theirs: a restore leaves them alone (M72).
-  // The extension's own writes save no document, so every save here is the user's.
-  const noteUserSave = (document: { readonly uri: vscode.Uri }) => {
-    if (document.uri.scheme === FILE_SCHEME) {
-      checkpoints.noteUserSave(document.uri.fsPath)
-    }
-  }
-  context.subscriptions.push(
-    vscode.workspace.onDidSaveTextDocument(noteUserSave),
-    vscode.workspace.onDidSaveNotebookDocument(noteUserSave),
-  )
   const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
 
   const credentials = new CredentialStore(context.secrets, (message) => {
@@ -821,6 +831,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editFile: async (fsPath, work) =>
       await withCheckpointEditAt(
         checkpoints,
+        log,
         backend.workspaceActionGuard(nativeStarts.signal),
         {
           root: checkpointRoot?.canonicalRoot ?? workspaceRoot,
@@ -828,10 +839,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           platform: process.platform,
         },
         fsPath,
-        asUserEdit(checkpoints, fsPath, work),
+        work,
       ),
     // Import from other agents (M83): its project writes hold the checkpoint
-    // lease (with a copy before each) under the window's guard for this root,
+    // lease and storage guard under the window's guard for this root,
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
@@ -847,14 +858,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       beginEdit: (file, owner) => modelApi.beginExternalEdit(owner, [file]),
       editProject: async (work) => {
         const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
-        return await withCheckpointEdit(checkpoints, check, async () => await work(check))
+        return await withCheckpointEdit(checkpoints, log, check, async () => await work(check))
       },
-      beforeProjectWrite: (absolutePath) => checkpoints.beforeToolWrite(absolutePath),
-      // Each published file is the user's, as `asUserEdit` makes the other
-      // explicit writes: a turn running meanwhile neither takes it for its
-      // own nor undoes it on a restore.
-      noteUserWrite: (absolutePath) => {
-        checkpoints.noteUserSave(absolutePath)
+      beforeProjectWrite: (absolutePath) => {
+        checkpoints.refuseStorageWrite(absolutePath)
       },
       bundle: agentImportLoader({
         bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', AGENT_IMPORT_BUNDLE_FILE)
@@ -1107,9 +1114,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         .filter((document) => document.isDirty && document.uri.scheme === FILE_SCHEME)
         .map((document) => document.uri.fsPath),
   })
-  // What the extension's own tools write is copied first, so a restore can
-  // put back an ignored file they changed (M72).
-  const checkpointedIo = withCheckpointCopies(toolIo, checkpoints)
+  // The window's tool io: no tool writes the checkpoint storage, and every
+  // command is workspace activity. It records nothing: each Model API turn
+  // writes through its own io, made over this one (M86, below).
+  const checkpointedIo = withCheckpointStorageGuard(toolIo, checkpoints)
   // The verify loop (M68, PLAN.md D49): what the language servers report on
   // edited files, which only an editor showing a file makes them do, and the
   // formatter over the Model API backend's edits.
@@ -1181,6 +1189,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ...ideImageTools({
         isOffered: () => isKeyStored && paid.gate.isOn('imageGeneration'),
         keyGeneration: () => auth.admissionGeneration,
+        // Muse Code's images are never recorded (M86): the window's io, not a turn's.
         workspace:
           workspaceRoot === undefined
             ? undefined
@@ -1231,18 +1240,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     editor.revealRange(new vscode.Range(start, end), vscode.TextEditorRevealType.InCenter)
   }
 
-  /** A file the extension writes in the user's name, under the lease: theirs once written (M72). */
+  /** A file the extension writes in the user's name, under the lease; never recorded (M86). */
   const writeUserFile = async (check: () => void, fsPath: string, content: string) => {
-    await withCheckpointEdit(
-      checkpoints,
-      check,
-      asUserEdit(checkpoints, fsPath, async () => {
-        await vscode.workspace.fs.writeFile(
-          vscode.Uri.file(fsPath),
-          new TextEncoder().encode(content),
-        )
-      }),
-    )
+    await withCheckpointEdit(checkpoints, log, check, async () => {
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(fsPath),
+        new TextEncoder().encode(content),
+      )
+    })
   }
 
   const editReview = new EditReview({
@@ -1256,13 +1261,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     },
     deleteFile: async (fsPath) => {
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await withCheckpointEdit(
-        checkpoints,
-        check,
-        asUserEdit(checkpoints, fsPath, async () => {
-          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-        }),
-      )
+      await withCheckpointEdit(checkpoints, log, check, async () => {
+        await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+      })
     },
     openDiff: async (beforeUri, fsPath, title) => {
       await vscode.commands.executeCommand(
@@ -1292,8 +1293,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const agentsHome = personalAgentsRoot(museConfig())
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
-  // home `muse serve` sees (`museSpark.environmentVariables` included). Its
-  // writes keep checkpoint copies and the view's edits hold the restore lease (M72).
+  // home `muse serve` sees (`museSpark.environmentVariables` included). The
+  // model's writes are its turn's, recorded (M86); the view's edits hold the
+  // restore lease (M72) and are never recorded.
   const memory = createCheckpointedMemory(toolIo, checkpoints, {
     captureGuard: () => backend.workspaceActionGuard(nativeStarts.signal),
     platform: process.platform,
@@ -1317,9 +1319,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     store: memory.viewStore,
     log,
     edit: memory.edit,
-    beforeDelete: memory.beforeDelete,
-    afterDelete: memory.afterDelete,
   })
+  // The model's own writes, recorded per turn for a restore (M86, PLAN.md
+  // D63): one io for each turn over the window's, into this window's
+  // journal, in the order and under the locks the store's restores share.
+  const turnRecorder =
+    checkpointRoot === undefined || writeRecording === undefined
+      ? undefined
+      : writeRecording.recorder({
+          io: checkpointedIo,
+          memory: memory.turnWrites,
+          workspaceRoot: checkpointRoot.canonicalRoot,
+          canonicalPath,
+          newId: () => crypto.randomUUID(),
+          log,
+        })
   // Contributor-tier models let Meta train on the traffic: one explicit yes
   // before the model is used, for the user's own choice and for a custom
   // agent's (M76, PLAN.md §9).
@@ -1341,12 +1355,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             now: () => Date.now(),
             edit: async (work) => {
               const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
-              await withCheckpointEdit(checkpoints, check, async () => {
+              await withCheckpointEdit(checkpoints, log, check, async () => {
                 await work(check)
               })
-            },
-            noteUserWrite: (fsPath) => {
-              checkpoints.noteUserSave(fsPath)
             },
           }),
           beginEdit: (file, ownerRecorder) => modelApi.beginExternalEdit(ownerRecorder, [file]),
@@ -1364,12 +1375,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         })
   const modelApi = new ModelApiBackendManager({
     log,
-    beforeTurnRuns: (sessionId, turnId) =>
-      prepareCheckpointTurn(checkpoints, sessionId, turnId, log),
-    afterTurnRuns: async (sessionId, turnId) => {
-      await checkpoints.endTurn(sessionId, turnId)
-      await checkpoints.markTurn(turnKey(sessionId, turnId), false)
-    },
+    // Each Model API turn's unit (M86): its record before it runs, its own
+    // recorded writes while it does, then its writes drained, its unit folded
+    // and sealed, and its running mark withdrawn.
+    beforeTurnRuns: (sessionId, turnId, top) =>
+      prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
+    afterTurnRuns: (sessionId, turnId, end) =>
+      finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     io: checkpointedIo,
@@ -1429,6 +1441,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
           return await withCheckpointEdit(
             checkpoints,
+            log,
             owned,
             async () => await runGit(args, cwd, undefined, owned),
           )

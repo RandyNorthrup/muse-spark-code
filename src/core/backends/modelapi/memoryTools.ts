@@ -11,7 +11,7 @@ import {
   MEMORY_SCOPES,
   MODEL_API_TOOLS,
 } from '../../../shared/constants'
-import type { Located, MemoryNotePlace, MemoryStore } from '../../memory/memoryStore'
+import type { Located, MemoryNotePlace, MemoryStore, MemoryWrites } from '../../memory/memoryStore'
 import type { ToolOutcome } from './tools'
 
 const scopeArg = z.optional(z.enum(MEMORY_SCOPES))
@@ -175,11 +175,15 @@ export async function placeMemoryCall(
   return place.ok ? { ok: true, value: { call: call.value, place: place.value } } : place
 }
 
-/** Runs a placed call; the result is Muse Code's JSON for the model and the row alike. */
+/**
+ * Runs a placed call; the result is Muse Code's JSON for the model and the
+ * row alike. `writes` are the turn's own, which record what it writes (M86).
+ */
 export async function runMemoryCall(
   store: MemoryStore,
   placed: PlacedMemoryCall,
   assertCurrent?: () => void,
+  writes?: MemoryWrites,
 ): Promise<ToolOutcome> {
   const { call, place } = placed
   let outcome: Located<string>
@@ -189,11 +193,11 @@ export async function runMemoryCall(
       break
     }
     case 'add': {
-      outcome = await store.add(place, call.args, assertCurrent)
+      outcome = await store.add(place, call.args, assertCurrent, writes)
       break
     }
     case 'edit': {
-      outcome = await store.edit(place, call.args, assertCurrent)
+      outcome = await store.edit(place, call.args, assertCurrent, writes)
       break
     }
   }

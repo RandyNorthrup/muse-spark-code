@@ -33,7 +33,7 @@ The VS Code adapter: 18 files. Everything else reaches VS Code only through them
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
-| `src/extension.ts`                         | 147               |
+| `src/extension.ts`                         | 145               |
 | `src/host/agentImportHost.ts`              | 29                |
 | `src/host/cliFeatures.ts`                  | 28                |
 | `src/host/codeIntel/languageServices.ts`   | 45                |
@@ -71,7 +71,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (273)
+## VS Code API used at run time (271)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -343,8 +343,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.notebookDocuments`                                                        | `src/extension.ts`                                                                                                                                                                                                      |
 | `workspace.onDidChangeConfiguration`                                                 | `src/extension.ts`                                                                                                                                                                                                      |
 | `workspace.onDidGrantWorkspaceTrust`                                                 | `src/extension.ts`                                                                                                                                                                                                      |
-| `workspace.onDidSaveNotebookDocument`                                                | `src/extension.ts`                                                                                                                                                                                                      |
-| `workspace.onDidSaveTextDocument`                                                    | `src/extension.ts`                                                                                                                                                                                                      |
 | `workspace.openTextDocument`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/editor/verifyEditor.ts`                                                                                          |
 | `workspace.registerTextDocumentContentProvider`                                      | `src/extension.ts`                                                                                                                                                                                                      |
 | `workspace.saveAll`                                                                  | `src/extension.ts`                                                                                                                                                                                                      |
@@ -355,19 +353,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 24    |
+| `node:buffer`          | 26    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 24    |
+| `node:crypto`          | 25    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 18    |
-| `node:fs/promises`     | 27    |
+| `node:fs`              | 21    |
+| `node:fs/promises`     | 29    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 58    |
+| `node:path`            | 61    |
 | `node:process`         | 1     |
 | `node:stream`          | 6     |
 | `node:string_decoder`  | 1     |

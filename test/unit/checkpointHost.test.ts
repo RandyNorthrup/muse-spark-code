@@ -1,27 +1,23 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
-import { copyFile, mkdir, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
-import type { ToolIo } from '../../src/core/backends/modelapi/tools'
-import { turnKey } from '../../src/core/checkpoints/turnKey'
+import type { ToolIo, TurnWrites } from '../../src/core/backends/modelapi/tools'
+import type { Owner } from '../../src/core/checkpoints/toolWrites'
 import { ShellEntryError } from '../../src/core/shellResult'
 import {
   type CheckpointPort,
   type CheckpointStoreApi,
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
+  withCheckpointEdit,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
-import { ignoredChanges, scanIgnored } from '../../src/host/checkpoints/ignoredScan'
-import {
-  CHECKPOINT_IGNORED_FOLDER_MAX_FILES,
-  CHECKPOINT_IGNORED_SCAN_MAX_FILES,
-  type CheckpointAvailability,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { type CheckpointAvailability, MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   createGitProcess,
   GitExitError,
@@ -30,11 +26,12 @@ import {
 } from '../../src/host/git'
 import {
   harness,
-  isPresent,
   read,
   REAL_GIT_TIMEOUT_MS,
   removeCheckpointFolders,
   restoreOutcome,
+  storedUnit,
+  turnRecorder,
   write,
 } from './helpers/checkpointHarness'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
@@ -55,22 +52,24 @@ function fakeStore() {
     return Promise.resolve()
   }
   const store: CheckpointStoreApi = {
+    instance: 'this-window',
     isNativeUnsafe: false,
-    hasOpenTurn: false,
-    isStoragePath: () => false,
+    isStoragePath: (absolutePath) => absolutePath.startsWith('/storage/'),
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
-    capture: () => {
-      calls.push('capture')
-      return Promise.resolve({ ok: false as const, reason: 'failed' as const, detail: 'x' })
+    startUnit: (owner) => {
+      calls.push(`start ${owner.sessionId} ${owner.unitId}`)
+      return Promise.resolve({ sequence: 1 })
     },
-    release: () => done('release'),
-    record: (sessionId) => done(`record ${sessionId}`),
+    endUnit: (owner, end) => done(`end ${owner.unitId} ${String(end.ranProcesses)}`),
     markTurn: (key, isRunning) => done(`mark ${key} ${String(isRunning)}`),
-    endTurn: (sessionId) => done(`end ${sessionId}`),
     turns: () => {
       calls.push('turns')
       return Promise.resolve(['t1'])
+    },
+    legacyTurns: () => {
+      calls.push('legacy')
+      return Promise.resolve(['m72'])
     },
     restore: () => {
       calls.push('restore')
@@ -84,13 +83,6 @@ function fakeStore() {
     unforgetSession: (sessionId) => done(`unforget ${sessionId}`),
     queueForget: (sessionId) => done(`queue ${sessionId}`),
     maintain: () => done('maintain'),
-    noteUserSave: (absolutePath) => {
-      calls.push(`saved ${absolutePath}`)
-    },
-    beforeToolWrite: (absolutePath) => {
-      calls.push(`copy ${absolutePath}`)
-      return Promise.reject(new Error('the staging folder is full'))
-    },
   }
   return { store, calls }
 }
@@ -116,7 +108,7 @@ async function runWithFailingMark(failAt: 'entry' | 'close') {
         : Promise.resolve(),
   }
   const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-  const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, failing)
+  const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, failing)
   const error = await thrownBy(() => io.runShell('owned fixture', '/ws', 1000))
   return { error, work }
 }
@@ -126,6 +118,7 @@ async function leaseCallsFor(file: string) {
   const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
   await withCheckpointEditAt(
     port,
+    new FakeLogOutputChannel(),
     vi.fn(),
     { root: '/real/ws', displayRoot: '/link/ws', platform: 'linux' },
     file,
@@ -143,17 +136,6 @@ const PROVEN_SHELL = {
   isWorkspaceShutdownProven: true as const,
 }
 
-const NO_SNAPSHOT = {
-  tree: 't',
-  coverage: { skipped: [], repositories: [] },
-  inventory: { files: new Map(), skippedFolders: [], isPartial: false },
-  createdAt: 0,
-  startedAt: 0,
-  startedWallAt: 0,
-  pin: 'refs/muse-spark/pin/1',
-  folders: [],
-}
-
 function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boolean }) {
   const { store, calls } = fakeStore()
   const port = createCheckpointPort({
@@ -162,23 +144,50 @@ function portOver(posture: { isTrusted: boolean; isEnabled: boolean; hasGit: boo
     isWorkspaceTrusted: () => posture.isTrusted,
     isEnabled: () => posture.isEnabled,
     hasGit: () => posture.hasGit,
+    legacyTurns: () => {
+      calls.push('older legacy')
+      return Promise.resolve(['m70', 'm72'])
+    },
   })
-  return { port, calls }
+  return { port, calls, store }
 }
 
-/** A port that neither takes a capture nor offers a turn or a restore. */
+const OWNER: Owner = { instance: 'this-window', sessionId: 's1', unitKind: 'turn', unitId: 't1' }
+const WRITES: TurnWrites = {
+  io: noopToolIo,
+  memory: { writeFile: () => Promise.resolve(), createFile: () => Promise.resolve() },
+}
+
+/** A turn recorder that says what it was asked; its end (the drain) waits for `drained` when given. */
+function recorderOver(calls: string[], drained?: Promise<undefined>) {
+  return {
+    start: (owner: Owner) => {
+      calls.push(`writes ${owner.sessionId} ${owner.unitId}`)
+      return WRITES
+    },
+    end: async (owner: Owner) => {
+      calls.push(`drain ${owner.unitId}`)
+      await drained
+      calls.push('drained')
+    },
+  }
+}
+
+/** A port that neither records a unit nor offers a turn or a restore. */
 async function expectNothingOffered(
   port: CheckpointPort,
   availability: CheckpointAvailability,
 ): Promise<void> {
   expect(port.availability()).toBe(availability)
-  expect(await port.capture()).toBeUndefined()
+  expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
   expect(await port.turns('s1')).toEqual([])
+  expect(await port.legacyTurns('s1')).toEqual([])
   expect(
     await port.restore({
       backend: () => 'modelApi',
       sessionId: 's1',
       turnId: 't1',
+      transcriptTurnIds: ['t1'],
       unsavedPaths: () => [],
     }),
   ).toEqual({
@@ -187,7 +196,7 @@ async function expectNothingOffered(
   })
 }
 
-describe('createCheckpointPort (M72)', () => {
+describe('createCheckpointPort (M72, M86)', () => {
   it('refuses unknown canonical namespaces before any process or turn can start', async () => {
     const { store, calls } = fakeStore()
     const port = createCheckpointPort({
@@ -203,7 +212,7 @@ describe('createCheckpointPort (M72)', () => {
     await expect(port.markTurn('turn', true)).rejects.toThrow(UI_TEXT.checkpointsNativeUnsafe)
     expect(calls).toEqual([])
     const shell = vi.fn(noopToolIo.runShell)
-    const wrapped = withCheckpointCopies({ ...noopToolIo, runShell: shell }, port)
+    const wrapped = withCheckpointStorageGuard({ ...noopToolIo, runShell: shell }, port)
     await expect(wrapped.runShell('write something', '/ws', 1000)).rejects.toThrow(
       UI_TEXT.checkpointFailed,
     )
@@ -216,58 +225,67 @@ describe('createCheckpointPort (M72)', () => {
     const { port, calls } = portOver({ isTrusted: false, isEnabled: true, hasGit: true })
     await expectNothingOffered(port, 'restricted')
     expect(
-      await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] }),
+      await port.redo({
+        backend: () => 'modelApi',
+        sourceSessionId: 's1',
+        restoreId: 'r1',
+        unsavedPaths: () => [],
+      }),
     ).toEqual({
       ok: false,
       reason: 'unavailable',
     })
-    await port.endTurn('s1', 't1')
+    expect(await port.startTurnUnit('s1', 'child', true)).toBeUndefined()
+    await port.endUnit(OWNER, { ranProcesses: false })
     await port.maintain()
     await port.forgetSession('s1')
     await port.markTurn('k1', true)
     expect(calls).toEqual(['queue s1', 'mark k1 true'])
   })
 
-  it('with the setting off takes and offers nothing new, but finishes what is under way', async () => {
+  it('with the setting off records nothing new, but ends what is under way and a child of a recording turn', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
     await expectNothingOffered(port, 'off')
-    await port.record('s1', 't1', NO_SNAPSHOT)
-    await port.endTurn('s1', 't1')
-    await port.redo({ backend: () => 'modelApi', restoreId: 'r1', unsavedPaths: () => [] })
+    expect(await port.startTurnUnit('s1', 'child', true)).toEqual({
+      instance: 'this-window',
+      sessionId: 's1',
+      unitKind: 'turn',
+      unitId: 'child',
+    })
+    await port.endUnit(OWNER, { ranProcesses: true })
+    await port.redo({
+      backend: () => 'modelApi',
+      sourceSessionId: 's1',
+      restoreId: 'r1',
+      unsavedPaths: () => [],
+    })
     await port.forgetSession('s1')
     await port.maintain()
-    port.noteUserSave('/ws/mine.txt')
-    expect(calls).toEqual([
-      'release',
-      'end s1',
-      'redo',
-      'forget s1',
-      'maintain',
-      'saved /ws/mine.txt',
-    ])
+    expect(calls).toEqual(['start s1 child', 'end t1 true', 'redo', 'forget s1', 'maintain'])
   })
 
   it('says when git is missing, and runs none', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: false })
     expect(port.availability()).toBe('noGit')
-    expect(await port.capture()).toBeUndefined()
+    expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
     await port.maintain()
     expect(calls).toEqual([])
   })
 
-  it('takes and offers checkpoints when on', async () => {
+  it('records and offers units when on, and lists both versions’ legacy turns once', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     expect(port.availability()).toBe('on')
-    await port.capture()
-    await port.record('s1', 't1', NO_SNAPSHOT)
+    expect(await port.startTurnUnit('s1', 't1', false)).toEqual(OWNER)
     expect(await port.turns('s1')).toEqual(['t1'])
+    expect(await port.legacyTurns('s1')).toEqual(['m70', 'm72'])
     await port.restore({
       backend: () => 'modelApi',
       sessionId: 's1',
       turnId: 't1',
+      transcriptTurnIds: ['t1'],
       unsavedPaths: () => [],
     })
-    expect(calls).toEqual(['capture', 'record s1', 'turns', 'restore'])
+    expect(calls).toEqual(['start s1 t1', 'turns', 'older legacy', 'legacy', 'restore'])
   })
 
   it('has no folder to checkpoint without a store', async () => {
@@ -279,75 +297,187 @@ describe('createCheckpointPort (M72)', () => {
       hasGit: () => true,
     })
     expect(port.availability()).toBe('noFolder')
-    expect(await port.capture()).toBeUndefined()
+    expect(await port.startTurnUnit('s1', 't1', false)).toBeUndefined()
+  })
+
+  it('refuses a tool write into the checkpoint storage whatever the setting', () => {
+    for (const isEnabled of [true, false]) {
+      const { port } = portOver({ isTrusted: true, isEnabled, hasGit: true })
+      expect(() => {
+        port.refuseStorageWrite('/storage/shadow.git/config')
+      }).toThrow(MODEL_TEXT.checkpointStorageWrite)
+      expect(() => {
+        port.refuseStorageWrite('/ws/a.txt')
+      }).not.toThrow()
+    }
   })
 })
 
-describe('prepareCheckpointTurn (M72)', () => {
-  it('awaits capture and durable record before admitting queued or scheduled edits', async () => {
-    const { store, calls } = fakeStore()
-    const captured = Promise.withResolvers<undefined>()
+describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
+  it('awaits the unit’s record before admitting queued or scheduled edits', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const persisted = Promise.withResolvers<undefined>()
-    store.capture = async () => {
-      calls.push('capture')
-      await captured.promise
-      return { ok: true, snapshot: NO_SNAPSHOT }
-    }
-    store.record = async () => {
-      calls.push('record')
+    store.startUnit = async () => {
+      calls.push('start')
       await persisted.promise
+      return { sequence: 1 }
     }
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
-    })
     let isAdmitted = false
     const preparation = (async () => {
-      await prepareCheckpointTurn(port, 's1', 't2', new FakeLogOutputChannel())
+      await prepareCheckpointTurn(port, recorderOver(calls), 's1', 't2', new FakeLogOutputChannel())
       isAdmitted = true
     })()
     await vi.waitFor(() => {
-      expect(calls).toContain('capture')
-    })
-    expect(isAdmitted).toBe(false)
-    captured.resolve(undefined)
-    await vi.waitFor(() => {
-      expect(calls).toContain('record')
+      expect(calls).toContain('start')
     })
     expect(isAdmitted).toBe(false)
     persisted.resolve(undefined)
     await preparation
     expect(isAdmitted).toBe(true)
+    expect(calls).toEqual(['mark s1\0t2 true', 'start', 'writes s1 t2'])
   })
 
-  it('reuses the checkpoint already captured for the panel submission', async () => {
+  it('gives a recorded turn its own writes, after its running mark and its unit (spec 5.1)', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
-    await prepareCheckpointTurn(port, 's1', 't1', new FakeLogOutputChannel())
-    expect(calls).toEqual(['mark s1\0t1 true', 'turns'])
+    expect(
+      await prepareCheckpointTurn(
+        port,
+        recorderOver(calls),
+        's1',
+        't1',
+        new FakeLogOutputChannel(),
+      ),
+    ).toEqual({ kind: 'recording', owner: OWNER, writes: WRITES })
+    expect(calls).toEqual(['mark s1\0t1 true', 'start s1 t1', 'writes s1 t1'])
   })
 
-  it('releases a refused preimage and logs failure kind without storage paths', async () => {
-    const { store, calls } = fakeStore()
-    store.capture = () => Promise.resolve({ ok: true, snapshot: NO_SNAPSHOT })
-    store.record = () => Promise.reject(new Error('EACCES /private/profile/store'))
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
-    })
+  it('marks a turn running and records nothing while checkpoints are off, or with no recorder', async () => {
+    const off = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    expect(
+      await prepareCheckpointTurn(
+        off.port,
+        recorderOver(off.calls),
+        's1',
+        't1',
+        new FakeLogOutputChannel(),
+      ),
+    ).toEqual({ kind: 'off' })
+    expect(off.calls).toEqual(['mark s1\0t1 true'])
+    const on = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    expect(
+      await prepareCheckpointTurn(on.port, undefined, 's1', 't1', new FakeLogOutputChannel()),
+    ).toEqual({ kind: 'off' })
+    expect(on.calls).toEqual(['mark s1\0t1 true'])
+  })
+
+  it('runs a turn whose record failed, unrecorded, logging the failure’s kind without storage paths', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    store.startUnit = () => Promise.reject(new Error('EACCES /private/profile/store'))
     const log = new FakeLogOutputChannel()
-    await prepareCheckpointTurn(port, 's1', 't2', log)
-    expect(calls).toContain('release')
+    expect(await prepareCheckpointTurn(port, recorderOver(calls), 's1', 't2', log)).toEqual({
+      kind: 'failed',
+    })
+    expect(calls).toEqual(['mark s1\0t2 true'])
     expect(JSON.stringify(log.warn.mock.calls)).not.toContain('/private/profile')
+  })
+
+  it('gives a child turn its top turn’s decision: recorded with the setting off, unrecorded under an unrecorded top (spec 3.2)', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    const recorder = recorderOver(calls)
+    const log = new FakeLogOutputChannel()
+    const recording = { kind: 'recording', owner: OWNER, writes: WRITES } as const
+    expect(
+      await prepareCheckpointTurn(port, recorder, 's1', 'c1', log, { checkpoint: recording }),
+    ).toMatchObject({ kind: 'recording', owner: { unitId: 'c1' } })
+    expect(
+      await prepareCheckpointTurn(port, recorder, 's1', 'c2', log, {
+        checkpoint: { kind: 'failed' },
+      }),
+    ).toMatchObject({ kind: 'recording', owner: { unitId: 'c2' } })
+    expect(
+      await prepareCheckpointTurn(port, recorder, 's1', 'c3', log, { checkpoint: { kind: 'off' } }),
+    ).toEqual({ kind: 'off' })
+    // Reloaded children keep their decision independently of today's setting.
+    expect(
+      await prepareCheckpointTurn(port, recorder, 's1', 'c4', log, {
+        checkpoint: undefined,
+        recordsFiles: false,
+      }),
+    ).toEqual({ kind: 'off' })
+    expect(calls.filter((call) => !call.startsWith('mark'))).toEqual([
+      'start s1 c1',
+      'writes s1 c1',
+      'start s1 c2',
+      'writes s1 c2',
+    ])
+  })
+
+  it('refuses to run a child turn whose record cannot be made (spec 3.2, row Q)', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    store.startUnit = () => Promise.reject(new Error('EACCES /private/profile/store'))
+    const recording = { kind: 'recording', owner: OWNER, writes: WRITES } as const
+    for (const top of [{ checkpoint: recording }, { checkpoint: undefined, recordsFiles: true }]) {
+      await expect(
+        prepareCheckpointTurn(
+          port,
+          recorderOver(calls),
+          's1',
+          'c1',
+          new FakeLogOutputChannel(),
+          top,
+        ),
+      ).rejects.toThrow(UI_TEXT.checkpointFailed)
+    }
+    expect(calls.filter((call) => call.startsWith('writes'))).toEqual([])
+  })
+
+  it('refuses a reloaded recording child when this window has no recorder', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
+    await expect(
+      prepareCheckpointTurn(port, undefined, 's1', 'child', new FakeLogOutputChannel(), {
+        checkpoint: undefined,
+        recordsFiles: true,
+      }),
+    ).rejects.toThrow(UI_TEXT.childCheckpointFailed)
+  })
+
+  it('drains a recorded turn’s writes, then ends its unit, then withdraws its mark', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const drained = Promise.withResolvers<undefined>()
+    const ending = finishCheckpointTurn(port, recorderOver(calls, drained.promise), 's1', 't1', {
+      checkpoint: { kind: 'recording', owner: OWNER, writes: WRITES },
+      ranProcesses: true,
+    })
+    await vi.waitFor(() => {
+      expect(calls).toContain('drain t1')
+    })
+    // No unit end while a write of the turn is still under way.
+    expect(calls).toEqual(['drain t1'])
+    drained.resolve(undefined)
+    await ending
+    expect(calls).toEqual(['drain t1', 'drained', 'end t1 true', 'mark s1\0t1 false'])
+  })
+
+  it('only withdraws the mark of a turn that recorded nothing, and keeps it when the end fails', async () => {
+    const { port, calls, store } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const recorder = recorderOver(calls)
+    for (const checkpoint of [{ kind: 'off' }, { kind: 'failed' }, undefined] as const) {
+      await finishCheckpointTurn(port, recorder, 's1', 't2', { checkpoint, ranProcesses: true })
+    }
+    expect(calls).toEqual(['mark s1\0t2 false', 'mark s1\0t2 false', 'mark s1\0t2 false'])
+    calls.length = 0
+    store.endUnit = () => Promise.reject(new Error('the seal failed'))
+    await expect(
+      finishCheckpointTurn(port, recorder, 's1', 't1', {
+        checkpoint: { kind: 'recording', owner: OWNER, writes: WRITES },
+        ranProcesses: false,
+      }),
+    ).rejects.toThrow('the seal failed')
+    expect(calls).toEqual(['drain t1', 'drained'])
   })
 })
 
-describe('withCheckpointCopies (M72)', () => {
+describe('withCheckpointStorageGuard (M72, M86)', () => {
   it('awaits an activity mark before starting shell or hook work', async () => {
     const { store, calls } = fakeStore()
     const entered = Promise.withResolvers<undefined>()
@@ -366,17 +496,8 @@ describe('withCheckpointCopies (M72)', () => {
       isEnabled: () => false,
       hasGit: () => true,
     })
-    const work = vi.fn(() =>
-      Promise.resolve({
-        stdout: '',
-        stderr: '',
-        exitCode: 0,
-        isTimedOut: false,
-        isCancelled: false,
-        isWorkspaceShutdownProven: true as const,
-      }),
-    )
-    const io = withCheckpointCopies(
+    const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
+    const io = withCheckpointStorageGuard(
       { ...noopToolIo, runShell: enteringShell(work), runHook: work },
       port,
     )
@@ -401,7 +522,7 @@ describe('withCheckpointCopies (M72)', () => {
     async (_name, refusal) => {
       const { port, calls } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
       const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+      const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
       let asked = 0
       const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, () => {
         asked += 1
@@ -434,7 +555,7 @@ describe('withCheckpointCopies (M72)', () => {
   it('runs the wrapped shell once when both entries admit it', async () => {
     const { port } = portOver({ isTrusted: true, isEnabled: false, hasGit: true })
     const work = vi.fn(() => Promise.resolve(PROVEN_SHELL))
-    const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+    const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
     const guard = vi.fn()
     const result = await io.runShell('owned fixture', '/ws', 1000, undefined, undefined, guard)
     expect(guard).toHaveBeenCalledTimes(2)
@@ -443,94 +564,80 @@ describe('withCheckpointCopies (M72)', () => {
     expect(result.exitCode).toBe(0)
   })
 
-  it('copies before each tool write, and a copy that fails fails the write', async () => {
-    const { store, calls } = fakeStore()
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => true,
-      hasGit: () => true,
-    })
+  it('refuses every tool write into the checkpoint storage, and records nothing (M86)', async () => {
+    const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const writes: string[] = []
     const io: ToolIo = {
       ...noopToolIo,
       writeFile: (absolutePath) => {
         writes.push(absolutePath)
-        calls.push(`write ${absolutePath}`)
         return Promise.resolve()
       },
+      writeFileIfUnchanged: (absolutePath) => {
+        writes.push(absolutePath)
+        return Promise.resolve('written')
+      },
+      reserveFile: (absolutePath) => {
+        writes.push(absolutePath)
+        return noopToolIo.reserveFile(absolutePath)
+      },
     }
-    const wrapped = withCheckpointCopies(io, port)
-    await expect(wrapped.writeFile('/ws/.env', 'KEY=1')).rejects.toThrow(
-      'the staging folder is full',
-    )
-    await expect(wrapped.reserveFile('/ws/image.png')).rejects.toThrow('the staging folder is full')
+    const wrapped = withCheckpointStorageGuard(io, port)
+    const options = { expectedCanonicalPath: '/x', unsavedAt: [] }
+    const refusal = MODEL_TEXT.checkpointStorageWrite
+    await expect(wrapped.writeFile('/storage/config', 'x')).rejects.toThrow(refusal)
+    await expect(wrapped.reserveFile('/storage/image.png')).rejects.toThrow(refusal)
     await expect(
-      wrapped.writeFileIfUnchanged('/ws/.env', 'expected', 'KEY=2', {
-        expectedCanonicalPath: '/ws/.env',
-        unsavedAt: [],
-      }),
-    ).rejects.toThrow('the staging folder is full')
-    expect(calls).toEqual(['copy /ws/.env', 'copy /ws/image.png', 'copy /ws/.env'])
-    expect(writes).toEqual([])
+      wrapped.writeFileIfUnchanged('/storage/config', 'expected', 'x', options),
+    ).rejects.toThrow(refusal)
+    await wrapped.writeFile('/ws/.env', 'KEY=1')
+    await wrapped.reserveFile('/ws/image.png')
+    expect(await wrapped.writeFileIfUnchanged('/ws/.env', 'expected', 'KEY=2', options)).toBe(
+      'written',
+    )
+    expect(writes).toEqual(['/ws/.env', '/ws/image.png', '/ws/.env'])
+    // No store call at all: the window's io records nothing, whatever the setting.
+    expect(calls).toEqual([])
   })
 })
 
-describe('the setting switched off while a turn is under way (M72)', () => {
+describe('a unit under way when the setting goes off (M86)', () => {
   afterEach(removeCheckpointFolders)
 
-  const ENV_BEFORE = 'KEY=before\n'
-
-  /** A real store with an ignored `.env`, behind a port whose setting the test flips. */
-  async function switchable() {
-    const h = await harness()
-    await write(h.root, '.gitignore', '.env\n')
-    await write(h.root, '.env', ENV_BEFORE)
-    const setting = { isEnabled: true }
-    const port = createCheckpointPort({
-      isNamespaceKnown: () => true,
-      store: h.store,
-      isWorkspaceTrusted: () => true,
-      isEnabled: () => setting.isEnabled,
-      hasGit: () => true,
-    })
-    const io = withCheckpointCopies(
-      { ...noopToolIo, writeFile: (file, content) => writeFile(file, content) },
-      port,
-    )
-    return { h, setting, port, io }
-  }
-
   it(
-    'keeps copying for a turn whose start was recorded, so its restore puts an ignored file back',
+    'ends a unit that started recording, so its restore puts the file back once the setting is on again',
     async () => {
-      const { h, setting, port, io } = await switchable()
-      await prepareCheckpointTurn(port, 's1', 't1', h.log)
+      const h = await harness()
+      await write(h.root, '.env', 'KEY=before\n')
+      const setting = { isEnabled: true }
+      const port = createCheckpointPort({
+        isNamespaceKnown: () => true,
+        store: h.store,
+        isWorkspaceTrusted: () => true,
+        isEnabled: () => setting.isEnabled,
+        hasGit: () => true,
+      })
+      const recorder = turnRecorder(h)
+      const checkpoint = await prepareCheckpointTurn(port, recorder, 's1', 't1', h.log)
+      if (checkpoint.kind !== 'recording') {
+        throw new Error('expected a recording turn')
+      }
       setting.isEnabled = false
-      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
-      await port.endTurn('s1', 't1')
-      await port.markTurn(turnKey('s1', 't1'), false)
+      // The turn's own io, the real recorder's, in the window the store restores in.
+      const file = path.join(h.root, '.env')
+      await checkpoint.writes.io.writeFile(file, 'KEY=after\n', file)
+      await finishCheckpointTurn(port, recorder, 's1', 't1', { checkpoint, ranProcesses: false })
+      expect(storedUnit(h.storage, 't1')).toMatchObject({
+        status: 'complete',
+        writes: [{ path: '.env', outcome: 'done' }],
+      })
       setting.isEnabled = true
       expect(await restoreOutcome(port, 't1')).toMatchObject({
         ok: true,
         changed: ['.env'],
         refused: [],
       })
-      expect(await read(h.root, '.env')).toBe(ENV_BEFORE)
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'takes no copy with the setting off and no recorded turn open',
-    async () => {
-      const { h, setting, port, io } = await switchable()
-      setting.isEnabled = false
-      await prepareCheckpointTurn(port, 's1', 't1', h.log)
-      await io.writeFile(path.join(h.root, '.env'), 'KEY=after\n')
-      expect(await isPresent(h.storage, 'staging')).toBe(false)
-      expect(await read(h.root, '.env')).toBe('KEY=after\n')
+      expect(await read(h.root, '.env')).toBe('KEY=before\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -538,14 +645,22 @@ describe('the setting switched off while a turn is under way (M72)', () => {
 
 describe('withCheckpointEditAt (M72)', () => {
   const linux = { root: '/ws', platform: 'linux' } as const
+  const log = new FakeLogOutputChannel()
 
   it('holds the pure lease around work inside the workspace, and lets it go when the work fails', async () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const check = vi.fn()
-    const done = await withCheckpointEditAt(port, check, linux, '/ws/.agents/memory/a.md', () => {
-      calls.push('work')
-      return Promise.resolve('written')
-    })
+    const done = await withCheckpointEditAt(
+      port,
+      log,
+      check,
+      linux,
+      '/ws/.agents/memory/a.md',
+      () => {
+        calls.push('work')
+        return Promise.resolve('written')
+      },
+    )
     expect(done).toBe('written')
     const [opened, work, closed] = calls
     expect(opened).toMatch(/^mark workspace-activity:\S+ true$/)
@@ -554,7 +669,7 @@ describe('withCheckpointEditAt (M72)', () => {
     expect(check).toHaveBeenCalledTimes(2)
     calls.length = 0
     await expect(
-      withCheckpointEditAt(port, check, linux, '/ws/a.md', () =>
+      withCheckpointEditAt(port, log, check, linux, '/ws/a.md', () =>
         Promise.reject(new Error('EPERM')),
       ),
     ).rejects.toThrow('EPERM')
@@ -572,7 +687,7 @@ describe('withCheckpointEditAt (M72)', () => {
   ] as const)('takes no lease for %s, and asks the guard first', async (_name, workspace, file) => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     const check = vi.fn()
-    await withCheckpointEditAt(port, check, workspace, file, () => {
+    await withCheckpointEditAt(port, log, check, workspace, file, () => {
       calls.push('work')
       return Promise.resolve()
     })
@@ -595,12 +710,35 @@ describe('withCheckpointEditAt (M72)', () => {
     const { port, calls } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
     await withCheckpointEditAt(
       port,
+      new FakeLogOutputChannel(),
       vi.fn(),
       { root: String.raw`C:\Ws`, platform: 'win32' },
       String.raw`c:\ws\notes\a.md`,
       () => Promise.resolve(),
     )
     expect(calls).toHaveLength(2)
+  })
+
+  it('reports a completed edit as done when its lease cannot be let go, and logs it (M86 V)', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const failing: CheckpointPort = {
+      ...port,
+      markTurn: (_key, isRunning) =>
+        isRunning ? Promise.resolve() : Promise.reject(new Error('the presence file is gone')),
+    }
+    const warned = new FakeLogOutputChannel()
+    const done = await withCheckpointEdit(failing, warned, vi.fn(), () =>
+      Promise.resolve('written'),
+    )
+    expect(done).toBe('written')
+    // Logged by kind only, as every checkpoint failure is: no storage path reaches the log.
+    expect(warned.warn).toHaveBeenCalledWith(
+      "An edit's checkpoint lease could not be let go: Error",
+    )
+    // A failed edit keeps its own failure, not the lease's.
+    await expect(
+      withCheckpointEdit(failing, warned, vi.fn(), () => Promise.reject(new Error('EPERM'))),
+    ).rejects.toThrow('EPERM')
   })
 
   it.each(['/ws/a.md', '/elsewhere/a.md'])(
@@ -611,6 +749,7 @@ describe('withCheckpointEditAt (M72)', () => {
       await expect(
         withCheckpointEditAt(
           port,
+          new FakeLogOutputChannel(),
           () => {
             throw new Error('the window closed')
           },
@@ -623,58 +762,6 @@ describe('withCheckpointEditAt (M72)', () => {
       expect(calls).toEqual([])
     },
   )
-})
-
-describe('the ignored-file scan (M72)', () => {
-  it('reads sizes and times, walks a small ignored folder, and leaves out a large one', async () => {
-    const root = path.join(base, 'scan')
-    await mkdir(path.join(root, 'dist'), { recursive: true })
-    await mkdir(path.join(root, 'huge'), { recursive: true })
-    await writeFile(path.join(root, '.env'), 'A=1')
-    await writeFile(path.join(root, 'dist', 'a.js'), 'x')
-    for (let index = 0; index <= CHECKPOINT_IGNORED_FOLDER_MAX_FILES; index += 1) {
-      await writeFile(path.join(root, 'huge', `f${String(index)}`), '')
-    }
-    const { inventory } = await scanIgnored(root, ['.env'], ['dist', 'huge'])
-    const scanned = [...inventory.files].map(([key]) => key).toSorted((a, b) => a.localeCompare(b))
-    expect(scanned).toEqual(['.env', 'dist/a.js'])
-    expect(inventory.files.get('.env')?.size).toBe(3)
-    expect(inventory.skippedFolders).toEqual(['huge'])
-    expect(inventory.isPartial).toBe(false)
-    expect(CHECKPOINT_IGNORED_SCAN_MAX_FILES).toBeGreaterThan(CHECKPOINT_IGNORED_FOLDER_MAX_FILES)
-  })
-
-  it('tells created, changed and deleted files apart, and says nothing where it did not look', () => {
-    const start = {
-      files: new Map([
-        ['kept.log', { size: 1, mtimeMs: 1 }],
-        ['changed.log', { size: 1, mtimeMs: 1 }],
-        ['deleted.log', { size: 1, mtimeMs: 1 }],
-      ]),
-      skippedFolders: ['node_modules'],
-      isPartial: false,
-    }
-    const end = {
-      files: new Map([
-        ['kept.log', { size: 1, mtimeMs: 1 }],
-        ['changed.log', { size: 2, mtimeMs: 5 }],
-        ['new.log', { size: 3, mtimeMs: 6 }],
-        ['node_modules/x/added.js', { size: 1, mtimeMs: 6 }],
-      ]),
-      skippedFolders: [],
-      isPartial: false,
-    }
-    expect(ignoredChanges(start, end)).toEqual([
-      {
-        path: 'changed.log',
-        kind: 'changed',
-        startStat: { size: 1, mtimeMs: 1 },
-        endStat: { size: 2, mtimeMs: 5 },
-      },
-      { path: 'deleted.log', kind: 'deleted', startStat: { size: 1, mtimeMs: 1 }, endStat: null },
-      { path: 'new.log', kind: 'created', startStat: null, endStat: { size: 3, mtimeMs: 6 } },
-    ])
-  })
 })
 
 describe('createGitProcess (M72)', () => {
@@ -698,17 +785,17 @@ describe('createGitProcess (M72)', () => {
   })
 
   it('rejects when git is only reachable relatively, without running anything', async () => {
-    const spawn = vi.fn()
+    const spawnFake = vi.fn()
     const relative = createGitProcess({
       platform: 'linux',
       env: { PATH: '.:bin' },
       fileExists: () => true,
-      spawn,
+      spawn: spawnFake,
     })
     await expect(
       relative(['status'], { cwd: base, env: {}, timeoutMs: 1000 }),
     ).rejects.toBeInstanceOf(GitMissingError)
-    expect(spawn).not.toHaveBeenCalled()
+    expect(spawnFake).not.toHaveBeenCalled()
   })
 
   it('ends a running command when the window closes, and starts none after', async () => {

@@ -237,6 +237,15 @@ function failure(reason: string): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
 }
 
+function reasonOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** The exclusive create found something at the path. */
+function isNameTaken(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST'
+}
+
 /** Asks Meta for the image and writes it as a new file. May throw (an API error). */
 export async function runImageCall(plan: ImagePlan, deps: ImageRunDeps): Promise<ToolOutcome> {
   // Turned off while the question was open (the review of PR #27): nothing is bought.
@@ -250,8 +259,10 @@ export async function runImageCall(plan: ImagePlan, deps: ImageRunDeps): Promise
       plan.target.checkedAbsolute,
       plan.target.checkedAbsolute,
     )
-  } catch {
-    return failure(MODEL_TEXT.imagePathTaken)
+  } catch (error: unknown) {
+    // Taken meanwhile, or refused before anything was made, for its own reason
+    // (M86: the record a restore needs could not be kept).
+    return failure(isNameTaken(error) ? MODEL_TEXT.imagePathTaken : reasonOf(error))
   }
   try {
     return await buy(plan, reservation, deps)
@@ -304,7 +315,10 @@ async function buy(
     await reservation.release()
     return failure('the image service returned something that is not a PNG image')
   }
-  await reservation.fill(bytes)
+  // Something else wrote into the reserved file meanwhile: its bytes stay (M86).
+  if ((await reservation.fill(bytes)) === 'changed') {
+    return failure(MODEL_TEXT.imageFileChanged)
+  }
   const size = `${String(Math.ceil(bytes.length / BYTES_PER_KIB))} KiB`
   const revised = image?.revised_prompt ?? undefined
   const from =

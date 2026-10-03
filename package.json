@@ -627,7 +627,7 @@
         },
         "museSpark.turnCheckpoints": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.turnCheckpoints.description%",
           "scope": "machine"
         }
