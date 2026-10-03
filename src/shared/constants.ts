@@ -269,7 +269,8 @@ export const SETTING_DEFAULTS = {
   allowDangerouslySkipPermissions: false,
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
-  // deleted: MSP has no delete, and "Show archived" brings them back.
+  // deleted: the extension does not call session/delete (available since
+  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -1990,6 +1991,20 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
   'session/read',
   'session/compact',
 ])
+// Muse Code's own approval faults (PLAN.md D26), named by the words of the
+// `internal` error it answers with (captured live 2026-10-02, Muse Code
+// 1.4.2): `turn/start` after a turn stopped under a part-decided multi-stage
+// approval, and `approval/decide` in such a session after a restart (and on
+// Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
+export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
+export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// A Stop under a part-decided approval rejects its waiting stage first
+// (MuseSession.cancel); a stage that moved on is rejected once more there.
+// Each try waits this long at most, then the Stop goes on: a decision takes
+// about a second on a loaded machine (the owner's log, 2026-10-02), so ten
+// is ample, and a host that does not answer delays the Stop by 20 s at most.
+export const APPROVAL_REJECT_ATTEMPTS = 2
+export const APPROVAL_REJECT_DEADLINE_MS = 10_000
 // The frame cap `muse serve` holds in both directions (the SDK's
 // DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
 // a message, where the host would drop the frame and never answer (D26).
@@ -2001,13 +2016,14 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
 // MSP schema fingerprints Muse Code has served beyond the one
-// `@muse-code/sdk` 1.3.0 pins, each an additive change (1.4.0's schema export
-// diffed against 1.3.0's; Meta's release manifests carry the same values).
+// `@muse-code/sdk` 1.3.0 pins, each an additive change (SDK tarballs, schema
+// exports and release manifests; docs/certification/sdk142.md).
 // Such a host is logged at info with its build; any other mismatch stays a
 // warning (docs/certification/release-0.9.1.md).
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
   'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
+  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -2653,6 +2669,10 @@ export const WEBVIEW_SNAPSHOT_VERSION = 1
 export const IME_PROCESS_KEY = 'Process'
 // The status a tool row takes when its turn ended without finishing it.
 export const TOOL_STATUS_INTERRUPTED = 'interrupted'
+export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
+// The approval dock (D26) moves focus to an arriving card unless the user is
+// typing: a field holding text, or a key pressed this recently.
+export const DOCK_TYPING_GRACE_MS = 1500
 
 // What the model or Meta reads (PLAN.md D33): the context leads, the
 // compaction prompt, the steering and answer prefixes, the skill invocation

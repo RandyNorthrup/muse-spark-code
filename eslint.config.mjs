@@ -132,9 +132,9 @@ export default tseslint.config(
         'error',
         {
           selector:
-            "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError)$/]",
+            "BinaryExpression[operator='instanceof'][right.name=/^(SessionNotLoadedError|PromptSettledError|GoalRefusedError|MuseCodeFaultError|DecisionNotAppliedError)$/]",
           message:
-            'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError or isGoalRefusedError (src/core/agent/agentBackend.ts).',
+            'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError or isDecisionNotAppliedError (src/core/agent/agentBackend.ts).',
         },
       ],
     },

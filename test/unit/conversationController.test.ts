@@ -19,6 +19,7 @@ import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
 import type { UsageInsights } from '../../src/shared/usage'
 import {
   ConversationController,
+  restartConversationBackends,
   type ConversationDeps,
   type LastSession,
   type PickedFile,
@@ -59,6 +60,7 @@ import type {
 } from '../../src/shared/protocol'
 import type { SubscriptionUsage } from '../../src/shared/usage'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
+import { ledgerFault, REPLAY_FAULT_MESSAGE, replayFault } from './helpers/stageRaceCapture'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -2106,8 +2108,8 @@ describe('ConversationController: transcript actions (M4)', () => {
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
       feedback: 'not that',
     })
-    // The answer is logged, never the feedback typed with it (M39).
-    expect(t.log.info).toHaveBeenCalledWith('Approval a1 answered: abort')
+    // The answer is logged with its stage (D26), never the feedback typed with it (M39).
+    expect(t.log.info).toHaveBeenCalledWith('Approval a1 stage 0 answered: abort')
     expect(t.log.info.mock.calls.flat().join('\n')).not.toContain('not that')
     expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
       sessionId: 's1',
@@ -2127,21 +2129,28 @@ describe('ConversationController: transcript actions (M4)', () => {
     t.server.handle('approval/decide', () => {
       throw new Error('stale requirement')
     })
+    // The host answered with a refusal and still waits on the stage.
+    t.server.handle('approval/listPending', () => ({
+      approvals: [{ approvalId: 'a2', currentRequirementId: { approvalId: 'a2', sourceIndex: 0 } }],
+      userInputs: [],
+    }))
+    // Another approval: a1 closed with its terminal decision (D26).
     await t.controller.handle({
       type: 'decideApproval',
-      approvalId: 'a1',
+      approvalId: 'a2',
       choiceId: 'allow_once',
-      requirementId: { approvalId: 'a1', sourceIndex: 0 },
+      requirementId: { approvalId: 'a2', sourceIndex: 0 },
     })
     // A refused decision is a warning since M15: the CLI can fail this reply
-    // after applying the decision. The card opens again (D26).
+    // after applying the decision. The card opens again only because the
+    // host still waits on that very stage (D26).
     expect(t.surface.posted.slice(-2)).toEqual([
       expect.objectContaining({
         type: 'notice',
         level: 'warning',
         text: expect.stringContaining('stale requirement') as string,
       }),
-      { type: 'approvalReopened', approvalId: 'a1' },
+      { type: 'approvalReopened', approvalId: 'a2' },
     ])
     t.server.handle('userInput/answer', () => {
       throw new Error('invalid answer')
@@ -2187,13 +2196,75 @@ describe('ConversationController: transcript actions (M4)', () => {
     await t.controller.handle({ type: 'readOutput', itemId: 'c', outputRef: 'p', offsetBytes: 0 })
     expect(t.surface.posted.at(-1)).toMatchObject({
       type: 'notice',
-      level: 'error',
-      text: expect.stringContaining('missing') as string,
+      level: 'warning',
+      text: `${UI_TEXT.outputLoadFailed}: missing. ${UI_TEXT.outputLoadRetry}`,
     })
     // What the panel said is in the log too (M39).
-    expect(t.log.error).toHaveBeenCalledWith(
-      expect.stringMatching(/^Shown in the panel: .*missing/),
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringMatching(/^Shown in the panel: .*missing/))
+  })
+
+  it('joins an output read in flight instead of sending it again (D26)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    const before = t.surface.posted.length
+    t.server.silence('item/readOutput')
+    const read = { type: 'readOutput' as const, itemId: 'c', outputRef: 'p', offsetBytes: 0 }
+    const first = t.controller.handle(read)
+    const second = t.controller.handle(read)
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('item/readOutput')).toHaveLength(1)
+    })
+    // The row asked twice (re-rendered); one read goes to the busy host.
+    const [request] = t.server.requestsFor('item/readOutput')
+    if (request?.id === undefined) {
+      throw new Error('expected the held read')
+    }
+    t.server.incoming.push(
+      `${JSON.stringify({ jsonrpc: '2.0', id: request.id, error: { code: -32_603, message: 'Muse Code did not answer item/readOutput within 60 s', data: { kind: 'internal' } } })}\n`,
     )
+    await Promise.all([first, second])
+    const notices = t.surface.posted.slice(before).filter((message) => message.type === 'notice')
+    expect(notices).toEqual([
+      expect.objectContaining({
+        level: 'warning',
+        text: expect.stringContaining(UI_TEXT.outputLoadRetry) as string,
+      }),
+    ])
+    expect(t.server.requestsFor('item/readOutput')).toHaveLength(1)
+  })
+
+  it('says one failed output read of many, and is ready to say it again after a success (D26)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    const read = { type: 'readOutput' as const, itemId: 'c', outputRef: 'p', offsetBytes: 0 }
+    const notices = () => t.surface.posted.filter((message) => message.type === 'notice')
+    const before = notices().length
+    // Five rows fail the same way: one notice, the rest logged.
+    t.server.handle('item/readOutput', () => {
+      throw new Error('busy')
+    })
+    for (const itemId of ['c', 'd', 'e', 'f', 'g']) {
+      await t.controller.handle({ ...read, itemId })
+    }
+    expect(notices()).toHaveLength(before + 1)
+    expect(t.log.warn).toHaveBeenCalledWith(
+      `${UI_TEXT.outputLoadFailed}: busy (item g; said once in the panel)`,
+    )
+    // A read that succeeds lets the next failure be said again.
+    t.server.handle('item/readOutput', (params) => ({
+      content: 'x',
+      encoding: 'utf8',
+      mediaType: 'text/plain',
+      offsetBytes: params['offsetBytes'],
+      byteLen: 1,
+      eof: true,
+    }))
+    await t.controller.handle({ ...read, itemId: 'h' })
+    t.server.handle('item/readOutput', () => {
+      throw new Error('busy')
+    })
+    await t.controller.handle({ ...read, itemId: 'i' })
+    expect(notices()).toHaveLength(before + 2)
   })
 
   it('does not publish a held output page after account host stop', async () => {
@@ -4874,12 +4945,84 @@ describe('ConversationController (M15)', () => {
       choiceId: 'allow',
       requirementId: { approvalId: 'ap-1', sourceIndex: 0 },
     })
-    expect(t.surface.posted.at(-2)).toMatchObject({
+    expect(t.surface.posted.at(-1)).toMatchObject({
       type: 'notice',
       level: 'warning',
       text: expect.stringContaining('may have run anyway') as string,
     })
-    expect(t.surface.posted.at(-1)).toEqual({ type: 'approvalReopened', approvalId: 'ap-1' })
+    // Whether it applied cannot be told (no approval/listPending here): the
+    // card stays decided and follows the host (one decision per stage, D26).
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'approvalReopened' }),
+    )
+  })
+
+  it('says the captured ledger fault once, as Muse Code’s, and keeps the card waiting (D26)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.handle('approval/decide', ledgerFault)
+    const before = t.surface.posted.length
+    for (const approvalId of ['ap-1', 'ap-2']) {
+      await t.controller.handle({
+        type: 'decideApproval',
+        approvalId,
+        choiceId: 'allow_once',
+        requirementId: { approvalId, sourceIndex: 0 },
+      })
+    }
+    const notices = t.surface.posted.slice(before).filter((message) => message.type === 'notice')
+    expect(notices).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: UI_TEXT.approvalLedgerFault,
+        actions: ['newConversation'],
+      },
+    ])
+    // The decision applied: no card offers it again.
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'approvalReopened' }),
+    )
+    expect(t.log.warn).toHaveBeenCalledWith(
+      'Muse Code fault approvalLedger again (said once in the panel)',
+    )
+  })
+
+  it('says the captured replay fault once with Restart and New conversation, and restarts on the click (D26)', async () => {
+    const t = setup()
+    await t.send('l1', 'hi')
+    // Whether the next message starts a turn or steers the running one.
+    t.server.handle('turn/start', replayFault)
+    t.server.handle('turn/steer', replayFault)
+    await t.send('l2', 'go on')
+    await t.send('l3', 'and again')
+    const failed = t.surface.posted.filter((message) => message.type === 'sendFailed')
+    expect(failed).toEqual([
+      expect.objectContaining({ localId: 'l2', reason: REPLAY_FAULT_MESSAGE }),
+      expect.objectContaining({ localId: 'l3', reason: REPLAY_FAULT_MESSAGE }),
+    ])
+    const faultNotices = () =>
+      t.surface.posted.filter(
+        (message) => message.type === 'notice' && message.text === UI_TEXT.approvalReplayRefused,
+      )
+    expect(faultNotices()).toEqual([
+      {
+        type: 'notice',
+        level: 'error',
+        text: UI_TEXT.approvalReplayRefused,
+        actions: ['restartMuseCode', 'newConversation'],
+      },
+    ])
+    await t.controller.handle({ type: 'hostAction', action: 'restartMuseCode' })
+    expect(t.hostActions).toEqual(['restartMuseCode'])
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'info',
+      text: UI_TEXT.museCodeRestartAsked,
+    })
+    // Should the fault outlive the restart, it is said again.
+    await t.send('l4', 'once more')
+    expect(faultNotices()).toHaveLength(2)
   })
 })
 
@@ -5946,6 +6089,78 @@ describe('ConversationController: lifecycle (D25)', () => {
     )
   })
 
+  it('keeps a running Model API turn through a Muse-Code-only restart (D26)', async () => {
+    const t = setup()
+    const { api, host, controller } = modelApiController(t)
+    const release = Promise.withResolvers<undefined>()
+    api.script({ text: 'Uninterrupted answer', hold: release.promise })
+    await controller.handle({
+      type: 'sendMessage',
+      localId: 'paid',
+      text: 'Continue',
+      attachmentIds: [],
+    })
+    await vi.waitFor(() => {
+      expect(api.responseBodies()).toHaveLength(1)
+    })
+    const before = t.surface.posted.length
+    const museDispose = vi.fn(() => Promise.resolve())
+    const modelDispose = vi.fn(() => host.close())
+    try {
+      await restartConversationBackends(
+        [controller],
+        { dispose: museDispose },
+        { dispose: modelDispose },
+        false,
+        true,
+      )
+      expect(t.surface.posted.slice(before)).toEqual([])
+      expect(museDispose).toHaveBeenCalledOnce()
+      expect(modelDispose).not.toHaveBeenCalled()
+    } finally {
+      release.resolve(undefined)
+    }
+    await vi.waitFor(() => {
+      expect(agentEvents(t)).toContainEqual(
+        expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
+      )
+    })
+    expect(agentEvents(t)).not.toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'cancelled' }),
+    )
+    expect(JSON.stringify(t.surface.posted)).toContain('Uninterrupted answer')
+    expect(await host.listSessions({ workspaceRoot: '/ws', limit: 1 })).toMatchObject({
+      sessions: [expect.objectContaining({ sessionId: 'fixed' })],
+    })
+  })
+
+  it('stops a Muse Code turn on a Muse-Code-only restart (D26)', async () => {
+    const t = setup()
+    await t.send('old', 'Continue')
+    await t.controller.backendStopping(false, 'museCode')
+    expect(t.server.requestsFor('turn/cancel')).toHaveLength(1)
+    expect(agentEvents(t)).toContainEqual(
+      expect.objectContaining({ type: 'turnCompleted', terminal: 'cancelled' }),
+    )
+  })
+
+  it('still stops both backends on a general restart (D25)', async () => {
+    const t = setup()
+    const stopping = vi.spyOn(t.controller, 'backendStopping')
+    const museDispose = vi.fn(() => Promise.resolve())
+    const modelDispose = vi.fn(() => Promise.resolve())
+    await restartConversationBackends(
+      [t.controller],
+      { dispose: museDispose },
+      { dispose: modelDispose },
+      false,
+      false,
+    )
+    expect(stopping).toHaveBeenCalledWith(false, undefined)
+    expect(museDispose).toHaveBeenCalledOnce()
+    expect(modelDispose).toHaveBeenCalledOnce()
+  })
+
   it('drops late private output while a sign-out waits for turn cancellation', async () => {
     const t = setup()
     await t.send('old', 'Start account A')
@@ -6216,11 +6431,11 @@ describe('ConversationController: protocol semantics (D26)', () => {
       choiceId: 'allow_once',
       requirementId: { approvalId: 'a1', sourceIndex: 0 },
     })
-    expect(t.surface.posted.at(-1)).toEqual({
-      type: 'notice',
-      level: 'info',
-      text: UI_TEXT.promptMovedOn,
-    })
+    // A step that moved on is said on its card (D26), not in a notice.
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'approvalMovedOn', approvalId: 'a1' })
+    expect(t.surface.posted).not.toContainEqual(
+      expect.objectContaining({ type: 'notice', text: UI_TEXT.promptMovedOn }),
+    )
     t.server.handle('userInput/answer', refusal('userInputAlreadySettled'))
     await t.controller.handle({ type: 'answerQuestion', userInputId: 'q1', answers: [] })
     expect(t.surface.posted.at(-1)).toEqual({
