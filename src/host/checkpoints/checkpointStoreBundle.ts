@@ -6,6 +6,7 @@ import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { CheckpointStore, CheckpointStoreDeps } from './checkpointStore'
 import type { LegacyCheckpointDeps } from './legacyCheckpoints'
+import type { createTurnRecording } from './writeRecorder'
 
 interface CheckpointStoreBundle {
   readonly createCheckpointStore: (
@@ -19,6 +20,7 @@ interface CheckpointStoreBundle {
     table: UiText,
     locale: string,
   ) => Promise<readonly string[]>
+  readonly createTurnRecording: typeof createTurnRecording
 }
 
 /** Function signatures are trusted only for our same-build packaged module (PLAN.md §8). */
@@ -29,7 +31,9 @@ export function isCheckpointStoreBundle(value: unknown): value is CheckpointStor
     'createCheckpointStore' in value &&
     typeof value.createCheckpointStore === 'function' &&
     'legacyCheckpointTurns' in value &&
-    typeof value.legacyCheckpointTurns === 'function'
+    typeof value.legacyCheckpointTurns === 'function' &&
+    'createTurnRecording' in value &&
+    typeof value.createTurnRecording === 'function'
   )
 }
 

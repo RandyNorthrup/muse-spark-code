@@ -50,7 +50,7 @@ export function memoryIoOver(files: Map<string, string>, options: MemoryIoOption
         : Promise.resolve(files.get(key))
     },
     hasUnsavedChanges: (absolutePath) => options.unsaved?.has(through(absolutePath)) === true,
-    writeFile: (absolutePath, content, assertCanWrite) => {
+    writeFile: (absolutePath, content, _checkedPath, assertCanWrite) => {
       const key = through(absolutePath)
       if (options.unwritable?.has(key) === true) {
         return Promise.reject(new Error(`EACCES: permission denied, open '${key}'`))
