@@ -44,7 +44,9 @@ happened, not what was planned; superseded entries are kept.
   marked imported before it advertises a mode or replays history. **Muse
   Spark: Open Share File** reads such a file read-only in the panel (Copy
   and links only), 200 items at a time with Show more; an item that cannot
-  be rendered says so in its place. Every imported byte is checked: at most 16 MiB, read
+  be rendered says so in its place. At 320 px, its controls and scrollable
+  code are reachable by keyboard with the VS Code focus border; Escape
+  closes it and returns focus to the composer. Every imported byte is checked: at most 16 MiB, read
   through one bounded descriptor of a local file (other file providers are
   refused), the format and its version, and no unknown field; a refusal
   never quotes the file. Nothing is uploaded: sharing is a file on your
@@ -71,11 +73,15 @@ happened, not what was planned; superseded entries are kept.
     fresh random markers around the unchanged slice, so a page from the
     middle of a fetched web page keeps its boundary.
   - **The savings ledger survives a resume.** A saved conversation keeps
-    its total; one saved before the total was kept resumes at zero.
+    its total; one saved before the total was kept resumes at zero. A
+    corrupt stored total is ignored: the conversation still loads, and
+    packing restarts its ledger at zero.
   - **The recall row speaks the display language.** Its heading and its
     refusals are in the installed language, with counts in its number
     format; the recalled text is shown as it was, and the model's text
     stays English.
+    An unknown recall id names at most the last eight packed ids, plus
+    the number omitted, keeping the model's error bounded in long sessions.
   - **The live report records the packing acceptance.** The report says
     whether packing engaged on each long-output task, and a run that holds
     the floors without packing is recorded as failed in both its JSON and
@@ -174,6 +180,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Muse Code 1.4.2 no longer logs a schema fingerprint mismatch at every start.
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,
   so the euro sign, curly quotes and dashes of a page in that encoding (and of
