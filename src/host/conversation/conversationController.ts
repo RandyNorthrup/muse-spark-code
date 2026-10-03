@@ -14,10 +14,13 @@ import {
   type GoalCommand,
   type GoalRefusal,
   type HostExit,
+  isDecisionNotAppliedError,
   isGoalRefusedError,
+  isMuseCodeFaultError,
   isPromptSettledError,
   isSessionNotLoadedError,
   type LoadedSession,
+  type MuseCodeFaultError,
   type PromptSettledError,
   type PromptSettledReason,
   type SessionHistoryOutcome,
@@ -116,6 +119,7 @@ import type {
   LineRange,
   MentionItem,
   ModelOption,
+  NoticeAction,
   SkillOption,
 } from '../../shared/protocol'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
@@ -833,6 +837,19 @@ export class ConversationController {
    * other waiters only log it (0.10.0 showed one slow start six times).
    */
   private readonly shownFailures = new WeakSet<object>()
+  /**
+   * Muse Code faults said in this panel, by session and fault (D26): each is
+   * said once, with its way on; a repeat only logs.
+   */
+  private readonly shownFaults = new Set<string>()
+  /**
+   * Stored-output reads in flight, by item, output and offset: a row that
+   * asks again (re-rendered, collapsed and expanded) joins the read already
+   * sent instead of queueing another behind it on a busy host.
+   */
+  private readonly outputReads = new Map<string, Promise<void>>()
+  /** A failed output read was said in this conversation; later ones only log until one succeeds. */
+  private hasSaidOutputFailure = false
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
   /** Stops listening for the host closing this session. */
@@ -1000,6 +1017,33 @@ export class ConversationController {
   }
 
   /**
+   * A Muse Code fault (D26), said once per session in plain words with the
+   * way on: the replay fault refuses every message, so it offers a restart
+   * (after which the session runs again) and a new conversation; the ledger
+   * fault only spoils each decision's reply, so it offers a new conversation.
+   */
+  private noteMuseCodeFault(error: MuseCodeFaultError): void {
+    const key = this.faultKey(error.fault)
+    if (this.shownFaults.has(key)) {
+      this.deps.log.warn(`Muse Code fault ${error.fault} again (said once in the panel)`)
+      return
+    }
+    this.shownFaults.add(key)
+    const isReplay = error.fault === 'approvalReplay'
+    const text = isReplay ? UI_TEXT.approvalReplayRefused : UI_TEXT.approvalLedgerFault
+    const actions: readonly NoticeAction[] = isReplay
+      ? ['restartMuseCode', 'newConversation']
+      : ['newConversation']
+    const level: NoticeLevel = isReplay ? 'error' : 'warning'
+    this.deps.log[isReplay ? 'error' : 'warn'](`${NOTICE_PREFIX}${text}`)
+    this.post({ type: 'notice', level, text, actions: [...actions] })
+  }
+
+  private faultKey(fault: MuseCodeFaultError['fault']): string {
+    return `${this.session?.sessionId ?? ''}\u{0}${fault}`
+  }
+
+  /**
    * Whether this panel is yet to show `error`, which it now counts as shown:
    * the first of the actions sharing a failed start shows it, the rest log it.
    */
@@ -1135,6 +1179,7 @@ export class ConversationController {
     session?.dispose()
     this.session = undefined
     this.activeTurnId = undefined
+    this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
     this.childSessionIds.clear()
@@ -1632,7 +1677,11 @@ export class ConversationController {
     if (this.session === undefined) {
       return
     }
-    this.deps.log.info(`Approval ${message.approvalId} answered: ${message.choiceId}`)
+    // The stage is logged: a multi-command line is one approval decided
+    // stage by stage, which read as repeated answers without it.
+    this.deps.log.info(
+      `Approval ${message.approvalId} stage ${String(message.requirementId.sourceIndex)} answered: ${message.choiceId}`,
+    )
     try {
       await this.session.decideApproval({
         approvalId: message.approvalId,
@@ -1645,12 +1694,19 @@ export class ConversationController {
         this.promptSettled(error, { approvalId: message.approvalId })
         return
       }
-      // Muse Code 1.3.0 on Windows can fail the reply to `approval/decide`
-      // on its own ledger write after applying the decision (the tool runs
-      // on); the wording must not claim the decision was refused. The card
-      // opens again: if the decision did apply, its resolve still closes it.
+      if (isMuseCodeFaultError(error)) {
+        // The decision applied (#29); the card follows the host's resolve.
+        this.noteMuseCodeFault(error)
+        return
+      }
+      // The wording must not claim the decision was refused: the tool may
+      // run on. The card offers the choice again only when the host still
+      // waits on this stage (one decision per stage, D26); otherwise it
+      // follows the host's own events.
       this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
-      this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+      if (isDecisionNotAppliedError(error)) {
+        this.post({ type: 'approvalReopened', approvalId: message.approvalId })
+      }
     }
   }
 
@@ -1663,6 +1719,14 @@ export class ConversationController {
     error: PromptSettledError,
     prompt: { readonly approvalId: string } | { readonly userInputId: string },
   ): void {
+    if (error.reason === 'movedOn' && 'approvalId' in prompt) {
+      // Said on the card itself, which shows the step Muse Code waits on.
+      this.deps.log.info(
+        `Approval ${prompt.approvalId}: a decision arrived after its step moved on`,
+      )
+      this.post({ type: 'approvalMovedOn', approvalId: prompt.approvalId })
+      return
+    }
     this.notice('info', promptSettledText(error.reason))
     if (error.reason === 'gone') {
       this.post({ type: 'promptDropped', ...prompt })
@@ -1820,6 +1884,14 @@ export class ConversationController {
     }
   }
 
+  /**
+   * One page of a row's stored output (an edit's patch). A read already in
+   * flight for the same page is joined, not sent again, and its page serves
+   * every row that asked. A failed read is said once in a conversation, with
+   * how to retry (collapse and expand the row); later failures only log
+   * until a read succeeds again, so a busy Muse Code (one answering reads
+   * one after another, more than 60 s behind) stacks no notices (D26).
+   */
   private async readOutput(
     message: Extract<ConversationMessage, { type: 'readOutput' }>,
   ): Promise<void> {
@@ -1827,6 +1899,25 @@ export class ConversationController {
     if (session === undefined) {
       return
     }
+    const key = `${message.itemId}\u{0}${message.outputRef}\u{0}${String(message.offsetBytes)}`
+    const inFlight = this.outputReads.get(key)
+    if (inFlight !== undefined) {
+      await inFlight
+      return
+    }
+    const reading = this.readOutputPage(session, message)
+    this.outputReads.set(key, reading)
+    try {
+      await reading
+    } finally {
+      this.outputReads.delete(key)
+    }
+  }
+
+  private async readOutputPage(
+    session: AgentSession,
+    message: Extract<ConversationMessage, { type: 'readOutput' }>,
+  ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
       const page = await session.readOutput({
@@ -1842,6 +1933,7 @@ export class ConversationController {
       ) {
         return
       }
+      this.hasSaidOutputFailure = false
       this.post({
         type: 'outputPage',
         itemId: message.itemId,
@@ -1852,9 +1944,16 @@ export class ConversationController {
         eof: page.eof,
       })
     } catch (error: unknown) {
-      if (generation === this.sendInvalidationEpoch && this.session === session) {
-        this.notice('error', `${UI_TEXT.outputLoadFailed}: ${describe(error)}`)
+      if (generation !== this.sendInvalidationEpoch || this.session !== session) {
+        return
       }
+      const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
+      if (this.hasSaidOutputFailure) {
+        this.deps.log.warn(`${text} (item ${message.itemId}; said once in the panel)`)
+        return
+      }
+      this.hasSaidOutputFailure = true
+      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`)
     }
   }
 
@@ -4272,6 +4371,11 @@ export class ConversationController {
       // says why, so whatever else waited on the same start only logs it.
       this.noteShown(error)
       this.post({ type: 'sendFailed', localId, reason, attachmentsKept: isComposerMessage })
+      if (isMuseCodeFaultError(error)) {
+        // Muse Code refuses every message of this session the same way: the
+        // card says what it said, the notice what to do about it (D26).
+        this.noteMuseCodeFault(error)
+      }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
     }
   }
@@ -5093,11 +5197,21 @@ export class ConversationController {
       this.deps.surface.reload()
       return
     }
+    // A restart asked for from a fault's notice: the session it names is
+    // said again should the fault outlive the restart.
+    const restartedFault =
+      action === 'restartMuseCode' ? this.faultKey('approvalReplay') : undefined
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
       this.notice('error', `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`)
+      return
     }
+    if (restartedFault === undefined) {
+      return
+    }
+    this.shownFaults.delete(restartedFault)
+    this.notice('info', UI_TEXT.museCodeRestartAsked)
   }
 
   /** Called when the webview has mounted: replay the state it needs. */

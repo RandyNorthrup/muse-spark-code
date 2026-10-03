@@ -640,6 +640,63 @@ describe('Transcript rows (M25)', () => {
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
   })
 
+  it('reads an edit’s patch once the edit has finished, not while it runs (D26)', () => {
+    const running = tool({
+      id: 'ed',
+      tool: 'edit_file',
+      args: '{"path":"notes.md"}',
+      status: 'inProgress',
+      patchRef: { id: 'p', byteLen: 300 },
+    })
+    const view = mountTranscript([running])
+    // 1.4.2 names the patch mid-edit; a read then can find nothing.
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    view.rerender({ entries: [{ ...running, status: 'completed' }] })
+    expect(view.props.onReadOutput).toHaveBeenCalledWith('ed', 'p', 0)
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks again for a page that never came when its row is collapsed and expanded (D26)', () => {
+    const view = mountTranscript([
+      tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
+    ])
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    // A re-render alone asks nothing more of a busy host.
+    view.rerender({ isRunning: true })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
+    // A page that came is not asked for again.
+    view.rerender({
+      outputPages: { 'ed:p': { content: '{"files":[]}', isEof: true, nextOffset: 12 } },
+    })
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers a fault notice’s way on as buttons (D26)', () => {
+    const onNoticeAction = vi.fn()
+    renderTranscript(
+      [
+        {
+          kind: 'notice',
+          id: 'n1',
+          level: 'error',
+          text: 'Muse Code refuses every message',
+          actions: ['restartMuseCode', 'newConversation'],
+        },
+      ],
+      { onNoticeAction },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Restart now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    expect(onNoticeAction.mock.calls).toEqual([['restartMuseCode'], ['newConversation']])
+    expect(screen.getByText('Muse Code refuses every message')).toBeInTheDocument()
+  })
+
   it('stops fetching a document that never ends at the host page budget', () => {
     const view = mountTranscript([
       tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),

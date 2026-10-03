@@ -781,6 +781,100 @@ describe('App conversation', () => {
   })
 })
 
+/** A two-step shell approval waiting on `sourceIndex` (the 1.4.2 frames' shape). */
+function twoStepApproval(type: 'approvalRequested' | 'approvalUpdated', sourceIndex: number) {
+  const stages = [0, 1].map((index) => ({
+    requirementId: { approvalId: 'a1', sourceIndex: index },
+    position: index + 1,
+    totalStages: 2,
+    argv: index === 0 ? ['git', 'show', 'HEAD:a.yml'] : ['Out-String'],
+  }))
+  const choices = [
+    { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+    { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+  ]
+  const common = {
+    approvalId: 'a1',
+    requirementId: { approvalId: 'a1', sourceIndex },
+    subject: { kind: 'shell', command: 'git show HEAD:a.yml | Out-String', stages },
+    availableChoices: choices,
+  }
+  return type === 'approvalUpdated'
+    ? { type, ...common }
+    : {
+        type,
+        ...common,
+        itemId: 'c1',
+        toolName: 'powershell',
+        rawArgs: '{"command":"git show HEAD:a.yml | Out-String"}',
+        isJudgeEscalated: false,
+        isProtectedWrite: false,
+      }
+}
+
+function decisionsPosted(postMessage: ReturnType<typeof renderReady>) {
+  return postMessage.mock.calls.filter(([message]) => message.type === 'decideApproval')
+}
+
+describe('App approval card: one decision per stage (D26)', () => {
+  it('keeps every button disabled after a click until the host settles the decision', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    const allow = screen.getByRole('button', { name: 'Allow once' })
+    // Two clicks in one frame, before the locked card renders.
+    act(() => {
+      allow.click()
+      allow.click()
+    })
+    // What arrives before the host settles it: the same step updated (the
+    // rule's persistence), the request announced again, a notice, a reply.
+    deliver({
+      type: 'agentEvent',
+      event: { ...twoStepApproval('approvalUpdated', 0), change: { kind: 'policyPersistence' } },
+    })
+    deliver({
+      type: 'agentEvent',
+      event: { ...twoStepApproval('approvalRequested', 0), isReplayed: true },
+    })
+    deliver({ type: 'notice', level: 'error', text: 'Something else failed' })
+    streamReply('r1', 'meanwhile')
+    for (const name of ['Allow once', 'Reject']) {
+      const button = screen.getByRole('button', { name })
+      expect(button).toBeDisabled()
+      fireEvent.click(button)
+    }
+    expect(decisionsPosted(postMessage)).toHaveLength(1)
+    // Settled by the host: its next step is a new decision.
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
+    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(decisionsPosted(postMessage).map(([message]) => message)).toEqual([
+      expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 0 } }),
+      expect.objectContaining({ requirementId: { approvalId: 'a1', sourceIndex: 1 } }),
+    ])
+  })
+
+  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    deliver({ type: 'approvalReopened', approvalId: 'a1' })
+    expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(decisionsPosted(postMessage)).toHaveLength(2)
+    // Refused as stale: the card shows the step Muse Code waits on, and says so.
+    deliver({ type: 'agentEvent', event: twoStepApproval('approvalUpdated', 1) })
+    deliver({ type: 'approvalMovedOn', approvalId: 'a1' })
+    const card = screen.getByRole('group', { name: /^Muse wants to / })
+    expect(card).toHaveClass('approval-moved')
+    expect(within(card).getByText(UI_TEXT.promptMovedOn)).toBeInTheDocument()
+    expect(within(card).getByText('Out-String')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    expect(card).not.toHaveClass('approval-moved')
+    expect(decisionsPosted(postMessage)).toHaveLength(3)
+  })
+})
+
 describe('App transcript (M4)', () => {
   it('decides an approval from its card and answers a question from its card', () => {
     const postMessage = renderReady()

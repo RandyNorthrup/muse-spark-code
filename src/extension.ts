@@ -1593,6 +1593,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await worktrees.removeWorktree()
         break
       }
+      case 'restartMuseCode': {
+        // A Muse Code fault's notice (D26): the next message starts it afresh
+        // and continues the conversation (D25).
+        await restartBackend('asked for from the panel after a Muse Code fault')
+        break
+      }
     }
   }
 

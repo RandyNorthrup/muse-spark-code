@@ -45,6 +45,7 @@ import type {
   HostToWebviewMessage,
   MentionItem,
   ModelOption,
+  NoticeAction,
   SettingsSnapshot,
   SignInMethod,
   SkillOption,
@@ -769,6 +770,7 @@ function withNotice(
   level: NoticeLevel,
   text: string,
   redoRestoreId?: string,
+  actions?: readonly NoticeAction[],
 ): UiState {
   const localSequence = state.localSequence + 1
   return {
@@ -782,6 +784,7 @@ function withNotice(
         level,
         text,
         ...(redoRestoreId !== undefined && { redoRestoreId }),
+        ...(actions !== undefined && actions.length > 0 && { actions }),
       },
     ],
   }
@@ -1555,7 +1558,24 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
               tool: event.toolName,
               args: event.rawArgs,
             }),
-          (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+          (entry) => {
+            if (entry.kind !== 'tool') {
+              return entry
+            }
+            // The same stage announced again (a resume, a panel reattached)
+            // keeps its decision's lock: one decision per stage (D26).
+            const shown = entry.approval
+            const isSameStage =
+              shown?.approvalId === approval.approvalId &&
+              shown.requirementId.sourceIndex === approval.requirementId.sourceIndex
+            return {
+              ...entry,
+              approval:
+                isSameStage && shown.decidedSourceIndex !== undefined
+                  ? { ...approval, decidedSourceIndex: shown.decidedSourceIndex }
+                  : approval,
+            }
+          },
         ),
         fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
@@ -2023,6 +2043,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         ),
       }
     }
+    case 'approvalMovedOn': {
+      // The card already shows the step Muse Code waits on (its update came
+      // first); it says so on itself, and the live region reads it once.
+      const hasCard = state.transcript.some(
+        (entry) => entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId,
+      )
+      if (!hasCard) {
+        return state
+      }
+      return announce(
+        {
+          ...state,
+          transcript: state.transcript.map((entry) =>
+            entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId
+              ? { ...entry, approval: { ...entry.approval, hasMovedOn: true } }
+              : entry,
+          ),
+        },
+        UI_TEXT.promptMovedOn,
+      )
+    }
     case 'promptDropped': {
       return {
         ...state,
@@ -2331,7 +2372,13 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // The host reports a refused answer or cancel only with an error notice,
       // so an error unlocks the question cards waiting on the host (M25): the
       // user can try again instead of facing a card locked for good.
-      const noticed = withNotice(state, message.level, message.text, message.redoRestoreId)
+      const noticed = withNotice(
+        state,
+        message.level,
+        message.text,
+        message.redoRestoreId,
+        message.actions,
+      )
       return announce(
         message.level === 'error'
           ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
@@ -2518,6 +2565,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
                 approval: {
                   ...entry.approval,
                   decidedSourceIndex: action.requirementId.sourceIndex,
+                  hasMovedOn: undefined,
                 },
               }
             : entry,

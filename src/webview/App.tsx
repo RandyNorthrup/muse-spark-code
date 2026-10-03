@@ -35,7 +35,12 @@ import {
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
 import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
-import type { LineRange, SignInMethod, WebviewToHostMessage } from '../shared/protocol'
+import type {
+  LineRange,
+  NoticeAction,
+  SignInMethod,
+  WebviewToHostMessage,
+} from '../shared/protocol'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AgentMap } from './components/AgentMap'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
@@ -1083,6 +1088,18 @@ export function App({
     },
     [dispatch, postMessage],
   )
+  // A Muse Code fault's way on (D26): the header's New conversation, or a
+  // restart the host runs.
+  const onNoticeAction = useCallback(
+    (action: NoticeAction) => {
+      if (action === 'newConversation') {
+        onNewConversation()
+        return
+      }
+      postMessage({ type: 'hostAction', action })
+    },
+    [onNewConversation, postMessage],
+  )
   const checkpointTurnIds = useMemo(
     () =>
       new Set(
@@ -1561,6 +1578,7 @@ export function App({
             state.sessionId === undefined || !state.canEditSessions ? undefined : onRestoreBoth
           }
           onRedo={state.checkpoints.canRestore ? onRedo : undefined}
+          onNoticeAction={onNoticeAction}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
             state.sessionId !== undefined && !state.canEditSessions

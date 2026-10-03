@@ -1991,6 +1991,20 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
   'session/read',
   'session/compact',
 ])
+// Muse Code's own approval faults (PLAN.md D26), named by the words of the
+// `internal` error it answers with (captured live 2026-10-02, Muse Code
+// 1.4.2): `turn/start` after a turn stopped under a part-decided multi-stage
+// approval, and `approval/decide` in such a session after a restart (and on
+// Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
+export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
+export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// A Stop under a part-decided approval rejects its waiting stage first
+// (MuseSession.cancel); a stage that moved on is rejected once more there.
+// Each try waits this long at most, then the Stop goes on: a decision takes
+// about a second on a loaded machine (the owner's log, 2026-10-02), so ten
+// is ample, and a host that does not answer delays the Stop by 20 s at most.
+export const APPROVAL_REJECT_ATTEMPTS = 2
+export const APPROVAL_REJECT_DEADLINE_MS = 10_000
 // The frame cap `muse serve` holds in both directions (the SDK's
 // DEFAULT_FRAME_LIMIT_BYTES): a command larger than this is refused here with
 // a message, where the host would drop the frame and never answer (D26).
@@ -2654,6 +2668,7 @@ export const WEBVIEW_SNAPSHOT_VERSION = 1
 export const IME_PROCESS_KEY = 'Process'
 // The status a tool row takes when its turn ended without finishing it.
 export const TOOL_STATUS_INTERRUPTED = 'interrupted'
+export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
 
 // What the model or Meta reads (PLAN.md D33): the context leads, the
 // compaction prompt, the steering and answer prefixes, the skill invocation

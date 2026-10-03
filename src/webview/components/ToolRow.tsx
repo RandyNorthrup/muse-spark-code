@@ -7,7 +7,12 @@
 // host is waiting.
 
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { PATCH_DOCUMENT_MAX_PAGES, TOOL_STATUS_INTERRUPTED, UI_TEXT } from '../../shared/constants'
+import {
+  PATCH_DOCUMENT_MAX_PAGES,
+  TOOL_STATUS_IN_PROGRESS,
+  TOOL_STATUS_INTERRUPTED,
+  UI_TEXT,
+} from '../../shared/constants'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
@@ -258,6 +263,12 @@ function TaskAction({
  * each next page until the document is whole (M25; a patch past one page of
  * OUTPUT_PAGE_BYTES used to stop at a partial document and fall back to the
  * unnumbered diff), within the host's own page budget.
+ *
+ * Only once the edit has finished: Muse Code 1.4.2 names the patch while the
+ * edit is still in progress, and a read then can answer "item or attached
+ * output ref was not found" (captured 2026-10-02). A page asked for and not
+ * come by the time the row is collapsed is asked for again when it is
+ * expanded: the retry on demand after a failed or slow read (D26).
  */
 function usePatchPages(
   entry: ToolEntry,
@@ -268,6 +279,7 @@ function usePatchPages(
   const requested = useRef(new Set<number>())
   const hadPage = useRef(false)
   const patchRefId = entry.patchRef?.id
+  const isFinished = entry.status !== TOOL_STATUS_IN_PROGRESS
   const hasPage = patchPage !== undefined
   const nextOffset = patchPage === undefined ? 0 : patchPage.nextOffset
   const isWhole = patchPage?.isEof === true
@@ -278,8 +290,12 @@ function usePatchPages(
       pages.clear()
     }
     hadPage.current = hasPage
+    if (!isOpen) {
+      pages.delete(nextOffset)
+      return
+    }
     if (
-      !isOpen ||
+      !isFinished ||
       isWhole ||
       patchRefId === undefined ||
       pages.has(nextOffset) ||
@@ -289,7 +305,7 @@ function usePatchPages(
     }
     pages.add(nextOffset)
     onReadOutput(entry.id, patchRefId, nextOffset)
-  }, [isOpen, isWhole, hasPage, nextOffset, patchRefId, entry.id, onReadOutput])
+  }, [isOpen, isFinished, isWhole, hasPage, nextOffset, patchRefId, entry.id, onReadOutput])
 }
 
 /** The pictures the row shows: the one its path names, then any the tool reported (M43). */

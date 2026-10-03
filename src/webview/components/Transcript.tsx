@@ -19,6 +19,7 @@ import {
   outputPageKey,
   type TranscriptEntry,
 } from '../state/uiState'
+import type { NoticeAction } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
 import { useDismiss } from '../useDismiss'
 import type { ApprovalDecisionInput } from './ApprovalCard'
@@ -86,6 +87,8 @@ export interface TranscriptProps {
   readonly onRestoreFiles?: ((entryId: string) => void) | undefined
   readonly onRestoreBoth?: ((entryId: string) => void) | undefined
   readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
+  /** A Muse Code fault's way on (D26): Restart now, New conversation. */
+  readonly onNoticeAction?: ((action: NoticeAction) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -692,6 +695,40 @@ const RestoreNotice = memo(function RestoreNotice({
   )
 })
 
+/** A button's label for each way on a notice offers. */
+function noticeActionLabel(action: NoticeAction): string {
+  return action === 'restartMuseCode' ? UI_TEXT.restartNow : UI_TEXT.newConversationTitle
+}
+
+/** A Muse Code fault's notice with its way on (D26): one button per action. */
+const ActionNotice = memo(function ActionNotice({
+  entry,
+  actions,
+  onAction,
+}: {
+  readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
+  readonly actions: readonly NoticeAction[]
+  readonly onAction: (action: NoticeAction) => void
+}) {
+  return (
+    <li className={`notice notice-${entry.level}`}>
+      {entry.text}
+      {actions.map((action) => (
+        <button
+          key={action}
+          type="button"
+          className="notice-action"
+          onClick={() => {
+            onAction(action)
+          }}
+        >
+          {noticeActionLabel(action)}
+        </button>
+      ))}
+    </li>
+  )
+})
+
 function TranscriptList(props: TranscriptProps) {
   const {
     entries,
@@ -725,6 +762,7 @@ function TranscriptList(props: TranscriptProps) {
     onRestoreFiles,
     onRestoreBoth,
     onRedo,
+    onNoticeAction,
     restoreNote,
     conversationNote,
     activeTurnId,
@@ -844,6 +882,16 @@ function TranscriptList(props: TranscriptProps) {
         return <WorkflowRow key={entry.id} entry={entry} />
       }
       case 'notice': {
+        if (onNoticeAction !== undefined && entry.actions !== undefined) {
+          return (
+            <ActionNotice
+              key={entry.id}
+              entry={entry}
+              actions={entry.actions}
+              onAction={onNoticeAction}
+            />
+          )
+        }
         return onRedo === undefined || entry.redoRestoreId === undefined ? (
           <MemoOtherRow key={entry.id} entry={entry} />
         ) : (

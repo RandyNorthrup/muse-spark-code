@@ -1300,6 +1300,19 @@ body {
   font-size: 0.85em;
 }
 
+/* A decision arrived after its step moved on (D26): the card says so on itself. */
+.approval-moved {
+  border-width: 2px;
+}
+
+.approval-moved-note {
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
+  background: var(--vscode-inputValidation-warningBackground, transparent);
+}
+
 /* What a subagent spawn's card would start (M18). */
 .approval-prompt {
   margin: 4px 0;

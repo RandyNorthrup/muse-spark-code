@@ -916,6 +916,13 @@ export const EN = {
   promptMovedOn:
     'That request moved on to its next step before this choice arrived; choose again on the updated card.',
   promptGone: 'That request is no longer waiting for an answer.',
+  // PLAN.md D26: Muse Code's own approval faults, and the way on.
+  approvalReplayRefused:
+    'Muse Code refuses every message in this conversation: a turn stopped while a multi-step command was partly approved, and Muse Code cannot replay that approval (a fault in Muse Code, not in your choices). Restart Muse Code to continue this conversation, or start a new one.',
+  approvalLedgerFault:
+    'Muse Code applies your approvals in this conversation but reports an error for each one (a fault in its approval record, not in your choices). Each card follows what Muse Code does next; a new conversation does not have the fault.',
+  museCodeRestartAsked:
+    'Muse Code was stopped. Your next message starts it again and continues this conversation.',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
@@ -1472,6 +1479,8 @@ export const EN = {
   compactionFailed: 'Compaction failed',
   answerNotAccepted: 'The answer was not accepted',
   outputLoadFailed: 'Could not load the output',
+  outputLoadRetry:
+    'Muse Code may be busy: collapse and expand the row to try again. Further failures go to the log only.',
   editReviewFailed: 'Could not review the edit',
   modelSwitchFailed: 'Could not switch model',
   effortNotApplied: 'Reasoning effort could not be applied',

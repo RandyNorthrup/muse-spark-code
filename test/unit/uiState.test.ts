@@ -711,6 +711,43 @@ describe('uiReducer: agent events', () => {
     expect(raw.transcript[0]).toMatchObject({ kind: 'reasoning', parts: ['raw text'] })
   })
 
+  it('keeps a decided stage locked when the same request is announced again (D26)', () => {
+    const decided = reduceAll([
+      agent(SHELL_APPROVAL),
+      { type: 'approvalDecided', approvalId: 'a1', requirementId: SHELL_APPROVAL.requirementId },
+    ])
+    // A resume or a reattached panel replays the open request.
+    const replayed = uiReducer(decided, agent({ ...SHELL_APPROVAL, isReplayed: true }))
+    expect(replayed.transcript[0]).toMatchObject({ approval: { decidedSourceIndex: 0 } })
+    // A request for another stage is a new decision to make.
+    const next = uiReducer(
+      replayed,
+      agent({ ...SHELL_APPROVAL, requirementId: { approvalId: 'a1', sourceIndex: 1 } }),
+    )
+    expect(next.transcript[0]).toMatchObject({ approval: { requirementId: { sourceIndex: 1 } } })
+    expect(next.transcript[0]).not.toMatchObject({ approval: { decidedSourceIndex: 0 } })
+  })
+
+  it('keeps a fault notice’s way on with it, and plain notices without (D26)', () => {
+    const state = reduceAll([
+      host({
+        type: 'notice',
+        level: 'error',
+        text: 'refused',
+        actions: ['restartMuseCode', 'newConversation'],
+      }),
+      host({ type: 'notice', level: 'warning', text: 'plain', actions: [] }),
+    ])
+    expect(state.transcript).toEqual([
+      expect.objectContaining({
+        kind: 'notice',
+        text: 'refused',
+        actions: ['restartMuseCode', 'newConversation'],
+      }),
+      expect.not.objectContaining({ actions: expect.anything() as unknown }),
+    ])
+  })
+
   it('attaches approvals to their tool row, follows stage updates, records the outcome', () => {
     const requested = SHELL_APPROVAL
     // Request before the item: a placeholder row is created from the request.
