@@ -25,11 +25,9 @@ export interface AgentImportHostDeps {
     file: EditedFile,
     owner: WorkspaceEditRecorder | undefined,
   ) => (wasWritten: boolean) => void
-  /** The checkpoint lease for the project writes, and the copy before each (M72). */
+  /** The checkpoint lease and storage guard for project writes (M86); never recorded. */
   readonly editProject: AgentImportHost['editProject']
   readonly beforeProjectWrite: AgentImportHost['beforeProjectWrite']
-  /** Each published file noted as the user's own write (M72), as the window's other user writes are. */
-  readonly noteUserWrite: AgentImportHost['noteUserWrite']
   /** Muse Code's settings file where `muse serve` reads it. */
   readonly museSettingsPath: () => string
   /** Opens text as a read-only document titled by its path's last segment. */
@@ -130,7 +128,6 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
       museSettingsFile: deps.museSettingsPath(),
       editProject: deps.editProject,
       beforeProjectWrite: deps.beforeProjectWrite,
-      noteUserWrite: deps.noteUserWrite,
       ...(beginEdit !== undefined && { beginProjectEdit: (file) => beginEdit(file, owner) }),
       pickSource: async () => {
         const picked = await vscode.window.showQuickPick(sourceChoices(), {

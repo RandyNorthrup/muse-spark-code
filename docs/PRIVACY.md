@@ -325,45 +325,48 @@ generation fields, never raw configuration or failed-command output.
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.
-- Turn checkpoints (M72, a Preview, off by default, `museSpark.turnCheckpoints`) are
-  kept under extension global storage in `checkpoints/<canonical-root-key>`:
-  native canonical path (Windows-normalized/case-folded) determines the key
-  using the existing workspace hash helper. Current-version windows sharing
-  that profile/global-storage namespace and physical root share these records.
-  Old per-workspace checkpoint stores remain untouched and readable as
-  read-only history. This storage is a git repository of the extension's own
-  holding copies of the
-  workspace's files at each turn's start and end (tracked and untracked
-  files outside the ignore rules), the sizes and times of ignored files
-  (never their content), and a copy of an ignored file (a `.env`, say) only
-  when the extension's own tools (file, image and memory tools, and the Memory
-  view's delete) are about to change it, or when a restore
-  overwrites or deletes it (kept for that restore's Redo). The folder is
-  readable by your user only (mode 0700 on macOS and Linux). Nothing is
-  written into the workspace's `.git`, and nothing is sent anywhere.
-  Archiving writes a separate archive file before returning, including in
-  Restricted Mode, so all windows immediately hide checkpoints older than
-  that archive. A trusted cleanup removes their record refs. Unreferenced
-  objects younger than one hour survive prune, protecting another window's
-  in-flight writes; archive markers remain for a day after their records are
-  gone. The newest 100 checkpoints and 20 redo records per conversation,
-  for 50 conversations, are kept within `museSpark.cleanupPeriodDays`, with
-  the setting on or off. Each window owns its index and staged tool copies;
-  copies survive until the end record is durable. Native/unproved process
-  resources can remain after window close or beyond cleanup bounds until
-  confirmed recovery; owner PID death alone cannot prove descendants stopped.
-  Records use separate compare-and-swap refs, and a restore/Redo
-  reserves one shared ref while file work runs. Each open window publishes
-  its process id, random instance id, running-turn/activity ids and fixed
-  fenced/unsafe words in a small presence file. No command text, hook payload,
-  account label or credential is added to that file. Unsafe presence survives
-  extension-managed CLI skills/import/export or sandbox commands, and Muse,
-  MCP/auth or installer terminal closure; those launches publish the same
-  sticky unsafe marker before any process or terminal can start. Unknown
-  descendant shutdown requires the same confirmed recovery.
-  Presence outlives cancellation until in-flight work and Redo
-  bookkeeping settle. Deleting the checkpoint directory removes all these
-  files and copies. In Restricted Mode no new captures are taken.
+- Turn checkpoints (M86, on by default, `museSpark.turnCheckpoints`) are
+  kept under extension global storage in `checkpoints/<canonical-root-key>`.
+  The physical canonical workspace root determines the key; windows in the
+  same profile and global-storage namespace share the store. M86 takes no
+  workspace captures or ignored-file scans. Only the bytes of files the
+  model's own tools write are kept: their contents before and after each
+  recorded write, including ignored files those tools write. Restore and
+  Redo keep the bytes needed to reverse their writes to those same files.
+  Commands, hooks, MCP tools, your edits and writes made by the extension
+  for you are not captured. Personal memory outside the workspace is never
+  restored.
+  The shadow git repository holds file blobs and per-turn or restore/Redo
+  records under `refs/muse-spark/m86/`; a per-window-instance journal and
+  its copies live in `m86/<instance>/`. Records contain workspace-relative
+  paths, write and owner identifiers, sequence numbers, file presence,
+  content hashes, modes and created folder names. A boolean records
+  whether commands, hooks or MCP tools ran, or background work was alive;
+  it stores neither command text nor a list of their file changes. The
+  folder is readable by your user only (mode 0700 on macOS and Linux).
+  Nothing is written into the workspace's `.git`, and nothing is sent
+  anywhere. Earlier M72 captures remain as read-only history; M86 creates
+  no new ones.
+  Retention retires oldest units by conversation sequence and removes
+  their unneeded file copies. Cleanup also sweeps unreferenced copies from
+  refused writes and crashes before an intent, after a one-hour grace period
+  and while no writer is live. Bounded passes resume on later retention or
+  startup maintenance. Small identity-only records preserve owners
+  and sequence numbers so retirement differs from unexplained record loss.
+  Identity records without file contents may outlive their copies until the window that wrote them retires.
+  Shared journal metadata remains until every unit of its instance is
+  retired; a live foreign journal is never rewritten. Archiving hides a conversation's records
+  from other windows. A reload or a window closing does not by itself
+  delete its durable journal. Records use compare-and-swap refs, and one
+  shared ref reserves file work for a restore or Redo. Presence files hold
+  the window process id, random instance id, running-turn/activity ids and
+  fixed fenced/unsafe words, never command text, hook payloads, account
+  labels or credentials. Native process uncertainty can outlive window
+  closure; process death alone does not prove descendants stopped. M86
+  fences older windows, and restores refuse while an older window is live.
+  Deleting the checkpoint directory removes these records and copies.
+  Restricted Mode records no new tool writes.
+
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's

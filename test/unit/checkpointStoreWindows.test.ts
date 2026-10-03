@@ -1,11 +1,11 @@
 import { mkdir, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import * as fs from 'node:fs/promises'
 import * as atomic from '../../src/host/fsAtomic'
 import type { ShellResult, ToolIo } from '../../src/core/backends/modelapi/tools'
 import {
   createCheckpointPort,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
 import { enteringShell, noopToolIo } from './helpers/fakeToolIo'
 import path from 'node:path'
@@ -14,30 +14,30 @@ import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import { readArchives } from '../../src/host/checkpoints/checkpointArchives'
 import { GitExitError, processGitProcess } from '../../src/host/git'
 import {
-  CHECKPOINT_PRUNE_GRACE_MS,
   CHECKPOINT_NATIVE_WINDOW,
   CHECKPOINT_FENCED_WINDOW,
   CHECKPOINT_ACTIVITY_PREFIX,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { parseRecord } from '../../src/host/checkpoints/checkpointRecords'
 import {
-  captured,
   holdRestoreRef,
   changedFileTurn,
   restoreOutcome,
   harness,
-  type Harness,
   isPresent,
-  leftovers,
+  owner,
   read,
   REAL_GIT_TIMEOUT_MS,
+  redoOutcome,
   removeCheckpointFolders,
   restoreTurn,
-  shadowGit,
   shadowRefs,
-  storedRecords,
+  storedUnit,
+  storedUnits,
+  toolWrite,
   turn,
+  recordingOf,
+  twoFileTurn,
   write,
 } from './helpers/checkpointHarness'
 
@@ -47,6 +47,7 @@ afterEach(removeCheckpointFolders)
 const realGit = processGitProcess()
 const SHORT_HEARTBEAT_MS = 50
 const OLD_PRESENCE_MS = 10 * 60 * 1000
+const UNIT_REF = '/m86/unit/'
 // Real filesystem operations with one injectable directory-cleanup failure.
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof fs>()),
@@ -65,23 +66,16 @@ function gate() {
   }
 }
 
-async function stagedFiles(storage: string): Promise<number> {
-  const folders = await readdir(path.join(storage, 'staging'))
-  const lists = await Promise.all(
-    folders.map((folder) => readdir(path.join(storage, 'staging', folder))),
-  )
-  return lists.reduce((sum, list) => sum + list.length, 0)
-}
-
-async function failingEnd() {
+/** A store whose next write of a unit record (a fold, not a number) fails once. */
+async function failingFold() {
   let isFailing = false
   const h = await harness({
     gitProcess: async (args, options) => {
-      if (
-        isFailing &&
+      const isFold =
         args.includes('update-ref') &&
-        args.some((arg) => arg.includes('/record/'))
-      ) {
+        args.some((arg) => arg.includes(UNIT_REF)) &&
+        !args.includes('0000000000000000000000000000000000000000')
+      if (isFailing && isFold) {
         isFailing = false
         throw new Error('injected end-record failure')
       }
@@ -96,12 +90,6 @@ async function failingEnd() {
   }
 }
 
-async function windowCaptures(h: Harness) {
-  const other = h.reopen()
-  const [one, two] = await Promise.all([captured(h.store), captured(other)])
-  return { other, one, two }
-}
-
 function shellResult(isProven: boolean): ShellResult {
   return {
     stdout: '',
@@ -113,9 +101,9 @@ function shellResult(isProven: boolean): ShellResult {
   }
 }
 
-describe('CheckpointStore across independent windows (M72)', () => {
+describe('CheckpointStore across independent windows (M72, M86)', () => {
   it.each(['shell', 'hook'] as const)(
-    'keeps %s activity fenced with capture off and sticky after unproved completion',
+    'keeps %s activity fenced with recording off and sticky after unproved completion',
     async (kind) => {
       const h = await harness()
       await changedFileTurn(h)
@@ -136,7 +124,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
         return shellResult(false)
       }
       const io: ToolIo = { ...noopToolIo, runShell: enteringShell(work), runHook: work }
-      const wrapped = withCheckpointCopies(io, port)
+      const wrapped = withCheckpointStorageGuard(io, port)
       const hook = wrapped.runHook
       if (hook === undefined) {
         throw new Error('expected hook wrapper')
@@ -149,13 +137,10 @@ describe('CheckpointStore across independent windows (M72)', () => {
         await entered.promise
         isEnabled = true
         expect(await restoreOutcome(port, 't1')).toEqual({ ok: false, reason: 'nativeUnsafe' })
-        expect(
-          await port.redo({
-            backend: () => 'modelApi',
-            restoreId: previous.restoreId ?? '',
-            unsavedPaths: () => [],
-          }),
-        ).toEqual({ ok: false, reason: 'nativeUnsafe' })
+        expect(await redoOutcome(port, previous.restoreId)).toEqual({
+          ok: false,
+          reason: 'nativeUnsafe',
+        })
         const names = await readdir(path.join(h.storage, 'windows'))
         expect(await read(h.storage, `windows/${names[0] ?? ''}`)).toContain(
           CHECKPOINT_ACTIVITY_PREFIX,
@@ -165,13 +150,10 @@ describe('CheckpointStore across independent windows (M72)', () => {
       }
       await running
       expect(h.store.isNativeUnsafe).toBe(true)
-      expect(
-        await port.redo({
-          backend: () => 'modelApi',
-          restoreId: previous.restoreId ?? '',
-          unsavedPaths: () => [],
-        }),
-      ).toEqual({ ok: false, reason: 'nativeUnsafe' })
+      expect(await redoOutcome(port, previous.restoreId)).toEqual({
+        ok: false,
+        reason: 'nativeUnsafe',
+      })
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
     },
     REAL_GIT_TIMEOUT_MS,
@@ -189,7 +171,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
         isWorkspaceTrusted: () => true,
       })
       // This controlled I/O fixture creates no native process or descendant.
-      const wrapped = withCheckpointCopies(
+      const wrapped = withCheckpointStorageGuard(
         { ...noopToolIo, runShell: enteringShell(() => Promise.resolve(shellResult(true))) },
         port,
       )
@@ -225,7 +207,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
         isWorkspaceTrusted: () => false,
       })
       const work = vi.fn(() => Promise.resolve(shellResult(true)))
-      const io = withCheckpointCopies({ ...noopToolIo, runShell: enteringShell(work) }, port)
+      const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: enteringShell(work) }, port)
       await expect(io.runShell('must not start', h.root, REAL_GIT_TIMEOUT_MS)).rejects.toThrow(
         UI_TEXT.checkpointFailed,
       )
@@ -244,6 +226,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
           backend: () => backend,
           sessionId: 's1',
           turnId: 't1',
+          transcriptTurnIds: ['t1'],
           unsavedPaths: () => [],
         }),
       ).toEqual({ ok: false, reason: 'backendUnsupported' })
@@ -252,6 +235,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       expect(
         await h.store.redo({
           backend: () => backend,
+          sourceSessionId: 's1',
           restoreId: restored.restoreId ?? '',
           unsavedPaths: () => [],
         }),
@@ -293,12 +277,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       const other = h.reopen()
       await other.turns('s1')
       isArmed = true
-      const restoring = h.store.restore({
-        backend: () => 'modelApi',
-        sessionId: 's1',
-        turnId: 't1',
-        unsavedPaths: () => [],
-      })
+      const restoring = restoreOutcome(h.store, 't1')
       try {
         await entered.promise
         if (phase === 'before') {
@@ -332,10 +311,8 @@ describe('CheckpointStore across independent windows (M72)', () => {
       const h = await harness({ isProcessAlive: (pid) => pid === process.pid })
       await changedFileTurn(h)
       const native = h.reopen(424_242)
-      const pending = await captured(native)
       await native.markNativeBackend()
       await h.store.maintain()
-      expect(shadowRefs(h.storage)).toContain(pending.pin)
       const names = await readdir(path.join(h.storage, 'windows'))
       const unsafeFiles: string[] = []
       for (const name of names) {
@@ -352,7 +329,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       })
       expect(await restoreOutcome(h.store, 't1')).toEqual({ ok: false, reason: 'nativeUnsafe' })
       const refsBefore = shadowRefs(h.storage)
-      const recordsBefore = storedRecords(h.storage)
+      const unitsBefore = storedUnits(h.storage)
       const unsafeFile = unsafeFiles[0]
       if (unsafeFile === undefined) {
         throw new Error('expected exactly one owned unsafe marker')
@@ -361,7 +338,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       // of full native shutdown, not a production inference from the owner PID.
       await rm(unsafeFile)
       expect(shadowRefs(h.storage)).toEqual(refsBefore)
-      expect(storedRecords(h.storage)).toEqual(recordsBefore)
+      expect(storedUnits(h.storage)).toEqual(unitsBefore)
       expect(await h.store.turns('s1')).toEqual(['t1'])
       await restoreTurn(h.store, 't1')
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
@@ -425,10 +402,9 @@ describe('CheckpointStore across independent windows (M72)', () => {
             file === path.join(h.root, 'a.txt')
               ? {
                   ...options,
-                  realPath: async (target) => {
-                    const canonical = await fs.realpath(target)
+                  staged: async (staged) => {
+                    await options.staged?.(staged)
                     backend = undefined
-                    return canonical
                   },
                 }
               : options,
@@ -440,6 +416,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
           backend: () => backend,
           sessionId: 's1',
           turnId: 't1',
+          transcriptTurnIds: ['t1'],
           unsavedPaths: () => [],
         })
       } finally {
@@ -453,6 +430,9 @@ describe('CheckpointStore across independent windows (M72)', () => {
       expect(await read(h.root, 'a.txt')).toBe('a1\n')
       const files = await readdir(h.root)
       expect(files.filter((name) => name.startsWith('a.txt.'))).toEqual([])
+      // A failure nobody can prove changed nothing stays unsettled in the batch.
+      const batch = storedUnits(h.storage).find((unit) => unit.owner.unitKind === 'batch')
+      expect(batch?.writes.map((entry) => entry.outcome)).toEqual(['unsettled'])
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -461,7 +441,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
     'keeps a committed file deletion and Redo when empty-folder cleanup fails',
     async () => {
       const h = await harness()
-      await turn(h, 't1', () => write(h.root, 'made/a.txt', 'created by turn\n'))
+      await turn(h, 't1', (tool) => tool('made/a.txt', 'created by turn\n'))
       const original = fs.rmdir
       const spy = vi.spyOn(fs, 'rmdir').mockImplementation(async (folder, options) => {
         if (folder === path.join(h.root, 'made')) {
@@ -479,65 +459,41 @@ describe('CheckpointStore across independent windows (M72)', () => {
       expect(await isPresent(h.root, 'made/a.txt')).toBe(false)
       expect(await isPresent(h.root, 'made')).toBe(true)
       expect(restored.restoreId).toBeDefined()
-      const redone = await h.reopen().redo({
-        backend: () => 'modelApi',
-        restoreId: restored.restoreId ?? '',
-        unsavedPaths: () => [],
-      })
+      const redone = await redoOutcome(h.reopen(), restored.restoreId)
       expect(redone).toMatchObject({ ok: true, changed: ['made/a.txt'] })
       expect(await read(h.root, 'made/a.txt')).toBe('created by turn\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
   it(
-    'keeps a failed end’s ignored preimage past prune grace and retries the original boundary',
+    'keeps a failed end’s copies in its journal, its turn published, and seals it before the next operation',
     async () => {
-      const { h, failNext } = await failingEnd()
-      const original = 'unique ignored preimage older than prune grace\n'
-      await write(h.root, '.gitignore', '.env\n')
-      await write(h.root, '.env', original)
-      await h.store.record('s1', 't1', await captured(h.store))
-      await h.store.beforeToolWrite(path.join(h.root, '.env'))
-      await write(h.root, '.env', 'changed\n')
+      const { h, failNext } = await failingFold()
+      await write(h.root, '.env', 'original\n')
+      const unit = owner(h.store, 't1')
+      await h.store.markTurn(turnKey('s1', 't1'), true)
+      await h.store.startUnit(unit)
+      await toolWrite(h.store, unit, h.root, '.env', 'changed\n')
       failNext()
-      await expect(h.store.endTurn('s1', 't1')).rejects.toThrow('injected end-record failure')
-      const pin = shadowRefs(h.storage).find(
-        (ref) => ref.includes('/pin/') && ref.includes('/end-'),
+      await expect(h.store.endUnit(unit, { ranProcesses: false })).rejects.toThrow(
+        'injected end-record failure',
       )
-      if (pin === undefined) {
-        throw new Error('expected owned pending-end pin')
-      }
-      const pending = parseRecord(shadowGit(h.storage, ['cat-file', '-p', `${pin}:record.json`]))
-      if (pending?.kind !== 'checkpoint') {
-        throw new Error('expected pending checkpoint metadata')
-      }
-      const blob = pending.ignored?.changes.find((change) => change.path === '.env')?.preImage
-      if (blob === undefined || blob === null) {
-        throw new Error('expected ignored preimage blob')
-      }
-      const object = path.join(
-        h.storage,
-        'shadow.git',
-        'objects',
-        blob.oid.slice(0, 2),
-        blob.oid.slice(2),
-      )
-      const old = new Date(Date.now() - CHECKPOINT_PRUNE_GRACE_MS - 1000)
-      await utimes(object, old, old)
+      await h.store.markTurn(turnKey('s1', 't1'), false)
+      expect(storedUnit(h.storage, 't1').status).toBe('incomplete')
       const other = h.reopen()
-      await other.record('s2', 'other', await captured(other))
-      await other.endTurn('s2', 'other')
-      await other.forgetSession('s2')
-      expect(shadowGit(h.storage, ['cat-file', '-p', blob.oid])).toBe(original)
-      await h.store.endTurn('s1', 't1')
+      // The turn stays published until its end is sealed.
+      expect(await restoreOutcome(other, 't1')).toEqual({ ok: false, reason: 'turnElsewhere' })
+      await h.store.turns('s1')
+      expect(storedUnit(h.storage, 't1')).toMatchObject({ status: 'complete' })
       await restoreTurn(other, 't1')
-      expect(await read(h.root, '.env')).toBe(original)
-      expect(shadowRefs(h.storage).filter((ref) => ref.includes('/end-'))).toEqual([])
+      expect(await read(h.root, '.env')).toBe('original\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
   it(
-    'keeps a window that publishes and creates staging/index files during cleanup enumeration',
+    'keeps a window that publishes and creates its files during cleanup enumeration',
     async () => {
       let reads = 0
       let storage = ''
@@ -557,20 +513,15 @@ describe('CheckpointStore across independent windows (M72)', () => {
             )
             mkdirSync(path.join(storage, 'staging', 'new-window'), { recursive: true })
             writeFileSync(path.join(storage, 'staging', 'new-window', 'copy'), 'original\n')
-            const index = readdirSync(storage).find(
-              (name) => name.startsWith('work-') && name.endsWith('.index'),
-            )
-            if (index === undefined) {
-              throw new Error('expected an existing real Git index')
-            }
-            copyFileSync(path.join(storage, index), path.join(storage, 'work-new-window.index'))
+            writeFileSync(path.join(storage, 'work-new-window.index'), 'index\n')
+            mkdirSync(path.join(storage, 'm86', 'new-window'), { recursive: true })
+            writeFileSync(path.join(storage, 'm86', 'new-window', 'journal.jsonl'), '')
           }
           return pid === process.pid
         },
       })
       storage = h.storage
-      await write(h.root, '.env', 'original\n')
-      await captured(h.store)
+      await h.store.turns('s1')
       await writeFile(
         path.join(storage, 'windows', 'observer.json'),
         JSON.stringify({
@@ -581,56 +532,38 @@ describe('CheckpointStore across independent windows (M72)', () => {
       )
       await h.store.maintain()
       expect(reads).toBeGreaterThan(1)
-      expect(await stagedFiles(h.storage)).toBe(1)
       expect(await read(h.storage, 'staging/new-window/copy')).toBe('original\n')
-      const storageFiles = await readdir(h.storage)
-      expect(
-        storageFiles.filter((name) => name.startsWith('work-') && name.endsWith('.index')),
-      ).toHaveLength(2)
+      expect(await isPresent(h.storage, 'work-new-window.index')).toBe(true)
+      expect(await isPresent(h.storage, 'm86/new-window/journal.jsonl')).toBe(true)
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'reports applied Redo and its inverse when trimming the original record fails',
+    'reports an applied Redo when its batch cannot be sealed, and seals it before the next operation',
     async () => {
-      let originalRef = ''
-      const h = await harness({
-        gitProcess: async (args, options) => {
-          if (
-            originalRef !== '' &&
-            args.includes('update-ref') &&
-            String(options.input).includes(originalRef)
-          ) {
-            throw new GitExitError(128, 'injected original-trim IO failure', 'update-ref')
-          }
-          return await realGit(args, options)
-        },
-      })
+      const { h, failNext } = await failingFold()
       await changedFileTurn(h)
-      const restore = await restoreTurn(h.store, 't1')
-      originalRef = `refs/muse-spark/record/${restore.restoreId ?? ''}`
-      const result = await h.store.redo({
-        backend: () => 'modelApi',
-        restoreId: restore.restoreId ?? '',
-        unsavedPaths: () => [],
-      })
-      originalRef = ''
-      expect(result).toMatchObject({ ok: true, changed: ['a.txt'], isRedoSpent: false })
+      const restored = await restoreTurn(h.store, 't1')
+      failNext()
+      const result = await redoOutcome(h.store, restored.restoreId)
+      expect(result).toMatchObject({ ok: true, changed: ['a.txt'], isRedoSpent: true })
       if (!result.ok || result.restoreId === undefined) {
-        throw new Error('expected inverse Redo')
+        throw new Error('expected the Redo’s own Redo')
       }
       expect(await read(h.root, 'a.txt')).toBe('a1\n')
-      const inverse = await h
-        .reopen()
-        .redo({ backend: () => 'modelApi', restoreId: result.restoreId, unsavedPaths: () => [] })
+      expect(storedUnit(h.storage, result.restoreId).status).toBe('incomplete')
+      await h.store.turns('s1')
+      expect(storedUnit(h.storage, result.restoreId).status).toBe('complete')
+      const inverse = await redoOutcome(h.reopen(), result.restoreId)
       expect(inverse).toMatchObject({ ok: true, changed: ['a.txt'] })
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
   it(
-    'observes an already-persisted ref when its command reports a late failure',
+    'observes an already-persisted unit ref when its command reports a late failure',
     async () => {
       let isFailing = false
       const h = await harness({
@@ -639,7 +572,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
           if (
             isFailing &&
             args.includes('update-ref') &&
-            args.some((arg) => arg.includes('/record/'))
+            args.some((arg) => arg.includes(UNIT_REF))
           ) {
             isFailing = false
             throw new GitExitError(-1, 'injected transport failure after persistence', 'update-ref')
@@ -648,96 +581,64 @@ describe('CheckpointStore across independent windows (M72)', () => {
         },
       })
       await write(h.root, 'a.txt', 'original\n')
-      const snapshot = await captured(h.store)
       isFailing = true
-      await h.store.record('s1', 't1', snapshot)
-      await write(h.root, 'a.txt', 'changed\n')
-      await h.store.endTurn('s1', 't1')
-      expect(
-        storedRecords(h.storage).find((entry) => entry.kind === 'checkpoint')?.endedAt,
-      ).toBeDefined()
+      await turn(h, 't1', (tool) => tool('a.txt', 'changed\n'))
+      expect(storedUnits(h.storage).map((unit) => unit.sequence)).toEqual([1])
+      expect(storedUnit(h.storage, 't1').endedAt).toBeDefined()
       await restoreTurn(h.store, 't1')
       expect(await read(h.root, 'a.txt')).toBe('original\n')
     },
     REAL_GIT_TIMEOUT_MS,
   )
+
   it(
-    'protects a live capture that has not been attached to a turn',
+    'keeps both windows’ records when they start units at once',
     async () => {
       const h = await harness()
       const other = h.reopen()
-      await write(h.root, 'a.txt', 'original\n')
-      const waiting = await captured(other)
-      await h.store.maintain()
-      expect(await leftovers(h.storage)).toEqual({ pins: 1, staging: 0 })
-      await other.record('s2', 'u1', waiting)
-      await write(h.root, 'a.txt', 'changed\n')
-      await other.endTurn('s2', 'u1')
-      await restoreTurn(other, 'u1', 's2')
-      expect(await read(h.root, 'a.txt')).toBe('original\n')
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-  it(
-    'keeps both windows’ records when they record at once',
-    async () => {
-      const h = await harness()
-      const { other, one, two } = await windowCaptures(h)
-      await Promise.all([h.store.record('s1', 't1', one), other.record('s2', 'u1', two)])
+      await Promise.all([
+        h.store.startUnit(owner(h.store, 't1', 's1')),
+        other.startUnit(owner(other, 'u1', 's2')),
+      ])
       expect(await h.store.turns('s2')).toEqual(['u1'])
       expect(await other.turns('s1')).toEqual(['t1'])
-      expect(storedRecords(h.storage)).toHaveLength(2)
+      expect(storedUnits(h.storage)).toHaveLength(2)
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'creates one checkpoint for the same turn recorded by two windows',
-    async () => {
-      const h = await harness()
-      const { other, one, two } = await windowCaptures(h)
-      await Promise.all([h.store.record('s1', 't1', one), other.record('s1', 't1', two)])
-      expect(storedRecords(h.storage)).toHaveLength(1)
-      expect(await h.store.turns('s1')).toEqual(['t1'])
-      expect(await leftovers(h.storage)).toEqual({ pins: 0, staging: 0 })
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'keeps a live window’s pinned capture and tool copies through another window’s cleanup',
+    'keeps a live window’s open unit and journal through another window’s cleanup and recovery',
     async () => {
       const h = await harness()
       const other = h.reopen()
       await write(h.root, 'a.txt', 'before\n')
-      const waiting = await captured(other)
-      await other.record('s2', 'u1', await captured(other))
-      await other.beforeToolWrite(path.join(h.root, 'a.txt'))
-      await write(h.root, 'a.txt', 'after\n')
+      const unit = owner(other, 'u1', 's2')
+      await other.startUnit(unit)
+      await toolWrite(other, unit, h.root, 'a.txt', 'after\n', 'published')
       await h.store.maintain()
-      expect(await leftovers(h.storage)).toEqual({ pins: 1, staging: 1 })
-      await other.record('s2', 'u2', waiting)
-      await captured(other)
-      other.dispose()
-      await h.store.maintain()
-      expect(await leftovers(h.storage)).toEqual({ pins: 0, staging: 0 })
+      expect(storedUnit(h.storage, 'u1')).toMatchObject({ status: 'incomplete', writes: [] })
+      expect(await isPresent(h.storage, `m86/${other.instance}/journal.jsonl`)).toBe(true)
+      await other.endUnit(unit, { ranProcesses: false })
+      expect(storedUnit(h.storage, 'u1').writes.map((entry) => entry.outcome)).toEqual([
+        'unsettled',
+      ])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'refuses another window’s running turn, then preserves its overlapping changes',
+    'refuses another window’s running turn, then leaves its later write alone',
     async () => {
       const h = await harness()
       const other = h.reopen()
-      await write(h.root, 'a.txt', 'a0\n')
-      await write(h.root, 'b.txt', 'b0\n')
-      await h.store.record('s1', 't1', await captured(h.store))
-      await other.record('s2', 'u1', await captured(other))
-      await write(h.root, 'b.txt', 'other window\n')
-      await other.endTurn('s2', 'u1')
-      await write(h.root, 'a.txt', 'a1\n')
-      await h.store.endTurn('s1', 't1')
+      await twoFileTurn(h)
+      await turn(
+        { store: other, root: h.root },
+        'u1',
+        (tool) => tool('b.txt', 'other window\n'),
+        's2',
+      )
       await other.markTurn('pending:message', true)
       expect(await restoreOutcome(h.store, 't1')).toEqual({ ok: false, reason: 'turnElsewhere' })
       await other.markTurn('pending:message', false)
@@ -750,76 +651,38 @@ describe('CheckpointStore across independent windows (M72)', () => {
   )
 
   it(
-    'ends only the window’s own turns',
+    'ends only the window’s own units',
     async () => {
       const h = await harness()
-      await h.store.record('s1', 't1', await captured(h.store))
-      await h.reopen().endTurn('s1', 't1')
-      const before = storedRecords(h.storage).find((record) => record.kind === 'checkpoint')
-      expect(before?.endedAt).toBeUndefined()
-      await h.store.endTurn('s1', 't1')
-      const after = storedRecords(h.storage).find((record) => record.kind === 'checkpoint')
-      expect(after?.endedAt).toBeDefined()
+      const unit = owner(h.store, 't1')
+      await h.store.startUnit(unit)
+      await h.reopen().endUnit(unit, { ranProcesses: false })
+      expect(storedUnit(h.storage, 't1').endedAt).toBeUndefined()
+      await h.store.endUnit(unit, { ranProcesses: false })
+      expect(storedUnit(h.storage, 't1').endedAt).toBeDefined()
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'keeps ignored preimages while their end record fails, then imports them before trimming',
-    async () => {
-      const failing = { isArmed: false }
-      const h = await harness({
-        gitProcess: async (args, options) => {
-          if (
-            failing.isArmed &&
-            args.includes('update-ref') &&
-            args.some((arg) => arg.includes('/record/'))
-          ) {
-            failing.isArmed = false
-            throw new Error('injected record failure')
-          }
-          return await realGit(args, options)
-        },
-      })
-      await write(h.root, '.gitignore', '.env\n')
-      await write(h.root, '.env', 'original\n')
-      await h.store.record('s1', 't1', await captured(h.store))
-      await h.store.beforeToolWrite(path.join(h.root, '.env'))
-      await write(h.root, '.env', 'changed\n')
-      failing.isArmed = true
-      await expect(h.store.endTurn('s1', 't1')).rejects.toThrow('injected record failure')
-      await h.store.markTurn(turnKey('s1', 't1'), false)
-      expect(await stagedFiles(h.storage)).toBe(1)
-      const other = h.reopen()
-      expect(await restoreOutcome(other, 't1')).toEqual({ ok: false, reason: 'turnElsewhere' })
-      await h.store.endTurn('s1', 't1')
-      expect(await stagedFiles(h.storage)).toBe(0)
-      await restoreTurn(other, 't1')
-      expect(await read(h.root, '.env')).toBe('original\n')
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'persists an archive before window close and rejects captures older than it',
+    'persists an archive before window close and hides the conversation’s units from then on',
     async () => {
       const h = await harness()
-      await turn(h, 't1', () => write(h.root, 'a.txt', 'new\n'))
-      const earlier = await captured(h.store)
+      await turn(h, 't1', (tool) => tool('a.txt', 'new\n'))
       await h.store.queueForget('s1')
       const archives = await readArchives(h.storage)
       expect(archives.map((entry) => entry.archive.sessionId)).toEqual(['s1'])
       h.store.dispose()
       const other = h.reopen()
-      await other.record('s1', 'late', earlier)
       expect(await other.turns('s1')).toEqual([])
-      expect(storedRecords(h.storage).filter((record) => record.sessionId === 's1')).toEqual([])
+      await other.maintain()
+      expect(storedUnits(h.storage).filter((unit) => unit.owner.sessionId === 's1')).toEqual([])
     },
     REAL_GIT_TIMEOUT_MS,
   )
 
   it(
-    'writes an archive without Git even before any checkpoint exists',
+    'writes an archive without Git even before any record exists',
     async () => {
       const h = await harness({
         gitProcess: () => {
@@ -830,22 +693,6 @@ describe('CheckpointStore across independent windows (M72)', () => {
       h.store.dispose()
       const archives = await readArchives(h.storage)
       expect(archives.map((entry) => entry.archive.sessionId)).toEqual(['s1'])
-    },
-    REAL_GIT_TIMEOUT_MS,
-  )
-
-  it(
-    'fails a tool write with localized text when its preimage cannot be staged',
-    async () => {
-      const h = await harness()
-      await h.store.markTurn('pending:message', true)
-      await write(h.root, 'b.txt', 'original\n')
-      await writeFile(path.join(h.storage, 'staging'), '')
-      await expect(h.store.beforeToolWrite(path.join(h.root, 'b.txt'))).rejects.toThrow(
-        UI_TEXT.checkpointFailed,
-      )
-      expect(await read(h.root, 'b.txt')).toBe('original\n')
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain(h.storage)
     },
     REAL_GIT_TIMEOUT_MS,
   )
@@ -876,12 +723,7 @@ describe('CheckpointStore across independent windows (M72)', () => {
       const other = h.reopen()
       await other.turns('s1')
       held.isArmed = true
-      const first = h.store.restore({
-        backend: () => 'modelApi',
-        sessionId: 's1',
-        turnId: 't1',
-        unsavedPaths: () => [],
-      })
+      const first = restoreOutcome(h.store, 't1')
       try {
         await entered.promise
         expect(await restoreOutcome(other, 't1')).toEqual({ ok: false, reason: 'turnElsewhere' })
@@ -900,16 +742,19 @@ describe('CheckpointStore across independent windows (M72)', () => {
   )
 
   it(
-    'preserves later user edits when a failed end record is retried',
+    'preserves a later user edit when a failed end is sealed later',
     async () => {
-      const { h, failNext } = await failingEnd()
+      const { h, failNext } = await failingFold()
       await write(h.root, 'a.txt', 'a0\n')
-      await h.store.record('s1', 't1', await captured(h.store))
-      await write(h.root, 'a.txt', 'a1\n')
+      const unit = owner(h.store, 't1')
+      await h.store.startUnit(unit)
+      await toolWrite(h.store, unit, h.root, 'a.txt', 'a1\n')
       failNext()
-      await expect(h.store.endTurn('s1', 't1')).rejects.toThrow('injected end-record failure')
+      await expect(h.store.endUnit(unit, { ranProcesses: false })).rejects.toThrow(
+        'injected end-record failure',
+      )
       await write(h.root, 'a.txt', 'later user edit\n')
-      await h.store.endTurn('s1', 't1')
+      await h.store.turns('s1')
       const restored = await restoreTurn(h.store, 't1')
       expect(restored.changed).toEqual([])
       expect(restored.refused).toEqual([{ path: 'a.txt', reason: 'changedAfter' }])
@@ -923,41 +768,49 @@ describe('CheckpointStore across independent windows (M72)', () => {
     async () => {
       const h = await harness()
       await Promise.all([write(h.root, 'a.txt', 'a0\n'), write(h.root, 'b.txt', 'b0\n')])
-      await turn(h, 't1', async () => {
-        await write(h.root, 'a.txt', 'a1\n')
-        await write(h.root, 'b.txt', 'b1\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('a.txt', 'a1\n')
+        await tool('b.txt', 'b1\n')
       })
-      const outcome = await h.store.restore({
-        backend: () => 'modelApi',
-        sessionId: 's1',
-        turnId: 't1',
-        unsavedPaths: () => {
-          if (readFileSync(path.join(h.root, 'a.txt'), 'utf8') === 'a0\n') {
-            h.store.dispose()
-          }
-          return []
-        },
-      })
+      const journal = recordingOf(h.store).journal
+      const appendIntent = journal.appendIntent.bind(journal)
+      const stopAfterIntent = vi
+        .spyOn(journal, 'appendIntent')
+        .mockImplementation(async (entry) => {
+          await appendIntent(entry)
+          if (entry.owner.unitKind === 'batch' && entry.path === 'b.txt') h.store.dispose()
+        })
+      let outcome: Awaited<ReturnType<typeof h.store.restore>>
+      try {
+        outcome = await h.store.restore({
+          backend: () => 'modelApi',
+          sessionId: 's1',
+          turnId: 't1',
+          transcriptTurnIds: ['t1'],
+          unsavedPaths: () => [],
+        })
+      } finally {
+        stopAfterIntent.mockRestore()
+      }
       expect(outcome).toMatchObject({
         ok: true,
         changed: ['a.txt'],
         refused: [{ path: 'b.txt', reason: 'failed' }],
       })
       if (!outcome.ok || outcome.restoreId === undefined) {
-        throw new Error('expected durable partial Redo')
+        throw new Error('expected a durable partial Redo')
       }
-      const record = storedRecords(h.storage).find(
-        (entry) => entry.id === outcome.restoreId && entry.kind === 'restore',
-      )
-      if (record?.kind !== 'restore') {
-        throw new Error('expected the partial restore record')
-      }
-      expect(record.entries.map((entry) => entry.path)).toEqual(['a.txt'])
+      // The batch records the write it made, sealed as the window closed; the
+      // next one stopped after its intent and before any change, so it stays
+      // unsettled, for a later restore to judge by the bytes.
+      const batch = storedUnit(h.storage, outcome.restoreId)
+      expect(batch.writes.map((entry) => [entry.path, entry.outcome])).toEqual([
+        ['a.txt', 'done'],
+        ['b.txt', 'unsettled'],
+      ])
       expect(await read(h.root, 'a.txt')).toBe('a0\n')
       expect(await read(h.root, 'b.txt')).toBe('b1\n')
-      const redone = await h
-        .reopen()
-        .redo({ backend: () => 'modelApi', restoreId: outcome.restoreId, unsavedPaths: () => [] })
+      const redone = await redoOutcome(h.reopen(), outcome.restoreId)
       expect(redone).toMatchObject({ ok: true, changed: ['a.txt'], isRedoSpent: true })
       expect(await read(h.root, 'a.txt')).toBe('a1\n')
       expect(await read(h.root, 'b.txt')).toBe('b1\n')
@@ -983,15 +836,15 @@ describe('CheckpointStore across independent windows (M72)', () => {
   )
 
   it(
-    'preserves pre-existing empty directories while removing directories the turn made',
+    'removes only the folders the turn’s writes made, innermost first',
     async () => {
       const h = await harness()
       await mkdir(path.join(h.root, 'empty'))
       await mkdir(path.join(h.root, 'outer', 'inner'), { recursive: true })
-      await turn(h, 't1', async () => {
-        await write(h.root, 'empty/new.txt', 'new\n')
-        await write(h.root, 'outer/inner/x.txt', 'new\n')
-        await write(h.root, 'made/deep/n.txt', 'new\n')
+      await turn(h, 't1', async (tool) => {
+        await tool('empty/new.txt', 'new\n')
+        await tool('outer/inner/x.txt', 'new\n')
+        await tool('made/deep/n.txt', 'new\n')
       })
       await restoreTurn(h.store, 't1')
       expect(await readdir(path.join(h.root, 'empty'))).toEqual([])

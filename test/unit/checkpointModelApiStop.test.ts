@@ -1,6 +1,7 @@
-// Real native writes through M72's checkpoint wrapper and the production Host.
+// Real native writes through the checkpoint wrapper (M72, M86) and the production Host.
 // The Model API, editor provider and command output are offline test transports.
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -13,6 +14,7 @@ import {
   type ConditionalWrite,
   shellToolFor,
   type ToolIo,
+  type TurnCheckpoint,
 } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession, type ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
@@ -26,15 +28,22 @@ import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { createToolIo } from '../../src/host/backend/toolIo'
 import {
   createCheckpointPort,
+  finishCheckpointTurn,
   prepareCheckpointTurn,
-  withCheckpointCopies,
+  withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
-import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { fakeLanguageService, KIND, sym } from './helpers/fakeLanguageService'
 import { enteringShell } from './helpers/fakeToolIo'
-import { harness, removeCheckpointFolders, REAL_GIT_TIMEOUT_MS } from './helpers/checkpointHarness'
+import {
+  harness,
+  recordingOf,
+  storedUnits,
+  removeCheckpointFolders,
+  REAL_GIT_TIMEOUT_MS,
+} from './helpers/checkpointHarness'
+import { canonicalPath } from '../../src/host/canonicalPath'
 
 const hosts: ModelApiHost[] = []
 afterEach(async () => {
@@ -42,7 +51,11 @@ afterEach(async () => {
   await removeCheckpointFolders()
 })
 
-async function setup(hasMemory = false) {
+async function setup(
+  hasMemory = false,
+  isRecording = false,
+  toolPlatform: NodeJS.Platform = process.platform,
+) {
   const h = await harness()
   const source = path.join(h.root, 'source.ts')
   const other = path.join(h.root, 'other.ts')
@@ -74,8 +87,9 @@ async function setup(hasMemory = false) {
   let atomicBoundary: (() => void) | undefined
   let assembly: (() => Promise<string | undefined>) | undefined
   const native = createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
+    platform: toolPlatform,
+    systemRoot:
+      process.env['SystemRoot'] ?? (toolPlatform === 'win32' ? String.raw`C:\Windows` : undefined),
     env: () => ({}),
     listFiles: () => Promise.resolve(['source.ts', 'other.ts', '.env']),
     searchWorkerPath: 'unused',
@@ -99,7 +113,7 @@ async function setup(hasMemory = false) {
       }),
     ),
   )
-  const io = withCheckpointCopies(native, port)
+  const io = withCheckpointStorageGuard(native, port)
   let memoryStage: (() => Promise<void>) | undefined
   const memoryIo = createMemoryIo(io, {
     warn: (message) => {
@@ -126,6 +140,26 @@ async function setup(hasMemory = false) {
       h.log.warn(message)
     },
   })
+  const recordedTurns: TurnCheckpoint[] = []
+  const recorder = isRecording
+    ? recordingOf(h.store).recorder({
+        io,
+        workspaceRoot: h.root,
+        canonicalPath,
+        newId: () => randomUUID(),
+        log: h.log,
+        memory: (ownerIo) =>
+          createMemoryIo(ownerIo, {
+            warn: (message) => {
+              h.log.warn(message)
+            },
+            aroundCreate: async (...args) => {
+              port.refuseStorageWrite(args[0])
+              await ownerIo.recordNew(...args)
+            },
+          }),
+      })
+    : undefined
   const underlyingWrite = io.writeFile.bind(io)
   const writeCompletions: Promise<void>[] = []
   const originalWrite = (...args: Parameters<ToolIo['writeFile']>) => {
@@ -189,11 +223,20 @@ async function setup(hasMemory = false) {
       isWorkspaceTrusted: () => settings.isTrusted,
       codeIntel,
       verify,
-      beforeTurnRuns: (sessionId, turnId) => prepareCheckpointTurn(port, sessionId, turnId, h.log),
-      afterTurnRuns: async (sessionId, turnId) => {
-        await port.endTurn(sessionId, turnId)
-        await port.markTurn(turnKey(sessionId, turnId), false)
+      beforeTurnRuns: async (sessionId, turnId, top) => {
+        const checkpoint = await prepareCheckpointTurn(
+          port,
+          recorder,
+          sessionId,
+          turnId,
+          h.log,
+          top,
+        )
+        recordedTurns.push(checkpoint)
+        return checkpoint
       },
+      afterTurnRuns: (sessionId, turnId, end) =>
+        finishCheckpointTurn(port, recorder, sessionId, turnId, end),
       bundlePath: 'src/host/backend/modelApiEntry.ts',
       loadBundle: () => modelApiEntry,
     }),
@@ -259,6 +302,7 @@ async function setup(hasMemory = false) {
   }
   return {
     h,
+    recordedTurns,
     source,
     other,
     ignored,
@@ -345,14 +389,22 @@ async function enterHeld(
   await arrival
 }
 
+/**
+ * Holds the first tool write after the checkpoint wrapper admitted it and
+ * before the native write starts: where M72 took its copy.
+ */
 function holdPreimage(t: Awaited<ReturnType<typeof setup>>) {
   const entered = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
-  const before = t.port.beforeToolWrite.bind(t.port)
-  vi.spyOn(t.port, 'beforeToolWrite').mockImplementation(async (file) => {
-    await before(file)
-    entered.resolve(undefined)
-    await release.promise
+  const write = t.native.writeFile.bind(t.native)
+  let isHeld = false
+  vi.spyOn(t.native, 'writeFile').mockImplementation(async (...args) => {
+    if (!isHeld) {
+      isHeld = true
+      entered.resolve(undefined)
+      await release.promise
+    }
+    await write(...args)
   })
   return { entered, release }
 }
@@ -412,7 +464,59 @@ async function refuseHeldCommand(
   }
 }
 
-describe('M72 native common owner guards', () => {
+describe('M72 native common owner guards (M86 port)', () => {
+  it(
+    'threads a real recorder through the Model API host and refuses checkpoint-storage creates',
+    async () => {
+      const t = await setup(true, true)
+      const held = Promise.withResolvers<undefined>()
+      const published = Promise.withResolvers<undefined>()
+      t.api.script(
+        { calls: [{ name: 'read_file', arguments: '{"path":"source.ts"}' }] },
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: JSON.stringify({ path: 'source.ts', content: 'const answer = 2;\n' }),
+            },
+          ],
+        },
+        {
+          text: 'done',
+          hold: held.promise,
+          onRequest: () => {
+            published.resolve(undefined)
+          },
+        },
+      )
+      await send(t)
+      await published.promise
+      expect(await readFile(t.source, 'utf8')).toBe('const answer = 2;\n')
+      const checkpoint = t.recordedTurns[0]
+      if (checkpoint?.kind !== 'recording') {
+        throw new Error('expected a recorded Model API turn')
+      }
+      const inside = path.join(t.h.storage, 'inside.txt')
+      await expect(checkpoint.writes.io.writeFile(inside, 'refused')).rejects.toThrow(
+        MODEL_TEXT.checkpointStorageWrite,
+      )
+      await expect(checkpoint.writes.io.reserveFile(inside)).rejects.toThrow(
+        MODEL_TEXT.checkpointStorageWrite,
+      )
+      await expect(checkpoint.writes.memory.createFile(inside, 'refused', inside)).rejects.toThrow(
+        MODEL_TEXT.checkpointStorageWrite,
+      )
+      held.resolve(undefined)
+      await done(t)
+      const record = storedUnits(t.h.storage).find(
+        (unit) => unit.owner.sessionId === t.session.sessionId,
+      )
+      expect(record?.writes).toHaveLength(1)
+      expect(record?.writes[0]?.owner).toEqual(record?.owner)
+      expect(record?.writes[0]?.path).toBe('source.ts')
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
   it.each(['stop', 'mode', 'trust'] as const)(
     'refuses project memory edit after actual checkpoint preimage and %s change',
     async (change) => {
@@ -921,10 +1025,10 @@ describe('M72 native common owner guards', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 
-  it.runIf(process.platform === 'win32').each(['mode', 'trust'] as const)(
+  it.each(['mode', 'trust'] as const)(
     'reports no-entry native check refusal after actual assembly wait and %s change',
     async (change) => {
-      const t = await setup()
+      const t = await setup(false, false, 'win32')
       t.shell.mockRestore()
       t.settings.checks = true
       t.settings.commands = [{ name: 'native', command: 'Write-Output CHECK_STARTED' }]

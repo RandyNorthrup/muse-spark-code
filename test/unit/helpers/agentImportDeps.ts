@@ -11,7 +11,6 @@ export function inertAgentImport(root?: string): CliFeatureDeps['agentImport'] {
     currentRoot: () => root,
     editProject: async (work) => await work(() => undefined),
     beforeProjectWrite: () => Promise.resolve(),
-    noteUserWrite: () => undefined,
     bundle: () => ({ importFromAgents, runAgentImport }),
   }
 }

@@ -94,18 +94,13 @@ export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
   /** The session-owned workspace notice for a project write (M68); absent without a live session. */
   readonly beginProjectEdit?: ImportWriteNotice
   /**
-   * Holds the checkpoint lease (M72) until `work` settles, so no restore
+   * Holds the checkpoint lease (M86) until `work` settles, so no restore
    * runs over the import's project writes; `check` throws once the window
    * or the root it was taken for is gone. Runs only for project writes.
    */
   readonly editProject: <T>(work: (check: () => void) => Promise<T>) => Promise<T>
-  /** Keeps a project file's bytes for a checkpoint restore before it is written (M72). */
-  readonly beforeProjectWrite: (absolutePath: string) => Promise<void>
-  /**
-   * A file the import published, as the user's own write (M72): no turn
-   * running meanwhile takes it for its own or undoes it on a restore.
-   */
-  readonly noteUserWrite: (absolutePath: string) => void
+  /** Refuses a project publication in checkpoint storage (M86); records no bytes. */
+  readonly beforeProjectWrite: (absolutePath: string) => void | Promise<void>
   readonly isPresent: (absolutePath: string) => Promise<boolean>
   /** Lets one complete import flow run at a time in this host (`createImportGate`). */
   readonly gate: ImportGate
@@ -620,7 +615,6 @@ async function applyPlan(
       },
       ...(deps.beginProjectEdit !== undefined && { beginProjectEdit: deps.beginProjectEdit }),
       beforeProjectWrite: deps.beforeProjectWrite,
-      notePublished: deps.noteUserWrite,
       isRootCurrent: async (root) => await isRootCurrent(deps, root),
     })
   // The lease's release can fail after the writes are done: keep what they did.
