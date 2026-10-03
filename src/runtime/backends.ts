@@ -18,6 +18,7 @@ import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import { environmentValue } from '../core/backends/musecode/launch'
 import { personalSkillsRoot } from '../core/context/skills'
+import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
@@ -218,6 +219,13 @@ function modelApiManager(
       homeDir: deps.homeDir,
       xdgConfigHome: homes.xdgConfigHome,
     }),
+    personalAgentsRoot: personalAgentsRoot({
+      platform,
+      homeDir: deps.homeDir,
+      xdgConfigHome: homes.xdgConfigHome,
+    }),
+    isConfidentialWorkspace: () => false,
+    confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: createFileSessionStore({
       directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),

@@ -142,10 +142,14 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     newId: deps.newId,
     now: deps.now,
     log: deps.log,
-    // Nothing from the owner's profile: no personal skills, memory or hooks.
+    // Nothing from the owner's profile: no personal skills, agents, memory or hooks.
     personalSkillsRoot: undefined,
+    personalAgentsRoot: undefined,
     memory: undefined,
     isWorkspaceTrusted: () => true,
+    isConfidentialWorkspace: () => false,
+    // The run already opts into the contributor model; its paid-use hook still refuses children.
+    confirmContributorModel: () => Promise.resolve(true),
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
     getAccountId: () => Promise.resolve(deps.accountId),

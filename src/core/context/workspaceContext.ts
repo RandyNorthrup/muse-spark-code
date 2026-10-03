@@ -10,6 +10,18 @@
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
+import {
+  type AgentCatalogue,
+  type AgentDefinition,
+  type AgentResolution,
+  type AgentRoot,
+  agentHoles,
+  loadAgents,
+  NO_AGENTS,
+  offeredAgents,
+  projectAgentsRoot,
+  resolveAgent,
+} from './customAgents'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
 import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
 
@@ -20,6 +32,13 @@ export interface WorkspaceContextDeps {
   readonly platform: NodeJS.Platform
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
+  /** The managed personal agent root (M76); undefined when the host has no home. */
+  readonly personalAgentsRoot: string | undefined
+  /**
+   * Whether the agents are loaded (M76): a parent conversation lists them
+   * and spawns them; a child cannot spawn, so it reads none.
+   */
+  readonly hasAgents: boolean
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
   readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
@@ -31,6 +50,11 @@ export interface ContextSections {
   /** The rendered rules section with the preamble, or undefined without rules. */
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
+  /**
+   * The custom agents the model may run through `subagent_spawn` (M76):
+   * only those a spawn of the name would run (RV70x).
+   */
+  readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
 }
@@ -49,6 +73,7 @@ export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
   private skills: readonly SkillDefinition[] = []
+  private agents: AgentCatalogue = NO_AGENTS
   private memory: readonly MemoryScopeSnapshot[] = []
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
@@ -69,6 +94,20 @@ export class WorkspaceContext {
     ]
     if (this.deps.personalSkillsRoot !== undefined) {
       roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
+    }
+    return roots
+  }
+
+  private agentRoots(): readonly AgentRoot[] {
+    const roots: AgentRoot[] = [
+      {
+        directory: projectAgentsRoot(this.deps.workspaceRoot, this.deps.platform),
+        source: 'project',
+        confineTo: this.deps.workspaceRoot,
+      },
+    ]
+    if (this.deps.personalAgentsRoot !== undefined) {
+      roots.push({ directory: this.deps.personalAgentsRoot, source: 'user', confineTo: undefined })
     }
     return roots
   }
@@ -122,13 +161,51 @@ export class WorkspaceContext {
     await this.guarded('loading the rules', () => this.loadDirectory(ROOT_DIRECTORY), false)
     this.renderRulesSection()
     await this.refreshSkills()
+    if (this.deps.hasAgents) {
+      await this.loadAgentCatalogue()
+    }
     const { loadMemory } = this.deps
     if (loadMemory !== undefined) {
       this.memory = await this.guarded('loading the memory', loadMemory, [])
     }
   }
 
-  /** The root rules, the skills and the memory index, loaded once. */
+  /**
+   * Agents load once per session with the rest of the context (M76): a
+   * repository's files only in a trusted workspace, like the skills. Each
+   * root loads on its own; one that fails is a hole the others' precedence
+   * respects (RV70x).
+   */
+  private async loadAgentCatalogue(): Promise<void> {
+    // Rules and skills awaited first; trust can change before agent loading.
+    if (!this.isTrusted) return
+    const roots = this.agentRoots()
+    const { platform } = this.deps
+    const load = await this.guarded(
+      'loading the agents',
+      () => loadAgents({ io: this.deps.io, platform }, roots),
+      // Anything else that fails leaves every root unknown: no name runs,
+      // a built-in included, rather than one a file may have narrowed.
+      {
+        agents: [],
+        holes: agentHoles(
+          platform,
+          roots.map((root) => ({ root, listingFailure: 'failed', refused: [] })),
+        ),
+        warnings: [],
+      },
+    )
+    for (const warning of load.warnings) {
+      this.deps.warn(warning)
+    }
+    // An in-flight file read cannot be cancelled, but its catalogue must not
+    // survive trust withdrawal while the filesystem was answering.
+    this.agents = this.deps.isWorkspaceTrusted()
+      ? { agents: load.agents, holes: load.holes }
+      : NO_AGENTS
+  }
+
+  /** The root rules, the skills, the agents and the memory index, loaded once. */
   public load(): Promise<void> {
     this.loading ??= this.loadAll()
     return this.loading
@@ -178,7 +255,17 @@ export class WorkspaceContext {
     return this.skills.find((skill) => skill.id === id)
   }
 
+  /** What a spawn naming `id` runs: an agent, nothing, or a refusal for a root that did not load. */
+  public agent(id: string): AgentResolution {
+    return resolveAgent(this.agents, id)
+  }
+
   public sections(): ContextSections {
-    return { rules: this.rulesText, skills: this.skills, memory: this.memory }
+    return {
+      rules: this.rulesText,
+      skills: this.skills,
+      agents: offeredAgents(this.agents),
+      memory: this.memory,
+    }
   }
 }

@@ -672,6 +672,14 @@ export const EN = {
   approvalJudgeEscalated: 'Escalated by the safety check',
   approvalFeedbackPlaceholder: 'Tell Muse what to do instead (optional)',
   approvalDecided: 'Decided',
+  // PLAN.md D26: the approvals waiting, docked above the composer.
+  approvalDockLabel: 'Waiting for your approval',
+  // {count}: how many approvals wait, this one included.
+  approvalDockCount: forms({
+    one: 'Approval waiting: {count}',
+    other: 'Approvals waiting: {count}',
+  }),
+  approvalDockedNote: 'Waiting for your approval, in the card above the message box',
   questionSubmit: 'Submit',
   questionCancel: 'Cancel',
   questionFreeTextPlaceholder: 'Type your answer',
@@ -918,6 +926,13 @@ export const EN = {
   promptMovedOn:
     'That request moved on to its next step before this choice arrived; choose again on the updated card.',
   promptGone: 'That request is no longer waiting for an answer.',
+  // PLAN.md D26: Muse Code's own approval faults, and the way on.
+  approvalReplayRefused:
+    'Muse Code refuses every message in this conversation: a turn stopped while a multi-step command was partly approved, and Muse Code cannot replay that approval (a fault in Muse Code, not in your choices). Restart Muse Code to continue this conversation, or start a new one.',
+  approvalLedgerFault:
+    'Muse Code applies your approvals in this conversation but reports an error for each one (a fault in its approval record, not in your choices). Each card follows what Muse Code does next; a new conversation does not have the fault.',
+  museCodeRestartAsked:
+    'Muse Code was stopped. Your next message starts it again and continues this conversation.',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
@@ -1474,6 +1489,8 @@ export const EN = {
   compactionFailed: 'Compaction failed',
   answerNotAccepted: 'The answer was not accepted',
   outputLoadFailed: 'Could not load the output',
+  outputLoadRetry:
+    'Muse Code may be busy: collapse and expand the row to try again. Further failures go to the log only.',
   editReviewFailed: 'Could not review the edit',
   modelSwitchFailed: 'Could not switch model',
   effortNotApplied: 'Reasoning effort could not be applied',
@@ -1733,7 +1750,15 @@ export const EN = {
     'Estimated at Meta’s published prices, read on {date}, for this window since it opened; the dev.meta.ai dashboard is the bill.',
   subagentPaidOff:
     'Paid subagents are off. Enable them and accept the price before starting a child task.',
+  agentToolNotOffered:
+    'This tool is not in this agent’s allowlist. Use only the tools offered in its instructions.',
+  // A custom agent refused because a folder or file of higher precedence did
+  // not load (M76 review); {path} is that folder or file.
+  agentUnloaded:
+    'The agent “{id}” did not start: {path} could not be loaded, and a definition there would take precedence. Fix or remove it, then start a new conversation.',
   subagentConsentDeclined: 'The paid child task was not approved.',
+  subagentContributorBlocked:
+    'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
   subagentRequestLimit:
     'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
@@ -1920,6 +1945,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // After "a hook denied it": the hook rewrote the command into none.
+  hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',
   // The command could not start or ended without an exit code.
   thenRunNoExitCode: 'Failed without an exit code',

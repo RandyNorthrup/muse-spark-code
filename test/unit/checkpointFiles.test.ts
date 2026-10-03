@@ -19,16 +19,22 @@ afterAll(async () => {
   await removeFolder(base)
 })
 
-/** A fresh workspace holding `c/x.txt` and a folder link `a` to `c`. */
-async function linkedWorkspace() {
+/** A fresh workspace holding the user's file in the named folder. */
+async function fileWorkspace(directory: string) {
   const root = path.join(base, randomUUID())
-  await mkdir(path.join(root, 'c'), { recursive: true })
-  await writeFile(path.join(root, 'c', 'x.txt'), 'the user’s file\n')
-  await symlink(path.join(root, 'c'), path.join(root, 'a'), 'junction')
+  await mkdir(path.join(root, directory), { recursive: true })
+  await writeFile(path.join(root, directory, 'x.txt'), 'the user’s file\n')
   return {
     root,
     target: { workspaceRoot: root, platform: process.platform, log: new FakeLogOutputChannel() },
   }
+}
+
+/** A fresh workspace holding `c/x.txt` and a folder link `a` to `c`. */
+async function linkedWorkspace() {
+  const workspace = await fileWorkspace('c')
+  await symlink(path.join(workspace.root, 'c'), path.join(workspace.root, 'a'), 'junction')
+  return workspace
 }
 
 const oidOf = (text: string) => gitBlobOid(Buffer.from(text))
@@ -38,6 +44,7 @@ const holding = (text: string, mode = GIT_MODE_FILE) => ({
   kind: 'blob' as const,
   ...blob(text, mode),
 })
+const USER_FILE_EXPECTATION = holding('the user’s file\n')
 
 describe('linkedFolders (M72)', () => {
   it('names the outermost folder link on the way to each path, and no real folder', async () => {
@@ -69,7 +76,7 @@ describe('applyFileStep (M72)', () => {
       {
         path: 'a/x.txt',
         target: blob('overwritten\n'),
-        expect: holding('the user’s file\n'),
+        expect: USER_FILE_EXPECTATION,
       },
       Buffer.from('overwritten\n'),
       undefined,
@@ -225,32 +232,19 @@ function isCaseSensitiveVolume(): boolean {
   return !existsSync(probe.toUpperCase())
 }
 
-/** A workspace holding `Foo/x.txt` with the user's text. */
-async function workspaceWithFoo(): Promise<string> {
-  const root = path.join(base, randomUUID())
-  await mkdir(path.join(root, 'Foo'), { recursive: true })
-  await writeFile(path.join(root, 'Foo', 'x.txt'), 'the user’s file\n')
-  return root
-}
-
 describe('a restore on a volume that tells letter case apart (M72)', () => {
   it.skipIf(!isCaseSensitiveVolume())(
     'never writes through a link that differs from its target only in letter case',
     async () => {
-      const root = await workspaceWithFoo()
+      const { root, target } = await fileWorkspace('Foo')
       await symlink(path.join(root, 'Foo'), path.join(root, 'foo'), 'dir')
       // macOS offers case-sensitive volumes too: the restore must not fold case blindly.
-      const target = {
-        workspaceRoot: root,
-        platform: 'darwin' as const,
-        log: new FakeLogOutputChannel(),
-      }
       const result = await applyFileStep(
-        target,
+        { ...target, platform: 'darwin' },
         {
           path: 'foo/x.txt',
           target: blob('overwritten\n'),
-          expect: holding('the user’s file\n'),
+          expect: USER_FILE_EXPECTATION,
         },
         Buffer.from('overwritten\n'),
         undefined,
@@ -263,12 +257,7 @@ describe('a restore on a volume that tells letter case apart (M72)', () => {
   it.skipIf(isCaseSensitiveVolume())(
     'still writes a file named in another letter case on a volume that folds it',
     async () => {
-      const root = await workspaceWithFoo()
-      const target = {
-        workspaceRoot: root,
-        platform: process.platform,
-        log: new FakeLogOutputChannel(),
-      }
+      const { root, target } = await fileWorkspace('Foo')
       const result = await applyFileStep(
         target,
         {

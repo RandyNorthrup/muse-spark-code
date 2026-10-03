@@ -34,7 +34,7 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 }[] = [
   {
     name: MODEL_API_SUBAGENT_TOOLS.spawn,
-    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
+    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
     properties: {
       role: {
         type: 'string',
@@ -44,6 +44,11 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
         type: 'string',
         description:
           'The whole task and what to report back. The agent sees nothing else of this conversation.',
+      },
+      agent: {
+        type: 'string',
+        description:
+          "A custom agent id from the Agents list in your instructions, e.g. explore; omit to run with this session's own prompt, tools, model and effort",
       },
       worktree_isolation: {
         type: 'boolean',
@@ -116,9 +121,11 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 export const spawnArgs = z.object({
   role: z.string().check(z.trim(), z.minLength(1)),
   objective: z.string().check(z.trim(), z.minLength(1)),
+  agent: z.optional(z.string().check(z.trim(), z.minLength(1))),
   worktree_isolation: z.optional(z.union([z.boolean(), z.record(z.string(), z.unknown())])),
   command_id: z.optional(z.string()),
 })
+export type SpawnArgs = z.infer<typeof spawnArgs>
 
 export const statusArgs = z.object({
   subagent_id: z.optional(z.string()),

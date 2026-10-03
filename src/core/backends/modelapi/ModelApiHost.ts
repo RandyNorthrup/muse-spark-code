@@ -14,6 +14,7 @@ import type {
   TodoItem,
 } from '../../../shared/agentEvents'
 import {
+  AGENT_SOURCE_LABELS,
   AUTH_REQUIRED_ERROR_KIND,
   BACKGROUND_INITIATOR_USER,
   CHECK_FIX_MAX_ROUNDS,
@@ -23,6 +24,7 @@ import {
   BASE64_DATA_URL_OVERHEAD_CHARS,
   CONTEXT_PRESSURE_HIGH,
   CONTEXT_PRESSURE_MEDIUM,
+  CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   GOAL_OBJECTIVE_MAX_CHARS,
@@ -143,6 +145,14 @@ import {
   type TurnSubmission,
 } from '../../agent/agentBackend'
 import type { ContextIo } from '../../context/contextFiles'
+import {
+  type AgentDefinition,
+  type AgentRuntime,
+  narrowApprovalMode,
+  narrowTools,
+  resolveAgentEffort,
+  resolveAgentModel,
+} from '../../context/customAgents'
 import { type SkillDefinition } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
@@ -281,6 +291,7 @@ import {
   isSubagentTool,
   sendMessageArgs,
   spawnArgs,
+  type SpawnArgs,
   statusArgs,
   type SubagentState,
   targetArgs,
@@ -343,8 +354,14 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly log: CoreLogger
   /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
   readonly personalSkillsRoot: string | undefined
+  /** The managed personal agent root (M76); undefined without a home. */
+  readonly personalAgentsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
   readonly isWorkspaceTrusted: () => boolean
+  /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
+  readonly isConfidentialWorkspace: () => boolean
+  /** One explicit yes before a contributor-tier agent model is used (M76). */
+  readonly confirmContributorModel: (modelId: string) => Promise<boolean>
   /** Sessions between windows (D14); undefined without workspace storage. */
   readonly store?: SessionStore | undefined
   /** The git facts for the prompt's environment section (D15), read once per session. */
@@ -461,6 +478,8 @@ interface ChildRecord {
   readonly id: string
   readonly role: string
   readonly objective: string
+  /** The custom agent the spawn named (M76); undefined runs with the session's own prompt. */
+  readonly agentId: string | undefined
   readonly itemId: string
   readonly parentTurnId: string
   readonly session: ModelApiSession
@@ -488,7 +507,10 @@ interface ChildRecord {
 
 /** One consented child task; only in memory, never in the session snapshot. */
 interface ChildTaskGrant {
+  /** The model the child runs on: a custom agent's own, else the session's. */
   readonly modelId: string
+  /** The session's model when the grant was approved; a later switch ends the task. */
+  readonly parentModelId: string
   readonly keyDigest: string
   readonly goalId: string | undefined
   remainingAttempts: number
@@ -613,7 +635,13 @@ interface VerifyCommand {
 }
 
 type CommandOutcome =
-  | { readonly kind: 'skipped'; readonly skip: CheckSkip; readonly detail?: string }
+  | {
+      readonly kind: 'skipped'
+      readonly skip: CheckSkip
+      readonly detail?: string
+      /** The extension's own detail in the user's language, for the row; the model keeps `detail`. */
+      readonly visibleDetail?: string
+    }
   | { readonly kind: 'ran'; readonly line: string; readonly result: ShellResult }
 
 /** A permission check and the tool, or the refusal. */
@@ -658,6 +686,15 @@ interface ApprovalOutcome {
 interface CallResult {
   readonly outcome: ToolOutcome
   readonly isRejected: boolean
+}
+
+/** One wait in a child task's admission (a question, a hook, a popup): its refusal, if any. */
+type AdmissionWait = () => Promise<ToolOutcome | undefined>
+
+/** A child task admitted: its grant, and the tools a custom agent keeps (undefined: the session's). */
+interface ChildAdmission {
+  readonly grant: ChildTaskGrant
+  readonly tools: readonly string[] | undefined
 }
 
 /** Where a streamed output item stands while its deltas arrive. */
@@ -843,8 +880,8 @@ function pressureFor(used: number, window: number): string {
   return fraction >= CONTEXT_PRESSURE_MEDIUM ? PRESSURE_MEDIUM : PRESSURE_LOW
 }
 
-function toolFailure(reason: string): ToolOutcome {
-  return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+function toolFailure(reason: string, visibleReason = reason): ToolOutcome {
+  return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
 
 /** A web fetch that did not happen: the model's reason, the row's in the user's language. */
@@ -911,12 +948,10 @@ function questionResultText(reply: QuestionReply): string {
   }
 }
 
-function subagentFailure(reason: string): ToolOutcome {
-  return {
-    output: `Error: ${reason}`,
-    visibleOutput: UI_TEXT.agentControlFailed,
-    failureReason: UI_TEXT.agentControlFailed,
-  }
+/** A subagent call refused: the model's reason, and the row's when it has one of its own. */
+function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
+  const visible = visibleReason ?? UI_TEXT.agentControlFailed
+  return { output: `Error: ${reason}`, visibleOutput: visible, failureReason: visible }
 }
 
 const CHILD_TASK_REFUSALS = [
@@ -929,6 +964,7 @@ const CHILD_TASK_REFUSALS = [
   'tariffUnknown',
   'planMode',
   'webSearchOff',
+  'contributorBlocked',
 ] as const
 type ChildTaskRefusal = (typeof CHILD_TASK_REFUSALS)[number]
 
@@ -980,6 +1016,12 @@ function childTaskMessages(kind: ChildTaskRefusal): {
         visible: UI_TEXT.subagentWebSearchOff,
       }
     }
+    case 'contributorBlocked': {
+      return {
+        model: MODEL_TEXT.subagentContributorBlocked,
+        visible: UI_TEXT.subagentContributorBlocked,
+      }
+    }
   }
 }
 
@@ -1020,6 +1062,11 @@ function modelChildFailure(
 ): string | undefined {
   const kind = CHILD_TASK_REFUSALS.find((candidate) => errorKind === `subagent_${candidate}`)
   return kind === undefined ? fallback : childTaskMessages(kind).model
+}
+
+/** The name a tool allowlist matches: the function name, or the hosted search's own type. */
+function toolNameOf(definition: ToolDefinition): string {
+  return definition.type === 'function' ? definition.name : definition.type
 }
 
 function childStateLabel(state: SubagentState): string {
@@ -1384,6 +1431,8 @@ export class ModelApiSession implements AgentSession {
   private readonly children = new Map<string, ChildRecord>()
   private readonly spawnCommands = new Map<string, string>()
   private readonly pendingChildResults: string[] = []
+  /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
+  private readonly confirmedContributorModels = new Set<string>()
   private childTaskGrant: ChildTaskGrant | undefined
   private readonly admitChildAttempt = (
     keyDigest: string | undefined,
@@ -1490,6 +1539,7 @@ export class ModelApiSession implements AgentSession {
     private readonly hookStartSource: 'startup' | 'resume' | 'fork' = 'startup',
     private readonly isSideChat = false,
     private readonly workspaceEdits = new WorkspaceEdits(),
+    private readonly agent?: AgentRuntime,
     /** A child task whose role is `reviewer` (M70): every turn runs as the Reviewer. */
     private readonly isReviewerChild = false,
   ) {
@@ -1497,6 +1547,9 @@ export class ModelApiSession implements AgentSession {
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    if (agent !== undefined) {
+      this.effort = agent.effort
+    }
     // Packing is a full session's own store (its originals); a subagent's
     // calls are its parent's conversation to pack, never its own.
     this.packing =
@@ -1507,6 +1560,9 @@ export class ModelApiSession implements AgentSession {
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
+      personalAgentsRoot: deps.personalAgentsRoot,
+      // A child cannot spawn, so it reads no agents (M76).
+      hasAgents: !isSubagent,
       isWorkspaceTrusted: deps.isWorkspaceTrusted,
       loadMemory: memory === undefined ? undefined : () => memory.snapshot(),
       warn: (message) => {
@@ -1788,10 +1844,34 @@ export class ModelApiSession implements AgentSession {
 
   /**
    * Whether the model answers as the Reviewer now (M70): a `/review` turn, or
-   * a child task whose role is `reviewer`.
+   * a child task whose role is `reviewer` and that names no custom agent (a
+   * named agent's own prompt, tools and mode govern its run, M76).
    */
   private isReviewing(): boolean {
-    return this.isReviewerChild || this.active?.isReview === true
+    return (this.isReviewerChild && this.agent === undefined) || this.active?.isReview === true
+  }
+
+  /** What this request may offer: the shell and memory need trust, skills need loading. */
+  private toolFlags(): {
+    readonly hasShell: boolean
+    readonly hasSkills: boolean
+    readonly hasMemory: boolean
+  } {
+    const hasShell = this.deps.isWorkspaceTrusted()
+    return {
+      hasShell,
+      hasSkills: this.context.sections().skills.length > 0,
+      // Memory is the workspace context's (D13): offered in a trusted workspace only (D41).
+      hasMemory: hasShell && this.deps.memory !== undefined,
+    }
+  }
+
+  /** The effective child tool names, for a custom agent's allowlist to meet (M76). */
+  private offeredToolNames(): readonly string[] {
+    const flags = this.toolFlags()
+    return this.tools(flags.hasShell, flags.hasSkills, flags.hasMemory, true).map((tool) =>
+      toolNameOf(tool),
+    )
   }
 
   /** The agent's own instructions and tools, or the Reviewer's. */
@@ -1816,11 +1896,11 @@ export class ModelApiSession implements AgentSession {
       }
     }
     const shell = shellToolFor(this.deps.platform)
-    const hasShell = this.deps.isWorkspaceTrusted()
-    // Memory is the workspace context's (D13): offered in a trusted workspace only (D41).
-    const hasMemory = hasShell && this.deps.memory !== undefined
+    const flags = this.toolFlags()
+    const { hasShell, hasMemory } = flags
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     const repoMap = this.promptRepoMap()
+    const role = this.agentRole()
     return {
       instructions: instructionsFor({
         workspaceRoot: this.deps.workspaceRoot,
@@ -1828,21 +1908,30 @@ export class ModelApiSession implements AgentSession {
         shellToolName: shell.name,
         shellName: shell.shellName,
         hasShell,
+        isShellAllowed: this.canRunShell(),
         hasMemory,
         hasWebFetch: this.isWebFetchOffered(hasShell),
         hasCodeIntel: this.deps.codeIntel !== undefined,
         today,
         environment,
-        context,
+        // The agents catalogue invites a spawn, which asks its paid popup:
+        // hidden while paid subagents are off, from a child, which cannot
+        // spawn, and once the workspace is no longer trusted (M76 review).
+        context: {
+          ...context,
+          agents: this.isAgentCatalogueOffered() ? context.agents : [],
+        },
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
-          checks: this.checkCommands(),
+          checks: this.canRunVerifyCommands() ? this.checkCommands() : [],
         },
         ...(repoMap !== undefined && { repoMap }),
         // Pinned while the goal is active (M45, PLAN.md D38).
         ...(goalSection !== undefined && { goalSection }),
+        // A custom agent's own prompt runs as the child's role (M76).
+        ...(role !== undefined && { agent: role }),
       }),
-      tools: this.tools(hasShell, context.skills.length > 0, hasMemory),
+      tools: this.tools(hasShell, flags.hasSkills, hasMemory),
     }
   }
 
@@ -1908,9 +1997,46 @@ export class ModelApiSession implements AgentSession {
     return hasChanged
   }
 
+  /** Whether the `# Agents` catalogue is shown: a spawn must be possible (M76). */
+  private isAgentCatalogueOffered(): boolean {
+    return (
+      !this.isSubagent && this.deps.isWorkspaceTrusted() && this.deps.isPaidFeatureOn('subagents')
+    )
+  }
+
+  /**
+   * The role a child agent runs with (M76). A project file's prompt is
+   * repository content: it reaches the model only while the workspace is
+   * trusted, a resumed child included; without it the child keeps its
+   * narrowed tools and mode and runs on the base prompt alone.
+   */
+  private agentRole(): AgentRuntime | undefined {
+    return this.agent?.source === 'project' && !this.deps.isWorkspaceTrusted()
+      ? undefined
+      : this.agent
+  }
+
   /** The user's check commands as they stand now (M68); none without the verify loop. */
   private checkCommands(): readonly CheckCommandSetting[] {
     return this.deps.verify?.checkCommands() ?? []
+  }
+
+  /**
+   * The shell tool, and `then_run`, which runs any command line the model
+   * writes, need the shell tool in a narrowed agent's list (M76).
+   */
+  private canRunShell(): boolean {
+    const allowed = this.agent?.toolAllowlist
+    return allowed === undefined || allowed.includes(shellToolFor(this.deps.platform).name)
+  }
+
+  /**
+   * Automatic checks and `run_checks` run only the user's configured check
+   * commands: a narrowed agent needs `run_checks` or the shell in its list (M76).
+   */
+  private canRunVerifyCommands(): boolean {
+    const allowed = this.agent?.toolAllowlist
+    return this.canRunShell() || allowed?.includes(VERIFY_TOOLS.runChecks) === true
   }
 
   /** In-process, IDE, MCP and paid search tools offered to this request. */
@@ -1918,13 +2044,16 @@ export class ModelApiSession implements AgentSession {
     hasShell: boolean,
     hasSkills: boolean,
     hasMemory: boolean,
+    isSubagent = this.isSubagent,
   ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
+      // then_run runs any command: only where the shell tool is (M76).
+      hasThenRun: hasShell && this.canRunShell(),
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
-      hasSubagents: !this.isSubagent && this.deps.isPaidFeatureOn('subagents'),
-      isSubagent: this.isSubagent,
+      hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
+      isSubagent,
       hasMemory,
       hasPackedRecall: this.packing !== undefined,
       checks: this.checkCommands(),
@@ -1934,7 +2063,15 @@ export class ModelApiSession implements AgentSession {
     })
     const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
     const offered = [...own, ...this.ideDefinitions(), ...mcp]
-    return this.isWebSearchOffered() ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }] : offered
+    const withSearch: readonly ToolDefinition[] = this.isWebSearchOffered()
+      ? [...offered, { type: MODEL_API_WEB_SEARCH_TOOL }]
+      : offered
+    // A custom agent keeps only its allowlist of the offered tools (M76).
+    if (this.agent?.toolAllowlist === undefined) {
+      return withSearch
+    }
+    const allowed = new Set(this.agent.toolAllowlist)
+    return withSearch.filter((tool) => allowed.has(toolNameOf(tool)))
   }
 
   /** The extension's own IDE tools, as the model calls them (M50). */
@@ -2774,28 +2911,13 @@ export class ModelApiSession implements AgentSession {
     question: { readonly card: ApprovalSubject } | { readonly paid: PaidUseRequest },
     requiresUserApproval = false,
   ): Promise<ApprovalOutcome> {
-    const hook = await this.runHooks(
-      'PermissionRequest',
-      this.active?.turnId,
-      { tool_name: call.name, tool_input: toolHookInput(argumentsOf(call)) },
-      toolMatcherNames(call.name),
-      signal,
-      false,
-    )
+    const hook = await this.permissionRequestHook(call, signal)
     if (hook.blockedReason !== undefined) {
       return { isApproved: false, feedback: hook.blockedReason, deniedByHook: true }
     }
     if ('paid' in question) {
-      const stopNotifying = this.notifyWhileAsking(call, signal)
-      try {
-        const isAllowed = await unlessStopped(
-          this.deps.allowsPaidUse(question.paid, requiresUserApproval, this.askingSessionId),
-          signal,
-        )
-        return { isApproved: isAllowed, feedback: undefined }
-      } finally {
-        stopNotifying()
-      }
+      const isAllowed = await this.askPaidUse(call, signal, question.paid, requiresUserApproval)
+      return { isApproved: isAllowed, feedback: undefined }
     }
     const isHookAllowEnough =
       !requiresUserApproval && query.isProtected !== true && query.toolClass !== 'network'
@@ -2814,6 +2936,9 @@ export class ModelApiSession implements AgentSession {
       availableChoices: [...choicesFor(call.name, query.command)],
       isJudgeEscalated: requiresUserApproval,
       isProtectedWrite: query.isProtected === true,
+      ...(this.agent?.permissionMode !== undefined && {
+        permissionMode: this.agent.permissionMode,
+      }),
     }
     let decision: ApprovalDecision
     const stopNotifying = this.notifyWhileAsking(call, signal)
@@ -2847,6 +2972,39 @@ export class ModelApiSession implements AgentSession {
       resolvedBy: RESOLVED_BY_USER,
     })
     return { isApproved, feedback: decision.feedback }
+  }
+
+  /** The PermissionRequest hooks on one call (M51): a block, or the decision a card may follow. */
+  private async permissionRequestHook(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<HookDispatch> {
+    return await this.runHooks(
+      'PermissionRequest',
+      this.active?.turnId,
+      { tool_name: call.name, tool_input: toolHookInput(argumentsOf(call)) },
+      toolMatcherNames(call.name),
+      signal,
+      false,
+    )
+  }
+
+  /** The paid-use popup for one call (M58), notifying while it waits; a Stop ends the wait. */
+  private async askPaidUse(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    paid: PaidUseRequest,
+    requiresUserApproval: boolean,
+  ): Promise<boolean> {
+    const stopNotifying = this.notifyWhileAsking(call, signal)
+    try {
+      return await unlessStopped(
+        this.deps.allowsPaidUse(paid, requiresUserApproval, this.askingSessionId),
+        signal,
+      )
+    } finally {
+      stopNotifying()
+    }
   }
 
   private async askUser(
@@ -3444,15 +3602,146 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /**
+   * The custom agent a spawn names (M76): undefined when it names none, or
+   * why it cannot run. Restricted Mode offers none. A name resolves only
+   * when every root of higher precedence than its definition loaded: one
+   * that did not refuses the name, naming that root, and a broader lower
+   * definition never stands in for it (RV70x).
+   */
+  private spawnAgentOf(
+    agentId: string | undefined,
+  ): { readonly agent: AgentDefinition | undefined } | { readonly refusal: ToolOutcome } {
+    if (agentId === undefined) {
+      return { agent: undefined }
+    }
+    // Agent files load only in a trusted workspace; a session that began
+    // trusted and lost it offers none either (Restricted Mode, D13).
+    if (!this.deps.isWorkspaceTrusted()) {
+      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
+    }
+    const resolved = this.context.agent(agentId)
+    if (resolved.kind === 'found') {
+      return { agent: resolved.agent }
+    }
+    if (resolved.kind === 'unknown') {
+      return { refusal: subagentFailure(`unknown agent "${agentId}"`) }
+    }
+    const { hole } = resolved
+    return {
+      refusal: subagentFailure(
+        fill(MODEL_TEXT.agentUnloaded, { id: agentId, source: AGENT_SOURCE_LABELS[hole.source] }),
+        fill(UI_TEXT.agentUnloaded, { id: agentId, path: hole.path }),
+      ),
+    }
+  }
+
+  /**
+   * The tools a spawn with this agent keeps: its list met with the tools a
+   * child is offered (M76), undefined for the session's own set, or an error
+   * when they meet nothing.
+   */
+  private agentToolAllowlist(
+    agent: AgentDefinition | undefined,
+  ): { readonly tools: readonly string[] | undefined } | { readonly error: string } {
+    const tools = narrowTools(this.offeredToolNames(), agent?.tools)
+    return agent !== undefined && tools?.length === 0
+      ? { error: `agent "${agent.id}" names no tools this session offers` }
+      : { tools }
+  }
+
+  /**
+   * A spawn under a `command_id` already used (M76 review, RV70x): an exact
+   * retry (the same role, objective and agent) answers with that child's id
+   * and state before any new-child admission, since it starts nothing and
+   * needs none of a new child's capabilities; another task under the id is
+   * refused. Undefined when the id is new or absent.
+   */
+  private existingSpawn(args: SpawnArgs): ToolOutcome | undefined {
+    const prior =
+      args.command_id === undefined ? undefined : this.spawnCommands.get(args.command_id)
+    const child = prior === undefined ? undefined : this.childById(prior)
+    if (child === undefined) {
+      return undefined
+    }
+    if (
+      child.role !== args.role ||
+      child.objective !== args.objective ||
+      child.agentId !== args.agent
+    ) {
+      return subagentFailure('command_id was already used for a different spawn')
+    }
+    return {
+      output: JSON.stringify({
+        subagent_id: child.id,
+        state: child.state,
+        child_session_id: child.session.sessionId,
+      }),
+      visibleOutput: `${child.role}: ${childStateLabel(child.state)}`,
+    }
+  }
+
+  /**
+   * A new child's static admission (M76 review, RV70x): what its arguments
+   * ask for (isolation), the conversation's limit, the agent it names and
+   * the tools that agent meets, then its task's paid gates. Nothing here
+   * waits, and a spawn any of it refuses is asked nothing.
+   */
+  private admitNewSpawn(
+    call: FunctionCallItem,
+    args: SpawnArgs,
+  ):
+    | { readonly agent: AgentDefinition | undefined; readonly task: SubagentTaskConfirmation }
+    | { readonly refusal: CallResult } {
+    if (args.worktree_isolation !== undefined && args.worktree_isolation !== false) {
+      return {
+        refusal: {
+          outcome: subagentFailure('worktree isolation is unavailable on this backend'),
+          isRejected: false,
+        },
+      }
+    }
+    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
+      return {
+        refusal: {
+          outcome: subagentFailure('subagent limit reached for this conversation'),
+          isRejected: false,
+        },
+      }
+    }
+    const named = this.spawnAgentOf(args.agent)
+    if ('refusal' in named) {
+      return { refusal: { outcome: named.refusal, isRejected: true } }
+    }
+    // A list that meets none of the offered tools can never run.
+    const tools = this.agentToolAllowlist(named.agent)
+    if ('error' in tools) {
+      return { refusal: { outcome: subagentFailure(tools.error), isRejected: true } }
+    }
+    const task = this.childTaskFor(call, named.agent)
+    if (task === undefined) {
+      return {
+        refusal: { outcome: subagentFailure('invalid subagent_spawn arguments'), isRejected: true },
+      }
+    }
+    const gate = this.childTaskGate(task.modelId)
+    return gate === undefined
+      ? { agent: named.agent, task }
+      : { refusal: { outcome: childTaskFailure(gate), isRejected: true } }
+  }
+
   /** Every new task buys a fresh bounded grant; a running note does not. */
-  private childTaskFor(call: FunctionCallItem): SubagentTaskConfirmation | undefined {
+  private childTaskFor(
+    call: FunctionCallItem,
+    agent: AgentDefinition | undefined,
+  ): SubagentTaskConfirmation | undefined {
     if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
       const parsed = spawnArgs.safeParse(argumentsOf(call))
       return parsed.success
         ? {
             role: parsed.data.role,
             objective: parsed.data.objective,
-            modelId: this.modelId,
+            modelId: resolveAgentModel(this.modelId, agent?.model),
             attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
           }
         : undefined
@@ -3473,7 +3762,8 @@ export class ModelApiSession implements AgentSession {
     return {
       role: child.role,
       objective: parsed.success ? parsed.data.message : child.objective,
-      modelId: this.modelId,
+      // A follow-up continues the child's own run: a custom agent's model, not the session's.
+      modelId: child.session.modelId,
       attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
   }
@@ -3495,7 +3785,12 @@ export class ModelApiSession implements AgentSession {
     if (modelApiPaidTier(grant.modelId) === undefined) {
       return 'tariffUnknown'
     }
-    if (childModelId !== grant.modelId || this.modelId !== grant.modelId) {
+    // A confidential workspace enabled after the grant still blocks a
+    // contributor-tier child at validation and at queued start (M76 review).
+    if (grant.modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) && this.deps.isConfidentialWorkspace()) {
+      return 'contributorBlocked'
+    }
+    if (childModelId !== grant.modelId || this.modelId !== grant.parentModelId) {
       return 'modelChanged'
     }
     if (keyDigest !== grant.keyDigest) {
@@ -3510,27 +3805,56 @@ export class ModelApiSession implements AgentSession {
     return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
   }
 
-  private async prepareChildGrant(): Promise<ChildTaskGrant> {
+  /**
+   * A child task's paid gates, checked before anything is asked: paid
+   * subagents on, a goal with budget left, a verified price, and (a model a
+   * custom agent names passes the checks of the user's own choice, M76) no
+   * contributor model in a confidential workspace.
+   */
+  private childTaskGate(modelId: string): ChildTaskRefusal | undefined {
     if (!this.deps.isPaidFeatureOn('subagents')) {
-      throw new ChildTaskRefusedError('paidOff')
+      return 'paidOff'
     }
     if (this.goal?.status === GOAL_STATUS.budgetLimited) {
-      throw new ChildTaskRefusedError('goalEnded')
+      return 'goalEnded'
     }
-    if (modelApiPaidTier(this.modelId) === undefined) {
-      throw new ChildTaskRefusedError('tariffUnknown')
+    if (modelApiPaidTier(modelId) === undefined) {
+      return 'tariffUnknown'
     }
+    return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) && this.deps.isConfidentialWorkspace()
+      ? 'contributorBlocked'
+      : undefined
+  }
+
+  /** The grant a child task's consent buys: what its rechecks compare the session against. */
+  private async newChildGrant(modelId: string): Promise<ChildTaskGrant> {
+    const parentModelId = this.modelId
+    const goalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
+    const isWebSearchAllowed =
+      this.active?.isWebSearchAllowed ?? this.deps.isPaidUseRemembered('webSearch')
     return {
-      modelId: this.modelId,
+      modelId,
+      parentModelId,
       keyDigest: await this.deps.client.currentKeyDigest(),
-      goalId: isGoalActive(this.goal) ? this.goal.goal_id : undefined,
+      goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
-      isWebSearchAllowed:
-        this.active?.isWebSearchAllowed ?? this.deps.isPaidUseRemembered('webSearch'),
+      isWebSearchAllowed,
     }
   }
 
-  private async validateChildGrant(grant: ChildTaskGrant): Promise<void> {
+  /**
+   * Everything a wait may have changed (M76 review, RV70x), checked after
+   * each wait of a child task's admission and once more before it starts:
+   * the workspace's trust for a custom agent; the grant's gates (Plan, paid
+   * subagents on, the price, a contributor model in a confidential
+   * workspace, the model, the key, the goal); and the tools the agent meets.
+   * Only the key's read waits, first: the checks after it are synchronous,
+   * so the next question, popup or start sees what they saw.
+   */
+  private async recheckAdmission(
+    grant: ChildTaskGrant,
+    agent: AgentDefinition | undefined,
+  ): Promise<ChildAdmission | { readonly refusal: ToolOutcome }> {
     let keyDigest: string | undefined
     try {
       keyDigest = await this.deps.client.currentKeyDigest()
@@ -3539,43 +3863,144 @@ export class ModelApiSession implements AgentSession {
         throw error
       }
     }
-    const reason = this.childGrantRefusal(grant, keyDigest, grant.modelId)
-    if (reason !== undefined) {
-      throw new ChildTaskRefusedError(reason)
+    if (agent !== undefined && !this.deps.isWorkspaceTrusted()) {
+      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
     }
+    const refusal = this.childGrantRefusal(grant, keyDigest, grant.modelId)
+    if (refusal !== undefined) {
+      return { refusal: childTaskFailure(refusal) }
+    }
+    const tools = this.agentToolAllowlist(agent)
+    return 'error' in tools
+      ? { refusal: subagentFailure(tools.error) }
+      : { grant, tools: tools.tools }
   }
 
-  /** A user-owned follow-up or reopen gets the paid-use popup (M58). */
+  /**
+   * A child task's admission past its static checks, in one order (M76
+   * review, RV70x): the grant (the key's read), then each wait in turn, with
+   * recheckAdmission after every one, so no question or popup is shown for
+   * a task an earlier wait already made invalid. The caller starts the child
+   * on the last recheck's result with nothing awaited between them.
+   */
+  private async consentToChildTask(
+    task: SubagentTaskConfirmation,
+    agent: AgentDefinition | undefined,
+    waits: readonly AdmissionWait[],
+  ): Promise<ChildAdmission | { readonly refusal: ToolOutcome }> {
+    const grant = await this.newChildGrant(task.modelId)
+    let checked = await this.recheckAdmission(grant, agent)
+    for (const wait of waits) {
+      if ('refusal' in checked) {
+        return checked
+      }
+      const refusal = await wait()
+      if (refusal !== undefined) {
+        return { refusal }
+      }
+      checked = await this.recheckAdmission(grant, agent)
+    }
+    return checked
+  }
+
+  /**
+   * The contributor yes a child task's model needs (M76): asked for every
+   * spawn, and for a follow-up when this session was never given it (a
+   * child resumed in a new window). No wait for any other model. A Stop
+   * preempts the modal mid-turn like any wait.
+   */
+  private contributorWaits(
+    modelId: string,
+    isSpawn: boolean,
+    signal: AbortSignal | undefined,
+  ): readonly AdmissionWait[] {
+    if (
+      !modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) ||
+      (!isSpawn && this.confirmedContributorModels.has(modelId))
+    ) {
+      return []
+    }
+    return [
+      async () => {
+        const asking = this.deps.confirmContributorModel(modelId)
+        const isConfirmed =
+          signal === undefined ? await asking : await unlessStopped(asking, signal)
+        if (isConfirmed) {
+          this.confirmedContributorModels.add(modelId)
+        }
+        return isConfirmed ? undefined : childTaskFailure('consentDeclined')
+      },
+    ]
+  }
+
+  /**
+   * What a model's child task asks through (M48, M58, M76): the contributor
+   * yes when its model needs one, the PermissionRequest hooks (which may
+   * deny a paid task, never allow it), then the paid-use popup. It asks even
+   * when subagents are allowed always for a model other than the session's,
+   * since "always" was given for the model the user saw priced (D48), and
+   * whenever a hook demands a question.
+   */
+  private modelChildTaskWaits(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    task: SubagentTaskConfirmation,
+    isSpawn: boolean,
+    shouldForceApproval: boolean,
+  ): readonly AdmissionWait[] {
+    return [
+      ...this.contributorWaits(task.modelId, isSpawn, signal),
+      async () => {
+        const hook = await this.permissionRequestHook(call, signal)
+        return hook.blockedReason === undefined
+          ? undefined
+          : refusedOutcome(call, hook.blockedReason, true)
+      },
+      async () => {
+        const isAllowed = await this.askPaidUse(
+          call,
+          signal,
+          { feature: 'subagents', task },
+          shouldForceApproval || task.modelId !== this.modelId,
+        )
+        return isAllowed ? undefined : childTaskFailure('consentDeclined')
+      },
+    ]
+  }
+
+  /** A user-owned follow-up or reopen gets the paid-use popup (M58), admitted in the same order. */
   private async confirmOwnerChildTask(
     child: ChildRecord,
     objective: string,
   ): Promise<ChildTaskGrant> {
-    try {
-      const grant = await this.prepareChildGrant()
-      const isAccepted = await this.deps.allowsPaidUse(
-        {
-          feature: 'subagents',
-          task: {
-            role: child.role,
-            objective,
-            modelId: grant.modelId,
-            attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
-          },
-        },
-        false,
-        this.askingSessionId,
-      )
-      if (!isAccepted) {
-        throw new ChildTaskRefusedError('consentDeclined')
-      }
-      await this.validateChildGrant(grant)
-      return grant
-    } catch (error: unknown) {
-      if (error instanceof ChildTaskRefusedError) {
-        throw new Error(error.visible, { cause: error })
-      }
-      throw error
+    // A follow-up continues the child's own run: a custom agent's model, not the session's.
+    const task: SubagentTaskConfirmation = {
+      role: child.role,
+      objective,
+      modelId: child.session.modelId,
+      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
+    const gate = this.childTaskGate(task.modelId)
+    const admitted =
+      gate === undefined
+        ? await this.consentToChildTask(task, undefined, [
+            ...this.contributorWaits(task.modelId, false, undefined),
+            async () => {
+              // "Always" was given for the model the user saw priced: a child
+              // on another one (an agent file named it) asks again (M76, D48).
+              const isAllowed = await this.deps.allowsPaidUse(
+                { feature: 'subagents', task },
+                task.modelId !== this.modelId,
+                this.askingSessionId,
+              )
+              return isAllowed ? undefined : childTaskFailure('consentDeclined')
+            },
+          ])
+        : { refusal: childTaskFailure(gate) }
+    if ('refusal' in admitted) {
+      throw new Error(admitted.refusal.visibleOutput)
+    }
+    return admitted.grant
   }
 
   /** The exact task text sent after queued notes are added to a child turn. */
@@ -3638,49 +4063,75 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  private spawnChild(
-    call: FunctionCallItem,
+  /**
+   * subagent_spawn's admission, in one order (M76 review, RV70x):
+   * 1. the mode (Plan refuses every spawn, a retry included), then a
+   *    `command_id` already used: an exact retry answers with its child
+   *    before any new-child admission, another task under it is refused;
+   * 2. a new child's static admission (admitNewSpawn), which waits on
+   *    nothing: isolation, the limit, the agent and its tools, the paid gates;
+   * 3. the waits (the contributor yes, the PermissionRequest hooks, the
+   *    paid-use popup), each followed by recheckAdmission;
+   * 4. the child starts on what the last recheck admitted.
+   */
+  private async decideAndRunSpawn(
     turnId: string,
-    grant: ChildTaskGrant | undefined,
-  ): ToolOutcome {
-    if (grant === undefined) {
-      return childTaskFailure('consentDeclined')
-    }
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    shouldForceApproval: boolean,
+  ): Promise<CallResult> {
     const parsed = spawnArgs.safeParse(argumentsOf(call))
     if (!parsed.success) {
-      return subagentFailure('invalid subagent_spawn arguments')
+      return { outcome: subagentFailure('invalid subagent_spawn arguments'), isRejected: true }
     }
-    if (parsed.data.worktree_isolation !== undefined && parsed.data.worktree_isolation !== false) {
-      return subagentFailure('worktree isolation is unavailable on this backend')
+    const query: PermissionQuery = { toolName: call.name, toolClass: 'spawn' }
+    if (this.verdictWithHook(query, shouldForceApproval) === 'deny') {
+      return this.refusedByMode(call)
     }
-    const prior =
-      parsed.data.command_id === undefined
-        ? undefined
-        : this.spawnCommands.get(parsed.data.command_id)
-    if (prior !== undefined) {
-      const child = this.childById(prior)
-      if (child !== undefined) {
-        if (child.role !== parsed.data.role || child.objective !== parsed.data.objective) {
-          return subagentFailure('command_id was already used for a different spawn')
-        }
-        return {
-          output: JSON.stringify({
-            subagent_id: child.id,
-            state: child.state,
-            child_session_id: child.session.sessionId,
-          }),
-          visibleOutput: `${child.role}: ${childStateLabel(child.state)}`,
-        }
-      }
+    const existing = this.existingSpawn(parsed.data)
+    if (existing !== undefined) {
+      return { outcome: existing, isRejected: false }
     }
-    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
-      return subagentFailure('subagent limit reached for this conversation')
+    const admitted = this.admitNewSpawn(call, parsed.data)
+    if ('refusal' in admitted) {
+      return admitted.refusal
     }
+    const consent = await this.consentToChildTask(
+      admitted.task,
+      admitted.agent,
+      this.modelChildTaskWaits(call, signal, admitted.task, true, shouldForceApproval),
+    )
+    if ('refusal' in consent) {
+      return { outcome: consent.refusal, isRejected: true }
+    }
+    return {
+      outcome: this.spawnChild(parsed.data, turnId, consent, admitted.agent),
+      isRejected: false,
+    }
+  }
+
+  /**
+   * Starts a child decideAndRunSpawn admitted, on what its last recheck
+   * found, with nothing awaited since. A custom agent narrows the run to its
+   * prompt, tools, model, effort and permissions; what it asks beyond the
+   * session is refused, never widened (M76).
+   */
+  private spawnChild(
+    args: SpawnArgs,
+    turnId: string,
+    admission: ChildAdmission,
+    spawnAgent: AgentDefinition | undefined,
+  ): ToolOutcome {
+    const { grant } = admission
+    const modelId = grant.modelId
+    const mode = this.isSideChat
+      ? 'denyUnmatched'
+      : narrowApprovalMode(this.permissions.currentMode, spawnAgent?.approvalMode)
     const id = `${SUBAGENT_ID_PREFIX}${String(this.children.size + 1)}`
     const child = new ModelApiSession(
       `${this.sessionId}:${id}`,
-      this.modelId,
-      this.isSideChat ? 'denyUnmatched' : this.permissions.currentMode,
+      modelId,
+      mode,
       this.deps,
       () => {
         this.touch()
@@ -3696,13 +4147,25 @@ export class ModelApiSession implements AgentSession {
       'startup',
       this.isSideChat,
       this.workspaceEdits,
-      isReviewerRole(parsed.data.role),
+      spawnAgent === undefined
+        ? undefined
+        : {
+            id: spawnAgent.id,
+            source: spawnAgent.source,
+            prompt: spawnAgent.body,
+            toolAllowlist: admission.tools,
+            effort: resolveAgentEffort(modelId, spawnAgent.effort),
+            approvalMode: spawnAgent.approvalMode,
+            permissionMode: spawnAgent.permissionMode,
+          },
+      isReviewerRole(args.role),
     )
     child.childTaskGrant = grant
     const record: ChildRecord = {
       id,
-      role: parsed.data.role,
-      objective: parsed.data.objective,
+      role: args.role,
+      objective: args.objective,
+      agentId: spawnAgent?.id,
       itemId: this.deps.newId(),
       parentTurnId: turnId,
       session: child,
@@ -3722,8 +4185,8 @@ export class ModelApiSession implements AgentSession {
       this.childEvent(record, event)
     })
     this.children.set(id, record)
-    if (parsed.data.command_id !== undefined) {
-      this.spawnCommands.set(parsed.data.command_id, id)
+    if (args.command_id !== undefined) {
+      this.spawnCommands.set(args.command_id, id)
     }
     const row = this.childSnapshot(record)
     this.recordTranscript(turnId, row)
@@ -3793,8 +4256,8 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** The subagent tools but spawn, which decideAndRunSpawn admits and starts. */
   private async runSubagentTool(
-    turnId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
     grant?: ChildTaskGrant,
@@ -3803,9 +4266,6 @@ export class ModelApiSession implements AgentSession {
       return subagentFailure('a subagent cannot spawn or control other subagents')
     }
     const args = argumentsOf(call)
-    if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
-      return this.spawnChild(call, turnId, grant)
-    }
     if (call.name === MODEL_API_SUBAGENT_TOOLS.status) {
       const parsed = statusArgs.safeParse(args)
       if (!parsed.success) {
@@ -3931,7 +4391,6 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async perform(
-    turnId: string,
     itemId: string,
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -3946,7 +4405,7 @@ export class ModelApiSession implements AgentSession {
       return { outcome: await this.performExternal(external, call, signal) }
     }
     if (isSubagentTool(call.name)) {
-      return { outcome: await this.runSubagentTool(turnId, call, signal, childGrant) }
+      return { outcome: await this.runSubagentTool(call, signal, childGrant) }
     }
     switch (call.name) {
       case MODEL_API_TOOLS.askUser: {
@@ -4173,6 +4632,11 @@ export class ModelApiSession implements AgentSession {
     if (!this.deps.isWorkspaceTrusted()) {
       return { kind: 'skipped', skip: 'restricted' }
     }
+    // A narrowed custom agent holds neither the shell nor run_checks: what it
+    // was never offered is not run for it (M76), before any hook sees it.
+    if (!this.canRunVerifyCommands()) {
+      return { kind: 'skipped', skip: 'refused', detail: MODEL_TEXT.agentToolNotOffered }
+    }
     const commandAdmission = this.verificationAdmission(signal)
     const isCurrent = () => isAllowed() && commandAdmission()
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
@@ -4205,6 +4669,7 @@ export class ModelApiSession implements AgentSession {
           kind: 'skipped',
           skip: 'hookDenied',
           detail: MODEL_API_MODEL_TEXT.hookInputNoCommand,
+          visibleDetail: UI_TEXT.hookInputNoCommand,
         }
       }
       line = updated
@@ -4895,6 +5360,14 @@ export class ModelApiSession implements AgentSession {
     if (toolClass === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
+    // The allowlist binds every dispatcher, including memory's specialized
+    // path: definitions alone cannot stop a model calling a tool by name.
+    if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
+      return {
+        outcome: toolFailure(MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
+        isRejected: false,
+      }
+    }
     if (isMemoryTool(call.name)) {
       return await this.decideAndRunMemory(
         itemId,
@@ -4924,9 +5397,8 @@ export class ModelApiSession implements AgentSession {
     ) {
       return { outcome: subagentFailure('tool unavailable to a subagent'), isRejected: true }
     }
-    const childTask = this.childTaskFor(call)
-    if (childTask === undefined && call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
-      return { outcome: subagentFailure('invalid subagent_spawn arguments'), isRejected: true }
+    if (call.name === MODEL_API_SUBAGENT_TOOLS.spawn) {
+      return await this.decideAndRunSpawn(turnId, call, signal, shouldForceApproval)
     }
     if ((toolClass === 'shell' || toolClass === 'mcp') && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
@@ -4950,6 +5422,8 @@ export class ModelApiSession implements AgentSession {
       // A path the tool would refuse anyway is refused before any card.
       return { outcome: toolFailure(target.reason), isRejected: false }
     }
+    // A follow-up that starts a new task is a paid child task like a spawn.
+    const childTask = this.childTaskFor(call, undefined)
     const query: PermissionQuery = {
       toolName: call.name,
       toolClass: childTask === undefined ? toolClass : 'spawn',
@@ -4966,22 +5440,24 @@ export class ModelApiSession implements AgentSession {
     }
     let childGrant: ChildTaskGrant | undefined
     if (childTask !== undefined) {
-      try {
-        childGrant = await this.prepareChildGrant()
-      } catch (error: unknown) {
-        if (error instanceof ChildTaskRefusedError) {
-          return { outcome: childTaskFailure(error.kind), isRejected: true }
-        }
-        throw error
+      // The same order as a spawn's (RV70x): the gates, then each wait
+      // followed by a recheck. Only a spawn asks the contributor yes every
+      // time; a follow-up rides the spawn's unless this session never had it.
+      const gate = this.childTaskGate(childTask.modelId)
+      const consent =
+        gate === undefined
+          ? await this.consentToChildTask(
+              childTask,
+              undefined,
+              this.modelChildTaskWaits(call, signal, childTask, false, shouldForceApproval),
+            )
+          : { refusal: childTaskFailure(gate) }
+      if ('refusal' in consent) {
+        return { outcome: consent.refusal, isRejected: true }
       }
-    }
-    if (verdict === 'ask') {
-      let paid: PaidUseRequest | undefined
-      if (childTask !== undefined) {
-        paid = { feature: 'subagents', task: childTask }
-      } else if (approvedImagePlan !== undefined) {
-        paid = imageUseRequest(approvedImagePlan)
-      }
+      childGrant = consent.grant
+    } else if (verdict === 'ask') {
+      const paid = approvedImagePlan === undefined ? undefined : imageUseRequest(approvedImagePlan)
       const approval = await this.askApproval(
         itemId,
         call,
@@ -4995,23 +5471,10 @@ export class ModelApiSession implements AgentSession {
         shouldForceApproval || (paid !== undefined && query.isProtected === true),
       )
       if (!approval.isApproved) {
-        if (childTask !== undefined && approval.deniedByHook !== true) {
-          return { outcome: childTaskFailure('consentDeclined'), isRejected: true }
-        }
         return {
           outcome: refusedOutcome(call, approval.feedback, approval.deniedByHook === true),
           isRejected: true,
         }
-      }
-    }
-    if (childGrant !== undefined) {
-      try {
-        await this.validateChildGrant(childGrant)
-      } catch (error: unknown) {
-        if (error instanceof ChildTaskRefusedError) {
-          return { outcome: childTaskFailure(error.kind), isRejected: true }
-        }
-        throw error
       }
     }
     // Every live session hears the names before perform can write or format.
@@ -5026,7 +5489,6 @@ export class ModelApiSession implements AgentSession {
     let performed: Performed
     try {
       performed = await this.perform(
-        turnId,
         itemId,
         call,
         signal,
@@ -5153,20 +5615,28 @@ export class ModelApiSession implements AgentSession {
     )
     let ran: CommandOutcome
     try {
-      ran = await this.runVerifyCommand(
-        itemId,
-        {
-          line: command,
-          ruleCommand: command,
-          description: THEN_RUN_DESCRIPTION,
-          timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
-          isForced,
-          guard: () => this.isAsEdited(target, isAllowed),
-        },
-        signal,
-        effects,
-        isAllowed,
-      )
+      // then_run is the shell by another name: a narrowed agent without the shell tool has none.
+      ran = this.canRunShell()
+        ? await this.runVerifyCommand(
+            itemId,
+            {
+              line: command,
+              ruleCommand: command,
+              description: THEN_RUN_DESCRIPTION,
+              timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
+              isForced,
+              guard: () => this.isAsEdited(target, isAllowed),
+            },
+            signal,
+            effects,
+            isAllowed,
+          )
+        : {
+            kind: 'skipped',
+            skip: 'refused',
+            detail: MODEL_TEXT.agentToolNotOffered,
+            visibleDetail: UI_TEXT.agentToolNotOffered,
+          }
     } catch (error: unknown) {
       if (!(error instanceof AbortedError) && !isAbortRequested(signal)) {
         throw error
@@ -5184,6 +5654,9 @@ export class ModelApiSession implements AgentSession {
     }
     if (ran.kind === 'skipped') {
       const reason = skipReason(ran.skip, ran.detail)
+      // The row's line is in the user's language (verifyText.ts); a hook's or
+      // the user's own words are shown as they are.
+      const shown = ran.visibleDetail ?? ran.detail
       return {
         outcome: {
           ...edit,
@@ -5192,7 +5665,7 @@ export class ModelApiSession implements AgentSession {
             command,
             outcome: 'notRun',
             skip: ran.skip,
-            ...(ran.detail !== undefined && ran.detail.trim() !== '' && { detail: ran.detail }),
+            ...(shown !== undefined && shown.trim() !== '' && { detail: shown }),
             output: '',
           },
         },
@@ -5317,9 +5790,14 @@ export class ModelApiSession implements AgentSession {
         ? call
         : { ...call, arguments: JSON.stringify(pre.updatedInput) }
     // The Reviewer's tools are never paid, and it is refused every other (M70).
+    // Otherwise the paid marker only: the grant (with the agent's model) is
+    // prepared later in runToolCall.
     let paid: PaidFeature | undefined
     if (!this.isReviewing()) {
-      paid = this.childTaskFor(effectiveCall) === undefined ? paidFeatureOf(call.name) : 'subagents'
+      paid =
+        this.childTaskFor(effectiveCall, undefined) === undefined
+          ? paidFeatureOf(call.name)
+          : 'subagents'
     }
     const started: ItemSnapshot = {
       itemId,
@@ -5723,7 +6201,7 @@ export class ModelApiSession implements AgentSession {
     // Restricted Mode runs no shell (D13): the checks are left out, not refused
     // one by one. A check already run on the latest state of what it covers
     // (by run_checks, or an edit's then_run of its command) is not run again.
-    const checks =
+    const selectedChecks =
       this.ledger.isStopped || !this.deps.isWorkspaceTrusted()
         ? []
         : verify
@@ -5733,14 +6211,21 @@ export class ModelApiSession implements AgentSession {
                 !this.ledger.isRejected(check.name) &&
                 !this.ledger.hasCurrentRun(check.name, checkScope(check, edited)),
             )
-    if (!isDiagnosticsOn && checks.length === 0) {
+    const canRunChecks = this.canRunVerifyCommands()
+    const checks = canRunChecks ? selectedChecks : []
+    const refusedChecks = canRunChecks
+      ? []
+      : selectedChecks.map((check) =>
+          skippedCheck(check, 'refused', MODEL_TEXT.agentToolNotOffered),
+        )
+    if (!isDiagnosticsOn && selectedChecks.length === 0) {
       if (this.ledger.judgeRound()) {
         this.noteFixLoopStopped(turn.turnId, [])
       }
       return undefined
     }
     const paths = edited.map((file) => file.relative)
-    const parts = (isDiagnosticsOn ? 1 : 0) + checks.length
+    const parts = (isDiagnosticsOn ? 1 : 0) + selectedChecks.length
     const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(parts, 1))
     const started: ItemSnapshot = {
       itemId: this.deps.newId(),
@@ -5763,8 +6248,19 @@ export class ModelApiSession implements AgentSession {
       const existing =
         checks.length === 0 || !isAllowed() ? [] : await this.existingFiles(edited, isAllowed)
       runs = isAllowed()
-        ? await this.runChecks(started.itemId, checks, existing, signal, effects, share, isAllowed)
-        : checks.map((check) =>
+        ? [
+            ...refusedChecks,
+            ...(await this.runChecks(
+              started.itemId,
+              checks,
+              existing,
+              signal,
+              effects,
+              share,
+              isAllowed,
+            )),
+          ]
+        : selectedChecks.map((check) =>
             skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.verifyAccessRefused),
           )
       if (isAbortRequested(signal)) {
@@ -6840,10 +7336,17 @@ export class ModelApiSession implements AgentSession {
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
     }
-    if (!(APPROVAL_MODES as readonly string[]).includes(mode)) {
+    const approvalMode = APPROVAL_MODES.find((known) => known === mode)
+    if (approvalMode === undefined) {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
-    this.permissions.setMode(mode as ApprovalMode)
+    // A custom agent's ceiling survives a session mode switch (M76 review):
+    // the child re-narrows instead of running wider than its definition.
+    this.permissions.setMode(
+      this.agent?.approvalMode === undefined
+        ? approvalMode
+        : narrowApprovalMode(approvalMode, this.agent.approvalMode),
+    )
     for (const child of this.children.values()) {
       void child.session.setApprovalMode(mode)
     }
@@ -7341,6 +7844,25 @@ export class ModelApiSession implements AgentSession {
       modelId: this.modelId,
       approvalMode: this.permissions.currentMode,
       effort: this.effort,
+      // A custom agent's narrowed run, so a resume or fork keeps it (M76
+      // review). Optional fields stay absent, never undefined.
+      ...(this.agent !== undefined && {
+        agent: {
+          id: this.agent.id,
+          source: this.agent.source,
+          prompt: this.agent.prompt,
+          ...(this.agent.toolAllowlist !== undefined && {
+            toolAllowlist: [...this.agent.toolAllowlist],
+          }),
+          effort: this.agent.effort,
+          ...(this.agent.approvalMode !== undefined && {
+            approvalMode: this.agent.approvalMode,
+          }),
+          ...(this.agent.permissionMode !== undefined && {
+            permissionMode: this.agent.permissionMode,
+          }),
+        },
+      }),
       ...(this.name !== undefined && { name: this.name }),
       createdAt: this.createdAt,
       lastActivityAt: this.lastActivityAt,
@@ -7442,6 +7964,8 @@ export class ModelApiSession implements AgentSession {
         'resume',
         this.isSideChat,
         this.workspaceEdits,
+        // A custom agent's narrowed run survives the resume (M76 review).
+        saved.session.agent,
         isReviewerRole(saved.role),
       )
       session.adopt(saved.session)
@@ -7449,6 +7973,7 @@ export class ModelApiSession implements AgentSession {
         id: saved.id,
         role: saved.role,
         objective: saved.objective,
+        agentId: saved.session.agent?.id,
         itemId: saved.itemId,
         parentTurnId: saved.parentTurnId,
         session,
@@ -7538,6 +8063,7 @@ export class ModelApiSession implements AgentSession {
         continue
       }
       const sessionId = `${target.sessionId}:${child.id}`
+      const saved = { ...child.session.snapshot(), sessionId }
       const session = new ModelApiSession(
         sessionId,
         child.session.modelId,
@@ -7556,9 +8082,11 @@ export class ModelApiSession implements AgentSession {
         'fork',
         target.isSideChat,
         target.workspaceEdits,
+        // A custom agent's narrowed run survives the fork (M76 review).
+        saved.agent,
         isReviewerRole(child.role),
       )
-      session.adopt({ ...child.session.snapshot(), sessionId })
+      session.adopt(saved)
       const cloned: ChildRecord = {
         ...child,
         session,

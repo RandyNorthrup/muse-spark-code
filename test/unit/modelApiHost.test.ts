@@ -14,15 +14,21 @@ import {
   GOAL_OBJECTIVE_MAX_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_API_MODEL_TEXT,
+  MODEL_API_SUBAGENT_TOOLS,
+  MODEL_API_TOOLS,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   REVIEW_MODEL_TEXT,
   SCHEDULE_LIFETIME_MS,
+  SUBAGENT_MAX_PER_CONVERSATION,
   type PaidFeature,
+  type PermissionMode,
   type PromptCacheRetention,
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
+import { editAutomaticallyChoice } from '../../src/core/agent/approvalRules'
+import type { ContextIo } from '../../src/core/context/contextFiles'
 import { AttachmentStore } from '../../src/core/attachments'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { PaidUseRequest } from '../../src/shared/paid'
@@ -38,6 +44,7 @@ import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
   fakeModelApiClient,
+  type ScriptedCall,
   type ScriptedReply,
   TINY_PNG_BASE64,
 } from './helpers/fakeModelApi'
@@ -80,9 +87,12 @@ import { countLogged } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
+// Long enough for a turn that spawns the conversation's whole limit of children.
+const SPAWN_LIMIT_WAIT_MS = 4000
 
 /** A child turn carries its task marker; prompt-cache keys now name shared prefixes. */
 function isChildRequest(body: unknown): boolean {
@@ -194,12 +204,36 @@ async function completeUnpromptedWrite(t: ReturnType<typeof setup>): Promise<Age
   return events
 }
 
+/** `museSpark.confidentialWorkspace`; a function when a test flips it mid-run (M76 review). */
+function confidentialOf(value: boolean | (() => boolean) | undefined): () => boolean {
+  return typeof value === 'function' ? value : () => value ?? false
+}
+
+/** `io`, telling `onList` each directory the loaders list. */
+function listenedContextIo(
+  io: ContextIo,
+  onList: ((directory: string) => void) | undefined,
+): ContextIo {
+  return onList === undefined
+    ? io
+    : {
+        ...io,
+        listDirectory: (directory) => {
+          onList(directory)
+          return io.listDirectory(directory)
+        },
+      }
+}
+
 function setup(
   options: {
     platform?: NodeJS.Platform
     files?: Record<string, string>
     personalSkillsRoot?: string
-    isTrusted?: boolean
+    personalAgentsRoot?: string
+    isTrusted?: boolean | (() => boolean)
+    isConfidentialWorkspace?: boolean | (() => boolean)
+    confirmContributorModel?: (modelId: string) => Promise<boolean>
     store?: ReturnType<typeof memorySessionStore>
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
     /** The paid features that are on (M33–M35); none unless a test says so. */
@@ -234,6 +268,9 @@ function setup(
     webFetch?: ModelApiHostDeps['webFetch']
     beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
     afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
+    verify?: ModelApiHostDeps['verify']
+    /** Every directory the context loaders list, in order (M76). */
+    onListDirectory?: (directory: string) => void
   } = {},
 ) {
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
@@ -281,7 +318,7 @@ function setup(
     platform: options.platform ?? 'linux',
     io,
     // The context loaders read the same files the tools do.
-    contextIo: memoryContextIo(io.files),
+    contextIo: listenedContextIo(memoryContextIo(io.files), options.onListDirectory),
     newId:
       options.newId ??
       (() => {
@@ -294,7 +331,11 @@ function setup(
     },
     log,
     personalSkillsRoot: options.personalSkillsRoot,
-    isWorkspaceTrusted: () => options.isTrusted ?? true,
+    personalAgentsRoot: options.personalAgentsRoot,
+    isWorkspaceTrusted: () =>
+      typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
+    isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
+    confirmContributorModel: options.confirmContributorModel ?? (() => Promise.resolve(false)),
     store: options.store,
     scheduleStore: options.scheduleStore,
     getAccountId: options.getAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
@@ -326,6 +367,7 @@ function setup(
     webFetch: options.webFetch,
     beforeTurnRuns: options.beforeTurnRuns,
     afterTurnRuns: options.afterTurnRuns,
+    ...(options.verify !== undefined && { verify: options.verify }),
   })
   return {
     api,
@@ -1231,11 +1273,11 @@ describe('Model API turn checkpoint admission (M72)', () => {
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
         // Admission and the request itself must both settle before inspecting HTTP.
-        await admitted.promise
         // The request follows the turn's checkpoint: real git, about 70 ms on
         // an idle machine but seconds on a loaded one, past vi.waitFor's 1 s.
-        // Wait for the request itself, or for the turn's end if it never comes.
-        await Promise.race([requested.promise, turnDone()])
+        // Wait for both, or for the turn's end if either fails before a
+        // request can be sent.
+        await Promise.race([Promise.all([admitted.promise, requested.promise]), turnDone()])
         expect(t.api.responseBodies()).toHaveLength(1)
         await closing.sessionChanged(undefined)
         session.dispose()
@@ -5222,22 +5264,12 @@ describe('ModelApiSession subagents (M48)', () => {
   it('refuses child creation while its paid gate is off', async () => {
     const t = setup()
     const { session, turnDone } = await startSession(t, 'allowAll')
-    t.api.script(
-      {
-        calls: [
-          {
-            name: 'subagent_spawn',
-            arguments: '{"role":"explorer","objective":"Map files"}',
-            callId: 'paid_off_spawn',
-          },
-        ],
-      },
-      { text: 'Parent continues.' },
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('explorer', 'Map files', undefined, 'paid_off_spawn'),
     )
-    await session.sendTurn([{ type: 'text', text: 'delegate' }])
-    await turnDone()
-    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
-    expect(t.paidUses).toEqual([])
   })
 
   it('asks once for a bounded BYOK child task even in Bypass', async () => {
@@ -5692,12 +5724,7 @@ describe('ModelApiSession subagents (M48)', () => {
       expect(webSearchTools(firstChild)).toEqual([{ type: 'web_search' }])
       t.api.script({ text: 'Second task done.' })
       await session.messageSubagent('subagent-1', 'Second task', true)
-      await vi.waitFor(() => {
-        expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
-          controlStatus: 'resultReady',
-          result: { summary: 'Second task done.' },
-        })
-      })
+      await waitForChildSummary(session, 'Second task done.')
       expect(t.api.responseBodies()).toHaveLength(before + 1)
       // No prompt is running: the follow-up searches only if search is allowed always.
       expect(webSearchTools(t.api.responseBodies()[before])).toEqual(
@@ -6163,6 +6190,90 @@ describe('ModelApiSession subagents (M48)', () => {
       ),
     ).toMatchObject({ item: { status: 'failed' } })
     expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
+  })
+
+  // A spawn that starts no child asks nothing: neither the contributor yes
+  // nor the paid-use popup (M76 review, D48).
+  it('answers a retried command id without asking again, and refuses a reused one unasked (M76 review)', async () => {
+    const confirm = vi.fn((_modelId: string) => Promise.resolve(true))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      bigCommandSpawn('Big task', 'first_spawn'),
+      { text: 'Child done.' },
+      { text: 'Ready.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    expect([t.paidRequests.length, confirm.mock.calls.length]).toEqual([1, 1])
+    t.api.script(bigCommandSpawn('Big task', 'retried_spawn'), { text: 'Same child.' })
+    await session.sendTurn([{ type: 'text', text: 'retry' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'retried_spawn')).toMatchObject({
+      output: expect.stringContaining('"subagent_id":"subagent-1"'),
+    })
+    t.api.script(bigCommandSpawn('Other task', 'reused_spawn'), { text: 'Refused.' })
+    await session.sendTurn([{ type: 'text', text: 'reuse' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'reused_spawn')).toMatchObject({
+      output: 'Error: command_id was already used for a different spawn',
+    })
+    expect([t.paidRequests.length, confirm.mock.calls.length]).toEqual([1, 1])
+    expect(childBodies(t)).toHaveLength(1)
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(1)
+  })
+
+  it('refuses worktree isolation before any popup (M76 review)', async () => {
+    const confirm = vi.fn((_modelId: string) => Promise.resolve(true))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    await runRefusedSpawn(t, session, turnDone, {
+      calls: [
+        {
+          name: 'subagent_spawn',
+          arguments: JSON.stringify({
+            role: 'worker',
+            objective: 'Big task',
+            agent: 'big',
+            worktree_isolation: true,
+          }),
+          callId: 'isolated_spawn',
+        },
+      ],
+    })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(t.paidRequests).toEqual([])
+    expect(outputFor(t.api.responseBodies().at(-1), 'isolated_spawn')).toMatchObject({
+      output: 'Error: worktree isolation is unavailable on this backend',
+    })
+  })
+
+  it('refuses a spawn past the conversation limit before any popup (M76 review)', async () => {
+    const t = setupSubagents()
+    const { session } = await startSession(t, 'promptUnmatched')
+    const calls = Array.from({ length: SUBAGENT_MAX_PER_CONVERSATION + 1 }, (_, index) => ({
+      name: 'subagent_spawn',
+      arguments: JSON.stringify({ role: `worker-${String(index)}`, objective: 'Task' }),
+      callId: `limit-${String(index)}`,
+    }))
+    t.api.script({ calls }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    // A child's turn ends too, so the parent's is read from its second request.
+    const parentBodies = () => t.api.responseBodies().filter((body) => !isChildRequest(body))
+    await vi.waitFor(
+      () => {
+        expect(parentBodies()).toHaveLength(2)
+      },
+      { timeout: SPAWN_LIMIT_WAIT_MS },
+    )
+    expect(t.paidRequests).toHaveLength(SUBAGENT_MAX_PER_CONVERSATION)
+    const parent = parentBodies()
+    expect(
+      outputFor(parent.at(-1), `limit-${String(SUBAGENT_MAX_PER_CONVERSATION)}`),
+    ).toMatchObject({ output: 'Error: subagent limit reached for this conversation' })
+    expect(session.history().items.filter((item) => item.kind === 'subagent')).toHaveLength(
+      SUBAGENT_MAX_PER_CONVERSATION,
+    )
   })
 
   it('runs at most eight children and starts the ninth when a slot opens', async () => {
@@ -6719,6 +6830,1479 @@ describe('ModelApiSession subagents (M48)', () => {
       await turnDone()
     }
   })
+})
+
+const agentFile = (name: string, description: string, extra = '') =>
+  `---\nname: ${name}\ndescription: ${description}\n${extra}---\n\nPrompt of ${name}\n`
+
+/** The tool names one request body offers. */
+function offeredTools(body: Record<string, unknown> | undefined): string[] {
+  const tools: unknown = body?.['tools']
+  if (!Array.isArray(tools)) {
+    return []
+  }
+  const items: unknown[] = tools
+  const names: string[] = []
+  for (const tool of items) {
+    if (typeof tool === 'object' && tool !== null) {
+      if ('name' in tool && typeof tool.name === 'string') {
+        names.push(tool.name)
+      } else if ('type' in tool && typeof tool.type === 'string') {
+        names.push(tool.type)
+      }
+    }
+  }
+  return names
+}
+
+function childBodies(t: ReturnType<typeof setup>): Record<string, unknown>[] {
+  return t.api.responseBodies().filter((body) => isChildRequest(body))
+}
+
+/** One scripted `subagent_spawn` call reply; without an agent the session runs itself. */
+function spawnCallReply(
+  role: string,
+  objective: string,
+  agent: string | undefined,
+  callId: string,
+): ScriptedReply {
+  return {
+    calls: [
+      {
+        name: 'subagent_spawn',
+        arguments:
+          agent === undefined
+            ? `{"role":"${role}","objective":"${objective}"}`
+            : `{"role":"${role}","objective":"${objective}","agent":"${agent}"}`,
+        callId,
+      },
+    ],
+  }
+}
+
+/** A scripted spawn whose turn ends refused: no child row, nothing billed. */
+async function runRefusedSpawn(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  turnDone: () => Promise<void>,
+  spawn: ScriptedReply,
+): Promise<void> {
+  t.api.script(spawn, { text: 'Parent continues.' })
+  await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  await expectRefusedSpawn(t, session, turnDone)
+}
+
+/** A follow-up's result, whatever summary it carries. */
+async function waitForChildSummary(session: ModelApiSession, summary: string): Promise<void> {
+  await vi.waitFor(() => {
+    expect(session.history().items.find((item) => item.kind === 'subagent')).toMatchObject({
+      controlStatus: 'resultReady',
+      result: { summary },
+    })
+  })
+}
+
+/** A harness with the legacy-model agent file. */
+function setupLegacyAgent(): ReturnType<typeof setup> {
+  return setupSubagents({
+    files: {
+      '.agents/agents/legacy/AGENT.md': agentFile(
+        'legacy',
+        'Legacy work',
+        'model: muse-spark-1.2\n',
+      ),
+    },
+  })
+}
+
+/** A harness with the contributor-model agent file and the caller's other options. */
+function setupBigAgent(options: {
+  isConfidentialWorkspace?: boolean | (() => boolean)
+  confirmContributorModel?: (modelId: string) => Promise<boolean>
+}): ReturnType<typeof setup> {
+  return setupSubagents({ ...options, files: bigAgentFiles() })
+}
+
+/** A `subagent_spawn` of the contributor-model agent, always under command id `same`. */
+function bigCommandSpawn(objective: string, callId: string): ScriptedReply {
+  return {
+    calls: [
+      {
+        name: 'subagent_spawn',
+        arguments: JSON.stringify({ role: 'worker', objective, agent: 'big', command_id: 'same' }),
+        callId,
+      },
+    ],
+  }
+}
+
+/** The contributor-model agent file. */
+function bigAgentFiles(): Record<string, string> {
+  return {
+    '.agents/agents/big/AGENT.md': agentFile(
+      'big',
+      'Big work',
+      'model: muse-spark-1.3-contributor\n',
+    ),
+  }
+}
+
+/** The project reviewer agent file (plan ceiling, read and write, max effort). */
+function reviewerFiles(): Record<string, string> {
+  return {
+    '.agents/agents/reviewer/AGENT.md': agentFile(
+      'reviewer',
+      'Reviewing',
+      'tools: read_file, write_file\npermission-mode: plan\neffort: max\n',
+    ),
+  }
+}
+
+/** Spawns an agent and waits for its first result. */
+async function spawnAgentAndWait(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+  spawn: ScriptedReply,
+  childDone: string,
+): Promise<void> {
+  t.api.script(spawn, { text: childDone }, { text: 'Parent continues.' })
+  await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  await waitForChildReady(t, session)
+}
+
+/** Spawns the Explore agent and waits for its first result. */
+async function spawnExploreAndWait(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+): Promise<void> {
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('scout', 'Map files', 'explore', 'spawn_explore'),
+    'Mapped.',
+  )
+}
+
+/** Spawns the reviewer agent and waits for its first result. */
+async function spawnReviewerAndWait(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+): Promise<void> {
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('reviewer', 'Review', 'reviewer', 'spawn_reviewer'),
+    'Ready.',
+  )
+}
+
+/** Spawns the contributor-model agent and waits for its first result. */
+async function spawnBigAndWait(
+  t: ReturnType<typeof setup>,
+  session: ModelApiSession,
+): Promise<void> {
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('worker', 'Big task', 'big', 'spawn_big'),
+    'Big task done.',
+  )
+}
+
+/** Scripts one child `write_file` call and the child's done text after it. */
+function scriptChildWrite(
+  t: ReturnType<typeof setup>,
+  path: string,
+  content: string,
+  callId: string,
+  done: string,
+): void {
+  scriptChildCall(
+    t,
+    {
+      name: 'write_file',
+      arguments: JSON.stringify({ path, content }),
+      callId,
+    },
+    done,
+  )
+}
+
+/** A child follow-up runs alone, so the scripted call cannot go to the parent. */
+function scriptChildCall(t: ReturnType<typeof setup>, call: ScriptedCall, done: string): void {
+  t.api.script({ calls: [call] }, { text: done })
+}
+
+type SetupOptions = NonNullable<Parameters<typeof setup>[0]>
+
+/** A project agent `writer` that holds only `tools`, over a verify loop with one configured check. */
+async function spawnWriter(tools: string, callId: string) {
+  const t = setupSubagents({
+    files: {
+      '.agents/agents/writer/AGENT.md': agentFile('writer', 'Writes a file', `tools: ${tools}\n`),
+    },
+    verify: {
+      isDiagnosticsOn: () => false,
+      checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
+      isFormatOnEdit: () => false,
+      diagnosticsAfterEdit: () => Promise.resolve([]),
+      formatAfterEdit: () => Promise.resolve(undefined),
+    },
+  })
+  const { session } = await startApprovedSubagentSession(t)
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('writer', 'Write a file', 'writer', callId),
+    'Writer ready.',
+  )
+  return { t, session }
+}
+
+/**
+ * A conversation whose first window spawns a child through `spawn` and closes,
+ * and which a second window resumes from the same store (M76): the stored
+ * child's agent runtime, and the resumed host and session.
+ */
+async function resumeWithChild(
+  files: Record<string, string>,
+  spawn: (t: ReturnType<typeof setup>, session: ModelApiSession) => Promise<void>,
+  windows: { readonly first?: SetupOptions; readonly resumed?: SetupOptions } = {},
+) {
+  const store = memorySessionStore()
+  const first = setupSubagents({ ...windows.first, store, files })
+  const { session } = await startApprovedSubagentSession(first)
+  await spawn(first, session)
+  const stored = store.saved.get(session.sessionId)?.children?.[0]?.session.agent
+  await first.host.close()
+  const resumed = setupSubagents({ ...windows.resumed, store, files })
+  await resumed.host.load()
+  const next = await resumed.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+  await next.session.controlSubagent('subagent-1', 'readResult')
+  // The harness resumes Model API sessions, whose history the waits read.
+  return { stored, resumed, next: next.session as ModelApiSession }
+}
+
+/** Reopens the resumed child on scripted replies and returns the child's requests. */
+async function reopenResumedChild(
+  rig: Awaited<ReturnType<typeof resumeWithChild>>,
+  replies: readonly ScriptedReply[],
+  done: string,
+) {
+  rig.resumed.api.script(...replies)
+  await rig.next.controlSubagent('subagent-1', 'reopen')
+  await waitForChildSummary(rig.next, done)
+  return rig.resumed.api.responseBodies().filter((body) => isChildRequest(body))
+}
+
+/**
+ * A `writer` agent with `permission-mode: child`, spawned by a session in
+ * `approvalMode`, writes one file. Its card is answered by the clients'
+ * shared rule (the panel's and the ACP agent's) for a `parent` mode, or
+ * refused as a user would. Returns the card, the rule's choice and the file.
+ */
+async function childWriteUnder(
+  parent: PermissionMode,
+  approvalMode: string,
+  child: PermissionMode,
+) {
+  const t = setupSubagents({
+    files: {
+      '.agents/agents/writer/AGENT.md': agentFile(
+        'writer',
+        'Writes files',
+        `tools: write_file\npermission-mode: ${child}\n`,
+      ),
+    },
+  })
+  const { session, events } = await startSession(t, approvalMode)
+  await spawnAgentAndWait(
+    t,
+    session,
+    spawnCallReply('writer', 'Write files', 'writer', 'spawn_policy'),
+    'Writer ready.',
+  )
+  scriptChildWrite(t, 'policy.txt', 'Written.', 'policy_write', 'Writer done.')
+  await session.messageSubagent('subagent-1', 'Write it', true)
+  const request = await approvalRequest(events, 0)
+  const automatic = editAutomaticallyChoice(request, parent)
+  await session.decideApproval({
+    approvalId: request.approvalId,
+    requirementId: request.requirementId,
+    choiceId: automatic?.choiceId ?? 'abort',
+  })
+  await waitForChildSummary(session, 'Writer done.')
+  return { request, automatic, text: t.files.get(`${ROOT}/policy.txt`) }
+}
+
+/** A `subagent_spawn` of the painter agent, always under command id `same`. */
+function painterCommandSpawn(callId: string): ScriptedReply {
+  return {
+    calls: [
+      {
+        name: 'subagent_spawn',
+        arguments: JSON.stringify({
+          role: 'painter',
+          objective: 'Paint',
+          agent: 'painter',
+          command_id: 'same',
+        }),
+        callId,
+      },
+    ],
+  }
+}
+
+/** A reply that calls `search`, a tool the reviewer's list leaves out. */
+function searchReply(callId: string): ScriptedReply {
+  return { calls: [{ name: 'search', arguments: '{"pattern":"review"}', callId }] }
+}
+
+describe('ModelApiSession custom agents (M76)', () => {
+  it.each([
+    MODEL_API_TOOLS.askUser,
+    MODEL_API_TOOLS.todoWrite,
+    MODEL_API_TOOLS.createGoal,
+    MODEL_API_TOOLS.getGoal,
+    MODEL_API_TOOLS.updateGoal,
+    MODEL_API_TOOLS.reportProgress,
+    ...Object.values(MODEL_API_SUBAGENT_TOOLS),
+  ])('refuses an agent listing only %s before any paid child request (RV76 P2)', async (tool) => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/parent-only/AGENT.md': agentFile(
+          'parent-only',
+          'Requires a parent tool',
+          `tools: ${tool}\n`,
+        ),
+      },
+    })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    t.api.script(
+      spawnCallReply('parent-only', 'Use a parent tool', 'parent-only', 'spawn_parent_only'),
+      { text: 'Child tried.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    expect(childBodies(t)).toHaveLength(0)
+    expect(t.paidUses).toEqual([])
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_parent_only')).toMatchObject({
+      output: expect.stringContaining('names no tools this session offers'),
+    })
+  })
+
+  it('keeps usable child tools when an agent also lists parent-only tools (RV76 P2)', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({
+      store,
+      files: {
+        '.agents/agents/reader/AGENT.md': agentFile(
+          'reader',
+          'Reads files',
+          'tools: ask_user, todo_write, subagent_spawn, read_file\n',
+        ),
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('reader', 'Read files', 'reader', 'spawn_effective_tools'),
+      'Reader ready.',
+    )
+    await t.host.flush()
+    expect(offeredTools(childBodies(t)[0])).toEqual(['read_file'])
+    expect(store.saved.get(session.sessionId)?.children?.[0]?.session.agent).toMatchObject({
+      toolAllowlist: ['read_file'],
+    })
+  })
+
+  it('localizes an allowlist refusal with the installed German table (RV76 P3)', async () => {
+    const t = setupSubagents()
+    try {
+      expect(await installGerman(t.log)).toBe('de')
+      const { session, events } = await startApprovedSubagentSession(t)
+      await spawnExploreAndWait(t, session)
+      scriptChildWrite(t, 'refused-de.txt', 'x', 'refused_de_write', 'Child done.')
+      await session.messageSubagent('subagent-1', 'Try writing', true)
+      await waitForChildSummary(session, 'Child done.')
+      const translated =
+        'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.'
+      expect(toolRows(events).find((row) => row.tool === 'write_file')).toMatchObject({
+        status: 'failed',
+        visibleOutput: translated,
+        failureReason: translated,
+      })
+      expect(outputFor(childBodies(t).at(-1), 'refused_de_write')).toMatchObject({
+        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      })
+      expect(t.files.has(`${ROOT}/refused-de.txt`)).toBe(false)
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  // then_run's line under the edit is the user's (verifyText.ts): the refusal
+  // it appends is said in the installed language, the model's stays English.
+  it('localizes a then_run allowlist refusal with the installed German table (M76 review)', async () => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes a file',
+          'tools: write_file\n',
+        ),
+      },
+    })
+    try {
+      expect(await installGerman(t.log)).toBe('de')
+      const { session, events } = await startApprovedSubagentSession(t)
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write a file', 'writer', 'spawn_de_then_run'),
+        'Writer ready.',
+      )
+      scriptChildCall(
+        t,
+        {
+          name: 'write_file',
+          arguments: JSON.stringify({ path: 'owned.ts', content: 'x', then_run: 'echo then' }),
+          callId: 'child_de_then_run',
+        },
+        'Writer done.',
+      )
+      await session.messageSubagent('subagent-1', 'Write it', true)
+      await waitForChildSummary(session, 'Writer done.')
+      expect(t.io.shellCalls).toEqual([])
+      expect(toolRows(events).find((row) => row.tool === 'write_file')?.thenRun).toMatchObject({
+        outcome: 'notRun',
+        skip: 'refused',
+        detail:
+          'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.',
+      })
+      expect(outputFor(childBodies(t).at(-1), 'child_de_then_run')).toMatchObject({
+        output: expect.stringContaining(MODEL_TEXT.agentToolNotOffered),
+      })
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  // A list that meets none of the session's tools can never run: neither the
+  // contributor yes nor the paid-use popup is asked for it (M76 review).
+  it.each([
+    { name: 'the session model', model: '' },
+    { name: 'a contributor model', model: 'model: muse-spark-1.3-contributor\n' },
+  ])(
+    'refuses an agent whose tools are not offered before any popup: $name (M76 review)',
+    async ({ model }) => {
+      const contributorAsks: string[] = []
+      const t = setupSubagents({
+        files: {
+          '.agents/agents/painter/AGENT.md': agentFile(
+            'painter',
+            'Paints images',
+            `tools: ${MODEL_API_TOOLS.generateImage}\n${model}`,
+          ),
+        },
+        confirmContributorModel: (modelId) => {
+          contributorAsks.push(modelId)
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startSession(t, 'promptUnmatched')
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('painter', 'Paint', 'painter', 'spawn_unoffered'),
+      )
+      expect(contributorAsks).toEqual([])
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unoffered')).toMatchObject({
+        output: expect.stringContaining('names no tools this session offers'),
+      })
+    },
+  )
+
+  // What a child is offered can change while the popup is open: the spawn
+  // meets the agent's list again before the child starts.
+  it('refuses a spawn whose agent tools stop being offered during the popup (M76 review)', async () => {
+    const paid: PaidFeature[] = ['subagents', 'imageGeneration']
+    const t = setup({
+      paid,
+      files: {
+        '.agents/agents/painter/AGENT.md': agentFile(
+          'painter',
+          'Paints images',
+          `tools: ${MODEL_API_TOOLS.generateImage}\n`,
+        ),
+      },
+      allowsPaidUse: () => {
+        paid.splice(paid.indexOf('imageGeneration'), 1)
+        return Promise.resolve(true)
+      },
+    })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('painter', 'Paint', 'painter', 'spawn_lost_tools'),
+    )
+    expect(t.paidRequests).toHaveLength(1)
+    expect(childBodies(t)).toHaveLength(0)
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_lost_tools')).toMatchObject({
+      output: expect.stringContaining('names no tools this session offers'),
+    })
+  })
+
+  it.each([
+    { parent: 'acceptEdits', child: 'manual' },
+    { parent: 'manual', child: 'acceptEdits' },
+  ] as const)(
+    'requires a human write decision with parent $parent and child $child (RV76 P1)',
+    async ({ parent, child }) => {
+      // Reproduces an automatic write if the event lost the child's Manual
+      // policy, otherwise denies as a user.
+      const written = await childWriteUnder(parent, 'promptUnmatched', child)
+      expect(written.automatic).toBeUndefined()
+      expect(written.text).toBeUndefined()
+    },
+  )
+
+  it.each(['resume', 'fork'] as const)(
+    'retains a Manual child policy across %s (RV76 P1)',
+    async (action) => {
+      const store = memorySessionStore()
+      const files = {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes files',
+          'tools: write_file\npermission-mode: manual\n',
+        ),
+      }
+      const t = setupSubagents({ store, files })
+      const { session } = await startSession(t, 'promptUnmatched')
+      await spawnAgentAndWait(
+        t,
+        session,
+        spawnCallReply('writer', 'Write files', 'writer', 'spawn_saved_policy'),
+        'Writer ready.',
+      )
+      await t.host.flush()
+      const stored = store.saved.get(session.sessionId)?.children?.[0]?.session.agent
+      let next: AgentSession
+      let active = t
+      if (action === 'resume') {
+        await t.host.close()
+        active = setupSubagents({ store, files })
+        await active.host.load()
+        const resumed = await active.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+        next = resumed.session
+        await next.controlSubagent('subagent-1', 'readResult')
+      } else {
+        const forked = await t.host.forkSession(session.sessionId, 'muse-spark-1.3')
+        next = forked.session
+      }
+      const { events } = watchSessionTurns(next)
+      scriptChildWrite(active, 'saved-policy.txt', 'Written.', 'saved_policy_write', 'Writer done.')
+      await next.controlSubagent('subagent-1', 'reopen')
+      const request = await approvalRequest(events, 0)
+      const automatic = editAutomaticallyChoice(request, 'acceptEdits')
+      await next.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: automatic?.choiceId ?? 'abort',
+      })
+      await vi.waitFor(() => {
+        expect(
+          active.api
+            .responseBodies()
+            .some((body) => outputFor(body, 'saved_policy_write') !== undefined),
+        ).toBe(true)
+      })
+      expect(stored).toMatchObject({ permissionMode: 'manual' })
+      expect(automatic).toBeUndefined()
+      expect(active.files.has(`${ROOT}/saved-policy.txt`)).toBe(false)
+    },
+  )
+
+  it.each([
+    { name: 'write-only', tools: 'write_file', revokesTrust: false, commands: 0 },
+    { name: 'allowed checks', tools: 'write_file, run_checks', revokesTrust: false, commands: 1 },
+    { name: 'trust withdrawn', tools: 'write_file, run_checks', revokesTrust: true, commands: 0 },
+  ])('keeps automatic verification within the $name agent boundary', async (testCase) => {
+    let isTrusted = true
+    const t = setupSubagents({
+      isTrusted: () => isTrusted,
+      files: {
+        '.agents/agents/writer/AGENT.md': agentFile(
+          'writer',
+          'Writes a file',
+          `tools: ${testCase.tools}\n`,
+        ),
+      },
+      verify: {
+        isDiagnosticsOn: () => testCase.revokesTrust,
+        checkCommands: () => [{ name: 'agent-check', command: 'npm test' }],
+        isFormatOnEdit: () => false,
+        diagnosticsAfterEdit: (files) => {
+          if (testCase.revokesTrust) {
+            isTrusted = false
+          }
+          return Promise.resolve(files.map((file) => ({ file, entries: [] })))
+        },
+        formatAfterEdit: () => Promise.resolve(undefined),
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('writer', 'Write a file', 'writer', 'spawn_narrowed_writer'),
+      'Writer ready.',
+    )
+    scriptChildWrite(t, 'owned.ts', 'Owned edit.\n', 'child_narrowed_write', 'Writer done.')
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Writer done.')
+    expect(t.files.get(`${ROOT}/owned.ts`)).toBe('Owned edit.\n')
+    expect(t.io.shellCalls).toHaveLength(testCase.commands)
+    if (testCase.name === 'write-only') {
+      expect(JSON.stringify(childBodies(t).at(-1)?.['input'])).toContain(
+        MODEL_TEXT.agentToolNotOffered,
+      )
+    }
+  })
+
+  // then_run takes any command line the model writes: it is the shell by
+  // another name, so run_checks (which runs only the user's own commands)
+  // does not give it, and the role's prompt does not describe a shell it lacks.
+  it.each([
+    {
+      name: 'the shell tool',
+      tools: 'write_file, bash',
+      ran: ['echo then', 'npm test'],
+      hasShell: true,
+    },
+    {
+      name: 'only run_checks',
+      tools: 'write_file, run_checks',
+      ran: ['npm test'],
+      hasShell: false,
+    },
+    { name: 'no command tool', tools: 'write_file', ran: [], hasShell: false },
+  ])('runs then_run only with the shell tool in the agent list: $name (M76)', async (testCase) => {
+    const { t, session } = await spawnWriter(testCase.tools, 'spawn_then_run_writer')
+    scriptChildCall(
+      t,
+      {
+        name: 'write_file',
+        arguments: JSON.stringify({ path: 'owned.ts', content: 'x', then_run: 'echo then' }),
+        callId: 'child_then_run',
+      },
+      'Writer done.',
+    )
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Writer done.')
+    expect(t.files.get(`${ROOT}/owned.ts`)).toBe('x')
+    // The configured check runs wherever run_checks or the shell is held; the
+    // model's own then_run command only with the shell tool.
+    expect(t.io.shellCalls.map((call) => call.command)).toEqual(testCase.ran)
+    const last = childBodies(t).at(-1)
+    expect(JSON.stringify(last?.['tools']).includes('then_run')).toBe(testCase.hasShell)
+    const instructions = String(last?.['instructions'])
+    expect(instructions.includes(MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
+    expect(instructions.includes('Restricted Mode')).toBe(false)
+    expect(instructions.includes('take then_run')).toBe(testCase.hasShell)
+    if (!testCase.hasShell) {
+      expect(JSON.stringify(last?.['input'])).toContain(MODEL_TEXT.agentToolNotOffered)
+    }
+  })
+
+  it.each([
+    { name: 'no command tool', tools: 'write_file', isListed: false },
+    { name: 'run_checks', tools: 'write_file, run_checks', isListed: true },
+  ])(
+    'lists the check commands to a role only if it can run them: $name (M76)',
+    async (testCase) => {
+      const { t } = await spawnWriter(testCase.tools, 'spawn_check_writer')
+      const instructions = String(childBodies(t).at(-1)?.['instructions'])
+      expect(instructions.includes('agent-check')).toBe(testCase.isListed)
+      expect(String(t.api.responseBodies()[0]?.['instructions']).includes('agent-check')).toBe(true)
+    },
+  )
+
+  it('runs the Explore agent with its prompt and read-only tools, on the session model', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    const children = childBodies(t)
+    expect(children).toHaveLength(1)
+    expect(children[0]?.['model']).toBe('muse-spark-1.3')
+    expect(String(children[0]?.['instructions'])).toContain('# Agent role')
+    expect(String(children[0]?.['instructions'])).toContain('You are an explorer')
+    const tools = offeredTools(children[0])
+    expect(tools).toEqual(
+      expect.arrayContaining([MODEL_API_TOOLS.readFile, MODEL_API_TOOLS.search]),
+    )
+    for (const tool of [
+      MODEL_API_TOOLS.writeFile,
+      MODEL_API_TOOLS.editFile,
+      MODEL_API_TOOLS.bash,
+      MODEL_API_TOOLS.askUser,
+      MODEL_API_TOOLS.todoWrite,
+      MODEL_API_SUBAGENT_TOOLS.spawn,
+      MODEL_API_TOOLS.readSkill,
+      MODEL_API_TOOLS.addMemory,
+    ]) {
+      expect(tools).not.toContain(tool)
+    }
+    expect(t.paidRequests).toEqual([
+      {
+        request: {
+          feature: 'subagents',
+          task: {
+            role: 'scout',
+            objective: 'Map files',
+            modelId: 'muse-spark-1.3',
+            attemptLimit: 4,
+          },
+        },
+        requiresAsking: false,
+      },
+    ])
+  })
+
+  it('refuses an unknown agent with no child and no bill', async () => {
+    const t = setupSubagents()
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('scout', 'Map', 'nope', 'spawn_nope'),
+    )
+    expect(outputFor(t.api.responseBodies()[1], 'spawn_nope')).toMatchObject({
+      output: 'Error: unknown agent "nope"',
+    })
+  })
+
+  it('narrows a file agent to its mode and effort while keeping its named tools', async () => {
+    const t = setupSubagents({ files: reviewerFiles() })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnReviewerAndWait(t, session)
+    const spawned = childBodies(t)
+    expect(spawned).toHaveLength(1)
+    expect(spawned[0]?.['reasoning']).toMatchObject({ effort: 'max' })
+    expect(String(spawned[0]?.['instructions'])).toContain('Prompt of reviewer')
+    // The agent named write_file and the session offers it, so it is offered.
+    expect(offeredTools(spawned[0])).toContain(MODEL_API_TOOLS.writeFile)
+    // A follow-up turn runs alone, so its scripted write attempt deterministically
+    // reaches the child: the narrowed Plan mode denies the call itself.
+    scriptChildWrite(t, 'a.txt', 'x', 'child_write', 'Reviewed.')
+    await session.messageSubagent('subagent-1', 'Try writing', true)
+    await waitForChildSummary(session, 'Reviewed.')
+    const children = childBodies(t)
+    expect(children).toHaveLength(3)
+    expect(outputFor(children[2], 'child_write')).toMatchObject({
+      output: `Error: ${MODEL_API_TOOLS.writeFile} ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
+    })
+  })
+
+  it('names the agent model in the popup and runs the child on it', async () => {
+    const t = setupLegacyAgent()
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      spawnCallReply('worker', 'Old task', 'legacy', 'spawn_legacy'),
+      { text: 'Done on 1.2.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    expect(t.paidRequests).toEqual([
+      {
+        request: {
+          feature: 'subagents',
+          task: {
+            role: 'worker',
+            objective: 'Old task',
+            modelId: 'muse-spark-1.2',
+            attemptLimit: 4,
+          },
+        },
+        // The session runs muse-spark-1.3: "always" was given for what the
+        // user saw priced, so a model an agent file names asks again.
+        requiresAsking: true,
+      },
+    ])
+    const children = childBodies(t)
+    expect(children).toHaveLength(1)
+    expect(children[0]?.['model']).toBe('muse-spark-1.2')
+  })
+
+  it('continues a custom-model child on its own model', async () => {
+    const t = setupLegacyAgent()
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      spawnCallReply('worker', 'Old task', 'legacy', 'spawn_legacy'),
+      { text: 'First task done.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    t.api.script({ text: 'Second task done.' })
+    await session.messageSubagent('subagent-1', 'Second task', true)
+    await waitForChildSummary(session, 'Second task done.')
+    const children = childBodies(t)
+    expect(children).toHaveLength(2)
+    for (const child of children) {
+      expect(child['model']).toBe('muse-spark-1.2')
+    }
+    expect(t.paidRequests[1]).toMatchObject({
+      request: {
+        feature: 'subagents',
+        task: { role: 'worker', objective: 'Second task', modelId: 'muse-spark-1.2' },
+      },
+      requiresAsking: true,
+    })
+  })
+
+  it('blocks a contributor agent model in a confidential workspace', async () => {
+    const t = setupBigAgent({ isConfidentialWorkspace: true })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('worker', 'Big task', 'big', 'spawn_big'),
+    )
+    expect(t.paidRequests).toEqual([])
+    expect(
+      session
+        .history()
+        .items.find((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
+    ).toMatchObject({ visibleOutput: UI_TEXT.subagentContributorBlocked })
+    expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.subagentContributorBlocked}`,
+    })
+  })
+
+  it('asks the contributor yes for an agent model, and a no keeps the refusal', async () => {
+    const confirm = vi.fn(() => Promise.resolve(false))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('worker', 'Big task', 'big', 'spawn_big'),
+    )
+    expect(confirm).toHaveBeenCalledWith('muse-spark-1.3-contributor')
+    expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
+      output: `Error: ${MODEL_API_MODEL_TEXT.subagentConsentDeclined}`,
+    })
+  })
+
+  it('runs the child on the contributor model after the yes', async () => {
+    const t = setupBigAgent({ confirmContributorModel: () => Promise.resolve(true) })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnBigAndWait(t, session)
+    expect(t.paidRequests[0]).toMatchObject({
+      request: {
+        feature: 'subagents',
+        task: { role: 'worker', objective: 'Big task', modelId: 'muse-spark-1.3-contributor' },
+      },
+    })
+    const children = childBodies(t)
+    expect(children).toHaveLength(1)
+    expect(children[0]?.['model']).toBe('muse-spark-1.3-contributor')
+  })
+
+  it('fails loudly when an agent names no tool the session offers', async () => {
+    const t = setupSubagents({
+      files: {
+        '.agents/agents/odd/AGENT.md': agentFile('odd', 'Odd work', 'tools: nope, nah\n'),
+      },
+    })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    await runRefusedSpawn(
+      t,
+      session,
+      turnDone,
+      spawnCallReply('worker', 'Odd task', 'odd', 'spawn_odd'),
+    )
+    expect(outputFor(t.api.responseBodies()[1], 'spawn_odd')).toMatchObject({
+      output: 'Error: agent "odd" names no tools this session offers',
+    })
+  })
+
+  it('lists the agents catalogue only while paid subagents are on', async () => {
+    const off = setup()
+    const started = await startSession(off, 'allowAll')
+    const offSession = started.session
+    off.api.script({ text: 'Hi.' })
+    await offSession.sendTurn([{ type: 'text', text: 'hi' }])
+    await vi.waitFor(() => {
+      expect(off.api.responseBodies()).toHaveLength(1)
+    })
+    expect(String(off.api.responseBodies()[0]?.['instructions'])).not.toContain('# Agents')
+
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script({ text: 'Hi.' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    const instructions = String(t.api.responseBodies()[0]?.['instructions'])
+    expect(instructions).toContain('# Agents')
+    expect(instructions).toContain('- explore (built-in):')
+  })
+
+  it('refuses a child call to a tool outside the agent allowlist (M76 review)', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    // Explore is read-only: a prompt naming write_file must fail, not run.
+    scriptChildWrite(t, 'sneaky.txt', 'x', 'child_sneak', 'Sneaked.')
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Sneaked.')
+    const children = childBodies(t)
+    expect(outputFor(children.at(-1), 'child_sneak')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+    expect(t.files.has(`${ROOT}/sneaky.txt`)).toBe(false)
+  })
+
+  it.each([
+    {
+      name: MODEL_API_TOOLS.readMemory,
+      arguments: JSON.stringify({ scope: 'project', path: 'prefs.md' }),
+      callId: 'excluded_memory_read',
+    },
+    ADD_DEPLOY,
+    {
+      name: MODEL_API_TOOLS.editMemory,
+      arguments: JSON.stringify({
+        scope: 'project',
+        path: 'prefs.md',
+        old_str: 'Tea',
+        new_str: 'Coffee',
+      }),
+      callId: 'excluded_memory_edit',
+    },
+  ])(
+    'refuses excluded $name before the memory dispatcher, without changing any note',
+    async (call) => {
+      const t = setupSubagents({ files: { '.agents/memory/prefs.md': 'Tea' } })
+      const { session } = await startApprovedSubagentSession(t)
+      await spawnExploreAndWait(t, session)
+      const before = new Map(t.files)
+      scriptChildCall(t, call, 'Memory call refused.')
+      await session.messageSubagent('subagent-1', 'Try the memory tool', true)
+      await waitForChildSummary(session, 'Memory call refused.')
+      expect(outputFor(childBodies(t).at(-1), call.callId)).toMatchObject({
+        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      })
+      expect(t.files).toEqual(before)
+    },
+  )
+
+  it('lets a file agent use a memory read that its narrowed allowlist offers', async () => {
+    const t = setupSubagents({
+      files: {
+        '.agents/memory/prefs.md': 'Tea',
+        '.agents/agents/memory-reader/AGENT.md': agentFile(
+          'memory-reader',
+          'Reads a note',
+          'tools: read_memory\npermission-mode: plan\n',
+        ),
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('reader', 'Read a note', 'memory-reader', 'spawn_reader'),
+      'Reader ready.',
+    )
+    scriptChildCall(
+      t,
+      {
+        name: MODEL_API_TOOLS.readMemory,
+        arguments: JSON.stringify({ scope: 'project', path: 'prefs.md' }),
+        callId: 'allowed_memory_read',
+      },
+      'Read the note.',
+    )
+    await session.messageSubagent('subagent-1', 'Read the preference', true)
+    await waitForChildSummary(session, 'Read the note.')
+    expect(outputFor(childBodies(t).at(-1), 'allowed_memory_read')).toMatchObject({
+      output: expect.stringContaining('Tea'),
+    })
+    expect(t.files.get(`${ROOT}/.agents/memory/prefs.md`)).toBe('Tea')
+  })
+
+  it('hides the agents catalogue from a child that cannot spawn (M76 review)', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    const children = childBodies(t)
+    expect(children).toHaveLength(1)
+    expect(String(children[0]?.['instructions'])).toContain(
+      '# Agent role\n\nThis is the built-in agent "explore".',
+    )
+    expect(String(children[0]?.['instructions'])).not.toContain('# Agents')
+  })
+
+  it('keeps the agent ceiling when the session mode changes (M76 review)', async () => {
+    const t = setupSubagents({ files: reviewerFiles() })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnReviewerAndWait(t, session)
+    // The session widens to allowAll; the Plan-limited child must not follow.
+    await session.setApprovalMode('allowAll')
+    scriptChildWrite(t, 'agent.txt', 'x', 'child_write', 'Reviewed.')
+    await session.messageSubagent('subagent-1', 'Try writing', true)
+    await waitForChildSummary(session, 'Reviewed.')
+    const children = childBodies(t)
+    expect(outputFor(children.at(-1), 'child_write')).toMatchObject({
+      output: `Error: ${MODEL_API_TOOLS.writeFile} ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
+    })
+    expect(t.files.has(`${ROOT}/agent.txt`)).toBe(false)
+  })
+
+  it('asks the contributor yes once per spawn, not on follow-ups (M76 review)', async () => {
+    const confirm = vi.fn(() => Promise.resolve(true))
+    const t = setupBigAgent({ confirmContributorModel: confirm })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnBigAndWait(t, session)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    t.api.script({ text: 'Second task done.' })
+    await session.messageSubagent('subagent-1', 'Second task', true)
+    await waitForChildSummary(session, 'Second task done.')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(t.paidRequests).toHaveLength(2)
+  })
+
+  it('refuses a follow-up when the workspace turns confidential after the grant (M76 review)', async () => {
+    let isConfidential = false
+    const confirm = vi.fn(() => Promise.resolve(true))
+    const t = setupSubagents({
+      files: bigAgentFiles(),
+      confirmContributorModel: confirm,
+      isConfidentialWorkspace: () => isConfidential,
+      allowsPaidUse: (request) => {
+        // The flip lands while the follow-up's popup is open: after the
+        // grant, before its validation.
+        if (request.feature === 'subagents' && request.task.objective === 'Second task') {
+          isConfidential = true
+        }
+        return Promise.resolve(true)
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnBigAndWait(t, session)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    t.api.script({ text: 'Second task done.' })
+    await expect(session.messageSubagent('subagent-1', 'Second task', true)).rejects.toThrow(
+      UI_TEXT.subagentContributorBlocked,
+    )
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats the same command_id with a different agent as a different spawn (M76 review)', async () => {
+    const t = setupSubagents()
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: JSON.stringify({
+              role: 'scout',
+              objective: 'Map files',
+              agent: 'explore',
+              command_id: 'dup',
+            }),
+            callId: 'spawn_dup_1',
+          },
+        ],
+      },
+      { text: 'Mapped.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: JSON.stringify({
+              role: 'scout',
+              objective: 'Map files',
+              agent: 'second-opinion',
+              command_id: 'dup',
+            }),
+            callId: 'spawn_dup_2',
+          },
+        ],
+      },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate again' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_dup_2')).toMatchObject({
+      output: 'Error: command_id was already used for a different spawn',
+    })
+    expect(childBodies(t)).toHaveLength(1)
+  })
+
+  it('keeps an agent run narrowed across a resume (M76 review)', async () => {
+    const rig = await resumeWithChild(reviewerFiles(), spawnReviewerAndWait)
+    expect(rig.stored).toMatchObject({ id: 'reviewer' })
+    // search is outside the reviewer's allowlist: the resumed child refuses
+    // it instead of running it.
+    const bodies = await reopenResumedChild(
+      rig,
+      [searchReply('resumed_search'), { text: 'Resumed done.' }],
+      'Resumed done.',
+    )
+    expect(bodies.length).toBeGreaterThan(0)
+    expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
+    expect(outputFor(bodies.at(-1), 'resumed_search')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+  })
+
+  it('keeps an agent run narrowed across a fork (M76 review)', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, files: reviewerFiles() })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnReviewerAndWait(t, session)
+    const before = childBodies(t).length
+    const forked = await t.host.forkSession(session.sessionId, 'muse-spark-1.3')
+    // search is outside the reviewer's allowlist: the forked child refuses
+    // it instead of running it.
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'search',
+            arguments: '{"pattern":"review"}',
+            callId: 'forked_search',
+          },
+        ],
+      },
+      { text: 'Forked done.' },
+    )
+    await forked.session.controlSubagent('subagent-1', 'reopen')
+    // The harness forks Model API sessions, whose history the waits read.
+    await waitForChildSummary(forked.session as ModelApiSession, 'Forked done.')
+    const bodies = childBodies(t).slice(before)
+    expect(bodies.length).toBeGreaterThan(0)
+    expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
+    expect(outputFor(bodies.at(-1), 'forked_search')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+  })
+
+  it('reads the agent directories once, for the parent, never for a child (M76)', async () => {
+    const listed: string[] = []
+    const t = setupSubagents({
+      onListDirectory: (directory) => {
+        listed.push(directory)
+      },
+    })
+    const { session } = await startApprovedSubagentSession(t)
+    await spawnExploreAndWait(t, session)
+    expect(childBodies(t)).toHaveLength(1)
+    expect(listed.filter((directory) => directory.endsWith('/agents'))).toEqual([
+      `${ROOT}/.agents/agents`,
+    ])
+    // The skill roots are listed once for the parent and once for the child.
+    expect(listed.filter((directory) => directory.endsWith('/skills'))).toHaveLength(2)
+  })
+
+  it('offers no agent once the workspace is no longer trusted, catalogue included (M76)', async () => {
+    let isTrusted = true
+    const t = setupSubagents({ isTrusted: () => isTrusted })
+    const { session, turnDone } = await startApprovedSubagentSession(t)
+    t.api.script({ text: 'Hi.' })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(String(t.api.responseBodies()[0]?.['instructions'])).toContain('# Agents')
+    // The session began trusted, so its catalogue is loaded; trust is then withdrawn.
+    isTrusted = false
+    t.api.script(spawnCallReply('scout', 'Map files', 'explore', 'spawn_untrusted'), {
+      text: 'Parent continues.',
+    })
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await turnDone()
+    const bodies = t.api.responseBodies()
+    expect(String(bodies[1]?.['instructions'])).not.toContain('# Agents')
+    expect(outputFor(bodies[2], 'spawn_untrusted')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+    })
+    expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
+    expect(t.paidRequests).toEqual([])
+  })
+
+  it.each(['explore', 'reviewer'])(
+    'refuses %s when trust is withdrawn during paid consent (M76)',
+    async (agent) => {
+      let isTrusted = true
+      const t = setupSubagents({
+        files: reviewerFiles(),
+        isTrusted: () => isTrusted,
+        allowsPaidUse: () => {
+          isTrusted = false
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('worker', 'Review files', agent, 'spawn_trust_withdrawn'),
+      )
+      expect(t.paidRequests).toHaveLength(1)
+      expect(childBodies(t)).toEqual([])
+      expect(outputFor(t.api.responseBodies()[1], 'spawn_trust_withdrawn')).toMatchObject({
+        output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+      })
+    },
+  )
+
+  it('drops a project file role when its child resumes in an untrusted workspace (M76)', async () => {
+    const rig = await resumeWithChild(reviewerFiles(), spawnReviewerAndWait, {
+      resumed: { isTrusted: false },
+    })
+    expect(rig.stored).toMatchObject({ id: 'reviewer', source: 'project' })
+    const bodies = await reopenResumedChild(
+      rig,
+      [searchReply('untrusted_search'), { text: 'Untrusted done.' }],
+      'Untrusted done.',
+    )
+    // The repository's words do not reach the model; the narrowing still holds.
+    expect(String(bodies[0]?.['instructions'])).not.toContain('Prompt of reviewer')
+    expect(String(bodies[0]?.['instructions'])).not.toContain('# Agent role')
+    expect(outputFor(bodies.at(-1), 'untrusted_search')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+  })
+
+  it('keeps a built-in role for a resumed child in an untrusted workspace (M76)', async () => {
+    const rig = await resumeWithChild({}, spawnExploreAndWait, { resumed: { isTrusted: false } })
+    const bodies = await reopenResumedChild(rig, [{ text: 'Explored.' }], 'Explored.')
+    expect(String(bodies[0]?.['instructions'])).toContain('You are an explorer')
+  })
+
+  it('asks the contributor yes again for a follow-up this session was never given (M76)', async () => {
+    // A new window: the stored child is on the contributor model, and this
+    // session has not been given the yes that training on the traffic needs.
+    const confirm = vi.fn(() => Promise.resolve(false))
+    const rig = await resumeWithChild(bigAgentFiles(), spawnBigAndWait, {
+      first: { confirmContributorModel: () => Promise.resolve(true) },
+      resumed: { confirmContributorModel: confirm },
+    })
+    await expect(rig.next.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentConsentDeclined,
+    )
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm).toHaveBeenCalledWith('muse-spark-1.3-contributor')
+    expect(rig.resumed.paidRequests).toEqual([])
+  })
+
+  // RV70x finding 1, as the review probed it: the personal root's EACCES
+  // discarded the read-only project agent, and the inheriting built-in of the
+  // same id wrote under an Auto parent without asking.
+  it('runs the read-only project agent when the personal agent root cannot be listed (RV70x)', async () => {
+    const personalAgentsRoot = `${ROOT}/.home/.config/muse/agents`
+    const t = setupSubagents({
+      personalAgentsRoot,
+      onListDirectory: (directory) => {
+        if (directory === personalAgentsRoot) throw new Error('EACCES: permission denied')
+      },
+      files: {
+        '.agents/agents/second-opinion/AGENT.md': agentFile(
+          'second-opinion',
+          'A read-only consult',
+          'tools: read_file\npermission-mode: manual\n',
+        ),
+      },
+    })
+    const { session } = await startSession(t, 'onRequest')
+    await spawnAgentAndWait(
+      t,
+      session,
+      spawnCallReply('consult', 'Consult', 'second-opinion', 'spawn_consult'),
+      'Consulted.',
+    )
+    expect(offeredTools(childBodies(t)[0])).toEqual(['read_file'])
+    expect(String(childBodies(t)[0]?.['instructions'])).toContain('Prompt of second-opinion')
+    scriptChildWrite(t, 'consult.txt', 'x', 'consult_write', 'Consult done.')
+    await session.messageSubagent('subagent-1', 'Write it', true)
+    await waitForChildSummary(session, 'Consult done.')
+    expect(outputFor(childBodies(t).at(-1), 'consult_write')).toMatchObject({
+      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+    })
+    expect(t.files.has(`${ROOT}/consult.txt`)).toBe(false)
+    expect(countLogged(t.log, 'loading the user agents failed: EACCES: permission denied')).toBe(1)
+  })
+
+  it('refuses a built-in by name, in the user’s language, when the project agent root cannot be listed (RV70x)', async () => {
+    const t = setupSubagents({
+      onListDirectory: (directory) => {
+        if (directory === `${ROOT}/.agents/agents`) throw new Error('EACCES: permission denied')
+      },
+    })
+    try {
+      expect(await installGerman(t.log)).toBe('de')
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('scout', 'Map files', 'explore', 'spawn_unloaded'),
+      )
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      // Nothing that would be refused is offered.
+      expect(String(t.api.responseBodies()[0]?.['instructions'])).not.toContain('# Agents')
+      expect(
+        session
+          .history()
+          .items.find((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
+      ).toMatchObject({
+        visibleOutput:
+          'Der Agent „explore“ wurde nicht gestartet: .agents/agents konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.',
+      })
+      expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unloaded')).toMatchObject({
+        output: `Error: ${fill(MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
+      })
+    } finally {
+      restoreEnglish()
+    }
+  })
+
+  // RV70x finding 2: a retry starts nothing, so it settles before the
+  // new-child admission that the agent's tools would now fail.
+  it('answers an exact retry with its child after the agent tools stop being offered (RV70x)', async () => {
+    const paid: PaidFeature[] = ['subagents', 'imageGeneration']
+    const t = setup({
+      paid,
+      files: {
+        '.agents/agents/painter/AGENT.md': agentFile(
+          'painter',
+          'Paints images',
+          `tools: ${MODEL_API_TOOLS.generateImage}\n`,
+        ),
+      },
+    })
+    const { session, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      painterCommandSpawn('spawn_first'),
+      { text: 'Painted.' },
+      { text: 'Parent continues.' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForChildReady(t, session)
+    paid.splice(paid.indexOf('imageGeneration'), 1)
+    t.api.script(painterCommandSpawn('spawn_retry'), { text: 'Parent continues.' })
+    await session.sendTurn([{ type: 'text', text: 'delegate again' }])
+    await turnDone()
+    expect(outputFor(t.api.responseBodies().at(-1), 'spawn_retry')).toMatchObject({
+      output: expect.stringContaining('"subagent_id":"subagent-1"'),
+    })
+    expect(childBodies(t)).toHaveLength(1)
+    expect(t.paidRequests).toHaveLength(1)
+  })
+
+  // RV70x finding 4: what the contributor wait changed is rechecked before
+  // the paid-use popup, which is never shown for a spawn already refused.
+  it.each([
+    { name: 'trust withdrawn', revokesTrust: true, output: MODEL_TEXT.agentRestrictedMode },
+    {
+      name: 'confidential workspace',
+      revokesTrust: false,
+      output: MODEL_TEXT.subagentContributorBlocked,
+    },
+  ])(
+    'asks no paid-use popup once the contributor wait made a spawn invalid: $name (RV70x)',
+    async ({ revokesTrust, output }) => {
+      let isTrusted = true
+      let isConfidential = false
+      const t = setupSubagents({
+        files: bigAgentFiles(),
+        isTrusted: () => isTrusted,
+        isConfidentialWorkspace: () => isConfidential,
+        confirmContributorModel: () => {
+          if (revokesTrust) {
+            isTrusted = false
+          } else {
+            isConfidential = true
+          }
+          return Promise.resolve(true)
+        },
+      })
+      const { session, turnDone } = await startApprovedSubagentSession(t)
+      await runRefusedSpawn(
+        t,
+        session,
+        turnDone,
+        spawnCallReply('worker', 'Big task', 'big', 'spawn_big'),
+      )
+      expect(t.paidRequests).toEqual([])
+      expect(childBodies(t)).toHaveLength(0)
+      expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
+        output: `Error: ${output}`,
+      })
+    },
+  )
+
+  it('asks no paid-use popup for a follow-up the contributor wait made invalid (RV70x)', async () => {
+    let isConfidential = false
+    const rig = await resumeWithChild(bigAgentFiles(), spawnBigAndWait, {
+      first: { confirmContributorModel: () => Promise.resolve(true) },
+      resumed: {
+        isConfidentialWorkspace: () => isConfidential,
+        confirmContributorModel: () => {
+          isConfidential = true
+          return Promise.resolve(true)
+        },
+      },
+    })
+    await expect(rig.next.controlSubagent('subagent-1', 'reopen')).rejects.toThrow(
+      UI_TEXT.subagentContributorBlocked,
+    )
+    expect(rig.resumed.paidRequests).toEqual([])
+  })
+
+  // RV70x finding 3: Auto and Bypass already run ordinary writes, so an Edit
+  // automatically child's write is answered automatically under them too.
+  it.each([
+    { parent: 'auto', approvalMode: 'onRequest' },
+    { parent: 'bypassPermissions', approvalMode: 'allowAll' },
+  ] as const)(
+    'answers an Edit automatically child write itself under a $parent parent (RV70x)',
+    async ({ parent, approvalMode }) => {
+      const written = await childWriteUnder(parent, approvalMode, 'acceptEdits')
+      expect(written.request).toMatchObject({
+        permissionMode: 'acceptEdits',
+        isProtectedWrite: false,
+        isJudgeEscalated: false,
+      })
+      expect(written.automatic).toBeDefined()
+      expect(written.text).toBe('Written.')
+    },
+  )
 })
 
 /** The `function_call_output` the replay holds for one call id, from a request body. */
