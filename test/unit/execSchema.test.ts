@@ -379,6 +379,22 @@ describe('M80 schemas (A15/A16/F1)', () => {
     }
     expect(() => execResultSchema.safeParse(result)).not.toThrow()
     expect(execResultSchema.safeParse(result).success).toBe(false)
+    // A standalone amount has no sum identity behind it: its own micro-USD
+    // check alone must refuse a value past the safe-integer range.
+    const paid = {
+      v: 1,
+      seq: 1,
+      time: '2026-10-02T00:00:00.000Z',
+      type: 'paid_use',
+      feature: 'imageGeneration',
+      n: 1,
+      phase: 'returned',
+      units: 1,
+      usd: 1e21,
+    }
+    expect(() => execEventSchema.safeParse(paid)).not.toThrow()
+    expect(execEventSchema.safeParse(paid).success).toBe(false)
+    expect(execEventSchema.safeParse({ ...paid, usd: 0.01 }).success).toBe(true)
   })
   it('exercises the lane-owned constant contract, including F1 units', () => {
     const owned = Object.fromEntries(

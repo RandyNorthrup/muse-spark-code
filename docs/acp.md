@@ -356,11 +356,11 @@ not trust.
   have open.
 - MCP servers on the Model API backend.
 
-## Headless execution and scanner (M80 integration pending)
+## Headless execution and scanner (M80, not yet certified)
 
-Lane A contracts and D's package distribution exist; B's executable wiring and
-C's Action are separate integrations. These command forms are the frozen
-contract, not a supported-run claim before E/H and L/LA receipts pass:
+The headless commands are integrated and their fake-only tests pass on Linux,
+macOS and Windows. They are not a supported-run claim until the hosted matrix
+and the live receipts L and LA pass:
 
 ```text
 muse-spark-code-acp exec [options] <prompt>
@@ -389,7 +389,9 @@ budget/request refusal or breach 5, timeout 6, fail-on-denial 7, incomplete 8,
 accounting unverified 9, SIGINT 130 and SIGTERM 143. Only latest clean verified
 completion plus ACP end_turn authorizes Model API success; uncertain receipts
 retain full reservation. No raw tool text leaves exec; cut-short prose is
-withheld whole. Windows POSIX signal e2e is explicitly skipped.
+withheld whole. Windows POSIX signal e2e is explicitly skipped. On Windows a
+forced stop ends the process with exit 1 and may lose buffered output; a
+delivered result keeps its first-stop status and logical exit code.
 
 Scanner is local-only, whole UTF-8 file up to 16 MiB, with a 30-second deadline
 including key/stdout. It prints only match count: 0 clean, 10 found, 2 input/error/
@@ -398,7 +400,7 @@ known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
 for all options, limits, conditional billing theorem, Action lifecycle and
-pending workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
+workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
 and `schemas/exec-event-v1.schema.json`; canonical
 [result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
 [event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)

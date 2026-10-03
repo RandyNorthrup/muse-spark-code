@@ -372,9 +372,15 @@ and publication. Stop revokes eligibility, starts no later child, forwards exact
 signal, escalates/reaps under fixed bounds and clears references/staging in
 finally. Scanner failure/cancellation/overflow withholds entire patch. Exact
 staged-byte scan includes removed/context/deleted lines; binary/image changes
-withhold the whole fix. No redaction rewrites published patch bytes.
-Every Git command suppresses inherited config/routes, hooks, fsmonitor, clean/
-process/smudge filters, external diff/textconv and signing; tokens are explicit
+withhold the whole fix. No redaction rewrites published patch bytes. A
+stopped or failed wrapper publishes nothing, not even its result.
+Every Git command runs with no system and an empty global configuration, no
+inherited `GIT_*`, empty hooks, fsmonitor, external diff/textconv and signing
+off, and its configuration closed by shape: any effective configuration name a
+fresh `git init` does not write (URL rewrites, includes, ssh commands,
+upload/receive-pack, credential helpers, filters among them) refuses the
+command before it starts. Network commands use only the validated remote's own
+transport and never discover a parent repository. Tokens are explicit
 one-command headers only. A candidate digest is visibly unsigned. Registry
 installation requires npm 11.19.0's same verified bundle, subject/lock/registry
 SHA-512, release predicate and signing-certificate URI identity.

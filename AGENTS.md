@@ -234,9 +234,10 @@ media/                icons, banner, social preview, README screenshots
 | Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>` |
 | Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`             |
 
-M80 exec/scanner/host commands and the fake test launcher depend on B/C
-integration; do not call them supported until their actual receipts pass.
-The test tarball is private, unsigned and never published as product.
+M80's lanes are integrated and their fake-only suites pass on the rigs; do not
+call exec, the scanner or the Action supported until the hosted action-check
+matrix and the live receipts (L, LA; LR after release) pass. The test tarball
+is private, unsigned and never published as product.
 
 ## Toolchain pins that matter
 

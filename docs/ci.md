@@ -1,12 +1,12 @@
 # Headless runs and GitHub CI (Unofficial)
 
-M80 integration guide, 2026-10-02. Lane A contracts and lane D packaging/docs
-are delivered here; B's executable wiring and C's Action are separate lanes.
-The commands and workflow recipes below describe the frozen integration contract.
-Built engine/host execution, recipe operational paths, L/LA and registry LR
-remain pending until the lead integrates and observes them. This page does not
-claim shipped headless or registry Action support. Command receipts and precise
-claim limits live in [m80.md](certification/m80.md#lane-d--packaging-documentation-built-process-and-host-contracts).
+M80 integration guide, 2026-10-02. All four implementation lanes (A contracts,
+B engine and CLI, C Action, D packaging and docs) are integrated, and their
+fake-only tests pass on Linux, macOS and Windows. The hosted `action-check.yml`
+matrix, the live receipts L and LA, and after release LR are still open: this
+page does not claim certified headless or Action support, nor npm-registry
+Action support. Command receipts and precise claim limits live in
+[m80.md](certification/m80.md).
 
 ## One prompt, one workspace, one turn
 
@@ -17,10 +17,11 @@ muse-spark-code-acp exec [options] -
 muse-spark-code-acp scan-secrets <file> [--key-stdin]
 ```
 
-Local examples below become runnable after B lands. Muse Code must already be
-signed in; exec never initiates login. Model API uses your existing OS credential
-entry, set through `auth set`'s stdin. In CI only `--key-stdin` is used: a single
-bounded non-TTY line, at most 4096 bytes, ending at LF without waiting for EOF.
+Muse Code must already be signed in; exec never initiates login. Model API uses
+your existing OS credential entry, set through `auth set`'s stdin. In CI only
+`--key-stdin` is used: a single bounded non-TTY line, at most 4096 bytes, ending
+at LF without waiting for EOF. One CRLF ending is accepted; any other white space
+is part of the value and refused, as the Action's own intake refuses it.
 The agent has no environment-key fallback and does not open the native keyring
 on this path. Do not place a key in an argument, file or editor setting.
 
@@ -94,6 +95,15 @@ end_turn authorizes Model API success. An observed terminal followed by transpor
 loss remains cut short. Muse Code requires its tap terminal exactly completed.
 Exit 2 has no result; forced exit/SIGKILL can leave no result.
 
+On Windows a forced stop (the shared 5-second grace runs out, or a distinct
+second signal's 300 ms grace ends) ends the process with self-SIGKILL: the
+process exit is 1 and buffered stdout/stderr may be lost. A result that was
+delivered keeps its first-stop status, signal and logical exit code (130/143
+for a signal). Drained Windows exits and POSIX keep the table above. The Action
+requires the result's exit code to equal the process's, so a forced Windows
+result is not published: the run step reports status unknown, as for a missing
+result, and publishes nothing.
+
 Stdout contains only the chosen format: text finalMessage, one JSON result, or
 JSONL envelopes `{v:1,seq,time,type,...payload}` (seq starts at 1; time is ISO).
 Stderr holds redacted diagnostics and status/requests/settled/uncertain/image
@@ -105,6 +115,12 @@ and [event v1](schemas/exec-event-v1.schema.json), shipped in npm `schemas/`.
 Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
+The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
+The shipped event schema also enforces the update egress rule itself:
+`$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and
+`rawInput`/`rawOutput`/`toolCallId` at any depth, so a consumer validating
+only the file cannot accept tool text. The Action's extractor checks every
+event variant against a structural mirror of the event schema, parity-tested.
 
 | Field                                                       | Type / meaning                                                                                                                                                                                                                            |
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -124,7 +140,7 @@ cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
 | usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, pending reservations or forced exit.                                                      |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits                                                      | {budgetUsd:number                                                                                                                                                                                                                         | null,maxRequests:number | null,timeoutSeconds:number}. |
+| limits                                                      | {budgetUsd:number\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
 | durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
 | error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 
@@ -150,7 +166,13 @@ Every incomplete/failed/cut-short item is withheld whole as
 be replaced with an earlier successful message. Completed prose with missing
 usage may be redacted and shown, but exit 9 never authorizes Action publication.
 Every egress sink replaces longest exact literals first, then known Meta/auth/
-JWT/field/URL/GitHub/AWS/Slack patterns. Unknown secrets remain outside coverage.
+JWT/field/URL/GitHub/AWS/Slack patterns. Each exact literal is also matched in
+its percent-encoded form, and in the form an earlier pattern-only pass left of
+it (a legacy key's tail after the `%` its pattern stops at, as a network error's
+description carries it). The code's pattern minimums are looser than the
+spec's and so over-redact: `gh[pousr]_` and `github_pat_` tokens from 20
+characters, `AKIA`/`ASIA` ids with exactly 16 more, Slack `xox?-` from 10.
+Unknown secrets remain outside coverage.
 Comments defuse @ mentions and cap text only after whole-text redaction.
 
 ## Conditional budget guarantee
@@ -306,12 +328,21 @@ without inherited GIT__, GITHUB__, ACTIONS_*, tokens, DBUS or SSH routes.
 Windows argv/injected-env hashes are not full environment-block proof; macOS
 owned-pid ps evidence is limited. Linux owned-pid /proc can inspect those children.
 
-Every Git phase uses one sanitized runner: no replace objects, fsmonitor,
-maintenance/gc, external diff/textconv, signer, hook or inherited config/credential
-helper. Actual empty hooks/global config, validated clean/process/required/smudge
-filter suppression, no inherited redirect variables, HTTPS API-validated remotes
-and bounded argument arrays apply to checkout/diff/prepare/commit/push alike.
-Checkout/push tokens are one-command headers, never persisted or handed to exec.
+Every Git phase uses one sanitized runner (`safeGit`): no replace objects,
+fsmonitor, maintenance/gc, external diff/textconv, signer, hook or credential
+helper; an actual empty hooks folder and global config; no system config; no
+inherited `GIT_*` (`GIT_CONFIG_PARAMETERS` and `GIT_CONFIG_COUNT` included).
+Configuration is closed by its shape: before every Git child, every effective
+configuration name outside the command's own overrides (the repository's file
+and anything it includes) must be one a fresh `git init` writes, or the command
+is refused before it starts. URL rewrites, include/includeIf, `core.sshCommand`,
+remote upload/receive-pack, credential, filter, diff, protocol and http keys are
+refused this way, not suppressed one by one. Network commands may use only the
+validated remote's own transport (`GIT_ALLOW_PROTOCOL`, https in production),
+and `GIT_CEILING_DIRECTORIES` stops discovery of a parent repository. HTTPS
+API-validated remotes and bounded argument arrays apply to checkout/diff/
+prepare/commit/push alike. Checkout/push tokens are one-command headers, never
+persisted or handed to exec.
 
 ## Installer identity, not a package self-claim
 
@@ -359,7 +390,7 @@ steps have bounded owners of their own; no process spans composite steps.
 | ACTION_SCAN_MS                |  30,000 ms | Scanner including key stdin/body/output.                   |
 | ACTION_EXTRACT_MS             |  10,000 ms | Event/result extraction.                                   |
 | ACTION_PUBLISH_MS             |  10,000 ms | Atomic result/patch/manifest publication and outputs.      |
-| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact download.                                   |
+| ACTION_DOWNLOAD_MS            |  60,000 ms | Apply artifact validation after download.                  |
 | ACTION_APPLY_MS               | 180,000 ms | Apply owner total, excluding caller's tests.               |
 | ACTION_PUSH_MS                |  60,000 ms | Push network child within apply total.                     |
 | ACTION_STOP_GRACE_MS          |   5,000 ms | Exact signal forwarding, waiting.                          |
@@ -378,11 +409,21 @@ steps have bounded owners of their own; no process spans composite steps.
 | ACTION_DEFAULT_MAX_DIFF_BYTES |    262,144 | Input default; maximum 1,048,576.                          |
 | ACTION_W_BUDGET_USD           |       1.00 | W test fixture cap.                                        |
 
+The pinned download-artifact step runs before the apply owner exists, so its
+transfer is bounded only by the caller job's `timeout-minutes` (the recipes set
+20 and 10). The apply owner then refuses any artifact entry other than out/'s
+four regular files, or a file past its bound, before reading it. The run step's
+input read before its owner exists, and its outputs and summary after cleanup,
+keep their own bounds (ACTION_INPUT_MS, ACTION_PUBLISH_MS); a stuck final write
+ends the step by self-SIGKILL, because process.exit would wait for the blocked
+file worker.
+
 Standalone exec timeout counts from process start, before async localization.
 Grace totals 5000 ms, forced output at most 300 ms; duplicate same signal within
 500 ms is deduplicated, distinct/repeated later signal forces bounded exit.
 Async fd writers avoid blocking event-loop timers. EPIPE/EBADF or >16 MiB queue
-stops run. Forced result may be absent; SIGKILL has no graceful guarantee.
+stops run. A full non-blocking pipe (EAGAIN) is retried every 10 ms within those
+bounds: a slow reader is not a closed one. Forced result may be absent; SIGKILL has no graceful guarantee.
 POSIX INT/TERM e2e is explicitly skipped on Windows: process.kill terminates there;
 Action cancellation is best effort, not guaranteed graceful result.
 
@@ -400,11 +441,17 @@ redact a patch. Found secrets withhold whole patch; timeout/bad count/error
 withholds as scan_failed/cancelled/limit. Publish clean bytes unchanged only
 under active owner; atomic result/patch/manifest moves are revoked on failure.
 Manifest binds headSha/baseSha/prNumber/patchSha256/runId/attempt/invocation.
-Only eligible out/ is uploaded; private work/staging is removed by tidy.
+A stopped or failed wrapper revokes everything it moved into out/, result and
+events included; each move is synchronous right after an eligibility check, so
+none finishes after cleanup. Upload runs only when the run step reported an
+exec status (not unknown or cancelled, and not killed). Private work/staging is
+removed by tidy.
 
 Only completed results post one bot-owned sticky comment with redacted prose,
 model/requests/settled+uncertain cost/returned+uncertain images/run link and
-fix artifact/withholding notice. Failures remain in summary. Apply prepare
+fix artifact/withholding notice. The notice lists changed files up to 4,000
+characters, then counts the rest, so the 60,000-character cap holds. Failures
+remain in summary. Apply prepare
 validates exact digest/current-run/repo/PR/head, checks out that head, applies
 --index, then permits caller's secret-free tests. Push rechecks current open PR
 same repo/exact head, applies/commits with hooks/signers disabled and pushes
@@ -412,13 +459,13 @@ with exact force-with-lease. No repository script runs in privileged push.
 Tests inform approval; maintainer must **read proposal** before approving.
 An unprotected script changed by a patch can execute later.
 
-## Three complete workflow templates — integration pending
+## Three complete workflow templates
 
 Save each as its own workflow. Before use, lead must replace every `<commit-sha>`
 with the same **reviewed immutable integrated Action SHA**, configure repository
 secret `MUSE_MODEL_API_KEY` through a hidden secure UI/prompt, and create
-`muse-apply` environment with maintainer reviewers. C is absent in this worktree,
-so no truthful reviewed Action SHA or operational receipt exists yet.
+`muse-apply` environment with maintainer reviewers. The Action is integrated,
+but no reviewed immutable Action SHA or operational receipt (LA) exists yet.
 These complete templates are not supported-run claims. Do not use moving tags,
 pull_request_target, fork secrets, or put model key in test/push jobs.
 
@@ -511,8 +558,17 @@ jobs:
 
 ## Evidence and troubleshooting
 
-W-review first reads harmless fixture; W-text first writes ordinary text; W-image
-first generates unignored generated/m80.png; each then returns final reply.
+`.github/workflows/action-check.yml` runs W with the composite Action on the
+three hosted runners against the fake-only test package, whose bin
+(`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted
+fake and reports hashes and booleans only. W-review first reads
+`test/action/w-fixture.txt`; W-text first writes the new
+`test/action/w-text-fix.txt` (write_file replaces an existing file only as the
+model last read it, D27); W-image first generates the unignored
+generated/m80.png; each then returns its final reply. `test/action/w-check.mjs`
+judges each invocation. `test/e2e/execTestLauncher.e2e.test.ts` packs the same
+launcher and rehearses all four scenarios through the real run-exec entry on
+each platform.
 Two responses each report 10 input/5 output tokens. Upward micro-USD reservations
 are $0.216270 for two replies, $0.226270 with image, within $1.00.
 Simulated priced cost is $0.000004 text/review and $0.010004 with returned image,
@@ -529,8 +585,8 @@ drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
 
 Capture exact tree/package SHA-256, fixture hashes, workspace, sanitized wire,
 M/reservations/settlement/usage and actual model-attempt counts. Small live text
-may cost a few tenths of a cent; returned image adds one cent. This lane runs
-none of L/LA/LR and does not read real credentials or call a model.
+may cost a few tenths of a cent; returned image adds one cent. The integration
+ran none of L/LA/LR, read no real credential and called no model.
 
 - Usage/2: check one prompt source, byte/file/chunk caps, exact budget grammar,
   supported model/effort and backend-only flags; trust/search/bypass are refused.

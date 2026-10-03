@@ -9,6 +9,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M80 integration (lanes A–D) and the W workflow:** the four lanes are
+  merged. `.github/workflows/action-check.yml` runs the composite Action on
+  Linux, macOS and Windows against a private, unsigned, fake-only test package
+  whose launcher answers only Meta's origin with a scripted fake: W-review,
+  W-text (a scanned text patch is published), W-image (the whole binary patch
+  is withheld), a below-minimum budget refused before any billable call, and
+  the gate, apply and local rehearsal suites. No key and no spend. Fixed while
+  integrating: `--help` names `scan-secrets` and no longer says the wiring is
+  pending, in all 15 tables; a legacy key's tail could survive in a network
+  error's description on stderr; exec closed stdout and exited 1 when a pipe
+  reader fell behind (EAGAIN); the Action's Git runner now refuses any Git
+  configuration a fresh repository does not carry (URL rewrites, includes,
+  ssh commands, upload-pack and credential helpers among them) and pins the
+  remote's transport; every event line is validated, not only the result; a
+  stopped wrapper publishes nothing; the step's final outputs are bounded;
+  the review comment keeps its cap with long file lists; apply refuses
+  unexpected or oversized artifact files unread. The hosted matrix and the
+  live receipts L, LA and LR are still open.
+
 - **M80 headless engine and CLI (lane B):** one-turn execution uses the existing
   ACP engine in Plan or Accept edits, denying approvals and declining questions.
   Model API calls share an integer micro-USD context-window ledger: streaming
@@ -19,6 +38,12 @@ happened, not what was planned; superseded entries are kept.
   their flag, edits mode and budget. Bounded file resources preserve every input
   character, and the scanner has a process-wide deadline. Action, packaging,
   hosted acceptance and live receipts remain with lanes C/D and the lead.
+
+- **M80 Windows bounded headless exit:** after bounded cleanup and output
+  grace, a forced exit terminates the owned process without waiting for a
+  blocked native pipe writer. Windows reports process exit 1 and may lose
+  buffered output; any delivered result keeps its first-stop status and logical
+  exit code. Normal drained exits and POSIX behavior retain their existing codes.
 
 - **M80 packaging and CI integration contract (lane D):** ACP package now
   ships both generated event/result schemas and the headless guide. A separate
@@ -146,12 +171,6 @@ happened, not what was planned; superseded entries are kept.
   compaction, the hidden follow-up and memory flush stay unbuilt and off.
 
 ### Fixed
-
-- **M80 Windows bounded headless exit:** after bounded cleanup and output
-  grace, a forced exit terminates the owned process without waiting for a
-  blocked native pipe writer. Windows reports process exit 1 and may lose
-  buffered output; any delivered result keeps its first-stop status and logical
-  exit code. Normal drained exits and POSIX behavior retain their existing codes.
 
 - Web fetch decodes a windows-1252 page by the Encoding standard's table on
   every Node. Node 20.18 (VS Code 1.99's) decodes windows-1252 as ISO-8859-1,

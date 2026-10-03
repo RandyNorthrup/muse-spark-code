@@ -213,7 +213,7 @@ proposing merge, then build.yml, hosts.yml and action-check.yml OS matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
 Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
-Its package guards run now; E1–E7 activate when B's runExec.ts lands. With an
+Its package guards and the built-process rows E1–E7 always run. With an
 installed package, set `MUSE_ACP_PACKAGE_DIR` to its absolute root. Host checks:
 `sh test/hosts/exec.sh <installed-package-root>`; add `--store` only in isolated,
 unlocked OS store. Host refuses existing credential and unavailable store before
@@ -228,6 +228,10 @@ manifest bin points to test launcher and private=true prevents npm publication.
 Separate name/digest; never release it. Test fetch/keyring loaders live only in
 test code, never production flags. C's focused action tests and action-check.yml
 exercise W-review/text/image, low-budget, trusted gate and exact bare-repo apply.
+Locally, `npx vitest run test/e2e/execTestLauncher.e2e.test.ts` (on a rig) packs
+the real launcher in its own tree and rehearses all four W scenarios through
+the real run-exec entry, judged by `test/action/w-check.mjs` as the workflow
+does.
 
 Every new guard needs green → deliberate wrong behavior → intended failure →
 byte-exact SHA-256 restoration → restored green. Record mutated/restored hashes,

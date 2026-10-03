@@ -9300,6 +9300,20 @@ independent review and the full candidate gates remain required.**
 `exec` and counts-only `scan-secrets` to the existing ACP package/bin,
 using the existing in-process ACP engine. No new backend entry or UI.
 
+**Integration, 2026-10-02 (lead-directed, `feature/m80-headless`):** lanes C
+and D merged into B, and the pieces no lane owned were written: the W workflow
+`.github/workflows/action-check.yml`, the fake-only test package's launcher
+`test/action/exec-test-launcher.ts` with its scripted transport and checker,
+and the launcher/rehearsal test. Lane D's twelve built-process rows now run
+unconditionally and found three defects, all fixed: `--help` omitted
+scan-secrets, a legacy key's tail survived a pattern-only network error
+description, and the fd writer closed stdout on EAGAIN. One cross-lane fix
+pass closed RVM80A (Muse, lane A) and RVM80CD (Codex, lanes C and D),
+including the P1: safeGit now refuses any effective Git configuration name a
+fresh `git init` does not write. Every fix has a regression and a red drill
+(`docs/certification/m80.md`). The hosted action-check/build/hosts matrices and
+L/LA/LR remain open; M80 is not certified.
+
 **M80Bw follow-up, platform verified 2026-10-02:** the lead authorizes a
 new Windows termination path after the existing bounded cleanup/flush grace.
 Use self-SIGKILL rather than waiting for `process.exit()` to join a blocked
@@ -9338,15 +9352,16 @@ on transport settlement is B's task. Evidence and guard drills live in
 quality, engine/Action/packaging/host acceptance or L/LA/LR. D still owns replacing
 the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
 
-| Lane / receipt | Scope                                                                                    | Current state                                                                                                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A              | Pure arguments/protocol/egress/fd/key/scanner, translations, schemas                     | Delivered in `e39ac9d3`; focused rig gates and deliberate breaks recorded                                                                                     |
-| B              | CLI/scanner lifecycle, real engine, tap, ledger, streaming transport                     | Separate implementation lane; integration pending here                                                                                                        |
-| C              | Gate/install/launcher/sanitized Git/proposal/apply and W workflow                        | Separate implementation lane; integration pending here                                                                                                        |
-| D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Implemented in `feature/m80-lane-d`; 24 focused guards pass on Kubuntu/Windows, 25 deliberate breaks restored; actionlint and B/C/lead acceptance remain open |
-| L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                                             |
-| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                                                            |
-| LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                                                       |
+| Lane / receipt | Scope                                                                                    | Current state                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| A              | Pure arguments/protocol/egress/fd/key/scanner, translations, schemas                     | Delivered in `e39ac9d3`; focused rig gates and deliberate breaks recorded                                                        |
+| B              | CLI/scanner lifecycle, real engine, tap, ledger, streaming transport                     | Integrated; M80Bw Windows forced exit; 76 guard drills; integration fixed EAGAIN on full pipes and the legacy-key residue leak   |
+| C              | Gate/install/launcher/sanitized Git/proposal/apply                                       | Integrated; 83 guard drills; integration closed Git configuration by shape (RVM80CD P1) and the P2 lifecycle/validation findings |
+| D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Integrated; the 12 built-process rows run and pass; actionlint 1.7.12 clean                                                      |
+| W              | action-check.yml: W-review/text/image, low-budget, gate drill, apply, local rehearsal    | Written at integration; local rehearsal passes on the rigs; hosted matrix pending                                                |
+| L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                |
+| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                               |
+| LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                          |
 
 - **Exec:** exactly one bounded UTF-8 prompt; `plan` by default or
   `acceptEdits`; never trust or bypass. Ordinary approval requests and questions
