@@ -3100,7 +3100,7 @@
                 itemId: 'sh3',
                 kind: 'agentMessage',
                 status: 'completed',
-                text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```',
+                text: 'The cache is shared between tests. Clear it before each one:\n\n```ts\nbeforeEach(() => {\n  cache.clear()\n})\n```\n\n[Vitest docs](https://vitest.dev/api/)',
               },
               // Thinking with no text, which the view hides: 237 of them fill
               // the first page of 200 items, so its paging line and Show more
@@ -3112,6 +3112,14 @@
               })),
             ],
           })
+        },
+        'share-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('share-narrow requires a 320 px viewport')
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps.share()
         },
         // Muse Code reports no cached count (0.6.0): the Model API's view is usage-api.
         usage: () => {

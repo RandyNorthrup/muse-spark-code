@@ -1746,6 +1746,10 @@ reaches a session. It shows 200 items at a time, with **Show more** for the
 next, and an item that cannot be rendered says so in its place while the
 rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
+At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
+with the theme's focus border; Escape closes the view and focuses the composer.
+For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
+captures both widths; `share-narrow` also runs in all four accessibility themes.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot

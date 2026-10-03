@@ -7888,6 +7888,18 @@ fingerprint binds the merged files to the tested snapshot. Evidence:
 `mg78-drills.json` beside it. Full quality, editor/hosted checks and
 publication remain the lead's gates; no public push.
 
+**Late main advance included (MG78, 2026-10-02).** After merge
+`57f1c236` completed, main advanced to `8dac84cf` (PR #80, M84 keyboard
+focus in narrow share views). Join it normally too, without conflicts,
+retaining the initial merge and both feature sets. Kubuntu snapshot
+`70de9c55` repeats all five types, scoped lint/format,
+knip, duplication, localization, host API, cycles, build and VSIX membership
+successfully, and all 23 owning files still pass 1,415 tests without skips.
+The host API record is regenerated from this newer tree. Released
+changelog bytes remain identical to the newer main. The current and initial
+join proofs are both in `mg78-gates.json`; full quality/editor/hosted gates
+remain the lead's.
+
 **Main join, M71m, 2026-10-02 (bounded verification complete; lead gates
 open).** Merge `a08bd8d4` joins main `2a03a79b` (M84 and 0.10.1) into M71
 `4e0d8ba0`, preserving Git/held-checkout and session export/import/share.
@@ -10095,13 +10107,21 @@ this tree in `docs/certification/m84.md`, as are the drills of the
 2026-10-01, are now fixed too (see "Follow-up reviews" below), as is #9's
 single-string residual. The `m84-share.png` capture was taken on Kubuntu
 on 2026-10-02 (the accessibility gate passed on its `share` scenario).
-Not run on this tree: `npm run quality`, the whole accessibility gate, the
-other harness shots and the integration tests. The port had put `extension.js` and `modelApi.js` over
+The original export lane did not run `npm run quality`, the whole accessibility
+gate, the other harness shots or the integration tests. The port had put `extension.js` and `modelApi.js` over
 their size budgets. They are back under after merging
 `build/shared-ui-text`, the shared English table (`15f847a4`). The
 redaction prefilter is proven a superset of every rule (`5df6d5c2`).
 History: original `c2eb4da2` and the repair drafts are preserved; the port
 to the release candidate is described below.
+
+**M84f narrow-focus follow-up, verified 2026-10-02.** `fix/m84-share-focus`
+includes main `e66263f1` (M73 and M74). Kubuntu passes 127 owning tests,
+392 accessibility pages including the real 320 px share scenario in four
+themes, native keyboard/focus/scroll checks, all scoped static gates and
+the production build. Byte-exact red drills and current source hashes are
+in `docs/certification/m84.md`. Full quality and the four-machine gate
+remain the lead's.
 
 - **Goal.** A conversation can move between machines and people.
 - **Scope.**
@@ -10116,6 +10136,11 @@ to the release candidate is described below.
     `museSpark.initialPermissionMode` is Plan, whatever else that setting
     says; only the user's own mode change relaxes it.
   - A local share file, rendered read-only in the panel.
+    - M84f: at a true 320 px viewport, code output and every control take
+      keyboard focus with the VS Code focus border; Tab stays in document
+      order, Escape returns to the composer, and nothing overflows the panel.
+      Add `share-narrow` to all four accessibility themes and prove the
+      keyboard regression by a byte-exact red drill (`docs/certification/m84.md`).
   - No hosted sharing.
 - **Backends.** The Model API resumes; Muse Code exports its own log (M30).
 - **Acceptance.** An export never holds the key digest or a credential of
