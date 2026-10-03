@@ -22,7 +22,6 @@ happened, not what was planned; superseded entries are kept.
   uses actual creation ownership.
   Identity metadata without file contents may outlive retired copies until
   the window that wrote it retires; removing extension storage clears it.
-
 - **Session export, import and share** (M84, PLAN.md D49): **Export
   session as JSON…** writes a portable file on either backend. Credentials
   of a known shape and the key digest are always scrubbed, from every
