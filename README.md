@@ -2288,6 +2288,92 @@ stopped and the next message resumes the same session.
   "Siri and Dictation are disabled" means Dictation must be switched on in
   System Settings > Keyboard.
 
+## Headless and CI (M80)
+
+The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
+`scan-secrets` command and versioned JSON/JSONL schemas. `action/` is a
+same-repository GitHub review and fix Action, with an `action/apply`
+sub-action. All four implementation lanes are integrated and pass their
+fake-only tests on Linux, macOS and Windows. M80 is **not certified yet**: the
+hosted `action-check.yml` matrix and the live receipts L, LA and LR are open,
+and the npm-registry Action path is unsupported until LR passes.
+[The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
+
+```text
+muse-spark-code-acp exec [options] <prompt>
+muse-spark-code-acp exec [options] --prompt-file <path>
+muse-spark-code-acp exec [options] -
+muse-spark-code-acp scan-secrets <file> [--key-stdin]
+```
+
+One turn runs through the existing ACP engine. Plan is the default and
+Accept edits the only other mode; trust, bypass and hosted search are refused.
+Every ordinary approval is denied and questions are declined. A Model API run
+stays untrusted, so it starts no shell, check, hook, MCP, Git or web-fetch tool
+process. Muse Code exec uses the existing sign-in, never starts a login and
+takes no USD budget.
+
+`exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
+up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`
+or `jsonl`; `--timeout` is the process deadline. Model API requires
+`--max-budget-usd` and accepts `--max-requests`, `--ephemeral` and
+`--key-stdin`; without `--key-stdin` it reads the local OS store. The stdin key
+stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
+gives the agent a key environment variable.
+
+Budgets are positive ASCII decimals up to $20 with at most six fractional
+digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+minimum reservation is $0.108135 for the contributor model ($0.118135 with
+images) and $1.409024 for standard ($1.419024). The contributor model needs
+`--allow-contributor-models`; its content may be used for training under
+Meta's contributor terms. `--image-generation` also needs
+`--permission-mode acceptEdits`; images are off by default and tallied per
+use. Each liability rounds upward. Missing receipts, transport loss,
+cancellation and HTTP errors keep the full reservation. Only the latest
+verified completed response plus ACP `end_turn` exits 0; unverified accounting
+exits 9. Tool output text never leaves exec, and a cut-short agent message is
+withheld whole.
+
+`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally,
+prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
+error. Its 30-second lifetime includes reading the key and flushing output.
+Only known literals and patterns are covered.
+
+On Windows a forced stop (the cleanup grace runs out, or a distinct second
+signal's 300 ms grace ends) terminates the process itself: process exit 1,
+and buffered stdout/stderr may be lost. A result that was delivered keeps its
+first-stop status, signal and logical exit code. Drained Windows exits and
+POSIX keep the normal table. Standalone POSIX signal tests are skipped on
+Windows.
+
+The Action accepts triggers from OWNER, MEMBER and COLLABORATOR on
+same-repository pull requests. Forks, bots, `pull_request_target`, public
+self-hosted runners and a changed API head are refused before anything is
+installed. It installs the agent before checkout and runs every Git child
+through one sanitized runner. Only its launcher holds the key, and it passes
+the key over stdin to exec and to the scanner. Only a completed run with exit 0
+posts the sticky review comment or publishes a scanned text patch. Any binary
+change (a generated image included) or detected secret withholds the whole
+patch. Preparing and testing a patch and the maintainer-approved push are
+separate jobs: read the proposal before you approve it. A candidate tarball is
+unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
+bundles and the signer identity.
+
+`npm run schema:exec` regenerates the
+[result](docs/schemas/exec-result-v1.schema.json) and
+[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+compares the committed bytes; both ship in the package's `schemas/`.
+After the production build, `node scripts/package-acp.mjs` packs the ACP
+tarball and `node scripts/package-acp-test.mjs` packs the private fake-only
+test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
+`dist/exec-test-launcher.js`). The test variant is never released.
+`.github/workflows/action-check.yml` runs the Action against it with a
+scripted fake Meta API: no key and no spend.
+
+See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
+[M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
+results and what is still open.
+
 ## Development
 
 ```bash
@@ -2519,57 +2605,3 @@ via PayPal. Thank you!
 - [docs/PRIVACY.md](docs/PRIVACY.md): what leaves your machine.
 - [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - [Issues](https://github.com/RandyNorthrup/muse-spark-code/issues).
-
-### M80 headless execution (lanes A and B)
-
-The headless engine and command dispatch are implemented on this branch.
-Windows forced exit uses self-SIGKILL after bounded cleanup/output grace,
-including a distinct second signal's 300 ms grace. It reports process exit 1
-and may lose buffered stdout/stderr. Any delivered result keeps its first-stop
-status, signal and logical exit code (130 for SIGINT, 143 for SIGTERM).
-Normal drained Windows exits and POSIX behavior retain the existing codes.
-See the targeted platform evidence below; full M80 certification remains open.
-One turn runs through the existing ACP engine, with Plan as the default and
-Accept edits as the only other mode. Every ordinary approval is denied;
-questions are declined. A Model API run remains untrusted, so it starts no
-shell, check, hook, MCP, Git or web-fetch tool process. The GitHub Action,
-installed-package/host acceptance and registry path remain pending in C/D.
-
-`exec` accepts one literal prompt, `--prompt-file <path>`, or `-` for stdin,
-plus repeatable `--untrusted-file <path>` resources. It offers `--output`
-`text`, `json` or `jsonl`; `--timeout` is the process deadline. Model API
-requires `--max-budget-usd`, accepts `--max-requests`, `--ephemeral` and
-`--key-stdin`, and reads the local OS store when stdin authentication is absent.
-The stdin key is held only in memory; it conflicts with a stdin prompt.
-Muse Code requires an existing sign-in and does not accept a USD budget.
-
-The contributor model requires `--allow-contributor-models` and may be used
-for training under Meta's contributor terms. At 32,768 output tokens, the
-minimum reservation is $0.108135 for contributor or $1.409024 for standard.
-`--image-generation` additionally requires `--permission-mode acceptEdits` and
-raises these start minima by $0.01. Images default off; hosted search is refused.
-Accounting rounds each liability upward to micro-USD. Missing receipts,
-transport loss, cancellation and HTTP errors retain the full reservation.
-Only the latest verified completed response plus ACP `end_turn` permits exit 0;
-unverified completed accounting exits 9. Tool output text is suppressed and
-cut-short agent messages are withheld whole.
-
-`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally, prints
-only a count and exits 0 for clean, 10 for matches or 2 for refusal/error.
-Its 30-second lifetime includes key reading and output flush. Known literals
-and patterns are covered; other secrets are outside this protection. Command
-and process evidence is recorded with its scope in the certification record.
-
-`npm run schema:exec` deterministically regenerates
-[the result schema](docs/schemas/exec-result-v1.schema.json) and
-[the event schema](docs/schemas/exec-event-v1.schema.json); append `-- --check`
-to check exact committed bytes. Both commands passed on the Kubuntu rig.
-The schemas expose required fields, enums and status/signal conditionals;
-`x-runtime-invariants` names checks JSON Schema cannot express (integer cost
-identities and output sequencing), enforced by the production zod boundaries
-and sink. Budget input is unsigned ASCII decimal, positive and at most $20,
-with at most six fractional digits, converted directly to integer micro-USD.
-
-See [M80 evidence](docs/certification/m80.md) for tests, deliberate breaks,
-platform results and remaining work. The lead still owns the full integrated
-gates and live receipts.

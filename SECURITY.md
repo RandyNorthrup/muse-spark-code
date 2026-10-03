@@ -354,3 +354,40 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   attribute is assessed and refused.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
+
+## Headless CI boundary (M80, PLAN D64)
+
+The frozen M80 contract adds memory-only stdin authentication to exec and a
+second trusted installed scanner child. B/C implementation and actual L/LA/LR
+acceptance are pending; this policy defines their required boundary.
+The Action step directly execs its trusted absolute launcher. Only that initial
+run-step environment holds the Model API key; launcher deletes variable before
+children and holds it in memory until cleanup. It sends key only by private
+stdin to exec and scan-secrets. Neither stores it or passes it to children.
+Git/tools/hooks/checks/install/apply/publish never receive it via env/argv/file.
+Local OS credential authentication is unchanged; CI uses no auth set/keyring.
+
+One bounded owner covers diff generation, exec, extraction, patch Git, scanner
+and publication. Stop revokes eligibility, starts no later child, forwards exact
+signal, escalates/reaps under fixed bounds and clears references/staging in
+finally. Scanner failure/cancellation/overflow withholds entire patch. Exact
+staged-byte scan includes removed/context/deleted lines; binary/image changes
+withhold the whole fix. No redaction rewrites published patch bytes.
+Every Git command suppresses inherited config/routes, hooks, fsmonitor, clean/
+process/smudge filters, external diff/textconv and signing; tokens are explicit
+one-command headers only. A candidate digest is visibly unsigned. Registry
+installation requires npm 11.19.0's same verified bundle, subject/lock/registry
+SHA-512, release predicate and signing-certificate URI identity.
+
+Residuals: initial OS environment remains inspectable by same user; deleting
+variable cannot erase that record or guarantee memory zeroization. Private
+self-hosted warns; public self-hosted refuses. Collaborators can change workflows
+under GitHub trust. Use secret-free checkout: ordinary readable workspace files
+can reach Meta; no M78 deny-read guarantee exists. Instruction markers do not
+prove prompt-injection immunity. Redaction/scanning covers known patterns/exact
+literals only. A patch can change unprotected scripts/actions that execute later.
+Run proposal, secret-free tests and privileged push in separate jobs, and **read
+proposal before maintainer approval**. Passing tests are information, not approval.
+POSIX signal e2e is skipped on Windows; argv/injected-env hashes do not establish
+full environment-block audit. Full boundaries, bounds and pending receipts are
+in [docs/ci.md](docs/ci.md) and [m80.md](docs/certification/m80.md).

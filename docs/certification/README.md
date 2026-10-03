@@ -94,4 +94,4 @@ The PNGs beside the records are that day's harness renders.
 - [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
 - [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
 
-- [M80 lane A](m80.md): independent headless contracts and guard drills; full M80 acceptance pending.
+- [M80 lanes A/D](m80.md): independent contracts, packaging, docs and focused guard drills; engine/Action/host/live acceptance pending.
