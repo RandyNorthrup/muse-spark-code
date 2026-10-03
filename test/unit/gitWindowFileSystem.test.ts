@@ -68,42 +68,57 @@ describe('untracked commit bytes on the file system (M71)', () => {
     ).resolves.toBe(false)
   })
 
-  it('refuses committing a same-length new-file edit made during consent', async () => {
-    const file = path.join(fixture.root, 'commit-new.ts')
-    await writeFile(file, 'one')
-    const repository = {
-      ...fakeRepository({ untrackedChanges: [{ uri: { fsPath: file } }] }),
-      rootUri: { fsPath: fixture.root },
-    }
-    const { window } = fakeGitWindow({ repository })
-    const posted: HostToWebviewMessage[] = []
-    const git = new ConversationGit(
-      {
-        ...window,
-        workspaceRoot: fixture.root,
-        platform: process.platform,
-        untrackedFingerprint: fingerprintUntracked,
-        captureGitOwner,
-        confirmCommit: async () => {
-          await writeFile(file, 'two')
-          return true
+  it.each([
+    ['in the untracked group', 'separate'],
+    ['among the working tree changes', 'mixed'],
+  ] as const)(
+    'refuses committing a same-length edit of a new file %s made during consent',
+    async (_label, view) => {
+      const file = path.join(fixture.root, `commit-new-${view}.ts`)
+      await writeFile(file, 'one')
+      const changes = [{ uri: { fsPath: file }, status: GIT_STATUS_UNTRACKED }]
+      const repository = {
+        ...fakeRepository(
+          view === 'separate' ? { untrackedChanges: changes } : { workingTreeChanges: changes },
+        ),
+        rootUri: { fsPath: fixture.root },
+      }
+      const { window } = fakeGitWindow({ repository })
+      const posted: HostToWebviewMessage[] = []
+      const fingerprinted: (readonly string[])[] = []
+      const git = new ConversationGit(
+        {
+          ...window,
+          workspaceRoot: fixture.root,
+          platform: process.platform,
+          // The consent covers the new file's bytes in either view.
+          untrackedFingerprint: (paths, check) => {
+            fingerprinted.push(paths)
+            return fingerprintUntracked(paths, check)
+          },
+          captureGitOwner,
+          confirmCommit: async () => {
+            await writeFile(file, 'two')
+            return true
+          },
         },
-      },
-      {
-        sessionId: () => 'session',
-        post: (message) => {
-          posted.push(message)
+        {
+          sessionId: () => 'session',
+          post: (message) => {
+            posted.push(message)
+          },
+          notice: () => undefined,
+          say: () => undefined,
         },
-        notice: () => undefined,
-        say: () => undefined,
-      },
-    )
-    await git.handleAction('openCommit')
-    await git.commit('Add file', true)
-    expect(repository.calls.some((call) => call.method === 'commit')).toBe(false)
-    expect(posted).toContainEqual({ type: 'gitDone', form: 'commit', ok: false })
-    git.dispose()
-  })
+      )
+      await git.handleAction('openCommit')
+      expect(fingerprinted).toEqual([[file]])
+      await git.commit('Add file', true)
+      expect(repository.calls.some((call) => call.method === 'commit')).toBe(false)
+      expect(posted).toContainEqual({ type: 'gitDone', form: 'commit', ok: false })
+      git.dispose()
+    },
+  )
 
   it.each([
     ['in the untracked group', 'separate'],

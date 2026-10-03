@@ -11,8 +11,10 @@ happened, not what was planned; superseded entries are kept.
 
 - Git and pull requests from the panel (M71): editable commit and PR drafts
   written by the user's Muse turn, explicit commit/push consent, GitHub PR
-  creation and conversation-linked checks. Push never uses force. A foreign
-  PR opens in its own held worktree, with project configuration and shell
+  creation and conversation-linked checks. Push never uses force. A commit's
+  consent covers the bytes of new files too, in either of VS Code's views of
+  them, so a commit whose new files changed after the consent is refused. A
+  foreign PR opens in its own held worktree, with project configuration and shell
   access off until the extension's trust card is confirmed. Git never checks
   a foreign PR out: the worktree is added with `--no-checkout`, its index
   read from the commit, and its files written by the extension exactly as

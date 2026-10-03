@@ -775,8 +775,9 @@ export class ConversationGit implements ConversationGitPort {
     this.checkCurrent(repository, stamp)
     const unstaged = await repository.diff(false)
     this.checkCurrent(repository, stamp)
+    // Every new file, in either view: git diff has none of their bytes.
     const untracked = await this.window.untrackedFingerprint(
-      changedPaths(repository.state.untrackedChanges),
+      changedPaths(untrackedOf(repository.state)),
       () => {
         this.checkCurrent(repository, stamp)
       },
