@@ -287,6 +287,7 @@ export function phasePlan(
   const own = isFull ? fixture.own : undefined
   const base = `/${nonce}/`
   const ws: Record<string, string> = {
+    // nosemgrep: javascript.lang.security.detect-insecure-websocket.detect-insecure-websocket -- canary C2 (design spec v4 §7): a plain ws:// attempt to a reserved .invalid nonce name that must arrive refused at the check's own proxy; nothing is ever sent over it (PLAN.md §8).
     c2: `ws://c2-${nonce}.invalid/`,
     c2s: `wss://c2s-${nonce}.invalid/`,
   }
