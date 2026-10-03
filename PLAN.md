@@ -3517,6 +3517,9 @@ choices:
   - Every row of the command palette and the "/" list gets a one-sentence
     tip. It is the row's `title`, for the pointer, and the same text is the
     option's accessible description. A skill's tip is its own description.
+    A skill without one (Muse Code's list gives an empty string,
+    `skillsCli.ts`, and a `SKILL.md` may have none) gets "Run the {name}
+    skill." instead, so no tip is ever empty.
   - VS Code's Command Palette shows only a command's title, category and
     keybinding, and a contributed command has no tooltip. The panel's menus
     are therefore what M87 covers.
@@ -3530,8 +3533,21 @@ choices:
   - The same applies on keyboard focus.
 - **Message timestamps (item 9).**
   - Hovering or focusing a message shows its time in a `<time>` at the
-    card's corner: the time for today, otherwise the date and time (`Intl`).
+    card's corner: the time alone for today, otherwise the date and time.
     Its `title` gives the full date and time.
+  - **Formatting.** All three forms come from `text.ts`'s `Intl` helpers in
+    the display language: `formatTime` (the time alone, new),
+    `formatDateTime` (as today) and `formatFullDateTime` (the full date and
+    the time, new). "Today" is `isSameLocalDay` (new): the same calendar day
+    in the webview's local time zone, judged when the card renders. A card
+    left open past midnight keeps its time-only label, and its `title`
+    still names the day.
+  - **Keyboard.** Every card with a time has a keyboard stop that reveals
+    it. A card with action buttons of its own (rewind, copy, the queued "…")
+    shows the time while focus is inside it (`:focus-within`), and gets no
+    extra stop. A card that renders none (an imported user message without
+    rewind, a reply still streaming) makes the `<time>` itself focusable
+    (`tabIndex={0}`), so Tab reaches it and it shows with the focus ring.
   - **Where the time comes from.**
     - On Muse Code, from `recordedAt` (RFC 3339). The M79 and M46 captures
       show it on `userMessage`, `agentMessage` and `userShell` items, both
@@ -3622,14 +3638,29 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     ("All workspaces", the default) or `workspaceState` ("This workspace"),
     chosen per prompt. Both live in VS Code's state database on this
     machine, unencrypted.
-  - **Not synced.** There is no `setKeysForSync`. A prompt can hold private
-    text (paths, names, customer details), and Settings Sync would upload it
-    to the user's sync account without the extension ever asking. §3 asks
-    the owner whether to offer sync.
+  - **Sync is opt in (owner, 2026-10-03, §3).** A prompt can hold private
+    text (paths, names, customer details), so nothing is synced unless the
+    user asks. One setting, `museSpark.syncPromptsAndBookmarks` (boolean,
+    off by default, machine-scoped so that each computer opts in itself),
+    decides it for saved prompts and bookmarks together.
+    - VS Code syncs only `globalState` keys registered with
+      `setKeysForSync`, never `workspaceState`. One host module registers
+      both keys (the "All workspaces" prompts and the bookmarks) while the
+      setting is on, and an empty list while it is off, at start and on
+      every change of the setting.
+    - "This workspace" prompts stay in `workspaceState`, so they never sync.
+      With sync on, the scope picker says so, and a prompt wanted on every
+      computer is saved for "All workspaces".
+    - Off, nothing is registered and everything stays on this machine.
   - **Caps** (in constants): 200 prompts per scope, 80 characters per name,
     10,000 characters per text, and 20 steps per sequence.
-  - **A damaged store.** A store that fails its schema is reported and kept
-    as found. It is not written again until the user resets it.
+  - **A damaged store.** Each scope is validated on its own. A scope that
+    fails its schema (a damaged value, or one that arrived through sync) is
+    reported and kept as found, and it is not written again until the user
+    resets it. The other scope works as usual.
+    - **Reset** is a button on the damage notice, with an inline
+      confirmation. It replaces that scope's value with an empty library of
+      the current version, and touches nothing else.
   - **Insert** puts the text at the composer's caret; nothing is sent.
   - **Secrets.** The dialog says not to save secrets: the store is plain
     text, and D64 shows why the panel does not try to detect them.
@@ -3656,81 +3687,193 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     that N turns will be billed.
 - **Bookmarks (item 14).**
   - **Storage.** Bookmarks are per workspace, as conversations are: a list
-    of `{ backend, sessionId, title, bookmarkedAtMs }` in `workspaceState`,
-    beside the archived ids (M6). They are not synced, because a session id
-    means nothing on another machine.
-  - **In History** each row has a star, and a "Bookmarked" group comes
-    first (`shared/sessions.ts`). The header has the star for the open
-    conversation.
+    of `{ backend, sessionId, title, bookmarkedAtMs }`, at most 200 per
+    workspace (in constants).
+    - Settings Sync can carry only `globalState`, so every workspace's list
+      lives there under one state key, filed under the workspace's digest:
+      the start of the SHA-256 of the workspace file's URI, otherwise of
+      the first folder's URI (as `workspaceKey` in
+      `src/runtime/dataFolder.ts` hashes a root). No path is stored. The
+      same state key serves with sync on and off, so turning the setting on
+      or off moves nothing.
+    - A window without a folder offers no bookmark.
+    - A session id names a conversation only where its sessions are. So a
+      synced bookmark resolves on another computer only in the same
+      workspace with the same sessions (chiefly a remote workspace that both
+      computers open). Elsewhere it shows as not available here, with Remove
+      (below).
+  - **Kept past retention.** A bookmarked Model API session is not deleted
+    by `museSpark.cleanupPeriodDays` (D26): the session store's retention
+    skips the ids the bookmark store holds. Once the bookmark is removed,
+    retention takes the session at the next listing as usual. Muse Code
+    keeps its own sessions, which the extension cannot keep.
+  - **In History** a "Bookmarked" group comes first (`shared/sessions.ts`).
+    The header has the star for the open conversation, a toggle button.
+  - **History's keyboard model is kept** (M37, the listbox of PR #89's
+    `paletteDialog.tsx`). Focus stays in the search box, and a row is an
+    option, so it holds no button.
+    - **Alt+B** toggles the highlighted row's bookmark from the search box,
+      as Delete archives it. The key is matched on `event.code` (`KeyB`), so
+      macOS's Option characters do not change it. The extension binds
+      nothing to Alt+B (`package.json`). Lane B checks VS Code's default
+      keymap on the three systems before using it; if one binds it, the lead
+      picks another key, and lane 0's strings follow.
+    - Each row's star is for the mouse only, `aria-hidden` like the archive
+      control.
+    - The option carries the state: a bookmarked row's name includes
+      "Bookmarked" (visually hidden text). Its `aria-keyshortcuts` is
+      "Delete Alt+B", and its description names both commands.
   - **Archived.** An archived chat that is bookmarked shows under "Show
     archived", with its star.
   - **Chats older than the loaded pages.** The Bookmarked group loads
     further pages until it finds every id or the list ends. Meanwhile the
     stored title stands in, and it is refreshed when the row is seen.
+  - **A bookmark whose session is gone** (pruned by Muse Code, deleted, or
+    synced from a computer that has it) keeps its stored title in the
+    Bookmarked group once every page has been read. It is marked not
+    available here, and its only action is Remove.
 - **Timed sends (item 15) extend M52.**
   - **A one-shot cadence.** `{ kind: 'once', atMs }` joins `interval` and
     `cron` (`src/shared/schedule.ts`). It fires once and ends after its
     attempt.
-    - M52's store, atomic claim (`wx` receipt), account digest, workspace
-      check, seven-day lifetime and expiry rules apply unchanged.
-    - The latest time the picker offers is six days ahead, so every send has
-      at least a day to be run before its job expires.
+    - M52's store, atomic claim (`wx` receipt), workspace check, seven-day
+      lifetime and expiry rules apply unchanged. Each backend binds a job to
+      its account in its own way (below).
+    - The picker offers whole minutes from one minute to six days ahead
+      (`TIMED_SEND_MIN_LEAD_MS`, `TIMED_SEND_MAX_LEAD_MS`), so every send
+      has at least a day to be run before its job expires.
   - **Entry.** "Schedule this prompt…" (`/schedule`) opens a dialog with
     the composer's text and an `<input type="datetime-local">`, in local
     time, at the earliest a minute ahead. `/loop` keeps its grammar.
-  - **Model API: M52's rules, unchanged.**
-    - Creating, listing and cancelling make no call.
-    - At its time the send becomes due, and it stays pending until Run,
-      Cancel or expiry.
-    - Run needs `museSpark.modelApiScheduledPrompts` on, and the D48 popup
-      for that run. Bypass cannot skip it.
+  - **At its time, on both backends (owner, 2026-10-03, §3).** A send goes
+    by itself, with no Run or Send now, when the 60 s poll finds it due no
+    later than `TIMED_SEND_GRACE_MS` (two minutes) after its time, its
+    session is the one loaded in this window, and its backend's binding
+    (below) still matches.
+    - It runs in the conversation's permission mode at that moment, so
+      Manual still stops at each approval, and Auto and Bypass do not.
+    - The schedule dialog names the current mode, Auto and Bypass
+      prominently, as the sequence start dialog does.
+    - In the live transcript its user card is marked "Sent on schedule".
+  - **A busy session.** `deferredSend` takes a message only while the
+    session is idle, and a running prompt sequence counts as busy. A send
+    that falls due during a turn stays pending and unclaimed. It keeps its
+    on-time place while this window stays open, and goes when the turn
+    settles (`onTurnSettled`).
+    - The claim is taken only once the session can take the message: the
+      scheduler checks, claims, and sends in the same step as the claim
+      resolves.
+    - If the session turned busy or was unloaded while the receipt was
+      written, the host deletes its own receipt and the send waits again.
+      No turn was admitted, so nothing can have been billed, and M52's
+      no-replay rule still holds.
+    - Once `sendAsUser` accepts it, the occurrence is attempted, as in M52.
+  - **Otherwise it waits.** A send that was not on time (VS Code closed or
+    asleep through it, or the window reloaded while it waited for a turn),
+    whose session is not loaded, or, on the Model API, whose binding no
+    longer matches, is due. It waits for Run on the Model API (which asks
+    again), Send now on Muse Code, Cancel, or expiry. Nothing is ever sent
+    late on its own. (On Muse Code a changed binding deletes the job; see
+    below.)
+  - **Model API: confirmed when it is scheduled (owner, 2026-10-03, §3).**
+    - Creating, listing and cancelling make no call (M52).
+    - Schedule needs `museSpark.modelApiScheduledPrompts` on, with its price
+      accepted. Otherwise the dialog says so, offers the setting, and stores
+      nothing.
+    - Schedule shows the D48 popup once, for that run only: the prompt, the
+      model and its price, and the time. Bypass cannot skip it. "Allow
+      always in this workspace" skips it, as D48 says. Deny, or closing it,
+      stores nothing.
+    - The job keeps what was confirmed: the prompt, the model, the session,
+      M52's key digest, and the gate's price generation (D48).
+    - At its time all of these are checked again, and the gate must still
+      be on. Any change sends it back to Run, which asks again. Nothing is
+      billed without a match.
     - The paid row and tally work as in M52.
-    - "Allow always in this workspace" only skips the popup; Run is still
-      pressed. §3 asks whether a one-shot may be confirmed when it is
-      scheduled.
-  - **Muse Code.** M52 is Model API only, and Muse Code's own cron jobs
-    cannot be created or listed from the panel.
+  - **Muse Code: unattended (owner, 2026-10-03, §3).** M52 is Model API
+    only, and Muse Code's own cron jobs cannot be created or listed from the
+    panel.
     - So the extension keeps Muse Code's timed sends in a store of its own
       (`storageUri/musecode-timed-sends`), with M52's store implementation
       and claim, bound to the workspace and the session.
     - No key is involved and the subscription pays, so there is no paid
       gate.
-    - When due, the send still waits for the user's "Send now". §3 asks
-      whether it may go unattended.
-  - **The due notice** is the due row in the schedule pane, the live region,
-    and, while the window is unfocused, M82's background notice (a new
-    notice kind; PR #89).
+    - **Bound to the sign-in, not to an account.** The extension never
+      knows the Muse Code account: `account/read`'s label is not even
+      parsed, and AGENTS.md rule 8 keeps it out of storage. So a job's
+      account field holds the credential file's signature as
+      `cliAccount.ts` reads it (its size and modification time, never a
+      value). Nothing in it identifies anyone.
+      - A sign-out and a sign-in both write that file (the shapes in
+        `credentialFile.ts`, D26). So a change of account changes the
+        signature, even one made while VS Code is closed.
+      - The host compares the signatures at start, at each poll, and on the
+        panel's own sign-in or sign-out. When the current one differs from
+        a job's, it deletes every Muse Code timed send of the workspace,
+        prompt text included, before anything is listed, and the schedule
+        pane says why. M52's listing filter and claim check refuse a
+        mismatched job in the meantime.
+      - Whether the CLI rewrites the file when it refreshes a token is not
+        captured. Lane C records it before relying on the signature: the
+        signature at the start and the end of a day of ordinary use with no
+        sign-in between. If it changes, the binding uses the file's
+        structure instead (`credentialFileVerdict`'s lane and providers).
+        Then only the sign-outs and sign-ins the host sees clear the jobs,
+        and the README says that a change of account made while VS Code is
+        closed is not detected.
+      - While `META_API_KEY` is set in VS Code's environment, the CLI uses
+        it instead of the file. Muse Code then offers no timed send, and
+        says why. Only the variable's presence is checked; its value is
+        never read.
+  - **The notices.** A send that waits is the due row in the schedule pane,
+    the live region, and, while the window is unfocused, M82's background
+    notice (a new notice kind, `scheduleDue`; PR #89). A send that goes on
+    time starts an ordinary turn, which M82 already reports.
   - **While VS Code is closed nothing runs.**
     - The extension is code inside VS Code. There is no service, OS
       scheduler or background process, by design (D4, M52).
     - At the next start the host reads the store (no model call) and lists
       every due send of the workspace. A send whose session is not loaded
       gets "Open conversation".
-    - A missed send says "due since …" and waits for Run or Cancel until it
-      expires. Nothing is ever sent late on its own.
-    - Sleep counts as closed; the 60 s poll catches up on wake.
+    - A missed send says "due since …" and waits, as above, until it
+      expires.
+    - Sleep counts as closed: the 60 s poll catches up on wake, and a send
+      it finds past its grace waits.
     - Two windows on one folder cannot both send: the claim decides.
 - **Resume after a limit (item 16).** Resume is a timed send of a fixed
   English prompt (`MODEL_TEXT.resumePrompt`: "Continue where you left
   off."). It is offered as "Resume later…" on the failed turn's row, in the
   same session, under the same rules. What counts as a limit:
   - **Model API, rate limit.** The turn failed with HTTP 429 after the
-    client's four retries (`client.ts`). The default time is the last
-    `Retry-After`, otherwise five minutes. A new error kind, `rateLimited`,
-    carries it.
+    client's four retries (`client.ts`). A new error kind, `rateLimited`,
+    carries the last `Retry-After` (seconds or an HTTP date). The default
+    time is when it ends, otherwise five minutes after the failure.
   - **Model API, M82's session budget** (`SessionBudgetExceededError`).
     Time does not refill it, so no timer is offered. The row offers the
     budget setting, then Continue.
   - **Model API, an account quota or balance refusal.** No capture shows
     its shape, so it stays an ordinary failure until one does (rule 13).
-  - **Muse Code, the subscription's usage limit.** No capture shows the
-    error that a full window gives (§3).
-    - M88 uses only what is captured: the goal status `usage_limited`
-      (M45), and `usage/read`'s windows with `usedPercent` and `resetsAtMs`
-      (M53).
-    - A turn that fails while the latest report shows a window at 100 %
-      offers Resume later at that window's reset. The offer says it rests on
-      the usage report.
+  - **Muse Code, the subscription's usage limit.** The error that a full
+    window gives has not been captured. §3 decides to capture it, and lane C
+    of M88 takes the capture.
+    - **The offer needs a captured usage-limit signal**, never the usage
+      report alone. The signal is a turn failure in the captured shape
+      (written from that capture, rule 13), or the goal status
+      `usage_limited` (M45). Until the capture exists, only the goal status
+      offers Resume later on Muse Code.
+    - **The time** comes from a `usage/read` made after that signal: the
+      reset (`resetsAtMs`) of a window it shows at 100 % (M53). With no such
+      window there is no time, and no offer.
+    - Any other failure stays an ordinary failure, even while a window
+      reads 100 %. A network, tool or protocol error must not schedule a
+      message the user never asked for.
+    - The offer says that its time rests on the usage report.
+  - **The default time fits the picker,** for every kind above. It is
+    rounded up to the next whole minute and is never less than a minute
+    ahead, so a `Retry-After` of a few seconds opens at one minute. A limit
+    that lifts more than six days ahead (a `Retry-After`, or a weekly
+    window's reset) gets no timer: a timed send could only go before it
+    lifts. The row says when it lifts instead.
 
 ## 3. Open questions (need the owner)
 
@@ -10801,8 +10944,9 @@ remain the lead's.
 
 **Status 2026-10-03: planned, nothing built.** These are the owner's
 sixteen requests of 2026-10-03, which came with screenshots of the Codex app
-as inspiration. The design decisions are D66 (M87) and D67 (M88); the open
-questions are in §3.
+as inspiration. The design decisions are D66 (M87) and D67 (M88); the
+owner's answers to their questions (2026-10-03) are in §3 and applied in D66
+and D67.
 
 | #   | Request                                    | Where              | Reuses                                                                |
 | --- | ------------------------------------------ | ------------------ | --------------------------------------------------------------------- |
@@ -10820,7 +10964,7 @@ questions are in §3.
 | 12  | Edit on a queued prompt                    | M87 lanes P, C     | `turnWithdrawn`, `turn/unqueued`, M53's prompt back into the composer |
 | 13  | Saved prompts and prompt sequences         | M88 lane A         | PR #89's `paletteDialog.tsx`; skills stay as they are                 |
 | 14  | Bookmarks                                  | M88 lane B         | the archived ids (M6), `shared/sessions.ts` groups                    |
-| 15  | Timed send at a date and time              | M88 lane C         | M52's store, claim, paid gate and per-run confirmation                |
+| 15  | Timed send at a date and time              | M88 lane C         | M52's store, claim, paid gate and the D48 popup, asked at scheduling  |
 | 16  | Resume after a limit                       | M88 lane C         | timed sends, the client's `Retry-After`, Muse Code's usage report     |
 
 **Found already built.**
@@ -10905,16 +11049,16 @@ of the lanes.
 
 **Lanes and file ownership.**
 
-| Lane                      | Items    | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Its regions in shared files                                                                                                                                                                         | Starts       |
-| ------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| 0 Strings                 | all      | `src/shared/l10n/en.ts`; the 14 tables `l10n/ui.{cs,de,es,fr,hu,it,ja,ko,pl,pt-br,ru,tr,zh-cn,zh-tw}.json`; `l10n/untranslated.json`                                                                                                                                                                                                                                                                                                                                                                                                                                          | —                                                                                                                                                                                                   | First        |
-| P Plumbing                | 6, 9, 12 | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/core/agent/agentBackend.ts`, `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/views/tasksTabPort.ts`; `src/webview/state/uiState.ts` and `uiState.test.ts` only for its new messages' cases, then lane C's; tests `conversationController.test.ts` and the protocol and ACP translation tests                                                                                                                                                                         | —                                                                                                                                                                                                   | After lane 0 |
-| A Composer and menus      | 1, 7, 8  | the new `src/webview/components/ContextMeter.tsx`, `Composer.tsx`, `Palette.tsx`, `SlashMenu.tsx`, `MenuOption.tsx`, `src/shared/palette.ts`, `src/shared/slashCommands.ts`; in `App.tsx` only the meter's lines (step 2); tests: the new `ContextMeter.test.tsx`, `Composer.test.tsx`, `Palette.test.tsx`, `paletteRegistry.test.ts`                                                                                                                                                                                                                                         | Styles: the composer controls (the `.context-label*` rules become `.context-meter*`) and the `(0,3,0)` state block (Stop). Harness: after `palette`.                                                | After lane 0 |
-| B Rows and status line    | 2, 4     | `ToolBlocks.tsx`, `ToolRow.tsx`, `UserShellRow.tsx`, `StatusLine.tsx`, the new `HeartbeatTrace.tsx`; tests `toolRows.test.tsx`, `StatusLine.test.tsx`, the new `reducedMotion.test.ts`                                                                                                                                                                                                                                                                                                                                                                                        | Constants: `IO_PREVIEW_LINES` beside `OUTPUT_PREVIEW_LINES`. Styles: `.shell*`; `.status-line`, `.status-spark` and `@keyframes spin`; the closing reduced-motion block. Harness: after `thinking`. | After lane 0 |
-| C Transcript and backends | 3, 9, 12 | `Transcript.tsx`, the new `src/webview/stepSummary.ts`, `src/webview/state/transcriptEntries.ts`, `uiState.ts`, `snapshot.ts`, `src/shared/l10n/text.ts`, `src/core/backends/musecode/mapNotification.ts`, `MuseCodeHost.ts`, `src/core/backends/modelapi/ModelApiHost.ts`, `sessionStore.ts`, `test/e2e/fake-muse/serve.mjs`; tests `Transcript.test.tsx`, `uiState.test.ts`, `snapshot.test.ts`, `sessionStore.test.ts`, `MuseCodeHost.test.ts`, the Model API host tests, the new `stepSummary.test.ts`, `helpers/transcriptFixtures.tsx`, the new `helpers/m87Capture.ts` | Styles: `.steps*`, and the user and assistant message block. Harness: after `focus`.                                                                                                                | After lane P |
-| D Tasks                   | 5, 6     | `TodoPanel.tsx`, the new `src/webview/TasksApp.tsx`, `src/webview/main.tsx`, the new `src/shared/tasksProtocol.ts`, the new `src/host/views/tasksPanel.ts`, `src/host/html.ts`, `src/extension.ts`, `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `docs/ide-compatibility/host-api.md` (regenerated); tests `cards.test.tsx` (its `TodoPanel` cases), `html.test.ts`, the new `tasksPanel.test.ts` and `TasksApp.test.tsx`                                                                                                                         | Constants: the view type and command id beside `CHAT_PANEL_VIEW_TYPE`. Styles: `.todo*`. Harness: after `todo`.                                                                                     | After lane P |
-| E Diff tally              | 10       | the new `src/webview/diffTally.ts` and `DiffTally.tsx`; the new tests `diffTally.test.ts` and `DiffTally.test.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Styles: a new block just before the goal pane's. Harness: after `goal`.                                                                                                                             | After lane 0 |
-| W Wiring and join         | all      | `src/webview/App.tsx`, `test/unit/App.test.tsx`, `test/harness/themes/*.json` (recaptured), `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/certification/m87.md`                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                                                                   | Last         |
+| Lane                      | Items    | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Its regions in shared files                                                                                                                                                                         | Starts       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| 0 Strings                 | all      | `src/shared/l10n/en.ts`; the 14 tables `l10n/ui.{cs,de,es,fr,hu,it,ja,ko,pl,pt-br,ru,tr,zh-cn,zh-tw}.json`; `l10n/untranslated.json`                                                                                                                                                                                                                                                                                                                                                                                                                                                          | —                                                                                                                                                                                                   | First        |
+| P Plumbing                | 6, 9, 12 | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/core/agent/agentBackend.ts`, `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/views/tasksTabPort.ts`; `src/webview/state/uiState.ts` and `uiState.test.ts` only for its new messages' cases, then lane C's; tests `conversationController.test.ts` and the protocol and ACP translation tests                                                                                                                                                                                         | —                                                                                                                                                                                                   | After lane 0 |
+| A Composer and menus      | 1, 7, 8  | the new `src/webview/components/ContextMeter.tsx`, `Composer.tsx`, `Palette.tsx`, `SlashMenu.tsx`, `MenuOption.tsx`, `src/shared/palette.ts`, `src/shared/slashCommands.ts`; in `App.tsx` only the meter's lines (step 2); tests: the new `ContextMeter.test.tsx`, `Composer.test.tsx`, `Palette.test.tsx`, `paletteRegistry.test.ts`                                                                                                                                                                                                                                                         | Styles: the composer controls (the `.context-label*` rules become `.context-meter*`) and the `(0,3,0)` state block (Stop). Harness: after `palette`.                                                | After lane 0 |
+| B Rows and status line    | 2, 4     | `ToolBlocks.tsx`, `ToolRow.tsx`, `UserShellRow.tsx`, `StatusLine.tsx`, the new `HeartbeatTrace.tsx`; tests `toolRows.test.tsx`, `StatusLine.test.tsx`, the new `reducedMotion.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                        | Constants: `IO_PREVIEW_LINES` beside `OUTPUT_PREVIEW_LINES`. Styles: `.shell*`; `.status-line`, `.status-spark` and `@keyframes spin`; the closing reduced-motion block. Harness: after `thinking`. | After lane 0 |
+| C Transcript and backends | 3, 9, 12 | `Transcript.tsx`, the new `src/webview/stepSummary.ts`, `src/webview/state/transcriptEntries.ts`, `uiState.ts`, `snapshot.ts`, `src/shared/l10n/text.ts`, `src/core/backends/musecode/mapNotification.ts`, `MuseCodeHost.ts`, `src/core/backends/modelapi/ModelApiHost.ts`, `sessionStore.ts`, `test/e2e/fake-muse/serve.mjs`; tests `Transcript.test.tsx`, `uiState.test.ts`, `snapshot.test.ts`, `sessionStore.test.ts`, `MuseCodeHost.test.ts`, the Model API host tests, `l10n.test.ts`, the new `stepSummary.test.ts`, `helpers/transcriptFixtures.tsx`, the new `helpers/m87Capture.ts` | Styles: `.steps*`, and the user and assistant message block. Harness: after `focus`.                                                                                                                | After lane P |
+| D Tasks                   | 5, 6     | `TodoPanel.tsx`, the new `src/webview/TasksApp.tsx`, `src/webview/main.tsx`, the new `src/shared/tasksProtocol.ts`, the new `src/host/views/tasksPanel.ts`, `src/host/html.ts`, `src/extension.ts`, `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `docs/ide-compatibility/host-api.md` (regenerated); tests `cards.test.tsx` (its `TodoPanel` cases), `html.test.ts`, the new `tasksPanel.test.ts` and `TasksApp.test.tsx`                                                                                                                                         | Constants: the view type and command id beside `CHAT_PANEL_VIEW_TYPE`. Styles: `.todo*`. Harness: after `todo`.                                                                                     | After lane P |
+| E Diff tally              | 10       | the new `src/webview/diffTally.ts` and `DiffTally.tsx`; the new tests `diffTally.test.ts` and `DiffTally.test.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Styles: a new block just before the goal pane's. Harness: after `goal`.                                                                                                                             | After lane 0 |
+| W Wiring and join         | all      | `src/webview/App.tsx`, `test/unit/App.test.tsx`, `test/harness/themes/*.json` (recaptured), `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/certification/m87.md`                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                                                                   | Last         |
 
 **Lane 0's strings** (English; each key also goes in all 14 tables):
 
@@ -10926,6 +11070,8 @@ of the lanes.
     leaving out `skills:loading` and `skills:empty`, with the list fixed
     when lane 0 starts. For example, `compact` is "Summarise the
     conversation so far to free context."
+  - `paletteSkillTip` "Run the {name} skill.", the tip of a skill whose
+    description is empty or blank.
 - **C:**
   - `stepSummary` plural forms: `edited` ("edited a file" / "edited
     {count} files"), `read`, `searched`, `ran`, `fetched`, `searchedWeb`,
@@ -10997,8 +11143,10 @@ of the lanes.
      `(0,3,0)` block, with the high-contrast variants under
      `body.vscode-high-contrast`.
   4. `PaletteItem` gains `tip`, and `buildPalette()` fills it from
-     `UI_TEXT.paletteTips[id]` or a skill's description. `slashCommandsOf`
-     carries it.
+     `UI_TEXT.paletteTips[id]` or a skill's description, trimmed. A skill
+     whose description is empty or blank (`skillsCli.ts` turns a missing
+     one into `''`) gets `fill(UI_TEXT.paletteSkillTip, { name })`.
+     `slashCommandsOf` carries it.
   5. `PaletteRow` and `MenuOption` set `title` and an `aria-describedby` to
      a visually hidden span holding the tip. The registry test fails on a
      row without one.
@@ -11022,7 +11170,11 @@ of the lanes.
      the edit and read tool sets, counts distinct paths, and returns the
      parts and the failed count.
   2. `text.ts` gains `formatList`, on `Intl.ListFormat` with `type: 'unit'`
-     and `style: 'short'`.
+     and `style: 'short'`. For the timestamps it gains `formatTime`
+     (`timeStyle: 'short'`), `formatFullDateTime` (`dateStyle: 'full'`,
+     `timeStyle: 'short'`) and `isSameLocalDay(aMs, bMs)` (the same local
+     year, month and day). The formats are built once per display language,
+     beside `formatDate` and `formatDateTime`.
   3. `segment(entries, isFocusView)` gains the default-view rule (two or
      more finished steps, waiting steps never, running steps after the
      group). `StepsGroup` shows the summary as a button with `aria-expanded`
@@ -11034,7 +11186,12 @@ of the lanes.
        `sessionStore` keeps the time as an optional field (old files read
        unchanged).
      - The card renders `<time dateTime>`, revealed on `:hover` and
-       `:focus-within`.
+       `:focus-within`. Its text is `formatTime` when `isSameLocalDay` with
+       the time the card renders, otherwise `formatDateTime`. Its `title`
+       is `messageSentAt` or `messageReceivedAt` filled with
+       `formatFullDateTime` (D66). No other formatter is used.
+     - A card that renders no action button of its own gives the `<time>`
+       `tabIndex={0}`, so the keyboard can reach and reveal it (D66).
   5. The user entry's status gains `queued`, kept until `messageAdmitted`
      or `turnStarted` for its turn.
      - The card's `onContextMenu` stops the event only when no text is
@@ -11132,12 +11289,20 @@ been sent.
   - Nothing in it can send a message.
 - **7, the menu tips.** Every palette and "/" row has a non-empty tip as
   its `title` and accessible description. Skills show their own
-  descriptions.
+  descriptions, and a skill with an empty or blank one shows "Run the
+  {name} skill."
 - **8, Stop.** It is red on hover and focus in all four themes, at the
   contrasts in D66.
-- **9, timestamps.** A message shows its time on hover and focus. Muse
-  Code's history shows the captured times. A Model API session stored
-  before M87 shows none, and a new one shows them after a reload.
+- **9, timestamps.**
+  - A message shows its time on hover and on keyboard focus, including a
+    card with no action button (an imported user message), which Tab
+    reaches through its `<time>`.
+  - Today's message shows the time alone and an older one the date and
+    time, in the display language, with the full date and time in the
+    `title`. A message from 23:59 shows its date once the local day has
+    changed.
+  - Muse Code's history shows the captured times. A Model API session
+    stored before M87 shows none, and a new one shows them after a reload.
 - **10, the diff tally.** The row's totals equal the sum of the edit rows'
   summaries, with distinct paths. It is absent with no edit, and Review
   opens M70's pane.
@@ -11152,12 +11317,19 @@ been sent.
 
 - **Unit and webview (vitest, jsdom).** Each lane's files above.
   - A: the meter at each level and edge, the ring's dash values, the name
-    and tooltip, the compact click, and Stop's class.
+    and tooltip, the compact click, Stop's class, and the registry and menu
+    tips for a skill with an empty and with a blank description.
   - B: line clipping at 5 and 12, `aria-expanded`, the bullet, and the trace
     marked `aria-hidden`.
   - C: `stepSummary` and `segment` for every rule, `formatList` in four
     locales, `atMs` from captured frames and from stored sessions, and the
     queued lifecycle, withdraw races and draft merge.
+  - C, the timestamps: `formatTime`, `formatFullDateTime` and
+    `isSameLocalDay` in four locales, with the time zone fixed by the test
+    and times on both sides of a local midnight (23:59 and 00:01) and of a
+    UTC midnight that is not local; the card's text and `title` for today
+    and for yesterday; the `<time>`'s `tabIndex` on a card with and without
+    action buttons.
   - D: collapse; the tasks tab's ready, update, ended, reload and command
     probe.
   - E: tally sums and distinct paths.
@@ -11175,7 +11347,8 @@ been sent.
   - `steps-summary`, `steps-summary-open`
   - `status-heartbeat`, `status-heartbeat-narrow`
   - `tasks-collapsed`, `tasks-tab`
-  - `message-time`, `queued-menu`, `diff-tally`
+  - `message-time` (keyboard focus on the time of an imported user message
+    without rewind), `queued-menu`, `diff-tally`
 - **Red drills.** Each new test and gate is seen to fail once on a
   deliberate break, then restored, as recorded in each lane's file:
   - thresholds moved to 0.8;
@@ -11184,7 +11357,10 @@ been sent.
   - the trace left out of the reduced-motion block;
   - a drained steer withdrawn;
   - a file counted twice in the tally;
-  - a row's tip removed.
+  - a row's tip removed;
+  - a skill's empty description used as its tip;
+  - the same-day check made in UTC instead of local time;
+  - the `<time>` of a card without action buttons left unfocusable.
 
 **Gates.**
 
@@ -11262,8 +11438,10 @@ been sent.
 - **Goal.** The user keeps prompts and conversations they come back to, and
   sends a prompt (or a "continue") at a time they choose, without any new
   way to spend money unseen.
-- **Scope.** Items 13–16, as D67 decides them. No new setting: the Model
-  API's timed sends use `museSpark.modelApiScheduledPrompts`.
+- **Scope.** Items 13–16, as D67 decides them, with the owner's answers of
+  2026-10-03 (§3). One new setting, `museSpark.syncPromptsAndBookmarks`
+  (off by default, machine-scoped). The Model API's timed sends use the
+  existing `museSpark.modelApiScheduledPrompts`.
 - **Backends.**
   - Saved prompts, sequences and bookmarks work on both backends.
   - Timed sends work on both: M52's path on the Model API, the extension's
@@ -11274,14 +11452,14 @@ been sent.
 **Lanes and file ownership.** Lanes 0 and W follow the lane rules; lane 0
 owns the same string files as in M87.
 
-| Lane                     | Items  | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Its regions in shared files                                                                                                                                                                                              | Starts                  |
-| ------------------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
-| 0 Strings                | all    | the same string files as M87's lane 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | —                                                                                                                                                                                                                        | First, after M87 merges |
-| P Plumbing               | 13–16  | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/webview/state/uiState.ts`, `transcriptEntries.ts` (the failed row's `limit`), `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/conversation/deferredSend.ts` and `featurePorts.ts`; tests `uiState.test.ts`, `conversationController.test.ts`, the new `deferredSend.test.ts`                                                                                                                                                                                                        | —                                                                                                                                                                                                                        | After lane 0            |
-| A Library and sequences  | 13     | the new `src/shared/promptLibrary.ts`, `src/host/prompts/promptStore.ts`, `src/core/prompts/promptSequence.ts`, `src/host/prompts/sequenceRunner.ts`, `src/webview/components/PromptLibraryDialog.tsx` and `SequenceRunRow.tsx`, with their tests                                                                                                                                                                                                                                                                                                                                            | `palette.ts`: the library rows. Styles: a new block after the history dialog's. Harness: after `history`.                                                                                                                | After lane P            |
-| B Bookmarks              | 14     | the new `src/host/sessions/bookmarkStore.ts`, `src/shared/sessions.ts`, `HistoryDialog.tsx`, `Header.tsx`; tests `HistoryDialog.test.tsx`, `sessions.test.ts`, the new `bookmarkStore.test.ts` and `Header.test.tsx`                                                                                                                                                                                                                                                                                                                                                                         | Styles: the history and header blocks. Harness: after `history-archived`.                                                                                                                                                | After lane P            |
-| C Timed sends and resume | 15, 16 | `src/shared/schedule.ts`, `src/core/backends/modelapi/schedules.ts`, `src/host/backend/fileScheduleStore.ts`, `ModelApiHost.ts`, `client.ts`, the new `src/host/schedules/museCodeTimedSends.ts` and `src/core/limits.ts`, `SchedulePanel.tsx`, the new `ScheduleSendDialog.tsx`, `Transcript.tsx` (the failed row's Resume later), `src/host/conversation/turnNotifications.ts`; tests `schedules.test.ts`, `fileScheduleStore.test.ts`, `SchedulePanel.test.tsx`, `Transcript.test.tsx`, `turnNotifications.test.ts`, the Model API host and client tests, and new tests for each new file | Constants: the schedule block (the one-shot horizon, the resume delay) and `MODEL_TEXT.resumePrompt`. `palette.ts`: the "Schedule this prompt…" row. Styles: the schedule pane block. Harness: after `schedules-narrow`. | After lane P            |
-| W Wiring and join        | all    | `App.tsx`, `App.test.tsx`, `src/extension.ts` (the stores, the runner and the ports), `test/harness/themes/*.json` if a token is new, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/PRIVACY.md`, `docs/certification/m88.md`                                                                                                                                                                                                                                                                                                                                 | —                                                                                                                                                                                                                        | Last                    |
+| Lane                     | Items  | Files it owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Its regions in shared files                                                                                                                                                                                                                          | Starts                  |
+| ------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 0 Strings                | all    | the same string files as M87's lane 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                                                                                                                                                    | First, after M87 merges |
+| P Plumbing               | 13–16  | `src/shared/protocol.ts`, `src/shared/agentEvents.ts`, `src/webview/state/uiState.ts`, `transcriptEntries.ts` (the failed row's `limit`, the user entry's `origin`), `src/host/conversation/conversationController.ts`, `src/acp/translate.ts`, the new `src/host/conversation/deferredSend.ts` and `featurePorts.ts`; the sync setting: `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `src/host/settings.ts`, the new `src/host/stateSync.ts`; tests `uiState.test.ts`, `conversationController.test.ts`, `settings.test.ts`, the new `deferredSend.test.ts` and `stateSync.test.ts`                                     | Constants: the two synced `GLOBAL_STATE_KEYS` entries (the "All workspaces" prompts, the bookmarks), beside the others.                                                                                                                              | After lane 0            |
+| A Library and sequences  | 13     | the new `src/shared/promptLibrary.ts`, `src/host/prompts/promptStore.ts`, `src/core/prompts/promptSequence.ts`, `src/host/prompts/sequenceRunner.ts`, `src/webview/components/PromptLibraryDialog.tsx` and `SequenceRunRow.tsx`, with their tests                                                                                                                                                                                                                                                                                                                                                                                                    | `palette.ts`: the library rows. Styles: a new block after the history dialog's. Harness: after `history`.                                                                                                                                            | After lane P            |
+| B Bookmarks              | 14     | the new `src/host/sessions/bookmarkStore.ts`, `src/shared/sessions.ts`, `HistoryDialog.tsx`, `Header.tsx`, `src/host/backend/fileSessionStore.ts` (the retention exemption); tests `HistoryDialog.test.tsx`, `sessions.test.ts`, `fileSessionStore.test.ts`, the new `bookmarkStore.test.ts` and `Header.test.tsx`                                                                                                                                                                                                                                                                                                                                   | Constants: the bookmark cap and the bookmark key (`KeyB`), beside `GLOBAL_STATE_KEYS`. Styles: the history and header blocks. Harness: after `history-archived`.                                                                                     | After lane P            |
+| C Timed sends and resume | 15, 16 | `src/shared/schedule.ts`, `src/core/backends/modelapi/schedules.ts`, `src/host/backend/fileScheduleStore.ts`, `ModelApiHost.ts`, `client.ts`, the new `src/host/schedules/museCodeTimedSends.ts` and `src/core/limits.ts`, `SchedulePanel.tsx`, the new `ScheduleSendDialog.tsx`, `Transcript.tsx` (the failed row's Resume later, the timed send's mark), `src/host/conversation/turnNotifications.ts`; tests `schedules.test.ts`, `fileScheduleStore.test.ts`, `SchedulePanel.test.tsx`, `Transcript.test.tsx`, `turnNotifications.test.ts`, the Model API host and client tests, the new `helpers/m88Capture.ts`, and new tests for each new file | Constants: the schedule block (the one-shot lead and horizon, the on-time grace, the resume delay) and `MODEL_TEXT.resumePrompt`. `palette.ts`: the "Schedule this prompt…" row. Styles: the schedule pane block. Harness: after `schedules-narrow`. | After lane P            |
+| W Wiring and join        | all    | `App.tsx`, `App.test.tsx`, `src/extension.ts` (the stores, the runner and the ports), `test/harness/themes/*.json` if a token is new, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/PRIVACY.md`, `docs/certification/m88.md`                                                                                                                                                                                                                                                                                                                                                                                         | —                                                                                                                                                                                                                                                    | Last                    |
 
 **Lane 0's strings** (English; all 14 tables):
 
@@ -11291,10 +11469,19 @@ owns the same string files as in M87.
   `promptScopeUser` "All workspaces", `promptScopeWorkspace` "This
   workspace", `promptInsert` "Insert", `promptEdit`, `promptDelete`,
   `promptDeleteConfirm` "Delete “{name}”?", `promptSecretsNote` "Saved
-  prompts are stored as plain text on this computer. Don't save passwords
-  or keys.", `promptStoreDamaged` "The saved prompts could not be read:
-  {reason}. Nothing was changed.", `promptStoreReset`, `promptLimitReached`
-  (plural forms), `promptTooLong`.
+  prompts are stored as plain text on this computer, and in Settings Sync
+  if you turn sync on. Don't save passwords or keys.", `promptStoreDamaged`
+  "The saved prompts could not be read: {reason}. Nothing was changed.",
+  `promptStoreReset`, `promptStoreResetConfirm` "Delete the unreadable
+  saved prompts in {scope} and start again with none?",
+  `promptLimitReached` (plural forms), `promptTooLong`, `promptScopeSynced`
+  "Synced with Settings Sync", `promptScopeWorkspaceLocal` "Kept on this
+  computer only, even with sync on".
+- **P, the setting** (in `package.nls*.json`, lane P's, as M87's lane D
+  owned its manifest key): `config.syncPromptsAndBookmarks.description`
+  "Add your saved prompts for all workspaces and your bookmarks to Settings
+  Sync. Off by default: they stay on this computer. Prompts saved for one
+  workspace never sync."
 - **A, sequences:** `sequenceNew`, `sequenceStep` "Step {index}",
   `sequenceAddStep`, `sequenceRun` "Run", `sequenceStartTitle` "Run
   “{name}”?", `sequenceStartDetail` (plural forms: "{count} messages are
@@ -11307,23 +11494,41 @@ owns the same string files as in M87.
 - **A, palette tips:** for the new rows (`prompts`, `schedule`).
 - **B:** `bookmarkAdd` "Bookmark", `bookmarkRemove` "Remove bookmark",
   `bookmarkCurrentTitle` "Bookmark this conversation",
-  `historyGroupBookmarked` "Bookmarked".
+  `historyGroupBookmarked` "Bookmarked", `bookmarkedState` "Bookmarked" (the
+  option's hidden state text), `bookmarkUnavailable` "Not available here",
+  `bookmarkLimitReached` (plural forms: "A workspace keeps up to {count}
+  bookmarks.").
 - **C, timed sends:** `scheduleSendTitle` "Schedule this prompt",
   `scheduleSendWhen` "Send at", `scheduleSendRange` "Between a minute and
   six days from now", `scheduleSendConfirm` "Schedule",
-  `scheduleSendModelApiNote` "When it is due, you confirm the run and its
-  price, as for every scheduled prompt.", `scheduleSendMuseCodeNote` "When
-  it is due, press Send now. Nothing is sent while VS Code is closed.",
+  `scheduleSendModelApiNote` "You confirm its price now. At its time it is
+  sent only if the prompt, model, conversation and key are unchanged;
+  otherwise it waits for Run.", `scheduleSendConfirmTitle` "Send this prompt
+  with {model} at {time}?" (the popup's title; its body reuses M52's
+  `scheduleRunConfirmPrompt`, `scheduleRunConfirmPrice` and
+  `scheduleRunConfirmExtras`), `scheduleSendPaidOff` "Turn on Scheduled
+  prompts (paid) and accept its price before scheduling on the Model API.",
+  `scheduleSendMuseCodeNote` "It is sent at its time, in this
+  conversation's permission mode at that moment. Nothing is sent while VS
+  Code is closed.", `scheduleSendModeWarning` "This conversation is in
+  {mode} mode now: its tools run without asking.",
   `scheduleOnceAt` "Once at {time}", `scheduleDueSince` "Due since {time}",
-  `scheduleSendNow` "Send now", `scheduleOpenConversation` "Open
-  conversation", `notifyScheduleDue` "A scheduled prompt is due."
+  `scheduleWaitingForTurn` "Due · sent when the current turn ends",
+  `scheduleBindingChanged` "Due · the prompt, model, conversation or key
+  changed, so it waits for Run", `scheduleSendNow` "Send now",
+  `scheduleOpenConversation` "Open conversation", `scheduleSignInChanged`
+  "The Muse Code sign-in changed, so this workspace's timed sends were
+  deleted.", `scheduleEnvKeyUnavailable` "Timed sends on Muse Code are not
+  offered while META_API_KEY is set for VS Code.", `timedSendMark` "Sent on
+  schedule", `notifyScheduleDue` "A scheduled prompt is due."
 - **C, resume:** `resumeLater` "Resume later…", `resumeLaterTitle`
   "Schedule a “continue” message for when the limit resets",
   `resumeRateLimited` "Meta's rate limit stopped this turn.",
   `resumeUsageFull` "Your Muse Code usage window is full. It resets at
   {time}.", `resumeUsageNote` "Based on the usage report.",
   `resumeBudgetStopped` "The session budget stopped this turn.",
-  `resumeOpenBudget` "Change the budget".
+  `resumeOpenBudget` "Change the budget", `resumeBeyondHorizon` "The limit
+  lifts at {time}, later than a send can be scheduled."
 - `MODEL_TEXT.resumePrompt` stays English, in `constants.ts` (lane C).
 
 **Implementation steps.**
@@ -11331,8 +11536,11 @@ owns the same string files as in M87.
 - **P Plumbing.**
   1. **Messages.**
      - The library: `promptLibraryRead`, `promptSave`, `promptUpdate`,
-       `promptDelete`, `sequenceStart` and `sequenceStop`, answered by
-       `promptLibrary` and `sequenceState`.
+       `promptDelete`, `promptLibraryReset` (`scope`: `user` or
+       `workspace`), `sequenceStart` and `sequenceStop`, answered by
+       `promptLibrary` and `sequenceState`. `promptLibrary` carries each
+       scope's state (`ok` or `damaged` with its reason) and whether sync is
+       on.
      - Bookmarks: `bookmarkSet`, answered by `bookmarks`.
      - Timed sends: `timedSendCreate`, whose `origin` is `prompt` or
        `resume`. `schedulesChanged` now carries the once cadence.
@@ -11340,63 +11548,152 @@ owns the same string files as in M87.
      `retryAfterMs`, `resetsAtMs`), set only by lane C's classifiers.
   3. **Reducer.** `uiState` holds the library, the run, the bookmark ids
      and the due sends, and puts a turn's `limit` on its failed row's
-     entry, for lane C's Resume later.
+     entry, for lane C's Resume later. A user entry sent by `sendAsUser`
+     keeps its `origin`, so lane C's card can show `timedSendMark`.
   4. **`deferredSend.ts`.**
+     - `canSendNow(sessionId)` says synchronously whether the session is
+       loaded and idle, with no turn queued and no sequence running, or why
+       not (`busy`, `notLoaded`).
      - `sendAsUser(text, origin)` submits as the composer's Send does, only
-       while the session is idle and loaded.
-     - `onTurnSettled` reports each turn's terminal.
-     - The controller implements both.
+       while `canSendNow` holds; otherwise it refuses with that reason and
+       sends nothing.
+     - `onTurnSettled` reports each turn's terminal, so a waiting send can
+       go.
+     - The controller implements all three.
   5. **`featurePorts.ts`** declares `PromptLibraryPort`, `BookmarkPort` and
      `TimedSendPort`. The controller answers the new messages through
      them, and refuses with an explicit error while a port is missing.
+  6. **The sync setting.** `museSpark.syncPromptsAndBookmarks` (boolean,
+     default false, `machine` scope) is read by `settings.ts`.
+     `stateSync.ts` calls `globalState.setKeysForSync` with the two keys
+     while it is on and with `[]` while it is off, at activation and on
+     every change of the setting (D67). Nothing else calls it.
 - **A Library and sequences.**
   1. `promptLibrary.ts` holds the versioned zod schema and the caps.
-  2. `promptStore.ts` reads, validates and writes `globalState` and
-     `workspaceState`. A damaged value is kept, reported, and blocks
-     writes until reset. It never calls `setKeysForSync`.
+  2. `promptStore.ts` reads, validates and writes the two scopes: "All
+     workspaces" in `globalState` under lane P's synced key, "This
+     workspace" in `workspaceState`. It leaves sync to `stateSync.ts`.
+     - Each scope is validated on its own. A damaged value, read from disk
+       or arriving through sync, is kept, reported with its reason, and
+       blocks writes to that scope until reset.
+     - `reset(scope)` replaces only that scope's value with an empty
+       library of the current version. It runs only on
+       `promptLibraryReset`, after the dialog's inline confirmation.
   3. `PromptLibraryDialog` is built on `paletteDialog.tsx`: search, insert
      (Enter), edit inline, delete with an inline confirmation, and a save
-     form prefilled with the draft.
+     form prefilled with the draft. Its scope picker marks "All workspaces"
+     as synced and "This workspace" as kept on this computer while sync is
+     on. A damaged scope shows `promptStoreDamaged` with Reset and its
+     inline confirmation.
   4. `promptSequence.ts` is the run's pure state machine: start, step sent,
      turn settled, stop, and end on any terminal other than `completed`.
      `sequenceRunner.ts` drives it through `deferredSend`.
   5. The `/prompts` palette row opens the dialog.
 - **B Bookmarks.**
-  1. `bookmarkStore.ts` keeps the records in `workspaceState` and refreshes
-     titles from listed rows.
-  2. `sessions.ts` gains `bookmarkedIds` and puts the Bookmarked group
-     first.
-  3. `HistoryDialog` gets a star toggle on each row (`aria-pressed`), and
-     its Bookmarked group loads pages until every id is found.
-  4. `Header` gets the star for the open session.
+  1. `bookmarkStore.ts` keeps the records in `globalState` under lane P's
+     synced key, one list per workspace digest (D67), and refreshes titles
+     from listed rows. It validates what it reads, a value that arrived
+     through sync included, and refuses a bookmark past the cap with
+     `bookmarkLimitReached`. `has(backend, sessionId)` answers for this
+     workspace.
+  2. `fileSessionStore.ts` gains an optional `isKept(sessionId)`
+     dependency. Retention skips a session it keeps, and lane W's
+     `extension.ts` passes the bookmark store's `has`. The ACP agent's
+     store passes none and is unchanged.
+  3. `sessions.ts` gains `bookmarkedIds` and puts the Bookmarked group
+     first. A bookmark not found once the list has ended is a row marked
+     `bookmarkUnavailable`, whose only action is Remove.
+  4. `HistoryDialog` keeps its listbox (D67). Alt+B (`event.code` `KeyB`)
+     in the search box toggles the highlighted row's bookmark. The row's
+     star is `aria-hidden` and for the mouse only, as the archive control
+     is. The option's name includes `bookmarkedState` when bookmarked, its
+     `aria-keyshortcuts` is "Delete Alt+B", and its description names both
+     commands. The Bookmarked group loads pages until every id is found.
+  5. `Header` gets the star for the open session: a toggle button with
+     `bookmarkCurrentTitle` and `aria-pressed`.
 - **C Timed sends and resume.**
   1. `schedule.ts` gains the once cadence. `nextScheduleFire` returns
      `atMs` once, then nothing. `fileScheduleStore` gains `listAll()`, the
      workspace's jobs, to list due sends at start.
-  2. **The Model API's one-shot** is M52's job with that cadence: the same
-     create, claim and Run, and the paid row.
+  2. **The Model API's one-shot** is M52's job with that cadence, the same
+     store, claim and paid row, confirmed when it is scheduled (D67).
+     - Schedule refuses with `scheduleSendPaidOff`, offering the setting,
+       while the gate is off. Otherwise it shows the D48 popup
+       (`scheduleSendConfirmTitle`) through `PaidUseConsent`. Deny or
+       closing it stores nothing.
+     - The job stores the confirmation: the prompt, the model, the session,
+       the key digest and the gate's price generation.
+     - At its time the host checks all of them again, and the gate. A match
+       sends without a popup; any change marks the job
+       `scheduleBindingChanged`, and it waits for M52's Run, which asks
+       again.
   3. **`museCodeTimedSends.ts`** is a second store instance at
-     `storageUri/musecode-timed-sends`, with a 60 s poll. Its jobs' account
-     field holds the backend's name: Muse Code has no key identity, and
-     AGENTS.md rule 8 keeps its account label out of storage. At due time it
-     waits for "Send now", then claims and sends through `deferredSend`.
-  4. `ScheduleSendDialog` uses `datetime-local`, between now + 1 min and
-     now + 6 days, with the backend's note. `SchedulePanel` lists
-     one-shots on both backends.
-  5. **`limits.ts`**:
-     - the Model API's final 429, with `Retry-After` carried from
-       `client.ts`;
+     `storageUri/musecode-timed-sends`, with a 60 s poll.
+     - Its jobs' account field holds the credential file's signature
+       (`readCredentialFile` in `cliAccount.ts`: size and modification
+       time). It is never an account, a label or a backend name (D67).
+     - At start, at each poll, and on the panel's sign-in or sign-out, a
+       current signature that differs from a job's deletes the workspace's
+       Muse Code jobs before any list is published, and the pane shows
+       `scheduleSignInChanged`.
+     - Before that rests on the signature, lane C records whether a day's
+       ordinary use changes it without a sign-in. If it does, the binding
+       uses the file's structure instead, as D67 says.
+     - While `META_API_KEY` is present in the host's environment, creation
+       refuses with `scheduleEnvKeyUnavailable`.
+  4. **The send at its time, both backends** (D67). On each poll and each
+     `onTurnSettled`, a due job that was seen on time and whose binding
+     matches is sent this way:
+     - `canSendNow` false: the job stays unclaimed and pending
+       (`scheduleWaitingForTurn`) while this window is open.
+     - `canSendNow` true: claim, then, as the claim resolves, check
+       `canSendNow` again and call `sendAsUser`. If the session turned busy
+       or was unloaded meanwhile, `fileScheduleStore` deletes the receipt it
+       just wrote (`releaseClaim`, new: only its own, only before any turn
+       was admitted) and the job waits again.
+     - A job seen late, one whose session is not loaded, and a Model API
+       job whose binding changed are due and wait for Run or Send now.
+  5. `ScheduleSendDialog` uses `datetime-local` with `step` 60, between now
+     plus a minute and now plus six days, with the backend's note and, from
+     the session's current mode, `scheduleSendModeWarning` for Auto and
+     Bypass. `SchedulePanel` lists one-shots on both backends.
+  6. **`limits.ts`**:
+     - the Model API's final 429, with `Retry-After` (seconds or an HTTP
+       date) carried from `client.ts`;
      - M82's budget error;
-     - a Muse Code failure combined with the latest usage report at 100 %
-       (the window's `resetsAtMs`).
-  6. **On the failed row**, `Transcript.tsx` shows "Resume later…", which
+     - on Muse Code, only a captured usage-limit signal: the goal status
+       `usage_limited`, or a turn failure in the shape the capture below
+       records. The time is the reset of a window at 100 % in a `usage/read`
+       made after the signal. A failure of any other kind is not a limit,
+       whatever the report says.
+  7. **The default time** is `resumeDefaultAt(limitAtMs, nowMs)`: rounded
+     up to a whole minute, at least a minute ahead, and undefined beyond
+     six days. Undefined means no Resume later, and the row shows
+     `resumeBeyondHorizon` instead.
+  8. **On the failed row**, `Transcript.tsx` shows "Resume later…", which
      opens the dialog with `MODEL_TEXT.resumePrompt` and the default time,
      or "Change the budget".
-  7. **`turnNotifications.ts`** gains the `scheduleDue` notice, once per
-     job.
+  9. **`turnNotifications.ts`** gains the `scheduleDue` notice, once per job
+     that waits.
 - **W Wiring and join.** `extension.ts` builds the stores, the runner and
   the ports per surface, and `App.tsx` mounts the dialogs and rows. Then
   W runs the theme capture, if a token is new, and the full gate.
+
+**Live capture (lane C, AGENTS.md rule 13).** The error a full Muse Code
+usage window gives has never been captured (§3).
+
+- **The run:** the next time the owner's usage window reads 100 %, a script
+  over `@muse-code/sdk`, as the earlier captures were, in an empty workspace
+  on the contributor model. It sends one short reply-only turn, records
+  every frame up to its end, then calls `usage/read`.
+- **Expected:** one turn. The expected attempts are stated in the record
+  before the run and counted from the CLI's trace log afterwards (the
+  owner's live-spend rule of 2026-10-02).
+- Frames go into `helpers/m88Capture.ts`, and the record goes into
+  `docs/certification/m88-c.md`.
+- Until the capture exists, the turn-failure path is not written: Muse Code
+  offers Resume later only for the goal status `usage_limited`, and the
+  README and the record say so.
 
 **Acceptance.**
 
@@ -11404,8 +11701,14 @@ owns the same string files as in M87.
   - Save, name, insert (into the caret, nothing sent), edit and delete
     work in both scopes.
   - The caps refuse, and say why.
-  - A damaged store is never overwritten.
-  - Nothing is synced.
+  - A damaged scope is never overwritten, the other scope keeps working,
+    and Reset, after its confirmation, empties only the damaged scope.
+  - With `museSpark.syncPromptsAndBookmarks` off (the default),
+    `setKeysForSync` registers no key and nothing leaves the computer.
+  - With it on, exactly two keys are registered: the "All workspaces"
+    prompts and the bookmarks. "This workspace" prompts are never
+    registered, and the scope picker says so. Turning it off registers
+    none again.
 - **13, sequences.**
   - A sequence sends step N+1 only after turn N ends `completed`.
   - It ends on a failed or cancelled turn, Stop, a session switch or the
@@ -11413,51 +11716,96 @@ owns the same string files as in M87.
   - A run on the Model API states the turns it bills.
 - **14, bookmarks.**
   - A bookmark set from History or the header persists across reloads, in
-    this workspace only.
+    this workspace only, with sync on and off.
+  - Alt+B in History's search box toggles the highlighted row's bookmark;
+    the option's name says it is bookmarked. The header's star is a toggle
+    button with `aria-pressed`.
   - The Bookmarked group finds an old chat beyond the first page.
   - Archived and bookmarked shows under Show archived.
+  - A bookmarked Model API session outlives `museSpark.cleanupPeriodDays`;
+    once unbookmarked, retention takes it at the next listing.
+  - A bookmark whose session is not found shows as not available here,
+    with Remove.
+  - The cap refuses the next bookmark, and says why.
 - **15, timed sends.**
   - A one-shot fires once.
-  - On the Model API it is due and pending until Run, Cancel or expiry. Run
-    with the gate off, or a declined popup, makes zero requests; Bypass
-    cannot skip the popup.
-  - On Muse Code it waits for Send now.
+  - **On the Model API**, Schedule asks once through the D48 popup, and
+    Bypass cannot skip it. Deny, a closed popup or the gate off stores
+    nothing and makes zero requests.
+  - At its time a confirmed send whose prompt, model, session, key digest
+    and gate price all match goes without a popup. Any change, or the gate
+    off, sends it to Run, which asks again; nothing is billed before.
+  - **On Muse Code** it goes at its time with no Send now, in the
+    conversation's mode at that moment: in Manual its approvals still
+    wait.
+  - A send due during a turn stays unclaimed and goes when the turn
+    settles. A session that turns busy while the claim is written releases
+    the claim, and the send goes after that turn, once.
+  - A Muse Code sign-in change deletes the workspace's Muse Code timed
+    sends before any list, and says so; none is listed or sent across it.
+    With `META_API_KEY` set, Muse Code offers no timed send.
   - Two windows send once.
   - With VS Code closed through the due time, the next start lists it as
-    "due since" and sends nothing by itself.
+    "due since" and sends nothing by itself. A send whose session is not
+    loaded waits the same way.
   - The picker refuses less than a minute ahead and more than six days
     ahead.
 - **16, resume.**
   - A final 429 offers Resume later at `Retry-After` (five minutes without
-    it).
+    it). A `Retry-After` under a minute opens at one minute ahead, rounded
+    up to the minute. One beyond six days offers no timer and says when the
+    limit lifts.
   - The budget stop offers the setting and no timer.
-  - A Muse Code failure with a full usage window offers the reset time and
-    says it rests on the report.
-  - An unclassified failure offers nothing.
+  - On Muse Code, a goal stopped `usage_limited`, or a turn failing in the
+    captured usage-limit shape, offers the reset of the full window from a
+    `usage/read` made after it, and says it rests on the report.
+  - Any other failure offers nothing, even while a usage window reads
+    100 %. So does an unclassified failure on the Model API.
   - The resume is a timed send with every rule of item 15.
 
 **Tests.**
 
 - **Unit and webview.**
   - Every new file.
-  - The store schemas: damaged values, caps, scopes, and no sync call
-    (spied).
+  - The store schemas: damaged values per scope, a damaged value arriving
+    through sync, caps, scopes, and Reset (only the damaged scope, only on
+    its request).
+  - The controller's new cases, `promptLibraryReset` included: validated,
+    answered through the ports, and refused with an explicit error while a
+    port is missing.
+  - `stateSync.ts` with `setKeysForSync` spied: the setting off, on, and
+    turned off again.
   - Every state of the sequence machine.
-  - Bookmark grouping and paging.
+  - Bookmark grouping and paging, the unavailable row, the cap, Alt+B and
+    the option's state, and the retention exemption in
+    `fileSessionStore.test.ts`.
   - The once cadence's next fire and expiry, at the six-day edge and
     around a daylight-saving change.
   - `listAll`, and the claim race across two stores.
+  - `deferredSend` and the scheduler: a send due while busy stays
+    unclaimed; a claim released when the session turns busy during its
+    write; a send seen late waits.
+  - The Model API binding: each of prompt, model, session, key digest and
+    gate price changed in turn sends the job back to Run.
+  - The Muse Code binding: a changed signature deletes and reports;
+    `META_API_KEY` present refuses creation.
   - The limit classifier on the Model API client's captured 429 path and on
-    M82's error.
+    M82's error; on Muse Code, the goal status and the captured frames, and
+    a network failure while a window reads 100 % (no limit).
+  - `resumeDefaultAt` at `Retry-After` 0 s, 5 s, 59 s, exactly six days
+    and six days and a minute, and as an HTTP date.
 - **End to end.**
   - A sequence of three steps against the fake Model API: one billed turn
     each, stopping on a failure.
-  - A Muse Code timed send against the fake CLI.
+  - A Muse Code timed send against the fake CLI, at its time with no Send
+    now, and one that falls due during a turn.
 - **The native modal.** M52's ordinary-window probe is rerun for the
-  one-shot's per-run popup: decline makes zero fetches, in Manual and in
-  Bypass.
+  one-shot's popup at scheduling: decline stores nothing and makes zero
+  fetches, in Manual and in Bypass. It is rerun for Run after a changed
+  binding, with the same result.
 - **Harness screenshots** at 690 px and 320 px. Scenarios:
-  - `prompt-library`, `prompt-library-edit`, `prompt-library-delete`
+  - `prompt-library`, `prompt-library-edit`, `prompt-library-delete`,
+    `prompt-library-damaged`
   - `sequence-running`
   - `history-bookmarks`, `header-bookmarked`
   - `schedule-send`, `schedule-due-once`, `schedule-due-musecode`
@@ -11465,16 +11813,26 @@ owns the same string files as in M87.
 - **Red drills:**
   - a step sent before its turn completes;
   - a damaged store overwritten;
+  - a key registered for sync with the setting off;
   - the one-shot fired twice;
   - a closed-window send sent at start;
-  - a Bypass run without the popup;
-  - a 429 not classified.
+  - a Bypass schedule without the popup;
+  - a confirmed send sent after its model changed;
+  - a due send claimed while its session was busy;
+  - a Muse Code job listed after the sign-in signature changed;
+  - a 429 not classified;
+  - a Muse Code network failure classified as usage-limited because a
+    window read 100 %;
+  - a `Retry-After` of 5 s giving a default the picker refuses;
+  - a bookmarked session deleted by retention.
 
 **Gates.**
 
-- **Accessibility.** The 11 scenarios in four themes, 44 pages, at zero.
-  The dialogs trap focus as `Modal` does, and the star toggles have names
-  and `aria-pressed`.
+- **Accessibility.** The 12 scenarios in four themes, 48 pages, at zero.
+  The dialogs trap focus as `Modal` does. The header's star is a toggle
+  with a name and `aria-pressed`; History's stars stay out of the
+  accessibility tree, as the archive control does, and each option carries
+  its bookmarked state and both shortcuts.
 - **Localization.** All keys in all 14 tables, with plural forms. The
   date-time picker's labels and the due times go through `Intl`.
 - **Bundle budgets (D6).** M88's allowance: webview +22 KiB, extension +14,
@@ -11489,11 +11847,14 @@ owns the same string files as in M87.
 
 **Docs.**
 
-- **`README.md`:** saved prompts and sequences, bookmarks, timed sends and
-  resume, with the closed-VS-Code rule and the per-backend confirmation.
+- **`README.md`:** saved prompts and sequences, bookmarks, the sync
+  setting, timed sends and resume, with the closed-VS-Code rule, the
+  per-backend confirmation, and the Muse Code sign-in rule (with its limit,
+  if lane C's record finds one).
 - **`docs/PRIVACY.md`:** where saved prompts, bookmarks and timed sends are
-  stored, that they are unencrypted and not synced, and that nothing runs
-  while VS Code is closed.
+  stored, that they are unencrypted, what the sync setting adds to Settings
+  Sync (and that "This workspace" prompts never sync), and that nothing
+  runs while VS Code is closed.
 - **`CHANGELOG.md`,** `CONTRIBUTING.md` (the scenarios), **`AGENTS.md`**
   (the layout for `src/host/prompts`, `src/host/schedules`,
   `src/core/limits.ts`), **`PLAN.md`** (status), and
@@ -11501,31 +11862,48 @@ owns the same string files as in M87.
 
 **Security and privacy.**
 
-- **Storage.** Saved prompts and bookmarks stay on this machine, in VS
-  Code's state database, unencrypted and never synced. They are never
-  logged: the log gets counts and ids.
+- **Storage.** Saved prompts and bookmarks live in VS Code's state
+  database, unencrypted. They leave the machine only through Settings Sync,
+  only while the user has turned on `museSpark.syncPromptsAndBookmarks` on
+  this computer, and "This workspace" prompts never do. Bookmarks store
+  workspace digests, never paths. Neither is logged: the log gets counts
+  and ids.
 - **The timed-send stores** hold the prompt text and, on the Model API, the
-  key's digest, never the key (M52).
-- **Every message** across the bridge is zod-validated.
+  key's digest, never the key (M52). Muse Code's hold the credential file's
+  signature (size and modification time), never an account or a value
+  from the file.
+- **Every message** across the bridge is zod-validated, and so is every
+  value read from state, synced or not.
 - **Sequences and timed sends** send as the user's own message, under the
-  session's permission mode. The start dialog names Auto and Bypass.
+  session's permission mode at that moment. The start and schedule dialogs
+  name Auto and Bypass.
 - **Money.** No path sends a Model API timed send or resume without the
-  scheduled-prompts gate and the D48 popup for that run. No path sends
-  anything while VS Code is closed or late on its own after it starts.
-  Muse Code's sends wait for Send now until §3 is answered.
+  scheduled-prompts gate and the D48 popup answered for that run, at
+  scheduling or at Run, and no confirmed send goes unless its prompt,
+  model, session, key digest and gate price still match. No path sends
+  anything while VS Code is closed, or late on its own after it starts.
+  Muse Code's timed sends bill only the subscription.
 
 **Certification checklist.**
 
 - [ ] §6.0's list on the integration branch's final tree.
 - [ ] Lane 0's keys present in all 14 tables.
 - [ ] Every red drill recorded.
-- [ ] The native modal decline recorded in Manual and in Bypass, with zero
-      fetches.
-- [ ] 44 accessibility pages at zero, and the screenshots viewed and
+- [ ] The native modal decline recorded in Manual and in Bypass, at
+      scheduling and at Run, with zero fetches and nothing stored.
+- [ ] The usage-limit capture recorded (its workspace, its counted
+      attempts, the frames the tests use), or its absence named in the
+      record and the README.
+- [ ] The credential-file signature check recorded (a day of ordinary use
+      with no sign-in), and the binding D67 chooses from it.
+- [ ] Alt+B checked against VS Code's default keymap on Windows, macOS and
+      Linux.
+- [ ] 48 accessibility pages at zero, and the screenshots viewed and
       filed.
 - [ ] The bundle deltas within the allowance, or D6 amended first.
 - [ ] `docs/PRIVACY.md` matches D67.
-- [ ] The §3 answers applied, or their defaults recorded as built.
+- [ ] The four M88 answers of 2026-10-03 in §3 applied as D67 states
+      them.
 - [ ] Hosted CI green on the milestone PR's exact head.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
