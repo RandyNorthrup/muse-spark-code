@@ -608,9 +608,11 @@ describe('createToolIo (real file system and shell)', () => {
       // PSModuleAnalysisCachePath, so on GitHub's runner hooks waited 20 s,
       // and over their 60 s test budget on a cold runner, before starting.
       // With auto-loading off, any such cmdlet fails here at once.
+      const logged = jobLog.length
       const assembly = await jobAssembly?.()
       if (assembly === undefined) {
-        throw new Error(`job helper missing: ${jobLog.join('\n')}`)
+        // Only this attempt's lines: an earlier attempt's would misname the cause.
+        throw new Error(`job helper missing: ${jobLog.slice(logged).join('\n')}`)
       }
       const report =
         "[Console]::Out.WriteLine(('{0} {1} {2}' -f ($null -ne ('MuseSparkJob' -as [type])), $Error.Count, [Console]::OutputEncoding.WebName))"

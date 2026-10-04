@@ -204,6 +204,34 @@ describe('shellJobAssembly (M27)', () => {
     expect(logged).toHaveLength(1)
   })
 
+  it('gives undefined, not a rejection, when preparation throws, and retries on the next call', async () => {
+    const storageDir = await storage('throwing-log')
+    const powershell = fakePowerShell()
+    const run = vi
+      .fn<RunProgram>(powershell.run)
+      .mockRejectedValueOnce(new Error('csc.exe temporarily unavailable'))
+    let isLogBroken = true
+    const ready = shellJobAssembly({
+      readJobSource,
+      storageDir,
+      systemRoot: String.raw`C:\Windows`,
+      log: () => {
+        if (isLogBroken) {
+          throw new Error('the log is closed')
+        }
+      },
+      run,
+    })
+    await expect(ready()).resolves.toBeUndefined()
+    isLogBroken = false
+    const assembly = path.join(
+      storageDir,
+      SHELL_JOB_FOLDER,
+      shellJobAssemblyName(await readJobSource('shellJob')),
+    )
+    await expect(ready()).resolves.toBe(assembly)
+  })
+
   it('retries a failed self-test without compiling an already published assembly again', async () => {
     const storageDir = await storage('self-test-recovery')
     const powershell = fakePowerShell()

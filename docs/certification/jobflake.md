@@ -119,3 +119,25 @@ The older `integrate/m72-on-24ff` branch is absent locally. No push is part
 of this task. Required Win11 and scoped gate receipts are recorded above;
 the commit uses normal hooks. No lane gate remains open. Aggregate
 certification and the pinned-dependency audit triage remain with the lead.
+
+## Review repairs (2026-10-03)
+
+A read-only Muse review of `7b4abd33` found:
+
+- **P2, a throwing preparation was still cached.** The clear ran only when
+  preparation resolved `undefined`; if it threw (a throwing logger in its
+  catch), the rejected promise stayed cached and every later command threw.
+  The attempt now catches, clears and resolves `undefined`. Test: "gives
+  undefined, not a rejection, when preparation throws, and retries on the next
+  call". Drill: the commit's version fails it.
+- **P2, no test proved commands run in their job.** New tests drive
+  `runShell` and `runHook` on `win32` with a blocked spawn and assert the
+  started script joins the job (`[MuseSparkJob]::Join(` and the assembly
+  path) when the helper is there, and starts without one when it is not.
+  Drill: making both paths pass no job fails both cases.
+- **P3, stale log lines in the test's failure message.** It now reports only
+  the lines this attempt logged.
+- **P3, a published but unloadable assembly is never rebuilt** (only its
+  self-test reruns). Left as a recorded limit: deleting it on a failed
+  self-test would also recompile on transient Constrained Language Mode
+  failures.
