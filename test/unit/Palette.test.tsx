@@ -166,6 +166,11 @@ describe('Palette (actions view)', () => {
     renderPalette({ groups: buildPalette({ ...context, skills: undefined }) })
     expect(screen.getByText('Start a conversation to load skills')).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /load skills/ })).toBeNull()
+    // A note carries no ARIA attribute, which would void its presentation role
+    // and leave the listbox a child it may not hold (axe, aria-required-children).
+    for (const note of document.querySelectorAll('.palette-item-disabled')) {
+      expect(note.getAttributeNames().filter((name) => name.startsWith('aria-'))).toEqual([])
+    }
   })
 })
 

@@ -1109,6 +1109,13 @@ body {
   cursor: pointer;
 }
 
+/* The toggle gives way before the chevron does: its summary ellipsizes, so
+   a long summary in a narrow panel never pushes the chevron under the row's
+   ⋯ (lane W's full a11y run, where wider fonts did). */
+.tool-toggle {
+  min-width: 0;
+}
+
 .tool-toggle:disabled {
   cursor: default;
 }
@@ -2353,7 +2360,10 @@ body {
   bottom: 2px;
 }
 
+/* The header is 100 % wide, so its room for the ⋯ is inside that width:
+   otherwise the chevron runs under the button (lane W's full a11y run). */
 .tool:has(> .row-actions) .tool-header {
+  box-sizing: border-box;
   padding-right: 32px;
 }
 

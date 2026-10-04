@@ -368,23 +368,20 @@ export function Palette(props: PaletteProps) {
             }
             case 'disabled': {
               return (
+                // A note, not an option: its tip is the pointer's title only.
+                // An ARIA attribute here would void the presentation role and
+                // leave the listbox a child it may not hold (lane W's full a11y run).
                 <li
                   key={entry.key}
                   role="presentation"
                   className="palette-item palette-item-disabled"
                   title={entry.item.tip}
-                  aria-describedby={entry.item.tip === undefined ? undefined : `${entry.key}-tip`}
                 >
                   <span className="palette-item-text">
                     <span className="palette-item-label">{entry.item.label}</span>
                   </span>
                   {entry.item.widget === undefined ? null : (
                     <Widget widget={entry.item.widget} onStep={undefined} />
-                  )}
-                  {entry.item.tip === undefined ? null : (
-                    <span id={`${entry.key}-tip`} className="sr-only" aria-hidden="true">
-                      {entry.item.tip}
-                    </span>
                   )}
                 </li>
               )

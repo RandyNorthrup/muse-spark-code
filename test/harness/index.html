@@ -1361,9 +1361,12 @@
               isEmpty: true,
             },
           })
+          // Two digits in the meter: axe leaves a single character's
+          // contrast undecided; the number's contrast is measured in
+          // docs/certification/m87-w-contrast.json.
           event({
             type: 'contextUsage',
-            usedTokens: 20_160,
+            usedTokens: 201_600,
             windowTokens: 1_007_997,
             pressure: 'low',
           })
