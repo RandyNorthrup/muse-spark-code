@@ -3635,6 +3635,28 @@ choices:
     reached the model.
   - Right-click on selected text keeps M17's quote menu.
 
+- **Gooey quote menu (item 17, the owner's request of 2026-10-03, evening).**
+  The right-click menu on selected transcript text (`QuoteMenu.tsx`: Copy,
+  Ask about this, Comment on this) becomes a gooey radial menu after Lucas
+  Bebber's "Gooey Menu" (CodePen LELBEo, MIT): the actions burst from the
+  pointer as round icon bubbles that merge through an SVG goo filter
+  (`feGaussianBlur` then an alpha-threshold `feColorMatrix`), written for
+  this panel rather than copied, with the pen credited in a code comment.
+  - **Theme, not the pen's colours:** bubbles use `--vscode-button-background`
+    / `--vscode-button-foreground` (hover and focus
+    `--vscode-button-hoverBackground` and the focus border), each pair
+    measured at capture against 4.5:1, so light, dark and high-contrast
+    themes all read.
+  - **Placement:** the fan opens away from the nearest panel edges so every
+    bubble stays inside the webview at 320 px.
+  - **Still a menu:** `role="menu"` / `menuitem`, each bubble's accessible name
+    its action, a visible label beside the focused or hovered bubble, Arrow
+    keys move, Home/End, Enter or Space picks, Escape closes and returns
+    focus; the existing actions and their behaviour are unchanged.
+  - **Reduced motion and forced colours:** under `prefers-reduced-motion` the
+    bubbles appear in place without the burst or the goo; under
+    `forced-colors` the filter is off and the bubbles are bordered buttons.
+
 ### D67 — Saved prompts, bookmarks and timed sends (M88)
 
 Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
@@ -11212,6 +11234,7 @@ and returned green. Full M87 certification remains the lead's work.
 | C Transcript and backends | 3, 9, 12 | `Transcript.tsx`, the new `src/webview/stepSummary.ts`, `src/webview/state/transcriptEntries.ts`, `uiState.ts`, `snapshot.ts`, `src/shared/l10n/text.ts`, `src/core/backends/musecode/mapNotification.ts`, `MuseCodeHost.ts`, `src/core/backends/modelapi/ModelApiHost.ts`, `sessionStore.ts`, `test/e2e/fake-muse/serve.mjs`; tests `Transcript.test.tsx`, `uiState.test.ts`, `snapshot.test.ts`, `sessionStore.test.ts`, `MuseCodeHost.test.ts`, the Model API host tests, `l10n.test.ts`, the new `stepSummary.test.ts`, `helpers/transcriptFixtures.tsx`, the new `helpers/m87Capture.ts` | Styles: `.steps*`, and the user and assistant message block. Harness: after `focus`.                                                                                                                | After lane P |
 | D Tasks                   | 5, 6     | `TodoPanel.tsx`, the new `src/webview/TasksApp.tsx`, `src/webview/main.tsx`, the new `src/shared/tasksProtocol.ts`, the new `src/host/views/tasksPanel.ts`, `src/host/html.ts`, `src/extension.ts`, `package.json`, `package.nls.json` and the 14 `package.nls.<lang>.json`, `docs/ide-compatibility/host-api.md` (regenerated); tests `cards.test.tsx` (its `TodoPanel` cases), `html.test.ts`, the new `tasksPanel.test.ts` and `TasksApp.test.tsx`                                                                                                                                         | Constants: the view type and command id beside `CHAT_PANEL_VIEW_TYPE`. Styles: `.todo*`. Harness: after `todo`.                                                                                     | After lane P |
 | E Diff tally              | 10       | the new `src/webview/diffTally.ts` and `DiffTally.tsx`; the new tests `diffTally.test.ts` and `DiffTally.test.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Styles: a new block just before the goal pane's. Harness: after `goal`.                                                                                                                             | After lane 0 |
+| F Gooey quote menu        | 17       | `src/webview/components/QuoteMenu.tsx`, the new `src/webview/gooeyLayout.ts`; tests `QuoteMenu.test.tsx` and the new `gooeyLayout.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Styles: the quote menu's existing block. Harness: after the quote-menu scenario (or a new `quote-menu` scenario after `transcript`).                                                                | After lane 0 |
 | W Wiring and join         | all      | `src/webview/App.tsx`, `test/unit/App.test.tsx`, `test/harness/themes/*.json` (recaptured), `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `AGENTS.md`, `PLAN.md`, `docs/certification/m87.md`                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                                                                   | Last         |
 
 **Lane 0's strings** (English; each key also goes in all 14 tables):
