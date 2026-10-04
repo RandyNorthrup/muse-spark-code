@@ -1524,7 +1524,7 @@
   "autoReviewerUnreadable": "无法读取自动审查器的回答，因此由您决定。",
   "autoReviewerPaused": "由于多次拒绝或失败，自动审查器已暂停至您的下一条消息，因此由您决定。",
   "autoReviewerTripped": "由于多次拒绝或失败，自动审查器已停止。在您发送下一条消息之前，每个有风险的操作都会询问您。",
-  "museCodeReviewerNotice": "在自动模式下，Muse Code 请求批准的每个操作现在都会先由审查器检查，然后才显示给您：每次审查使用您订阅中的一次简短 Muse Code 轮次。它可能允许该操作一次；否则会附上理由询问您。可通过 museSpark.museCodeAutoReviewer 关闭。",
+  "museCodeReviewerNotice": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。 可通过 museSpark.museCodeAutoReviewer 关闭。",
   "paidAutoReviewerName": "自动审查器",
   "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
   "paidUseAutoReviewerTitle": "让自动审查器评判此 {tool} 调用吗？",

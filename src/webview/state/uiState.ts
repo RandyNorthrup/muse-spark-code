@@ -26,6 +26,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
   PARTIAL_EDIT_TOOLS,
+  PENDING_APPROVAL_RESOLUTIONS_MAX,
   type PermissionMode,
   type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
@@ -154,6 +155,8 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  /** Newest resolutions whose tool rows have not arrived yet; never saved. */
+  readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
   readonly isSideChat: boolean
   readonly emptyStateHint: string
@@ -384,6 +387,7 @@ export type UiAction =
   | { readonly type: 'shareClosed' }
 
 export const initialUiState: UiState = {
+  pendingApprovalResolutions: [],
   phase: 'connecting',
   isSideChat: false,
   emptyStateHint: '',
@@ -1493,7 +1497,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'itemStarted':
     case 'itemUpdated':
     case 'itemCompleted': {
-      return applyItem(state, event.item, at)
+      const next = applyItem(state, event.item, at)
+      const resolution = state.pendingApprovalResolutions.find(
+        (pending) => pending.itemId === event.item.itemId,
+      )
+      return resolution === undefined ? next : applyAgentEvent(next, resolution, at)
     }
     case 'textDelta': {
       const childId = own(state.childOwners, event.itemId)
@@ -1657,8 +1665,18 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       }
     }
     case 'approvalResolved': {
+      const pending = state.pendingApprovalResolutions.filter(
+        (resolution) => resolution.itemId !== event.itemId,
+      )
+      if (findEntry(state.transcript, event.itemId) === undefined) {
+        return {
+          ...state,
+          pendingApprovalResolutions: [...pending, event].slice(-PENDING_APPROVAL_RESOLUTIONS_MAX),
+        }
+      }
       return {
         ...state,
+        pendingApprovalResolutions: pending,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>
           entry.kind === 'tool'
             ? {
@@ -1830,6 +1848,7 @@ export function planReplyIdOf(state: UiState): string | undefined {
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
     pendingGoalCommand: undefined,

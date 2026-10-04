@@ -431,13 +431,13 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands |
-| **Edit automatically** | Approves plain file edits, asks before commands                                                     | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                            |
-| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                    |
-| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs commands it classifies as simple; [the reviewer](#the-auto-reviewer-on-muse-code) checks the rest   |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                       |
+| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands      |
+| **Edit automatically** | Approves plain file edits, asks before commands                                                     | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                 |
+| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                         |
+| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                            |
 
 Until 0.11.0 the Modes menu said Auto on Muse Code approves "actions that
 pass a safety check". It did not: `muse serve` has no approval judge (the
@@ -448,16 +448,16 @@ asked (PLAN.md D69). The menu now says what each mode does on each backend.
 ### The Auto reviewer on Muse Code
 
 In Auto on the Muse Code backend, an approval Muse Code raises for the
-running turn goes to a reviewer before it reaches you. The reviewer is the
+running turn that no rule settles may go to a reviewer before it reaches you. The reviewer is the
 Model API backend's Auto reviewer (its instructions, its input and its
 strict answer), run as one short turn of a hidden side session in the same
 `muse serve`, on your Muse subscription: Plan mode, thinking off, the
 conversation's model, in an empty folder of the extension's own, so it reads
-none of your files and is never listed in History. It answers ALLOW or ASK
+none of your workspace files, rules or skills in the captured setup and is never listed in History. CLI-global context is not excluded. It answers ALLOW or ASK
 with a reason:
 
 - **ALLOW**: the approval is answered _Allow once_ (never an "always"
-  choice), for each command of the line it read. The tool row says
+  choice), for each stage while its subject and user request stay the same. The tool row says
   "Decided: approved (Auto reviewer)" with the reviewer's reason.
 - **ASK**, an answer it cannot read, no answer within 45 seconds, an error,
   or a side session still busy: the card asks you as before, with the
@@ -466,13 +466,26 @@ with a reason:
 After three declines or failures in a row, or ten of the last fifty, it
 stops until your next message. It is never asked about anything the
 extension's own rules answer, a protected write, a paid call, a child
-task, a question, or a request in Manual, Edit automatically, Plan or
-Bypass, or one replayed to a second panel. One review runs at a time in a
+task, a question, an escalated or unknown subject, an approval without
+an allow-once choice, or a request in Manual, Edit automatically, Plan or
+Bypass, or one replayed to a second panel. Two panels sharing the session
+also go straight to cards. One review runs at a time in a
 window. The first review in a window says so in a notice. Each review is
 one short Muse Code turn: the live check counted four model attempts
 (the reply and three of Muse Code's own reminder agents) and about 33,000
 input tokens, most of them Muse Code's own instructions. Turn it off with
 `museSpark.museCodeAutoReviewer`.
+
+Plan mode does not disable Muse Code's native tools: the SDK's
+`SessionConfig` only configures `mcpServers`. Any item other than an agent
+message or reasoning cancels the review turn, shows the card with the
+generic failure reason, and recreates the side session. A command covered
+by your always-allow rule could run in the empty folder before the cancel
+lands. The verdict text itself is never executed. A changed subject or an
+accepted new message or steer invalidates the old verdict. The side session
+is also recreated after host exit/restart, closure, timeout or busy fallback,
+a model change, and ten reviews. Only a completed reply in a successfully
+completed turn can allow an action; the 45-second deadline includes setup.
 
 A Manual approval still needs your answer if you open the conversation
 in another panel set to Edit automatically. Joining a conversation never

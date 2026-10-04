@@ -10,28 +10,41 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
-  Muse Code backend, an approval Muse Code raises for the running turn goes
+  Muse Code backend, an eligible approval Muse Code raises for the running
+  turn that no rule settles goes
   to a reviewer before it reaches you: the Model API backend's Auto
   reviewer (its instructions, its input marked as data, its strict
   ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
   session in the same `muse serve`, on your Muse subscription. The side
   session runs in Plan mode with thinking off, on the conversation's model,
   in an empty folder under the extension's global storage, so it reads none
-  of your files and History never lists it; it is started again after Muse
-  Code restarts or closes it, for another model, and every ten reviews. On
+  of your workspace files, rules or skills in the captured setup (CLI-global
+  context is not excluded) and History never lists it; it is started again
+  after Muse Code exits, restarts or closes it, after a timeout, busy fallback
+  or tool activity, for another model, and every ten reviews. Native tools
+  cannot be disabled through the SDK: any item other than an agent message
+  or reasoning cancels the review and shows the generic failure card. A
+  command covered by an always-allow rule could run in the empty folder
+  before cancellation lands. On
   ALLOW the approval is answered *Allow once* (never an "always" choice) for
-  each command of the line, and the tool row says "Decided: approved (Auto
+  each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
   the card asks you as before, with the reason on it when there is one. It
   never answers a protected write, a paid call, a child task, a question,
-  a replayed card, or anything in another mode; one review runs at a time
+  a replayed or escalated request, an unknown subject, a request without
+  allow-once, a session shared by panels, or anything in another mode;
+  one review runs at a time
   in a window. On by default with the machine-scoped
   `museSpark.museCodeAutoReviewer`; the window's first review says what it
   does and costs (one short Muse Code turn: four model attempts in the live
-  check). It loads on the first review from `dist/museCodeReviewer.js`
-  (45.4 KiB, budget 75 KiB); `dist/extension.js` grows 3.6 KiB to
-  580.4 KiB.
+  check). Changed subjects, accepted messages and steering invalidate old
+  verdicts; queued jobs recheck the breaker, setup shares the 45-second
+  deadline and cancellation, and only a completed reply in a completed
+  turn may allow. Attribution survives resolution before the tool row
+  (the newest 50 unseen item ids). It loads on the first review from
+  `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
+  remains within 600 KiB.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file

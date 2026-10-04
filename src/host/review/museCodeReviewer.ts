@@ -7,10 +7,13 @@
 // run as one turn of a hidden side session in the same `muse serve`, on the
 // user's subscription.
 //
-// The side session runs in Plan mode (`denyUnmatched`: nothing it might call
-// runs), thinking off, on the conversation's model, in an empty folder of
+// The side session runs in Plan mode (`denyUnmatched`), thinking off, on
+// the conversation's model, in an empty folder of
 // the extension's own outside every workspace, so History never lists it
-// and it reads none of the user's rules, skills or files. It is started on
+// and is not given workspace files, rules or skills. Plan can still apply
+// always-allow rules: any item other than message/reasoning cancels the
+// review and leaves the card, but an allowed command may run before cancel.
+// It is started on
 // the first review, and again after Muse Code restarts or closes it, for
 // another model, and after MUSE_CODE_REVIEWER_TURNS_PER_SESSION reviews
 // (each review is history the next one reads). One review at a time per
@@ -21,7 +24,7 @@
 // approval once. An ASK, a reply that cannot be read, no reply within
 // MUSE_CODE_REVIEW_TIMEOUT_MS, a failure, a side session still busy with an
 // earlier turn, and a tripped breaker all leave the approval to the user.
-// Nothing the reviewer says is run. What follows a review (the allow-once
+// The verdict text is never executed. What follows a review (the allow-once
 // answer, the card and its note) is reviewedApprovals.ts.
 
 import { mkdir } from 'node:fs/promises'
@@ -35,7 +38,7 @@ import {
 } from '../../core/backends/modelapi/autoReviewer'
 import { FifoLimiter } from '../../core/fifoLimiter'
 import type { CoreLogger } from '../../core/logging'
-import { withDeadline } from '../../core/timeouts'
+import { unlessAborted, withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
   MODEL_TEXT,
@@ -105,8 +108,15 @@ interface SideSession {
 }
 
 const AGENT_MESSAGE = 'agentMessage'
+const REASONING = 'reasoning'
+const COMPLETED = 'completed'
 const STARTED_DISPOSITION = 'started'
 const PLAN_MODE = 'plan'
+
+interface SlotReview {
+  readonly answer: ReviewAnswer | 'failed' | 'unreadable' | 'paused'
+  readonly hasTripped: boolean
+}
 
 function remaining(deadline: number): number {
   return Math.max(0, deadline - Date.now())
@@ -130,10 +140,29 @@ export class MuseCodeReviewer {
     if (breaker.isTripped) {
       return { decision: 'ask', cause: 'paused', reason: undefined, hasTripped: false }
     }
-    let answer: ReviewAnswer | 'failed' | 'unreadable'
+    let reviewed: SlotReview
     try {
-      answer = await this.slots.run(
-        () => this.ask(job),
+      reviewed = await this.slots.run<SlotReview>(
+        async () => {
+          if (breaker.isTripped) {
+            return { answer: 'paused', hasTripped: false }
+          }
+          let result: ReviewAnswer | 'failed' | 'unreadable'
+          try {
+            result = await this.ask(job)
+          } catch (error: unknown) {
+            this.deps.log.warn(
+              `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
+            )
+            result = 'failed'
+          }
+          return {
+            answer: result,
+            hasTripped:
+              !job.signal.aborted &&
+              breaker.record(typeof result !== 'string' && result.decision === 'allow'),
+          }
+        },
         () => !job.signal.aborted && !this.isDisposed,
         () => new Error('the approval no longer waits on its review'),
       )
@@ -143,14 +172,13 @@ export class MuseCodeReviewer {
           `The Auto reviewer could not review; the user decides: ${this.deps.describeFailure(error)}`,
         )
       }
-      answer = 'failed'
+      reviewed = { answer: 'failed', hasTripped: false }
     }
     if (job.signal.aborted) {
       // Nobody waits on it any more: it counts for nothing.
       return { decision: 'ask', cause: 'failed', reason: undefined, hasTripped: false }
     }
-    const isAllowed = typeof answer !== 'string' && answer.decision === 'allow'
-    const hasTripped = breaker.record(isAllowed)
+    const { answer, hasTripped } = reviewed
     if (hasTripped) {
       this.deps.log.warn('The Auto reviewer stopped until the next message: its breaker tripped')
     }
@@ -162,11 +190,19 @@ export class MuseCodeReviewer {
       : { decision: 'ask', cause: 'declined', reason: answer.reason, hasTripped }
   }
 
+  /** Re-read mutable cancellation/window state after every startup await. */
+  private isWanted(job: MuseCodeReviewJob, deadline: number): boolean {
+    return !job.signal.aborted && !this.isDisposed && remaining(deadline) > 0
+  }
+
   /** One review in its slot: the side session, the turn and its reply's first line. */
   private async ask(job: MuseCodeReviewJob): Promise<ReviewAnswer | 'failed' | 'unreadable'> {
     const deadline = Date.now() + this.timeoutMs
     const side = await this.sideFor(job, deadline)
-    if (side === undefined) {
+    if (side === undefined || !this.isWanted(job, deadline)) {
+      if (side !== undefined) {
+        this.drop(side, 'the approval stopped waiting')
+      }
       return 'failed'
     }
     const text = fill(MODEL_TEXT.museCodeReviewerTurn, {
@@ -194,7 +230,13 @@ export class MuseCodeReviewer {
     const { turnId } = submission
     const reply = await this.until(
       side,
-      () => side.replies.get(turnId) ?? (side.endings.has(turnId) ? null : undefined),
+      () => {
+        const ending = side.endings.get(turnId)
+        if (ending === undefined) {
+          return
+        }
+        return ending === COMPLETED ? (side.replies.get(turnId) ?? null) : null
+      },
       deadline,
       job.signal,
     )
@@ -269,8 +311,11 @@ export class MuseCodeReviewer {
       : undefined
   }
 
-  private async start(job: MuseCodeReviewJob, deadline: number): Promise<SideSession> {
+  private async start(job: MuseCodeReviewJob, deadline: number): Promise<SideSession | undefined> {
     await mkdir(this.deps.root, { recursive: true })
+    if (!this.isWanted(job, deadline)) {
+      return undefined
+    }
     const starting = job.host.startSession({
       workspaceRoot: this.deps.root,
       modelId: job.modelId,
@@ -332,16 +377,26 @@ export class MuseCodeReviewer {
       }),
     )
     this.side = side
-    if (this.isDisposed) {
-      this.drop(side, 'the window closed')
-      throw new Error('the window closed')
+    if (!this.isWanted(job, deadline)) {
+      this.drop(side, 'the approval stopped waiting')
+      return undefined
     }
     try {
-      await session.setReasoningEffort(THINKING_OFF_EFFORT)
-    } catch (error: unknown) {
-      this.deps.log.info(
-        `The Auto reviewer's side session keeps its thinking on: ${this.deps.describeFailure(error)}`,
+      await unlessAborted(
+        withDeadline(
+          session.setReasoningEffort(THINKING_OFF_EFFORT),
+          remaining(deadline),
+          'the review effort was not set in time',
+        ),
+        job.signal,
       )
+    } catch (error: unknown) {
+      this.drop(side, 'its reasoning effort could not be set')
+      throw error
+    }
+    if (!this.isWanted(job, deadline) || this.staleReason(side, job) !== undefined) {
+      this.drop(side, 'the approval stopped waiting')
+      return undefined
     }
     this.deps.log.info(
       `The Auto reviewer's side session ${session.sessionId} started on ${job.modelId}`,
@@ -350,6 +405,16 @@ export class MuseCodeReviewer {
   }
 
   private hear(side: SideSession, event: AgentEvent): void {
+    if (
+      ['itemStarted', 'itemUpdated', 'itemCompleted'].includes(event.type) &&
+      'item' in event &&
+      event.item.kind !== AGENT_MESSAGE &&
+      event.item.kind !== REASONING
+    ) {
+      this.drop(side, 'its review used a tool', true)
+      side.isGone = true
+      return
+    }
     if (event.type === 'turnCompleted') {
       side.endings.set(event.turnId, event.terminal)
       return
@@ -357,6 +422,7 @@ export class MuseCodeReviewer {
     if (
       event.type === 'itemCompleted' &&
       event.item.kind === AGENT_MESSAGE &&
+      event.item.status === COMPLETED &&
       event.item.turnId !== undefined &&
       !side.replies.has(event.item.turnId)
     ) {
@@ -387,8 +453,12 @@ export class MuseCodeReviewer {
         resolve(value)
       }
       const look = () => {
+        if (side.isGone) {
+          finish(undefined)
+          return
+        }
         const found = check()
-        if (found !== undefined || side.isGone) {
+        if (found !== undefined) {
           finish(found)
         }
       }

@@ -2863,6 +2863,8 @@ export const AUTO_REVIEWER_TIMEOUT_MS = 60_000
 export const AUTO_REVIEWER_MAX_OUTPUT_TOKENS = 2048
 export const AUTO_REVIEWER_BREAKER_CONSECUTIVE = 3
 export const AUTO_REVIEWER_BREAKER_WINDOW = 50
+/** Resolutions that arrived before their tool rows (M90). */
+export const PENDING_APPROVAL_RESOLUTIONS_MAX = 50
 export const AUTO_REVIEWER_BREAKER_WINDOW_LIMIT = 10
 // What the reviewer is shown: the user's latest message and the action,
 // each cut to this many characters, and this many of the turn's earlier

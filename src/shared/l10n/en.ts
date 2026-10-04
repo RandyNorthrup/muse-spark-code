@@ -1998,7 +1998,7 @@ export const EN = {
     'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
   // The window's first review on Muse Code (M90, PLAN.md D69).
   museCodeReviewerNotice:
-    'In Auto, a reviewer now checks each action Muse Code asks about before you see it: one short Muse Code turn on your subscription per review. It may allow the action once; otherwise it asks you, with its reason. Turn it off with museSpark.museCodeAutoReviewer.',
+    'On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.',
   // The paid feature (D48): its name, confirmation, popup and tally.
   paidAutoReviewerName: 'Auto reviewer',
   paidConfirmAutoReviewer:

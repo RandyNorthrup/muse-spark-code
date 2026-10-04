@@ -3999,7 +3999,7 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   reuses M78's reviewer core (`autoReviewer.ts`: `reviewerInput`,
   `parseReviewerAnswer`, `ReviewBreaker`) and its rubric, and runs on the
   user's Muse subscription: a hidden side session in the same `muse serve`
-  (Plan mode, so it has no tools; the conversation's model; never listed in
+  (Plan mode in an empty folder; the conversation's model; never listed in
   History), one short turn per review. It answers ALLOW or ASK with a reason.
 - **Its reach.** It can turn an ask into an allow, nothing else. A decline, an
   unreadable answer, a timeout (`MUSE_CODE_REVIEW_TIMEOUT_MS`), an error, a
@@ -4007,6 +4007,20 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   user, as today. It never answers a file write the extension's own rules
   protect, a paid call, a child task or a question that is not an approval.
   One review at a time per window.
+- **Tool boundary.** Muse Code's SDK `SessionConfig` only configures
+  `mcpServers`; it cannot disable native tools. Any side-turn item other
+  than an agent message or reasoning cancels the turn, shows the normal
+  card with the generic failure reason, and recreates the side session.
+  Residual: a command covered by the user's always-allow rule could run in
+  the empty folder before cancellation lands. The captured setup supplied
+  no workspace files, rules or skills; CLI-global context is not excluded.
+- **Verdict boundary (review fixes, 2026-10-03).** Changed kind, command,
+  path, host or tool name invalidates both a held review and a later-stage
+  allowance. Accepted messages and steering release held reviews and clear
+  allowances. Queue admission rechecks the breaker; reasoning setup shares
+  the deadline and cancellation. Only a completed reply in a completed
+  turn carries a verdict. Unseen tool resolutions retain attribution for
+  the newest 50 item ids until their rows arrive.
 - **Shown, not hidden.** An approval the reviewer allowed shows in the
   transcript as allowed by the reviewer, with its reason; an ASK shows the
   reason on the card the user answers.
@@ -12693,9 +12707,10 @@ empty folder under the extension's global storage, outside every
 workspace, so `session/list` for the workspace never returns it (captured
 live) and the controller filters its id as well.
 
-- **Goal.** Auto on the Muse Code backend asks the user only about requests a
-  reviewer judged worth asking about, and every mode says truthfully what it
-  does on each backend.
+- **Goal.** Auto on Muse Code may answer eligible unsettled approvals for
+  the running turn once after a successful review. Exclusions and every
+  failure path retain the normal card; each mode describes its backend
+  truthfully.
 - **Depends on.** PR #89 (M78's reviewer core) on main.
 - **Scope.** The side-session reviewer, its setting and notice, the transcript
   row and card reason, the per-backend mode descriptions, strings in all 14
@@ -12708,11 +12723,16 @@ live) and the controller filters its id as well.
      leave the card to the user (with the reason when there is one).
   3. Manual, Edit automatically, Plan and Bypass never consult the reviewer;
      the setting off disables it.
-  4. The side session is never listed, has no tools, uses the conversation's
-     model, and is recreated after a Muse Code restart.
+  4. The side session is never listed, runs in Plan mode in an empty folder,
+     uses the conversation's model, and is recreated after a Muse Code
+     restart or exit, timeout, busy fallback or tool activity. Any item
+     other than an agent message or reasoning cancels its turn and shows
+     the failure card. A command covered by an always-allow rule could run
+     in that empty folder before the cancel lands; native tools cannot be
+     disabled through the SDK's `SessionConfig`.
   5. The reviewer is shown the user's latest message, the turn's earlier
-     calls and the request, all marked as data (M78's input), and nothing it
-     says is executed.
+     calls and the request, all marked as data (M78's input), and its
+     verdict text is never executed.
   6. Mode descriptions match the investigation above on both backends.
 - **Tests.** Unit tests against the fake CLI for every acceptance item, each
   guard with a red drill; one live check on the contributor model in an empty
@@ -13035,6 +13055,19 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**M90FIX scoped deferral (2026-10-04).** `npx jscpd` remains red on two
+pre-existing clones in the opt-in live drills: `live.e2e.test.ts` lines
+36–69 versus `reviewer.live.e2e.test.ts` lines 55–87, and lines 79–89
+versus 118–128. Both files match the supplied HEAD `d2da0193` byte-for-byte
+(Git blobs `5508528e66eeb34e4b8f79372b1f18d2cea9d608` and
+`2eca291e508b00824f335704ef27731277b37fcd`). Six new unit-test clone
+reports were removed by sharing assertions and using the existing
+`allowOnce` helper; the remaining result is two clones, 43 duplicate
+lines, 244 duplicate tokens. Threshold remains zero, with no new ignore
+or suppression. The lane forbids live calls and unrelated refactors, so
+the lead must reconcile those live fixtures and rerun this gate before
+certification. This is a recorded deferral, not a passing duplication gate.
 
 **MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
 build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,

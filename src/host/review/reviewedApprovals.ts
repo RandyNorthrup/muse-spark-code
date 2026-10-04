@@ -21,7 +21,7 @@ import {
 import { allowOnceChoice } from '../../core/agent/approvalRules'
 import type { ReviewBreaker, ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { CoreLogger } from '../../core/logging'
-import type { AgentEvent } from '../../shared/agentEvents'
+import type { AgentEvent, ApprovalSubject } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { MuseCodeReviewJob, MuseCodeReviewOutcome } from './museCodeReviewer'
@@ -66,6 +66,17 @@ interface Allowance {
 }
 
 const APPROVED_DECISION = 'approved'
+
+/** A verdict covers this action, not a replacement subject or tool. */
+function isSameSubject(left: ApprovalSubject, right: ApprovalSubject): boolean {
+  return (
+    left.kind === right.kind &&
+    left.command === right.command &&
+    left.path === right.path &&
+    left.host === right.host &&
+    left.toolName === right.toolName
+  )
+}
 
 /** What the card says when the review left the approval to the user (M78's words). */
 function reviewNote(outcome: Extract<MuseCodeReviewOutcome, { decision: 'ask' }>): string {
@@ -200,7 +211,13 @@ export class ReviewedApprovals {
     }
     const held = this.held.get(event.approvalId)
     if (held !== undefined) {
+      const isSame = isSameSubject(held.event.subject, event.subject)
       held.event = { ...held.event, ...stage }
+      if (!isSame) {
+        held.stop.abort()
+        this.held.delete(event.approvalId)
+        this.deps.showCard(held.event, undefined)
+      }
       return true
     }
     const allowance = this.allowed.get(event.approvalId)
@@ -208,7 +225,7 @@ export class ReviewedApprovals {
       return false
     }
     const next = { ...allowance.event, ...stage }
-    if (event.subject.command !== allowance.event.subject.command || !this.deps.mayAllow(next)) {
+    if (!isSameSubject(allowance.event.subject, next.subject) || !this.deps.mayAllow(next)) {
       this.allowed.delete(event.approvalId)
       this.deps.showCard(next, undefined)
       return true
@@ -242,6 +259,8 @@ export class ReviewedApprovals {
 
   /** The user sent a message: the reviewer may answer again. */
   public reset(): void {
+    this.release()
+    this.allowed.clear()
     this.breaker.reset()
   }
 

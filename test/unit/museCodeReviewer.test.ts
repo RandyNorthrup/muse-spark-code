@@ -193,7 +193,7 @@ async function reviewTurn(handle: FakeHostHandle, index: number) {
   return { sessionId: String(params['sessionId']), turnId: `rt-${String(index)}`, text }
 }
 
-/** Muse Code answers a review turn as captured: the reply, a reminder, the turn's end. */
+/** The captured reply and turn end; reminder activity is tested as a failure below. */
 function answer(
   handle: FakeHostHandle,
   turn: { readonly sessionId: string; readonly turnId: string },
@@ -203,7 +203,6 @@ function answer(
   for (const frame of reviewReplyFrames(turn.sessionId, turn.turnId, text)) {
     handle.server.notify(frame.method, frame.params)
   }
-  handle.server.notify('item/completed', reminderChildFrame(turn.sessionId, turn.turnId))
   if (options.isEnded !== false) {
     handle.server.notify('turn/completed', reviewTurnCompleted(turn.sessionId, turn.turnId))
   }
@@ -223,7 +222,214 @@ async function allowOnce(
   })
 }
 
+/** A failed review has exactly one failure card and no automatic decision. */
+async function expectFailure(t: Rig): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.cards).toEqual([[expect.anything(), UI_TEXT.autoReviewerFailed]])
+  })
+  expect(t.conversation.decideApproval).not.toHaveBeenCalled()
+}
+
+/** An open breaker leaves every waiting approval to its card. */
+async function expectPaused(t: Rig): Promise<void> {
+  await vi.waitFor(() => {
+    expect(t.cards).toHaveLength(4)
+  })
+  expect(t.cards.at(-1)?.[1]).toBe(UI_TEXT.autoReviewerPaused)
+  expect(t.handle.server.requestsFor('turn/start')).toHaveLength(3)
+  expect(t.conversation.decideApproval).not.toHaveBeenCalled()
+}
+
 describe('the Auto reviewer on Muse Code (M90)', () => {
+  it.each(['kind', 'command', 'path', 'host', 'toolName'] as const)(
+    'drops held and allowed verdicts when subject %s changes',
+    async (field) => {
+      const held = setup()
+      held.hold()
+      const turn = await reviewTurn(held.handle, 1)
+      const update = stageUpdate(1)
+      const changed = { ...update, subject: { ...update.subject, [field]: 'changed' } }
+      expect(held.approvals.updated(changed)).toBe(true)
+      expect(held.cards).toEqual([
+        [expect.objectContaining({ subject: changed.subject }), undefined],
+      ])
+      answer(held.handle, turn, CAPTURED_REPLY)
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(held.cards).toHaveLength(1)
+      expect(held.conversation.decideApproval).not.toHaveBeenCalled()
+      const allowed = setup()
+      await allowOnce(allowed)
+      expect(allowed.approvals.updated(changed)).toBe(true)
+      expect(allowed.cards).toHaveLength(1)
+      expect(allowed.conversation.decideApproval).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('rechecks mayAllow before answering a later stage', async () => {
+    const t = setup()
+    await allowOnce(t)
+    t.mayAllow.value = false
+    t.approvals.updated(stageUpdate(1))
+    expect(t.cards).toEqual([[expect.anything(), undefined]])
+    expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
+  })
+
+  it('shows a later stage without allow_once as a card', async () => {
+    const t = setup()
+    await allowOnce(t)
+    t.approvals.updated({ ...stageUpdate(1), availableChoices: [] })
+    expect(t.cards).toEqual([[expect.anything(), undefined]])
+    expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
+  })
+
+  it('gives a denied resolution no Allowed reason despite an allowance', async () => {
+    const t = setup()
+    await allowOnce(t)
+    expect(
+      t.approvals.resolved({
+        type: 'approvalResolved',
+        approvalId: RACE_APPROVAL_ID,
+        itemId: RACE_APPROVAL_ID,
+        decision: 'denied',
+        resolvedBy: 'user',
+      }),
+    ).toBeUndefined()
+  })
+
+  it('a new accepted message releases held reviews and drops old allowances', async () => {
+    const t = setup()
+    await allowOnce(t)
+    t.hold(shellRequest('a2'))
+    const turn = await reviewTurn(t.handle, 2)
+    t.approvals.reset()
+    expect(t.cards).toHaveLength(1)
+    expect(t.approvals.updated(stageUpdate(1))).toBe(false)
+    answer(t.handle, turn, CAPTURED_REPLY)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(t.cards).toHaveLength(1)
+    expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
+  })
+
+  it('rechecks a breaker opened while reviews waited in the queue', async () => {
+    const t = setup()
+    for (const index of [1, 2, 3, 4]) t.hold(shellRequest(`a${String(index)}`))
+    for (const index of [1, 2, 3]) {
+      answer(t.handle, await reviewTurn(t.handle, index), 'ASK: not sure')
+      await vi.waitFor(() => {
+        expect(t.cards.length).toBeGreaterThanOrEqual(index)
+      })
+    }
+    await expectPaused(t)
+  })
+
+  it('three timeouts trip the breaker without another side turn', async () => {
+    const t = setup({ timeoutMs: SHORT_TIMEOUT_MS })
+    for (const index of [1, 2, 3]) {
+      t.hold(shellRequest(`a${String(index)}`))
+      await vi.waitFor(() => {
+        expect(t.cards).toHaveLength(index)
+      })
+    }
+    t.hold(shellRequest('a4'))
+    await expectPaused(t)
+  })
+
+  it('fails fast for a non-started review turn', async () => {
+    const t = setup()
+    t.handle.server.handle('turn/start', (params) => ({
+      ...reviewTurnStarted(params['commandId'], 'rt-1'),
+      disposition: 'completed',
+    }))
+    t.hold()
+    await expectFailure(t)
+  })
+
+  it.each(['deadline', 'release'] as const)(
+    'sends no side turn after effort setup %s',
+    async (cause) => {
+      const t = setup({ timeoutMs: cause === 'release' ? 5000 : SHORT_TIMEOUT_MS })
+      t.handle.server.silence('session/setReasoningEffort')
+      t.hold()
+      await vi.waitFor(() => {
+        expect(t.handle.server.requestsFor('session/setReasoningEffort')).toHaveLength(1)
+      })
+      if (cause === 'release') t.approvals.release()
+      await vi.waitFor(() => {
+        expect(t.cards).toHaveLength(1)
+      })
+      await vi.waitFor(() => {
+        expect(t.handle.server.requestsFor('task/stopAll')).toHaveLength(1)
+      })
+      const effort = t.handle.server.requestsFor('session/setReasoningEffort')[0]
+      t.handle.server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: effort?.id,
+          result: { commandId: effort?.params?.['commandId'], status: 'accepted' },
+        })}\n`,
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(t.handle.server.requestsFor('turn/start')).toHaveLength(0)
+      expect(t.cards[0]?.[1]).toBe(cause === 'deadline' ? UI_TEXT.autoReviewerFailed : undefined)
+    },
+  )
+
+  it.each(['failed', 'cancelled', 'rejected', 'timedOut'] as const)(
+    'never accepts ALLOW from a %s reply item',
+    async (status) => {
+      const t = setup()
+      t.hold()
+      const turn = await reviewTurn(t.handle, 1)
+      for (const frame of reviewReplyFrames(turn.sessionId, turn.turnId, CAPTURED_REPLY)) {
+        const item = frame.params['item']
+        const replacement = typeof item === 'object' && item !== null ? { ...item, status } : item
+        t.handle.server.notify(
+          frame.method,
+          frame.method === 'item/completed'
+            ? {
+                ...frame.params,
+                item: replacement,
+              }
+            : frame.params,
+        )
+      }
+      t.handle.server.notify('turn/completed', reviewTurnCompleted(turn.sessionId, turn.turnId))
+      await expectFailure(t)
+    },
+  )
+
+  it.each(['failed', 'cancelled'] as const)(
+    'never accepts ALLOW when its turn ends %s',
+    async (terminal) => {
+      const t = setup()
+      t.hold()
+      const turn = await reviewTurn(t.handle, 1)
+      answer(t.handle, turn, CAPTURED_REPLY, { isEnded: false })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(t.conversation.decideApproval).not.toHaveBeenCalled()
+      t.handle.server.notify(
+        'turn/completed',
+        reviewTurnCompleted(turn.sessionId, turn.turnId, terminal),
+      )
+      await expectFailure(t)
+    },
+  )
+
+  it('cancels captured reminder activity and recreates the side session', async () => {
+    const t = setup()
+    t.hold()
+    const turn = await reviewTurn(t.handle, 1)
+    answer(t.handle, turn, CAPTURED_REPLY, { isEnded: false })
+    t.handle.server.notify('item/completed', reminderChildFrame(turn.sessionId, turn.turnId))
+    await vi.waitFor(() => {
+      expect(t.cards).toEqual([[expect.anything(), UI_TEXT.autoReviewerFailed]])
+    })
+    expect(t.handle.server.requestsFor('turn/cancel')).toHaveLength(1)
+    expect(t.conversation.decideApproval).not.toHaveBeenCalled()
+    await allowOnce(t, 2, shellRequest('a2'), 1)
+    expect(t.sideIds).toEqual(['side-1', 'side-2'])
+  })
+
   it('reviews in a hidden Plan-mode side session on the conversation’s model, thinking off', async () => {
     const t = setup()
     t.hold()
@@ -340,11 +546,7 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
         sessionId: 'side-1',
       })
     })
-    t.hold(shellRequest('a2'))
-    answer(t.handle, await reviewTurn(t.handle, 2), CAPTURED_REPLY)
-    await vi.waitFor(() => {
-      expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
-    })
+    await allowOnce(t, 2, shellRequest('a2'), 1)
     expect(t.sideIds).toEqual(['side-1', 'side-2'])
   })
 
@@ -415,9 +617,8 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     expect(t.handle.server.requestsFor('turn/start')).toHaveLength(1)
     // Its reply comes first; the next turn waits for this one's end.
     answer(t.handle, first, CAPTURED_REPLY, { isEnded: false })
-    await vi.waitFor(() => {
-      expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
-    })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(t.conversation.decideApproval).not.toHaveBeenCalled()
     expect(t.handle.server.requestsFor('turn/start')).toHaveLength(1)
     t.handle.server.notify('turn/completed', reviewTurnCompleted(first.sessionId, first.turnId))
     const second = await reviewTurn(t.handle, 2)
@@ -431,19 +632,14 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     const t = setup({ timeoutMs: SHORT_TIMEOUT_MS })
     t.hold(shellRequest('a1'))
     answer(t.handle, await reviewTurn(t.handle, 1), CAPTURED_REPLY, { isEnded: false })
-    await vi.waitFor(() => {
-      expect(t.conversation.decideApproval).toHaveBeenCalledOnce()
-    })
+    t.approvals.release()
     t.hold(shellRequest('a2'))
     await vi.waitFor(() => {
-      expect(t.cards).toEqual([[expect.anything(), UI_TEXT.autoReviewerFailed]])
+      expect(t.cards).toHaveLength(2)
     })
+    expect(t.cards.map(([, note]) => note)).toEqual([undefined, UI_TEXT.autoReviewerFailed])
     expect(t.handle.server.requestsFor('turn/cancel')).toHaveLength(1)
-    t.hold(shellRequest('a3'))
-    answer(t.handle, await reviewTurn(t.handle, 2), CAPTURED_REPLY)
-    await vi.waitFor(() => {
-      expect(t.conversation.decideApproval).toHaveBeenCalledTimes(2)
-    })
+    await allowOnce(t, 2, shellRequest('a3'), 1)
     expect(t.sideIds).toEqual(['side-1', 'side-2'])
   })
 
@@ -562,6 +758,14 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     })
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(settled.cards).toEqual([])
+  })
+
+  it('shows the failure card immediately when the host exits during the review', async () => {
+    const t = setup()
+    t.hold()
+    answer(t.handle, await reviewTurn(t.handle, 1), CAPTURED_REPLY, { isEnded: false })
+    t.handle.exit(1)
+    await expectFailure(t)
   })
 
   it('lets its side session go with the window', async () => {

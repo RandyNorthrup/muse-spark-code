@@ -11578,14 +11578,21 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
   afterAll(() => removeFolder(folder))
 
   /** A panel in `mode` on Muse Code with the window's reviewer, the side session answering. */
-  function reviewed(mode: ConversationDeps['initialPermissionMode'] = 'auto', isOn = true) {
+  function reviewed(
+    mode: ConversationDeps['initialPermissionMode'] = 'auto',
+    isOn = true,
+    hasLoadFailure = false,
+  ) {
     const setting = { isOn }
     const port = museCodeReviewerPort({
       bundlePath: path.join(folder, MUSE_CODE_REVIEWER_BUNDLE_FILE),
       root,
       isOn: () => setting.isOn,
       log: reviewLog,
-      loadBundle: () => ({ createMuseCodeReviewer }),
+      loadBundle: () => {
+        if (hasLoadFailure) throw new Error('reviewer bundle missing')
+        return { createMuseCodeReviewer }
+      },
     })
     const t = setup({
       hasApprovalUi: true,
@@ -11754,6 +11761,61 @@ describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D
     sideReplies(t, CAPTURED_REPLY)
     await settle()
     await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(cards(t)).toHaveLength(1)
+  })
+
+  it('shows the failure card immediately when the reviewer bundle loader throws', async () => {
+    const t = reviewed('auto', true, true)
+    await asked(t)
+    expect(cards(t)).toEqual([expect.objectContaining({ note: UI_TEXT.autoReviewerFailed })])
+    expect(sideTurns(t)).toHaveLength(0)
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+  })
+
+  it('two Auto panels sharing a session show cards without a side turn', async () => {
+    const t = reviewed()
+    const second = new ConversationController({
+      ...t.deps,
+      ensureHost: () => Promise.resolve(t.host),
+    })
+    try {
+      await t.send('l1', 'Count the lines in notes.md')
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+      await settle()
+      t.server.handle('session/resume', () =>
+        envelope({
+          ...storedSession,
+          sessionId: 's1',
+          status: 'running',
+          activeTurnId: 't1',
+        }),
+      )
+      await second.handle({ type: 'resumeSession', sessionId: 's1' })
+      t.server.notify('approval/requested', { ...raceRequested('s1'), turnId: 't1' })
+      await settle()
+      expect(cards(t).length).toBeGreaterThan(0)
+      expect(sideTurns(t)).toHaveLength(0)
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    } finally {
+      second.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('accepted steering releases the held review and ignores its late ALLOW', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    steerOnlyParentTurn(t)
+    await t.send('l2', 'Do not run tests; only inspect the code')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(cards(t)).toHaveLength(1)
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    expect(cards(t)).toHaveLength(1)
     expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
   })
 

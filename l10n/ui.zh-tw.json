@@ -1524,7 +1524,7 @@
   "autoReviewerUnreadable": "無法讀取自動審查器的回答，因此由您決定。",
   "autoReviewerPaused": "由於多次拒絕或失敗，自動審查器已暫停至您的下一則訊息，因此由您決定。",
   "autoReviewerTripped": "由於多次拒絕或失敗，自動審查器已停止。在您傳送下一則訊息之前，每個有風險的操作都會詢問您。",
-  "museCodeReviewerNotice": "在自動模式下，Muse Code 要求核准的每個動作現在都會先由審查器檢查，然後才顯示給您：每次審查使用您訂閱中的一次簡短 Muse Code 回合。它可能允許該動作一次；否則會附上理由詢問您。可透過 museSpark.museCodeAutoReviewer 關閉。",
+  "museCodeReviewerNotice": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。 可透過 museSpark.museCodeAutoReviewer 關閉。",
   "paidAutoReviewerName": "自動審查器",
   "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
   "paidUseAutoReviewerTitle": "要讓自動審查器評判此 {tool} 呼叫嗎？",
