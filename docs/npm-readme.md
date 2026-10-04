@@ -197,8 +197,9 @@ about to be billed and its price.
 - A pasted Model API key lives only in the operating system's credential
   store, is never read from an environment variable, a settings file or an
   argument, and is never passed to any child process the agent runs.
-- On Linux without a running, unlocked Secret Service the Model API
-  backend is unavailable; there is no plaintext fallback.
+- On Linux without a running, unlocked Secret Service a stored Model API
+  key is unavailable; there is no plaintext fallback. A headless run with
+  `--key-stdin` still works, because it never opens the credential store.
 - Headless `--key-stdin` keys stay in memory only and are cleared in
   `finally`; `scan-secrets` prints only a match count, never a match, an
   excerpt or a secret.
@@ -206,8 +207,11 @@ about to be billed and its price.
   `--trust-workspace`, and the Model API backend does not see unsaved
   changes in the editor — save before asking it to edit a file you have
   open.
-- Paid features are off until flagged on, every use asks first naming its
-  price, and the subscription never pays for one.
+- Paid features are off until flagged on, and the subscription never pays
+  for one. In an editor every use asks first, naming its price. A headless
+  run asks no one, so an image there needs `--image-generation`, the
+  `acceptEdits` permission mode and a hard `--max-budget-usd`, and each one
+  is reserved against that budget before it is sent.
 
 ## Links
 

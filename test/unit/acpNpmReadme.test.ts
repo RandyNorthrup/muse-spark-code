@@ -11,11 +11,11 @@ import { describe, expect, it } from 'vitest'
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (...segments: string[]): string => readFileSync(path.join(ROOT, ...segments), 'utf8')
 
-/** Every `](target)` and `src="target"` in the landing page. */
+/** Every `](target)`, `src="target"` and `href="target"` in the landing page. */
 function linkTargets(markdown: string): string[] {
   return [
     ...Array.from(markdown.matchAll(/\]\(\s*([^)\s]+)\s*\)/g), (match) => match[1]!),
-    ...Array.from(markdown.matchAll(/src="([^"]+)"/g), (match) => match[1]!),
+    ...Array.from(markdown.matchAll(/(?:src|href)="([^"]+)"/g), (match) => match[1]!),
   ]
 }
 
