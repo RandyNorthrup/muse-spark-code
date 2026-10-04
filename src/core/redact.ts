@@ -19,8 +19,8 @@
 //   - Credentials in a URL's user-info part: `https://user:secret@host`
 //   - Common services' keys and tokens, wherever they appear (a tool's
 //     output, `cat .env`, a config file): a PEM private key; GitHub, GitLab,
-//     npm and Google API tokens; AWS access key ids; Slack tokens; `sk-` and
-//     `sk_live_` style API keys
+//     npm, Google API and Muse Gadgets SDK tokens; AWS access key ids; Slack
+//     tokens; `sk-` and `sk_live_` style API keys
 //   - Secrets named by their key, the value replaced and the name kept: an
 //     upper-case environment name that says so (`GITHUB_TOKEN=`), an
 //     `api-key` header, `Authorization: token …`, a quoted JSON field, a URL
@@ -115,6 +115,18 @@ const SECRET_FIELD_LITERALS = ['token', 'secret', 'apikey', 'api_key', 'password
 const PEM_PRIVATE_KEY =
   /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[A-Za-z0-9+/=\s]*(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----)?/g
 
+// Muse Gadgets SDK tokens (M92): `mgst_` and 43 base64url characters holding
+// 32 bytes, so the last one is constrained to the endings those bytes take —
+// the shape the SDK's own installer validates. The boundaries keep `mgst_`
+// inside a longer identifier, or a longer run, from matching.
+const GADGET_SDK_TOKEN_PREFIX = 'mgst_'
+const GADGET_SDK_TOKEN_BODY = '[A-Za-z0-9_-]{42}'
+const GADGET_SDK_TOKEN_LAST = '[AEIMQUYcgkosw048]'
+const GADGET_SDK_TOKEN_PATTERN = new RegExp(
+  String.raw`\b${GADGET_SDK_TOKEN_PREFIX}${GADGET_SDK_TOKEN_BODY}${GADGET_SDK_TOKEN_LAST}\b`,
+  'g',
+)
+
 export const SECRET_RULES: readonly SecretRule[] = [
   // Meta Model API keys.
   { pattern: /LLM_[\w-]{16,}|LLM\|\d+\|[\w+./=-]+/g, literals: ['llm'], replace: mark },
@@ -167,6 +179,8 @@ export const SECRET_RULES: readonly SecretRule[] = [
   { pattern: /\bnpm_[A-Za-z0-9]{36,255}/g, literals: ['npm_'], replace: mark },
   // Google API keys: `AIza` and 35 more.
   { pattern: /\bAIza[\w-]{35}/g, literals: ['aiza'], replace: mark },
+  // Muse Gadgets SDK tokens.
+  { pattern: GADGET_SDK_TOKEN_PATTERN, literals: ['mgst_'], replace: mark },
   // AWS access key ids, Slack tokens, and `sk-` / `sk_live_` style API keys.
   { pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, literals: ['akia', 'asia'], replace: mark },
   { pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
@@ -261,7 +275,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
 // whose literal this misses would never run, so redact.test.ts proves it
 // finds every rule's literals and every rule's real-shaped matches.
 export const MAY_HOLD_SECRET =
-  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
+  /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|mgst_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
 
 function redactPatterns(text: string, matched?: () => void): string {
   if (!MAY_HOLD_SECRET.test(text)) {

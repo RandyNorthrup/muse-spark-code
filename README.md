@@ -2076,7 +2076,7 @@ the Markdown export holds, without stored outputs, patches or anything that
 belongs to the running session. Credentials of a known shape and the key
 digest are removed from every string, item ids and error labels included:
 API keys and tokens of common services (Meta, GitHub, GitLab, npm, Google,
-AWS, Slack, Stripe-style keys), bearer and basic credentials, JSON Web
+AWS, Slack, Stripe-style keys, Muse Gadgets SDK tokens), bearer and basic credentials, JSON Web
 Tokens, private keys, credentials in a URL, and secrets named by their key
 (`PASSWORD=`, `"api_key": …`, `~/.aws/credentials` lines, an Azure
 `AccountKey=`). A secret in any other shape is not recognised and stays, so
