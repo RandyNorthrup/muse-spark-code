@@ -13,13 +13,14 @@ vi.mock('vscode', async () => {
 const view = { conversation: 'Fix parser', items: [{ text: 'Test', status: 'pending' }] }
 function open() {
   const reveal = vi.fn()
-  const port = new TasksPanel(fakeHostContext(), reveal)
+  const released = vi.fn()
+  const port = new TasksPanel(fakeHostContext(), reveal, released)
   port.open(view)
   const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
   if (!(panel instanceof FakeWebviewPanel)) {
     throw new TypeError('expected fake panel')
   }
-  return { port, panel, reveal }
+  return { port, panel, reveal, released }
 }
 
 describe('TasksPanel', () => {
@@ -118,6 +119,26 @@ describe('TasksPanel', () => {
     expect(supported.panel.reveal.mock.invocationCallOrder[0]).toBeLessThan(
       commands.executeCommand.mock.invocationCallOrder[0] ?? 0,
     )
+  })
+
+  it('lets go when the chat closes: at once without a tab, after the tab closes with one', () => {
+    const { port, panel, released } = open()
+    panel.dispose()
+    expect(released).not.toHaveBeenCalled()
+    port.release()
+    expect(released).toHaveBeenCalledExactlyOnceWith(port)
+
+    const kept = open()
+    kept.panel.webview.messages.fire({ type: 'tasksReady' })
+    kept.port.ended()
+    kept.port.release()
+    expect(kept.released).not.toHaveBeenCalled()
+    kept.panel.webview.messages.fire({ type: 'tasksReady' })
+    expect(kept.panel.webview.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ended: true, conversation: 'Fix parser' }),
+    )
+    kept.panel.dispose()
+    expect(kept.released).toHaveBeenCalledExactlyOnceWith(kept.port)
   })
 
   it('ignores capability lookup from a disposed tab when another tab opens', async () => {

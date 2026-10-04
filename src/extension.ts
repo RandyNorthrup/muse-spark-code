@@ -508,6 +508,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const registry = new SurfaceRegistry()
   const controllers = new Map<string, ConversationController>()
+  // A chat's tasks tab; it leaves once both the chat and the tab are closed.
+  const tasksTabs = new Map<string, TasksPanel>()
+  context.subscriptions.push({
+    dispose: () => {
+      for (const tab of tasksTabs.values()) {
+        tab.dispose()
+      }
+    },
+  })
   let isInputFocused = false
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
@@ -1690,12 +1699,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
-      const tasksTab = new TasksPanel(hostContext, () => {
-        if (registry.has(surface)) {
-          surface.reveal()
-        }
-      })
-      context.subscriptions.push(tasksTab)
+      const tasksTab = new TasksPanel(
+        hostContext,
+        () => {
+          if (registry.has(surface)) {
+            surface.reveal()
+          }
+        },
+        (released) => {
+          if (tasksTabs.get(surface.id) === released) {
+            tasksTabs.delete(surface.id)
+          }
+        },
+      )
+      tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
         surface,
         tasksTab,
@@ -1926,6 +1943,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
+    tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
   /** A command for the conversation in view, when there is one. */

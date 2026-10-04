@@ -22,11 +22,18 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
   private isEnded = false
   private isReady = false
   private canMoveToWindow = false
+  private isOwnerGone = false
 
   public constructor(
     private readonly context: Pick<WebviewHostContext, 'extensionUri' | 'l10n' | 'log'>,
     private readonly revealConversation: () => void,
+    private readonly onReleased: (tab: TasksPanel) => void,
   ) {}
+
+  private releaseNow(): void {
+    this.view = undefined
+    this.onReleased(this)
+  }
 
   private send(): void {
     if (!this.isReady || this.panel === undefined || this.view === undefined) {
@@ -40,6 +47,14 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
       canMoveToWindow: this.canMoveToWindow,
     }
     void this.panel.webview.postMessage(message)
+  }
+
+  /** The chat closed: an open tab keeps its ended view until it closes too. */
+  public release(): void {
+    this.isOwnerGone = true
+    if (this.panel === undefined) {
+      this.releaseNow()
+    }
   }
 
   public open(view: TasksTabView): void {
@@ -110,6 +125,9 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
       subscription.dispose()
       this.panel = undefined
       this.isReady = false
+      if (this.isOwnerGone) {
+        this.releaseNow()
+      }
     })
     void vscode.commands.getCommands(true).then(
       (commands) => {
