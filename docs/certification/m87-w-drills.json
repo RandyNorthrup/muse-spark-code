@@ -288,7 +288,8 @@
           "before": "422c7e88117c8dddb3400670527f979a599b026dfa21ebb6704e417126a247e8",
           "after": "422c7e88117c8dddb3400670527f979a599b026dfa21ebb6704e417126a247e8"
         }
-      ]
+      ],
+      "note": "Against the first label rule, since replaced by gooeyLabelBox; the w4-label-* drills cover the code that shipped."
     },
     {
       "name": "rvf2-p1-transcript-wide-selection",
@@ -546,6 +547,34 @@
       "snapshot": "619cc266",
       "exit": 0,
       "tests": "Tests  39 passed (39)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w5-palette-note-described",
+      "rig": "win11",
+      "snapshot": "c19d88d2",
+      "exit": 1,
+      "tests": "Tests  1 failed | 14 passed (15)",
+      "failing": [
+        "test/unit/Palette.test.tsx > Palette (actions view) > leaves the loading skill note unselectable"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\Palette.tsx",
+          "before": "f54b7d7aa469b6ab155ce3606bf392679f26887c91d4903a10f31776165cdcf9",
+          "after": "f54b7d7aa469b6ab155ce3606bf392679f26887c91d4903a10f31776165cdcf9"
+        }
+      ]
+    },
+    {
+      "name": "w5-restored",
+      "rig": "win11",
+      "snapshot": "1be7f401",
+      "exit": 0,
+      "tests": "Tests  15 passed (15)",
       "failing": [],
       "restoredByteExact": true,
       "files": []
