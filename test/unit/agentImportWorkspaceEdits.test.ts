@@ -127,6 +127,7 @@ function hostDeps(
   return {
     workspaceRoot: root,
     isActive: () => true,
+    isProjectTrusted: () => true,
     currentRoot: () => root,
     editProject: async (work) => await work(() => undefined),
     beforeProjectWrite: () => Promise.resolve(),

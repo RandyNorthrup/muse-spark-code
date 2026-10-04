@@ -72,6 +72,8 @@ export interface CliFeatureDeps {
    * else's pull request (M71): the project's skills and hooks may be read.
    */
   readonly isProjectTrusted: () => boolean
+  /** Whether this window is held on someone else's pull request (M71). */
+  readonly isProjectHeld: () => boolean
   /** Opens text as a read-only document (M15's tool outputs; M83's import preview). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   readonly log: Logger
@@ -257,6 +259,8 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
       runAgentImport({
         ...deps.agentImport,
         workspaceRoot: deps.workspaceRoot,
+        isProjectTrusted: deps.isProjectTrusted,
+        isProjectHeld: deps.isProjectHeld,
         museSettingsPath: deps.museSettingsPath,
         openDocument: deps.openDocument,
         log: deps.log,

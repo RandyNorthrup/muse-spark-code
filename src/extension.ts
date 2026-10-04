@@ -947,6 +947,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      isProjectTrusted,
+      isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
       captureOwner: () => {
         const active = registry.active
@@ -1012,6 +1014,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       channel.show(true)
     },
     isProjectTrusted,
+    isProjectHeld: () => windowHold.isHeld,
     openDocument,
     log,
   })

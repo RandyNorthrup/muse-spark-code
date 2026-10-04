@@ -82,6 +82,14 @@ export interface AgentImportPickItem {
 }
 
 export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
+  /**
+   * Whether this window is held on someone else's pull request (M71): when
+   * held, project reads and writes are refused with the held-worktree text
+   * even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
+   * combined project trust (trusted and not held); user-scope imports never
+   * consult either predicate.
+   */
+  readonly isProjectHeld?: () => boolean
   /** Muse Code's settings file where `muse serve` reads it; its folder holds the personal skills. */
   readonly museSettingsFile: string
   /**
@@ -147,6 +155,15 @@ const LIST_SEPARATOR = ', '
 const SENTENCE_SEPARATOR = ' '
 const PREVIEW_EXTENSION = '.md'
 const LOG_PREFIX = 'Import from other agents:'
+
+/**
+ * What a project-scope refusal shows: the held-worktree text while the
+ * window is held on someone else's pull request (M71), else the untrusted
+ * workspace text. User-scope imports never reach this helper.
+ */
+function projectTrustRefusal(deps: AgentImportDeps): string {
+  return deps.isProjectHeld?.() === true ? UI_TEXT.worktreeHeldShell : UI_TEXT.agentImportUntrusted
+}
 
 function sourceLabel(source: AgentImportSource): string {
   switch (source) {
@@ -475,7 +492,7 @@ async function isCopyTargetSafe(
   }
   if (!copy.isProject) return deps.isActive() && (await isExposureSafe())
   if (!deps.isWorkspaceTrusted()) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
     return false
   }
   const standing =
@@ -487,7 +504,7 @@ async function isCopyTargetSafe(
       return false
     }
     if (!deps.isWorkspaceTrusted()) {
-      deps.showWarning(UI_TEXT.agentImportUntrusted)
+      deps.showWarning(projectTrustRefusal(deps))
       return false
     }
     return await isExposureSafe()
@@ -589,10 +606,10 @@ async function planFor(
   )
 }
 
-/** The import's guard: the window is live, and a project write also needs a trusted workspace. */
+/** The import's guard: the window is live, and a project write also needs project trust (M71). */
 function requireLive(deps: AgentImportDeps, isProject: boolean): void {
   if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
-    throw Object.assign(new Error(UI_TEXT.agentImportUntrusted), { code: 'EPERM' })
+    throw Object.assign(new Error(projectTrustRefusal(deps)), { code: 'EPERM' })
   }
 }
 
@@ -730,7 +747,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   }
   const isTrusted = deps.isWorkspaceTrusted()
   if (!isTrusted && deps.workspaceRoot !== undefined) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
   }
   const scan = await scanAgentImports({
     io: deps.io,
@@ -798,7 +815,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     !deps.isWorkspaceTrusted() &&
     (plan.writes.some((write) => write.isProject) || plan.copies.some((copy) => copy.isProject))
   ) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
     deps.log.info(`${LOG_PREFIX} workspace trust changed; the accepted import was not applied`)
     return
   }

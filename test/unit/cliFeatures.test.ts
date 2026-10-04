@@ -93,6 +93,7 @@ function setup(
     modelApiHooks: () => undefined,
     openLog: () => undefined,
     isProjectTrusted: () => true,
+    isProjectHeld: () => false,
     openDocument: () => Promise.resolve(),
     log: new FakeLogOutputChannel(),
   })

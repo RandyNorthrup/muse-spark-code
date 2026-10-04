@@ -18,6 +18,15 @@ import * as z from 'zod/mini'
 export interface AgentImportHostDeps {
   readonly workspaceRoot: string | undefined
   readonly isActive: () => boolean
+  /**
+   * Whether the project's own configuration may load (M71): VS Code trusts
+   * the folder and the window is not held on someone else's pull request.
+   * Carried as the import's workspace trust so every project-scope read and
+   * editor copy respects the hold; user-scope imports never consult it.
+   */
+  readonly isProjectTrusted: () => boolean
+  /** Whether this window is held on someone else's pull request (M71). */
+  readonly isProjectHeld?: () => boolean
   /** The window's first folder as VS Code names it now. */
   readonly currentRoot: () => string | undefined
   readonly captureOwner?: () => WorkspaceEditRecorder | undefined
@@ -117,7 +126,8 @@ export async function runAgentImportUi(deps: AgentImportHostDeps): Promise<void>
           .map((folder) => folder.uri.fsPath) ??
         (deps.workspaceRoot === undefined ? [] : [deps.workspaceRoot]),
       currentRoot: deps.currentRoot,
-      isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+      isWorkspaceTrusted: deps.isProjectTrusted,
+      ...(deps.isProjectHeld !== undefined && { isProjectHeld: deps.isProjectHeld }),
       isActive: deps.isActive,
       museSettingsFile: deps.museSettingsPath(),
       editProject: deps.editProject,

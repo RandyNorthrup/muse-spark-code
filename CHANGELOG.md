@@ -397,6 +397,10 @@ happened, not what was planned; superseded entries are kept.
 - The merged credential redactor retains M71's complete Slack tokens,
   including `xoxe-` and long suffixes, and complete legacy encrypted PEM
   blocks with their header lines.
+- Import from other agents respects a held worktree: in a held pull-request
+  window that VS Code trusts, project reads and writes (including unsaved
+  editor copies) are refused with the held-worktree text until the trust card
+  is confirmed, while the user's own files still import.
 
 ## [0.11.0] - 2026-10-03
 

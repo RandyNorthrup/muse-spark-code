@@ -47,6 +47,8 @@ interface Options {
   readonly files?: Record<string, string>
   readonly isTrusted?: boolean
   readonly trust?: () => boolean
+  readonly isHeld?: boolean
+  readonly held?: () => boolean
   readonly isActive?: () => boolean
   readonly source?: AgentImportSourceChoice | undefined
   /** The ids to leave checked; the default keeps what the list checks. */
@@ -102,6 +104,7 @@ function run(options: Options = {}) {
     codexHome: undefined,
     workspaceRoot: WS,
     isWorkspaceTrusted: () => options.trust?.() ?? options.isTrusted ?? true,
+    isProjectHeld: () => options.held?.() ?? options.isHeld ?? false,
     isActive: () => options.isActive?.() ?? true,
     museSettingsFile: SETTINGS,
     currentRoot: options.currentRoot ?? (() => WS),
@@ -646,6 +649,52 @@ describe('importFromAgents', () => {
       flow.items.every((item) => item.description.endsWith(UI_TEXT.agentImportUserFiles)),
     ).toBe(true)
     expect(flow.events.filter((event) => event.includes(WS))).toEqual([])
+  })
+
+  it('refuses project reads and editor copies in a held worktree VS Code trusts, and says held', async () => {
+    const flow = run({ isTrusted: false, isHeld: true })
+    await flow.done
+    expect(flow.warnings).toEqual([UI_TEXT.worktreeHeldShell])
+    expect(
+      flow.items.every((item) => item.description.endsWith(UI_TEXT.agentImportUserFiles)),
+    ).toBe(true)
+    expect(flow.io.reads.filter((file) => file.startsWith(`${WS}/`))).toEqual([])
+    expect(flow.events.filter((event) => event.includes(WS))).toEqual([])
+    expect(flow.opened).toEqual([[SETTINGS, false]])
+    expect(flow.edits).toHaveLength(1)
+  })
+
+  it('still imports the user’s own entries in a held worktree', async () => {
+    const flow = run({
+      isTrusted: false,
+      isHeld: true,
+      pick: (items) => items.filter((item) => item.label === 'review').map((item) => item.id),
+    })
+    await flow.done
+    expect(flow.warnings).toEqual([UI_TEXT.worktreeHeldShell])
+    expect(flow.io.files.has(`${HOME}/.config/muse/skills/review/SKILL.md`)).toBe(true)
+    expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
+    expect(flow.opened).toEqual([])
+    expect(flow.edits).toEqual([])
+  })
+
+  it('imports the project once the hold is released', async () => {
+    let isHeld = true
+    const flow = run({
+      trust: () => !isHeld,
+      held: () => isHeld,
+      whilePreviewed: () => {
+        isHeld = false
+      },
+    })
+    await flow.done
+    expect(flow.warnings).toEqual([UI_TEXT.worktreeHeldShell])
+    expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
+    expect(flow.opened).toEqual([[SETTINGS, false]])
+    const released = run({ isTrusted: true, isHeld: false })
+    await released.done
+    expect(released.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(true)
+    expect(released.opened).toContainEqual([`${WS}/.muse/hooks.json`, false])
   })
 
   it('lists what cannot be imported unchecked, with its reason', async () => {
