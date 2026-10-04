@@ -640,6 +640,11 @@ export class MuseSession implements AgentSession {
   private isDisposed = false
   /** Told when Muse Code reports this session's event log failed (CLI recovery). */
   private readonly logDamagedListeners = new Set<() => void>()
+  /**
+   * Queued turns `turn/unqueued` withdrew (M87): MSP's authoritative removal,
+   * which a lost or failed `turn/unqueue` ack does not undo.
+   */
+  private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
 
@@ -895,6 +900,9 @@ export class MuseSession implements AgentSession {
       this.prompts.close(mapped.closedApprovalId)
       return
     }
+    if (mapped.event.type === 'turnWithdrawn') {
+      this.unqueuedTurns.add(mapped.event.turnId)
+    }
     this.emit(mapped.event)
   }
 
@@ -961,8 +969,10 @@ export class MuseSession implements AgentSession {
    * on 2026-10-04 (docs/certification/m87-c.md), the ack is admission and the
    * race at once (`turn/unqueued` follows, or comes first); a reclaim after
    * the launch is refused `run_active`, and one already won `already_applied`
-   * (it will not run either way). Any other refusal fails as Muse Code said
-   * it. Muse Code keeps no image bytes, so none come back.
+   * (it will not run either way). Once `turn/unqueued` named the turn, a
+   * timed-out or failed ack still reports the withdrawal (the review of lane
+   * C); any other failure or refusal fails as Muse Code said it. Muse Code
+   * keeps no image bytes, so none come back.
    */
   public async withdrawQueued(ref: QueuedMessageRef): Promise<WithdrawOutcome> {
     if (ref.disposition !== QUEUED_DISPOSITION) {
@@ -975,7 +985,9 @@ export class MuseSession implements AgentSession {
       if (reason === UNQUEUE_LAUNCHED) {
         return TOO_LATE
       }
-      if (reason !== UNQUEUE_ALREADY_WON) {
+      // `turn/unqueued` can come before the ack (captured): once it came, a
+      // timed-out or failed ack still means the message was taken back.
+      if (reason !== UNQUEUE_ALREADY_WON && !this.unqueuedTurns.has(ref.turnId)) {
         throw error
       }
     }

@@ -245,6 +245,11 @@ export interface UiState {
   readonly lastCompletedTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
+  /**
+   * User items a request read before their card was accepted (M87): the late
+   * acceptance marks the card sent, never queued. At most one per pending card.
+   */
+  readonly admittedMessageIds: readonly string[]
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
@@ -424,6 +429,7 @@ export const initialUiState: UiState = {
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
   pendingReplayTurns: {},
+  admittedMessageIds: [],
   usage: undefined,
   context: undefined,
   usageReport: undefined,
@@ -1311,25 +1317,48 @@ function upsertEntry(
 /**
  * Muse Code's own record of a message sent from this panel (M87): the live
  * path shows the card, not the item, so the card takes the item's recorded
- * time. The card is the one with the item's id, or of the item's turn with
- * its text; a time that does not parse changes nothing.
+ * time. The card is the one the item names exactly (its replay id, or the
+ * item it took a time from before); failing that, the first card of the
+ * item's turn with its text that no item has named yet, which then keeps
+ * the item's id. One item stamps one card: two equal messages in a turn
+ * keep their own times (the review of lane C). A time that does not parse
+ * changes nothing.
  */
 function withRecordedUserTime(state: UiState, item: ItemSnapshot): UiState {
   const atMs = recordedAtMs(item.recordedAt)
   if (atMs === undefined) {
     return state
   }
-  const isRecorded = (entry: TranscriptEntry): boolean =>
-    entry.kind === 'user' &&
-    entry.atMs !== atMs &&
-    (entry.replayItemId === item.itemId ||
-      (item.turnId !== undefined && entry.turnId === item.turnId && entry.text === item.text))
-  if (state.transcript.every((entry) => !isRecorded(entry))) {
+  const exact = state.transcript.find(
+    (entry) =>
+      entry.kind === 'user' &&
+      (entry.replayItemId === item.itemId || entry.recordedItemId === item.itemId),
+  )
+  const card =
+    exact ??
+    state.transcript.find(
+      (entry) =>
+        entry.kind === 'user' &&
+        entry.replayItemId === undefined &&
+        entry.recordedItemId === undefined &&
+        item.turnId !== undefined &&
+        entry.turnId === item.turnId &&
+        entry.text === item.text,
+    )
+  if (card?.kind !== 'user') {
+    return state
+  }
+  const recordedItemId = card.replayItemId === undefined ? item.itemId : card.recordedItemId
+  if (card.atMs === atMs && card.recordedItemId === recordedItemId) {
     return state
   }
   return {
     ...state,
-    transcript: state.transcript.map((entry) => (isRecorded(entry) ? { ...entry, atMs } : entry)),
+    transcript: updateEntry(state.transcript, card.id, (entry) =>
+      entry.kind === 'user'
+        ? { ...entry, atMs, ...(recordedItemId !== undefined && { recordedItemId }) }
+        : entry,
+    ),
   }
 }
 
@@ -1803,7 +1832,22 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         state.transcript,
         (entry) => entry.replayItemId === event.userMessageId,
       )
-      return transcript === state.transcript ? state : { ...state, transcript }
+      if (transcript !== state.transcript) {
+        return { ...state, transcript }
+      }
+      // Before its card's acceptance (the ack can trail the request): kept,
+      // so the acceptance marks the card sent (the review of lane C).
+      const pendingCount = state.transcript.filter(
+        (entry) => entry.kind === 'user' && entry.status === 'pending',
+      ).length
+      return pendingCount === 0 || state.admittedMessageIds.includes(event.userMessageId)
+        ? state
+        : {
+            ...state,
+            admittedMessageIds: [...state.admittedMessageIds, event.userMessageId].slice(
+              -pendingCount,
+            ),
+          }
     }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
@@ -1914,6 +1958,7 @@ function clearedConversation(state: UiState): UiState {
     childOwners: {},
     strayItems: {},
     pendingReplayTurns: {},
+    admittedMessageIds: [],
     unsentAttachments: {},
     pendingSendDraft: undefined,
     attachmentsToRelease: [],
@@ -2318,6 +2363,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           activeTurnId: message.activeTurnId,
           lastCompletedTurnId: undefined,
           pendingReplayTurns: {},
+          admittedMessageIds: [],
           usage: isSameSession ? state.usage : undefined,
           context: isSameSession ? state.context : undefined,
           outputPages: {},
@@ -2352,8 +2398,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // Queued or steered (M87): the model does not have it yet, unless its
       // turn already started or finished before this acceptance arrived.
       const { disposition } = message
+      const isAdmitted =
+        message.userMessageId !== undefined &&
+        state.admittedMessageIds.includes(message.userMessageId)
       const isQueued =
         !isFinished &&
+        !isAdmitted &&
         (disposition === STEERED_DISPOSITION ||
           (disposition === QUEUED_DISPOSITION && turnId !== state.activeTurnId))
       return {
@@ -2361,6 +2411,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         activeTurnId: isFinished ? state.activeTurnId : turnId,
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
+        admittedMessageIds: isAdmitted
+          ? state.admittedMessageIds.filter((id) => id !== message.userMessageId)
+          : state.admittedMessageIds,
         unsentAttachments: without(state.unsentAttachments, message.localId),
         pendingSendDraft:
           state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,

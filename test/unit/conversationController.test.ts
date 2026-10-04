@@ -10914,9 +10914,15 @@ function withWithdraw(
   t: ReturnType<typeof setup>,
   answer: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>,
   hasSteerIds = false,
+  beforeSteerAck?: (userMessageId: string, emit: (event: AgentEvent) => void) => void,
 ) {
   const calls: QueuedMessageRef[] = []
   const listeners: SessionEventListener[] = []
+  const emitToListeners = (event: AgentEvent) => {
+    for (const listener of listeners) {
+      listener(event)
+    }
+  }
   let steers = 0
   const start = t.host.startSession.bind(t.host)
   vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
@@ -10931,7 +10937,9 @@ function withWithdraw(
       steer: async (expectedTurnId: string, parts: readonly TurnPart[]) => {
         const submission = await steer(expectedTurnId, parts)
         steers += 1
-        return hasSteerIds ? { ...submission, userMessageId: `us${String(steers)}` } : submission
+        const userMessageId = `us${String(steers)}`
+        beforeSteerAck?.(userMessageId, emitToListeners)
+        return hasSteerIds ? { ...submission, userMessageId } : submission
       },
       withdrawQueued: (ref: QueuedMessageRef) => {
         calls.push(ref)
@@ -10941,11 +10949,7 @@ function withWithdraw(
   })
   return {
     calls,
-    emit: (event: AgentEvent) => {
-      for (const listener of listeners) {
-        listener(event)
-      }
-    },
+    emit: emitToListeners,
   }
 }
 
@@ -11100,6 +11104,42 @@ describe('ConversationController: queued messages (M87, PLAN.md D66)', () => {
       withdrawRefusal('l1', UI_TEXT.queuedEditUnsupported),
     )
     expect(plain.server.requestsFor('turn/unqueue')).toEqual([])
+  })
+
+  it('takes a Muse Code message back when turn/unqueued came but the ack failed (the review of lane C)', async () => {
+    const t = setup()
+    queueEverySubmit(t)
+    await t.send('l1', 'later')
+    t.server.handle('turn/unqueue', () => {
+      // The captured order: the event goes out first; here the ack then fails.
+      t.server.notify('turn/unqueued', { sessionId: 's1', turnId: 'tq', commandId: 'c' })
+      throw Object.assign(new Error('refused: internal'), { kind: 'internal', code: -32_603 })
+    })
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'queuedWithdrawn',
+      localId: 'l1',
+      attachmentsKept: false,
+    })
+    expect(t.surface.posted.some((message) => message.type === 'withdrawRefused')).toBe(false)
+  })
+
+  it('offers no Edit for a steer a request read before its ack came (the review of lane C)', async () => {
+    const t = setup()
+    const rig = withWithdraw(
+      t,
+      () => Promise.resolve(WITHDRAWN),
+      true,
+      (userMessageId, emit) => {
+        emit({ type: 'messageAdmitted', userMessageId })
+      },
+    )
+    await steeredIntoRunning(t)
+    expect(t.surface.posted.at(-1)).toMatchObject({ disposition: 'steered', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l2'))
   })
 
   it('answers a signed-out panel’s Edit with the reason, asking nothing', async () => {

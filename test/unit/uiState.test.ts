@@ -2618,11 +2618,39 @@ describe('uiReducer: a queued message taken back (M87, PLAN.md D66)', () => {
     expect(state.announcement).toMatchObject({ text: UI_TEXT.queuedTooLate })
   })
 
+  it('marks a steer sent when a request read it before its acceptance came (the review of lane C)', () => {
+    const early = reduceAll([
+      { type: 'submitted', localId: 'l1', text: 'first', attachments: [], contextLabel: undefined },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      { type: 'submitted', localId: 'l2', text: 'steer', attachments: [], contextLabel: undefined },
+      agent({ type: 'messageAdmitted', userMessageId: 'u2' }),
+    ])
+    expect(early.admittedMessageIds).toEqual(['u2'])
+    const accepted = uiReducer(
+      early,
+      host({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        userMessageId: 'u2',
+        disposition: 'steered',
+      }),
+    )
+    expect(entryOf(accepted, 'l2')).toMatchObject({ status: 'sent', replayItemId: 'u2' })
+    expect(accepted.admittedMessageIds).toEqual([])
+  })
+
   it('shows nothing new when a message no card names reaches a request', () => {
     const before = queuedBehindRunning('')
     expect(uiReducer(before, agent({ type: 'messageAdmitted', userMessageId: 'u2' }))).toBe(before)
   })
 })
+
+/** A Muse Code user item of turn t1 saying "continue", recorded at `recordedAt`. */
+function userItem(itemId: string, recordedAt: string) {
+  return { ...LAUNCHED_USER_ITEM, itemId, turnId: 't1', text: 'continue', recordedAt }
+}
 
 describe('uiReducer: message times (M87, PLAN.md D66)', () => {
   it('reads the captured recorded times from a Muse Code history, user and reply alike', () => {
@@ -2698,6 +2726,78 @@ describe('uiReducer: message times (M87, PLAN.md D66)', () => {
     })
     // The item itself is still not a row of its own.
     expect(recorded.transcript).toHaveLength(1)
+  })
+
+  it('gives two equal messages of one turn each its own recorded time (the review of lane C)', () => {
+    // Muse Code names no user item on acceptance: the turn and the text match.
+    const muse = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+      agent({ type: 'turnStarted', turnId: 't1' }),
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({ type: 'turnAccepted', localId: 'l2', turnId: 't1', disposition: 'steered' }),
+      agent({ type: 'itemCompleted', item: userItem('i1', '2026-10-04T04:00:00Z') }),
+      agent({ type: 'itemCompleted', item: userItem('i2', '2026-10-04T04:05:00Z') }),
+    ])
+    expect(entryOf(muse, 'l1')).toMatchObject({ atMs: Date.parse('2026-10-04T04:00:00Z') })
+    expect(entryOf(muse, 'l2')).toMatchObject({ atMs: Date.parse('2026-10-04T04:05:00Z') })
+    // The same item again names its own card, and changes nothing.
+    expect(
+      uiReducer(muse, agent({ type: 'itemUpdated', item: userItem('i1', '2026-10-04T04:00:00Z') })),
+    ).toBe(muse)
+    // An exact user item id wins over the turn and the text.
+    const exact = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({
+        type: 'turnAccepted',
+        localId: 'l1',
+        turnId: 't1',
+        userMessageId: 'u1',
+        disposition: 'started',
+      }),
+      {
+        type: 'submitted',
+        localId: 'l2',
+        text: 'continue',
+        attachments: [],
+        contextLabel: undefined,
+      },
+      host({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        userMessageId: 'u2',
+        disposition: 'steered',
+      }),
+      agent({ type: 'itemCompleted', item: userItem('u2', '2026-10-04T04:05:00Z') }),
+    ])
+    expect(entryOf(exact, 'l1')).toMatchObject({ atMs: NOW })
+    expect(entryOf(exact, 'l2')).toMatchObject({ atMs: Date.parse('2026-10-04T04:05:00Z') })
+    // An item no card names stamps none of them.
+    expect(
+      uiReducer(
+        exact,
+        agent({ type: 'itemCompleted', item: userItem('zz', '2026-10-04T04:09:00Z') }),
+      ),
+    ).toBe(exact)
   })
 
   it('shows a live reply’s arrival until its completion brings the recorded time', () => {
