@@ -13,8 +13,10 @@ export interface MentionMenuProps {
   readonly onHover: (index: number) => void
 }
 
+export const MENTION_OPTION_ID_PREFIX = 'mention-option-'
+
 export function mentionOptionId(index: number): string {
-  return `mention-option-${String(index)}`
+  return `${MENTION_OPTION_ID_PREFIX}${String(index)}`
 }
 
 export function MentionMenu({ items, activeIndex, onSelect, onHover }: MentionMenuProps) {

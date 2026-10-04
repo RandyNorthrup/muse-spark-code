@@ -3642,11 +3642,45 @@
           })
         )
       }
+      // WCAG 2.1.1 asks that a scrolling list be operable from the keyboard.
+      // The composer's "/" and "@" lists are, as WAI-ARIA's combobox pattern
+      // has it: the box keeps the focus, its aria-activedescendant moves
+      // through the options, and the active option is scrolled into view
+      // (Composer.tsx). axe's scrollable-region-focusable rule cannot see
+      // that and asks the region itself to take the focus, a Tab stop the
+      // pattern does not have. A finding of that rule is exempt, and
+      // reported, only when the region holds a listbox whose id a focused
+      // or focusable element names in aria-controls while its
+      // aria-activedescendant is one of that listbox's options (PLAN.md §8).
+      const isFocusedOrFocusable = (element) =>
+        element === document.activeElement ||
+        (element.tabIndex >= 0 && !element.disabled && element.closest('[inert]') === null)
+      const isActiveDescendantList = (node) => {
+        const region = elementAt(node.target)
+        if (region === null) {
+          return false
+        }
+        const owners = [...document.querySelectorAll('[aria-controls][aria-activedescendant]')]
+        return [...region.querySelectorAll('[role="listbox"][id]')].some((listbox) =>
+          owners.some((owner) => {
+            const active = document.getElementById(owner.getAttribute('aria-activedescendant'))
+            return (
+              owner.getAttribute('aria-controls').split(/\s+/).includes(listbox.id) &&
+              active !== null &&
+              listbox.contains(active) &&
+              isFocusedOrFocusable(owner)
+            )
+          }),
+        )
+      }
+      const isExempt = (rule, node) =>
+        (rule === 'target-size' && isObscuredByOpenedContent(node)) ||
+        (rule === 'scrollable-region-focusable' && isActiveDescendantList(node))
       // One of axe's result lists, the exempt elements taken out and noted.
       const findingsOf = (list, exempt) =>
         list.flatMap((finding) => {
           const nodes = finding.nodes.filter((node) => {
-            if (finding.id === 'target-size' && isObscuredByOpenedContent(node)) {
+            if (isExempt(finding.id, node)) {
               exempt.push({ rule: finding.id, target: node.target.join(' ') })
               return false
             }
