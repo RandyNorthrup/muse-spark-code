@@ -34,7 +34,7 @@ import {
   type TurnPart,
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
-import { editAutomaticallyChoice } from '../../core/agent/approvalRules'
+import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   hasUnshownCharacters,
@@ -73,6 +73,7 @@ import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessi
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
+  AUTO_REVIEWER_RECENT_CALLS,
   CONTRIBUTOR_MODEL_SUFFIX,
   DAMAGED_SESSIONS_KEPT,
   DEFAULT_EFFORT,
@@ -130,6 +131,8 @@ import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
+import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
   ChatReference,
   HostAction,
@@ -452,6 +455,12 @@ export interface ConversationDeps {
    * names what, the window's `BackgroundNotifier` decides whether it shows.
    */
   readonly notifyAttention: (notice: AttentionNotice) => void
+  /**
+   * The Auto reviewer on Muse Code (M90, PLAN.md D69), one per window: in
+   * Auto, an approval Muse Code raised goes to it before the user. Absent
+   * where there is none.
+   */
+  readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
 }
@@ -469,6 +478,7 @@ const CANCELLED_STATUS = 'cancelled'
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
+const AUTO_MODE: PermissionMode = 'auto'
 const FALLBACK_MODE: PermissionMode = 'manual'
 /** Auto approval is safe only while one controller holds the shared session. */
 const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
@@ -970,6 +980,14 @@ export class ConversationController {
   private voiceContextRevision = 0
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
+  /**
+   * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
+   * approvals in its hands (and its breaker), made on the first review.
+   */
+  private reviews: ReviewedApprovals | undefined
+  /** What the reviewer is shown (M78's input): the user's latest message, the turn's calls so far. */
+  private reviewUserText: string | undefined
+  private reviewCalls: readonly { readonly tool: string; readonly args: string }[] = []
   /** The remote-window Bypass confirmation, given once per conversation (D24). */
   private hasConfirmedRemoteBypass = false
   /** Said once the surface is ready: why the conversation did not start as configured. */
@@ -1302,6 +1320,10 @@ export class ConversationController {
     }
     const sessions: ReturnType<typeof toSessionRow>[] = []
     for (const record of this.sessionRecords.values()) {
+      if (this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true) {
+        // The Auto reviewer's side session (M90): never a conversation of the user's.
+        continue
+      }
       if (!this.deps.surface.isSideChat || this.sideSessionIds.has(record.sessionId)) {
         sessions.push(toSessionRow(record))
       }
@@ -1398,6 +1420,7 @@ export class ConversationController {
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
+    this.forgetReviews(isOwnedRecovery)
     this.childSessionIds.clear()
     this.finishedTurns.clear()
     this.forgetForegroundShells()
@@ -1490,6 +1513,106 @@ export class ConversationController {
       this.deps.log.warn(`Edit automatically could not approve: ${describe(error)}`)
       this.forward(event)
     }
+  }
+
+  /**
+   * Whether the Auto reviewer judges an approval before the user (M90,
+   * PLAN.md D69): Auto on Muse Code with its setting on, one panel holding
+   * the session (as for Edit automatically), and an approval that
+   * `isReviewableApproval` admits.
+   */
+  private isReviewerApproval(event: Extract<AgentEvent, { type: 'approvalRequested' }>): boolean {
+    const port = this.deps.museCodeReviewer
+    return (
+      port !== undefined &&
+      this.deps.hasApprovalUi &&
+      this.sessionKind === 'museCode' &&
+      this.session !== undefined &&
+      sessionSurfaces.get(this.session)?.size === 1 &&
+      port.isOn() &&
+      isReviewableApproval(event, this.permissionMode, this.activeTurnId)
+    )
+  }
+
+  /**
+   * One approval to the Auto reviewer (M90): held from the panel, its card
+   * shown only if the review leaves it to the user (reviewedApprovals.ts).
+   */
+  private holdForReview(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
+    const { session } = this
+    const port = this.deps.museCodeReviewer
+    if (session === undefined || port === undefined) {
+      return
+    }
+    try {
+      this.reviews ??= port.reviewer().conversation({
+        showCard: (held, note) => {
+          const card = note === undefined ? held : { ...held, note }
+          this.forward(card)
+          this.track(card)
+        },
+        notice: (level, text) => {
+          this.notice(level, text)
+        },
+        // Still Auto, still on, still this turn of the panel's one session.
+        mayAllow: (held) => this.isReviewerApproval(held),
+        log: this.deps.log,
+        describeFailure: failureForLog,
+      })
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `The Auto reviewer could not be loaded; the user decides: ${describe(error)}`,
+      )
+      const card = { ...event, note: UI_TEXT.autoReviewerFailed }
+      this.forward(card)
+      this.track(card)
+      return
+    }
+    this.reviews.hold(event, {
+      session,
+      host: () => this.deps.ensureHost(),
+      modelId: this.modelId,
+      request: {
+        userRequest: this.reviewUserText,
+        recentCalls: this.reviewCalls,
+        tool: event.toolName,
+        action: event.subject.command ?? event.rawArgs,
+        workspaceRoot: this.deps.workspaceRoot ?? '',
+        platform: this.deps.platform,
+      },
+    })
+  }
+
+  /** The user's message reached the host: the reviewer is shown it, and may answer again. */
+  private noteReviewMessage(text: string): void {
+    this.reviewUserText = text
+    this.reviews?.reset()
+  }
+
+  /** A call the running turn finished: the reviewer is shown the turn's latest ones. */
+  private noteReviewCall(item: ItemSnapshot): void {
+    if (
+      item.kind !== TOOL_CALL_KIND ||
+      item.turnId === undefined ||
+      item.turnId !== this.activeTurnId
+    ) {
+      return
+    }
+    this.reviewCalls = [
+      ...this.reviewCalls,
+      { tool: item.tool ?? '', args: item.args ?? '' },
+    ].slice(-AUTO_REVIEWER_RECENT_CALLS)
+  }
+
+  /** The session left this panel: its reviews stop; a new conversation forgets what they were shown. */
+  private forgetReviews(isOwnedRecovery: boolean): void {
+    this.reviews?.forget()
+    if (isOwnedRecovery) {
+      return
+    }
+    this.reviews = undefined
+    this.reviewUserText = undefined
+    this.reviewCalls = []
   }
 
   /** An event as the webview sees it, plus the unread mark. */
@@ -1608,6 +1731,16 @@ export class ConversationController {
           void this.autoApprove(event, choice)
           return
         }
+        if (this.isReviewerApproval(event)) {
+          this.holdForReview(event)
+          return
+        }
+        break
+      }
+      case 'approvalUpdated': {
+        if (this.reviews?.updated(event) === true) {
+          return
+        }
         break
       }
       case 'approvalResolved': {
@@ -1617,6 +1750,12 @@ export class ConversationController {
         }
         if (this.autoApproved.delete(event.approvalId)) {
           this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+          return
+        }
+        // The Auto reviewer allowed it: the transcript names it and its reason (M90).
+        const reason = this.reviews?.resolved(event)
+        if (reason !== undefined) {
+          this.forward({ ...event, resolvedBy: UI_TEXT.autoReviewerResolver, reason })
           return
         }
         break
@@ -1671,6 +1810,7 @@ export class ConversationController {
           break
         }
         this.activeTurnId = event.turnId
+        this.reviewCalls = []
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
         if (this.session !== undefined && !this.isSideChat) {
           this.checkpoints.turnStarted(this.session.sessionId, event.turnId)
@@ -1780,6 +1920,9 @@ export class ConversationController {
         if (event.type === 'itemCompleted' || event.item.status !== IN_PROGRESS_STATUS) {
           this.pendingShellApprovals.delete(event.item.itemId)
           this.pausedForegroundShells.delete(event.item.itemId)
+        }
+        if (event.type === 'itemCompleted') {
+          this.noteReviewCall(event.item)
         }
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
@@ -2928,7 +3071,10 @@ export class ConversationController {
       return
     }
     if (event.type === 'changed') {
-      if (event.record.workspaceRoot !== this.deps.workspaceRoot) {
+      if (
+        event.record.workspaceRoot !== this.deps.workspaceRoot ||
+        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true
+      ) {
         return
       }
       this.sessionRecords.set(event.record.sessionId, event.record)
@@ -5069,6 +5215,7 @@ export class ConversationController {
           submission.disposition !== STEERED_DISPOSITION,
       )
       this.acceptedUserCards.set(localId, { turnId, text: shownText })
+      this.noteReviewMessage(shownText)
       if (submission.userMessageId !== undefined) {
         this.acceptedUserCards.set(submission.userMessageId, { turnId, text: shownText })
       }
@@ -5553,6 +5700,9 @@ export class ConversationController {
     const leftPlanTurns = mode === PLAN_MODE ? [] : [...this.pendingPlanTurnIds]
     if (mode !== PLAN_MODE) {
       this.pendingPlanTurnIds.clear()
+    }
+    if (mode !== AUTO_MODE) {
+      this.reviews?.release()
     }
     const target = approvalModeFor(mode, this.deps.hasApprovalUi)
     const { session } = this

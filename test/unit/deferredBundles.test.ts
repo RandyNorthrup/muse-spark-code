@@ -80,6 +80,20 @@ describe('deferred cohort bundles', () => {
     expect(activation).toContain('src/core/voice/helperLocation.ts')
   })
 
+  it('keeps the Auto reviewer on Muse Code and M78’s reviewer core out of activation (M90)', () => {
+    const activation = inputs('extension')
+    for (const file of [
+      'src/host/review/museCodeReviewer.ts',
+      'src/host/review/reviewedApprovals.ts',
+      'src/core/backends/modelapi/autoReviewer.ts',
+    ]) {
+      expect(activation).not.toContain(file)
+      expect(inputs('museCodeReviewer')).toContain(file)
+    }
+    // The port that requires it on the first review stays where it is asked.
+    expect(activation).toContain('src/host/review/museCodeReviewerBundle.ts')
+  })
+
   it('keeps paid review execution out of the session first-turn bundle', () => {
     expect(inputs('modelApi')).not.toContain('src/core/backends/modelapi/reviewerEntry.ts')
     expect(inputs('reviewer')).toContain('src/core/backends/modelapi/reviewerEntry.ts')
@@ -91,6 +105,8 @@ describe('deferred cohort bundles', () => {
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
+    // M90: the Auto reviewer on Muse Code, required on the first review.
+    ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {

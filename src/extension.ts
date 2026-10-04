@@ -146,6 +146,7 @@ import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
+import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -174,6 +175,8 @@ import {
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  MUSE_CODE_REVIEWER_BUNDLE_FILE,
+  MUSE_CODE_REVIEWER_DIR,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -688,6 +691,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
     log,
+  })
+  // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
+  // (D6), required on the first review; one side session and one queue for
+  // the window, in an empty folder of the extension's own.
+  const museCodeReviewer = museCodeReviewerPort({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_REVIEWER_BUNDLE_FILE)
+      .fsPath,
+    root: path.join(context.globalStorageUri.fsPath, MUSE_CODE_REVIEWER_DIR),
+    isOn: () => currentSettings().museCodeAutoReviewer,
+    log,
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      museCodeReviewer.dispose()
+    },
   })
   // Both engines' drivers are dist/voice.js (D6), required on the first recording.
   const voice = voiceLoader({
@@ -1921,6 +1939,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
           })
         },
+        museCodeReviewer,
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)
         },

@@ -35,6 +35,7 @@ describe('readSettings', () => {
         modelApiRepositoryRules: { denyRead: ['x'] },
         modelApiAutoReviewer: true,
         modelApiObservationPacking: true,
+        museCodeAutoReviewer: false,
       }),
       new FakeLogOutputChannel(),
     )
@@ -46,6 +47,10 @@ describe('readSettings', () => {
       repositoryRules: { denyRead: ['x'] },
     })
     expect(settings.modelApiAutoReviewer).toBe(true)
+    // M90: the Auto reviewer on Muse Code, on by default, off when the user says so.
+    expect(settings.museCodeAutoReviewer).toBe(false)
+    expect(SETTING_DEFAULTS.museCodeAutoReviewer).toBe(true)
+    expect(toSettingsSnapshot(settings).museCodeAutoReviewer).toBe(false)
     // M56 (PLAN.md D43).
     expect(settings.sandboxNetwork).toBe('restricted')
     expect(settings.modelApiPromptCacheRetention).toBe('24h')

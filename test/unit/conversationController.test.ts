@@ -46,6 +46,7 @@ import {
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
+  MUSE_CODE_REVIEWER_BUNDLE_FILE,
   PLAN_FILE_MAX_BYTES,
   MUSE_VOICE_BYTES_PER_SECOND,
   PLAN_STEP_MAX_CHARS,
@@ -74,7 +75,22 @@ import {
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel, fakeSurface } from './helpers/fakes'
-import { ledgerFault, REPLAY_FAULT_MESSAGE, replayFault } from './helpers/stageRaceCapture'
+import {
+  ledgerFault,
+  RACE_APPROVAL_ID,
+  raceRequested,
+  REPLAY_FAULT_MESSAGE,
+  replayFault,
+} from './helpers/stageRaceCapture'
+import {
+  CAPTURED_REPLY,
+  reviewReplyFrames,
+  reviewTurnCompleted,
+  reviewTurnStarted,
+  sideSessionStarted,
+} from './helpers/reviewerCapture'
+import { createMuseCodeReviewer } from '../../src/host/review/museCodeReviewerEntry'
+import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBundle'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -343,6 +359,8 @@ function setup(
     damagedIds?: readonly string[]
     /** The Muse Code host's command deadlines (CLI recovery: a steer that times out). */
     timeouts?: CommandTimeouts
+    /** The window's Auto reviewer on Muse Code (M90). */
+    museCodeReviewer?: ConversationDeps['museCodeReviewer']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -572,6 +590,7 @@ function setup(
     buildAttemptHost: () => Promise.resolve(host),
     realPath: (absolutePath: string) => Promise.resolve(absolutePath),
     notifyAttention: vi.fn<(notice: AttentionNotice) => void>(),
+    ...(options.museCodeReviewer !== undefined && { museCodeReviewer: options.museCodeReviewer }),
     auth: auth.service,
     accountFacts: (backend) =>
       Promise.resolve(
@@ -11595,5 +11614,283 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       level: 'info',
       text: UI_TEXT.museCodeRestartedUnresponsive,
     })
+  })
+})
+
+describe('ConversationController: the Auto reviewer on Muse Code (M90, PLAN.md D69)', () => {
+  const folder = mkdtempSync(path.join(tmpdir(), 'muse-controller-reviewer-'))
+  const root = path.join(folder, 'museCodeReviewer')
+  const sideSession = 'side-1'
+  const reviewLog = new FakeLogOutputChannel()
+
+  afterAll(() => removeFolder(folder))
+
+  /** A panel in `mode` on Muse Code with the window's reviewer, the side session answering. */
+  function reviewed(
+    mode: ConversationDeps['initialPermissionMode'] = 'auto',
+    isOn = true,
+    hasLoadFailure = false,
+  ) {
+    const setting = { isOn }
+    const port = museCodeReviewerPort({
+      bundlePath: path.join(folder, MUSE_CODE_REVIEWER_BUNDLE_FILE),
+      root,
+      isOn: () => setting.isOn,
+      log: reviewLog,
+      loadBundle: () => {
+        if (hasLoadFailure) throw new Error('reviewer bundle missing')
+        return { createMuseCodeReviewer }
+      },
+    })
+    const t = setup({
+      hasApprovalUi: true,
+      initialPermissionMode: mode,
+      isBypassAllowed: true,
+      museCodeReviewer: port,
+    })
+    t.server.handle('session/start', (params) =>
+      params['workspaceRoot'] === root
+        ? sideSessionStarted(sideSession, root, params['modelId'])
+        : {
+            session: { sessionId: 's1', modelId: params['modelId'], status: 'idle' },
+            viewCursor: '',
+          },
+    )
+    t.server.handle('turn/start', (params) =>
+      params['sessionId'] === sideSession
+        ? reviewTurnStarted(params['commandId'], 'rt-1')
+        : {
+            turnId: 't1',
+            status: 'accepted',
+            disposition: 'started',
+            startedNewTurn: true,
+            commandId: params['commandId'],
+          },
+    )
+    t.server.handle('task/stopAll', (params) => ({
+      status: 'accepted',
+      commandId: params['commandId'],
+    }))
+    acceptApprovalDecisions(t)
+    return { ...t, port, setting }
+  }
+
+  /** The user's message, its turn running, and Muse Code asking for the captured line. */
+  async function asked(t: ReturnType<typeof reviewed>, turnId = 't1'): Promise<void> {
+    await t.send('l1', 'Count the lines in notes.md')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    t.server.notify('approval/requested', { ...raceRequested('s1'), turnId })
+    await settle()
+  }
+
+  function sideTurns(t: ReturnType<typeof reviewed>) {
+    return t.server
+      .requestsFor('turn/start')
+      .filter((request) => request.params?.['sessionId'] === sideSession)
+  }
+
+  function sideReplies(t: ReturnType<typeof reviewed>, text: string): void {
+    for (const frame of reviewReplyFrames(sideSession, 'rt-1', text)) {
+      t.server.notify(frame.method, frame.params)
+    }
+    t.server.notify('turn/completed', reviewTurnCompleted(sideSession, 'rt-1'))
+  }
+
+  function cards(t: ReturnType<typeof reviewed>) {
+    return agentEvents(t).filter((event) => event.type === 'approvalRequested')
+  }
+
+  it('allows once what the reviewer allows, with no card, and the transcript names it and its reason', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    expect(t.server.requestsFor('session/start').at(-1)?.params).toMatchObject({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'denyUnmatched',
+    })
+    expect(JSON.stringify(sideTurns(t)[0]?.params)).toContain('Count the lines in notes.md')
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'notice',
+        level: 'info',
+        text: UI_TEXT.museCodeReviewerNotice,
+      }),
+    )
+    sideReplies(t, CAPTURED_REPLY)
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
+    })
+    expect(t.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
+      sessionId: 's1',
+      approvalId: RACE_APPROVAL_ID,
+      choiceId: 'allow_once',
+      requirementId: { approvalId: RACE_APPROVAL_ID, sourceIndex: 0 },
+    })
+    expect(cards(t)).toEqual([])
+    t.server.notify('approval/resolved', {
+      sessionId: 's1',
+      approvalId: RACE_APPROVAL_ID,
+      itemId: RACE_APPROVAL_ID,
+      decision: 'approved',
+      resolvedBy: 'user',
+    })
+    await vi.waitFor(() => {
+      expect(agentEvents(t).at(-1)).toEqual({
+        type: 'approvalResolved',
+        approvalId: RACE_APPROVAL_ID,
+        itemId: RACE_APPROVAL_ID,
+        decision: 'approved',
+        resolvedBy: UI_TEXT.autoReviewerResolver,
+        reason: fill(UI_TEXT.autoReviewAllowed, {
+          reason: 'reads workspace file to fulfill line-count request',
+        }),
+      })
+    })
+  })
+
+  it('shows the card with the reviewer’s reason when it asks', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    sideReplies(t, 'ASK: reads files outside the workspace')
+    await vi.waitFor(() => {
+      expect(cards(t)).toHaveLength(1)
+    })
+    expect(cards(t)[0]).toMatchObject({
+      approvalId: RACE_APPROVAL_ID,
+      note: fill(UI_TEXT.autoReviewAsked, { reason: 'reads files outside the workspace' }),
+    })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+  })
+
+  it.each(['manual', 'acceptEdits', 'plan', 'bypassPermissions'] as const)(
+    'never asks the reviewer in %s',
+    async (mode) => {
+      const t = reviewed(mode)
+      await asked(t)
+      await vi.waitFor(() => {
+        expect(cards(t)).toHaveLength(1)
+      })
+      expect(cards(t)[0]).not.toHaveProperty('note')
+      expect(sideTurns(t)).toHaveLength(0)
+      expect(t.server.requestsFor('session/start')).toHaveLength(1)
+    },
+  )
+
+  it('never asks the reviewer with its setting off, nor for a child’s approval', async () => {
+    const off = reviewed('auto', false)
+    await asked(off)
+    await vi.waitFor(() => {
+      expect(cards(off)).toHaveLength(1)
+    })
+    const child = reviewed()
+    await asked(child, 'child-session-1')
+    await vi.waitFor(() => {
+      expect(cards(child)).toHaveLength(1)
+    })
+    expect(sideTurns(off)).toHaveLength(0)
+    expect(sideTurns(child)).toHaveLength(0)
+  })
+
+  it('shows a held card at once when the user leaves Auto, and never answers it', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
+    expect(cards(t)).toHaveLength(1)
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(cards(t)).toHaveLength(1)
+  })
+
+  it('shows the failure card immediately when the reviewer bundle loader throws', async () => {
+    const t = reviewed('auto', true, true)
+    await asked(t)
+    expect(cards(t)).toEqual([expect.objectContaining({ note: UI_TEXT.autoReviewerFailed })])
+    expect(sideTurns(t)).toHaveLength(0)
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+  })
+
+  it('two Auto panels sharing a session show cards without a side turn', async () => {
+    const t = reviewed()
+    const second = new ConversationController({
+      ...t.deps,
+      ensureHost: () => Promise.resolve(t.host),
+    })
+    try {
+      await t.send('l1', 'Count the lines in notes.md')
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+      await settle()
+      t.server.handle('session/resume', () =>
+        envelope({
+          ...storedSession,
+          sessionId: 's1',
+          status: 'running',
+          activeTurnId: 't1',
+        }),
+      )
+      await second.handle({ type: 'resumeSession', sessionId: 's1' })
+      t.server.notify('approval/requested', { ...raceRequested('s1'), turnId: 't1' })
+      await settle()
+      expect(cards(t).length).toBeGreaterThan(0)
+      expect(sideTurns(t)).toHaveLength(0)
+      expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    } finally {
+      second.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('accepted steering releases the held review and ignores its late ALLOW', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    steerOnlyParentTurn(t)
+    await t.send('l2', 'Do not run tests; only inspect the code')
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(cards(t)).toHaveLength(1)
+    sideReplies(t, CAPTURED_REPLY)
+    await settle()
+    expect(cards(t)).toHaveLength(1)
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+  })
+
+  it('never lists the reviewer’s side session in History', async () => {
+    const t = reviewed()
+    await asked(t)
+    await vi.waitFor(() => {
+      expect(sideTurns(t)).toHaveLength(1)
+    })
+    // A CLI that listed it under the workspace all the same.
+    t.server.handle('session/list', () => ({
+      sessions: [
+        { ...storedSession, sessionId: 's1', status: 'running' },
+        { ...storedSession, sessionId: sideSession, title: 'You review one action' },
+      ],
+      nextCursor: null,
+    }))
+    await t.controller.handle({ type: 'listSessions' })
+    const list = t.surface.posted.findLast((message) => message.type === 'sessionList')
+    expect(list).toMatchObject({ sessions: [expect.objectContaining({ sessionId: 's1' })] })
+    expect(JSON.stringify(list)).not.toContain(sideSession)
+    t.server.notify('session/listChanged', {
+      session: { ...storedSession, sessionId: sideSession, title: 'You review one action' },
+    })
+    await settle()
+    expect(
+      JSON.stringify(t.surface.posted.findLast((message) => message.type === 'sessionList')),
+    ).not.toContain(sideSession)
   })
 })

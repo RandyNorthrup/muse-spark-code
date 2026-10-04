@@ -158,7 +158,14 @@ const toolEntrySchema = z.object({
   /** An edit's `then_run` (M68): the second result of the call. */
   thenRun: z.optional(thenRunResultSchema),
   approval: z.optional(pendingApprovalSchema),
-  approvalOutcome: z.optional(z.object({ decision: z.string(), resolvedBy: z.string() })),
+  approvalOutcome: z.optional(
+    z.object({
+      decision: z.string(),
+      resolvedBy: z.string(),
+      /** Why the Auto reviewer on Muse Code allowed it (M90). */
+      reason: z.optional(z.string()),
+    }),
+  ),
   question: z.optional(pendingQuestionSchema),
   questionOutcome: z.optional(
     z.object({

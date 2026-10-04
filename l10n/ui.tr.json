@@ -896,13 +896,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse komut çalıştırmadan önce sorar; Muse Code çalışma alanı dosyalarını sormadan düzenler",
-    "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
+    "acceptEdits": "Muse Code’da El ile ile aynıdır: Muse Code çalışma alanı dosyalarını sormadan düzenler ve komut çalıştırmadan önce sorar",
     "plan": "Muse kodu inceler ve düzenlemeden önce bir plan sunar",
-    "auto": "Muse güvenlik denetiminden geçen eylemleri onaylar ve riskli her şeyde duraklar",
+    "auto": "Muse Code basit saydığı komutları sormadan çalıştırır, diğerlerinden önce sorar",
     "bypassPermissions": "Muse sormadan dosya düzenler ve komut çalıştırır"
   },
+  "museCodeReviewedAutoDetail": "Muse Code basit saydığı komutları sormadan çalıştırır; bir inceleyici bazı diğerlerine bir kez izin verebilir, geri kalanlar size sorulur",
   "modelApiPermissionModeDetails": {
     "manual": "Muse her düzenlemeden ve her komuttan önce onay ister",
+    "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
     "auto": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler ve komutlardan önce sorar"
   },
   "effortLevels": {
@@ -1658,6 +1660,7 @@
   "autoReviewerUnreadable": "Otomatik inceleyicinin yanıtı okunamadı; kararı siz verirsiniz.",
   "autoReviewerPaused": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra bir sonraki mesajınıza kadar duraklatıldı; kararı siz verirsiniz.",
   "autoReviewerTripped": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra durdu. Bir sonraki mesajınızı gönderene kadar her riskli işlem size sorar.",
+  "museCodeReviewerNotice": "Varsayılan olarak açık. Muse Code Otomatik modunda yalnızca çalışan turun hiçbir kuralın karara bağlamadığı onayları uygundur: gizli Planlama oturumunda aboneliğinizden kısa bir Muse Code turu. Korumalı yazmalar, ücretli çağrılar, alt görevler, sorular, yeniden sunulan veya üst değerlendirmeye aktarılan istekler, bilinmeyen konular, bir kez izin verme seçeneği olmayan istekler ve panellerce paylaşılan oturumlar asla incelenmez. Başarılı inceleme bir kez izin verebilir; retler, hatalar, meşgul oturumlar, zaman aşımları veya devre kesicinin açılması onay kartını gösterir. Ana süreç çıktığında yan oturum yeniden oluşturulur. museSpark.museCodeAutoReviewer ile kapatabilirsiniz.",
   "paidAutoReviewerName": "Otomatik inceleyici",
   "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı hiçbir kuralın karara bağlamadığı her riskli işlemi değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
   "paidUseAutoReviewerTitle": "Bu {tool} çağrısını otomatik inceleyici değerlendirsin mi?",

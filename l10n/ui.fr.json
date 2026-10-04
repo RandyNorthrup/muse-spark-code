@@ -919,13 +919,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse demandera avant d’exécuter des commandes ; Muse Code modifie les fichiers de l’espace de travail sans demander",
-    "acceptEdits": "Muse modifiera les fichiers sans demander et demandera avant d’exécuter des commandes",
+    "acceptEdits": "Sur Muse Code, identique à Manuel : Muse Code modifie les fichiers de l’espace de travail sans demander et demande avant d’exécuter des commandes",
     "plan": "Muse explorera le code et présentera un plan avant toute modification",
-    "auto": "Muse approuvera les actions qui passent un contrôle de sécurité et s’arrêtera pour tout ce qui est risqué",
+    "auto": "Muse Code exécute sans demander les commandes qu’il juge simples et demande avant les autres",
     "bypassPermissions": "Muse modifiera les fichiers et exécutera des commandes sans demander"
   },
+  "museCodeReviewedAutoDetail": "Muse Code exécute sans demander les commandes qu’il juge simples ; un réviseur peut en autoriser d’autres une fois, et on vous demande pour le reste",
   "modelApiPermissionModeDetails": {
     "manual": "Muse demandera une approbation avant chaque modification et chaque commande",
+    "acceptEdits": "Muse modifiera les fichiers sans demander et demandera avant d’exécuter des commandes",
     "auto": "Muse modifiera les fichiers sans demander, sauf les fichiers protégés, et demandera avant les commandes"
   },
   "effortLevels": {
@@ -1716,6 +1718,7 @@
   "autoReviewerUnreadable": "La réponse du réviseur auto était illisible : c’est à vous de décider.",
   "autoReviewerPaused": "Après des refus ou des échecs répétés, le réviseur auto est en pause jusqu’à votre prochain message : c’est à vous de décider.",
   "autoReviewerTripped": "Le réviseur auto s’est arrêté après des refus ou des échecs répétés. Jusqu’à votre prochain message, chaque action risquée vous est soumise.",
+  "museCodeReviewerNotice": "Activé par défaut. En mode Automatique sur Muse Code, seules les approbations du tour en cours qu’aucune règle ne tranche sont admissibles : un court tour Muse Code sur votre abonnement dans une session masquée de Planification. Les écritures protégées, appels payants, tâches enfants, questions, demandes rejouées ou escaladées, objets inconnus, demandes sans autorisation unique et sessions partagées entre panneaux ne sont jamais examinés. Un examen réussi peut autoriser une fois ; les refus, échecs, sessions occupées, délais dépassés ou coupe-circuit déclenché affichent la carte d’approbation. La session auxiliaire est recréée après l’arrêt de l’hôte. Désactivez-le avec museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Réviseur auto",
   "paidConfirmAutoReviewer": "En mode Automatique sur le backend Model API, un appel de modèle distinct évalue chaque action risquée qu’aucune règle ne tranche, et l’exécute sans vous demander si elle semble sûre. Il n’autorise jamais une commande interdite, une commande pour laquelle vos règles demandent votre accord, une écriture protégée ni un appel payant ; s’il refuse ou échoue, c’est vous qui décidez. Chaque revue est facturée sur votre clé Model API aux tarifs par jeton du modèle de la conversation :\n{price}\nChaque revue demande d’abord votre accord, sauf si vous autorisez toujours les revues dans cet espace de travail.",
   "paidUseAutoReviewerTitle": "Laisser le réviseur auto évaluer cet appel {tool} ?",

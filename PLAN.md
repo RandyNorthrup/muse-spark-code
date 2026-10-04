@@ -217,24 +217,25 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`        | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
-| `.vsix`                   | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                                                     |
-| `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`   | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 100.2 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
+| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -458,6 +459,16 @@ any prompting mode would hang the turn, so `HAS_APPROVAL_UI = false` collapses
 Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
+
+**Correction (2026-10-03, D69).** The Auto row above did not hold under
+`muse serve`: the LLM approval judge `muse --help` names runs only in the
+CLI's interactive and `exec` commands, so serve's `onRequest` skips only the
+commands the CLI classifies as simple and asks for the rest, and Manual and
+Edit automatically are one mode to Muse Code there (it asks before no
+workspace edit). The panel described Auto as "approve actions that pass a
+safety check" until 0.11.0. D69 records the investigation, the honest
+per-backend descriptions and the extension's own reviewer (M90); the table
+is left as written.
 
 The mode button opens a **Modes** menu (title, `⇧ + tab to switch` hint, one
 row per mode with the Claude Code description adapted to Muse, a tick on the
@@ -4060,6 +4071,73 @@ on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
   written to the user's config folder without one of these actions.
 - **Requirements stay the package's.** The delivery helpers need Python 3;
   the README says so, and a missing Python is the script's own error.
+
+### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
+
+The owner reported clicking as many approvals in Auto as in Manual on the
+Muse Code backend. Investigation (2026-10-03; the CLI's session log and trace
+for his live session, plus a three-turn live probe on the contributor model):
+
+- The panel's modes reach Muse Code and take effect (`session/setApprovalMode`
+  applied, effective mode recorded), mid-turn changes included.
+- **D7's premise did not hold under `muse serve`.** D7 read `muse --help`
+  (1.3.0): Auto = `onRequest`, "judge-reviewed, prompt only on need". The LLM
+  approval judge exists only for the interactive and `exec` commands;
+  `muse serve` has no flag for it and the protocol cannot choose a reviewer
+  (`approval_reviewer.resolve outcome="disabled" reason="setting_off"`). Under
+  serve, `onRequest` skips only commands the CLI classifies as simple and safe;
+  every multi-statement script (all 142 approvals in his Oct 2–3 logs were
+  PowerShell scripts, which also get no "always allow" because the CLI cannot
+  split them into stages) still asks.
+- **Manual and Edit automatically are one mode to Muse Code** (`promptUnmatched`),
+  and Muse Code under serve does not ask before workspace file edits, so Edit
+  automatically has nothing to answer there.
+
+Decisions (the owner chose the reviewer on 2026-10-03):
+
+- **The reviewer.** In Auto on the Muse Code backend, when Muse Code raises an
+  approval no rule settled, the extension asks a reviewer before the user. It
+  reuses M78's reviewer core (`autoReviewer.ts`: `reviewerInput`,
+  `parseReviewerAnswer`, `ReviewBreaker`) and its rubric, and runs on the
+  user's Muse subscription: a hidden side session in the same `muse serve`
+  (Plan mode in an empty folder; the conversation's model; never listed in
+  History), one short turn per review. It answers ALLOW or ASK with a reason.
+- **Its reach.** It can turn an ask into an allow, nothing else. A decline, an
+  unreadable answer, a timeout (`MUSE_CODE_REVIEW_TIMEOUT_MS`), an error, a
+  closed or busy side session, or a tripped breaker leave the approval to the
+  user, as today. It never answers a file write the extension's own rules
+  protect, a paid call, a child task or a question that is not an approval.
+  One review at a time per window.
+- **Tool boundary.** Muse Code's SDK `SessionConfig` only configures
+  `mcpServers`; it cannot disable native tools. Any review-turn item other
+  than the captured ones (the prompt's echo, Muse Code's reminder agents,
+  reasoning and the reply) cancels the turn, shows the normal card with the
+  generic failure reason, and recreates the side session.
+  Residual: a command covered by the user's always-allow rule could run in
+  the empty folder before cancellation lands. The captured setup supplied
+  no workspace files, rules or skills; CLI-global context is not excluded.
+- **Verdict boundary (review fixes, 2026-10-03 and -04).** Changed kind,
+  command, path, access, host, target or tool name invalidates both a held review and a later-stage
+  allowance. Accepted messages and steering release held reviews and clear
+  allowances. Queue admission rechecks the breaker; reasoning setup shares
+  the deadline and cancellation. Only a completed reply in a completed
+  turn carries a verdict. Unseen tool resolutions retain attribution for
+  the newest 50 item ids until their rows arrive, live or from a same-session
+  history read, which also keeps the outcomes the panel saw.
+- **Shown, not hidden.** An approval the reviewer allowed shows in the
+  transcript as allowed by the reviewer, with its reason; an ASK shows the
+  reason on the card the user answers.
+- **Default and setting.** On in Auto (`museSpark.museCodeAutoReviewer`,
+  machine-scoped, default `true`); the first review in a window posts one
+  notice saying what it does and how to turn it off. It costs one short turn
+  of the user's Muse subscription per review, which the notice says.
+- **Honest mode descriptions.** The mode picker, README and this plan describe
+  each mode per backend: on Muse Code, Edit automatically is Manual, and Auto
+  is Muse Code's own simple-command skip plus the reviewer.
+- **Upstream.** A request to Meta for an approval judge under `muse serve`
+  (or a way to pick the reviewer over the protocol) goes with the event-log
+  report; when it lands, the extension prefers it and keeps this reviewer as
+  the fallback.
 
 ## 3. Open questions (need the owner)
 
@@ -12847,6 +12925,56 @@ usage window gives has never been captured (§3).
         rigs, 56 tests each, real junctions and symlinks).
   - [ ] README, PRIVACY, CHANGELOG and this record updated (lanes 0, S, I
         and W done; lane V's rows to add).
+
+### M90 — Auto on Muse Code: the reviewer (D69)
+
+**Status 2026-10-04: PR #104, after two independent review rounds and a
+live recheck; record in `docs/certification/m90.md`.** The reviewer is `src/host/review/` (`museCodeReviewer.ts`: the
+side session and the window's queue; `reviewedApprovals.ts`: what follows a
+review; `museCodeReviewerBundle.ts`: the window's port), built into
+`dist/museCodeReviewer.js` and required on the first review; the
+controller only decides which approvals go to it (`isReviewableApproval`
+in `approvalRules.ts`) and what it is shown. The side session runs in an
+empty folder under the extension's global storage, outside every
+workspace, so `session/list` for the workspace never returns it (captured
+live) and the controller filters its id as well.
+
+- **Goal.** Auto on Muse Code may answer eligible unsettled approvals for
+  the running turn once after a successful review. Exclusions and every
+  failure path retain the normal card; each mode describes its backend
+  truthfully.
+- **Depends on.** PR #89 (M78's reviewer core) on main.
+- **Scope.** The side-session reviewer, its setting and notice, the transcript
+  row and card reason, the per-backend mode descriptions, strings in all 14
+  tables, README, PRIVACY (what the reviewer is shown), CHANGELOG, PLAN D7
+  correction, `docs/certification/m90.md`.
+- **Acceptance.**
+  1. In Auto on Muse Code, an approval the reviewer ALLOWs is answered allow
+     once without a card and shows in the transcript with its reason.
+  2. ASK, an unreadable answer, a timeout, an error and a tripped breaker each
+     leave the card to the user (with the reason when there is one).
+  3. Manual, Edit automatically, Plan and Bypass never consult the reviewer;
+     the setting off disables it.
+  4. The side session is never listed, runs in Plan mode in an empty folder,
+     uses the conversation's model, and is recreated after a Muse Code
+     restart or exit, timeout, busy fallback or tool activity. Any item
+     other than an agent message or reasoning cancels its turn and shows
+     the failure card. A command covered by an always-allow rule could run
+     in that empty folder before the cancel lands; native tools cannot be
+     disabled through the SDK's `SessionConfig`.
+  5. The reviewer is shown the user's latest message, the turn's earlier
+     calls and the request, all marked as data (M78's input), and its
+     verdict text is never executed.
+  6. Mode descriptions match the investigation above on both backends.
+- **Tests.** Unit tests against the fake CLI for every acceptance item, each
+  guard with a red drill; one live check on the contributor model in an empty
+  workspace (a safe and an unsafe script) with the model calls counted.
+- **Gates.** The full quality gate; activation bundle within D6 (the reviewer
+  loads lazily if it is over ~3 KiB).
+- **Certification checklist.**
+  - [x] Acceptance 1–6 with tests and drills (`docs/certification/m90.md`).
+  - [x] Live check recorded with its call count.
+  - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

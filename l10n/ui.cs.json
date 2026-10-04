@@ -942,13 +942,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse se zeptá před spuštěním příkazů; Muse Code upravuje soubory pracovního prostoru bez ptaní",
-    "acceptEdits": "Muse bude upravovat soubory bez ptaní a před spuštěním příkazů se zeptá",
+    "acceptEdits": "V Muse Code totéž co Ruční: Muse Code upravuje soubory pracovního prostoru bez ptaní a před spuštěním příkazů se zeptá",
     "plan": "Muse prozkoumá kód a před úpravami předloží plán",
-    "auto": "Muse schválí akce, které projdou bezpečnostní kontrolou, a u čehokoli rizikového se zastaví",
+    "auto": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní a před ostatními se zeptá",
     "bypassPermissions": "Muse bude upravovat soubory a spouštět příkazy bez ptaní"
   },
+  "museCodeReviewedAutoDetail": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní; kontrolor může některé další jednou povolit a na zbytek se zeptá vás",
   "modelApiPermissionModeDetails": {
     "manual": "Muse požádá o schválení před každou úpravou a každým příkazem",
+    "acceptEdits": "Muse bude upravovat soubory bez ptaní a před spuštěním příkazů se zeptá",
     "auto": "Muse bude upravovat soubory bez ptaní, kromě chráněných souborů, a před příkazy se zeptá"
   },
   "effortLevels": {
@@ -1774,6 +1776,7 @@
   "autoReviewerUnreadable": "Odpověď automatického kontrolora nešla přečíst, takže rozhodujete vy.",
   "autoReviewerPaused": "Automatický kontrolor je po opakovaných zamítnutích nebo selháních pozastaven až do vaší příští zprávy, takže rozhodujete vy.",
   "autoReviewerTripped": "Automatický kontrolor se po opakovaných zamítnutích nebo selháních zastavil. Dokud nepošlete další zprávu, každá riziková akce se zeptá vás.",
+  "museCodeReviewerNotice": "Ve výchozím nastavení zapnuto. V automatickém režimu Muse Code lze posoudit pouze schválení pro běžící kolo, která nerozhodne žádné pravidlo: jedno krátké kolo Muse Code z vašeho předplatného ve skryté relaci Plán. Chráněné zápisy, placená volání, podřízené úlohy, otázky, opakované nebo eskalované požadavky, neznámé předměty, požadavky bez jednorázového povolení a relace sdílené panely se nikdy neposuzují. Úspěšná kontrola může povolit jednou; odmítnutí, selhání, obsazená relace, časový limit nebo aktivovaný jistič zobrazí kartu schválení. Po ukončení hostitele se vedlejší relace vytvoří znovu. Vypnete jej nastavením museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatický kontrolor",
   "paidConfirmAutoReviewer": "V automatickém režimu na back-endu Model API posuzuje samostatné volání modelu každou rizikovou akci, kterou žádné pravidlo nerozhodne, a spustí ji bez ptaní, pokud vypadá bezpečně. Nikdy nepovolí zakázaný příkaz, příkaz, u kterého se vaše pravidla ptají, chráněný zápis ani placené volání; když zamítne nebo selže, rozhodujete vy. Každá kontrola se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nKaždá kontrola se nejprve zeptá, pokud kontroly v tomto pracovním prostoru nepovolíte vždy.",
   "paidUseAutoReviewerTitle": "Nechat automatického kontrolora posoudit toto volání {tool}?",

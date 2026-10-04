@@ -11,81 +11,22 @@
 // The budget below is that reality with headroom, so a regression past it
 // fails the drill rather than the owner's plan.
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
-import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
 const TURN_TIMEOUT_MS = 180_000
-const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
-/** One line per model attempt admitted; the two fields are not adjacent on the line. */
-const ATTEMPT_LINE = /event="model.attempt.lifecycle".*phase="admission"/g
 const ATTEMPT_BUDGET = 60
-const LOG_WAIT_MS = 30_000
-const LOG_POLL_MS = 250
 const PROMPT = 'Reply with exactly the word OK and nothing else.'
-// The owner's rule for live tests (2026-09-24): the contributor tier, on
-// throwaway content only.
-const LIVE_MODEL_ID = `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-/** A running host holds its log locked; that read fails and the file is skipped for now. */
-function tryRead(file: string): string | undefined {
-  try {
-    return readFileSync(file, 'utf8')
-  } catch {
-    return undefined
-  }
-}
-
-/** The trace log of the host that served the session, once it can be read. */
-async function sessionLog(sessionId: string): Promise<string> {
-  const mark = `session_id="${sessionId}"`
-  const deadline = Date.now() + LOG_WAIT_MS
-  for (;;) {
-    const found = readdirSync(TRACE_DIR)
-      .map((name) => tryRead(path.join(TRACE_DIR, name)))
-      .find((text) => text?.includes(mark) === true)
-    if (found !== undefined) {
-      return found
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`no readable trace log mentions session ${sessionId}`)
-    }
-    await sleep(LOG_POLL_MS)
-  }
-}
-
-function countAttempts(log: string): number {
-  return log.match(ATTEMPT_LINE)?.length ?? 0
-}
 
 /** One turn on the real CLI: the session id and the streamed reply text. */
 async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
-  const backend = new MuseCodeBackendManager({
-    // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.
-    beforeWorkspaceHostStart: () => Promise.resolve(),
-    log: new FakeLogOutputChannel(),
-    extensionVersion: '0.0.0-live-e2e',
-    getConfiguredBinaryPath: () => '',
-    getEnvironmentVariables: () => [],
-    workspaceRoot,
-    getShellSandbox: () => 'off',
-    getSandboxNetwork: () => 'default',
-    userProfileDir: process.env['USERPROFILE'],
-    isWorkspaceTrusted: () => true,
-    getProxySettings: () => ({ proxy: '', noProxy: [] }),
-  })
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', new FakeLogOutputChannel())
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
