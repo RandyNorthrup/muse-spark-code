@@ -8,6 +8,7 @@
 
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_IN_PROGRESS,
   TOOL_STATUS_INTERRUPTED,
@@ -165,13 +166,18 @@ function ShellBody({
       {command === undefined ? null : (
         <div className="shell-box">
           <span className="shell-label">{UI_TEXT.inLabel}</span>
-          <pre className="tool-pre">{command}</pre>
+          <Clipped text={command} className="shell-out" previewLines={IO_PREVIEW_LINES} />
         </div>
       )}
       {output === '' ? null : (
         <div className="shell-box">
           <span className="shell-label">{UI_TEXT.outLabel}</span>
-          <Clipped text={output} className="shell-out" onOpen={onOpen} />
+          <Clipped
+            text={output}
+            className="shell-out"
+            onOpen={onOpen}
+            previewLines={IO_PREVIEW_LINES}
+          />
         </div>
       )}
       {(run?.isRunning === true || entry.isBackground) && entry.status === 'inProgress' ? (

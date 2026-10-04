@@ -1918,6 +1918,8 @@ export const CHOICE_STEERING_NOTE =
 export const HARNESS_NOTE_TAG = 'harness_note'
 // Collapsed tool bodies show this many lines before "Show more".
 export const OUTPUT_PREVIEW_LINES = 12
+/** Shell IN/OUT previews share a compact five-line limit (M87). */
+export const IO_PREVIEW_LINES = 5
 // And at most this many characters (M39): one line of minified output can
 // be megabytes, which the line count alone would render whole.
 export const OUTPUT_PREVIEW_CHARS = 2000

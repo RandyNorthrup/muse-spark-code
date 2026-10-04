@@ -41,6 +41,25 @@ describe('StatusLine', () => {
     expect(screen.getByRole('listitem')).toHaveTextContent('Denkt nach…')
   })
 
+  it('uses the step bullet and a decorative heartbeat outside live regions', () => {
+    const { container } = render(<StatusLine />)
+    expect(container.querySelector('.status-spark')).toBeNull()
+    expect(container.querySelector('.tool-dot.tool-dot-running')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
+    const trace = container.querySelector('svg.heartbeat-trace')
+    expect(trace).toHaveAttribute('aria-hidden', 'true')
+    expect(trace).toHaveAttribute('focusable', 'false')
+    const paths = trace?.querySelectorAll('path')
+    expect(paths).toHaveLength(2)
+    expect(paths?.[0]).toHaveAttribute('pathLength', '100')
+    expect(paths?.[1]).toHaveAttribute('pathLength', '100')
+    expect(paths?.[0]?.getAttribute('d')).toBe(paths?.[1]?.getAttribute('d'))
+    expect(trace?.querySelector('.heartbeat-sweep')).toBeTruthy()
+    expect(container.querySelector('[aria-live], [role="status"]')).toBeNull()
+  })
+
   it('stops its timer when unmounted', () => {
     const { unmount } = render(<StatusLine />)
     expect(vi.getTimerCount()).toBe(1)
