@@ -81,6 +81,14 @@ describe('toolLabel', () => {
     setUiText(EN, 'en')
   })
 
+  it('names an Auto review’s row, and shows the action it judged (M78)', () => {
+    expect(describeTool('auto_review', '{"tool":"bash","action":"npm test"}')).toMatchObject({
+      label: 'Auto review',
+      summary: 'npm test',
+      body: 'generic',
+    })
+  })
+
   it("names the table's tools and nothing else, not even Object.prototype's members", () => {
     expect(toolLabel('powershell')).toBe('PowerShell')
     expect(toolLabel('grep_files')).toBeUndefined()

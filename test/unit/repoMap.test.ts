@@ -222,6 +222,33 @@ describe('repo map', () => {
     expect(text).not.toContain('TABLE')
   })
 
+  it('spends its file cap on readable files, past the ones a permission profile hides', async () => {
+    const files: Record<string, string> = { ...FILES }
+    // A full cap's worth of hidden files sorts ahead of every readable one.
+    for (let index = 0; index < REPO_MAP_MAX_FILES; index += 1) {
+      files[`a/${String(index).padStart(4, '0')}.ts`] = 'helper(TABLE)\n'
+    }
+    const t = setup({ io: memoryToolIo(files, ROOT) })
+    const deps: CodeIntelDeps = {
+      ...t.deps,
+      canReadFile: (file) => !file.relative.startsWith('a/'),
+    }
+    const answer = await answerCodeIntel('repoMap', {}, deps)
+    if (!answer.ok) throw new Error(`Expected a map, got: ${answer.reason}`)
+    expect(answer.text.split('\n').slice(1, 6)).toEqual([
+      'src/core.ts',
+      '  1: function helper',
+      '  2: constant TABLE',
+      'src/two.ts',
+      '  3: function oneThing',
+    ])
+    expect(answer.text).not.toContain('a/0000.ts')
+    expect(answer.text).not.toContain('[ranked the first')
+    expect(answer.text).toContain(
+      `${String(REPO_MAP_MAX_FILES)} result paths withheld by file permission rules.`,
+    )
+  })
+
   it('makes the system prompt section, or nothing once a Stop has come', async () => {
     const t = setup()
     const section = await repoMapSection(t.deps, new AbortController().signal)

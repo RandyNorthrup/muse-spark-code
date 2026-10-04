@@ -21,6 +21,7 @@ import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionMod
 import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
+import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
@@ -65,9 +66,19 @@ export interface StoredChild {
     readonly errorKind?: string
   }
   readonly terminal?: string
+  /** The file policy's revision at the spawn (M78): its results reach the parent only under it. */
+  readonly policyRevision?: string
   readonly pendingMessages: readonly string[]
   readonly session: StoredSession
 }
+
+/**
+ * A completed child's result not yet in a request, with the file policy's
+ * revision its child ran under (M78). Plain text is a result saved before
+ * revisions were: it is withheld.
+ */
+export type StoredPendingChildResult =
+  string | { readonly childId: string; readonly text: string; readonly policyRevision?: string }
 
 /** One session on disk. Optional fields are absent, never null. */
 export interface StoredSession {
@@ -108,6 +119,10 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
+  /** Dollars the session's own requests spent (M82); absent when none. */
+  readonly budgetSpentUsd?: number
+  /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
+  readonly budgetIsFreshFork?: true
   /**
    * Observation packing's ledger (M73): the estimated tokens packed sends
    * left out. Absent where the session never packed, and in a file saved
@@ -117,7 +132,7 @@ export interface StoredSession {
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
-  readonly pendingChildResults?: readonly string[]
+  readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
 }
 
@@ -141,6 +156,8 @@ export interface StoredSessionHeader {
 
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
+  /** Shared request liabilities and spend; required for a finite cap. */
+  readonly budget?: SessionBudgetJournal
   /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
   list(): Promise<readonly StoredSessionHeader[]>
   /** One session in full; undefined when it is gone or no longer reads. */
@@ -205,6 +222,13 @@ const storedInputItemSchema = z.union([
   webSearchCallReplaySchema,
 ])
 
+const storedUsageSchema = z.object({
+  inputTokens: z.number().check(z.nonnegative()),
+  outputTokens: z.number().check(z.nonnegative()),
+  cachedTokens: z.number().check(z.nonnegative()),
+  reasoningTokens: z.number().check(z.nonnegative()),
+})
+
 const storedSessionFields = {
   version: z.literal(STORED_SESSION_VERSION),
   sessionId: z.string(),
@@ -246,14 +270,22 @@ const storedSessionFields = {
       backgroundTaskId: z.optional(z.string()),
     }),
   ),
-  transcript: z.array(z.object({ turnId: z.string(), item: z.object(itemSnapshotFields) })),
+  transcript: z.array(
+    z.object({
+      turnId: z.string(),
+      item: z.object({
+        ...itemSnapshotFields,
+        usage: z.optional(storedUsageSchema),
+        costUsd: z.optional(z.number().check(z.nonnegative())),
+      }),
+    }),
+  ),
   outputs: z.record(z.string(), z.string()),
-  usage: z.object({
-    inputTokens: z.number(),
-    outputTokens: z.number(),
-    cachedTokens: z.number(),
-    reasoningTokens: z.number(),
-  }),
+  usage: storedUsageSchema,
+  // Optional, so a session saved before M82 still reads; never below zero,
+  // which would give the cap room it does not have.
+  budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetIsFreshFork: z.optional(z.literal(true)),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
@@ -280,12 +312,24 @@ export const storedSessionSchema = z.object({
           }),
         ),
         terminal: z.optional(z.string()),
+        policyRevision: z.optional(z.string()),
         pendingMessages: z.array(z.string()),
         session: z.object(storedSessionFields),
       }),
     ),
   ),
-  pendingChildResults: z.optional(z.array(z.string())),
+  pendingChildResults: z.optional(
+    z.array(
+      z.union([
+        z.string(),
+        z.object({
+          childId: z.string(),
+          text: z.string(),
+          policyRevision: z.optional(z.string()),
+        }),
+      ]),
+    ),
+  ),
   spawnCommands: z.optional(z.record(z.string(), z.string())),
 })
 
@@ -329,6 +373,8 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     children,
     pendingChildResults,
     spawnCommands,
+    budgetSpentUsd,
+    budgetIsFreshFork,
     agent,
     packedTokensAvoided,
     ...rest
@@ -345,10 +391,11 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     if (!parsedChild.ok) {
       return parsedChild
     }
-    const { result: childResult, terminal, session: _session, ...childRest } = child
+    const { result: childResult, terminal, policyRevision, session: _session, ...childRest } = child
     restoredChildren.push({
       ...childRest,
       session: parsedChild.session,
+      ...(policyRevision !== undefined && { policyRevision }),
       ...(childResult !== undefined && {
         result: {
           summary: childResult.summary,
@@ -370,10 +417,24 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(firstPrompt !== undefined && { firstPrompt }),
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
+      ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
+      ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),
-      ...(pendingChildResults !== undefined && { pendingChildResults }),
+      ...(pendingChildResults !== undefined && {
+        pendingChildResults: pendingChildResults.map((pending) =>
+          typeof pending === 'string'
+            ? pending
+            : {
+                childId: pending.childId,
+                text: pending.text,
+                ...(pending.policyRevision !== undefined && {
+                  policyRevision: pending.policyRevision,
+                }),
+              },
+        ),
+      }),
       ...(spawnCommands !== undefined && { spawnCommands }),
       ...(agent !== undefined && { agent }),
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),

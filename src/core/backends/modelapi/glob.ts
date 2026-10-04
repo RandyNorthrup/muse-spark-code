@@ -8,8 +8,16 @@
 // them (`**a**a…b` hung the extension host for 25 s, PLAN.md D24). The match
 // is a table over (pattern position, path position), so it costs at most
 // pattern length × path length steps, whatever the pattern.
+//
+// Its limits come from the caller (globLimits.ts binds the extension's):
+// the search worker imports this file too, and gets them with its job, so
+// its bundle carries no constants table (M78).
 
-import { GLOB_MAX_ALTERNATIVES, GLOB_MAX_LENGTH } from '../../../shared/constants'
+/** How long a glob may be, and how many alternatives its braces may expand to. */
+export interface GlobLimits {
+  readonly maxLength: number
+  readonly maxAlternatives: number
+}
 
 type Token =
   | { readonly kind: 'literal'; readonly char: string }
@@ -86,8 +94,8 @@ function braceOptions(body: string): string[] {
   return options
 }
 
-/** Every brace alternative of `pattern`; throws past `GLOB_MAX_ALTERNATIVES`. */
-function expandBraces(pattern: string): string[] {
+/** Every brace alternative of `pattern`; throws past `maxAlternatives`. */
+function expandBraces(pattern: string, maxAlternatives: number): string[] {
   for (let index = 0; index < pattern.length; index += 1) {
     if (pattern[index] === '[') {
       const close = classEnd(pattern, index)
@@ -108,15 +116,15 @@ function expandBraces(pattern: string): string[] {
       continue
     }
     const prefix = pattern.slice(0, index)
-    const rest = expandBraces(pattern.slice(close + 1))
+    const rest = expandBraces(pattern.slice(close + 1), maxAlternatives)
     const expanded: string[] = []
     for (const option of options) {
-      for (const head of expandBraces(`${prefix}${option}`)) {
+      for (const head of expandBraces(`${prefix}${option}`, maxAlternatives)) {
         for (const tail of rest) {
           expanded.push(`${head}${tail}`)
-          if (expanded.length > GLOB_MAX_ALTERNATIVES) {
+          if (expanded.length > maxAlternatives) {
             throw new RangeError(
-              `glob expands to more than ${String(GLOB_MAX_ALTERNATIVES)} alternatives`,
+              `glob expands to more than ${String(maxAlternatives)} alternatives`,
             )
           }
         }
@@ -253,18 +261,20 @@ function isTokenMatch(tokens: readonly Token[], path: string): boolean {
 }
 
 /**
- * Compiles a glob into a matcher. Throws on a glob longer than the cap or
- * one whose braces expand past `GLOB_MAX_ALTERNATIVES`; the tools report
- * either as a failure.
+ * Compiles a glob into a matcher. Throws on a glob longer than the limit or
+ * one whose braces expand past it; the tools report either as a failure.
  */
-export function compileGlob(pattern: string): (relativePath: string) => boolean {
-  if (pattern.length > GLOB_MAX_LENGTH) {
-    throw new RangeError(`glob longer than ${String(GLOB_MAX_LENGTH)} characters`)
+export function compileGlobWithin(
+  pattern: string,
+  limits: GlobLimits,
+): (relativePath: string) => boolean {
+  if (pattern.length > limits.maxLength) {
+    throw new RangeError(`glob longer than ${String(limits.maxLength)} characters`)
   }
   const trimmed = pattern.startsWith(CURRENT_DIRECTORY_PREFIX)
     ? pattern.slice(CURRENT_DIRECTORY_PREFIX.length)
     : pattern
-  const alternatives = expandBraces(trimmed).map((alternative) => {
+  const alternatives = expandBraces(trimmed, limits.maxAlternatives).map((alternative) => {
     const tokens = tokenize(alternative)
     // A bare file pattern (`*.ts`) matches at any depth, as ripgrep's globs do.
     return alternative.includes(SLASH) ? tokens : [{ kind: 'globstarSlash' } as const, ...tokens]
@@ -272,6 +282,27 @@ export function compileGlob(pattern: string): (relativePath: string) => boolean 
   return (relativePath) => alternatives.some((tokens) => isTokenMatch(tokens, relativePath))
 }
 
-export function isGlobMatch(relativePath: string, pattern: string): boolean {
-  return compileGlob(pattern)(relativePath)
+/** Every folder above a relative path and the path itself: `a`, `a/b`, `a/b/c`. */
+function selfAndAncestors(relative: string): string[] {
+  const segments = relative.split(SLASH)
+  return segments.map((_segment, index) => segments.slice(0, index + 1).join(SLASH))
+}
+
+/**
+ * The permission settings' deny-read globs as one matcher (M78): a path is
+ * covered when a glob matches it or a folder above it, case ignored (the
+ * globs come lower case). Throws on a glob the limits refuse.
+ */
+export function compileDenyGlobsWithin(
+  lowerCaseGlobs: readonly string[],
+  limits: GlobLimits,
+): (relativePaths: readonly string[]) => boolean {
+  const matchers = lowerCaseGlobs.map((glob) => compileGlobWithin(glob, limits))
+  return (relativePaths) =>
+    matchers.length > 0 &&
+    relativePaths.some((relative) =>
+      selfAndAncestors(relative.toLowerCase()).some((candidate) =>
+        matchers.some((matches) => matches(candidate)),
+      ),
+    )
 }
