@@ -13326,3 +13326,24 @@ merge queue's child process kept running. The tag therefore names the
 release commit, based on main `44b76f24` before M84 merged, rather than
 main's tip; the release workflow's ancestor check allows this. The release
 commit is an ancestor of main through PR #75 (merge `2a03a79b`).
+
+**0.11.0 released (2026-10-03, tag `v0.11.0` on main's release merge `11d06066`, PR #97, release run 37161958638).**
+The release contains the Muse Code recovery and merged repeat notices
+(#96), approval decisions docked and serialized (#90), turn checkpoints
+rebuilt on the model's own writes (M86, #95), custom agents (M76, #70),
+handoff (M74, #71, #84), import from other agents (M83, #77), session export,
+import and share (M84, #80), observation packing (M73, #76, #81), Muse Code
+1.4.2 (#85) and the release artifacts' checksums, SBOMs and attestations
+(#86). A read-only check of the README's What's new against the code
+corrected two overstatements and five missing scopes before the release PR
+merged. Published: the GitHub Release (`muse-spark-code-0.11.0.vsix`,
+1,749,424 bytes, SHA-256
+`1dcc420fca9bc8b55d34def666d048d53f75676675faccf88a9cdeb508c8923f`;
+`muse-spark-code-acp-0.11.0.tgz`, 865,556 bytes, `0363cc1d…aaf1`), Open VSX and
+the VS Code Marketplace, all serving byte-identical VSIX files (each
+downloaded and hashed). npm (`muse-spark-code-acp`) failed with `EOTP` again
+and awaits the owner's token. Install smoke: the released VSIX, checked
+against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
+Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
+(1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
+`muse-spark-code-acp --version` prints 0.11.0.
