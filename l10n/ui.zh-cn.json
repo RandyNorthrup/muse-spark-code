@@ -11,6 +11,12 @@
   "emptyStateHint": "输入 /model，为手头的任务选择合适的模型。",
   "composerPlaceholder": "按 ctrl esc（Windows 上为 ctrl alt esc）聚焦或取消聚焦 Muse",
   "composerQueuePlaceholder": "排队发送另一条消息…",
+  "queuedLabel": "排队中",
+  "queuedMenuLabel": "排队消息的操作",
+  "queuedEdit": "编辑",
+  "queuedEditTitle": "将消息从队列中取出，放回提示词框",
+  "queuedDelivered": "已送达正在运行的轮次",
+  "queuedTooLate": "此消息已送达模型，无法再编辑。",
   "composerLabel": "给 Muse 发消息",
   "connecting": "正在连接到扩展主机…",
   "notSignedIn": "未登录",
@@ -67,6 +73,8 @@
   "jumpToLatest": "新消息",
   "jumpToLatestTitle": "跳转到最新消息",
   "copyResponse": "复制回复",
+  "messageSentAt": "发送于 {time}",
+  "messageReceivedAt": "接收于 {time}",
   "openOutputTitle": "单击以在编辑器中打开输出",
   "toolOutputTitle": "{tool} 工具输出（{id}）",
   "clickToExpand": "单击以展开",
@@ -99,6 +107,58 @@
   "paletteFilterPlaceholder": "筛选操作…",
   "paletteNoMatches": "没有匹配的操作",
   "paletteBack": "返回",
+  "paletteTips": {
+    "attachFile": "为下一条消息附加文件。",
+    "mentionFile": "在消息中提及此项目的文件。",
+    "clear": "清空此对话并开始新的对话。",
+    "resume": "在此工作区中选择以前的对话。",
+    "continue:claude": "在此对话中继续未完成的 Claude Code 工作。",
+    "continue:codex": "在此对话中继续未完成的 Codex 工作。",
+    "plans": "保存在 .agents/plans 中的计划：打开或实施。",
+    "newWorktree": "在独立的文件夹和窗口中创建新分支；当前检出不受影响。",
+    "removeWorktree": "删除工作树文件夹；其分支保留。",
+    "switchModel": "选择此对话的模型。",
+    "effort": "选择 Muse 在每条回答上投入的工作量。",
+    "thinking": "显示或隐藏回答背后的思考过程。",
+    "permissionMode": "选择 Muse 行动前如何征求确认。",
+    "focusView": "隐藏焦点之外的步骤。",
+    "ctrlEnter": "用 Ctrl+Enter 而不是 Enter 发送消息。",
+    "importFromAgents": "从 Claude Code、Codex 或 Cursor 复制 MCP 服务器、钩子、智能体、命令和规则。",
+    "memory": "Muse 为后续会话保留的笔记。",
+    "settings": "打开设置。",
+    "keybindings": "键盘快捷方式。",
+    "accountUsage": "订阅用量、此对话的 token 数、后端。",
+    "usage": "显示此对话的输入和输出 token 数。",
+    "backend": "选择运行此对话的后端。",
+    "signOut": "在此计算机上退出 Muse Spark。",
+    "agents": "显示代理图。",
+    "compact": "总结到目前为止的对话，以腾出上下文空间。",
+    "handoff": "总结当前对话，开始新的对话。",
+    "goal": "设定一个 Muse 持续为之工作的目标：/goal <目标>。",
+    "export": "将此对话另存为 Markdown 文件。",
+    "exportJson": "可用于导入或共享的便携文件。",
+    "openShare": "以只读方式读取共享的会话文件。",
+    "clearCommand": "清空此对话并开始新的对话。",
+    "logout": "退出 Muse Code。",
+    "usageCommand": "显示账户用量。",
+    "costCommand": "显示此对话的 token 总数。",
+    "log": "打开输出日志。",
+    "issue": "报告问题。",
+    "docs": "打开 Muse Code 文档。",
+    "mcpServers": "Muse Code 连接的对象；登录服务器。",
+    "hooks": "Muse Code 的钩子来自何处。",
+    "paid:imageGeneration": "开启或关闭付费图片生成。",
+    "paid:voice": "开启或关闭付费 Muse Voice。",
+    "manageSkills": "打开或关闭 Muse Code 的技能。",
+    "importSkills": "将你的 Claude Code 或 Codex 技能复制到 Muse Code。",
+    "exportLog": "Muse Code 关于此对话的完整 JSON 记录。",
+    "paid:webSearch": "开启或关闭付费网页搜索。",
+    "paid:subagents": "开启或关闭付费子代理。",
+    "paid:scheduledPrompts": "开启或关闭付费已计划的提示词。",
+    "loop": "在此 Model API 对话中计划提示词。",
+    "importSession": "在 Model API 后端中继续已导出的会话文件。"
+  },
+  "paletteSkillTip": "运行 {name} 技能。",
   "groupContext": "上下文",
   "groupModel": "模型",
   "groupCustomize": "自定义",
@@ -493,6 +553,39 @@
   "referenceRemove": "移除",
   "referenceTitle": "随你的消息作为上下文发送给代理",
   "todoTitle": "任务",
+  "todoProgress": "{total} 项中已完成 {done} 项",
+  "todoOpenInTab": "在选项卡中打开",
+  "todoOpenInTabTitle": "在编辑器选项卡中打开任务列表，可将其移到独立窗口",
+  "tasksTabTitle": "任务：{conversation}",
+  "tasksTabMoveToWindow": "移到新窗口",
+  "tasksTabEmpty": "还没有任务。",
+  "tasksTabEnded": "此列表所属的对话已关闭。",
+  "stepSummary": {
+    "edited": {
+      "other": "编辑了 {count} 个文件"
+    },
+    "read": {
+      "other": "读取了 {count} 个文件"
+    },
+    "searched": {
+      "other": "搜索了 {count} 个文件夹"
+    },
+    "ran": {
+      "other": "运行了 {count} 条命令"
+    },
+    "fetched": {
+      "other": "获取了 {count} 个页面"
+    },
+    "searchedWeb": {
+      "other": "在网上搜索了 {count} 次"
+    },
+    "used": {
+      "other": "使用了 {count} 个工具"
+    },
+    "failed": {
+      "other": "{count} 个失败"
+    }
+  },
   "showHiddenSteps": {
     "other": "显示专注视图隐藏的 {count} 个步骤"
   },
@@ -500,6 +593,9 @@
     "other": "收起专注视图隐藏的 {count} 个步骤"
   },
   "contextPercent": "上下文 {percent}",
+  "contextMeterLabel": "已使用上下文 {percent}",
+  "contextMeterOver": "超出上下文窗口",
+  "contextMeterUnderOne": "<1",
   "contextDetail": "已用 {used} / {window} 个 token · 压力 {pressure}",
   "noEditorForInsert": "请打开文本编辑器以将代码插入其中。",
   "linkSchemeRefused": "只能从对话记录中打开 http、https 和 mailto 链接。",
@@ -525,6 +621,14 @@
   "applyCode": "应用",
   "noEditorForApply": "请打开文本编辑器以将代码应用到其中。",
   "diffTitleSuffix": "Muse 编辑",
+  "diffTallyFiles": {
+    "other": "更改了 {count} 个文件"
+  },
+  "diffTallyLines": "+{added} −{removed}",
+  "diffTallyLabel": "此对话中的更改",
+  "diffTallyTitle": "此对话的编辑所添加和删除的行，按每次编辑累计。shell 命令或你所做的更改不计入。",
+  "diffTallyReview": "审阅",
+  "diffTallyReviewTitle": "打开这些更改的审阅窗格",
   "editNotRebuildable": "无法重建 {path}：此编辑之后该文件已更改。",
   "editPathRefused": "已拒绝 {path}：编辑的路径位于工作区之外。",
   "editNoPatch": "此编辑未留下补丁文档。",

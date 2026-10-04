@@ -11,6 +11,12 @@
   "emptyStateHint": "Írja be a /model parancsot, hogy a feladathoz illő eszközt válassza.",
   "composerPlaceholder": "Ctrl+Esc (Windowson Ctrl+Alt+Esc): a Muse fókuszba hozása vagy a fókusz elhagyása",
   "composerQueuePlaceholder": "Újabb üzenet sorba állítása…",
+  "queuedLabel": "Sorba állítva",
+  "queuedMenuLabel": "Sorba állított üzenetek műveletei",
+  "queuedEdit": "Szerkesztés",
+  "queuedEditTitle": "Vegye ki az üzenetet a sorból, és tegye vissza a prompt mezőbe",
+  "queuedDelivered": "Már átadva a futó körnek",
+  "queuedTooLate": "Ez az üzenet már elérte a modellt, ezért már nem szerkeszthető.",
   "composerLabel": "Üzenet a Muse számára",
   "connecting": "Csatlakozás a kiegészítők gazdafolyamatához…",
   "notSignedIn": "Nincs bejelentkezve",
@@ -67,6 +73,8 @@
   "jumpToLatest": "Új üzenetek",
   "jumpToLatestTitle": "Ugrás a legújabb üzenetre",
   "copyResponse": "Válasz másolása",
+  "messageSentAt": "Elküldve {time}",
+  "messageReceivedAt": "Fogadva {time}",
   "openOutputTitle": "Kattintson a kimenet szerkesztőablakban való megnyitásához",
   "toolOutputTitle": "{tool} eszköz kimenete ({id})",
   "clickToExpand": "Kattintson a kibontáshoz",
@@ -99,6 +107,58 @@
   "paletteFilterPlaceholder": "Műveletek szűrése…",
   "paletteNoMatches": "Nincs egyező művelet",
   "paletteBack": "Vissza",
+  "paletteTips": {
+    "attachFile": "Fájl csatolása a következő üzenethez.",
+    "mentionFile": "A projekt egyik fájljának megemlítése az üzenetben.",
+    "clear": "Törölje ezt a beszélgetést, és kezdjen újat.",
+    "resume": "Egy korábbi beszélgetés kiválasztása ezen a munkaterületen.",
+    "continue:claude": "Befejezetlen Claude Code-munka folytatása ebben a beszélgetésben.",
+    "continue:codex": "Befejezetlen Codex-munka folytatása ebben a beszélgetésben.",
+    "plans": "Mentett tervek a .agents/plans mappában: nyisson meg vagy valósítson meg egyet.",
+    "newWorktree": "Új ág saját mappában és ablakban; ez a munkapéldány érintetlen marad.",
+    "removeWorktree": "Egy munkafa mappájának törlése; az ága megmarad.",
+    "switchModel": "A beszélgetés modelljének kiválasztása.",
+    "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",
+    "thinking": "A válaszok mögötti gondolkodás megjelenítése vagy elrejtése.",
+    "permissionMode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
+    "focusView": "A fókuszon kívüli lépések elrejtése.",
+    "ctrlEnter": "Üzenetküldés Ctrl+Enterrel Enter helyett.",
+    "importFromAgents": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül.",
+    "memory": "A jegyzetek, amelyeket a Muse a későbbi munkamenetekhez megőriz.",
+    "settings": "Beállítások megnyitása.",
+    "keybindings": "Billentyűparancsok.",
+    "accountUsage": "Előfizetés-használat, a beszélgetés tokenjei, a háttérrendszer.",
+    "usage": "A beszélgetés bemeneti és kimeneti tokenszámának megjelenítése.",
+    "backend": "Válassza ki, melyik háttérrendszer futtassa ezt a beszélgetést.",
+    "signOut": "Kijelentkezés a Muse Sparkból ezen a számítógépen.",
+    "agents": "Az ügynöktérkép megjelenítése.",
+    "compact": "Foglalja össze az eddigi beszélgetést a kontextus felszabadításához.",
+    "handoff": "A beszélgetés összefoglalása egy újhoz.",
+    "goal": "Cél kitűzése, amelyen a Muse tovább dolgozik: /goal <cél>.",
+    "export": "A beszélgetés mentése Markdown-fájlként.",
+    "exportJson": "Hordozható fájl importáláshoz vagy megosztáshoz.",
+    "openShare": "Megosztott munkamenetfájl olvasása, csak olvasható.",
+    "clearCommand": "Törölje ezt a beszélgetést, és kezdjen újat.",
+    "logout": "Kijelentkezés a Muse Code-ból.",
+    "usageCommand": "A fiókhasználat megjelenítése.",
+    "costCommand": "A beszélgetés tokenösszesítőinek megjelenítése.",
+    "log": "Kimeneti napló megnyitása.",
+    "issue": "Hiba bejelentése.",
+    "docs": "A Muse Code dokumentációjának megnyitása.",
+    "mcpServers": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra.",
+    "hooks": "Honnan származnak a Muse Code hookjai.",
+    "paid:imageGeneration": "Fizetős képgenerálás be- vagy kikapcsolása.",
+    "paid:voice": "Fizetős Muse Voice be- vagy kikapcsolása.",
+    "manageSkills": "A Muse Code képességeinek be- és kikapcsolása.",
+    "importSkills": "Claude Code- vagy Codex-képességeinek átmásolása a Muse Code-ba.",
+    "exportLog": "A Muse Code teljes JSON-rekordja erről a beszélgetésről.",
+    "paid:webSearch": "Fizetős webes keresés be- vagy kikapcsolása.",
+    "paid:subagents": "Fizetős alügynökök be- vagy kikapcsolása.",
+    "paid:scheduledPrompts": "Fizetős ütemezett promptok be- vagy kikapcsolása.",
+    "loop": "Prompt ütemezése ebben a Model API-beszélgetésben.",
+    "importSession": "Exportált munkamenetfájl folytatása a Model API háttérrendszerben."
+  },
+  "paletteSkillTip": "A(z) {name} képesség futtatása.",
   "groupContext": "Kontextus",
   "groupModel": "Modell",
   "groupCustomize": "Testreszabás",
@@ -506,6 +566,47 @@
   "referenceRemove": "Eltávolítás",
   "referenceTitle": "Az üzenetével együtt kontextusként kerül az ügynökhöz",
   "todoTitle": "Feladatok",
+  "todoProgress": "{done} / {total} kész",
+  "todoOpenInTab": "Megnyitás lapon",
+  "todoOpenInTabTitle": "Nyissa meg a feladatlistát egy szerkesztőlapon, amelyet saját ablakba helyezhet",
+  "tasksTabTitle": "Feladatok: {conversation}",
+  "tasksTabMoveToWindow": "Áthelyezés új ablakba",
+  "tasksTabEmpty": "Még nincsenek feladatok.",
+  "tasksTabEnded": "A beszélgetés, amelyhez ez a lista tartozik, lezárult.",
+  "stepSummary": {
+    "edited": {
+      "one": "szerkesztett egy fájlt",
+      "other": "szerkesztett {count} fájlt"
+    },
+    "read": {
+      "one": "olvasott egy fájlt",
+      "other": "olvasott {count} fájlt"
+    },
+    "searched": {
+      "one": "keresett egy mappában",
+      "other": "keresett {count} mappában"
+    },
+    "ran": {
+      "one": "futtatott egy parancsot",
+      "other": "futtatott {count} parancsot"
+    },
+    "fetched": {
+      "one": "letöltött egy oldalt",
+      "other": "letöltött {count} oldalt"
+    },
+    "searchedWeb": {
+      "one": "keresett a weben",
+      "other": "{count} keresés a weben"
+    },
+    "used": {
+      "one": "használt egy eszközt",
+      "other": "használt {count} eszközt"
+    },
+    "failed": {
+      "one": "{count} sikertelen",
+      "other": "{count} sikertelen"
+    }
+  },
   "showHiddenSteps": {
     "one": "A Fókusznézet által elrejtett {count} lépés megjelenítése",
     "other": "A Fókusznézet által elrejtett {count} lépés megjelenítése"
@@ -515,6 +616,9 @@
     "other": "A Fókusznézet által elrejtett {count} lépés elrejtése"
   },
   "contextPercent": "{percent} kontextus",
+  "contextMeterLabel": "Kontextus felhasználva: {percent}",
+  "contextMeterOver": "A kontextusablak felett",
+  "contextMeterUnderOne": "<1",
   "contextDetail": "{used} / {window} token · terhelés: {pressure}",
   "noEditorForInsert": "Nyisson meg egy szövegszerkesztőt, hogy kódot szúrjon be.",
   "linkSchemeRefused": "Az átiratból csak http-, https- és mailto-hivatkozások nyithatók meg.",
@@ -540,6 +644,15 @@
   "applyCode": "Alkalmazás",
   "noEditorForApply": "Nyisson meg egy szövegszerkesztőt, hogy kódot alkalmazzon benne.",
   "diffTitleSuffix": "Muse-szerkesztés",
+  "diffTallyFiles": {
+    "one": "{count} fájl módosítva",
+    "other": "{count} fájl módosítva"
+  },
+  "diffTallyLines": "+{added} −{removed}",
+  "diffTallyLabel": "Változások ebben a beszélgetésben",
+  "diffTallyTitle": "A beszélgetés szerkesztéseivel hozzáadott és eltávolított sorok, szerkesztésről szerkesztésre összeadva. A shellparancsokkal vagy Ön által végzett változások nem számítanak.",
+  "diffTallyReview": "Áttekintés",
+  "diffTallyReviewTitle": "E változások áttekintő paneljének megnyitása",
   "editNotRebuildable": "{path}: nem állítható elő újra, mert a fájl megváltozott e szerkesztés óta.",
   "editPathRefused": "{path}: elutasítva, a szerkesztett útvonal a munkaterületen kívül esik.",
   "editNoPatch": "Ez a szerkesztés nem hagyott maga után patch-dokumentumot.",

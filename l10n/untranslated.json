@@ -41,7 +41,9 @@
       "namedFilesMore",
       "noticeRepeatBadge",
       "agentImportSourceCursor",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "groupModel",

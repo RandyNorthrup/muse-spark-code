@@ -11,6 +11,12 @@
   "emptyStateHint": "Geben Sie /model ein, um das passende Werkzeug für die Aufgabe zu wählen.",
   "composerPlaceholder": "Strg+Esc (unter Windows Strg+Alt+Esc), um Muse zu fokussieren oder den Fokus zu verlassen",
   "composerQueuePlaceholder": "Weitere Nachricht einreihen…",
+  "queuedLabel": "Eingereiht",
+  "queuedMenuLabel": "Aktionen für eingereihte Nachrichten",
+  "queuedEdit": "Bearbeiten",
+  "queuedEditTitle": "Die Nachricht aus der Warteschlange zurück in das Nachrichtenfeld holen",
+  "queuedDelivered": "Bereits an den laufenden Durchgang übergeben",
+  "queuedTooLate": "Diese Nachricht hat das Modell bereits erreicht und kann daher nicht mehr bearbeitet werden.",
   "composerLabel": "Nachricht an Muse",
   "connecting": "Verbindung mit dem Erweiterungshost wird hergestellt…",
   "notSignedIn": "Nicht angemeldet",
@@ -67,6 +73,8 @@
   "jumpToLatest": "Neue Nachrichten",
   "jumpToLatestTitle": "Zur neuesten Nachricht springen",
   "copyResponse": "Antwort kopieren",
+  "messageSentAt": "Gesendet {time}",
+  "messageReceivedAt": "Empfangen {time}",
   "openOutputTitle": "Klicken, um die Ausgabe in einem Editor zu öffnen",
   "toolOutputTitle": "Ausgabe des Tools {tool} ({id})",
   "clickToExpand": "Zum Erweitern klicken",
@@ -99,6 +107,58 @@
   "paletteFilterPlaceholder": "Aktionen filtern…",
   "paletteNoMatches": "Keine passenden Aktionen",
   "paletteBack": "Zurück",
+  "paletteTips": {
+    "attachFile": "Eine Datei an Ihre nächste Nachricht anhängen.",
+    "mentionFile": "Eine Datei aus diesem Projekt in Ihrer Nachricht erwähnen.",
+    "clear": "Diese Unterhaltung leeren und eine neue beginnen.",
+    "resume": "Eine frühere Unterhaltung in diesem Arbeitsbereich auswählen.",
+    "continue:claude": "Unfertige Claude Code-Arbeit in dieser Unterhaltung fortführen.",
+    "continue:codex": "Unfertige Codex-Arbeit in dieser Unterhaltung fortführen.",
+    "plans": "Gespeicherte Pläne in .agents/plans: einen öffnen oder umsetzen.",
+    "newWorktree": "Ein neuer Branch in eigenem Ordner und Fenster; dieser Checkout bleibt unberührt.",
+    "removeWorktree": "Einen Worktree-Ordner löschen; sein Branch bleibt erhalten.",
+    "switchModel": "Das Modell für diese Unterhaltung wählen.",
+    "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",
+    "thinking": "Die Überlegungen hinter Antworten ein- oder ausblenden.",
+    "permissionMode": "Wählen, wie Muse fragt, bevor es handelt.",
+    "focusView": "Die Schritte außerhalb Ihres Fokus ausblenden.",
+    "ctrlEnter": "Nachrichten mit Strg+Eingabe statt Eingabe senden.",
+    "importFromAgents": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen.",
+    "memory": "Die Notizen, die Muse für spätere Sitzungen aufbewahrt.",
+    "settings": "Einstellungen öffnen.",
+    "keybindings": "Tastenkombinationen.",
+    "accountUsage": "Abonnementnutzung, die Token dieser Unterhaltung, das Backend.",
+    "usage": "Die Anzahl der Eingabe- und Ausgabetokens dieser Unterhaltung anzeigen.",
+    "backend": "Wählen, welches Backend diese Unterhaltung ausführt.",
+    "signOut": "Bei Muse Spark auf diesem Computer abmelden.",
+    "agents": "Agentenkarte anzeigen.",
+    "compact": "Die bisherige Unterhaltung zusammenfassen, um Kontext freizugeben.",
+    "handoff": "Diese Unterhaltung für eine neue zusammenfassen.",
+    "goal": "Ein Ziel setzen, auf das Muse weiter hinarbeitet: /goal <Ziel>.",
+    "export": "Diese Unterhaltung als Markdown-Datei speichern.",
+    "exportJson": "Eine portable Datei, die Sie importieren oder teilen können.",
+    "openShare": "Eine geteilte Sitzungsdatei schreibgeschützt lesen.",
+    "clearCommand": "Diese Unterhaltung leeren und eine neue beginnen.",
+    "logout": "Bei Muse Code abmelden.",
+    "usageCommand": "Kontonutzung anzeigen.",
+    "costCommand": "Tokensummen dieser Unterhaltung anzeigen.",
+    "log": "Ausgabeprotokoll öffnen.",
+    "issue": "Problem melden.",
+    "docs": "Die Muse Code-Dokumentation öffnen.",
+    "mcpServers": "Womit sich Muse Code verbindet; bei einem Server anmelden.",
+    "hooks": "Woher die Hooks von Muse Code stammen.",
+    "paid:imageGeneration": "Die kostenpflichtige Bilderzeugung ein- oder ausschalten.",
+    "paid:voice": "Das kostenpflichtige Muse Voice ein- oder ausschalten.",
+    "manageSkills": "Skills von Muse Code ein- oder ausschalten.",
+    "importSkills": "Ihre Skills aus Claude Code oder Codex in Muse Code kopieren.",
+    "exportLog": "Die vollständige JSON-Aufzeichnung dieser Unterhaltung von Muse Code.",
+    "paid:webSearch": "Die kostenpflichtige Websuche ein- oder ausschalten.",
+    "paid:subagents": "Kostenpflichtige Unteragenten ein- oder ausschalten.",
+    "paid:scheduledPrompts": "Kostenpflichtige geplante Prompts ein- oder ausschalten.",
+    "loop": "Einen Prompt in dieser Model-API-Unterhaltung planen.",
+    "importSession": "Eine exportierte Sitzungsdatei im Model-API-Backend fortsetzen."
+  },
+  "paletteSkillTip": "Den Skill {name} ausführen.",
   "groupContext": "Kontext",
   "groupModel": "Modell",
   "groupCustomize": "Anpassen",
@@ -506,6 +566,47 @@
   "referenceRemove": "Entfernen",
   "referenceTitle": "Geht mit Ihrer Nachricht als Kontext an den Agenten",
   "todoTitle": "Aufgaben",
+  "todoProgress": "{done} von {total} erledigt",
+  "todoOpenInTab": "In einem Tab öffnen",
+  "todoOpenInTabTitle": "Die Aufgabenliste in einem Editor-Tab öffnen, den Sie in ein eigenes Fenster verschieben können",
+  "tasksTabTitle": "Aufgaben: {conversation}",
+  "tasksTabMoveToWindow": "In neues Fenster verschieben",
+  "tasksTabEmpty": "Noch keine Aufgaben.",
+  "tasksTabEnded": "Die Unterhaltung, zu der diese Liste gehört, wurde geschlossen.",
+  "stepSummary": {
+    "edited": {
+      "one": "Eine Datei bearbeitet",
+      "other": "{count} Dateien bearbeitet"
+    },
+    "read": {
+      "one": "Eine Datei gelesen",
+      "other": "{count} Dateien gelesen"
+    },
+    "searched": {
+      "one": "Einen Ordner durchsucht",
+      "other": "{count} Ordner durchsucht"
+    },
+    "ran": {
+      "one": "Einen Befehl ausgeführt",
+      "other": "{count} Befehle ausgeführt"
+    },
+    "fetched": {
+      "one": "Eine Seite abgerufen",
+      "other": "{count} Seiten abgerufen"
+    },
+    "searchedWeb": {
+      "one": "Das Web durchsucht",
+      "other": "Das Web {count} Mal durchsucht"
+    },
+    "used": {
+      "one": "Ein Tool verwendet",
+      "other": "{count} Tools verwendet"
+    },
+    "failed": {
+      "one": "{count} fehlgeschlagen",
+      "other": "{count} fehlgeschlagen"
+    }
+  },
   "showHiddenSteps": {
     "one": "{count} durch die Fokusansicht ausgeblendeten Schritt anzeigen",
     "other": "{count} durch die Fokusansicht ausgeblendete Schritte anzeigen"
@@ -515,6 +616,9 @@
     "other": "{count} durch die Fokusansicht ausgeblendete Schritte verbergen"
   },
   "contextPercent": "{percent} Kontext",
+  "contextMeterLabel": "Kontext {percent} verwendet",
+  "contextMeterOver": "Über dem Kontextfenster",
+  "contextMeterUnderOne": "<1",
   "contextDetail": "{used} von {window} Token · Druck {pressure}",
   "noEditorForInsert": "Öffnen Sie einen Texteditor, um Code darin einzufügen.",
   "linkSchemeRefused": "Aus dem Transkript können nur http-, https- und mailto-Links geöffnet werden.",
@@ -540,6 +644,15 @@
   "applyCode": "Anwenden",
   "noEditorForApply": "Öffnen Sie einen Texteditor, um Code darauf anzuwenden.",
   "diffTitleSuffix": "Muse-Bearbeitung",
+  "diffTallyFiles": {
+    "one": "{count} Datei geändert",
+    "other": "{count} Dateien geändert"
+  },
+  "diffTallyLines": "+{added} −{removed}",
+  "diffTallyLabel": "Änderungen in dieser Unterhaltung",
+  "diffTallyTitle": "Die durch die Bearbeitungen dieser Unterhaltung hinzugefügten und entfernten Zeilen, Bearbeitung für Bearbeitung addiert. Änderungen durch Shell-Befehle oder von Ihnen werden nicht mitgezählt.",
+  "diffTallyReview": "Prüfen",
+  "diffTallyReviewTitle": "Den Prüfbereich für diese Änderungen öffnen",
   "editNotRebuildable": "{path} kann nicht rekonstruiert werden: Die Datei hat sich seit dieser Bearbeitung geändert.",
   "editPathRefused": "{path} abgelehnt: Der bearbeitete Pfad liegt außerhalb des Arbeitsbereichs.",
   "editNoPatch": "Diese Bearbeitung hat kein Patchdokument hinterlassen.",
