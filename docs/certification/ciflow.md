@@ -164,3 +164,118 @@ Node 22. The feature-delivery structural validator cannot parse the project's
 existing prose milestone plan (no quality-ledger fence); plan-format migration
 is deferred. The brief forbids full local quality and full test-suite runs;
 those and hosted runs remain lead-owned.
+
+## Lead review and completion (2026-10-04)
+
+An adversarial review of `f6a40927` (all of `.github/workflows`,
+`vitest.config.ts` and the tests) found two defects. Both are fixed in
+`d97d5e0c`, and each fix has a test that fails without it.
+
+1. **gitleaks fails every merge group.** The pinned
+   `gitleaks/gitleaks-action@e0c47f4f` refuses any event outside push,
+   pull_request, workflow_dispatch and schedule (`src/index.js`:
+   `core.error("The [merge_group] event is not yet supported"); process.exit(1)`).
+   In a reusable workflow `GITHUB_EVENT_NAME` is the caller's, so
+   `build / gitleaks` would fail every queue entry and nothing could merge.
+   The action now runs except on `merge_group`. A merge group downloads the
+   action's own default CLI, gitleaks 8.24.3. The tarball's SHA-256
+   `9991e0b2…ee29c` matched the release's checksums file and a local
+   download. The CLI runs
+   `gitleaks git --redact --no-banner -v --log-opts=HEAD .` over every
+   commit the group's commit reaches.
+   Scratch-repository drill (gitleaks 8.30.1): a fake key in a PR commit
+   behind a `--no-ff` merge is found with `--log-opts=HEAD` (exit 1). The
+   action's PR-style `--no-merges --first-parent base^..head` range from the
+   merge commit misses it (exit 0), which is why the range is not reused.
+   The worktree's real history passes the same command: 680 commits, no
+   leaks, exit 0.
+2. **Nothing tied the fast tier to the queue.** `fast` was simply
+   `event_name == 'pull_request'`. Without an active merge queue a PR would
+   pass all seven required names on Ubuntu-only checks and merge with no
+   full gate ever run, the CIFLOW PR itself included. `ci.yml` now
+   requires `vars.CI_MERGE_QUEUE == 'on'` as well, and the maintainer sets
+   that variable only after the ruleset gains the queue. Unset (today), PRs
+   run the full tier, now sharded.
+
+Smaller changes: shards run `--reporter=default --reporter=blob`, so a
+failing shard's log names its test (the blob reporter alone prints none). A
+test pins the CI static list to `quality:gates` minus `test:unit`. The
+headers of `build.yml` and `ci.yml` describe the tiers again.
+
+Checked and found sound: aggregate `if: always()` with `test X = success` for
+every selected-tier job (a skipped required job would report success, and
+this rejects it). The `--shard` threshold switch and the merged enforcement
+were proved on Vitest 5.0.2. `merge_group` is needed only on `ci.yml`: the
+ruleset requires none of the Hosts or Action check names. The concurrency
+group `ci-${{ github.ref }}` is unique per queue group
+(`gh-readonly-queue/main/pr-N-…`), so no queue run cancels another. Every
+artifact name and package step `release.yml` (main and RELFAST) reads is
+unchanged; the release's own build gets the full tier (`fast` defaults to
+`false`).
+
+### Drills (all red, then restored, then green)
+
+Merged coverage on Vitest 5.0.2: two shards of `manifest` and
+`actionManifest` with `--coverage --reporter=default --reporter=blob`. Each
+exited 0 at about 3% coverage, since shards carry no thresholds, and each
+printed its own results. `vitest run --merge-reports --coverage` then
+exited 1 with `ERROR: Coverage for lines (2.96%) does not meet global
+threshold (90%)` and the same for functions, statements and branches.
+
+Workflow guards, scripted by `ciflow-drills.mjs` (lead scratchpad). It
+breaks a file, runs the named test, restores the original bytes in
+`finally` and compares SHA-256 (`build.yml cb8fafc0…3505`,
+`ci.yml 7852e317…8ad1`, each matching after restore):
+
+| Break                                                                              | Test                                                      | Result                                                                          |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| aggregate `test "$COVERAGE" = success` → `!= failure` (accepts an unexpected skip) | passes a required name only when its whole tier succeeded | exit 1; the one flipped case is `full, coverage skipped: passes` (want `fails`) |
+| drop the gitleaks action's `if: github.event_name != 'merge_group'`                | scans a merge group with the checked CLI                  | exit 1                                                                          |
+| `fast` back to `event_name == 'pull_request'` only                                 | checks PRs quickly and merge groups/manual calls fully    | exit 1                                                                          |
+| drop `cycles` from the CI static list                                              | same                                                      | exit 1                                                                          |
+| restored                                                                           | all five CIFLOW tests                                     | exit 0, 5 passed                                                                |
+
+The aggregate test runs the `required` step's own script, cut from
+`build.yml`, under bash with `-eo pipefail`, as GitHub runs it. There are 22
+cases in one bash process: the full tier all green; each of the nine jobs
+failed; each full-only job skipped; the helper cancelled; the fast tier
+green with the rest skipped; each fast job skipped; semgrep cancelled. Only
+the two all-green cases may pass. The test also checks that every needed
+job has its own `needs.<id>.result` variable. It took about 7.5 s on this
+loaded Windows host, so its budget is 60 s. The first run of the drill
+script spawned Vitest through a shell and split the `-t` name into file
+filters. That attempt timed out and its bytes were restored by hand
+(SHA-256 matched); the rerun without a shell is the one recorded above.
+
+### Final-tree checks
+
+The tree is `382f9791` (`8645e8b9`, after merging `origin/main` at 0.12.1
+with `changelog-rebase.py`: the CI bullet stays in `[Unreleased]`, where a
+plain merge had put it under `0.12.0`, and every release heading is
+main's). On the Windows host, every one of these exited 0: the five
+compiler projects, `check:l10n`, `check:host-api`, `deadcode`, `cycles`,
+`duplication`, `build` (every bundle within budget, for example
+`extension.js` 590.6/600 KiB) and `format:check`. `actionlint` 1.7.12 passes
+all six workflows. Changed-file ESLint passed in the pre-commit hook. Its
+first attempt failed on 10 unicorn findings in the new test, which were
+fixed, not suppressed.
+
+The tests ran on the Kubuntu rig (`rig-test.sh kubuntu`, snapshot
+`c08aef79` of this tree plus this record): `manifest`, `actionManifest`,
+`changelogVersion` and `test/e2e/execStdio.e2e.test.ts` gave 4 files and 74
+tests passed, exit 0. That includes the aggregate's bash cases on Linux and
+the package guard, which runs the `build.yml` tarball step. On the Windows
+host the first three suites passed. The e2e file hit 3 and then 6 timeouts
+(`Test timed out in 30000ms`) at a load average of 86–101 on 20 cores from
+other sessions. CIFLOW changes nothing under `test/e2e`, `scripts` or `src`,
+and the step that file cuts from `build.yml` is byte-identical to
+`origin/main`'s (SHA-256 `e1c8a342…715d`, 18 lines).
+
+### Hand-off
+
+The ruleset PUT body is in the lead's scratchpad (`ciflow-ruleset.json`).
+It is live ruleset 23896617 with `strict_required_status_checks_policy:
+false` and one `merge_queue` rule: `MERGE`, `ALLGREEN`, entries to merge
+1/1, build concurrency 1, 0 wait, 30-minute check timeout. Nothing was
+applied. See the queue-availability blocker above. Still open: hosted PR
+and queue runs, measured wall times, and the queue itself.
