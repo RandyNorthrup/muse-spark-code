@@ -333,79 +333,75 @@ instead.
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
 
-**Amendment (2026-10-03, the third strike): activation stops carrying what
-only lazily loaded bundles use.** Three PRs in a row (#89, #78, #87) each
-had to split code out because `dist/extension.js` crossed its 600 KiB, and
-the open PRs together add about 36 KiB to main's 573 KiB. Under the owner's
+**Amendment (2026-10-03, the third strike; current numbers 2026-10-04):
+activation stops carrying what only lazily loaded bundles use.** Three PRs
+in a row (#89, #78, #87) each had to split code out because
+`dist/extension.js` crossed its 600 KiB, and main with M70 stood at
+590.6 KiB with M87, M71 and M81 still to land. Under the owner's
 three-tries rule this is fixed once, structurally, on
-`perf/activation-diet` (cut from `feature/m70-review` at `807effc2`). The
-budget stays 600 KiB; text and code move. Proof, drills and the full table
-are in
+`perf/activation-diet`, since merged with main (M70, #88, #89, #98–#106).
+The budget stays 600 KiB; text and code move. Proof, drills and the full
+table are in
 [`docs/certification/activation-diet.md`](docs/certification/activation-diet.md).
 
-- **Measured** (production build, KiB, before → after): `dist/extension.js`
-  577.5 → 544.7 (−32.8); `dist/modelApi.js` 378.6 → 376.5;
-  `dist/checkpointStore.js` 132.8 → 120.7; `dist/agentImport.js`
-  112.8 → 100.5; `dist/acp.js` 733.7 → 721.3; `dist/codeIntel.js` new,
-  52.2 of 75; the review, plan reader, English table, workers and webview
-  unchanged.
+- **Measured** (production build, KiB, main with M70 → this branch):
+  `dist/extension.js` 590.6 → 552.6 (−38.0, 47.4 under the budget);
+  `dist/modelApi.js` 430.1 → 426.3; `dist/checkpointStore.js`
+  135.7 → 109.1; `dist/agentImport.js` 115.6 → 88.8; `dist/codeIntel.js`
+  76.9 → 54.6; `dist/reviewer.js` 54.6 → 28.8;
+  `dist/museCodeReviewer.js` 42.7 → 16.9; `dist/acp.js` 800.9 → 786.5;
+  `dist/webFetch.js` new, 46.7 of 75; the review, the session board, the
+  plan reader, voice, the bundled skills, the workers and the webview
+  unchanged (the English table and the webview +0.1 for one new string).
 - **Model text by reader.** `MODEL_TEXT` is one object, and esbuild cannot
   tree-shake an object by key: every bundle that read any key carried all
-  of its 230 keys. It now holds the 105 keys a source file of
-  `dist/extension.js` reads. The rest moved, word for word (a scripted
-  comparison of all 285 keys and values before and after), to blocks
-  beside it that only their readers import: 61 more keys to
-  `MODEL_API_MODEL_TEXT` (the Model API backend's goal tools, file and
-  media tools, custom agents, MCP results, code intelligence prompt line
-  and rename write, observation packing, verify loop report, and the paired
-  evaluation's answer); 43 to `CODE_INTEL_MODEL_TEXT`
-  (the code intelligence answers and refusals, read in `dist/codeIntel.js`
-  and `dist/modelApi.js`); 4 to `CHECKPOINT_MODEL_TEXT` (a recorded write
-  that did not happen, said only by the checkpoint store's recorder); 3 to
-  `AGENT_IMPORT_MODEL_TEXT` (the imported rules section); and
-  `fileHasUnsavedChanges` to `FILE_REFUSAL_MODEL_TEXT`, so that
-  `dist/codeIntel.js`, which reads only that of the shared text, carries no
-  `MODEL_TEXT`. Fourteen duplicates the main merge had put back
-  (`pack*`, `verifyLead`, `runChecksLead`, already in
-  `MODEL_API_MODEL_TEXT`) are gone. One key is new: `codeIntelUnavailable`.
-  The text moves alone took `dist/extension.js` to 569.6 KiB.
-- **The `ide` server's code intelligence answers are a bundle of their
-  own.** `src/host/ide/codeIntelEntry.ts` builds to `dist/codeIntel.js`
-  (the queries, the repo map, the rename's plan and their text, 52.2 KiB)
-  with the activation bundle's format, platform and target, and no
-  `vscode`. Muse Code's tool list (names, descriptions, schemas) is still
-  built at activation; `codeIntelLoader` (`codeIntelBundle.ts`, through
-  `lazyBundle.ts`) requires the bundle on the first call and installs the
-  activation bundle's table before it answers. A bundle that cannot load
-  answers that call as a failed one with `codeIntelUnavailable`, the log has
-  the cause, and the next call tries again. The Model API backend keeps its
-  own copy in `dist/modelApi.js`. No existing lazy bundle could take it:
-  `dist/modelApi.js` already carries the code, but a Muse Code user would
-  then load the whole backend on the first lookup (376 KiB: about 185 ms to
-  require once the activation bundle has loaded, against about 35 ms for
-  `dist/codeIntel.js`, on the owner's machine), contrary to "a Muse Code
-  user never loads the backend" below; `dist/review.js` (43.2 of 50 KiB)
-  and `dist/agentImport.js` (100.5 of 125 KiB) have no room for it; and
-  `dist/checkpointStore.js` is required at activation, so moving it there
-  would move bytes, not work. Its budget is
-  the measured size plus 15 %, rounded up to 25 KiB: 75 KiB. The build, the
-  size and host-globals gates, the notices, the VSIX allowlist, CI's VSIX
-  member list, knip's entries and the cycle check include it.
-- **The guard** (`scripts/check-bundle-split.mjs`, in `npm run build`)
-  fails when `dist/extension.js` or `dist/acp.js` carries a code
-  intelligence file or `dist/codeIntel.js` stops carrying one; when a lazy
-  text block's sentinel keys (`compactionPrompt`, `goalUnfinishedExists`
-  and `verifyUncheckedCodeLoading` for the Model API's;
-  `codeIntelNoSymbolNamed` and `repoMapBudgetTooSmall`; `writeNotRecorded`;
-  `importedRulesHeading`) appear in a bundle that must not carry the block,
-  or no longer appear in a bundle that reads it, so a renamed sentinel
-  cannot turn the check off; and when a key of `MODEL_TEXT` is read by no
-  source file of `dist/extension.js`, which keeps lazy text from growing
-  back into the shared block. Four drills (a static import of
-  `MODEL_API_MODEL_TEXT` from activation code, the code intelligence
-  answers imported back into the `ide` tools, a Model-API-only key put back
-  in `MODEL_TEXT`, a renamed sentinel) each failed the build and were
-  reverted.
+  of it. It now holds the 65 keys a source file of `dist/extension.js`
+  reads. The rest moved, word for word (a scripted comparison of all 329
+  keys and values with main's), to blocks that only their readers import:
+  `MODEL_API_MODEL_TEXT` (135 keys: the Model API backend's goal, file,
+  media, agent, MCP, permission-profile, observation-packing and
+  verify-loop text), `CODE_INTEL_MODEL_TEXT` (45: the code intelligence
+  answers and refusals, `dist/codeIntel.js` and `dist/modelApi.js`),
+  `WEB_FETCH_MODEL_TEXT` (42: the fetch's frame and every failure),
+  `CHECKPOINT_MODEL_TEXT` (4), `AGENT_IMPORT_MODEL_TEXT` (3),
+  `EXEC_MODEL_TEXT` (3: a headless run's attached files, `dist/acp.js`
+  only), `AUTO_REVIEWER_MODEL_TEXT` (3: `dist/reviewer.js` and
+  `dist/museCodeReviewer.js`), and `FILE_REFUSAL_MODEL_TEXT` (2:
+  `fileHasUnsavedChanges` and `pathChangedAfterApproval`, read at
+  activation and by the lazy file tools alike, so a bundle that reads only
+  these does not carry `MODEL_TEXT`). `REVIEW_MODEL_TEXT` (27, M70) is
+  unchanged. One key is new: `webFetchUnavailable`.
+- **Code intelligence**: main's own split (PR #89 amendment below,
+  `dist/codeIntel.js` at 100 KiB) replaced this lane's first one, which was
+  dropped in the merge; its answers now carry no `MODEL_TEXT` (76.9 →
+  54.6 KiB).
+- **The window's web fetch is a bundle of its own.**
+  `src/host/web/webFetchEntry.ts` builds to `dist/webFetch.js`: the fetch
+  (`core/web/webFetch.ts`), each hop's checks and pins, the pinned
+  transport, the decoders and `WEB_FETCH_MODEL_TEXT`, 23.1 KiB of
+  activation. `webFetchBundle.ts` requires it through `lazyBundle.ts` on the
+  first fetch on either backend or the first URL Muse Code's `webFetch`
+  checks; creating the fetcher loads nothing, and `approvalHost` moved to
+  `core/web/hostName.ts` so the tool names the host without the checks. A
+  bundle that cannot load fails that fetch as a refused fetch fails (kind
+  `unavailable`, `webFetchUnavailable` for the model and the row, in all 14
+  tables); Muse Code's call is refused before any modal; the log has the
+  cause and the next use tries again. The Model API backend keeps its own
+  URL checks, the ACP agent its own fetch. Budget 75 KiB (46.7 measured
+  plus 15 %, rounded up to 25 KiB). `src/core/export/sessionTransfer.ts`,
+  the brief's other candidate, stays: the target was met without it.
+- **The guard** (`scripts/check-bundle-split.mjs`, in `npm run build`): a
+  text block's sentinel keys must be in every bundle declared to read it
+  and in none of the other shipped bundles (all 18 in the production
+  metafiles, lazy ones and the webview included, after the review found
+  activation and the ACP agent alone were checked); a block that
+  `constants.ts` declares without an entry fails; `FILE_REFUSAL_MODEL_TEXT`
+  is pinned to its two keys; and a key of `MODEL_TEXT` that no source file
+  of `dist/extension.js` reads fails, which keeps lazy text from growing
+  back. The code intelligence and web fetch bundles' tests check that
+  neither carries any key or value of `MODEL_TEXT`. Drills: four on the
+  first cut, R1–R5 for the review's findings, W1–W7 for the web fetch
+  split; each failed and was reverted.
 
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes

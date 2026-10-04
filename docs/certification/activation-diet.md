@@ -65,6 +65,10 @@ That did not reach the target, so the brief's second step followed.
 
 ### The `ide` server's code intelligence answers are a bundle of their own
 
+> Superseded on 2026-10-04: main split code intelligence out on its own
+> (PR #89, `dist/codeIntel.js` at 100 KiB), and the merge took main's split
+> and dropped this one. See "Merged with main" below.
+
 - `src/host/ide/codeIntelEntry.ts` builds to `dist/codeIntel.js` (52.2 KiB):
   `answerCodeIntel`, `planRename` and `renameDiff`, with the queries, the
   repo map, `codeText.ts` and `CODE_INTEL_MODEL_TEXT`. The build options are
@@ -261,3 +265,225 @@ the host (11 tests when clean):
 | T2  | Listing the `ide` tools asks for the answers (loads the bundle at activation)  | 1    | 2 failed, 9 passed (11)  | "lists every tool as read-only…", "answers every call as a failed one… while its bundle cannot be loaded"    |
 | T3  | A bundle that cannot load answers with other words than `codeIntelUnavailable` | 1    | 3 failed, 8 passed (11)  | the loader's refusal and retry, the malformed and missing module, and the `ide` tools' failed calls          |
 | T4  | `isCodeIntelBundle` accepts anything                                           | 1    | 2 failed, 9 passed (11)  | "accepts a module whose factory is a function, and nothing else", "refuses a module that is not the bundle…" |
+
+## Merged with main, the review's findings, and web fetch (2026-10-04)
+
+Recorded 2026-10-04 (lane DIET-2). Main with M70 (PR #69 at `66b94269`)
+had `dist/extension.js` at 590.6 of 600 KiB, and M87 adds about 4 KiB. The
+target was 565 KiB or less: 25 KiB or more for M87, M71 and M81. No live
+model call was made: the tests run against fakes.
+
+Commits, in order:
+
+| Commit     | What                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------ |
+| `ed569397` | Merge `origin/feature/m70-review` (`66b94269`: main with M70)                                          |
+| `9fae3adf` | Merge `origin/main` after PR #69 merged (its last commit `c5fc9b22`, and the dev dependency bump, #93) |
+| `c696f88e` | The review's findings: every text block guarded against every shipped bundle                           |
+| `b2de512e` | The window's web fetch loads on the first fetch (`dist/webFetch.js`)                                   |
+| `a7b59cb8` | Merge `origin/main` (the 0.12.0 release, #106)                                                         |
+| `fc773b73` | The M80 constants test counts `EXEC_MODEL_TEXT` (found by the full suite on Kubuntu)                   |
+
+### The merge
+
+Resolved by meaning (scratchpad `diet2/`):
+
+- **Code intelligence.** Main's split (PR #89: `codeIntelEntry.ts`,
+  `codeIntelBundle.ts`, `codeIntelTools.ts`, their tests, the
+  `ON_FIRST_USE` split check, budget 100 KiB) won. This lane's own split,
+  its `codeIntelUnavailable` words, its PLAN §8 row and its README clause
+  were dropped. `CODE_INTEL_MODEL_TEXT` stayed: `dist/codeIntel.js` and
+  `dist/modelApi.js` read it, activation does not.
+- **Bundles main added** (session board, reviewer, bundled skills, voice,
+  the reviewer on Muse Code) kept in `scripts/build.mjs`, the size, split,
+  host-globals and notices scripts, `.vscodeignore`, CI's VSIX member list,
+  knip and `npm run cycles`.
+- **Model text.** This lane's blocks, plus every key main added. Main's new
+  `MODEL_TEXT` keys that no activation file reads moved by reader:
+  `subagentResultWithheld` and four M78 refusals to `MODEL_API_MODEL_TEXT`;
+  `codeIntelPolicyRefused` and `codeIntelPolicyHidden` to
+  `CODE_INTEL_MODEL_TEXT`; the exec run's untrusted-file frame to a new
+  `EXEC_MODEL_TEXT` (`dist/acp.js` only); the Auto reviewer's text to a new
+  `AUTO_REVIEWER_MODEL_TEXT` (`dist/reviewer.js`, `dist/museCodeReviewer.js`).
+  M78 made the code intelligence queries read `pathChangedAfterApproval`,
+  which activation reads too, so `dist/codeIntel.js` carried all of
+  `MODEL_TEXT` again; it joined `fileHasUnsavedChanges` in
+  `FILE_REFUSAL_MODEL_TEXT`.
+- **Same words.** `diet2/same-words.mjs` bundles `constants.ts` at
+  `origin/feature/m70-review` and in the tree and compares every
+  `*MODEL_TEXT` block: 328 keys, every value equal, each in one block (329
+  after web fetch's one new key, `webFetchUnavailable`).
+- **Readers.** `diet2/stale-reads.mjs` lists every read of a block whose key
+  is not in that block, under `src/`, `test/` and `scripts/`;
+  `diet2/codemod.mjs` points each at the key's block and fixes the import.
+  0 left. The rest of main's side was taken hunk by hunk where only import
+  order or a block's name differed (`diet2/hunk-audit.py`,
+  `rename-only.py`).
+- CHANGELOG by `changelog-rebase.py` and `changelog-fix-released.py` at
+  each merge; the l10n tables, `docs/host-api.md` and the notices merged
+  without conflict and matched main's; PLAN kept both sides.
+
+### The review's findings
+
+From `muse/rv-diet.report.md` (no P1):
+
+- **P2-1.** `REVIEW_MODEL_TEXT` had no guard entry. It has one (readers
+  `dist/review.js`, `dist/modelApi.js` and the webview's review pane), as
+  do the merge's `EXEC_MODEL_TEXT` and `AUTO_REVIEWER_MODEL_TEXT` and web
+  fetch's `WEB_FETCH_MODEL_TEXT`. A block `constants.ts` declares that the
+  check does not guard now fails the build, which caught
+  `WEB_FETCH_MODEL_TEXT` the first time it was built.
+- **P2-2.** A block's "others" were only activation and the ACP agent. Now
+  they are every JavaScript bundle in the production metafiles (18:
+  `dist/meta/*.json` and `dist/meta-acp/acp.json`, the webview included)
+  but the block's declared readers.
+- **P3-1.** `FILE_REFUSAL_MODEL_TEXT` is pinned to its two keys, with the
+  reason: activation reads it (memoryStore, toolIo, fsAtomic), so any key
+  added rides into `dist/extension.js` and `dist/acp.js`.
+- **P3-2.** The shipped bundle test checks every key and value of
+  `MODEL_TEXT`, not one canary (`test/unit/helpers/bundleText.ts`, shared
+  by the code intelligence and web fetch bundles' tests). A value is found
+  by its longest run without quotes, backslashes, `$`, line breaks or
+  non-ASCII (what esbuild may escape), 12 characters or more; a key by
+  `key:` after a brace, comma or space. A positive control finds the text
+  the bundle does read the same way.
+
+### More room: the window's web fetch
+
+After the merge and the text moves `dist/extension.js` was 575.7 KiB, so
+the brief's third step followed. Ranked by `bytesInOutput`, web fetch was
+the largest piece that registration does not need: `core/web/webFetch.ts`
+6.9 KiB, `fetchFailure.ts` 3.3, `webFetcher.ts` 1.8, `publicAddress.ts`
+1.9, `textDecoding.ts` 1.5, `pinnedRequest.ts` 1.1, `mimeType.ts` 0.9,
+`pageUrl.ts` 0.9 and about 5 KiB of model text.
+
+- `src/host/web/webFetchEntry.ts` builds to `dist/webFetch.js` (46.7 KiB,
+  budget 75). Its two exports install the activation bundle's table and
+  locale on each call: `checkWebPageUrl` (the first checks) and
+  `fetchWebPageWith` (the window's fetcher, `createWebFetcher`).
+- `src/host/web/webFetchBundle.ts` loads it through `lazyBundleLoader`.
+  `lazyWebFetcher` is the window's `WebFetcher` for both backends;
+  `lazyPageUrlCheck` is Muse Code's `webFetch` check before the modal
+  (`IdeWebFetchDeps.checkUrl`). Creating either loads nothing.
+- A bundle that cannot load: the fetch's result is a failed fetch, kind
+  `unavailable`, with `MODEL_TEXT.webFetchUnavailable` for the model and
+  `UI_TEXT.webFetchUnavailable` for the Model API row (in all 14 tables),
+  which is how every refused fetch reports; Muse Code's call is refused
+  with it before any modal. The loader logs the file and the cause; the
+  next use tries again.
+- `approvalHost` and `bareHost` moved to `src/core/web/hostName.ts`, so the
+  `ide` tool names the host at activation without the checks.
+- Web fetch's 42 model text keys are `WEB_FETCH_MODEL_TEXT` (readers
+  `dist/webFetch.js`, `dist/modelApi.js`, `dist/acp.js`). `webFetchDeclined`,
+  `webFetchCancelled`, `webFetchNotOffered` and the new
+  `webFetchUnavailable` stay in `MODEL_TEXT`: the `ide` tool reads them at
+  activation.
+- The Model API backend keeps its own URL checks and the ACP agent its own
+  fetch. HTML is still converted on `dist/pageWorker.js`.
+- Listed in the build, the size, split (`ON_FIRST_USE`: the entry, the
+  fetcher, the transport, the fetch, the failures, the URL checks, the
+  address checks, the media type and decoding modules) and host-globals
+  checks, the notices (regenerated, 83 packages), `.vscodeignore`, CI's
+  VSIX list, knip and `npm run cycles`.
+- `src/core/export/sessionTransfer.ts`, the brief's other candidate, stays
+  at activation: its export and import run from the panel's commands, and
+  the target was met without moving it.
+
+New tests, `test/unit/webFetchBundle.test.ts` (12): the guard accepts the
+module and nothing else; the loader cases every lazy bundle meets; the
+shipped bundle loads the shared English fallback and carries none of
+`MODEL_TEXT`; it checks four refused URLs and an accepted one as the
+source does; it fetches as the source does, and logs the host and the
+outcome; it says why in the table the activation bundle installed; nothing
+loads before the first use; a missing bundle fails each fetch with the
+reason, logs it and tries again; Muse Code's check throws the reason.
+`ideWebFetch.test.ts`: while the checks cannot be loaded, the call asks
+nothing and fetches nothing.
+
+### Sizes
+
+Production build, KiB (`npm run build`'s own figures). "Before" is main
+with M70 (`66b94269`, the M70 worktree's production build; the webview
+from this merge's `66b94269` side).
+
+| Bundle                     | Before | Merge and text moves | After | Budget |
+| -------------------------- | ------ | -------------------- | ----- | ------ |
+| `dist/extension.js`        | 590.6  | 575.7                | 552.6 | 600    |
+| `dist/modelApi.js`         | 430.1  | 426.2                | 426.3 | 475    |
+| `dist/review.js`           | 43.1   | 43.1                 | 43.1  | 50     |
+| `dist/sessionBoard.js`     | 62.0   | 62.0                 | 62.0  | 75     |
+| `dist/reviewer.js`         | 54.6   | 28.8                 | 28.8  | 75     |
+| `dist/planMarkdown.js`     | 139.0  | 139.0                | 139.0 | 150    |
+| `dist/checkpointStore.js`  | 135.7  | 109.1                | 109.1 | 225    |
+| `dist/agentImport.js`      | 115.6  | 88.8                 | 88.8  | 125    |
+| `dist/bundledSkills.js`    | 22.9   | 22.9                 | 22.9  | 50     |
+| `dist/codeIntel.js`        | 76.9   | 54.6                 | 54.6  | 100    |
+| `dist/voice.js`            | 34.7   | 34.7                 | 34.7  | 50     |
+| `dist/webFetch.js`         | (none) | (none)               | 46.7  | 75     |
+| `dist/museCodeReviewer.js` | 42.7   | 16.9                 | 16.9  | 75     |
+| `dist/uiText.js`           | 104.9  | 104.9                | 105.0 | 125    |
+| `dist/searchWorker.js`     | 18.1   | 18.1                 | 18.1  | 50     |
+| `dist/pageWorker.js`       | 203.2  | 203.2                | 203.2 | 300    |
+| `dist/webview/main.js`     | 860.2  | 860.2                | 860.6 | 900    |
+| `dist/acp.js`              | 800.9  | 786.4                | 786.5 | 850    |
+
+- `dist/extension.js` is 565,850 bytes: 38.0 KiB smaller, 47.4 KiB under
+  the budget, 12.4 KiB under the 565 KiB target. `src/shared/constants.ts`
+  is 26.3 KiB of it (`MODEL_TEXT` 65 keys).
+- The English table and the webview grew 0.1 KiB for
+  `webFetchUnavailable`; the webview's other 0.3 KiB is main's
+  `c5fc9b22`, merged after the "before" build.
+
+### Red drills
+
+Each guard was broken on purpose in the working tree, the check that
+should catch it was run, and every file was put back byte for byte with its
+SHA-256 checked (scratchpad `diet2/drills.mjs`, `drills-extra.mjs`,
+`drills.jsonl`, `drill-<id>.log`). The tree's `git diff` hash was the same
+before and after each set. Gate drills: production build, metafile paths
+normalized, then the size check and the split check (the exit code is the
+split check's).
+
+| #   | Broken on purpose                                                                                                        | Exit | What caught it                                                                                                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | P2-1: the `ide` tools (activation) read `REVIEW_MODEL_TEXT.reviewMethod`                                                 | 1    | split: `dist/extension.js carries REVIEW_MODEL_TEXT` (both sentinels); the size check passed at 579.5 KiB                                                                         |
+| R2  | P2-2: `core/review/reviewPrompt.ts` (`dist/review.js`) reads `MODEL_API_MODEL_TEXT.goalNoActive`                         | 1    | split: `dist/review.js carries MODEL_API_MODEL_TEXT` (3 sentinels); the size check also failed, 55.8 of 50 KiB                                                                    |
+| R3  | P2-1: `constants.ts` declares `SCRATCH_MODEL_TEXT` with no guard entry                                                   | 1    | split: `declares SCRATCH_MODEL_TEXT, which scripts/check-bundle-split.mjs does not guard`                                                                                         |
+| R4  | P3-1: `codeIntelNoTarget` moves to `FILE_REFUSAL_MODEL_TEXT`, its reader re-pointed                                      | 1    | split: `FILE_REFUSAL_MODEL_TEXT holds …, codeIntelNoTarget, not …`; nothing else would have (activation 575.8 KiB)                                                                |
+| R5  | P3-2: `core/codeIntel/rename.ts` reads `MODEL_TEXT.fileNotText` (a key activation reads too)                             | 1    | `codeIntelBundle.test.ts`: "carries no key and none of the words of MODEL_TEXT" (first: `bundledSkillRoot`; now `shippedTextCases`)                                               |
+| R5g | The same break as R5, through the build gate                                                                             | 0    | nothing: `dist/codeIntel.js` 66.7 KiB, under its 100; the test is what catches it                                                                                                 |
+| W1  | `extension.ts` builds the fetcher statically again (`createWebFetcher`)                                                  | 1    | split: `dist/extension.js carries` `webFetcher.ts`, `pinnedRequest.ts`, `webFetch.ts`, `fetchFailure.ts`, … `which loads only on the first web fetch`, and `WEB_FETCH_MODEL_TEXT` |
+| W2  | `core/web/webFetch.ts` reads `MODEL_TEXT.webFetchDeclined`                                                               | 1    | `webFetchBundle.test.ts`: "carries its own model text and no key and none of the words of MODEL_TEXT"                                                                             |
+| W3  | `lazyWebFetcher` asks for the bundle when it is created                                                                  | 1    | "loads nothing until the first fetch"; "fails each fetch with the reason…"                                                                                                        |
+| W4  | A fetch whose bundle cannot load fails with a network failure's words                                                    | 1    | "fails each fetch with the reason, logs the cause, and tries again on the next one"                                                                                               |
+| W5  | `fetchWebPageWith` no longer installs the activation bundle's table                                                      | 1    | "says why in the table the activation bundle installed"                                                                                                                           |
+| W6  | `isWebFetchBundle` accepts anything                                                                                      | 1    | "accepts a module that exports the check and the fetch, and nothing else"; the loader's "refuses another module at the path…"                                                     |
+| W7  | Muse Code's `webFetch` checks URLs statically again (`checkPageUrl` imported, `deps.checkUrl` ignored), gate, then tests | 1    | split: `dist/extension.js carries` `fetchFailure.ts` and `pageUrl.ts`; `ideWebFetch.test.ts`: "asks nothing and fetches nothing while the checks cannot be loaded"                |
+
+### Gates
+
+| Check                                                                              | Result                                                                                    |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Full unit suite, Kubuntu rig (`rig-test.sh kubuntu … diet`, snapshot `22becb7b`)   | 343 files passed and 4 skipped (347); 6929 tests passed and 56 skipped (6985); 68.1 s     |
+| `npm run build`, Kubuntu rig (real install, the same snapshot)                     | exit 0: every budget, the split check, host-globals for 15 bundles, notices (83 packages) |
+| `npm run build`'s checks on the host (metafile paths normalized, see below)        | all ok, the same figures                                                                  |
+| `tsc --noEmit` for `.`, `test/unit`, `src/webview`, `test/e2e`, `test/integration` | exit 0 (each)                                                                             |
+| `eslint --max-warnings=0` and `prettier --check` on every file changed from main   | exit 0                                                                                    |
+| `npx knip`, `npm run duplication`, `npm run cycles`                                | exit 0, 0 clones, no circular dependency                                                  |
+| `node scripts/check-l10n.mjs`, `node scripts/check-host-api.mjs`                   | 14 tables, 0 problems; 271 APIs, 18 files importing `vscode`, 0 problems                  |
+
+The first Kubuntu run (snapshot `262a977a`, before `fc773b73`) failed one
+test of 6985: `execSchema.test.ts` counts the `EXEC_*` constants, and the
+merge's `EXEC_MODEL_TEXT` is one more. The test now counts it and reads the
+frame from it.
+
+This worktree's `node_modules` is a junction into another worktree's
+install, so locally the split check's prefix checks see
+`../<worktree>/node_modules/…` paths and `npm run build` stops there; the
+host runs the checks after rewriting those paths (`diet2/unjunction.mjs`).
+The Kubuntu build, from a real install, needed no rewrite.
+`deferredBundles.test.ts` fails on the host for the same reason and passes
+on the rig. During the lane `muse-extension-m70`'s install was emptied
+(PR #69 had merged), so the junction (only the junction) was replaced by
+one into `mx-relfast`, whose lockfile is this branch's; the host gates
+above ran on it.

@@ -3238,8 +3238,10 @@ activation and an ordinary Model API turn load neither implementation.
 Both receive the current display language. These bundles each have a 75 KiB
 cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
-`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
-first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+`dist/codeIntel.js` (100 KiB cap), both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap), and the window's web
+fetch (each hop's checks and pins, the transport, the decoders) on the
+first fetch from `dist/webFetch.js` (75 KiB cap); the tool lists and the
 microphone's availability stay at activation. The Auto reviewer on Muse
 Code (its side session, what follows a review, and the Model API reviewer's
 core it reuses) loads on the first review from `dist/museCodeReviewer.js`
