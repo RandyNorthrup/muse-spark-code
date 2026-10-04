@@ -7,16 +7,18 @@ import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { Dictation } from '../../src/core/voice/dictation'
 import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
-import {
-  createDictationSetup,
-  createMuseVoiceSetup,
-  type HelperProcess,
-  spawnHelper,
-} from '../../src/host/voice/dictationHost'
+import { createDictationSetup, createMuseVoiceSetup } from '../../src/host/voice/dictationHost'
+import type { VoiceBundle } from '../../src/host/voice/voiceBundle'
+import * as voiceEntry from '../../src/host/voice/voiceEntry'
+import { type HelperProcess, spawnHelper } from '../../src/host/voice/voiceProcesses'
+import { UI_TEXT } from '../../src/shared/constants'
 
 // The three pieces of `vscode` the setup reads (M26): where the extension
 // host runs (its kind and the window's remote) and the editor's name. The
 // shared mock has no `env`; this file supplies its own.
+// The source module, as dist/voice.js exports it.
+const voice = () => voiceEntry
+
 const window = vi.hoisted(() => {
   const state: { remoteName: string | undefined; extensionKind: number } = {
     remoteName: undefined,
@@ -171,6 +173,7 @@ describe('createDictationSetup', () => {
     systemRoot: String.raw`C:\Windows`,
     helperDir: 'native',
   } as const
+  const listener = { onStatus: () => undefined, onText: () => undefined, onError: () => undefined }
 
   beforeEach(() => {
     window.remoteName = undefined
@@ -181,30 +184,48 @@ describe('createDictationSetup', () => {
     const setup = createDictationSetup(
       { platform: 'linux', systemRoot: undefined, helperDir: 'native' },
       log,
+      voice,
     )
     expect(setup.isAvailable).toBe(false)
     expect(logged.at(-1)).toMatch(/^Voice dictation unavailable: .*Linux/)
   })
 
-  it('creates a driver bound to the platform helper on Windows', () => {
-    const setup = createDictationSetup(windows, log)
+  it('creates a driver bound to the platform helper on Windows, loading voice only on the first start (D6)', () => {
+    const started = vi.fn()
+    const createDictation = vi.fn<VoiceBundle['createDictation']>(() => ({
+      start: started,
+      stop: () => undefined,
+      dispose: () => undefined,
+    }))
+    const load = vi.fn(() => ({ ...voiceEntry, createDictation }))
+    const setup = createDictationSetup(windows, log, load)
     expect(setup.isAvailable).toBe(true)
     if (!setup.isAvailable) {
       return
     }
-    const driver = setup.create({
-      onStatus: () => undefined,
-      onText: () => undefined,
-      onError: () => undefined,
-    })
-    // Nothing is spawned until the first start.
+    const driver = setup.create(listener)
+    // Nothing is loaded or spawned until the first start.
+    expect(load).not.toHaveBeenCalled()
+    driver.start()
+    driver.start()
+    expect(load).toHaveBeenCalledOnce()
+    expect(createDictation).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        command: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
+      }),
+      listener,
+      log,
+      UI_TEXT,
+      'en',
+    )
+    expect(started).toHaveBeenCalledTimes(2)
     driver.dispose()
   })
 
   it('is unavailable when the extension runs on the remote side of a remote window (M26)', () => {
     window.remoteName = 'ssh-remote'
     window.extensionKind = 2
-    const setup = createDictationSetup(windows, log)
+    const setup = createDictationSetup(windows, log, voice)
     expect(setup).toMatchObject({ isAvailable: false })
     expect(logged.at(-1)).toMatch(/^Voice dictation unavailable: .*remote window/)
   })
@@ -212,7 +233,7 @@ describe('createDictationSetup', () => {
   it('stays available in the local extension host of a remote window (M26)', () => {
     window.remoteName = 'ssh-remote'
     window.extensionKind = 1
-    expect(createDictationSetup(windows, log).isAvailable).toBe(true)
+    expect(createDictationSetup(windows, log, voice).isAvailable).toBe(true)
   })
 })
 
@@ -223,7 +244,12 @@ describe('createMuseVoiceSetup (M35)', () => {
     warn: () => undefined,
     error: () => undefined,
   }
-  const deps = { apiKey: () => Promise.resolve('LLM|1|k'), onSeconds: () => undefined, log }
+  const deps = {
+    apiKey: () => Promise.resolve('LLM|1|k'),
+    onSeconds: () => undefined,
+    log,
+    voice,
+  }
 
   beforeEach(() => {
     window.remoteName = undefined
@@ -240,6 +266,41 @@ describe('createMuseVoiceSetup (M35)', () => {
     window.remoteName = 'ssh-remote'
     window.extensionKind = 2
     expect(createMuseVoiceSetup(windows, deps)).toMatchObject({ isAvailable: false })
+  })
+
+  it('hands the capture helper and its dependencies to the bundle on the first start (D6)', () => {
+    const createMuseVoice = vi.fn<VoiceBundle['createMuseVoice']>(() => ({
+      start: () => undefined,
+      stop: () => undefined,
+      dispose: () => undefined,
+    }))
+    const load = vi.fn(() => ({ ...voiceEntry, createMuseVoice }))
+    const setup = createMuseVoiceSetup(
+      { platform: 'win32', systemRoot: String.raw`C:\Windows`, helperDir: 'native' },
+      { ...deps, voice: load },
+    )
+    if (!setup.isAvailable) {
+      throw new Error('Muse Voice should be available on Windows')
+    }
+    const listener = {
+      onStatus: () => undefined,
+      onText: () => undefined,
+      onError: () => undefined,
+    }
+    const driver = setup.create(listener)
+    expect(load).not.toHaveBeenCalled()
+    driver.start()
+    expect(createMuseVoice).toHaveBeenCalledExactlyOnceWith(
+      {
+        apiKey: deps.apiKey,
+        onSeconds: deps.onSeconds,
+        log,
+        capture: expect.objectContaining({ isAvailable: true, kind: 'helper' }),
+      },
+      listener,
+      UI_TEXT,
+      'en',
+    )
   })
 
   it('says why without a WebSocket in the extension host', () => {

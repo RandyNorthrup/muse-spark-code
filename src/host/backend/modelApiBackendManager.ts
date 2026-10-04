@@ -19,6 +19,8 @@ import type {
   ModelApiHostDeps,
   ModelApiPaidHooks,
 } from '../../core/backends/modelapi/ModelApiHost'
+import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ScheduleStore } from '../../shared/schedule'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
@@ -28,21 +30,37 @@ import type { BundledSkillsSource } from '../../core/context/skills'
 import type { LanguageServiceHost } from '../../core/codeIntel/languageService'
 import type { McpTool } from '../../core/mcp'
 import type { MemoryStore } from '../../core/memory/memoryStore'
+import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
+import type { SubagentUsage } from '../../shared/paid'
+import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
-import { MODEL_API_BASE_URL, type PromptCacheRetention, UI_TEXT } from '../../shared/constants'
+import { unstartedShell } from '../../core/shellResult'
+import {
+  MODEL_API_BASE_URL,
+  MODEL_TEXT,
+  type PromptCacheRetention,
+  UI_TEXT,
+} from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
-import { isModelApiBundle, type McpPoolFactory, type ModelApiBundle } from './modelApiBundle'
+import {
+  isModelApiBundle,
+  type McpPoolFactory,
+  type ModelApiBundle,
+  type ModelApiBundleDeps,
+} from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
+  /** Existing file-listing adapter rooted in each actual attempt worktree. */
+  readonly listAttemptFiles: (workspaceRoot: string) => Promise<readonly string[]>
   /** The rules, skills and memory loaders' file access (PLAN.md D27). */
   readonly contextIo: ContextIo
   readonly fetch: typeof fetch
@@ -66,8 +84,14 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly scheduleStore?: ScheduleStore | undefined
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
+  readonly describeAttemptEnvironment: (workspaceRoot: string) => Promise<EnvironmentFacts>
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
+  /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
+  readonly sessionBudgetUsd: () => number
+  /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
+  readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
   /**
@@ -89,13 +113,18 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isObservationPackingOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
+  /** The command rules and permission profiles (M78, PLAN.md D49), read at each call. */
+  readonly permissionSettings?: (() => PermissionSettings) | undefined
   /** The verify loop's settings and the editor's diagnostics and formatter (M68, PLAN.md D49). */
   readonly verify?: VerifyHooks | undefined
+  /** Desktop trials use their own worktree-rooted editor and dispose it with the attempt host. */
+  readonly createAttemptVerify?: ((workspaceRoot: string) => VerifyHooks) | undefined
   /** The runtime can share notices across aliases without changing its saved-session identity. */
   readonly workspaceEdits?: WorkspaceEdits | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
+
   /** The Model API bundle, dist/modelApi.js beside the running bundle (M57, PLAN.md D6). */
   readonly bundlePath: string
   /** How the bundle is loaded: Node's `require` unless a test hands in the source module. */
@@ -110,6 +139,36 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
+
+/** What differs between the window's host and a best-of-N attempt's host. */
+interface HostVariant {
+  readonly verify: ModelApiBackendManagerDeps['verify']
+  readonly workspaceEdits: WorkspaceEdits
+  readonly sessionWorkspaceRoot: string | undefined
+  readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
+  readonly webFetch: ModelApiBackendManagerDeps['webFetch']
+  readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
+  readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
+  readonly io: ToolIo
+  readonly budgetScope?: OwnedSessionBudgetScope | undefined
+  readonly admitResponseAttempt?: ResponseAttemptGuard | undefined
+  readonly noteResponseUsage?: ((modelId: string, usage: SubagentUsage) => void) | undefined
+  readonly workspaceRoot: string
+  readonly store: SessionStore | undefined
+  readonly scheduleStore: ScheduleStore | undefined
+  readonly describeEnvironment: () => Promise<EnvironmentFacts>
+  readonly isPaidFeatureOn: ModelApiBackendManagerDeps['isPaidFeatureOn']
+  readonly ideTools: readonly McpTool[] | undefined
+  readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
+  readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
+  readonly isHooksEnabled: (() => boolean) | undefined
+  readonly memory: MemoryStore | undefined
+  /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
+  readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
+  readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
+  readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
+  readonly readyMessage: string
+}
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -177,11 +236,8 @@ export class ModelApiBackendManager {
     return loaded
   }
 
-  private async build(): Promise<ModelApiHost> {
-    const { workspaceRoot, createMcpServers } = this.deps
-    if (workspaceRoot === undefined) {
-      throw new Error(UI_TEXT.modelApiNeedsFolder)
-    }
+  /** One factory for both hosts: the window's and a best-of-N attempt's. */
+  private async createHost(variant: HostVariant): Promise<ModelApiHost> {
     const bundle = this.loadBundle()
     const host = await bundle.createModelApiHost({
       uiText: UI_TEXT,
@@ -197,9 +253,9 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
-        workspaceRoot,
+        workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
-        io: this.deps.io,
+        io: variant.io,
         contextIo: this.deps.contextIo,
         newId: this.deps.newId,
         now: this.deps.now,
@@ -210,40 +266,178 @@ export class ModelApiBackendManager {
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
         confirmContributorModel: this.deps.confirmContributorModel,
-        store: this.deps.store,
-        scheduleStore: this.deps.scheduleStore,
+        store: variant.store,
+        scheduleStore: variant.scheduleStore,
         getAccountId: async () => {
           const key = await this.deps.getApiKey()
           return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
         },
-        describeEnvironment: this.deps.describeEnvironment,
-        isPaidFeatureOn: this.deps.isPaidFeatureOn,
+        admitResponseAttempt: variant.admitResponseAttempt,
+        noteResponseUsage: variant.noteResponseUsage,
+        ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
+        describeEnvironment: variant.describeEnvironment,
+        isPaidFeatureOn: variant.isPaidFeatureOn,
         notePaidUse: this.deps.notePaidUse,
         promptCacheRetention: this.deps.promptCacheRetention,
-        ideTools: this.deps.ideTools,
-        webFetch: this.deps.webFetch,
-        codeIntel: this.deps.codeIntel,
-        isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
+        sessionBudgetUsd: this.deps.sessionBudgetUsd,
+        showReplyUsage: this.deps.showReplyUsage,
+        ideTools: variant.ideTools,
+        webFetch: variant.webFetch,
+        codeIntel: variant.codeIntel,
+        isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
-        allowsPaidUse: this.deps.allowsPaidUse,
-        isPaidUseRemembered: this.deps.isPaidUseRemembered,
+        allowsPaidUse: variant.allowsPaidUse,
+        isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
-        isHooksEnabled: this.deps.isHooksEnabled,
-        memory: this.deps.memory,
-        beforeTurnRuns: this.deps.beforeTurnRuns,
-        afterTurnRuns: this.deps.afterTurnRuns,
-        verify: this.deps.verify,
-        workspaceEdits: this.workspaceEdits,
-        sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
+        isHooksEnabled: variant.isHooksEnabled,
+        memory: variant.memory,
+        beforeTurnRuns: variant.beforeTurnRuns,
+        afterTurnRuns: variant.afterTurnRuns,
+        noteReviewerUsage: this.deps.noteReviewerUsage,
+        permissionSettings: variant.permissionSettings,
+        verify: variant.verify,
+        workspaceEdits: variant.workspaceEdits,
+        sessionWorkspaceRoot: variant.sessionWorkspaceRoot,
       },
       hookSettingsPath: this.deps.hookSettingsPath,
+      createMcpServers: variant.createMcpServers,
+    })
+    this.deps.log.info(variant.readyMessage)
+    return host
+  }
+
+  private async build(): Promise<ModelApiHost> {
+    const { workspaceRoot, createMcpServers } = this.deps
+    if (workspaceRoot === undefined) {
+      throw new Error(UI_TEXT.modelApiNeedsFolder)
+    }
+    return await this.createHost({
+      workspaceRoot,
+      verify: this.deps.verify,
+      workspaceEdits: this.workspaceEdits,
+      sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
+      permissionSettings: this.deps.permissionSettings,
+      webFetch: this.deps.webFetch,
+      codeIntel: this.deps.codeIntel,
+      isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
+      io: this.deps.io,
+      store: this.deps.store,
+      scheduleStore: this.deps.scheduleStore,
+      describeEnvironment: this.deps.describeEnvironment,
+      isPaidFeatureOn: this.deps.isPaidFeatureOn,
+      ideTools: this.deps.ideTools,
+      allowsPaidUse: this.deps.allowsPaidUse,
+      isPaidUseRemembered: this.deps.isPaidUseRemembered,
+      isHooksEnabled: this.deps.isHooksEnabled,
+      memory: this.deps.memory,
+      beforeTurnRuns: this.deps.beforeTurnRuns,
+      afterTurnRuns: this.deps.afterTurnRuns,
       createMcpServers:
         createMcpServers === undefined
           ? undefined
           : (newPool) => createMcpServers(workspaceRoot, newPool),
+      readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
-    this.deps.log.info('Model API backend ready (api.meta.ai/v1, stateless reasoning replay)')
-    return host
+  }
+
+  /**
+   * A host rooted in a best-of-N worktree (M77, PLAN.md D49): the attempt's
+   * own conversations, confined to it. No durable sessions, no schedules, no
+   * MCP servers, no hooks, no memory and no paid tools: an attempt's billed
+   * surface is exactly the run's quoted token rates, and nothing in it can
+   * open the paid-use popup. No shell either, so no configured checks: a
+   * command's working folder confines nothing, and in Bypass or under a
+   * standing rule a command (or a check running files the model wrote)
+   * could change the main checkout (the review of PR #89). Closed by the
+   * run when the attempt settles.
+   */
+  public async buildAttemptHost(
+    worktreeRoot: string,
+    admitRequest: ResponseAttemptGuard,
+    noteUsage?: (modelId: string, usage: SubagentUsage) => void,
+    budgetScope?: OwnedSessionBudgetScope,
+  ): Promise<ModelApiHost> {
+    // A finite cap requires the parent's owned journal; a temporary host
+    // cannot create another allowance or save its transcript under the parent ID.
+    if (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) {
+      throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
+    }
+    const generation = this.generation
+    const attemptVerify = this.deps.createAttemptVerify?.(worktreeRoot)
+    const verify =
+      attemptVerify === undefined ? undefined : { ...attemptVerify, checkCommands: () => [] }
+    try {
+      return await this.createHost({
+        verify,
+        workspaceEdits: new WorkspaceEdits(),
+        sessionWorkspaceRoot: undefined,
+        budgetScope,
+        permissionSettings: this.deps.permissionSettings,
+        webFetch: undefined,
+        codeIntel: undefined,
+        isRepoMapInPrompt: undefined,
+        io: {
+          ...this.deps.io,
+          listFiles: () => this.deps.listAttemptFiles(worktreeRoot),
+          runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
+        },
+        noteResponseUsage: (modelId, usage) => {
+          if (generation === this.generation) noteUsage?.(modelId, usage)
+        },
+        admitResponseAttempt: Object.assign(
+          (keyDigest: string | undefined) => {
+            if (
+              generation !== this.generation ||
+              (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+              budgetScope?.isStillAllowed(keyDigest) === false
+            ) {
+              throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
+            }
+            admitRequest(keyDigest)
+          },
+          {
+            onRequestStarted: () => {
+              admitRequest.onRequestStarted?.()
+            },
+          },
+        ),
+        workspaceRoot: worktreeRoot,
+        store: undefined,
+        scheduleStore: undefined,
+        describeEnvironment: () => this.deps.describeAttemptEnvironment(worktreeRoot),
+        isPaidFeatureOn: () => false,
+        ideTools: undefined,
+        allowsPaidUse: () => Promise.resolve(false),
+        isPaidUseRemembered: () => false,
+        isHooksEnabled: () => false,
+        memory: undefined,
+        beforeTurnRuns: undefined,
+        afterTurnRuns: undefined,
+        createMcpServers: undefined,
+        readyMessage: 'Model API attempt host ready in its worktree',
+      })
+    } catch (error: unknown) {
+      verify?.dispose?.()
+      throw error
+    }
+  }
+
+  public async bestOfNBudgetScope(
+    sessionId: string | undefined,
+  ): Promise<OwnedSessionBudgetScope | undefined> {
+    const generation = this.generation
+    const scope =
+      sessionId === undefined ? undefined : await this.host?.getOwnedBudgetScope(sessionId)
+    if (generation !== this.generation) throw new BestOfNError('contextChanged')
+    if (scope === undefined && this.deps.sessionBudgetUsd() !== 0)
+      throw new BestOfNError('budgetUnavailable')
+    return scope
+  }
+
+  /** Hash-only identity, without starting the host or requiring a workspace. */
+  public async accountId(): Promise<string | undefined> {
+    const key = await this.deps.getApiKey()
+    return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

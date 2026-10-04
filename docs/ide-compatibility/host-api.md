@@ -33,7 +33,7 @@ The VS Code adapter: 18 files. Everything else reaches VS Code only through them
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
-| `src/extension.ts`                         | 145               |
+| `src/extension.ts`                         | 146               |
 | `src/host/agentImportHost.ts`              | 29                |
 | `src/host/cliFeatures.ts`                  | 28                |
 | `src/host/codeIntel/languageServices.ts`   | 45                |
@@ -329,7 +329,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `window.showSaveDialog`                                                              | `src/host/cliFeatures.ts`                                                                                                                                                                                               |
 | `window.showTextDocument`                                                            | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`                                                                           |
 | `window.showWarningMessage`                                                          | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/memoryFeatures.ts`, `src/host/paid/paidHost.ts`, `src/host/popups.ts`, `src/host/web/webFetchConfirm.ts`, `src/host/worktreeFeatures.ts`                   |
-| `window.state`                                                                       | `src/host/paid/paidHost.ts`                                                                                                                                                                                             |
+| `window.state`                                                                       | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                         |
 | `window.tabGroups`                                                                   | `src/host/editor/verifyEditor.ts`                                                                                                                                                                                       |
 | `window.visibleTextEditors`                                                          | `src/host/editor/verifyEditor.ts`                                                                                                                                                                                       |
 | `workspace.applyEdit`                                                                | `src/host/agentImportHost.ts`                                                                                                                                                                                           |
@@ -353,26 +353,26 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 26    |
+| `node:buffer`          | 27    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 25    |
+| `node:crypto`          | 30    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 22    |
-| `node:fs/promises`     | 30    |
+| `node:fs`              | 23    |
+| `node:fs/promises`     | 31    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 62    |
+| `node:path`            | 63    |
 | `node:process`         | 1     |
 | `node:stream`          | 6     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 1     |
+| `node:timers/promises` | 2     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
-| `node:util`            | 5     |
+| `node:util`            | 4     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 1     |
@@ -383,6 +383,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | --------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts` |
 
-Theme variables the styles read (58), from `src/webview/styles.css`:
+Theme variables the styles read (59), from `src/webview/styles.css`:
 
-`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-menu-background`, `--vscode-menu-border`, `--vscode-menu-foreground`, `--vscode-menu-selectionBackground`, `--vscode-menu-selectionForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textCodeBlock-background`, `--vscode-textLink-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`
+`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-menu-background`, `--vscode-menu-border`, `--vscode-menu-foreground`, `--vscode-menu-selectionBackground`, `--vscode-menu-selectionForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textCodeBlock-background`, `--vscode-textLink-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`

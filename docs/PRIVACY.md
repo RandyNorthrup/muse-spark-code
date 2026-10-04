@@ -77,6 +77,19 @@ security notes for contributors are in `PLAN.md` §9.
   the panel announces this, and local history still keeps the original bytes.
   Media read by a tool in a stopped or failed turn is removed from later
   replay; the next request gets a path-only explanation instead of its bytes.
+- **Auto reviewer (Model API, off by default).** With
+  `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
+  a separate request to Meta judges an eligible tool call. It includes your
+  latest message, earlier tool names and arguments from that turn, the proposed
+  command or arguments, workspace path and platform. The message, action and individual
+  earlier-call text are clipped and marked as data. The reviewer has no tools, uses `store: false`,
+  and cannot override a forbid, explicit ask rule or file policy. It is billed
+  to your Model API key and recorded separately in Account & usage.
+- **Best-of-N (Model API, off by default).** After its paid-use popup names
+  N and the request ceiling, the same prompt runs in separate local Git
+  worktrees. Each attempt sends its conversation and tool outputs to Meta
+  under the confirmed key. Worktrees and comparison snapshots remain local;
+  choosing a result applies and stages its files without creating a commit.
 - **MCP servers on the Model API backend.** In a trusted workspace, the
   extension starts the servers configured in Muse Code's settings when a
   conversation starts. A local server runs as a child process; a remote
@@ -329,7 +342,13 @@ generation fields, never raw configuration or failed-command output.
   the edit patches, the task list, the model and the settings of that
   conversation, including attached image and PDF bytes, and a SHA-256
   digest of the Model API key that owns it (never the key itself), so
-  History opens only that key's conversations. Scheduled prompts are saved
+  History opens only that key's conversations. Shared budget records beside
+  these files keep the account digest, conversation and random request IDs,
+  reserved or settled amounts and whether historical fees are unverified.
+  They contain no prompt, attachment or key value. A request that crashed
+  without verified usage keeps its possible liability. Budget records are
+  retained even when an old conversation file is removed; deleting the
+  extension's workspace storage directory removes them all. Scheduled prompts are saved
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.

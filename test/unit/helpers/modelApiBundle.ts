@@ -38,15 +38,20 @@ export async function buildHostBundles(
     target: 'node20.18',
     plugins: [sharedUiText],
     logLevel: 'silent',
+    external: ['./reviewerEntry.js'],
   })
 }
 
-/** Builds the backend and its page worker into `folder`; returns the backend's path. */
+/**
+ * Builds the backend, its page worker and the Auto reviewer it loads on first
+ * use into `folder`; returns the backend's path.
+ */
 export async function buildModelApiBundle(folder: string): Promise<string> {
   const file = path.join(folder, MODEL_API_BUNDLE_FILE)
   await buildHostBundles(folder, {
     [path.parse(MODEL_API_BUNDLE_FILE).name]: path.resolve('src/host/backend/modelApiEntry.ts'),
     [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
+    reviewerEntry: path.resolve('src/core/backends/modelapi/reviewerEntry.ts'),
   })
   return file
 }

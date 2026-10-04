@@ -16,6 +16,7 @@ import type {
   SearchOutcome,
   SearchWorkerMessage,
 } from '../../core/backends/modelapi/tools'
+import { compileDenyGlobsWithin } from '../../core/backends/modelapi/glob'
 
 const LINE_BREAK = /\r?\n/
 
@@ -27,6 +28,8 @@ const SEARCH_JOB = z.object({
   files: z.array(z.object({ relative: z.string(), absolute: z.string() })),
   maxFileBytes: z.number(),
   maxHits: z.number(),
+  denyRead: z.array(z.string()),
+  globLimits: z.object({ maxLength: z.number(), maxAlternatives: z.number() }),
 })
 
 function isBinary(text: string): boolean {
@@ -57,14 +60,22 @@ function isInside(root: string, target: string): boolean {
   )
 }
 
-/** The file's text when it is a small, confined, readable text file. */
+/**
+ * The file's text when it is a small, confined, readable text file that the
+ * permission settings do not deny by its canonical path (M78).
+ */
 async function searchableText(
   realRoot: string,
   absolute: string,
   maxFileBytes: number,
+  isDenied: (relativePaths: readonly string[]) => boolean,
 ): Promise<string | undefined> {
   try {
-    if (!isInside(realRoot, await realpath(absolute))) {
+    const real = await realpath(absolute)
+    if (!isInside(realRoot, real)) {
+      return undefined
+    }
+    if (isDenied([path.relative(realRoot, real).split(path.sep).join('/')])) {
       return undefined
     }
     const info = await stat(absolute)
@@ -91,12 +102,13 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     }
   }
   const realRoot = await realpath(job.root)
+  const isDenied = compileDenyGlobsWithin(job.denyRead, job.globLimits)
   let found = 0
   for (const file of job.files) {
     if (found >= job.maxHits) {
       break
     }
-    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes)
+    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
     if (text === undefined) {
       continue
     }

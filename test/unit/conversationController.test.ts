@@ -1,9 +1,12 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { mkdir, rename, symlink, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import vm from 'node:vm'
+import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AgentHost, SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
@@ -25,7 +28,9 @@ import {
   type PickedFile,
   type SessionMemory,
 } from '../../src/host/conversation/conversationController'
+import type { AttentionNotice } from '../../src/host/conversation/turnNotifications'
 import type { DictationListener, DictationSetup } from '../../src/core/voice/dictation'
+import { MuseVoiceDictation, type VoiceSocketHandlers } from '../../src/core/voice/museVoice'
 import type {
   ExportPreview,
   ExportPreviewChoice,
@@ -42,6 +47,7 @@ import {
   MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
   PLAN_FILE_MAX_BYTES,
+  MUSE_VOICE_BYTES_PER_SECOND,
   PLAN_STEP_MAX_CHARS,
   type GoalCommandVerb,
   UI_TEXT,
@@ -83,6 +89,8 @@ import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStor
 import { readPickedFile } from '../../src/host/backend/toolIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
+import { PendingPrompts } from '../../src/core/sessionBoard'
+import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -128,6 +136,7 @@ interface FakeAuth {
   readonly service: AuthPort
   readonly calls: string[]
   isAdmitted: boolean
+  admissionGeneration: number
   snapshot: AuthSnapshot
 }
 
@@ -136,6 +145,7 @@ function fakeAuth(status: AuthSnapshot['status'] = 'signedIn'): FakeAuth {
   const state: FakeAuth = {
     calls,
     isAdmitted: true,
+    admissionGeneration: 0,
     snapshot: { status, detail: undefined },
     // AuthPort is exactly the member set the controller touches.
     service: {
@@ -146,6 +156,9 @@ function fakeAuth(status: AuthSnapshot['status'] = 'signedIn'): FakeAuth {
         return state.snapshot.status === 'signedIn' && state.isAdmitted
           ? (state.snapshot.backend ?? 'museCode')
           : undefined
+      },
+      get admissionGeneration() {
+        return state.admissionGeneration
       },
       toMessage: () => ({ type: 'authState', status: state.snapshot.status }),
       signIn: (method: string) => {
@@ -286,6 +299,9 @@ function setup(
     dictation?: DictationSetup
     /** Muse Voice when it is the microphone's engine (M35). */
     museVoice?: () => DictationSetup | undefined
+    modelApiSessionBudgetUsd?: number
+    voiceAccountId?: ConversationDeps['voiceAccountId']
+    ownedVoiceBudgetScope?: ConversationDeps['ownedVoiceBudgetScope']
     /** The paid-use popup (M58); every use allowed unless a test says otherwise. */
     allowsPaidUse?: ConversationDeps['allowsPaidUse']
     now?: number
@@ -539,8 +555,23 @@ function setup(
     isWorkspaceTrusted: () => options.isWorkspaceTrusted ?? true,
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
+    modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
+    voiceAccountId: options.voiceAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
+    ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
     forgetPaidUse: vi.fn(() => Promise.resolve()),
+    pendingPrompts: new PendingPrompts(),
+    bestOfNCoordinator: new BestOfNCoordinator(),
+    modelApiAccountId: () => Promise.resolve('account-1'),
+    openBestOfNWorktree: () => Promise.resolve(),
+    noteBestOfNRequest: () => undefined,
+    noteBestOfNUsage: () => undefined,
+    runGit: () => Promise.resolve(''),
+    isPaidFeatureOn: () => false,
+    notePaidUse: () => undefined,
+    buildAttemptHost: () => Promise.resolve(host),
+    realPath: (absolutePath: string) => Promise.resolve(absolutePath),
+    notifyAttention: vi.fn<(notice: AttentionNotice) => void>(),
     auth: auth.service,
     accountFacts: (backend) =>
       Promise.resolve(
@@ -762,6 +793,169 @@ function setup(
     whileConfirming,
   }
 }
+
+describe('ConversationController: deferred best-of-N', () => {
+  const built = { folder: '' }
+  const folders: string[] = []
+  const actions = [
+    { type: 'startBestOfN', prompt: 'refactor this', attempts: 2, requestCeilingPerAttempt: 2 },
+    { type: 'takeBestOfNAttempt', attemptId: 'a1', runId: 'r1' },
+    { type: 'cancelBestOfN', runId: 'r1' },
+    { type: 'openBestOfNAttempt', attemptId: 'a1', runId: 'r1' },
+  ] as const satisfies readonly ConversationMessage[]
+
+  beforeAll(async () => {
+    built.folder = mkdtempSync(path.join(tmpdir(), 'muse-board-bundle-'))
+    await build({
+      entryPoints: {
+        controller: path.resolve('src/host/conversation/conversationController.ts'),
+        sessionBoard: path.resolve('src/host/sessionBoardEntry.ts'),
+      },
+      outdir: built.folder,
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      // Keep the asynchronous import but expose its require to the fixture's disposal hook.
+      supported: { 'dynamic-import': false },
+      external: ['vscode'],
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'deferred-board',
+          setup: (builder) => {
+            builder.onResolve({ filter: /\/sessionBoardEntry$/ }, (args) =>
+              args.kind === 'dynamic-import'
+                ? { path: './sessionBoard.js', external: true }
+                : undefined,
+            )
+          },
+        },
+      ],
+    })
+  })
+  afterAll(async () => {
+    await Promise.all([built.folder, ...folders].map((folder) => removeFolder(folder)))
+  })
+
+  /** The real CJS controller; intercept only the first bundle require when requested. */
+  function controllerFrom(file: string, onImport?: () => void): typeof ConversationController {
+    const nativeRequire = createRequire(file)
+    const module: { exports: unknown } = { exports: {} }
+    const run = vm.compileFunction(
+      readFileSync(file, 'utf8'),
+      ['require', 'module', 'exports', '__dirname', '__filename'],
+      { filename: file },
+    )
+    Reflect.apply(run, undefined, [
+      (name: string): unknown => {
+        if (name === './sessionBoard.js') onImport?.()
+        return nativeRequire(name)
+      },
+      module,
+      module.exports,
+      path.dirname(file),
+      file,
+    ])
+    const loaded = module.exports
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('ConversationController' in loaded) ||
+      typeof loaded.ConversationController !== 'function'
+    )
+      throw new Error('Missing built controller')
+    // Same source/build as the typed controller; constructor signatures are trusted (PLAN §8).
+    return loaded.ConversationController as typeof ConversationController
+  }
+
+  it.each([
+    { name: 'missing', body: undefined, cause: 'Cannot find module' },
+    { name: 'invalid JavaScript', body: 'module.exports = {{', cause: "Unexpected token '{'" },
+    {
+      name: 'malformed reader',
+      body: 'module.exports = { readSessionBoard: 1, createBestOfNManager: () => {} }',
+      cause: 'does not export its reader and manager factory',
+    },
+    {
+      name: 'malformed factory',
+      body: 'module.exports = { readSessionBoard: () => [], createBestOfNManager: 1 }',
+      cause: 'does not export its reader and manager factory',
+    },
+  ])(
+    'refuses board and first best-of-N actions when the built bundle is $name',
+    async ({ body, cause }) => {
+      const folder = mkdtempSync(path.join(tmpdir(), 'muse-board-failure-'))
+      folders.push(folder)
+      const file = path.join(folder, 'controller.js')
+      const board = path.join(folder, 'sessionBoard.js')
+      copyFileSync(path.join(built.folder, 'controller.js'), file)
+      copyFileSync(path.join(built.folder, 'sessionBoard.js'), board)
+      if (body === undefined) unlinkSync(board)
+      else writeFileSync(board, body)
+      const Controller = controllerFrom(file)
+      const t = setup()
+      t.controller.dispose()
+      const controller = new Controller(t.deps)
+      try {
+        for (const [message, title] of [
+          [{ type: 'requestSessionBoard' }, UI_TEXT.boardTitle],
+          [actions[0], UI_TEXT.bestOfNTitle],
+        ] as const) {
+          t.surface.posted.length = 0
+          t.log.error.mockClear()
+          await expect(controller.handle(message)).resolves.toBeUndefined()
+          expect(notices(t).map((notice) => notice.text)).toEqual([
+            `${title}: ${UI_TEXT.boardUnavailable}`,
+          ])
+          expect(t.log.error).toHaveBeenCalledWith(expect.stringContaining('session board bundle'))
+          expect(t.log.error).toHaveBeenCalledWith(expect.stringContaining(cause))
+        }
+      } finally {
+        controller.dispose()
+      }
+    },
+  )
+
+  it.each(actions)(
+    'posts no notice when disposed during the first $type import',
+    async (message) => {
+      for (const isGenerationHeld of [false, true]) {
+        const t = setup()
+        t.controller.dispose()
+        const imported = vi.fn(() => {
+          const generation: unknown = Reflect.get(controller, 'sendInvalidationEpoch')
+          controller.dispose()
+          // Merged main also advances the epoch on disposal. Hold it to prove this guard alone.
+          if (isGenerationHeld) Reflect.set(controller, 'sendInvalidationEpoch', generation)
+        })
+        const Controller = controllerFrom(path.join(built.folder, 'controller.js'), imported)
+        const controller = new Controller(t.deps)
+        t.surface.posted.length = 0
+        await expect(controller.handle(message)).resolves.toBeUndefined()
+        expect(imported).toHaveBeenCalledOnce()
+        expect(notices(t)).toEqual([])
+        expect(t.log.error).not.toHaveBeenCalled()
+      }
+    },
+  )
+
+  it('loads the manager on its first action and recognizes its refusal across the boundary', async () => {
+    const t = setup()
+    try {
+      expect(
+        await lastNoticeText(t, {
+          type: 'startBestOfN',
+          prompt: 'refactor this',
+          attempts: 2,
+          requestCeilingPerAttempt: 2,
+        }),
+      ).toBe(UI_TEXT.bestOfNModelApiOnly)
+    } finally {
+      t.controller.dispose()
+    }
+  })
+})
 
 describe('ConversationController.surfaceReady', () => {
   it('does not restore an old account session while cancellation is pending', async () => {
@@ -4736,6 +4930,73 @@ describe('ConversationController: session history (M6)', () => {
     await settle()
     expect(t.surface.markUnread).toHaveBeenCalledTimes(2)
   })
+
+  it('names a turn that needs the user, so the host can notify while unfocused (M82)', async () => {
+    const t = withHistory()
+    await t.send('l1', 'hi')
+    t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+    await settle()
+    expect(t.deps.notifyAttention).not.toHaveBeenCalled()
+    t.server.notify('userInput/requested', {
+      sessionId: 's1',
+      userInputId: 'q',
+      itemId: 'i',
+      questions: [],
+      viewCursor: 'v',
+    })
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+    expect(t.deps.notifyAttention).toHaveBeenLastCalledWith({
+      key: 's1:question:q',
+      message: UI_TEXT.notifyQuestionWaiting,
+    })
+    // A turn of unknown length ended: it may have been long.
+    t.finishTurn()
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(2)
+    expect(t.deps.notifyAttention).toHaveBeenLastCalledWith({
+      key: 's1:turn:t1',
+      message: UI_TEXT.notifyTurnDone,
+    })
+    // A turn the user stopped names nothing.
+    t.server.notify('turn/completed', { sessionId: 's1', turnId: 't1', terminal: 'cancelled' })
+    await settle()
+    expect(t.deps.notifyAttention).toHaveBeenCalledTimes(2)
+  })
+
+  it('names a fresh approval wait but not a replayed card (M82)', async () => {
+    const t = setup({ hasApprovalUi: true })
+    const io = heldShellToolIo({}, '/ws')
+    const { api, host, controller } = modelApiControllerWithIo(t, io)
+    try {
+      await startShellApproval(t, controller, api)
+      expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+      // A later surface replays the waiting card: still waiting, but not newly so.
+      const live = await host.listSessions({ workspaceRoot: '/ws', limit: 1 })
+      const sessionId = live.sessions[0]?.sessionId
+      if (sessionId === undefined) {
+        throw new Error('expected the live Model API session')
+      }
+      const second = new ConversationController({
+        ...t.deps,
+        ensureHost: () => Promise.resolve(host),
+      })
+      try {
+        await second.handle({ type: 'resumeSession', sessionId })
+        await vi.waitFor(() => {
+          expect(agentEvents(t).filter((event) => event.type === 'approvalRequested')).toHaveLength(
+            2,
+          )
+        })
+        expect(t.deps.notifyAttention).toHaveBeenCalledTimes(1)
+      } finally {
+        second.dispose()
+      }
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
 })
 
 describe('ConversationController: backends and tiers (M7)', () => {
@@ -5359,7 +5620,10 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     memory: undefined,
+    ...(options.store !== undefined && { store: options.store }),
   })
   const controller = new ConversationController({
     ...t.deps,
@@ -5367,6 +5631,9 @@ function modelApiController(
       await options.beforeEnsureHost?.()
       return host
     },
+    ...(options.store !== undefined && {
+      ownedVoiceBudgetScope: (sessionId: string) => host.getOwnedBudgetScope(sessionId),
+    }),
   })
   return { api, host, controller }
 }
@@ -5377,6 +5644,35 @@ function modelApiControllerWithIo(t: ReturnType<typeof setup>, io: MemoryToolIo)
     io,
     contextIo: memoryContextIo(io.files),
     newId: () => `id${String(++nextId)}`,
+  })
+}
+
+/** A shell call waiting on its approval, and the card asking for it. */
+async function startShellApproval(
+  t: ReturnType<typeof setup>,
+  controller: ConversationController,
+  api: ReturnType<typeof fakeModelApi>,
+): Promise<void> {
+  api.script(
+    {
+      calls: [
+        {
+          name: 'bash',
+          arguments: '{"command":"npm run dev","description":"Start the dev server"}',
+          callId: 'call_dev',
+        },
+      ],
+    },
+    { text: 'Done.' },
+  )
+  await controller.handle({
+    type: 'sendMessage',
+    localId: 'l1',
+    text: 'start the dev server',
+    attachmentIds: [],
+  })
+  await vi.waitFor(() => {
+    expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
   })
 }
 
@@ -7015,7 +7311,398 @@ async function recordOnce(t: ReturnType<typeof setup>): Promise<void> {
   await t.controller.handle({ type: 'dictation', action: 'stop' })
 }
 
+function heldVoicePopup() {
+  const calls: string[] = []
+  const answer = Promise.withResolvers<boolean>()
+  const asked = Promise.withResolvers<undefined>()
+  const t = setup({
+    museVoice: () => namedSetup('muse', calls),
+    allowsPaidUse: () => {
+      asked.resolve(undefined)
+      return answer.promise
+    },
+  })
+  return { t, calls, answer, asked }
+}
+
+interface NoFolderVoiceSocket {
+  readonly handlers: VoiceSocketHandlers
+  readonly texts: string[]
+  readonly audio: Uint8Array[]
+  isClosed: boolean
+}
+
+function noFolderVoice(
+  options: {
+    readonly capUsd?: number
+    readonly workspaceRoot?: string
+    readonly allowsPaidUse?: ConversationDeps['allowsPaidUse']
+    readonly apiKey?: () => Promise<string | undefined>
+  } = {},
+) {
+  const calls: string[] = []
+  const seconds: number[] = []
+  const captures: DictationListener[] = []
+  const sockets: NoFolderVoiceSocket[] = []
+  const state = { capUsd: options.capUsd ?? 0 }
+  const scope = vi.fn(() => Promise.resolve(undefined))
+  const t = setup({
+    workspaceRoot: options.workspaceRoot,
+    ownedVoiceBudgetScope: scope,
+    ...(options.allowsPaidUse !== undefined && { allowsPaidUse: options.allowsPaidUse }),
+    museVoice: () => ({
+      isAvailable: true,
+      create: (listener) => {
+        calls.push('create')
+        return new MuseVoiceDictation(
+          {
+            createCapture: (capture) => {
+              captures.push(capture)
+              return {
+                start: () => {
+                  calls.push('start')
+                  capture.onStatus('listening')
+                },
+                stop: () => {
+                  calls.push('stop')
+                  capture.onStatus('idle')
+                  capture.onStopped?.()
+                },
+                dispose: () => {
+                  calls.push('dispose')
+                },
+              }
+            },
+            openSocket: (_url, handlers) => {
+              const socket: NoFolderVoiceSocket = {
+                handlers,
+                texts: [],
+                audio: [],
+                isClosed: false,
+              }
+              sockets.push(socket)
+              return {
+                sendText: (text) => {
+                  socket.texts.push(text)
+                },
+                sendBinary: (audio) => {
+                  socket.audio.push(audio)
+                },
+                close: () => {
+                  socket.isClosed = true
+                },
+              }
+            },
+            url: 'wss://voice.example.test/realtime',
+            apiKey: options.apiKey ?? (() => Promise.resolve('LLM|1|secret')),
+            onSeconds: (count) => {
+              seconds.push(count)
+            },
+            log: new FakeLogOutputChannel(),
+          },
+          listener,
+        )
+      },
+    }),
+  })
+  t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+  const controller = new ConversationController({
+    ...t.deps,
+    modelApiSessionBudgetUsd: () => state.capUsd,
+  })
+  const capture = () => {
+    const current = captures[0]
+    if (current === undefined) throw new Error('Expected capture listener')
+    return current
+  }
+  const socket = () => {
+    const current = sockets[0]
+    if (current === undefined) throw new Error('Expected synthetic voice socket')
+    return current
+  }
+  return { t, controller, calls, seconds, captures, sockets, scope, state, capture, socket }
+}
+
+async function openNoFolderVoice(voice: ReturnType<typeof noFolderVoice>) {
+  await voice.controller.handle({ type: 'dictation', action: 'start' })
+  await vi.waitFor(() => {
+    expect(voice.sockets).toHaveLength(1)
+  })
+  voice.socket().handlers.onOpen()
+  voice.socket().handlers.onText(JSON.stringify({ sessionId: 'voice-one' }))
+}
+
+describe('ConversationController: paid voice without a journal (M82)', () => {
+  it('keeps cap-off no-folder voice, paid consent and window usage without creating a parent store', async () => {
+    const allows = vi.fn(() => Promise.resolve(true))
+    const voice = noFolderVoice({ allowsPaidUse: allows })
+    try {
+      await openNoFolderVoice(voice)
+      expect(allows).toHaveBeenCalledExactlyOnceWith({ feature: 'voice' })
+      expect(voice.scope).not.toHaveBeenCalled()
+      expect(voice.t.server.requestsFor('session/start')).toEqual([])
+      expect(voice.socket().texts[0]).toContain('"authorization"')
+      voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND))
+      await voice.controller.handle({ type: 'dictation', action: 'stop' })
+      expect(voice.socket().texts.at(-1)).toBe('{"type":"endStream"}')
+      voice
+        .socket()
+        .handlers.onText(
+          JSON.stringify({ type: 'transcript', transcript: 'no folder text', final: true }),
+        )
+      expect(voice.t.surface.posted).toContainEqual({ type: 'insertText', text: 'no folder text ' })
+      expect(voice.seconds).toEqual([1])
+    } finally {
+      voice.controller.dispose()
+    }
+  })
+
+  it.each(['account', 'dispose', 'model round trip', 'mode round trip'] as const)(
+    'creates no driver or authentication after a held no-folder popup and %s change',
+    async (change) => {
+      const answer = Promise.withResolvers<boolean>()
+      const asked = Promise.withResolvers<undefined>()
+      const voice = noFolderVoice({
+        allowsPaidUse: () => {
+          asked.resolve(undefined)
+          return answer.promise
+        },
+      })
+      const starting = voice.controller.handle({ type: 'dictation', action: 'start' })
+      try {
+        await asked.promise
+        switch (change) {
+          case 'account': {
+            voice.t.auth.admissionGeneration += 1
+            break
+          }
+          case 'dispose': {
+            voice.controller.dispose()
+            break
+          }
+          case 'model round trip': {
+            await voice.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
+            await voice.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3' })
+            break
+          }
+          default: {
+            await voice.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+            await voice.controller.handle({ type: 'setPermissionMode', mode: 'manual' })
+          }
+        }
+        answer.resolve(true)
+        await starting
+        expect(voice.calls).toEqual([])
+        expect(voice.sockets).toEqual([])
+      } finally {
+        answer.resolve(false)
+        await starting
+        voice.controller.dispose()
+      }
+    },
+  )
+
+  it.each([undefined, '/ws'])(
+    'refuses a finite cap without a journal at workspace %s before the paid popup and native capture',
+    async (workspaceRoot) => {
+      const allows = vi.fn(() => Promise.resolve(true))
+      const voice = noFolderVoice({
+        capUsd: 1,
+        allowsPaidUse: allows,
+        ...(workspaceRoot !== undefined && { workspaceRoot }),
+      })
+      try {
+        await voice.controller.handle({ type: 'dictation', action: 'start' })
+        expect(allows).not.toHaveBeenCalled()
+        expect(voice.calls).toEqual([])
+        expect(voice.sockets).toEqual([])
+        expect(voice.t.surface.posted).toContainEqual({
+          type: 'dictationState',
+          status: 'unavailable',
+          engine: 'museVoice',
+          reason: UI_TEXT.sessionBudgetVoiceUnavailable,
+        })
+      } finally {
+        voice.controller.dispose()
+      }
+    },
+  )
+
+  it.each([
+    { change: 'cap is enabled during key retrieval', key: 'LLM|1|secret', enablesCap: true },
+    { change: 'actual sending account changes', key: 'LLM|1|replacement-key', enablesCap: false },
+  ])('stops a pending no-journal recording before authentication when $change', async (variant) => {
+    const key = Promise.withResolvers<string | undefined>()
+    const voice = noFolderVoice({ apiKey: () => key.promise })
+    try {
+      await voice.controller.handle({ type: 'dictation', action: 'start' })
+      expect(voice.calls).toEqual(['create', 'start'])
+      if (variant.enablesCap) voice.state.capUsd = 1
+      key.resolve(variant.key)
+      await vi.waitFor(() => {
+        expect(voice.calls).toContain('stop')
+      })
+      expect(voice.sockets).toEqual([])
+    } finally {
+      key.resolve(undefined)
+      voice.controller.dispose()
+    }
+  })
+
+  it.each(['auth', 'audio', 'end'] as const)(
+    'tightening the cap refuses the next no-journal %s send',
+    async (stage) => {
+      const voice = noFolderVoice()
+      try {
+        await voice.controller.handle({ type: 'dictation', action: 'start' })
+        await vi.waitFor(() => {
+          expect(voice.sockets).toHaveLength(1)
+        })
+        if (stage !== 'auth') {
+          voice.socket().handlers.onOpen()
+          voice.socket().handlers.onText(JSON.stringify({ sessionId: 'voice-one' }))
+        }
+        const before = [...voice.socket().texts]
+        voice.state.capUsd = 1
+        if (stage === 'auth') voice.socket().handlers.onOpen()
+        else if (stage === 'audio')
+          voice.capture().onAudio?.(new Uint8Array(MUSE_VOICE_BYTES_PER_SECOND))
+        else await voice.controller.handle({ type: 'dictation', action: 'stop' })
+        expect(voice.socket().texts).toEqual(before)
+        expect(voice.socket().audio).toEqual([])
+        expect(voice.socket().isClosed).toBe(true)
+      } finally {
+        voice.controller.dispose()
+      }
+    },
+  )
+})
+
 describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)', () => {
+  it.each(['auth', 'auth revision', 'restart', 'paid', 'attachment'] as const)(
+    'invalidates the original voice scope when %s changes',
+    async (change) => {
+      let listener: DictationListener | undefined
+      let capturedScope: ReturnType<NonNullable<DictationListener['ownedBudgetScope']>> | undefined
+      const paid = { isOn: true }
+      const calls: string[] = []
+      const voice: DictationSetup = {
+        isAvailable: true,
+        create: (nextListener) => {
+          listener = nextListener
+          return {
+            start: () => {
+              calls.push('start')
+              capturedScope = listener?.ownedBudgetScope?.()
+            },
+            stop: () => {
+              calls.push('stop')
+            },
+            dispose: () => {
+              calls.push('dispose')
+            },
+          }
+        },
+      }
+      const t = setup({ museVoice: () => (paid.isOn ? voice : undefined) })
+      t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+      const { controller, host, api } = modelApiController(t, { store: memorySessionStore() })
+      try {
+        await controller.handle({ type: 'dictation', action: 'start' })
+        const scope = await capturedScope
+        if (scope === undefined) {
+          throw new Error('Expected the owned voice budget scope')
+        }
+        expect(Object.isFrozen(scope)).toBe(true)
+        expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(true)
+        expect(api.responseBodies()).toEqual([])
+        switch (change) {
+          case 'auth': {
+            t.auth.isAdmitted = false
+            break
+          }
+          case 'auth revision': {
+            t.auth.admissionGeneration += 1
+            break
+          }
+          case 'restart': {
+            const stopping = controller.backendStopping(true)
+            expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+            await stopping
+            break
+          }
+          case 'paid': {
+            paid.isOn = false
+            break
+          }
+          default: {
+            await controller.handle({ type: 'clearConversation' })
+          }
+        }
+        expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      } finally {
+        controller.dispose()
+        await host.close()
+      }
+    },
+  )
+
+  it.each(['modelApi', 'museCode'] as const)(
+    'applies the finite voice cap to actual %s backend only',
+    async (backend) => {
+      const calls: string[] = []
+      const allowsPaidUse = vi.fn(() => Promise.resolve(true))
+      const t = setup({
+        modelApiSessionBudgetUsd: 1,
+        museVoice: () => namedSetup('muse', calls),
+        allowsPaidUse,
+      })
+      t.auth.snapshot = { status: 'signedIn', backend, detail: undefined }
+      await t.controller.handle({ type: 'dictation', action: 'start' })
+      expect(calls).toEqual(backend === 'modelApi' ? [] : ['muse:create', 'muse:start'])
+      expect(allowsPaidUse).toHaveBeenCalledTimes(backend === 'modelApi' ? 0 : 1)
+      if (backend === 'modelApi') {
+        expect(t.surface.posted).toContainEqual({
+          type: 'dictationState',
+          status: 'unavailable',
+          engine: 'museVoice',
+          reason: UI_TEXT.sessionBudgetVoiceUnavailable,
+        })
+      }
+    },
+  )
+
+  it('keeps free system dictation available with a finite Model API cap', async () => {
+    const calls: string[] = []
+    const t = setup({ modelApiSessionBudgetUsd: 1, dictation: namedSetup('system', calls) })
+    t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+    await t.controller.handle({ type: 'dictation', action: 'start' })
+    expect(calls).toEqual(['system:create', 'system:start'])
+  })
+
+  it('captures the owned Model API scope before a held voice popup and rejects an intervening model round trip', async () => {
+    const { t, calls, answer, asked } = heldVoicePopup()
+    t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+    const { controller, host, api } = modelApiController(t, { store: memorySessionStore() })
+    const starting = controller.handle({ type: 'dictation', action: 'start' })
+    try {
+      await asked.promise
+      const live = await host.resumeSession('fixed', 'muse-spark-1.3')
+      await live.session.setModel('muse-spark-1.2')
+      await live.session.setModel('muse-spark-1.3')
+      live.session.dispose()
+      answer.resolve(true)
+      await starting
+      expect(calls).toEqual([])
+      expect(api.responseBodies()).toEqual([])
+    } finally {
+      answer.resolve(false)
+      await starting
+      controller.dispose()
+      await host.close()
+    }
+  })
+
   it('records with Muse Voice while it is the engine, and says so to the microphone', async () => {
     const calls: string[] = []
     const engine = { isPaid: true }
@@ -7102,6 +7789,45 @@ describe('ConversationController: the microphone’s engine (M35, PLAN.md D30)',
     await starting
     expect(calls).not.toContain('muse:start')
   })
+
+  it.each(['dispose', 'restart', 'account', 'model', 'mode', 'attachment'] as const)(
+    'does not apply a held voice popup after %s changed',
+    async (change) => {
+      const { t, calls, answer, asked } = heldVoicePopup()
+      const starting = t.controller.handle({ type: 'dictation', action: 'start' })
+      await asked.promise
+      switch (change) {
+        case 'dispose': {
+          t.controller.dispose()
+          break
+        }
+        case 'restart': {
+          await t.controller.backendStopping(false)
+          break
+        }
+        case 'account': {
+          // Admission changes before the published backend/account label does.
+          t.auth.admissionGeneration += 1
+          break
+        }
+        case 'model': {
+          await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
+          break
+        }
+        case 'mode': {
+          await t.controller.handle({ type: 'setPermissionMode', mode: 'plan' })
+          break
+        }
+        default: {
+          await t.controller.handle({ type: 'clearConversation' })
+        }
+      }
+      answer.resolve(true)
+      await starting
+      expect(calls).toEqual([])
+      t.controller.dispose()
+    },
+  )
 })
 
 describe('ConversationController: Muse Voice turned off mid-recording (the review of PR #27)', () => {
@@ -7662,27 +8388,7 @@ describe('ConversationController: background work (M46)', () => {
       ensureHost: () => Promise.resolve(host),
     })
     try {
-      api.script(
-        {
-          calls: [
-            {
-              name: 'bash',
-              arguments: '{"command":"npm run dev","description":"Start the dev server"}',
-              callId: 'call_dev',
-            },
-          ],
-        },
-        { text: 'Done.' },
-      )
-      await controller.handle({
-        type: 'sendMessage',
-        localId: 'l1',
-        text: 'start the dev server',
-        attachmentIds: [],
-      })
-      await vi.waitFor(() => {
-        expect(agentEvents(t).some((event) => event.type === 'approvalRequested')).toBe(true)
-      })
+      await startShellApproval(t, controller, api)
       const approval = agentEvents(t).find((event) => event.type === 'approvalRequested')
       if (approval?.type !== 'approvalRequested') {
         throw new Error('expected shell approval')
@@ -7904,11 +8610,14 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
+      sessionBudgetUsd: () => 0,
+      showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,
       allowsPaidUse: () => Promise.resolve(false),
       isPaidUseRemembered: () => false,
       noteSubagentUsage: () => undefined,
+      noteReviewerUsage: () => undefined,
       memory: undefined,
       store: memorySessionStore(),
       scheduleStore,

@@ -5,7 +5,9 @@
 // import from other agents (M83: the scan, the converters, the file access and
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
-// offer), the webview, and (in dev mode) the integration tests with esbuild.
+// offer), code intelligence's `ide` answers (M67, loaded on the first call)
+// and voice's drivers (M9/M35, loaded on the first recording), the webview,
+// and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -49,6 +51,10 @@ const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
+const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
+const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
+const REVIEWER_OUTFILE = 'dist/reviewer.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
@@ -57,6 +63,10 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
+const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
+const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
+const VOICE_OUTFILE = 'dist/voice.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -91,6 +101,24 @@ const sharedUiText = {
   },
 }
 
+// Keep dynamic imports dynamic: these entries run only on their first action.
+/** @type {import('esbuild').Plugin} */
+const deferredCohort = {
+  name: 'deferred-cohort',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
+      if (args.kind !== 'dynamic-import') return
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+      let output
+      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
+      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
+      return output === undefined
+        ? undefined
+        : { path: `./${path.basename(output)}`, external: true }
+    })
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const common = {
   bundle: true,
@@ -104,7 +132,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, deferredCohort],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -116,12 +144,26 @@ const hostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText],
+  plugins: [sharedUiText, deferredCohort],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const sessionBoardOptions = {
+  ...modelApiOptions,
+  entryPoints: [SESSION_BOARD_ENTRY],
+  outfile: SESSION_BOARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const reviewerOptions = {
+  ...modelApiOptions,
+  entryPoints: [REVIEWER_ENTRY],
+  outfile: REVIEWER_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -133,6 +175,22 @@ const planMarkdownOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// Neither imports `vscode`, so it is not external there and a stray import
+// fails this build, as for the Model API backend.
+/** @type {import('esbuild').BuildOptions} */
+const codeIntelOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [CODE_INTEL_ENTRY],
+  outfile: CODE_INTEL_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const voiceOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_ENTRY],
+  outfile: VOICE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -250,10 +308,14 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
+    esbuild.context(sessionBoardOptions),
+    esbuild.context(reviewerOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(bundledSkillsOptions),
+    esbuild.context(codeIntelOptions),
+    esbuild.context(voiceOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -265,10 +327,14 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
+    sessionBoard: esbuild.build(sessionBoardOptions),
+    reviewer: esbuild.build(reviewerOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
+    codeIntel: esbuild.build(codeIntelOptions),
+    voice: esbuild.build(voiceOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -293,10 +359,14 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
+  reportSize(SESSION_BOARD_OUTFILE)
+  reportSize(REVIEWER_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
+  reportSize(CODE_INTEL_OUTFILE)
+  reportSize(VOICE_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

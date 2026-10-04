@@ -701,6 +701,8 @@ export const EN = {
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message actions',
   replyToOutput: 'Reply to this output',
+  // Tokens and the dollar estimate under a Model API reply (M82).
+  replyUsage: '{input} in · {output} out · estimated {cost}',
   quoteMenuLabel: 'Highlighted text',
   askAboutThis: 'Ask about this',
   commentOnThis: 'Comment on this',
@@ -905,6 +907,14 @@ export const EN = {
   announceTurnCompleted: 'Muse finished responding',
   announceTurnFailed: 'The turn failed',
   announceTurnCancelled: 'The turn was stopped',
+  // A turn that needs attention while the VS Code window is unfocused (M82):
+  // completed, failed, or ended some other way the backend named.
+  notifyTurnDone: 'Muse finished responding.',
+  notifyTurnFailed: 'Muse’s turn failed.',
+  notifyTurnEnded: 'Muse’s turn ended.',
+  notifyApprovalWaiting: 'Muse is waiting for your approval.',
+  notifyQuestionWaiting: 'Muse asked a question and is waiting for your answer.',
+  notifyShowConversation: 'Show conversation',
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
@@ -921,6 +931,9 @@ export const EN = {
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:
     'Voice dictation needs the macOS helper (native/darwin/muse-dictate), which this build does not include.',
+  // After `dictationFailed`, when voice's own code did not load (a damaged install).
+  dictationNotLoaded:
+    'the dictation code could not be loaded; reinstall the extension and reload the window. The log has the details.',
   announceListening: 'Listening',
   announceStoppedListening: 'Stopped listening',
   // Model API backend (M7).
@@ -990,6 +1003,29 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  // The Model API session budget (M82): a request that cannot fit is not
+  // sent, and the turn's cost is shown against the cap afterwards.
+  sessionBudgetStopped:
+    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+  sessionBudgetStoreUnavailable:
+    'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
+  sessionBudgetLegacyFeesUnknown:
+    'The conversation’s spending is not fully verified. Wait for pending requests to finish, or start a new conversation to use a spend cap.',
+  sessionBudgetSearchUnavailable:
+    'Web search is unavailable while the session spend cap is on: its billed query count has no verified limit. Turn the cap off to allow web search.',
+  sessionBudgetRetryUnavailable:
+    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+  sessionBudgetUnknownCharge:
+    'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
+  sessionBudgetVoiceUnavailable:
+    'Muse Voice is unavailable while the session spend cap is on: its billed audio duration has no verified bound. Turn the cap off to allow paid voice, or use system dictation.',
+  sessionBudgetVoiceContextChanged:
+    'Muse Voice stopped because the conversation or its permissions changed. Start a new recording in the current conversation.',
+  sessionBudgetUnpriced:
+    'Stopped: the session budget cannot be kept on {model}, whose price this extension does not know. The request was not sent.',
+  sessionBudgetOutputLimited:
+    'The response reached the output limit the session budget left it (max_output_tokens {tokens}) and may be cut short.',
+  budgetTurnCost: 'This turn cost {cost} ({spent} of {cap} used).',
   resumeFailed: 'Could not resume the conversation',
   forkFailed: 'Could not fork the conversation',
   rewindConversationFailed: 'Could not rewind the conversation',
@@ -1188,6 +1224,9 @@ export const EN = {
   usageHeading: 'Usage',
   usageCost: 'Estimated cost',
   usageCacheHits: 'Cache hits',
+  // What the prompt cache saved, in dollars (M82, Model API only).
+  usageCacheSavings: 'Cache savings',
+  usageCacheSavingsValue: '{amount} ({percent})',
   usageCostNote:
     'Estimate from Meta’s published per-token prices for this model’s tier; the dev.meta.ai dashboard is the bill. Prices read on {date}.',
   usageContributing: 'What’s contributing to your usage?',
@@ -1316,10 +1355,13 @@ export const EN = {
     snooze_reminder: 'Snooze reminder',
     submit_reminder_decision: 'Reminder',
     submit_result: 'Result',
+    // The Auto reviewer's own row (M78): one review, marked paid.
+    auto_review: 'Auto review',
     // M68 (PLAN.md D49): the verify loop on the Model API backend: the
     // model's own call, and the automatic check after a round of edits.
     run_checks: 'Run checks',
     verify_edits: 'Check edits',
+
     // M67: code intelligence, native on the Model API and on the ide server.
     find_definition: 'Definition',
     find_references: 'References',
@@ -1767,6 +1809,88 @@ export const EN = {
     'A due scheduled prompt waits for you to run it. Each run asks before any Model API call, unless you allow scheduled runs always in this workspace. {price}. Billed to your Model API key; total varies with tokens used.',
   paidConfirmSubagents:
     'Child agents make additional requests billed to your Model API key. {price} Each new task asks for approval in every permission mode, including Bypass, unless you allow subagents always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
+  paidBestOfNName: 'Best of N',
+  paidBestOfNRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; {attempts} attempts with up to {limit} requests each, including retries.',
+  paidBestOfNTitle: 'Run {attempts} paid attempts?',
+  paidBestOfNDetail:
+    '{prompt}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Allow once covers this run only.',
+  paidConfirmBestOfN:
+    'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
+  usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
+  usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // The session board (M77, PLAN.md D49).
+  boardTitle: 'Session board',
+  boardUnavailable:
+    'The session board and best-of-N could not be loaded. Reinstall the extension and try again.',
+  boardEmpty: 'No conversations yet. Send a message to start one.',
+  boardStatusRunning: 'Running',
+  boardStatusIdle: 'Idle',
+  boardAwaitingApproval: forms({
+    one: '{count} approval waiting',
+    other: '{count} approvals waiting',
+  }),
+  boardChanges: forms({ one: '{count} changed file', other: '{count} changed files' }),
+  boardChangesUnknown: 'changes unknown',
+  boardStartBestOfN: 'Best of N…',
+  // Best-of-N on the Model API (M77, PLAN.md D49).
+  bestOfNTitle: 'Best of N',
+  bestOfNPromptLabel: 'Prompt',
+  bestOfNAttemptsLabel: 'Attempts',
+  bestOfNCeilingLabel: 'Requests per attempt',
+  bestOfNStart: 'Start',
+  bestOfNCancelRun: 'Cancel run',
+  bestOfNTake: 'Apply and stage',
+  bestOfNTakeExplanation:
+    'Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
+  bestOfNContextChanged: 'The account, conversation or run changed. Start a new run.',
+  bestOfNTargetChanged:
+    'The checkout changed, has unsaved edits, or contains protected or linked targets. Nothing was applied.',
+  bestOfNBudgetUnavailable:
+    'Best-of-N cannot start under a session budget until its attempts share the originating budget.',
+  bestOfNGitProgramsUnavailable:
+    'Best-of-N requires Git 2.36 or newer and cannot run with configured filter or hook programs.',
+  bestOfNLeftPane: 'Left',
+  bestOfNRightPane: 'Right',
+  bestOfNStatusQueued: 'Queued',
+  bestOfNStatusRunning: 'Running',
+  bestOfNStatusCompleted: 'Done',
+  bestOfNStatusFailed: 'Failed',
+  bestOfNStatusCancelled: 'Cancelled',
+  bestOfNRunStatusRunning: 'Running…',
+  bestOfNRunStatusCompleted: 'Done',
+  bestOfNRunStatusFailed: 'Failed',
+  bestOfNRunStatusCancelled: 'Cancelled',
+  bestOfNCeilingReached: 'stopped at the request ceiling',
+  bestOfNRequests: forms({ one: '{count} request', other: '{count} requests' }),
+  bestOfNApprovalsDenied: forms({
+    one: '{count} approval declined',
+    other: '{count} approvals declined',
+  }),
+  bestOfNAttemptFailed: 'Failed: {reason}',
+  bestOfNTakenMark: 'Took {branch}',
+  bestOfNDiffClipped: 'Diff clipped.',
+  bestOfNInvalidPrompt: 'Describe what the attempts should do.',
+  bestOfNInvalidRequest: 'That best-of-N run is outside the attempt or ceiling bounds.',
+  bestOfNInvalidAttempts: 'Attempts must be between {min} and {max}.',
+  bestOfNInvalidCeiling: 'Requests per attempt must be between {min} and {max}.',
+  bestOfNNeedsTrust:
+    'Best-of-N needs a trusted workspace: worktrees run git, which Restricted Mode forbids.',
+  bestOfNModelApiOnly:
+    'Best-of-N runs on the Model API backend only; each attempt is billed to the key, never to the subscription.',
+  bestOfNPaidOff: 'Best-of-N is off. Enable it and accept the price before starting a run.',
+  bestOfNNoWorkspace: 'Best-of-N needs an open folder.',
+  bestOfNTariffUnknown: 'No verified price is available for this model. The run cannot start.',
+  bestOfNConsentDeclined: 'The paid run was not approved.',
+  bestOfNAlreadyRunning: 'A best-of-N run is already going in this window.',
+  bestOfNAlreadyTaken: 'This run already took {branch}.',
+  bestOfNNoRun: 'There is no best-of-N run.',
+  bestOfNUnknownAttempt: 'That attempt is not part of this run.',
+  bestOfNAttemptNotDone: 'Only a finished attempt can be taken.',
+  bestOfNWorktreeFailed: 'Could not create the attempt worktrees: {reason}',
+  bestOfNTaken: 'Applied and staged the preview from {branch}.',
+  bestOfNTakeFailed:
+    'Could not apply and stage {branch}. Check the checkout before retrying: {reason}',
   paidConfirmAccept: 'Turn on',
   // The composer's badge while a paid feature is on; {features} lists their names.
   paidBadge: 'Paid: {features}',
@@ -1869,6 +1993,68 @@ export const EN = {
   // Muse Code refused a permission mode above the ceiling its configuration sets.
   approvalModeCeiling:
     'Muse Code’s configuration (its default permission profile, or a policy your administrator manages) does not allow this permission mode. Choose a stricter one, such as Manual, and send again.',
+  // M78 (PLAN.md D49): command rules, permission profiles and the Auto
+  // reviewer on the Model API backend. Why a card asks beyond the mode:
+  approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
+  codeIntelPolicyRefused: 'File permissions refuse this code intelligence operation.',
+  // A tool call the permission settings stopped allowing while it was in
+  // progress: at its process, its write or its request, or once it was done.
+  policyChangedRefused:
+    'The permission settings changed while this was in progress and no longer allow it. It was refused, and nothing from it was sent to the model.',
+  // The same, for a call whose change was already written by then.
+  policyChangedKeptWrite:
+    'The permission settings changed while this was in progress and no longer allow it. Its change was already written and stays; nothing from it was sent to the model.',
+  approvalAskRuleNote: 'Your command rule asks about this command every time.',
+  // {why}: the rule's own justification, as the user wrote it.
+  approvalAskRuleWhy: 'Your command rule asks about this command every time: {why}',
+  // Who answered a call no card was shown for (the row's "Decided" line).
+  autoReviewerResolver: 'Auto reviewer',
+  commandRuleResolver: 'Command rule',
+  // The Auto reviewer's row and the card it leaves; {reason}: the reviewer's own words.
+  autoReviewAllowed: 'Allowed: {reason}',
+  autoReviewAsked: 'Asks you: {reason}',
+  autoReviewerFailed: 'The Auto reviewer could not answer, so you decide.',
+  autoReviewerUnreadable: 'The Auto reviewer’s answer could not be read, so you decide.',
+  autoReviewerPaused:
+    'The Auto reviewer is paused for this turn after repeated declines or failures, so you decide.',
+  autoReviewerTripped:
+    'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
+  // The paid feature (D48): its name, confirmation, popup and tally.
+  paidAutoReviewerName: 'Auto reviewer',
+  paidConfirmAutoReviewer:
+    'In Auto mode on the Model API backend, a separate model call judges each risky action that no rule settles, and runs it without asking when it looks safe. It never allows a forbidden command, a command your rules ask about, a protected write or a paid call, and when it declines or fails, you decide. Each review is billed to your Model API key at the conversation model’s token rates:\n{price}\nEvery review asks first, unless you allow reviews always in this workspace.',
+  // {tool}: the tool the reviewed call is for; {action}: its command line or arguments.
+  paidUseAutoReviewerTitle: 'Let the Auto reviewer judge this {tool} call?',
+  paidUseAutoReviewerDetail:
+    '{action}\n\nA separate call to {model} judges whether it may run without asking you. Billed to your Model API key: {price}. Total varies with tokens used. Deny shows you the approval card instead.',
+  usagePaidAutoReviews: forms({ one: '{count} review', other: '{count} reviews' }),
+  // Problems in the permission settings, each said once in the conversation.
+  // {setting}: the setting's name; {index}: the rule's place in it, from 1;
+  // {pattern}: the rule's words; {detail}: the error, or the failing example.
+  commandRuleInvalid: '{setting}: rule {index} is not valid and is not applied ({detail}).',
+  commandRuleInvalidKept:
+    '{setting}: rule {index} ({pattern}) is not valid ({detail}). It still asks or forbids by its pattern, since that can only tighten.',
+  commandRuleExampleFailed:
+    '{setting}: allow rule {index} ({pattern}) does not do what its example “{detail}” says, so it is not applied.',
+  commandRuleExampleFailedKept:
+    '{setting}: rule {index} ({pattern}) does not do what its example “{detail}” says. It still applies, since it can only tighten.',
+  commandRuleAllowInRepository:
+    '{setting}: rule {index} ({pattern}) is an allow rule, and a repository’s rules can only tighten, so it is not applied.',
+  commandRuleAllowsEvaluator:
+    '{setting}: allow rule {index} ({pattern}) would allow a command that runs text as code, so it is not applied.',
+  commandRulesTooMany:
+    '{setting}: {detail} rules is more than are read; rule {index} and those after it are not applied.',
+  permissionProfileUnknown:
+    '{setting}: no permission profile is named “{name}”. Until one is, every shell command asks and file tools refuse every file.',
+  permissionProfileInvalid:
+    '{setting}: the profile “{name}” is not valid ({detail}). Until it is fixed, every shell command asks and the file tools refuse every file.',
+  permissionProfileInvalidData: 'Invalid or unsupported profile data.',
+  permissionGlobInvalid:
+    'The deny-read glob “{glob}” cannot be read ({detail}). Until it is fixed, the file tools refuse every file.',
+  permissionRootInvalid:
+    '{setting}: the extra root “{root}” is not an absolute path, so it is not added.',
+  permissionRepositoryInvalid:
+    '{setting}: the repository’s rules are not valid ({detail}) and are not applied.',
   // M68 (PLAN.md D49): the verify loop's rows. {count}: the edited files'
   // errors or warnings.
   verifyErrors: forms({ one: '{count} error', other: '{count} errors' }),

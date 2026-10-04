@@ -88,6 +88,7 @@
   "config.modelApiImageGeneration.description": "付費，預設為關閉。允許模型使用 muse-image-1.0 在工作區中建立 PNG 圖片檔案，或將工作區中的圖片編輯為新圖片，每張圖片 US$0.01，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端（絕不會向訂閱計費）。除非您在此工作區中一律允許圖片生成，否則在任何權限模式下，每張圖片產生前都會詢問您。開啟時會請您確認價格。",
   "config.modelApiVoice.description": "付費，預設為關閉。麥克風會將您錄製的內容傳送至 Meta 的 Muse Voice Transcribe，而不是使用您電腦本身的辨識器，每小時音訊 US$0.18，向您的 Model API 金鑰計費：用於 Model API 後端，以及儲存了金鑰時的 Muse Code 後端。開啟時會請您確認價格，且除非您在此工作區中一律允許 Muse Voice，否則每次錄音前都會先詢問您；使用付費引擎時，麥克風會加以標示。",
   "config.modelApiSubagents.description": "付費功能，預設關閉。在 Model API 後端，子代理程式使用您的 Model API 金鑰。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許子代理程式，否則每項新子工作都須核准，包括 略過權限 模式；每項工作最多四次請求，包含重試。子代理程式權杖費用已包含在對話估算中。",
+  "config.modelApiBestOfN.description": "付費功能，預設關閉。在 Model API 後端，相同的提示詞會同時在 2–5 個工作樹中執行，由您選用其中一個。啟用時會要求您接受權杖價格。除非您在此工作區中一律允許 N 選最優，否則每次執行均須核准一次並註明嘗試次數和每次嘗試請求上限，在所有權限模式下皆然，包括 略過權限 模式。嘗試的權杖已包含在用量估算中，絕不計入訂閱。",
   "config.modelApiHooks.description": "在 Model API 後端執行 Muse Code 鉤子命令。預設關閉。命令僅在受信任的工作區中以您的權限在代理沙箱之外執行。啟用前請在 Muse Spark: Hooks 中檢查命令。Model API 金鑰不會傳給鉤子程序。",
   "config.modelApiRepoMap.description": "在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求提供同一張地圖。",
   "config.modelApiObservationPacking.description": "在 Model API 後端打包較長的工具輸出。預設關閉。超過 8,000 個字元的工具輸出在前兩次要求中完整傳送，之後以簡短預留位置（其 ID、大小以及首尾幾行）傳送，模型需要時以 recall_output 工具讀回原文。長對話傳送的輸入權杖較少；帳戶與使用量會顯示估計值。對話在開始或繼續時讀取此設定。",
@@ -108,5 +109,13 @@
   "config.checkCommands.command.description": "由 shell 工具的 shell (Windows 上為 PowerShell，其他系統為 bash) 在工作區根目錄執行的命令列。",
   "config.checkCommands.changedFiles.description": "在 -- 之後加入仍然存在的已編輯檔案，每個檔案作為一個加上引號的引數。若有檔案名稱以 - 或 @ 開頭，或在 Windows 上包含 \" & | < > ^ % 或 !，就不執行該檢查。",
   "config.checkCommands.timeoutSeconds.description": "命令被停止前的秒數 (未設定時為 300)。",
-  "config.formatOnEdit.description": "對 Model API 後端編輯工具寫入的每個檔案，在檢查之前執行該檔案的格式器。預設關閉。"
+  "config.formatOnEdit.description": "對 Model API 後端編輯工具寫入的每個檔案，在檢查之前執行該檔案的格式器。預設關閉。",
+  "config.notifyOnBackgroundTurn.description": "當 VS Code 視窗未取得焦點時，若一輪較長的對話結束，或某一輪正在等待您的核准或回覆，即顯示通知。視窗取得焦點時絕不顯示任何內容。",
+  "config.modelApiReplyUsage.description": "預設為關閉。在每則 Model API 回覆下方顯示其輸入與輸出 token 數量及美元費用估算。",
+  "config.modelApiSessionBudgetUsd.description": "每個 Model API 對話的支出上限，以美元計；0 表示無上限。共用的持久預留金額在傳送前涵蓋一般權杖要求和圖片費用；無法放入剩餘額度的要求不會傳送，輸入估算可能與計費使用量不同。計費查詢數沒有經過驗證的上限，因此啟用支出上限時無法使用網頁搜尋。結果未知的已傳送要求會保留預留金額；不明確的失敗後將拒絕自動重試。需要正常運作的階段儲存空間。付費功能仍須個別同意。 計費時長上限尚未驗證，因此啟用支出上限時也無法使用付費 Muse Voice；請使用系統聽寫。 子代理要求在回報用量後計入支出，不從父階段上限中預留金額，因此可能超出該上限。",
+  "config.modelApiCommandRules.markdownDescription": "Model API 後端：用於 shell 工具的命令規則。每條規則包含命令開頭的單字（`pattern`）、一個決定（`decision`：`allow`、`ask` 或 `forbid`）、選用的適用 shell（`shell`）和理由（`justification`），以及它必須符合（`match`）和不得符合（`notMatch`）的命令列，每次讀取規則時都會檢查這些範例。禁止規則或詢問規則會在命令列的任何位置尋找其單字；允許規則只執行由簡單命令組成、且每個命令都以允許規則開頭的一行，因此包含替代、重新導向、背景 `&` 或換行的行仍會詢問。禁止在所有模式下都生效，包括略過權限模式。僅限使用者和電腦設定。 allow 規則只能允許單個簡單命令。命令鏈、管線和求值命令需要使用者決定。",
+  "config.modelApiPermissionProfiles.markdownDescription": "Model API 後端：具名的權限設定檔。每個設定檔可以列出 `denyRead` glob（檔案工具不得讀取、列出、搜尋或寫入的工作區相對路徑）和 `extraRoots`（`read_file` 可以讀取的工作區外絕對路徑資料夾）。使用 `museSpark.modelApiPermissionProfile` 選擇一個。僅限使用者和電腦設定。",
+  "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，每個 shell 命令都會詢問，因為 shell 在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
+  "config.modelApiRepositoryRules.markdownDescription": "Model API 後端：存放庫可以在其 `.vscode/settings.json` 中新增的規則：詢問或禁止的 `commandRules`，以及 `denyRead` glob。它們只能收緊您自己的規則，因此這裡的允許規則不會套用。",
+  "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。"
 }

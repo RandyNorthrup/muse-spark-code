@@ -12,9 +12,14 @@ const BYTES_PER_KIB = 1024
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
-  // The Model API backend, loaded when it first starts (M57): 295.6 KiB when
-  // split out, plus about a third for the Model API work already planned.
-  { path: 'dist/modelApi.js', budgetKiB: 400 },
+  // The Model API backend, loaded when it first starts (M57). Revisited on
+  // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
+  // rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // M78b: first board/best-of-N action, 61.0 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/sessionBoard.js', budgetKiB: 75 },
+  // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
+  { path: 'dist/reviewer.js', budgetKiB: 75 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -29,6 +34,12 @@ const BUDGETS = [
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/bundledSkills.js', budgetKiB: 50 },
+  // Code intelligence's `ide` answers (M67), loaded on the first call, and
+  // voice's drivers (M9, M35), loaded on the first recording: split out on
+  // 2026-10-03 at 80.3 and 34.5 KiB. Measured size plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/codeIntel.js', budgetKiB: 100 },
+  { path: 'dist/voice.js', budgetKiB: 50 },
   // Shared English fallback; existing host budgets stay unchanged.
   { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
