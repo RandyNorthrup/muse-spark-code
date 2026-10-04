@@ -199,10 +199,8 @@ happened, not what was planned; superseded entries are kept.
     on the exact reviewed head, refusing an unexpected or oversized artifact.
     Every Git step runs with no hooks, filters, fsmonitor, signer or
     credential helper, and refuses any repository configuration a fresh
-    clone does not carry. Its registry install needs an npm release with
-    provenance, which the release workflow requests; none has reached npm
-    yet, so until one does the Action installs only a pinned candidate
-    tarball.
+    clone does not carry. It installs the agent from npm with its
+    provenance checked, or a pinned candidate tarball.
   - Acceptance on hosted runners and with a real key is still pending.
 - **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
   high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
@@ -333,6 +331,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **The ACP agent is on npm.** `muse-spark-code-acp` 0.11.0 reached npm on
+  2026-10-04, and releases from 0.12.0 publish there by npm trusted
+  publishing (OIDC from `release.yml`), with no stored npm token. Before
+  that every release's npm step failed: 0.10.0 on a path bug, 0.10.1 and
+  0.11.0 because the token could not bypass the account's 2FA (`EOTP`).
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 - Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).

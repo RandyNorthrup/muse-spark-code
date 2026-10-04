@@ -98,8 +98,9 @@ two.
   $1.41 on the standard model. The `action/` GitHub Action reviews, or
   proposes a fix for, a same-repository pull request on the Model API with
   your key, under a required `max-budget-usd`. Acceptance on hosted runners
-  and with a real key is still pending, and until the agent reaches npm the
-  Action installs only a candidate tarball you pin.
+  and with a real key is still pending. The Action installs the agent from
+  npm with its provenance checked (0.12.0 is the first npm release that has
+  it), or a candidate tarball you pin.
 - **Session board and best-of-N** (see
   [Session board and best-of-N](#session-board-and-best-of-n)): the
   header's board button lists the window's open conversations on either
@@ -189,9 +190,10 @@ two.
   gets up to two minutes to start while its process runs, and a failed
   start shows one message instead of one per waiting action.
 - **The ACP agent and npm.** The release workflow's npm step no longer
-  fails on 0.10.0's path bug; it publishes `muse-spark-code-acp` to npm
-  when its npm token works. The token has not worked yet, so the agent has
-  not reached npm: install it from the GitHub Release's `.tgz`.
+  fails on 0.10.0's path bug. 0.10.1's and 0.11.0's npm steps still failed
+  on the token (npm asked for a one-time password); 0.11.0 reached npm on
+  2026-10-04, and from 0.12.0 the agent publishes by npm trusted
+  publishing, with no token.
 - **Faster Windows hooks and a sturdier log.** Hooks and commands on
   Windows no longer wait on PowerShell's module scan, and a crafted long
   line no longer stalls the log.
@@ -3101,10 +3103,9 @@ The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
 same-repository GitHub review and fix Action, with an `action/apply`
 sub-action. Their fake-only tests pass on Linux, macOS and Windows; acceptance
 on hosted runners and with a real key is still pending, so this is **not
-certified yet**, and the Action's npm-registry install is supported only from
-a release published with provenance. No release has reached npm yet, so
-until one does the Action installs only a candidate tarball you pin
-(`agent-package` with `agent-package-sha256`).
+certified yet**. The Action installs the agent from npm and checks its
+provenance (0.12.0 is the first npm release with `exec`), or a candidate
+tarball you pin (`agent-package` with `agent-package-sha256`).
 [The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
 
 ```text
@@ -3373,10 +3374,11 @@ manifest and is on `main`, runs the same build, creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
-ACP tarball goes to npm with provenance once `NPM_TOKEN` can publish (no
-release has reached npm yet). Each registry uses its token from the
-tag-only `marketplace` environment (`VSCE_PAT`, `OVSX_PAT`, `NPM_TOKEN`);
-missing tokens are reported as skips. Network errors get bounded retries;
+ACP tarball goes to npm with provenance by npm trusted publishing: npm
+trusts `release.yml` in the tag-only `marketplace` environment, so no npm
+token is stored. Marketplace and Open VSX use their tokens from that
+environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
+skip. Network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
 locally has no macOS helper, so only CI's universal artifact is published.
