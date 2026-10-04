@@ -8,13 +8,24 @@ import { StatusLine } from '../../src/webview/components/StatusLine'
 
 const VERBS = Object.values(EN.statusVerbs)
 
+/** The one verb shown; the others are hidden width holders. */
+function shownVerb(): string | null | undefined {
+  return document.querySelector('.status-verb-text > :not([aria-hidden])')?.textContent
+}
+
 describe('StatusLine', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // jsdom has no canvas backing; the trace renders its element and stops.
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      value: () => null,
+      configurable: true,
+    })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    Reflect.deleteProperty(HTMLCanvasElement.prototype, 'getContext')
     setUiText(EN, BASE_LOCALE)
   })
 
@@ -23,22 +34,40 @@ describe('StatusLine', () => {
     // The verb changes every few seconds; a live region here read each one out.
     expect(screen.queryByRole('status')).toBeNull()
     expect(document.querySelector('[aria-live]')).toBeNull()
-    const status = screen.getByRole('listitem')
-    expect(status).toHaveTextContent('Thinking…')
+    expect(screen.getByRole('listitem')).toBeInTheDocument()
+    expect(shownVerb()).toBe('Thinking…')
     act(() => {
       vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS)
     })
-    expect(status).toHaveTextContent('Working…')
+    expect(shownVerb()).toBe('Working…')
     act(() => {
       vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS * (VERBS.length - 1))
     })
-    expect(status).toHaveTextContent('Thinking…')
+    expect(shownVerb()).toBe('Thinking…')
   })
 
   it('shows the installed table’s verbs', () => {
     setUiText({ ...EN, statusVerbs: { ...EN.statusVerbs, thinking: 'Denkt nach…' } }, 'de')
     render(<StatusLine />)
-    expect(screen.getByRole('listitem')).toHaveTextContent('Denkt nach…')
+    expect(shownVerb()).toBe('Denkt nach…')
+  })
+
+  it('keeps every verb in one cell, so the box is the longest verb wide and the trace stays put', () => {
+    render(<StatusLine />)
+    const cells = [...document.querySelectorAll('.status-verb-text > *')]
+    expect(cells.map((cell) => cell.textContent)).toEqual(VERBS)
+    // Exactly one is shown; every other one only holds the width, hidden from
+    // sight and from assistive technology.
+    const holders = cells.filter((cell) => cell.classList.contains('status-verb-sizer'))
+    expect(holders).toHaveLength(VERBS.length - 1)
+    for (const holder of holders) {
+      expect(holder).toHaveAttribute('aria-hidden', 'true')
+    }
+    act(() => {
+      vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS)
+    })
+    // The verb changes, the set of cells (and so the box's width) does not.
+    expect(document.querySelectorAll('.status-verb-text > *')).toHaveLength(VERBS.length)
   })
 
   it('shows the looping circle mark and a decorative heartbeat outside live regions', () => {
@@ -49,15 +78,12 @@ describe('StatusLine', () => {
     const mark = line?.querySelector('.status-mark')
     expect(mark).toHaveAttribute('aria-hidden', 'true')
     expect(mark?.querySelectorAll('.status-mark-circle')).toHaveLength(6)
-    const trace = container.querySelector('svg.heartbeat-trace')
+    // The beam draws on a canvas; nothing static is rendered.
+    const trace = container.querySelector('canvas.heartbeat-trace')
     expect(trace).toHaveAttribute('aria-hidden', 'true')
-    expect(trace).toHaveAttribute('focusable', 'false')
-    const paths = trace?.querySelectorAll('path')
-    expect(paths).toHaveLength(2)
-    expect(paths?.[0]).toHaveAttribute('pathLength', '100')
-    expect(paths?.[1]).toHaveAttribute('pathLength', '100')
-    expect(paths?.[0]?.getAttribute('d')).toBe(paths?.[1]?.getAttribute('d'))
-    expect(trace?.querySelector('.heartbeat-sweep')).toBeTruthy()
+    expect(container.querySelector('svg.heartbeat-trace')).toBeNull()
+    expect(container.querySelector('.heartbeat-base')).toBeNull()
+    expect(container.querySelector('.heartbeat-sweep')).toBeNull()
     expect(container.querySelector('[aria-live], [role="status"]')).toBeNull()
   })
 

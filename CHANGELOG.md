@@ -54,8 +54,10 @@ happened, not what was planned; superseded entries are kept.
     block, five lines each with its own Show more (your `!` rows too). The
     working line leads with a small looping circle-pattern mark (after
     Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT,
-    written fresh with no pointer tracking), then the verb and a heartbeat
-    trace; under reduced motion both stand still. Stop turns red on hover
+    written fresh with no pointer tracking), then the verb, in a box as wide as
+    the longest verb so nothing moves when it changes, and a heartbeat
+    trace whose beam draws the P/QRS/T shape itself and leaves only a fading
+    trail; under reduced motion both stand still. Stop turns red on hover
     and focus.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only

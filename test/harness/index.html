@@ -1247,6 +1247,14 @@
           event({ type: 'turnStarted', turnId: 'm87a-stop' })
           whenFound('.send-button-stop', (stop) => stop.focus())
         },
+        // A running turn's working line (M87): sending the draft starts the
+        // turn locally, so the step bullet, the verb and the heart-monitor
+        // beam the canvas draws show under the message, as in lane B's rows.
+        'status-heartbeat': () => {
+          window.harnessSilent = true
+          setDraft('List the project files')
+          key({ key: 'Enter' })
+        },
         // A "/" typed on an empty prompt (M38): the palette above the box,
         // which keeps the focus and the text.
         'slash-palette': () => {
