@@ -1365,6 +1365,9 @@ export const TAB_PREFIX_ANCHOR_LINES = 32
 export const TAB_FAST_MAX_LINES = 3
 // A multi-line completion never runs past this many lines.
 export const TAB_MULTILINE_MAX_LINES = 16
+// A reply holding this many identical lines in a row is refused (D73's
+// repeat filter; lane C's tabReply): three is D73's number, not a guess.
+export const TAB_REPEATED_LINES = 3
 // A reply is cut here, at a line boundary first.
 export const TAB_MAX_COMPLETION_CHARS = 2000
 // Automatic triggers wait this long on the token; the probe retunes it (*).
