@@ -29,20 +29,7 @@
     "media-feature-name-no-unknown": true,
 
     "comment-no-empty": true,
-    "comment-whitespace-inside": "always",
-
-    "custom-property-pattern": [
-      "^(?:ms-[a-z][a-z0-9-]*|vscode-[a-zA-Z][a-zA-Z0-9-]*)$",
-      {
-        "message": "Own custom properties are kebab-case with an `ms-` prefix; `vscode-*` theme variables keep VS Code's camelCase names."
-      }
-    ]
+    "comment-whitespace-inside": "always"
   },
-  "ignoreFiles": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/coverage/**",
-    "**/*.min.css",
-    "**/vendor/**"
-  ]
+  "ignoreFiles": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.css"]
 }

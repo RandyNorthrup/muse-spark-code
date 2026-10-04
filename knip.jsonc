@@ -54,6 +54,8 @@
 
   "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "test/**/*.mjs", "scripts/**/*.mjs"],
 
+  "ignore": ["vendor/**"],
+
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by
   // scripts/capture-themes.mjs (M37), so knip sees it. axe-core is loaded by
