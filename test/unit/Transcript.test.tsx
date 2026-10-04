@@ -414,11 +414,16 @@ function toggle(index: number): HTMLButtonElement {
   return found
 }
 
+const STORED_EDIT = tool({
+  id: 'ed',
+  tool: 'edit_file',
+  args: '{}',
+  patchRef: { id: 'p', byteLen: 1 },
+})
+
 /** A finished edit row with a stored patch, open as edit rows start: it has asked for page one. */
 function mountEditRow() {
-  const view = mountTranscript([
-    tool({ id: 'ed', tool: 'edit_file', args: '{}', patchRef: { id: 'p', byteLen: 1 } }),
-  ])
+  const view = mountTranscript([STORED_EDIT])
   expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
   return view
 }
@@ -694,6 +699,90 @@ describe('Transcript rows (M25)', () => {
     fireEvent.click(toggle(0))
     fireEvent.click(toggle(0))
     expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('defers a finished edit row’s automatic read while the turn runs (READS)', () => {
+    const edit = tool({
+      id: 'ed',
+      tool: 'edit_file',
+      args: '{"path":"notes.md"}',
+      output: '@@\n-old\n+new',
+      patchRef: { id: 'p', byteLen: 1 },
+    })
+    const view = mountTranscript([{ ...edit, status: 'inProgress' }], { isRunning: true })
+    view.rerender({ entries: [edit], isRunning: true })
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    expect(screen.getByText('new')).toBeInTheDocument()
+    expect(document.querySelector('.diff-gutter')?.textContent).toBe('')
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledExactlyOnceWith('ed', 'p', 0)
+    view.rerender({ entries: [edit], isRunning: true })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads a finished write row once when the turn ends (READS)', () => {
+    const edit = tool({
+      id: 'ed',
+      tool: 'write_file',
+      args: '{"path":"notes.md","content":"written content"}',
+      patchRef: { id: 'p', byteLen: 1 },
+    })
+    const view = mountTranscript([edit], { isRunning: true })
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    expect(screen.getByText('written content')).toBeInTheDocument()
+    view.rerender({ isRunning: false })
+    expect(view.props.onReadOutput).toHaveBeenCalledExactlyOnceWith('ed', 'p', 0)
+    view.rerender({ isRunning: false })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a loaded patch without another read when the turn ends (READS)', () => {
+    const view = mountTranscript([STORED_EDIT], { isRunning: true, outputPages: WHOLE_PATCH })
+    view.rerender({ isRunning: false, outputPages: WHOLE_PATCH })
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+  })
+
+  it('pages a patch opened by the user during a turn, then defers again in a new turn (READS)', () => {
+    const view = mountTranscript([STORED_EDIT], { isRunning: true })
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    view.rerender({ ...pages('{', false, 1), isRunning: true })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 1)
+    view.rerender({ isRunning: false, outputPages: WHOLE_PATCH })
+    // A new turn must not reuse an earlier turn's manual-open permission.
+    view.rerender({ isRunning: true, outputPages: {} })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries a read that failed during the turn exactly once at turn end (READS)', () => {
+    const view = mountTranscript([STORED_EDIT], { isRunning: true })
+    fireEvent.click(toggle(0))
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledExactlyOnceWith('ed', 'p', 0)
+    // The host reports a failure as a notice, leaving no page in outputPages.
+    const entries: TranscriptEntry[] = [
+      STORED_EDIT,
+      { kind: 'notice', id: 'n', level: 'warning', text: 'Could not load the output' },
+    ]
+    view.rerender({ entries, isRunning: true })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(1)
+    view.rerender({ entries, isRunning: false })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+    expect(view.props.onReadOutput).toHaveBeenLastCalledWith('ed', 'p', 0)
+    view.rerender({ entries, isRunning: false })
+    expect(view.props.onReadOutput).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a collapsed row unread at turn end until it is reopened (READS)', () => {
+    const view = mountTranscript([STORED_EDIT], { isRunning: true })
+    fireEvent.click(toggle(0))
+    view.rerender({ isRunning: false })
+    expect(view.props.onReadOutput).not.toHaveBeenCalled()
+    fireEvent.click(toggle(0))
+    expect(view.props.onReadOutput).toHaveBeenCalledExactlyOnceWith('ed', 'p', 0)
   })
 
   it('reads a collapsed edit row’s patch only once it is expanded, after a resume too (D26)', () => {

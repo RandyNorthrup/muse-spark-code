@@ -838,6 +838,7 @@ function TranscriptList(props: TranscriptProps) {
       <ToolRow
         key={entry.id}
         entry={entry}
+        isRunning={isRunning}
         patchPage={
           entry.patchRef === undefined
             ? undefined

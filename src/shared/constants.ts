@@ -2110,6 +2110,9 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
   'session/fork',
   'session/read',
   'session/compact',
+  // A read holds its limiter slot until Muse Code answers, keeping at most
+  // four outstanding there and using a late reply instead of losing it at 60 s.
+  'item/readOutput',
 ])
 // Muse Code's own approval faults (PLAN.md D26), named by the words of the
 // `internal` error it answers with (captured live 2026-10-02, Muse Code
