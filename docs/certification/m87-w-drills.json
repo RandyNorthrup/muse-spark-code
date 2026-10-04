@@ -1,0 +1,675 @@
+{
+  "unit": [
+    {
+      "name": "w1-baseline",
+      "rig": "win11",
+      "snapshot": "a3d242be",
+      "exit": 0,
+      "tests": "Tests  135 passed (135)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w1-tally-below-goal",
+      "rig": "win11",
+      "snapshot": "7857f377",
+      "exit": 1,
+      "tests": "Tests  1 failed | 134 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > adds up the edits in a row above the goal and task panes, without Review before M70"
+      ],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w1-no-tasks-tab",
+      "rig": "win11",
+      "snapshot": "35685aa6",
+      "exit": 1,
+      "tests": "Tests  1 failed | 134 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > opens the task list in a tab from the tasks pane"
+      ],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w1-unsent-time",
+      "rig": "win11",
+      "snapshot": "391dda36",
+      "exit": 1,
+      "tests": "Tests  1 failed | 134 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > shows a sent card’s time from the moment it is sent, before the host accepts it"
+      ],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w1-meter-unwired",
+      "rig": "win11",
+      "snapshot": "ff18c494",
+      "exit": 1,
+      "tests": "Tests  2 failed | 133 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App transcript (M4) > shows the session name, the context indicator and the todo panel",
+        "test/unit/App.test.tsx > App session history (M6) > compacts from the context indicator and shows the unsupported-file banner (M14)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\App.tsx",
+          "before": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1",
+          "after": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1"
+        }
+      ]
+    },
+    {
+      "name": "w1-withdraw-ids",
+      "rig": "win11",
+      "snapshot": "b6684c51",
+      "exit": 1,
+      "tests": "Tests  2 failed | 133 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > takes a Model API steer back with the ids its card was given",
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > says a Muse Code steer was delivered, and offers Edit on a message Muse Code queued"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\App.tsx",
+          "before": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1",
+          "after": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1"
+        }
+      ]
+    },
+    {
+      "name": "w1-steer-backend",
+      "rig": "win11",
+      "snapshot": "06db3593",
+      "exit": 1,
+      "tests": "Tests  1 failed | 134 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > says a Muse Code steer was delivered, and offers Edit on a message Muse Code queued"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\App.tsx",
+          "before": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1",
+          "after": "372ee2cf73f9f5aa61472bb38c60a177a7057675df6ab5f90bbbeef60e013ca1"
+        }
+      ]
+    },
+    {
+      "name": "w1-refused-focus",
+      "rig": "win11",
+      "snapshot": "7b3e45bd",
+      "exit": 1,
+      "tests": "Tests  2 failed | 133 passed (135)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > returns the focus to the card’s \"…\" when an Edit is refused (still queued)",
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > returns the focus to the card’s \"…\" when an Edit is refused (too late, once a request read it)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "8ffd2c8baa0c4a15d09da5e5cf0d101977ad53bbca2863f96b8110be61b7136e",
+          "after": "8ffd2c8baa0c4a15d09da5e5cf0d101977ad53bbca2863f96b8110be61b7136e"
+        }
+      ]
+    },
+    {
+      "name": "w1-restored",
+      "rig": "win11",
+      "snapshot": "33c881c9",
+      "exit": 0,
+      "tests": "Tests  135 passed (135)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w3-baseline",
+      "rig": "win11",
+      "snapshot": "04c66a8f",
+      "exit": 0,
+      "tests": "Tests  680 passed (680)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w3-time-stop",
+      "rig": "win11",
+      "snapshot": "cf601fec",
+      "exit": 1,
+      "tests": "Tests  1 failed | 223 passed (224)",
+      "failing": [
+        "test/unit/Transcript.test.tsx > Transcript: message times (M87, PLAN.md D66) > reveals every card’s time from a Tab stop inside the card"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274",
+          "after": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274"
+        }
+      ]
+    },
+    {
+      "name": "w3-time-css",
+      "rig": "win11",
+      "snapshot": "c456f1c9",
+      "exit": 1,
+      "tests": "Tests  1 failed | 223 passed (224)",
+      "failing": [
+        "test/unit/Transcript.test.tsx > Transcript: message times (M87, PLAN.md D66) > reveals every card’s time from a Tab stop inside the card"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\styles.css",
+          "before": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423",
+          "after": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423"
+        }
+      ]
+    },
+    {
+      "name": "w3-revert-running-menu",
+      "rig": "win11",
+      "snapshot": "c12705f9",
+      "exit": 1,
+      "tests": "Tests  1 failed | 223 passed (224)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > offers no Revert while a turn runs"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\ToolRow.tsx",
+          "before": "51596a387c98dae9e298765c8341a2e302db4b3943709e853930f43e17e7eaba",
+          "after": "51596a387c98dae9e298765c8341a2e302db4b3943709e853930f43e17e7eaba"
+        }
+      ]
+    },
+    {
+      "name": "w3-revert-payload",
+      "rig": "win11",
+      "snapshot": "7c9dbb04",
+      "exit": 1,
+      "tests": "Tests  2 failed | 222 passed (224)",
+      "failing": [
+        "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > reverts a landed edit from its row’s menu (D66 item 17)",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > routes a landed edit’s Revert with its stored patch"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\ToolRow.tsx",
+          "before": "51596a387c98dae9e298765c8341a2e302db4b3943709e853930f43e17e7eaba",
+          "after": "51596a387c98dae9e298765c8341a2e302db4b3943709e853930f43e17e7eaba"
+        }
+      ]
+    },
+    {
+      "name": "w3-revert-unconfirmed",
+      "rig": "win11",
+      "snapshot": "b00a9885",
+      "exit": 1,
+      "tests": "Tests  1 failed | 435 passed (436)",
+      "failing": [
+        "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > reverts one edit after its confirmation, and nothing once it is declined (M87)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\host\\conversation\\conversationController.ts",
+          "before": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995",
+          "after": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995"
+        }
+      ]
+    },
+    {
+      "name": "w3-revert-running-host",
+      "rig": "win11",
+      "snapshot": "15f8c5ef",
+      "exit": 1,
+      "tests": "Tests  1 failed | 435 passed (436)",
+      "failing": [
+        "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > reverts nothing while a turn runs, or once one started under the confirmation (M87)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\host\\conversation\\conversationController.ts",
+          "before": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995",
+          "after": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995"
+        }
+      ]
+    },
+    {
+      "name": "w3-revert-started-under-confirm",
+      "rig": "win11",
+      "snapshot": "0502bead",
+      "exit": 1,
+      "tests": "Tests  1 failed | 435 passed (436)",
+      "failing": [
+        "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > reverts nothing while a turn runs, or once one started under the confirmation (M87)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\host\\conversation\\conversationController.ts",
+          "before": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995",
+          "after": "da776341129a8b074965b9ec7d32c8e5d12c675fe3e9c3feb534837e97124995"
+        }
+      ]
+    },
+    {
+      "name": "w3-label-old-vertical-rule",
+      "rig": "win11",
+      "snapshot": "b1a09277",
+      "exit": 1,
+      "tests": "Tests  5 failed | 15 passed (20)",
+      "failing": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > puts each label past its bubble, away from the centre",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 3 bubbles off the other bubbles",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 4 bubbles off the other bubbles",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 5 bubbles off the other bubbles",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 6 bubbles off the other bubbles"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\gooeyLayout.ts",
+          "before": "422c7e88117c8dddb3400670527f979a599b026dfa21ebb6704e417126a247e8",
+          "after": "422c7e88117c8dddb3400670527f979a599b026dfa21ebb6704e417126a247e8"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-p1-transcript-wide-selection",
+      "rig": "win11",
+      "snapshot": "6979856a",
+      "exit": 1,
+      "tests": "Tests  2 failed | 222 passed (224)",
+      "failing": [
+        "test/unit/App.test.tsx > App: a right-click away from the selected text (the review of F2, P1) > opens the clicked row’s own menu, not the quote menu of the row holding the text",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > opens the right-clicked row’s menu while text is selected in another row (P1)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274",
+          "after": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-p2-no-opener-feedback",
+      "rig": "win11",
+      "snapshot": "e20f5c48",
+      "exit": 1,
+      "tests": "Tests  1 failed | 223 passed (224)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > shows the Copied feedback on the row’s \"…\" once Copy closes the menu (P2)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\Transcript.tsx",
+          "before": "99285ffb3663c57bb80810b77c3b9cf288a7f64e1c86d4a06ffe7af60f42c88b",
+          "after": "99285ffb3663c57bb80810b77c3b9cf288a7f64e1c86d4a06ffe7af60f42c88b"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-app-any-row-quotes",
+      "rig": "win11",
+      "snapshot": "807befad",
+      "exit": 1,
+      "tests": "Tests  1 failed | 137 passed (138)",
+      "failing": [
+        "test/unit/App.test.tsx > App: a right-click away from the selected text (the review of F2, P1) > opens no quote menu from a row with no actions of its own"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\App.tsx",
+          "before": "1984baa273c586d5776d2670e244d03872005fed7dd0e1c596091fae4c8453a6",
+          "after": "1984baa273c586d5776d2670e244d03872005fed7dd0e1c596091fae4c8453a6"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-two-menus-open",
+      "rig": "win11",
+      "snapshot": "41ebf4ec",
+      "exit": 1,
+      "tests": "Tests  2 failed | 23 passed (25)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps one row menu open when another row’s opens by button (P3)",
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps one row menu open when another row’s opens by pointer (P3)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\useDismiss.ts",
+          "before": "f61ae90a1a0f955976ece65ad3b8fe99e823b22640b059f5032d8964e6ad8ebc",
+          "after": "f61ae90a1a0f955976ece65ad3b8fe99e823b22640b059f5032d8964e6ad8ebc"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-bare-f10",
+      "rig": "win11",
+      "snapshot": "d178c1b1",
+      "exit": 1,
+      "tests": "Tests  1 failed | 24 passed (25)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > opens nothing on a bare F10, nor on Shift+F10 or the menu key on a row with no actions (P3)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274",
+          "after": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-keys-without-actions",
+      "rig": "win11",
+      "snapshot": "00b08045",
+      "exit": 1,
+      "tests": "Tests  1 failed | 24 passed (25)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > opens nothing on a bare F10, nor on Shift+F10 or the menu key on a row with no actions (P3)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274",
+          "after": "2bb1523826568e05a0015a96da8a665ab7259f02c24c4d9d86373c9788c75274"
+        }
+      ]
+    },
+    {
+      "name": "rvf2-notes-live",
+      "rig": "win11",
+      "snapshot": "3fb83d40",
+      "exit": 1,
+      "tests": "Tests  1 failed | 24 passed (25)",
+      "failing": [
+        "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps the Rewind group’s notes in its second burst, present and inert (P3)"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\Transcript.tsx",
+          "before": "99285ffb3663c57bb80810b77c3b9cf288a7f64e1c86d4a06ffe7af60f42c88b",
+          "after": "99285ffb3663c57bb80810b77c3b9cf288a7f64e1c86d4a06ffe7af60f42c88b"
+        }
+      ]
+    },
+    {
+      "name": "w3-restored",
+      "rig": "win11",
+      "snapshot": "f81394f1",
+      "exit": 0,
+      "tests": "Tests  680 passed (680)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w4-baseline",
+      "rig": "win11",
+      "snapshot": "468a37d0",
+      "exit": 0,
+      "tests": "Tests  38 passed (38)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w4-label-viewport-half-rule",
+      "rig": "win11",
+      "snapshot": "a932234e",
+      "exit": 1,
+      "tests": "Tests  3 failed | 35 passed (38)",
+      "failing": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > puts each label past its bubble, away from the centre",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 5 bubbles off the others from a side",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 6 bubbles off the others from a side"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\gooeyLayout.ts",
+          "before": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a",
+          "after": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a"
+        }
+      ]
+    },
+    {
+      "name": "w4-label-ignores-bubbles",
+      "rig": "win11",
+      "snapshot": "ca89f8b4",
+      "exit": 1,
+      "tests": "Tests  2 failed | 36 passed (38)",
+      "failing": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 5 bubbles off the others from a side",
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > keeps every label of 6 bubbles off the others from a side"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\gooeyLayout.ts",
+          "before": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a",
+          "after": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a"
+        }
+      ]
+    },
+    {
+      "name": "w4-label-no-slide",
+      "rig": "win11",
+      "snapshot": "42056a10",
+      "exit": 0,
+      "tests": "Tests  38 passed (38)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\gooeyLayout.ts",
+          "before": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a",
+          "after": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a"
+        }
+      ]
+    },
+    {
+      "name": "w4-label-measured-once",
+      "rig": "win11",
+      "snapshot": "bf9e13a5",
+      "exit": 1,
+      "tests": "Tests  2 failed | 36 passed (38)",
+      "failing": [
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > names menu and bubbles, focuses first enabled action, shows its label",
+        "test/unit/GooeyMenu.test.tsx > GooeyMenu > handles no enabled actions without activating or losing Escape"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\components\\GooeyMenu.tsx",
+          "before": "3947257444ec930ea2611ad60d5efeabe0e7164d51f11fb0602f75498886f79e",
+          "after": "3947257444ec930ea2611ad60d5efeabe0e7164d51f11fb0602f75498886f79e"
+        }
+      ]
+    },
+    {
+      "name": "w4-restored",
+      "rig": "win11",
+      "snapshot": "3ae77001",
+      "exit": 0,
+      "tests": "Tests  38 passed (38)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    },
+    {
+      "name": "w4-label-no-slide-2",
+      "rig": "win11",
+      "snapshot": "91073278",
+      "exit": 1,
+      "tests": "Tests  1 failed | 38 passed (39)",
+      "failing": [
+        "test/unit/gooeyLayout.test.ts > gooeyLayout > slides a label along its row to clear a neighbour"
+      ],
+      "restoredByteExact": true,
+      "files": [
+        {
+          "file": "src\\webview\\gooeyLayout.ts",
+          "before": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a",
+          "after": "b2a2b710ebe7fa8b415d4e5dfd81547c9f743a4df027392f429d16b09fb4848a"
+        }
+      ]
+    },
+    {
+      "name": "w4-restored-2",
+      "rig": "win11",
+      "snapshot": "619cc266",
+      "exit": 0,
+      "tests": "Tests  39 passed (39)",
+      "failing": [],
+      "restoredByteExact": true,
+      "files": []
+    }
+  ],
+  "browser": [
+    {
+      "name": "label-no-vertical-gap",
+      "before": "9df275a3a164fe9f6f57228c52be02cb97d565114cfd779673ce234caa5f4a03",
+      "mutated": "a236f9ff618f229c1fb96ba4c93ba7afb5b8a0eecf04199b21ff294a63532f19",
+      "restored": "9df275a3a164fe9f6f57228c52be02cb97d565114cfd779673ce234caa5f4a03",
+      "byteExact": true,
+      "redExit": 1,
+      "red": {
+        "checks": 16,
+        "problems": [
+          "chat-menu/Rewind conversation to here: vertical: -87.7 above, 0.0 below",
+          "chat-menu/Fork conversation from here: vertical: -68.8 above, 0.0 below",
+          "chat-menu/Fork conversation and rewind code: vertical: -87.7 above, 0.0 below",
+          "chat-menu-narrow/Rewind conversation to here: vertical: -106.5 above, 0.0 below, side: -48.0 left, -112.0 right",
+          "chat-menu-narrow/Rewind code to here: vertical: -87.7 above, 0.0 below, side: -80.0 left, -80.0 right",
+          "chat-menu-narrow/Fork conversation from here: vertical: -87.7 above, 0.0 below",
+          "chat-menu-narrow/Fork conversation and rewind code: vertical: -87.7 above, 0.0 below",
+          "chat-tool-menu/Open output: vertical: -67.0 above, 0.0 below",
+          "chat-tool-menu/Revert: vertical: 0.0 above, -67.0 below",
+          "chat-tool-menu-narrow/Open output: vertical: -67.0 above, 0.0 below",
+          "chat-tool-menu-narrow/Revert: vertical: 0.0 above, -67.0 below"
+        ]
+      },
+      "greenExit": 0,
+      "green": {
+        "checks": 16,
+        "problems": []
+      }
+    },
+    {
+      "name": "label-no-side-offset",
+      "before": "9df275a3a164fe9f6f57228c52be02cb97d565114cfd779673ce234caa5f4a03",
+      "mutated": "9efca63ce016a7144ea6c1db4bca475365fcebeed2377e7ba54143cb7f67f8f6",
+      "restored": "9df275a3a164fe9f6f57228c52be02cb97d565114cfd779673ce234caa5f4a03",
+      "byteExact": true,
+      "redExit": 1,
+      "red": {
+        "checks": 16,
+        "problems": [
+          "chat-menu/Rewind code to here: side: -0.0 left, -176.0 right, over its bubble",
+          "chat-menu/Fork conversation from here: side: 0.3 left, -220.0 right",
+          "chat-menu/Fork conversation and rewind code: side: 0.0 left, -220.0 right",
+          "chat-menu/Rewind: side: 0.3 left, -100.0 right",
+          "chat-menu-narrow/Rewind code to here: side: 0.0 left, -160.0 right",
+          "chat-menu-narrow/Fork conversation from here: side: 0.0 left, -160.0 right",
+          "chat-menu-narrow/Fork conversation and rewind code: side: 0.0 left, -160.0 right",
+          "chat-menu-narrow/Rewind: side: 0.3 left, -100.0 right",
+          "chat-tool-menu/Open output: side: 0.0 left, -132.0 right",
+          "chat-tool-menu/Review: side: 0.2 left, -98.0 right",
+          "chat-tool-menu-narrow/Open output: side: 0.0 left, -132.0 right",
+          "chat-tool-menu-narrow/Review: side: 0.2 left, -98.0 right"
+        ]
+      },
+      "greenExit": 0,
+      "green": {
+        "checks": 16,
+        "problems": []
+      }
+    },
+    {
+      "name": "time-no-focus-reveal",
+      "before": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423",
+      "mutated": "4497c76d3a4169ccd79be8c1c3369f72da5ceb6d66ad2c3db457c09d3546d284",
+      "restored": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423",
+      "byteExact": true,
+      "redExit": 1,
+      "red": {
+        "checks": 8,
+        "problems": [
+          "dark/user: time opacity 0 on focus",
+          "dark/assistant: time opacity 0 on focus",
+          "light/user: time opacity 0 on focus",
+          "light/assistant: time opacity 0 on focus",
+          "hc-dark/user: time opacity 0 on focus",
+          "hc-dark/assistant: time opacity 0 on focus",
+          "hc-light/user: time opacity 0 on focus",
+          "hc-light/assistant: time opacity 0 on focus"
+        ]
+      },
+      "greenExit": 0,
+      "green": {
+        "checks": 8,
+        "problems": []
+      }
+    },
+    {
+      "name": "opener-not-a-tab-stop",
+      "before": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423",
+      "mutated": "8acc7593623ccffa3120491537aa8fd9ba6a5193771274665f3cbb83a99a3d1c",
+      "restored": "aa60dd6febba654ff848dc15d82be4a39eeab1dd4326a3e91b6d0d0e24f52423",
+      "byteExact": true,
+      "redExit": 1,
+      "red": {
+        "checks": 8,
+        "problems": [
+          "dark/user: Tab did not reach the ⋯",
+          "dark/user: time opacity 0 on focus",
+          "dark/assistant: Tab did not reach the ⋯",
+          "dark/assistant: time opacity 0 on focus",
+          "light/user: Tab did not reach the ⋯",
+          "light/user: time opacity 0 on focus",
+          "light/assistant: Tab did not reach the ⋯",
+          "light/assistant: time opacity 0 on focus",
+          "hc-dark/user: Tab did not reach the ⋯",
+          "hc-dark/user: time opacity 0 on focus",
+          "hc-dark/assistant: Tab did not reach the ⋯",
+          "hc-dark/assistant: time opacity 0 on focus",
+          "hc-light/user: Tab did not reach the ⋯",
+          "hc-light/user: time opacity 0 on focus",
+          "hc-light/assistant: Tab did not reach the ⋯",
+          "hc-light/assistant: time opacity 0 on focus"
+        ]
+      },
+      "greenExit": 0,
+      "green": {
+        "checks": 8,
+        "problems": []
+      }
+    }
+  ]
+}

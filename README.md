@@ -1057,19 +1057,27 @@ work out of the box.
 
 ## Tasks
 
-The task list above the prompt can collapse to its progress and the task in
-progress. Its chevron expands the list again; reloading starts expanded.
-**Muse Spark: Open Tasks in a Tab** opens a read-only editor tab for the
-conversation in view. It follows that conversation's task list and title,
-rebuilds the list whenever its webview reloads, and says when the conversation
-closes. It has no prompt box.
+The task list above the prompt can collapse to two lines: its title with
+"3 of 7 done", and the task in progress. Its chevron expands the list again;
+reloading starts expanded. **Open in a tab** on the list, or **Muse Spark:
+Open Tasks in a Tab**, opens a read-only editor tab for the conversation in
+view. It follows that conversation's task list and title live, rebuilds the
+list whenever its webview reloads, and says when the conversation closes.
+It has no prompt box, and nothing in it can send a message.
 
 When the editor provides it, **Move into new window** focuses the tasks tab
-and runs the editor's window-move action. This is a VS Code window: it follows
-the editor's theme and closes with the editor. Hosts without that action still
-get the tasks tab. The tab is not restored after a full window reload, since
-its conversation may no longer exist. Chat tabs opened with **Open in New
-Tab** can also be moved using the editor tab's context menu.
+and runs the editor's own window-move action. Its limits:
+
+- The floating window is a VS Code window: it follows the editor's theme
+  and closes with the editor; it is not an app of its own.
+- A webview that moves reloads, so the tab rebuilds its list from the
+  extension each time it loads.
+- The tab is not restored after a full window reload, since its
+  conversation may no longer exist.
+- The window-move action is a VS Code command, not extension API, so the
+  host-API record lists it; editors without it get the plain tab, which
+  their tab context menu may still move.
+- Chat tabs opened with **Open in New Tab** move the same way.
 
 ## Session goals
 
@@ -1481,6 +1489,17 @@ Meta's paid web search.
 - While a turn runs, `Enter` steers it and Stop cancels it; Stop also drops
   messages still queued, which read "Not sent". A picked text file on Muse
   Code queues a new turn so its file annotation survives History resume.
+- **Edit a queued message.** A message the model has not read yet reads
+  **Queued**. Its ⋯ menu (or a right-click on it, Shift+F10 or the Menu key)
+  offers **Edit**: the message leaves the queue and its text and images come
+  back to the prompt box, alone in an empty box or above your draft with a
+  blank line between, so no draft is lost. If it reached the model in the
+  meantime, the card stays and a notice says it can no longer be edited. On
+  the Model API a message steered into the running turn can be edited until
+  the next request reads it. On Muse Code a steered message joins the
+  running turn at once, so its menu says it was delivered; Edit is offered
+  for the messages Muse Code queued (a handoff, a message with a text file,
+  a refused steer).
 - The `+` button attaches images (PNG, JPEG, GIF, WebP), PDFs on the Model
   API backend, and UTF-8 text files up to 1 MiB from trusted, indexed workspace
   paths. Text files travel with their names as text on both backends. Files
@@ -1537,8 +1556,19 @@ Meta's paid web search.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each
   verified per model); the mode button opens the Modes menu; the microphone
   dictates.
-- The context indicator is a button: click it to compact now; its tooltip
-  carries the pressure level Muse reports.
+- The **context meter** is a ring beside the mode button that fills
+  clockwise with the share of the context window used, the whole percent
+  inside it: rounded down, "<1" under one percent, "100" once the window is
+  full or exceeded. From 70 % the ring takes the warning colour and from
+  90 % the error colour; the number always carries the value. Its name and
+  tooltip give the tokens used and the window, the pressure word the
+  backend reports, and say when the window is exceeded. Click it to compact
+  now. A backend that has not reported a window shows no meter.
+- **Stop** turns red on hover and keyboard focus; in the high-contrast
+  themes its icon and border take the error colour instead.
+- Every row of the palette and the `/` list has a one-sentence tip, as its
+  tooltip and its accessible description. A skill's tip is its own
+  description, or "Run the _name_ skill." when it has none.
 
 **`/`: the palette and the slash commands.** A `/` on an empty prompt stays
 in the box and shows the palette above it; the `/` button opens the same
@@ -1567,12 +1597,39 @@ the text as it is.
 
 - Replies render as GitHub-flavoured markdown with highlighted code and
   **Copy**, **Insert at cursor** and **Apply** on every block; a finished
-  reply carries **Copy** on hover. A relative link in a reply
+  reply's ⋯ menu has **Copy response** (the ⋯ shows a check for a moment
+  after) and **Reply to this output**. A relative link in a reply
   (`src/parser.ts#L12`) opens that workspace file at those lines.
 - Tool rows show the diff or the command and its output from the start;
-  read rows open on click, and a chevron marks the rows that open. Previews
-  show 12 lines or 2,000 characters, with **Show more**. A backgrounded call
-  carries a "background" badge.
+  read rows open on click, and a chevron marks the rows that open. A shell
+  row's IN and OUT are one bordered block split by a rule, each part showing
+  five lines (and at most 2,000 characters) with its own **Show more**; your
+  own `!` commands look the same. Other outputs show 12 lines or 2,000
+  characters, with **Show more**. A backgrounded call carries a
+  "background" badge.
+- **Steps fold under what they did.** A run of two or more finished steps
+  (tool and reasoning rows with nothing between them) folds into one
+  summary row, such as "Edited 2 files, ran a command, and read 3 files",
+  which opens in place. Files count once however often they were touched.
+  A failure is named in the summary, with its red dot; a step waiting on
+  you never folds, and a running one stays below the summary until it
+  finishes. **Focus view** (`Ctrl+Alt+F`) folds every step that is not
+  waiting, under the same summary.
+- While Muse works, the status line shows the step rows' pulsing blue
+  bullet, the verb, and a heartbeat trace centred in the chat (hidden below
+  260 px). With reduced motion both stand still.
+- **Message times.** Hover a message or move the keyboard into it to see
+  when it was sent or received, at the card's corner: the time alone for
+  today, otherwise the date and time, in the display language; its tooltip
+  gives the full date and time. "Today" is judged when the card is shown,
+  so a card left open past midnight keeps its time and its tooltip names
+  the day. Tab reaches every card's time: through the card's ⋯, or, on a
+  card with no ⋯ (an imported message, a reply still streaming), through
+  the time itself. Muse Code's times are its own recorded ones (live and
+  in History). The Model API stores a time with each message and reply from
+  this release on, so a conversation saved before shows none; a time is
+  never guessed. A card you just sent shows the moment you sent it until
+  the backend's time arrives.
   During a turn, edit rows keep their visible diff or written content;
   their stored patch loads when you reopen the row or the turn ends.
   Turn end also retries an open row whose patch read failed.
@@ -1585,10 +1642,20 @@ the text as it is.
 - Each actionable message, reply, tool output or restore notice has one **More
   actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
-  to open the same radial menu. The **Rewind** bubble opens the available
-  rewind and restore choices. Escape returns from that burst first, then
-  closes the menu and returns focus to ⋯. Edit review still opens the editor
-  where Revert asks for confirmation.
+  to open the same radial menu: its round bubbles burst from the pointer or
+  the ⋯ and open away from the panel's edges, with the focused or hovered
+  action's label beside it. Arrow keys move, Home/End go to the first and
+  last, Enter or Space picks. A message's menu has **Fork conversation from
+  here** and a **Rewind** bubble that opens a second burst of the rewind and
+  restore choices; Escape returns from that burst first, then closes the
+  menu and returns focus to ⋯. An edit row's menu has **Open output**,
+  **Review** (the diff editor) and **Revert**: it asks first, then puts back
+  that one edit's lines, leaving (and naming) a file whose lines changed
+  since; it is not offered while a turn runs. A reply has no Retry (a resent
+  prompt would run its tools a second time): **Rewind conversation to here**
+  on the prompt's card puts the prompt back to send again. With text
+  selected in a row, right-clicking that row opens the highlighted-text
+  menu instead.
 - A reply's ⋯ menu has **Reply to this output**: the next message carries
   that output to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask about this** or **Comment on this**; the
@@ -1628,13 +1695,20 @@ the text as it is.
 - The transcript follows new entries while you are at the end; scrolled up,
   it holds still and **New messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
-  context window is used. **Focus view** (`Ctrl+Alt+F`) folds tool and
-  reasoning rows behind `Show N steps`.
+  context window is used.
+- **The diff tally.** Once the conversation has edited a file, a row above
+  the goal, schedule and task panes reads, for example, "8 files changed
+  +313 −96": the edit rows' own line counts added up, each file counted
+  once. It is a sum of this conversation's edits, not `git diff`: changes
+  made by shell commands or by you are not counted, as its tooltip says.
+  The added and removed numbers use the editor's git-decoration colours.
+  Its **Review** button arrives with the review pane (M70).
 
 **Edits and rewind.** Muse applies in-workspace edits as it goes, so review
 comes after: the edit row shows the diff, its path opens the file at the
-change, and **Click to expand** opens the diff editor. To undo, use the
-rewind button on any sent message (on hover):
+change, and **Click to expand** opens the diff editor. One edit can be
+undone from its row's ⋯ menu (**Revert**). To undo more, use the ⋯ menu on
+any sent message (or right-click it):
 
 - **Fork conversation from here**.
 - **Restore files to here** (a message whose turn has a checkpoint) puts the

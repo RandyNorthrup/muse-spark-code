@@ -98,6 +98,26 @@ describe('gooeyLayout', () => {
     expect(gooeyLabelBox(layout, 3, size, wide)).toBeUndefined()
   })
 
+  it('slides a label along its row to clear a neighbour', () => {
+    // A fan down from the top of a 320 px panel: the end bubbles are level
+    // with its centre, and beside them there is no room on either side.
+    const layout = gooeyLayout({ x: 160, y: 0 }, 3, viewport)
+    const size = { width: 120, height: 27 }
+    for (const index of [0, 2]) {
+      const label = gooeyLabelBox(layout, index, size, viewport)
+      const point = layout.points[index]
+      if (label === undefined || point === undefined) {
+        throw new Error('no label box')
+      }
+      // Below its bubble, still over it, clear of the others.
+      expect(label.top).toBeCloseTo(point.y + 32)
+      expect(label.left < point.x + 20 && point.x - 20 < label.left + size.width).toBe(true)
+      for (const other of layout.points) {
+        expect(isOverBubble(label, size, other)).toBe(false)
+      }
+    }
+  })
+
   it('turns a label that would leave the panel to another side', () => {
     const wide = { width: 690, height: 760 }
     const size = { width: 180, height: 46 }

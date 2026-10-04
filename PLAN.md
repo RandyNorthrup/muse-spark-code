@@ -3546,21 +3546,23 @@ choices:
     and 9 px for 100. Nothing is drawn smaller than 9 px.
   - **Rounding.** The percent is rounded down, so 99.6 % reads 99 and 100
     means full. A window that is used but under 1 % reads "<1".
-  - **Number contrast.** On the captured backgrounds (VS Code 1.139.0,
-    `test/harness/themes/`) the number measures about 10.3:1 in Dark Modern
-    (editor background), 10.5:1 in Light Modern, 21:1 in High Contrast and
-    14.5:1 in High Contrast Light. The 4.5:1 floor for small text holds with
-    room.
+  - **Number contrast.** On the ring's plate in the captured themes (VS
+    Code 1.140.0, `test/harness/themes/`, recaptured by lane W on
+    2026-10-04) the number measures 10.3:1 in Dark Modern, 11.2:1 in Light
+    Modern, 21:1 in High Contrast and 14.6:1 in High Contrast Light, and the
+    same at "100". The 4.5:1 floor for small text holds with room.
   - **At 100 % and over.** The ring is full, in the 90 % colour, and reads
     "100". The name and tooltip give the true share ("104%") and say the
     window is exceeded.
   - **No reported window.** A window the host has not reported shows no
     meter, as today. No window is guessed.
   - **Arc contrast** (a graphical object, 3:1, WCAG 1.4.11), measured on
-    the captured values: 3.6–10.5:1 for the normal level across the four
-    themes, and 3.2–8.6:1 for the 90 % level. The 70 % token is not in the
-    captures yet. M87's capture adds it; in any theme where it misses 3:1,
-    that level keeps the normal colour (the number still gives the value).
+    the 1.140.0 captures: 3.6:1 (Dark Modern) to 10.6:1 (High Contrast) for
+    the normal level, 3.4:1 (Light Modern) to 8.6:1 for the 90 % level, and
+    for the 70 % level 7.1:1 in Dark Modern and 5.8:1 in Light Modern. Both
+    high-contrast themes leave `--vscode-list-warningForeground` unset, so
+    there the 70 % level keeps the normal colour through the stylesheet's
+    fallback (10.6:1 and 9.0:1); no theme needed the fallback for a miss.
 - **Tool In/Out boxes (item 2).**
   - A shell row's IN and OUT become one bordered block split by a rule,
     with no gap between them. The user's own `!` rows (M46) get the same
@@ -3619,8 +3621,8 @@ choices:
     dark theme only; the light theme and both high-contrast themes get the
     plain line. Only a small SVG repaints.
   - **Contrast.** The trace uses `--vscode-progressBar-background`, which
-    measures 3.6:1 (Dark Modern, editor background) to 10.5:1 (High
-    Contrast) on the captured backgrounds. It is decorative and
+    measures 3.9:1 (Dark Modern) to 10.6:1 (High Contrast) on the chat's
+    own background in the 1.140.0 captures. It is decorative and
     `aria-hidden`, and the line stays out of every live region (M25).
   - **Reduced motion.** There is no sweep and no pulse: the full trace and
     the dot stand still. A unit test checks that every animated selector in
@@ -3720,7 +3722,11 @@ choices:
     `--vscode-gitDecoration-addedResourceForeground` and
     `--vscode-gitDecoration-deletedResourceForeground`. Each is measured at
     capture against 4.5:1, and the foreground colour stands in wherever one
-    misses.
+    misses. Measured on the 1.140.0 captures: added 7.8:1 (Dark Modern),
+    4.6:1 (Light Modern), 14.1:1 (High Contrast), 9.3:1 (High Contrast
+    Light); removed 7.0:1, 4.6:1 and 7.5:1 in the last three, and 3.9:1 in
+    Dark Modern, which misses: there (`.vscode-dark`) the foreground stands
+    in, at 11.1:1.
 - **Notifications (item 11): already built, no M87 work.**
   - M82 (`museSpark.notifyOnBackgroundTurn`, on by default, PR #89,
     `src/host/conversation/turnNotifications.ts`) raises VS Code's own
@@ -3759,8 +3765,18 @@ choices:
   - on the user's message, the Rewind menu's choices (rewind the
     conversation, rewind code, rewind and restore, restore files), Fork from
     here and Fork and rewind;
-  - on a reply, Copy response and Retry; on a checkpoint, Redo; on a tool
-    row, Open output and, for edits, Review and Revert;
+  - on a reply, Copy response and Reply to this output (M17's); on a
+    checkpoint, Redo; on a tool row, Open output and, for a landed edit,
+    Review and Revert (`revertEdit`: that edit's stored patch reverse-applied
+    after the file-action confirmation, one step of "Rewind code to here",
+    never while a turn runs);
+  - (Amended 2026-10-04, lane W: a reply offers no Retry. Neither backend
+    has a verb that runs a turn again: MSP has none, and a Model API turn's
+    tools have already run and its edits landed, so a Retry that sent the
+    prompt again would run them a second time over their own results. The
+    prompt's own card offers "Rewind conversation to here" in the same menu:
+    it forks before the turn and puts the prompt back in the composer, the
+    retry that does not double the side effects.)
   - with text selected, Copy, Ask about this and Comment on this first.
     A group with several choices (Rewind) opens a second burst from its bubble.
     **The row's hover buttons are replaced by one "…" button** (the owner's
@@ -3775,7 +3791,9 @@ choices:
     / `--vscode-button-foreground` (hover and focus
     `--vscode-button-hoverBackground` and the focus border), each pair
     measured at capture against 4.5:1, so light, dark and high-contrast
-    themes all read.
+    themes all read: 4.5:1 and 5.3:1 focused in Dark Modern, 6.3:1 and
+    7.1:1 in Light Modern, 21:1 in High Contrast and 9.0:1 in High Contrast
+    Light (1.140.0), the label as its bubble.
   - **Placement:** the fan opens away from the nearest panel edges so every
     bubble stays inside the webview at 320 px.
   - **Still a menu:** `role="menu"` / `menuitem`, each bubble's accessible name
@@ -11796,9 +11814,9 @@ remain the lead's.
 
 ### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
 
-**Status 2026-10-03: planned, nothing built.** These are the owner's
-sixteen requests of 2026-10-03, which came with screenshots of the Codex app
-as inspiration. The design decisions are D66 (M87) and D67 (M88); the
+**Status 2026-10-04: M87 built and joined (its status below); M88
+planned, nothing built.** These are the owner's sixteen requests of
+2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
 owner's answers to their questions (2026-10-03) are in §3 and applied in D66
 and D67.
 
@@ -11892,35 +11910,22 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
-**Lane F1 (item 17).** The reusable edge-aware radial layout, grouped menu
-and highlighted-text adapter are implemented in `m87/f`. The bounded lane's
-readiness, tests, drills and theme captures are recorded in
-`docs/certification/m87-f.md`. F2 row wiring and verification are recorded below; full M87 certification
-belongs to the lead.
-
-**Lane F2 (2026-10-04, item 17).** Row presentation reuses the F1 menu and
-current callbacks: one opener on user, queued, finished reply, restore and
-actionable tool rows, with a grouped Rewind burst. Verification is in
-`docs/certification/m87-f.md` under F2. The merged tree offers Reply to this
-output, not reply Retry; edit Revert remains in the review editor. No new
-host action is guessed. Lane W owns those missing direct-action contracts
-and full M87 certification. Structural skill validation remains deferred
-under the existing canonical-plan exception below.
-
-**L10NGATE follow-up (2026-10-03).** Strengthen the existing shared table
-checker used by `scripts/check-l10n.mjs`: sample integer counts 0 through
-200 with each locale's `Intl.PluralRules`, and require `{count}` in `one`
-when it also represents a count other than 1. Preserve existing slot,
-category, markup and untranslated checks. Correct every flagged translation;
-prove Russian rejection/acceptance, German omission and the rule-reversion
-drill on Kubuntu. Record evidence in `docs/certification/m87-l10ngate.md`.
-The canonical plan has no skill `quality-ledger`; its structural validator
-is deferred rather than adding a competing tracker for this bounded lane.
-The rule and all 21 flagged entries are implemented. Kubuntu's complete
-localization file passes 19 tests, including Russian and Ukrainian recurring
-`one`, French and Portuguese zero, and German omission. The rule-reversion
-drill failed all four recurring-category cases, restored identical bytes,
-and returned green. Full M87 certification remains the lead's work.
+**Status 2026-10-04: built and joined on the integration branch `m87/l0`
+(`feature/m87-panel-polish`); certified there except hosted CI on the
+milestone PR's exact head.** Every lane is merged: 0 (strings), P
+(plumbing), A (composer and menus), B (rows and status line), C
+(transcript and backends, with the `turn/unqueue` live capture), D (tasks),
+E (diff tally), F1 and F2 (the gooey menu and its rows), the plural gate
+(L10NGATE: `check:l10n` samples the counts 0 to 200 with each language's
+`Intl.PluralRules` and requires `{count}` in a `one` form that also covers
+another count; 21 Russian, French and Brazilian Portuguese forms were
+corrected) and W (wiring and join). Lane W joined App, removed the retired
+strings and lane A's fixture, amended D66 (the conjunction list, item 17's
+reply Retry and edit Revert), fixed the review findings left to it (RV87C 3
+and 4, the independent review of F2), closed F2's label-placement drill,
+recaptured the themes and ran the full gate. Review stays off the tally
+until M70's review pane (PR #69) reaches main. The evidence is
+`docs/certification/m87.md`, which links every lane record.
 
 - **Goal.** The panel can be read at a glance: how full the context is,
   what the agent did (one line per run of steps), what changed, and that it
@@ -12112,9 +12117,8 @@ and returned green. Full M87 certification remains the lead's work.
     - Edit rows inside a folded group fetch their patch only once the group
       opens, as a collapsed row already did.
 - **D Tasks.**
-  - Implemented in lane D; scoped evidence is
-    `docs/certification/m87-d.md`. Lane W still supplies the chat's
-    `onOpenInTab` callback. Full M87 certification remains the lead's work.
+  - Implemented in lane D (`docs/certification/m87-d.md`); lane W gave the
+    chat's `TodoPanel` its `onOpenInTab` (`hostAction` `openTasksTab`).
   - Protocol clarification: the tasks-only boundary also accepts
     `moveTasksToWindow`, required by the window-move button in D66. It cannot
     send prompts or other conversation actions. `revealConversation` remains
@@ -12256,9 +12260,12 @@ been sent.
   - `tool-io`, `tool-io-expanded`
   - `steps-summary`, `steps-summary-open`
   - `status-heartbeat`, `status-heartbeat-narrow`
-  - `tasks-collapsed`, `tasks-tab`
+  - `todo-collapsed` (named beside the existing `todo`), `tasks-tab`
   - `message-time` (keyboard focus on the time of an imported user message
     without rewind), `queued-menu`, `diff-tally`
+  - Lane W adds `queued-menu-edit` (the Edit variant) beside them; lanes D
+    and F add `tasks-tab-ended`, `tasks-tab-plain`, `chat-menu`,
+    `chat-menu-narrow`, `chat-tool-menu` and `chat-tool-menu-narrow`.
 - **Red drills.** Each new test and gate is seen to fail once on a
   deliberate break, then restored, as recorded in each lane's file:
   - thresholds moved to 0.8;
@@ -12296,6 +12303,19 @@ been sent.
     measures main when M87 starts. If what is left cannot hold this
     allowance, the lead amends D6 with the numbers before any lane merges.
     No budget is raised quietly.
+  - **Measured by lane W (2026-10-04)**, production builds of the joined
+    tree against the main it contains (`ba42dacd`), on the Windows host:
+    `dist/webview/main.js` 833.4 → 860.3 KiB (+26.8), `dist/extension.js`
+    577.6 → 586.3 (+8.7), `dist/uiText.js` 97.9 → 102.8 (+4.8),
+    `dist/modelApi.js` 421.1 → 422.8 (+1.7); the stylesheet 40.8 → 46.0
+    (+5.2). uiText and modelApi are inside the allowance. The webview and
+    the extension are not: the allowance was set before item 17 (the gooey
+    menu, its row wiring, the measured labels and the edit Revert, added
+    on 2026-10-03 evening) and before the review fixes and the
+    controller's Revert path. **Amended:** M87's allowance is webview +28
+    KiB and extension +9 KiB, the measured deltas rounded up. D6's caps are
+    unchanged and every bundle is inside them (webview 860.3 of 900,
+    extension 586.3 of 600, uiText 102.8 of 125, modelApi 422.8 of 475).
 - **Other gates.** The host-API record (`check:host-api`) and the bundle
   split are unchanged except for lane D's command id. No dependency is
   added.

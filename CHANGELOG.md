@@ -9,16 +9,52 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Transcript row actions share a radial menu opened by right-click,
-  Shift+F10, the Menu key or one **More actions** (⋯) button. User-message
-  rewind choices open a second burst; queued Edit, response Copy and Reply,
-  restore Redo, and tool output/edit review keep their existing handlers and
-  availability checks. Selected text keeps its quote menu.
-
-- Task lists can collapse to progress and the task in progress. **Open Tasks
-  in a Tab** mirrors the active conversation's list in a read-only editor tab,
-  rebuilds it after the webview reloads, and marks a closed conversation.
-  Hosts offering **Move into New Window** expose that action in the tab.
+- **Panel polish (M87).** The owner's panel requests of 2026-10-03 (PLAN.md
+  D66).
+  - **A context meter** replaces the composer's "12% context": a ring that
+    fills with the share of the context window used, the whole percent
+    (rounded down) inside it, the warning colour from 70 % and the error
+    colour from 90 %. Its name and tooltip give the tokens, the window and
+    the backend's pressure word; a click still compacts.
+  - **Steps fold under one summary row.** In the default view a run of two
+    or more finished steps reads, for example, "Edited 2 files, ran a
+    command, and read 3 files" and opens in place. A failure is named with
+    its dot, a step waiting on you never folds and a running one stays
+    below. Focus view folds under the same summary.
+  - **Message times** on hover and keyboard focus: the time alone for
+    today, otherwise the date and time, the full date in the tooltip. Muse
+    Code's come from its recorded times; the Model API now stores a time
+    with each message and reply (older sessions show none).
+  - **Edit a queued message** from its ⋯ menu: it leaves the queue (Muse
+    Code's `turn/unqueue`; the Model API's queue, or a steer no request has
+    read yet) and returns to the prompt box above any draft. One that
+    already reached the model stays, with a notice; a Muse Code steer's menu
+    says it was delivered.
+  - **A diff tally** above the goal and task panes, such as "8 files
+    changed +313 −96": the conversation's edits added up, each file once.
+    It is not `git diff`, so shell commands' and your own changes are not
+    counted.
+  - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
+    Tasks in a Tab**) mirrors the list in a read-only editor tab that
+    rebuilds after its webview reloads and says when its conversation
+    closes; where VS Code has the command, **Move into new window** moves
+    it into a window of its own.
+  - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
+    the Menu key, or use its one ⋯, for round themed bubbles: fork and the
+    Rewind group's second burst on a message, queued Edit, Copy response
+    and Reply to this output on a reply, Redo on a restore, Open output on
+    a tool, and Review and **Revert** on a landed edit (Revert asks first
+    and is not offered while a turn runs). Selected text keeps its Copy,
+    Ask about this and Comment on this menu, in the same style. Arrow keys,
+    Home/End, Enter/Space and Escape work as in any menu; reduced motion
+    drops the burst and the goo, and forced colours draws bordered buttons.
+  - **Tips** on every row of the palette and the `/` list: a skill's own
+    description, or "Run the _name_ skill." for one without.
+  - **Rows and the status line.** A shell row's IN and OUT are one bordered
+    block, five lines each with its own Show more (your `!` rows too). The
+    working indicator is the step rows' pulsing bullet and a heartbeat
+    trace, both still under reduced motion. Stop turns red on hover and
+    focus.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -210,11 +246,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- Highlighted-text actions now open as themed round bubbles, with an inward
-  fan that fits a 320 px panel, visible focus/hover labels, arrow and Home/End
-  navigation, and focus return. Copy, Ask about this and Comment on this keep
-  their existing behavior. Reduced motion removes the burst and goo filter;
-  forced colors uses bordered system-color buttons.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
@@ -239,9 +270,9 @@ happened, not what was planned; superseded entries are kept.
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 - The localization gate now requires `{count}` in a language's `one` form
-  when it also covers an integer other than 1 in 0–200. Seven step-summary
-  forms each in Russian, French and Brazilian Portuguese now show the
-  actual count; German forms may still omit it when English does.
+  when it also covers an integer other than 1 in 0–200 (M87). Seven
+  step-summary forms each in Russian, French and Brazilian Portuguese now
+  show the actual count; German forms may still omit it when English does.
 
 ## [0.11.0] - 2026-10-03
 
