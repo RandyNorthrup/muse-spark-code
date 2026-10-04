@@ -1167,7 +1167,7 @@ body {
 }
 
 .tool-output,
-.shell-box {
+.shell {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--ms-radius);
   background: var(--vscode-editorWidget-background);
@@ -1180,13 +1180,17 @@ body {
 .shell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
 }
 
 .shell-box {
   display: flex;
   gap: 4px;
   align-items: flex-start;
+}
+
+.shell-box + .shell-box {
+  border-top: 1px solid var(--vscode-panel-border);
 }
 
 .shell-label {
@@ -1210,6 +1214,10 @@ body {
   font-size: 0.85em;
   background: transparent;
   cursor: pointer;
+}
+
+.shell .tool-more {
+  min-height: var(--ms-control-size);
 }
 
 .tool-loading {
@@ -1289,20 +1297,58 @@ body {
 }
 
 .status-line {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   gap: var(--ms-gap);
   align-items: center;
+  container-type: inline-size;
   color: var(--vscode-descriptionForeground);
 }
 
-.status-spark {
-  color: var(--vscode-button-background);
-  animation: spin 2s linear infinite;
+.status-verb {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  overflow-wrap: anywhere;
 }
 
-@keyframes spin {
+.heartbeat-trace {
+  width: 6em;
+  height: 1.5em;
+  overflow: visible;
+  fill: none;
+  stroke: var(--vscode-progressBar-background);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.heartbeat-base {
+  opacity: 30%;
+}
+
+.heartbeat-sweep {
+  stroke-dasharray: 20 80;
+  animation: heartbeat-sweep 1.6s linear infinite;
+}
+
+.vscode-dark .heartbeat-trace {
+  filter: drop-shadow(0 0 2px var(--vscode-progressBar-background));
+}
+
+@keyframes heartbeat-sweep {
+  from {
+    stroke-dashoffset: 100;
+  }
+
   to {
-    transform: rotate(360deg);
+    stroke-dashoffset: 0;
+  }
+}
+
+@container (width < 260px) {
+  .heartbeat-trace {
+    display: none;
   }
 }
 
@@ -3101,11 +3147,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cursor,
   .tool-dot-running,
-  .status-spark,
+  .heartbeat-sweep,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
   .agent-dot-running {
     animation: none;
+  }
+
+  .heartbeat-sweep {
+    stroke-dasharray: none;
   }
 
   .toggle-knob,

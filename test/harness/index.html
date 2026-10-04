@@ -2234,6 +2234,53 @@
             delta: 'Comparing the two folders and deciding which file to edit first.',
           })
         },
+        // --- M87 lane B: joined five-line shell previews and working trace ---
+        'm87-b-rows': () => {
+          window.harnessSilent = true
+          setDraft('List the project files')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm87-shell',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'powershell',
+              args: JSON.stringify({
+                command:
+                  "Write-Output 'src'\nWrite-Output 'test'\nWrite-Output 'docs'\nWrite-Output 'media'\nWrite-Output 'scripts'\nWrite-Output 'resources'",
+              }),
+              visibleOutput: 'src\ntest\ndocs\nmedia\nscripts\nresources',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm87-user-shell',
+              kind: 'userShell',
+              status: 'completed',
+              commandText: 'git status --short',
+              visibleOutput:
+                ' M src/parser.ts\n M test/parser.test.ts\n M docs/guide.md\n M README.md\n M CHANGELOG.md\n?? media/icon.png',
+              exitCode: 0,
+              durationMs: 563,
+            },
+          })
+        },
+        'm87-b-dark': () => {
+          steps['m87-b-rows']()
+          void applyTheme('dark').catch((error) => {
+            harnessErrors.push(String(error))
+            report(String(error))
+          })
+        },
+        'm87-b-light': () => {
+          steps['m87-b-rows']()
+          void applyTheme('light').catch((error) => {
+            harnessErrors.push(String(error))
+            report(String(error))
+          })
+        },
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {
           steps.question()
