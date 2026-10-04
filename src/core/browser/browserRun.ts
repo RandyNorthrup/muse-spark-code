@@ -610,8 +610,15 @@ async function check(
   hooks: CheckHooks,
 ): Promise<BrowserCheckResult> {
   const { request, deps, timings, options } = context
+  // A folder that resolves after the end is removed by its step: it has
+  // no `close`, and the cleanup below is never reached for it.
   const folder = await orFail(
-    lifetime.step(async () => await deps.createFolder(options.storageDir)),
+    lifetime.step(
+      async () => await deps.createFolder(options.storageDir),
+      async (made) => {
+        await deps.removeFolder(made)
+      },
+    ),
     'profile',
   )
   lifetime.onEnd(async () => {

@@ -9,8 +9,12 @@
 // check has ended; and the browser, the proxy, the fixture and the folder
 // gone whatever ended it. The real browser runs in browserCheckLive.test.ts.
 import { Buffer } from 'node:buffer'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { describe, expect, it } from 'vitest'
+import type * as NodeFsPromises from 'node:fs/promises'
+import { describe, expect, it, vi } from 'vitest'
 import { browserLaunchArgs } from '../../src/core/browser/browserLaunch'
 import {
   type BrowserCheckRequest,
@@ -26,12 +30,31 @@ import { CdpConnection } from '../../src/core/browser/cdpPipe'
 import type { CheckProxy, ProxyObservation } from '../../src/core/browser/checkProxy'
 import { RequestLog } from '../../src/core/browser/requestLog'
 import type { RuntimePreparation, VerifiedRuntime } from '../../src/core/browser/runtimeTypes'
+import { hostBrowserRunDeps } from '../../src/host/browser/browserProcess'
 import {
   BROWSER_CHECK_ENTRY_MAX_CHARS,
   BROWSER_CHECK_MAX_TRACKED_REQUESTS,
   BROWSER_NETWORK_SERVICE_TYPE,
   BROWSER_PROXY_BYPASS,
 } from '../../src/shared/constants'
+
+// Fails the real folder's profile subdirectories once set: the root and
+// the owner file already exist, so only its own cleanup removes them.
+const folderFault = vi.hoisted(() => ({ failProfileSubdir: false }))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof NodeFsPromises>()
+  return {
+    ...fs,
+    mkdir: async (...args: Parameters<typeof fs.mkdir>) => {
+      const base = String(args[0]).split(/[\\/]/).at(-1)
+      if (base !== undefined && folderFault.failProfileSubdir && ['p', 't', 'h'].includes(base)) {
+        throw Object.assign(new Error('EACCES test'), { code: 'EACCES' })
+      }
+      return await fs.mkdir(...args)
+    },
+  }
+})
 
 // A 1×1 PNG.
 const PNG_BASE64 =
@@ -1260,6 +1283,67 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
       }
     }
   }, 30_000)
+
+  it('removes a folder that resolves after a stop, starting nothing', async () => {
+    const browser = new FakeBrowser(network())
+    const inner = setup(browser)
+    const gate = Promise.withResolvers<CheckFolder>()
+    const stop = new AbortController()
+    let isCreating = false
+    const t: Setup = {
+      ...inner,
+      deps: {
+        ...inner.deps,
+        createFolder: () => {
+          isCreating = true
+          return gate.promise
+        },
+      },
+    }
+    const running = run(t, { signal: stop.signal })
+    await vi.waitFor(() => {
+      expect(isCreating).toBe(true)
+    })
+    stop.abort()
+    gate.resolve(FOLDER)
+    expect(await running).toEqual({ ok: false, failure: { kind: 'cancelled' } })
+    await vi.waitFor(() => {
+      expect(t.removed).toEqual([FOLDER])
+    })
+    expect(t.order).not.toContain('proxy')
+    expect(t.spawned).toEqual([])
+  })
+
+  it('removes a half-made folder when its creation fails, ending with the profile failure', async () => {
+    const storage = await mkdtemp(path.join(tmpdir(), 'bc-partial-'))
+    try {
+      const browser = new FakeBrowser(network())
+      const inner = setup(browser)
+      const host = hostBrowserRunDeps({ platform: 'linux', env: {}, warn: () => undefined })
+      const t: Setup = {
+        ...inner,
+        deps: { ...inner.deps, createFolder: (dir) => host.createFolder(dir) },
+        options: { ...inner.options, storageDir: storage },
+      }
+      folderFault.failProfileSubdir = true
+      try {
+        expect(await run(t)).toEqual({ ok: false, failure: { kind: 'profile' } })
+      } finally {
+        folderFault.failProfileSubdir = false
+      }
+      await expect(readdir(path.join(storage, 'bc'))).resolves.toEqual([])
+      expect(t.spawned).toEqual([])
+    } finally {
+      await rm(storage, { recursive: true, force: true })
+    }
+  })
+
+  it('removes the folder exactly once on a normal run', async () => {
+    const browser = new FakeBrowser(network())
+    const t = setup(browser)
+    expect(await run(t)).toMatchObject({ ok: true })
+    expect(t.removed).toEqual([FOLDER])
+  })
 
   it('reads a probe page that never loaded (its route not the one built) as the phase’s own failure', async () => {
     // As on the pinned shell with the proxy or its loopback subtraction gone:

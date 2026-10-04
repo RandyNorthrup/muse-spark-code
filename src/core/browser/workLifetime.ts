@@ -5,8 +5,8 @@
 // every step sees, rejects every step still waiting at that moment, and runs
 // the registered cleanups once, newest first, within their own bound. A
 // step started after the end is refused; a step whose answer arrives after
-// the end has what it returned closed, so a late download, verification or
-// consent can start nothing.
+// the end has what it returned closed, or disposed by its step, so a late
+// download, verification or consent can start nothing.
 
 import type { WorkLifetime } from './runtimeTypes'
 
@@ -114,7 +114,10 @@ export function createLifetime(
       return endedBy
     },
     cleaned,
-    async step<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    async step<T>(
+      run: (signal: AbortSignal) => Promise<T>,
+      dispose?: (value: T) => Promise<void>,
+    ): Promise<T> {
       const before = endOf()
       if (before !== undefined) {
         throw new LifetimeEndedError(before)
@@ -127,11 +130,13 @@ export function createLifetime(
       const first = await Promise.race([answered, ended])
       const after = endOf()
       if (first === ENDED || after !== undefined) {
-        // Ended first, or a late answer: what it made is closed, and it
-        // counts for nothing.
+        // Ended first, or a late answer: what it made is disposed by its
+        // step, or closed, and it counts for nothing.
         void quietly(async () => {
           const value = await running
-          if (hasClose(value)) {
+          if (dispose !== undefined) {
+            await dispose(value)
+          } else if (hasClose(value)) {
             await value.close()
           }
         })

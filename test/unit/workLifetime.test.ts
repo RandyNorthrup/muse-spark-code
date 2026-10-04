@@ -60,6 +60,21 @@ describe('a bounded lifetime (M81 A1)', () => {
     })
   })
 
+  it('disposes a late step’s value with its disposer instead of closing it', async () => {
+    const lifetime = createLifetime(10_000, [], 1000)
+    const close = vi.fn()
+    const dispose = vi.fn(() => Promise.resolve())
+    const late = Promise.withResolvers<{ close: () => void }>()
+    const step = lifetime.step(async () => await late.promise, dispose)
+    lifetime.end()
+    await expect(step).rejects.toThrow('the work has ended (ended)')
+    late.resolve({ close })
+    await vi.waitFor(() => {
+      expect(dispose).toHaveBeenCalledTimes(1)
+    })
+    expect(close).not.toHaveBeenCalled()
+  })
+
   it('passes a step’s own failure through while it lasts', async () => {
     const lifetime = createLifetime(10_000, [], 1000)
     await expect(lifetime.step(() => Promise.reject(new Error('download failed')))).rejects.toThrow(

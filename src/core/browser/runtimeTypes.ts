@@ -17,8 +17,15 @@ export interface WorkLifetime {
   readonly signal: AbortSignal
   /** The monotonic time (`performance.now()`) it ends at, at the latest. */
   readonly deadlineAt: number
-  /** Runs `run` while the lifetime lasts; refuses, and closes a late result, after its end. */
-  step<T>(run: (signal: AbortSignal) => Promise<T>): Promise<T>
+  /**
+   * Runs `run` while the lifetime lasts; refuses, and closes a late result,
+   * after its end. A step whose value has no `close` names its `dispose`,
+   * run on a late value instead.
+   */
+  step<T>(
+    run: (signal: AbortSignal) => Promise<T>,
+    dispose?: (value: T) => Promise<void>,
+  ): Promise<T>
   /** A cleanup run once at the end, newest first, within the cleanup bound. */
   onEnd(cleanup: () => Promise<void>): void
   /** Ends it now; idempotent. */

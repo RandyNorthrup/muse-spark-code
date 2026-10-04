@@ -11323,6 +11323,8 @@ Mac mini is Intel); the Download command's VS Code UI run; the aggregate
 quality gate on the final tree. The record that follows is the superseded
 system-browser design, kept as history.
 
+Review fix 2026-10-04: folder cleanup survives cancellation during creation.
+
 **Status 2026-10-01 (superseded by A1): built and certified** (`docs/certification/m81.md`),
 ported from the 2026-09-28 draft (`b51c5f4c`) and largely rebuilt on the
 release candidate; the independent review RV81 (one P1, four P2) fixed the

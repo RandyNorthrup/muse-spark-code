@@ -222,20 +222,31 @@ async function createFolder(storageDir: string): Promise<CheckFolder> {
   const root = path.join(parent, randomBytes(BROWSER_CHECK_ID_BYTES).toString('hex'))
   // Not recursive: an existing folder is never reused.
   await mkdir(root, { mode: PRIVATE_DIR_MODE })
-  await writeFile(path.join(root, BROWSER_CHECK_OWNER_FILE), String(process.pid), {
-    mode: PRIVATE_FILE_MODE,
-    flag: 'wx',
-  })
-  const folder: CheckFolder = {
-    root,
-    profile: path.join(root, BROWSER_PROFILE_SUBDIRS.profile),
-    temp: path.join(root, BROWSER_PROFILE_SUBDIRS.temp),
-    home: path.join(root, BROWSER_PROFILE_SUBDIRS.home),
+  try {
+    await writeFile(path.join(root, BROWSER_CHECK_OWNER_FILE), String(process.pid), {
+      mode: PRIVATE_FILE_MODE,
+      flag: 'wx',
+    })
+    const folder: CheckFolder = {
+      root,
+      profile: path.join(root, BROWSER_PROFILE_SUBDIRS.profile),
+      temp: path.join(root, BROWSER_PROFILE_SUBDIRS.temp),
+      home: path.join(root, BROWSER_PROFILE_SUBDIRS.home),
+    }
+    for (const directory of [folder.profile, folder.temp, folder.home]) {
+      await mkdir(directory, { mode: PRIVATE_DIR_MODE })
+    }
+    return folder
+  } catch (error: unknown) {
+    // A half-made folder never waits for the sweep: its owner file may name
+    // this live process, which the sweep skips.
+    try {
+      await rm(root, { recursive: true, force: true })
+    } catch {
+      // Still there: a later sweep tries again.
+    }
+    throw error
   }
-  for (const directory of [folder.profile, folder.temp, folder.home]) {
-    await mkdir(directory, { mode: PRIVATE_DIR_MODE })
-  }
-  return folder
 }
 
 /** This machine's own non-loopback IPv4 address: what C6 and C7 test against. */
