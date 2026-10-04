@@ -7,6 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
+
 ## [0.12.0] - 2026-10-04
 
 ### Added
@@ -328,7 +348,6 @@ happened, not what was planned; superseded entries are kept.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
 - The host API compatibility record is regenerated from the combined source.
-- The npm page has a proper README: `scripts/package-acp.mjs` now packs the new `docs/npm-readme.md` landing page (banner, badges, pitch, install, per-editor quick start, headless/CI, backends, privacy, links — all absolute) instead of the detailed `docs/acp.md` guide, with an improved manifest (clearer description, editor keywords, repository homepage, donate funding).
 
 ### Fixed
 
