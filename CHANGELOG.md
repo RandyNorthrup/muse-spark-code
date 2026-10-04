@@ -7,6 +7,28 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Hooks from every popular agent (M91, PLAN.md D70), in progress.**
+  - **The plan.** On the Model API backend:
+    - Muse Code's Interrupt and its PostToolUseFailure correction;
+    - 21 extension-only events in a new `spark-hooks.json`, which Muse Code
+      never reads;
+    - importers and format adapters for hooks written for Codex, Gemini,
+      Cursor, Copilot and VS Code, Windsurf, Kiro and Cline;
+    - the `http`, `mcp_tool`, `prompt` and `agent` handler types;
+    - an out-of-process host for Amp and OpenCode plugins.
+
+    None of them gains a permission or a paid use, and none breaks the
+    prompt cache or the SoL-Pi savings.
+  - **So far:** the research and echo-provider captures of Muse Code 1.4.2,
+    with 0 model calls.
+    - Interrupt fires on every cancellation of a running turn, a hook's
+      block and a close included.
+    - SessionFork, StopFailure and PostToolBatch did not run.
+
+    Nothing a user can reach has changed yet.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
