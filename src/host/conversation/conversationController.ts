@@ -1074,6 +1074,13 @@ export class ConversationController {
    * Edit may name. The backend has the last word (`tooLate`).
    */
   private readonly queuedMessages = new Map<string, QueuedMessageRef>()
+  /**
+   * User items a request read before their submission's ack came back (M87):
+   * the late ack must not offer them for an Edit. Cleared with the session,
+   * and when a turn ends (a steer acknowledged after its turn ended is not
+   * kept anyway).
+   */
+  private readonly admittedEarly = new Set<string>()
   /** Cards whose withdrawal is in flight: a second Edit leaves the answer to the first. */
   private readonly withdrawals = new Set<string>()
   /** The conversation's name as the surface shows it; undefined while untitled. */
@@ -1488,6 +1495,7 @@ export class ConversationController {
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
     this.queuedMessages.clear()
+    this.admittedEarly.clear()
     this.childSessionIds.clear()
     this.finishedTurns.clear()
     this.forgetForegroundShells()
@@ -1797,10 +1805,17 @@ export class ConversationController {
       }
       case 'messageAdmitted': {
         // It reached a request (M87): an Edit can no longer take it back.
+        // Before its ack (the ack can trail the request), it is remembered.
+        let isKnown = false
         for (const [localId, message] of this.queuedMessages) {
-          if (message.userMessageId === event.userMessageId) {
-            this.queuedMessages.delete(localId)
+          if (message.userMessageId !== event.userMessageId) {
+            continue
           }
+          this.queuedMessages.delete(localId)
+          isKnown = true
+        }
+        if (!isKnown) {
+          this.admittedEarly.add(event.userMessageId)
         }
         break
       }
@@ -1838,6 +1853,9 @@ export class ConversationController {
       }
       case 'turnCompleted': {
         this.forgetQueuedTurn(event.turnId, true)
+        if (!this.isChildTurn(event.turnId)) {
+          this.admittedEarly.clear()
+        }
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -5275,7 +5293,9 @@ export class ConversationController {
       session.withdrawQueued === undefined ||
       !(isQueued || disposition === STEERED_DISPOSITION) ||
       this.finishedTurns.has(turnId) ||
-      (isQueued && this.activeTurnId === turnId)
+      (isQueued && this.activeTurnId === turnId) ||
+      (submission.userMessageId !== undefined &&
+        this.admittedEarly.delete(submission.userMessageId))
     ) {
       return
     }

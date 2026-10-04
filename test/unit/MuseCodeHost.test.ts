@@ -2248,4 +2248,34 @@ describe('MuseCodeHost: taking a queued message back (M87, PLAN.md D66)', () => 
     server.handle('turn/unqueue', refusalOf('internal', -32_603))
     await expect(session.withdrawQueued(QUEUED_REF)).rejects.toThrow('refused: internal')
   })
+  it('reports the withdrawal done once turn/unqueued came, though the ack timed out or failed (the review of lane C)', async () => {
+    const { host, server } = setup({ timeouts: { normalMs: 50, longMs: 50 } })
+    const { session, events } = await listeningSession(host)
+    // The captured order: the event first; here the ack never follows.
+    server.notify('turn/unqueued', { ...UNQUEUED_NOTIFICATION, sessionId: session.sessionId })
+    await settle()
+    expect(events).toContainEqual(expect.objectContaining({ type: 'turnWithdrawn' }))
+    server.silence('turn/unqueue')
+    await expect(session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    // A failed ack after the event: taken back too.
+    const failed = setup()
+    const other = await listeningSession(failed.host)
+    failed.server.handle('turn/unqueue', refusalOf('internal', -32_603))
+    failed.server.notify('turn/unqueued', {
+      ...UNQUEUED_NOTIFICATION,
+      sessionId: other.session.sessionId,
+    })
+    await settle()
+    await expect(other.session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    // Another turn's event does not stand in for this one.
+    await expect(
+      other.session.withdrawQueued({ ...QUEUED_REF, turnId: CAPTURED_LAUNCHED_TURN }),
+    ).rejects.toThrow('refused: internal')
+  })
 })

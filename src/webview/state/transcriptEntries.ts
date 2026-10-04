@@ -145,6 +145,11 @@ const userEntrySchema = z.object({
   turnId: z.optional(z.string()),
   /** The Model API replay item's ID; live cards keep their local `id` for UI updates. */
   replayItemId: z.optional(z.string()),
+  /**
+   * The Muse Code user item whose recorded time this live card took (M87),
+   * matched by turn and text: that item no longer stamps another card.
+   */
+  recordedItemId: z.optional(z.string()),
   /** Sent from this panel in Plan mode (M79): the reply it gets may be a plan. */
   isPlanTurn: z.optional(z.boolean()),
 })
