@@ -92,12 +92,12 @@ async function checkoutThroughAlias(
   const registry = new WorktreeRegistry(memoryMemento(), process.platform, existsSync)
   const observe =
     (run: typeof git, isNativeCheckout: boolean): typeof git =>
-    async (args, cwd, timeout, beforeRun) => {
+    async (args, cwd, timeout, input, beforeRun) => {
       calls.push(realpathSync.native(cwd))
       if (isNativeCheckout && changeAt === 'native') {
         await retarget(selected)
       }
-      return await run(args, cwd, timeout, beforeRun)
+      return await run(args, cwd, timeout, input, beforeRun)
     }
   await openPullRequestInConversation({
     workspaceRoot: selected,

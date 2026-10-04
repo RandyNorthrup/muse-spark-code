@@ -6,7 +6,12 @@
 
 import type { ExecFileOptions } from 'node:child_process'
 import { UI_TEXT, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR } from '../../shared/constants'
-import { type GitArgsBefore, type GitExecFile, processGitRunner } from '../git'
+import {
+  type GitArgsBefore,
+  type GitExecFile,
+  hasGitProgramControls,
+  processGitRunner,
+} from '../git'
 
 const CHECKOUT_HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
 /**
@@ -44,15 +49,7 @@ async function requireCheckoutSafeGit(
   } catch {
     throw checkoutRefusal()
   }
-  const version = /^git version (\d+)\.(\d+)/u.exec(output)
-  const major = Number(version?.[1])
-  const minor = Number(version?.[2])
-  if (
-    !Number.isSafeInteger(major) ||
-    !Number.isSafeInteger(minor) ||
-    major < 2 ||
-    (major === 2 && minor < UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)
-  ) {
+  if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
     throw checkoutRefusal()
   }
 }

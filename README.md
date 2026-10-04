@@ -29,7 +29,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0101) ·
+**Contents:** [What's new](#whats-new-in-0110) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -43,7 +43,48 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.10.1
+## What's new in 0.11.0
+
+- **Recovers when Muse Code stops answering.** If Muse Code goes silent,
+  the panel says so once and stops waiting out each action's deadline.
+  With no turn running in the window it restarts Muse Code by itself;
+  during a turn, the notice offers **Restart now**. **Muse Spark: Restart
+  Muse Code** does the same at any time. When Muse Code does not confirm
+  that a message reached the running turn, the panel no longer sends it
+  again by itself: the send fails, keeps your text and says it may still
+  arrive. A conversation whose Muse Code log is damaged (a Muse Code 1.4.2
+  bug) is marked and offers a new conversation.
+- **Approvals you can't miss.** The oldest waiting approval docks above
+  the message box, with a count of the rest. Each approval step takes one
+  decision, and its buttons stay locked until Muse Code has applied it.
+- **Calmer notices.** A notice said again in a row shows once, with a
+  count, and error notices are readable in light and dark themes.
+- **Turn checkpoints are on by default** (Model API turns in a trusted
+  workspace with Git). Restore and Redo are rebuilt on the model's own file
+  writes, journaled per turn; commands and other tools active in a turn are
+  noted, never undone.
+- **Custom agents** (Model API backend): agents with their own prompt,
+  tools, model and permissions. Two are built in (`explore` and
+  `second-opinion`); yours live in `.agents/agents/` in the workspace or
+  `~/.config/muse/agents/` for every workspace. An agent can only narrow
+  what the session may do.
+- **Handoff** (Model API backend): `/handoff` asks the model for a brief
+  that you review and edit before it starts a fresh conversation with the
+  open todo items.
+- **Import from Claude Code, Codex and Cursor:** commands (as skills),
+  compatible agents, project rules (appended to `AGENTS.md`) and MCP
+  servers, plus Claude Code and Codex hooks. MCP servers and hooks open as
+  unsaved edits for you to review.
+- **Session export, import and share** as a file. A shared file opens
+  read-only in the panel; an imported conversation resumes on the Model API
+  backend in Manual (or Plan).
+- **Observation packing** (off by default, Model API backend): a long tool
+  output goes to the model whole twice, then as a short placeholder it can
+  recall; the transcript always keeps all of it.
+- **Muse Code 1.4.2** support, and checksums, SBOMs and build attestations
+  on the release assets.
+
+### Earlier in 0.10.1
 
 - **A slow Muse Code start is waited for.** On a busy machine Muse Code
   gets up to two minutes to start while its process runs, and a failed
@@ -215,7 +256,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.10.1.vsix
+   code --install-extension muse-spark-code-0.11.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -317,7 +358,7 @@ Get it from the
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.10.1.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.11.0.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -326,7 +367,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.10.1/muse-spark-code-acp-0.10.1.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.11.0/muse-spark-code-acp-0.11.0.tgz
 muse-spark-code-acp --version
 ```
 
@@ -390,13 +431,61 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands |
-| **Edit automatically** | Approves plain file edits, asks before commands                                                     | As Manual, plus the file approvals the CLI does raise are approved for you                                       |
-| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                    |
-| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs its own safety check and asks for anything risky                                                    |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                       |
+| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands      |
+| **Edit automatically** | Approves plain file edits, asks before commands                                                     | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                 |
+| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                         |
+| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                            |
+
+Until 0.11.0 the Modes menu said Auto on Muse Code approves "actions that
+pass a safety check". It did not: `muse serve` has no approval judge (the
+CLI's LLM judge runs only in its interactive and `exec` commands), so Auto
+skipped only the commands the CLI classifies as simple, and every script
+asked (PLAN.md D69). The menu now says what each mode does on each backend.
+
+### The Auto reviewer on Muse Code
+
+In Auto on the Muse Code backend, an approval Muse Code raises for the
+running turn that no rule settles may go to a reviewer before it reaches you. The reviewer is the
+Model API backend's Auto reviewer (its instructions, its input and its
+strict answer), run as one short turn of a hidden side session in the same
+`muse serve`, on your Muse subscription: Plan mode, thinking off, the
+conversation's model, in an empty folder of the extension's own, so it reads
+none of your workspace files, rules or skills in the captured setup and is never listed in History. CLI-global context is not excluded. It answers ALLOW or ASK
+with a reason:
+
+- **ALLOW**: the approval is answered _Allow once_ (never an "always"
+  choice), for each stage while its subject and user request stay the same. The tool row says
+  "Decided: approved (Auto reviewer)" with the reviewer's reason.
+- **ASK**, an answer it cannot read, no answer within 45 seconds, an error,
+  or a side session still busy: the card asks you as before, with the
+  reviewer's reason on it when there is one.
+
+After three declines or failures in a row, or ten of the last fifty, it
+stops until your next message. It is never asked about anything the
+extension's own rules answer, a protected write, a paid call, a child
+task, a question, an escalated or unknown subject, an approval without
+an allow-once choice, or a request in Manual, Edit automatically, Plan or
+Bypass, or one replayed to a second panel. Two panels sharing the session
+also go straight to cards. One review runs at a time in a
+window. The first review in a window says so in a notice. Each review is
+one short Muse Code turn: the live check counted four model attempts
+(the reply and three of Muse Code's own reminder agents) and about 33,000
+input tokens, most of them Muse Code's own instructions. Turn it off with
+`museSpark.museCodeAutoReviewer`.
+
+Plan mode does not disable Muse Code's native tools: the SDK's
+`SessionConfig` only configures `mcpServers`. Any item other than an agent
+message or reasoning cancels the review turn, shows the card with the
+generic failure reason, and recreates the side session. A command covered
+by your always-allow rule could run in the empty folder before the cancel
+lands. The verdict text itself is never executed. A changed subject or an
+accepted new message or steer invalidates the old verdict. The side session
+is also recreated after host exit/restart, closure, timeout or busy fallback,
+a model change, and ten reviews. Only a completed reply in a successfully
+completed turn can allow an action; the 45-second deadline includes setup.
 
 A Manual approval still needs your answer if you open the conversation
 in another panel set to Edit automatically. Joining a conversation never
@@ -542,7 +631,8 @@ In a trusted workspace the agent follows the same files Muse Code does:
   (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
-  matter keeps a skill out of the palette.
+  matter keeps a skill out of the palette. The extension also brings three
+  skills of its own; see [Bundled skills](#bundled-skills).
 - **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
   workspace (project scope) and the personal root `~/.config/muse/agents`
   (`$XDG_CONFIG_HOME/muse/agents` when set), plus the built-in `explore` and
@@ -587,6 +677,52 @@ the workspace to enable them. Muse Code itself, by its documentation,
 still reads a repository's committed project memory in an untrusted
 workspace: treat a checkout's `.agents/memory/MEMORY.md` as text someone
 else wrote.
+
+### Bundled skills
+
+The extension ships the three workflows of the
+[high-quality-projects](https://github.com/RandyNorthrup/high-quality-projects-skill)
+package (MIT, one pinned release, vendored into the extension at build time
+and never downloaded while it runs):
+
+- **project_setup:** a new project from a product interview through strict
+  quality gates.
+- **feature_delivery:** a scoped feature or change in an existing project,
+  with tests and red drills.
+- **quality_retrofit:** an existing codebase brought up to strict standards.
+
+They lean on the package's shared `scripts/`, `templates/` and `docs/`, so
+each workflow is the whole package, never a lone `SKILL.md`. The delivery
+helpers need **Python 3** on your `PATH`; without it the script says so
+itself. The scripts run only through the shell tool, under the
+conversation's permission mode, like any other command.
+
+- **Model API backend:** they are a third skill source, after the project's
+  and your own: a project or personal skill with the same id wins. They are
+  listed in the palette, invoked with `/project_setup …`, and read by the
+  model like the others. When the model reads one, the skill's text is
+  preceded by one line naming the package folder inside the installed
+  extension, which is the skill's `SKILL_ROOT`.
+- **Muse Code:** the CLI reads only its own folders, so the skills are
+  installed there on request. **Muse Spark: Install Bundled Skills for Muse
+  Code** copies the package to
+  `~/.config/muse/skill-sources/high-quality-projects-skill/`
+  (`$XDG_CONFIG_HOME/muse/…` when set), marks the copy as the extension's
+  (`.muse-spark-bundled.json`), and links each skill into Muse Code's
+  personal skills folder, `~/.config/muse/skills/<id>`: a junction on
+  Windows, a directory symlink on macOS and Linux. A skill of yours with the
+  same name is left alone and named in the result. The first Muse Code
+  conversation offers the install once, in the panel, with **Install** and
+  **Not now** (Not now is remembered); when an update of the extension
+  brings a newer release of the package, it offers **Update** once.
+  **Muse Spark: Remove Bundled Skills from Muse Code** removes the links that
+  lead into the marked copy, then the copy, and nothing else. A running Muse
+  Code keeps the skills it started with, so both end by offering to restart
+  it.
+
+`museSpark.bundledSkills` (on by default, a user setting) turns them off: the
+Model API backend stops listing them at once, and no install is offered. It
+does not remove an install; the Remove command does.
 
 ### Memory
 
@@ -1061,7 +1197,8 @@ also unavailable while a pull request worktree is held.
     canonical path must be the worktree's: a link or junction on the way
     refuses the checkout, and the half-written worktree is removed.
 - **Held PR ceiling.** Implementing an approved reply or a saved plan cannot lift a held PR
-  worktree out of Plan mode. Worktree Git actions and IDE web fetch also
+  worktree out of Plan mode. Worktree Git actions, Best-of-N, the session
+  board's worktree reads, `/review` of Git's changes and IDE web fetch also
   honor this extension's hold until its trust card is accepted.
   The backend's first workspace folder decides project trust. A confirmed
   worktree in another folder never releases that first folder's hold, and
@@ -1172,6 +1309,91 @@ both backends, as Muse Code's `/goal` does.
   nothing runs: the backend never continues on its own and runs no check of
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
+
+## Review
+
+Review what the agent did before it lands, on both backends.
+
+- **`/review`** reviews the uncommitted changes (staged and unstaged,
+  against the last commit). `/review branch [base]` reviews the branch
+  against its base since they diverged, `/review commit [revision]` one
+  commit, and `/review <what to look at>` anything you describe, with no
+  git at all. Leave out the base or the commit and a picker asks, the
+  repository's default branch first. A word after `branch` or `commit`
+  that cannot be a revision (it starts with `-` or is longer than 256
+  characters) makes the whole line text to review. Put `security` first
+  (`/review security`, or **Security review** in the `/` menu) to look for
+  injection, secrets, authentication and unsafe APIs.
+- **What goes with it.** The extension reads the changes with git and sends
+  them marked as untrusted data: text in a diff, a file name or a commit
+  message that tries to give the reviewer orders is reported, not
+  followed. Environment files, keys and credentials are left out and only
+  named. A very long diff is cut, and the reviewer reads the rest of the
+  files itself. In Restricted Mode git does not run, so the git presets say
+  so; `/review <what to look at>` still works.
+  Review runs git the way the prompt's git facts do (no fsmonitor hook, no
+  signature program, and `--no-replace-objects`, so a replace ref in the
+  repository cannot show you other commits than history holds); fsmonitor
+  is disabled with an empty value, which also works with older Git that
+  treats `false` as a hook pathname. Configured clean and process filters
+  do not run during review: working-tree diffs compare saved file text
+  directly with stored Git text, without those conversions. Ordinary Git
+  operations keep their own filter configuration.
+- **On the Model API** the review is the Reviewer's turn in your
+  conversation: its own prompt, and tools that only read (read, search,
+  list files, VS Code's Problems). It cannot edit, run commands or reach
+  the network, in any permission mode. It is part of your own turn, so it
+  asks nothing extra; the model can also start the Reviewer as a subagent
+  (role `reviewer`, with no custom agent named), which is a paid child task
+  like any other.
+  The review turn uses no external MCP server and is not blocked by one
+  being unavailable. Configured servers still start when the conversation
+  opens; ordinary turns keep their required-server checks.
+- **On Muse Code** the review turn runs in Plan mode and your permission
+  mode comes back when it ends (pick another mode meanwhile and that one
+  stays). Muse Code applies its own allow rules in Plan mode, so a review
+  there is not strictly read-only. Choosing a mode while Plan mode is being
+  set cancels that pending review; your latest choice takes effect after any
+  outstanding review mode change finishes.
+  Turning Bypass off invalidates an earlier pending confirmation, even if
+  turned on again. If it is revoked while a review restores the mode, the
+  backend is set to Manual before another turn starts. A refused safe
+  fallback retires that conversation's session; it cannot retire a newer
+  conversation that replaced it.
+- **Findings** end the reply as a list: severity, what is wrong, and the
+  file and line, which opens the file there.
+- **The review pane** (`/changes`, or **Review this conversation’s
+  changes**) lists every file this conversation changed, its agents'
+  included, change by change. **Accept** marks a change; **Revert** takes
+  that one change out of the file as it is now, or says why it cannot (the
+  file changed since, or its editor has unsaved changes). Save or discard
+  unsaved changes before trying Revert again. A Revert is one step under
+  turn checkpoints' file-edit lease (another window on the folder refuses a
+  file restore meanwhile): it reads the saved file, rebuilds it, checks the
+  path and the editor again, and writes the file (or moves a file Muse
+  created to the trash) only while it still holds what was read, at the
+  same path with no link or junction on the way. A save, an editor turning
+  dirty (a linked buffer included) or a swapped folder meanwhile makes it
+  refuse rather than overwrite. If the backend restarts while a Revert or
+  the pane's list waits, the pane says so, and a Revert that wrote nothing
+  can be pressed again; one that wrote stays done, even when releasing the
+  lease fails afterwards (the log says so). Overlapping reverts of the same
+  file run in order and rebuild from its latest saved bytes. The pane lists
+  at most 200 edits and 20,000 diff lines, counting
+  omitted edits even when the first patch exceeds the limit. Unreadable stored
+  patches count toward that omission notice. **Comment on a
+  line** sends your comment to the agent with that line and the lines
+  around it: into the running turn, or as your next message.
+- **A review is a turn.** It is marked running and takes its turn
+  checkpoint like a message, so another window refuses a file restore while
+  it runs. A message you send while a review is starting waits for it and
+  then goes into the review turn, and only one review starts at a time.
+  Clearing the conversation while a review is starting lets the new
+  conversation's review or message start at once.
+  A pending permission-mode request settles before review admission; a refused
+  request refuses that review instead of trusting the panel's optimistic label.
+  A review reply arriving after you clear or switch conversations cannot mark
+  the current conversation running or accept the old turn checkpoint.
 
 ## Scheduled prompts (Model API)
 
@@ -1348,6 +1570,122 @@ workspace by its real path, never one that is code the editor runs. Checks
 that run automatically after Muse Code's own edits would need an event Muse
 Code does not send (an ask for Meta, PLAN.md M68).
 
+## Session board and best-of-N
+
+The header's board button lists every conversation open in the window, on
+either backend, and the saved conversations of the backend this window runs
+on (the ones it can resume). Each row names its state (**Running** or **Idle**), branch, changed
+files and waiting approvals, running conversations first. Type to filter,
+press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
+open their owned worktree instead: they have no saved conversation to resume.
+**Best of N…** opens the best-of-N dialog.
+
+Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
+backend, then you take one. It needs a trusted workspace with a folder open
+(worktrees run git, which Restricted Mode forbids). Turn on
+`museSpark.modelApiBestOfN` ([Paid](#paid-features)) and accept the token
+rates first. Each run asks once in the paid-use popup, naming the prompt, the
+published rates, the attempt count and the per-attempt request ceiling, in
+every permission mode, Bypass included; the subscription never pays.
+Automatic worktree creation, capture and apply require Git 2.36 or newer.
+They suppress repository hooks, fsmonitor, replacement refs and automatic
+maintenance, and refuse configured filter or hook programs. File tools list
+the attempt's actual worktree, including its new and uncommitted files.
+Attempts run no shell command and no configured check, in any mode: a
+command's working folder confines nothing, so one could change your own
+checkout.
+
+Each attempt works on its own `best-of-n/<run>/<index>` branch in a folder
+beside the repository, like a worktree of your own. An attempt that would ask
+you anything (an approval or a question) is declined instead and counted, and
+each actual Model API request attempt, including retries, counts before its
+HTTP request is sent. A changed key, account, conversation, trust or paid
+gate stops further requests. Attempt hosts share one captured, account-owned
+originating session budget. A finite cap refuses a run when no owned parent
+scope exists; separate attempt transcripts never create fresh allowances.
+When successful attempts finish, the
+dialog compares two at a time (**Left** and **Right**): their changed files
+and the diff, clipped past the cap with a note. The comparison captures an
+immutable Git tree of tracked edits and unignored new files, including
+uncommitted edits. Ignored files are excluded. **Apply and stage** applies
+the exact selected snapshot to your checkout and stages it; it creates no
+commit. Later edits in an attempt never silently replace the captured
+preview. The base HEAD, clean index and working files, unsaved editors and
+protected or linked targets are checked before application; a changed target
+refuses the action. Failed, cancelled or unreadable attempts cannot be taken.
+An apply failure is reported without claiming success; inspect your checkout
+before retrying. **Open** keeps an attempt's uncommitted work available in its
+owned worktree. Account & usage lists reported attempt tokens and their
+estimated cost separately; requests without usage reports remain unknown,
+even if they failed. They are not claimed as included in the parent estimate.
+**Cancel run** stops unfinished attempts, including
+setup waiting on consent, without deleting their work.
+
+## Auto rules and permission profiles (Model API)
+
+`museSpark.modelApiCommandRules` holds user or machine prefix rules with
+`pattern`, `decision` (`allow`, `ask`, `forbid`), `match` examples and optional
+`notMatch`, `shell` and `justification`. Examples are checked when the rules
+are read. Standing allow rules cover one plain command only. Chains,
+pipelines, substitutions, redirections, evaluators and unrecognized syntax
+require a user decision; an automated hook or reviewer cannot approve them.
+Forbid matches anywhere and refuses even in Bypass. Bypass skips ordinary
+nonpaid questions; Plan stays read-only. An existing user-granted exact-line
+session rule still covers only that exact line.
+
+`museSpark.modelApiPermissionProfiles` names file policies with `denyRead`
+globs and optional absolute `extraRoots`; only `read_file` can use those
+extra roots, with canonical confinement. Select one with
+`museSpark.modelApiPermissionProfile`. Denied paths are neither read, listed,
+searched nor written by the file tools. A missing or malformed selected
+profile refuses every file until resolved. The shell is not confined by
+these profiles: outside Bypass, each shell command asks while a profile is
+active. External MCP tools also ask while a profile is active, including
+tools a server marks read-only: that hint cannot enforce these file rules.
+Project `add_memory` must be permitted to write both its note and `MEMORY.md`
+index; `edit_memory` checks only its note. An add is refused if the index is
+denied even when appending might not update it, preventing an existence race.
+Code intelligence uses these same denials for primary documents, native
+reads, returned paths, repo-map inputs and every rename file. Allowed
+results remain available; withheld paths are counted. A hover that may
+include a denied declaration is refused. Changed rules also discard a
+cached prompt map. VS Code's language providers maintain their own indexes;
+these rules govern the extension's reads and returned information.
+`museSpark.modelApiRepositoryRules` can add only ask/forbid command
+rules and file denials; it cannot add an allow, choose a wider profile or
+grant an extra root. A project skill is a workspace file: `read_skill`
+refuses one these rules deny. A change to these settings, the mode or the
+workspace's trust also reaches calls already in flight. Whatever any tool
+brings back, an MCP or IDE tool's included, is judged again just before it
+reaches the model, and a call the new settings no longer allow is refused,
+with nothing from it sent; a change it had already written stays, and its
+row says so. Output that may quote files it cannot list (a shell command's,
+an MCP or IDE tool's, a check's, a subagent's) is refused if any of these
+settings or the trust changed at all while the call ran, and a subagent's
+result is withheld if they changed since it started, after a restart too.
+A shell command is judged again at its process's entry, a memory note at its
+write, and an image edit's sources right before the request leaves the
+machine. These controls apply to the Model API; Muse Code uses its own
+captured native policy contract.
+
+`museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Every
+eligible review uses the paid-use popup at the current model's token rates,
+in every mode, with only the popup's workspace permission able to remember
+consent. The reviewer has no tools and returns ALLOW or ASK with a nonempty
+reason. It can answer only an unsettled plain-command or MCP ask in Auto;
+forbids, ask rules, profiles, complex commands, protected edits, paid tools
+and child tasks are never delegated to it. Its key, model, turn, mode, trust
+and current policy are captured before consent and checked again before
+HTTP. A changed context, failed or unreadable answer, or tripped circuit
+breaker falls back to the user's card. Reviewer usage is reported separately
+and shares the originating M82 journal by owned reservation, final key/cap
+checks and actual response settlement. Missing usage retains an unknown
+conservative liability. A finite-cap direct review refuses without that
+owned scope. The review owns its own claim after the ordinary request
+settles. Invalid token counts refuse ALLOW and retain unknown liability;
+host close stops admission before its end hooks finish. No guessed native fields or new
+shell parser are involved.
+
 ## Web fetch
 
 The model can read one public web page it found or you
@@ -1510,17 +1848,18 @@ palette with a filter box of its own. Its groups:
   servers, hooks, memory, settings, keybindings.
 - **Account & usage** (with the paid features' toggles where the backend can
   use them), **Skills** (the session's own, plus Manage and Import on the CLI
-  backend), **Slash commands** and **Support**.
+  backend), **Slash commands**, **Review** (the review presets and the review
+  pane) and **Support**.
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
-commands narrowed as you type: `/agents`, `/clear`, `/compact`, `/config`,
-`/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
-`/memory`, `/model`, `/permissions`, `/resume`, `/usage`, `/loop` (Model API
-backend), and the session's skills. Names that start with your letters come
-first. Up and Down move, `Enter` runs a command (a skill, `/goal` or
-`/handoff` is completed so you can add what follows it), `Tab` completes
-the name and `Esc` closes the list. With nothing matching, `Enter` sends
-the text as it is.
+commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
+`/config`, `/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
+`/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/security-review`, `/usage`, `/loop` (Model API backend),
+and the session's skills. Names that start with your letters come first. Up
+and Down move, `Enter` runs a command (a skill, `/goal`, `/review` or `/handoff`
+is completed so you can add what follows it), `Tab` completes the name and
+`Esc` closes the list. With nothing matching, `Enter` sends the text as it is.
 
 **Transcript.**
 
@@ -1532,6 +1871,9 @@ the text as it is.
   read rows open on click, and a chevron marks the rows that open. Previews
   show 12 lines or 2,000 characters, with **Show more**. A backgrounded call
   carries a "background" badge.
+  During a turn, edit rows keep their visible diff or written content;
+  their stored patch loads when you reopen the row or the turn ends.
+  Turn end also retries an open row whose patch read failed.
 - The path of an edit or read row opens the file with the changed lines
   selected. Click a tool's output to open it in a read-only editor tab (a
   stored output in full, up to 16 MiB); **Click to expand** on an edit diff
@@ -1948,9 +2290,9 @@ backend runs no workflows.
   Power/Maximum plan grants are separate from this CLI usage report.
 - **This conversation:** token totals (on Muse Code, prompt tokens as it
   counts them once). On the Model API also the cached tokens, the cache-hit
-  rate and a dollar estimate from Meta's published per-token prices
-  (standard versus contributor tier, read 2026-09-26; the dev.meta.ai
-  dashboard is the bill).
+  rate, what the cache saved in dollars, and a dollar estimate from Meta's
+  published per-token prices (standard versus contributor tier, read
+  2026-09-26; the dev.meta.ai dashboard is the bill).
 - **What's contributing to your usage**, over the last day or week, read from
   the Muse Code CLI's trace logs on this machine: the share of model attempts
   from Muse's reminder agents (which run after every reply), from subagents,
@@ -1963,6 +2305,90 @@ asks Meta for its shorter in-memory default, or up to 24 hours when you
 choose that machine-scoped setting. Either is a hint rather than a guaranteed
 lifetime. The modal shows the cache-hit
 rate instead of a "warm for N minutes" countdown.
+
+**Awareness and budgets.**
+
+- **Notifications.** While the VS Code window is unfocused, a VS Code
+  notification tells you when a turn of a minute or more ends, or when a
+  turn waits for your approval or answer; **Show conversation** brings it
+  into view. Nothing shows while the window is focused, and a notice two
+  panels on one conversation both see shows once. Turn them off with
+  `museSpark.notifyOnBackgroundTurn`. VS Code gives extensions no
+  operating-system notification, so the notice waits in VS Code's corner
+  until you come back.
+- **Tokens and cost per reply** (Model API, off by default):
+  `museSpark.modelApiReplyUsage` prints the input and output tokens and the
+  dollar estimate under each reply. A line covers every request since the
+  previous line in that turn, tool steps included, so a turn's lines add up
+  to the turn's estimated cost. The line labels dollars estimated; it is
+  not a provider billing receipt. An unfamiliar model uses a fallback
+  estimate with an unverified price and cannot use a spend cap. Muse Code reports no per-reply totals on its protocol,
+  so its replies never carry one.
+- **A session budget** (Model API): `museSpark.modelApiSessionBudgetUsd`
+  caps what each conversation may spend, in dollars at Meta's list prices
+  (`0`, the default, is no cap). Before each request the input is estimated
+  high: the last request's input as Meta counted it, plus everything added
+  since at one token per byte (so an attached image or file counts at its
+  encoded size, far above its real cost). `max_output_tokens` is then
+  lowered so input plus output fits what is left. A request that cannot fit
+  is not sent, and the turn stops and says so; a reply that used all the
+  output the budget left is marked as possibly cut short, and the
+  transcript shows what each turn cost against the cap. Each request is
+  priced at the model it was sent to, and what the conversation spent is
+  saved as it is spent, even while a call waits for your approval, so a
+  reload cannot forget it. A shared spend journal covers hosts opening the
+  same account-owned conversation from the same storage directory. Each
+  request publishes its own durable liability before HTTP; stale session
+  saves cannot erase another host's charge. A capped request needs working
+  session storage. If a stop, model, goal,
+  key, budget, workspace trust or paid permission changes while the reservation
+  is saved, final admission refuses the request and releases its nonsent
+  reservation. A sent request whose usage is unknown keeps its whole
+  reservation, including after a crash or a response timeout. This is
+  reserved possible spending, not a claim that Meta billed that amount.
+  Explicit 400 or 429 refusals before any response began release it.
+  Capped responses do not automatically retry an ambiguous transport or
+  server failure under the same allowance; send a new prompt for a fresh
+  admission. Explicit rate-limit refusals may retry. With the cap off,
+  the normal response retry policy still applies.
+  A request begun with no cap still marks its possible spending before
+  sending when shared session storage is available. Another window with a
+  cap waits for that request's verified usage; a known settlement clears
+  this temporary uncertainty. An earlier ambiguous retry or unknown model
+  price cannot be certified by the final successful reply, so that history
+  needs a new conversation before it can use a cap. Uncapped requests without
+  session storage keep their normal behavior and cannot share persisted
+  spending. A provided spend journal that cannot be read or saved blocks
+  new requests; repair the storage and reopen the conversation.
+  Paid subagent requests have their own consent and request ceiling. Their
+  reported cost counts toward the conversation, but they are not reserved
+  against the parent's cap and can take it past that cap. Each task retains its
+  separate paid confirmation. Image generation reserves its published flat
+  fee before buying the image and settles it even if saving the image fails.
+  Web search is unavailable while a cap is active: no hard bound on its
+  billed query count has been captured. With the cap off, its normal paid
+  consent applies and reported search fees count in saved spending.
+  Paid Muse Voice is also unavailable on a Model API conversation while a
+  cap is active; system dictation remains available, and voice on the CLI
+  backend is unchanged. An uncapped recording publishes pending uncertainty
+  before authentication or audio. Local sent PCM duration is an estimate,
+  not a Meta billed-duration receipt, so even a successful recording keeps
+  its history's spend unverified. Start a new conversation to use a cap
+  after such history. A change of owner or context stops further sends;
+  cancellation before authentication refunds only the known nonsent row.
+  With no folder or session journal and the cap off, paid voice keeps its
+  per-use confirmation and window usage estimate. Its recording retains
+  the consent's account and context; replacing them or enabling a cap
+  stops further sends. This path has no shared conversation spend ledger
+  and makes no verified audio-billing claim.
+  The cap depends on conservative input estimates and the published prices;
+  actual token billing can differ from the estimate. Unknown historical
+  token spending or paid fees cannot be invented as zero: start a new conversation to use a
+  cap on such history. A model without a published price here cannot be
+  capped, so its requests are refused while a cap is set. The budget is
+  machine-scoped, so a repository cannot set it.
+- **Cache savings** (Model API): Account & usage shows what the prompt
+  cache saved in dollars, and its share of the uncached price.
 
 **Diagnostics.** The agent can read the Problems panel through a
 `getDiagnostics` tool. On the CLI backend the extension serves it on a
@@ -2054,9 +2480,9 @@ device is available", and step markers on stderr name where a start failed.
 
 ## Paid features
 
-Five settings gate what costs money on your Model API key beyond an ordinary
+Six settings gate what costs money on your Model API key beyond an ordinary
 chat turn. They are always billed to your Model API key, never to your Muse
-Code subscription, and all five are **off until you turn them on**. All five
+Code subscription, and all six are **off until you turn them on**. All six
 work on the Model API backend; images and Muse Voice also work on the Muse
 Code backend while a key is stored (web search is Muse Code's own there, on
 the subscription):
@@ -2067,6 +2493,7 @@ the subscription):
 | Image generation  | $0.01 per image                                                       | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time |
 | Muse Voice        | $0.18 per hour of audio                                               | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                            |
 | Subagents         | Selected model's published input, cached input and output token rates | Child tasks on the Model API backend; every task asks again and admits at most four response requests                                 |
+| Best-of-N         | Selected model's published input, cached input and output token rates | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                               |
 | Scheduled prompts | Selected model's published input, cached input and output token rates | A due `/loop` prompt runs only after you choose **Run now** and allow that run's model and rates                                      |
 
 Scheduled prompts use ordinary Model API tokens, rather than an extra
@@ -2080,7 +2507,7 @@ add their own charges during that confirmed turn.
 Turn one on from the palette (**Account & usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiScheduledPrompts`). Either way a confirmation
+`modelApiBestOfN`, `modelApiScheduledPrompts`). Either way a confirmation
 names the price first; declining it turns the setting back off, and turning
 a setting off means the next time asks again. The settings are
 machine-scoped, so a repository cannot turn one on.
@@ -2115,6 +2542,11 @@ What asks, and when:
 - **Subagents**: before every new child task, with its objective, model,
   published rates and four-request ceiling; Plan refuses it. Retries count;
   a running note spends the same grant.
+- **Best-of-N**: once per run, with its prompt, published rates, attempt
+  count and per-attempt request ceiling. Retries count against the ceiling;
+  a run is refused before anything is asked while the feature is off, the
+  backend is not the Model API, the workspace is untrusted or closed, or a
+  run is already going.
 - **Scheduled prompts**: before each run, with its prompt, model and rates.
 
 While one is on, you can always tell, even when it no longer asks:
@@ -2137,10 +2569,12 @@ While one is on, you can always tell, even when it no longer asks:
   Voice (paid)" with the price in its tooltip.
 - **Account & usage keeps the tally** and names each feature allowed always
   in this workspace: this window's searches, images,
-  seconds of audio, child request attempts and scheduled runs, with estimated
-  cost when usage was reported. An attempt with no usage report has unknown
-  cost. Scheduled-run tokens are included in the session token estimate rather
-  than added to the extra-features total.
+  seconds of audio, child request attempts, best-of-N attempts and scheduled
+  runs, with estimated cost when usage was reported. An attempt with no usage
+  report has unknown cost. Scheduled-run tokens are included in their
+  conversation's estimate. Best-of-N's separate worktree hosts report their
+  tokens and cost in their own paid row and extra-feature total; unreported
+  HTTP tries remain unknown.
   The dev.meta.ai dashboard is the bill.
 
 Web search's count errs high: Meta does not say how it bills a search with
@@ -2236,6 +2670,8 @@ What stays in English:
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
 | Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
+| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                    | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept  |
+| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                    | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                         |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: Import Session                          | —                                                                                    | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
 | Muse Spark: Open Share File                         | —                                                                                    | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
@@ -2267,10 +2703,11 @@ immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
-`modelApiPromptCacheRetention`, `turnCheckpoints`, the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
-and the five paid features, `modelApiWebSearch`, `modelApiImageGeneration`,
-`modelApiVoice`, `modelApiSubagents` and `modelApiScheduledPrompts`) are
-machine-scoped: they
+`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`,
+the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
+`modelApiSessionBudgetUsd` and the six paid features, `modelApiWebSearch`,
+`modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
+`modelApiBestOfN` and `modelApiScheduledPrompts`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
 `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
@@ -2279,39 +2716,50 @@ Bypass permissions and asks you once before entering it. Turning
 `allowDangerouslySkipPermissions` off moves every open conversation out of
 Bypass at once.
 
-| Setting                           | Default     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `preferredLocation`               | `panel`     | Where new conversations open: `sidebar` or `panel` (editor tab)                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `initialPermissionMode`           | `manual`    | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations; `bypassPermissions` applies only while `allowDangerouslySkipPermissions` is on, otherwise the conversation starts in `manual`                                                                                                                                                                                                                                                                                                 |
-| `autosave`                        | `true`      | Save all dirty editors before every turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `attachOpenFile`                  | `true`      | Show the open-file chip and send the active file / selection with each message                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `useCtrlEnterToSend`              | `false`     | Send with Ctrl/Cmd+Enter instead of Enter                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `enableNewConversationShortcut`   | `false`     | `Ctrl+N` / `Cmd+N` starts a new conversation while a Muse panel is focused                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `hideOnboarding`                  | `false`     | Hide the getting-started tips                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `focusView`                       | `false`     | Show only prompts and responses                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `respectGitIgnore`                | `true`      | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `confidentialWorkspace`           | `false`     | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `allowDangerouslySkipPermissions` | `false`     | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                                                                                                                                                                                                                                                                                           |
-| `cleanupPeriodDays`               | `30`        | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                                                                                                                                                                                                                                                                                          |
-| `backend`                         | `auto`      | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                                                                                                                                                                                                        |
-| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools may also write outside the workspace. Changing it restarts the host                                                                                                                                                                              |
-| `sandboxNetwork`                  | `default`   | The network Muse Code's shell sandbox gives commands: `proxy-only` asks before each new destination, `restricted` allows none, `enabled` allows all; `default` passes nothing, leaving Muse Code's own default (`proxy-only`) or your administrator's managed configuration. For commands it applies while the sandbox is on. Changing it restarts the host. At `restricted`, Muse Code is also not offered [web fetch](#web-fetch), sandbox or not; the Model API backend's web fetch follows its permission modes |
-| `museBinaryPath`                  | `""`        | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                               |
-| `modelApiWebSearch`               | `false`     | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on, then asks before each prompt that may search                                                                                                                                                                                                                                                                                                                                   |
-| `modelApiImageGeneration`         | `false`     | [Paid](#paid-features): the model creates PNG files in the workspace or edits workspace images into new ones, $0.01 per image, on the Model API backend and on Muse Code while a key is stored (billed to the key); every image asks first, in every mode, unless allowed always in this workspace                                                                                                                                                                                                                  |
-| `modelApiVoice`                   | `false`     | [Paid](#paid-features): Muse Voice as the microphone's engine, $0.18 per hour of audio, on the Model API backend and on Muse Code while a key is stored; each recording asks first                                                                                                                                                                                                                                                                                                                                  |
-| `modelApiPromptCacheRetention`    | `in_memory` | How long Meta is asked to keep the cached start of Model API requests: `in_memory` by default, or up to `24h` when you choose it. Both have the same cached-input price; longer retention may improve cache hits after a pause. Meta may evict sooner. Machine-scoped, so a repository cannot extend it                                                                                                                                                                                                             |
-| `modelApiSubagents`               | `false`     | [Paid](#paid-features): Model API child tasks, with a model-rate confirmation and a fresh four-request popup for every task                                                                                                                                                                                                                                                                                                                                                                                         |
-| `modelApiScheduledPrompts`        | `false`     | [Paid](#scheduled-prompts-model-api): a due prompt can run only after this machine-scoped gate and a separate confirmation of that occurrence's Model API token rates; never unattended                                                                                                                                                                                                                                                                                                                             |
-| `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                 |
-| `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                             |
-| `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                       |
-| `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                     |
-| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                      |
-| `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                  |
-| `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                             |
-| `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                   |
+| Setting                           | Default     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `preferredLocation`               | `panel`     | Where new conversations open: `sidebar` or `panel` (editor tab)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `initialPermissionMode`           | `manual`    | `manual`, `acceptEdits`, `plan`, `auto` or `bypassPermissions` for new conversations; `bypassPermissions` applies only while `allowDangerouslySkipPermissions` is on, otherwise the conversation starts in `manual`                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `autosave`                        | `true`      | Save all dirty editors before every turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `attachOpenFile`                  | `true`      | Show the open-file chip and send the active file / selection with each message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `useCtrlEnterToSend`              | `false`     | Send with Ctrl/Cmd+Enter instead of Enter                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `enableNewConversationShortcut`   | `false`     | `Ctrl+N` / `Cmd+N` starts a new conversation while a Muse panel is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `hideOnboarding`                  | `false`     | Hide the getting-started tips                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `focusView`                       | `false`     | Show only prompts and responses                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `respectGitIgnore`                | `true`      | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `confidentialWorkspace`           | `false`     | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `allowDangerouslySkipPermissions` | `false`     | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `cleanupPeriodDays`               | `30`        | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `backend`                         | `auto`      | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools may also write outside the workspace. Changing it restarts the host                                                                                                                                                                                                                                                                                                                  |
+| `sandboxNetwork`                  | `default`   | The network Muse Code's shell sandbox gives commands: `proxy-only` asks before each new destination, `restricted` allows none, `enabled` allows all; `default` passes nothing, leaving Muse Code's own default (`proxy-only`) or your administrator's managed configuration. For commands it applies while the sandbox is on. Changing it restarts the host. At `restricted`, Muse Code is also not offered [web fetch](#web-fetch), sandbox or not; the Model API backend's web fetch follows its permission modes                                                                                                                                     |
+| `museBinaryPath`                  | `""`        | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `modelApiWebSearch`               | `false`     | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on, then asks before each prompt that may search                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `modelApiImageGeneration`         | `false`     | [Paid](#paid-features): the model creates PNG files in the workspace or edits workspace images into new ones, $0.01 per image, on the Model API backend and on Muse Code while a key is stored (billed to the key); every image asks first, in every mode, unless allowed always in this workspace                                                                                                                                                                                                                                                                                                                                                      |
+| `modelApiVoice`                   | `false`     | [Paid](#paid-features): Muse Voice as the microphone's engine, $0.18 per hour of audio, on the Model API backend and on Muse Code while a key is stored; each recording asks first                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `modelApiPromptCacheRetention`    | `in_memory` | How long Meta is asked to keep the cached start of Model API requests: `in_memory` by default, or up to `24h` when you choose it. Both have the same cached-input price; longer retention may improve cache hits after a pause. Meta may evict sooner. Machine-scoped, so a repository cannot extend it                                                                                                                                                                                                                                                                                                                                                 |
+| `modelApiSubagents`               | `false`     | [Paid](#paid-features): Model API child tasks, with a model-rate confirmation and a fresh four-request popup for every task                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `modelApiScheduledPrompts`        | `false`     | [Paid](#scheduled-prompts-model-api): a due prompt can run only after this machine-scoped gate and a separate confirmation of that occurrence's Model API token rates; never unattended                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `modelApiHooks`                   | `false`     | Run Muse Code's hook commands on the Model API backend in a trusted workspace: your administrator's, yours and the project's. They run as you, outside the agent's sandbox, without the Model API key; review them with **Muse Spark: Hooks** first. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                     |
+| `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                 |
+| `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                           |
+| `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                                                                                                                                                         |
+| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                          |
+| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the one-time install offer for Muse Code. Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                          |
+| `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                 |
+| `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `modelApiBestOfN`                 | `false`     | [Paid](#paid-features): best-of-N on the Model API backend: the same prompt in 2 to 5 worktrees at once, one paid popup per run with the attempt count and per-attempt request ceiling, then take one                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `modelApiCommandRules`            | `[]`        | Machine-scoped standing allow/ask/forbid prefix rules, each with matching and nonmatching examples.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `modelApiPermissionProfiles`      | `{}`        | Machine-scoped named file-denial globs and explicit additional read roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `modelApiPermissionProfile`       | `""`        | Machine-scoped selected profile; unknown or malformed selections deny file access.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `modelApiRepositoryRules`         | `{}`        | Repository rules may add ask/forbid commands and file denials, never standing allows or extra roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `modelApiAutoReviewer`            | `false`     | Machine-scoped paid Auto reviewer; price acceptance and per-use consent required.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `museCodeAutoReviewer`            | `true`      | Machine-scoped. In Auto on the Muse Code backend, approvals Muse Code raises go to [the reviewer](#the-auto-reviewer-on-muse-code) first: one short Muse Code turn per review on your subscription; it allows once or leaves the card to you.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified. Input estimates and published prices may differ from actual billing. Machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -2399,7 +2847,11 @@ stopped and the next message resumes the same session.
   (file paths and definition names, no file contents). By
   default each message also carries the open file's path and any selected
   text (`attachOpenFile`); on the CLI backend each turn carries a short
-  hidden note asking the model to offer choices through the question card. The extension has no telemetry
+  hidden note asking the model to offer choices through the question card.
+  In Auto on Muse Code, [the reviewer](#the-auto-reviewer-on-muse-code)
+  sends your latest message, the turn's earlier calls and the request it
+  judges to Meta as one more Muse Code turn on your subscription
+  (`museSpark.museCodeAutoReviewer`). The extension has no telemetry
   and no hosted server of its own. Details: [PRIVACY.md](docs/PRIVACY.md).
 - A pasted Model API key lives only in VS Code's SecretStorage, is sent only
   to `api.meta.ai`, is never passed to any child process, and never reaches
@@ -2431,6 +2883,13 @@ stopped and the next message resumes the same session.
   `museSpark.cleanupPeriodDays` (30 days by default) are deleted, and
   removing that directory deletes them all. The History dialog archives, it
   does not delete.
+- A `/review` of git's changes sends their diff, the changed files' names
+  and, for one commit, its message with the review turn, as a message would
+  send them; environment files, keys and credentials are left out of the
+  diff and only named. Reviewer system instructions omit git metadata; the
+  review turn carries that material inside its untrusted markers. Date and
+  workspace rules remain in the system prompt. The review pane and its Revert
+  stay on this machine.
 - The log records what happened (sessions, turns and their times, approvals,
   failures) and never your prompts, files, dictated words or the model's
   output; keys are redacted.
@@ -2458,6 +2917,12 @@ stopped and the next message resumes the same session.
   under its own terms. The memory snapshot is each scope's `MEMORY.md` and
   its notes' names, your personal scopes included; a note's text goes only
   when the model reads it.
+- The [bundled skills](#bundled-skills) are files of one pinned release,
+  checked against its published SHA-256 when the extension is built;
+  nothing is downloaded while it runs. Installing them for Muse Code writes
+  only under Muse Code's config folder (`muse/skill-sources/` and links in
+  `muse/skills/`), only when you click Install or Update or run the command,
+  and Remove deletes only what carries the install's mark.
 - The Model API backend's file tools resolve every path through the file
   system before touching it: a path that leaves the workspace, directly or
   through a link, is refused, and Windows names that would be reinterpreted
@@ -2618,10 +3083,12 @@ stopped and the next message resumes the same session.
   conversation. **New conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
 - **"Could not load the output: Muse Code did not answer item/readOutput
-  within 60 s"** — a busy Muse Code answers stored-output reads one after
+  within 180 s"** — a busy Muse Code answers stored-output reads one after
   another. The panel says it once per conversation; the row keeps the diff it
-  already has, and collapsing and expanding the row asks again. At most four
-  reads go to Muse Code at a time.
+  already has, and collapsing and expanding the row asks again. An open row
+  without a page also retries once when the turn ends. Automatic edit-row
+  reads wait until then. At most four reads go to Muse Code at a time, using
+  the longer 180 s deadline so late replies can still supply the patch.
 - **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
   Spark: Restart Muse Code**. It stops `muse serve` and starts it again
   without reloading the window; a running turn is stopped, and each
@@ -2667,6 +3134,92 @@ stopped and the next message resumes the same session.
   "Siri and Dictation are disabled" means Dictation must be switched on in
   System Settings > Keyboard.
 
+## Headless and CI (M80)
+
+The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
+`scan-secrets` command and versioned JSON/JSONL schemas. `action/` is a
+same-repository GitHub review and fix Action, with an `action/apply`
+sub-action. Their fake-only tests pass on Linux, macOS and Windows; acceptance
+on hosted runners and with a real key is still pending, so this is **not
+certified yet**, and the Action's npm-registry install is supported only from
+a release published with provenance.
+[The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
+
+```text
+muse-spark-code-acp exec [options] <prompt>
+muse-spark-code-acp exec [options] --prompt-file <path>
+muse-spark-code-acp exec [options] -
+muse-spark-code-acp scan-secrets <file> [--key-stdin]
+```
+
+One turn runs through the existing ACP engine. Plan is the default and
+Accept edits the only other mode; trust, bypass and hosted search are refused.
+Every ordinary approval is denied and questions are declined. A Model API run
+stays untrusted, so it starts no shell, check, hook, MCP, Git or web-fetch tool
+process. Muse Code exec uses the existing sign-in, never starts a login and
+takes no USD budget.
+
+`exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
+up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`
+or `jsonl`; `--timeout` is the process deadline. Model API requires
+`--max-budget-usd` and accepts `--max-requests`, `--ephemeral` and
+`--key-stdin`; without `--key-stdin` it reads the local OS store. The stdin key
+stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
+gives the agent a key environment variable.
+
+Budgets are positive ASCII decimals up to $20 with at most six fractional
+digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+minimum reservation is $0.108135 for the contributor model ($0.118135 with
+images) and $1.409024 for standard ($1.419024). The contributor model needs
+`--allow-contributor-models`; its content may be used for training under
+Meta's contributor terms. `--image-generation` also needs
+`--permission-mode acceptEdits`; images are off by default and tallied per
+use. Each liability rounds upward. Missing receipts, transport loss,
+cancellation and HTTP errors keep the full reservation. Only the latest
+verified completed response plus ACP `end_turn` exits 0; unverified accounting
+exits 9. Tool output text never leaves exec, and a cut-short agent message is
+withheld whole.
+
+`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally,
+prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
+error. Its 30-second lifetime includes reading the key and flushing output.
+Only known literals and patterns are covered.
+
+On Windows a forced stop (the cleanup grace runs out, or a distinct second
+signal's 300 ms grace ends) terminates the process itself: process exit 1,
+and buffered stdout/stderr may be lost. A result that was delivered keeps its
+first-stop status, signal and logical exit code. Drained Windows exits and
+POSIX keep the normal table. Standalone POSIX signal tests are skipped on
+Windows.
+
+The Action accepts triggers from OWNER, MEMBER and COLLABORATOR on
+same-repository pull requests. Forks, bots, `pull_request_target`, public
+self-hosted runners and a changed API head are refused before anything is
+installed. It installs the agent before checkout and runs every Git child
+through one sanitized runner. Only its launcher holds the key, and it passes
+the key over stdin to exec and to the scanner. Only a completed run with exit 0
+posts the sticky review comment or publishes a scanned text patch. Any binary
+change (a generated image included) or detected secret withholds the whole
+patch. Preparing and testing a patch and the maintainer-approved push are
+separate jobs: read the proposal before you approve it. A candidate tarball is
+unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
+bundles and the signer identity.
+
+`npm run schema:exec` regenerates the
+[result](docs/schemas/exec-result-v1.schema.json) and
+[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+compares the committed bytes; both ship in the package's `schemas/`.
+After the production build, `node scripts/package-acp.mjs` packs the ACP
+tarball and `node scripts/package-acp-test.mjs` packs the private fake-only
+test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
+`dist/exec-test-launcher.js`). The test variant is never released.
+`.github/workflows/action-check.yml` runs the Action against it with a
+scripted fake Meta API: no key and no spend.
+
+See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
+[M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
+results and what is still open.
+
 ## Development
 
 ```bash
@@ -2678,6 +3231,18 @@ npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
 Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
+
+**Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
+contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
+the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
+the reviewed release tag), then `npm run notices`. The sync checks the
+release's SHA-256 before replacing the package, rejects unsafe archive paths
+and links, rejects case and trailing-dot/space filename collisions, and
+records each file's path and SHA-256 in `VENDOR.json`. The vendor tests
+check every recorded file hash. Vendored bytes
+are excluded from formatting and linting; builds use them offline.
+The delivery helpers require Python 3.12 or newer. See the
+[vendor lane record](docs/certification/m89-vendor.md) for packaging checks.
 
 **Prerequisites.**
 
@@ -2694,27 +3259,45 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 **Stack.** TypeScript 6.0.3 (pinned: `typescript-eslint` does not yet
 support TS 7); the extension host bundled with esbuild to CommonJS, with the
 Model API backend as a second bundle (`dist/modelApi.js`) that loads when
-that backend first starts, and the plan reader (the panel's Markdown
+that backend first starts, the plan reader (the panel's Markdown
 parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
-action. The conversation's Git adapter loads from `dist/conversationGit.js`
-at its existing construction point; its window and surface ports stay the
-same, and the factory receives the installed language table. The window's
-git and pull request features (VS Code's git extension adapter, the GitHub
-client and sign-in, the checkout) are made in the same bundle with the
-first conversation or "Open a pull request in a conversation…". The importer
-loads its UI adapter only on the first import. The webview is React 19 bundled to one IIFE with
+action. The review (git's material for `/review`, its turn text, the
+Plan-mode hold and edit review) loads from `dist/review.js` on first use.
+The conversation's Git adapter and the window's git and pull request
+features (VS Code's git extension adapter, the GitHub client and sign-in,
+the checkout) load from `dist/conversationGit.js` with the first
+conversation or "Open a pull request in a conversation…" command.
+The importer loads its UI adapter only on the first import. Node bundles
+require the shared English fallback (`dist/uiText.js`), and each keeps
+its own installed-language state. The webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+The session board and best-of-N implementation loads on its first action
+from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
+consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
+activation and an ordinary Model API turn load neither implementation.
+Both receive the current display language. These bundles each have a 75 KiB
+cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
+answers for Muse Code's `ide` tools load on the first call from
+`dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
+first recording from `dist/voice.js` (50 KiB cap); the tool list and the
+microphone's availability stay at activation. The Auto reviewer on Muse
+Code (its side session, what follows a review, and the Model API reviewer's
+core it reuses) loads on the first review from `dist/museCodeReviewer.js`
+(75 KiB cap). The M78b candidate
+still exceeds the Model API cap; its measurements and remaining decision
+are recorded in [the M78 certification](docs/certification/m78.md).
+
 | Command                                   | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. The README's screenshots are these renders, copied from `harness-shots/` into `media/readme/`: `tools` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, and the Languages section's is `usage --lang=de` (as `languages.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided, and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, or web fetch's page converter (parse5 and its parts), are in the activation bundle (`scripts/check-bundle-split.mjs`) or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `npm run build`                           | Minified production bundles, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `npm run notices`                         | Regenerates `THIRD_PARTY_NOTICES.txt` from the production bundles                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `npm run format` / `npm run format:check` | Prettier write / check                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `npm run lint`                            | `eslint --max-warnings=0` (type-aware), `stylelint --max-warnings=0`, and PSScriptAnalyzer 1.25.0 over `native/windows` (Windows only; a reported skip elsewhere)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -2737,7 +3320,7 @@ helpers are Windows PowerShell and Swift with no dependencies.
 | `npm run quality`                         | `quality:gates`, then `test:a11y`, `security:secrets` and `security:sast`; **exits non-zero on any finding**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run quality:ci`                      | `quality:gates`, `test:a11y`, then `test:integration` (no secrets or SAST); CI itself runs these as separate steps, see Releases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run package`                         | `vsce package --no-dependencies` (after `vscode:prepublish` runs `npm run build`) → `.vsix`; it carries the macOS helper only if `bash native/darwin/build.sh` built it first, on a Mac                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run package:acp`                     | Production build, then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `npm run package:acp`                     | Production build, the committed exec schemas checked against `execProtocol.ts` (`scripts/exec-schema.mjs --check`), then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
@@ -2793,7 +3376,7 @@ as Meta documents); the extension never sets it. The tooling also reads
 
 ```
 src/extension.ts            activation: the view, the panel, the commands, the output and file openers
-src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side and the ide image tools, git and pull requests through VS Code's Git extension and GitHub sign-in
+src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side and the ide image tools, the bundled skills' Muse Code installer (its own bundle, loaded on first use), git and pull requests through VS Code's Git extension and GitHub sign-in
 src/core/                   backend-agnostic logic, no `vscode` import: MSP host, Model API client and tools, the MCP client, rules/skills/memory, export, worktrees and held pull request worktrees, git and GitHub, usage insights, dictation driver, PDF and text attachments, the paid gate, Muse Voice, network failures
 src/shared/                 constants + zod message protocol shared with the webview
 src/shared/l10n/            the English table (en.ts), the fill, plural and Intl helpers, and the table checks

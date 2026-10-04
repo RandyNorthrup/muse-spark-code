@@ -48,7 +48,13 @@ export interface AcpPaidUseDeps {
   readonly canRemember: () => boolean
   readonly grants: PaidGrantStore
   readonly log: CoreLogger
+  readonly headless?: HeadlessPaidPolicy
 }
+
+export type HeadlessPaidPolicy = (
+  request: PaidUseRequest,
+  requiresAsking: boolean,
+) => Promise<boolean>
 
 /** The agent's own store's failure: its code and our own data folder's path, never a CLI's text. */
 function describe(error: unknown): string {
@@ -144,6 +150,9 @@ export class AcpPaidUse {
     request: PaidUseRequest,
     requiresAsking: boolean,
   ): Promise<boolean> {
+    if (this.deps.headless !== undefined) {
+      return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
+    }
     const consent = new PaidUseConsent({
       isOn: (feature) => this.isOn(feature),
       canRemember: this.deps.canRemember,
@@ -158,6 +167,7 @@ export class AcpPaidUse {
   /** Whether the feature is on and allowed always in the folder, so it asks nothing. */
   public isRemembered(workspaceRoot: string, feature: PaidFeature): boolean {
     return (
+      this.deps.headless === undefined &&
       this.isOn(feature) &&
       this.deps.canRemember() &&
       this.deps.grants.read(workspaceRoot).has(feature)
@@ -170,6 +180,7 @@ export class AcpPaidUse {
    * logged; the grant is still never honoured while the flag is off.
    */
   public async forgetUnflagged(): Promise<void> {
+    if (this.deps.headless !== undefined) return
     const unflagged = ACP_PAID_FEATURES.filter((feature) => !this.isOn(feature))
     if (unflagged.length === 0) {
       return

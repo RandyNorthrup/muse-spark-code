@@ -160,19 +160,44 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
     : `${used} / ${formatTokenWindow(context.windowTokens)}`
 }
 
+/**
+ * What the prompt cache saved (M82): the uncached price minus the priced
+ * one, with its share of the uncached price. Defined only where a cost is
+ * priced (the Model API); Muse Code reports no honest cache totals
+ * (PLAN.md D26).
+ */
+function cacheSavings(
+  usage: UsageSummary,
+  costUsd: number,
+  modelId: string,
+): { readonly amount: number; readonly percent: number } {
+  const uncached = estimateCostUsd(
+    { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens: 0 },
+    modelId,
+  )
+  const amount = uncached - costUsd
+  return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
+}
+
 function TokensSection({
   usage,
   context,
   costUsd,
+  modelId,
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly costUsd: number | undefined
+  readonly modelId: string | undefined
 }) {
   if (usage === undefined && context === undefined) {
     return <p className="usage-row-meta">{UI_TEXT.usageNoSession}</p>
   }
   const contextValue = contextValueOf(context)
+  const savings =
+    usage !== undefined && costUsd !== undefined && modelId !== undefined
+      ? cacheSavings(usage, costUsd, modelId)
+      : undefined
   return (
     <>
       <dl className="usage-facts">
@@ -210,6 +235,17 @@ function TokensSection({
             <dd>{formatUsd(costUsd)}</dd>
           </>
         )}
+        {savings !== undefined && (
+          <>
+            <dt>{UI_TEXT.usageCacheSavings}</dt>
+            <dd>
+              {fill(UI_TEXT.usageCacheSavingsValue, {
+                amount: formatUsd(savings.amount),
+                percent: formatPercent(savings.percent),
+              })}
+            </dd>
+          </>
+        )}
       </dl>
       {costUsd === undefined ? null : (
         <p className="usage-row-meta">
@@ -239,6 +275,12 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     }
     case 'subagents': {
       return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
+    }
+    case 'autoReviewer': {
+      return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
+    }
+    case 'bestOfN': {
+      return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
     }
   }
 }
@@ -298,29 +340,52 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
   return paid.alwaysAllowed.includes(feature) ? UI_TEXT.usagePaidOnAlways : UI_TEXT.usagePaidOn
 }
 
+function paidTokenTally(feature: PaidFeature, paid: PaidState) {
+  if (feature === 'autoReviewer') {
+    return [
+      paid.tally.autoReviews,
+      paid.tally.autoReviewUnknownRequests,
+      paid.tally.autoReviewTokens,
+    ]
+  }
+  if (feature === 'bestOfN') {
+    return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
+  }
+  return [
+    paid.tally.subagentRequests,
+    paid.tally.subagentUnknownRequests,
+    paid.tally.subagentTokens,
+  ]
+}
+
 function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly paid: PaidState }) {
   const state = paidRowState(feature, paid)
-  const requests = paid.tally.subagentRequests ?? 0
-  const unknown = paid.tally.subagentUnknownRequests ?? 0
-  const isEntirelyUnknown = feature === 'subagents' && requests > 0 && requests === unknown
+  const isReview = feature === 'autoReviewer'
+  const isAttempt = feature === 'bestOfN'
+  const [requests = 0, unknown = 0, tokens = 0] = paidTokenTally(feature, paid)
+  const isTokenFeature = feature === 'subagents' || isReview || isAttempt
+  const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
   if (feature === 'scheduledPrompts') {
     costDetail = UI_TEXT.usageScheduledIncluded
-  } else if (feature === 'subagents') {
-    costDetail = fill(UI_TEXT.usagePaidSubagentReported, { cost })
+  } else if (isTokenFeature) {
+    costDetail = fill(
+      isAttempt ? UI_TEXT.usagePaidBestOfNIncluded : UI_TEXT.usagePaidSubagentReported,
+      { cost },
+    )
   }
   return (
     <>
       <dt>{`${paidFeatureName(feature)} (${state})`}</dt>
-      <dd className={feature === 'subagents' ? 'usage-paid-child' : undefined}>
+      <dd className={isTokenFeature ? 'usage-paid-child' : undefined}>
         {paidUseText(feature, paid.tally)}
         {isEntirelyUnknown ? null : ` · ${costDetail}`}
-        {feature === 'subagents' ? (
+        {isTokenFeature ? (
           <>
             {isEntirelyUnknown
               ? null
-              : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(paid.tally.subagentTokens ?? 0) })}`}
+              : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })}`}
             {unknown > 0 ? (
               <p className="usage-row-meta">{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
             ) : null}
@@ -516,7 +581,7 @@ export function UsageDialog({
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
-        <TokensSection usage={usage} context={context} costUsd={costUsd} />
+        <TokensSection usage={usage} context={context} costUsd={costUsd} modelId={modelId} />
         {paidFeatures.length > 0 ? (
           <>
             <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>

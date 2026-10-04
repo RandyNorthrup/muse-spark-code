@@ -470,20 +470,29 @@ describe('activation builds the memory through the checkpointed composition (M72
       /editFile:\s*async \(fsPath, work\) =>\s*await withCheckpointEditAt\(\s*checkpoints,\s*log,\s*backend\.workspaceActionGuard\(nativeStarts\.signal\),\s*\{\s*root: checkpointRoot\?\.canonicalRoot \?\? workspaceRoot,\s*displayRoot: workspaceRoot,\s*platform: process\.platform,?\s*\},\s*fsPath,\s*work,\s*\)/,
     )
     // What else the extension writes in the user's name is under the lease
-    // and never recorded (M86): Create AGENTS.md and Revert's write, Revert's
-    // delete, and a plan's publication or stale-stage removal.
+    // and never recorded (M86): Create AGENTS.md, and a plan's publication or
+    // stale-stage removal.
     expect(source).toMatch(
       /const writeUserFile = async \(check: \(\) => void, fsPath: string, content: string\) => \{\s*await withCheckpointEdit\(checkpoints, log, check, async \(\) => \{\s*await vscode\.workspace\.fs\.writeFile\(/,
     )
     expect(source).toMatch(
-      /writeFile: async \(fsPath, content\) => \{\s*await writeUserFile\(backend\.workspaceActionGuard\(nativeStarts\.signal\), fsPath, content\)/,
-    )
-    expect(source).toMatch(
       /writeFile: \(fsPath, content\) => writeUserFile\(check, fsPath, content\),/,
     )
+    // The review bundle's Revert (M70) is one operation under the window's
+    // lease and guard, published by the tools' own conditional writes through
+    // the window's io, which records nothing (`createRevertIo`, M86).
     expect(source).toMatch(
-      /await withCheckpointEdit\(checkpoints, log, check, async \(\) => \{\s*await vscode\.workspace\.fs\.delete\(/,
+      /withAdmission: async \(work\) => \{\s*const check = backend\.workspaceActionGuard\(nativeStarts\.signal\)\s*return await withCheckpointEdit\(checkpoints, log, check, async \(\) => await work\(check\)\)/,
     )
+    expect(source).toMatch(
+      /io: createRevertIo\(\{\s*io: toolIo,\s*platform: process\.platform,\s*trash: async \(fsPath\) => \{\s*await vscode\.workspace\.fs\.delete\(vscode\.Uri\.file\(fsPath\), \{ useTrash: true \}\)/,
+    )
+    const review = source.slice(
+      source.indexOf('const review = lazyReview('),
+      source.indexOf('const mentions = new MentionIndex('),
+    )
+    expect(review).toContain('withAdmission:')
+    expect(review).not.toContain('workspace.fs.writeFile')
     expect(source).not.toContain('asUserEdit')
     expect(source).not.toContain('noteUserSave')
     expect(source).not.toContain('noteUserWrite')

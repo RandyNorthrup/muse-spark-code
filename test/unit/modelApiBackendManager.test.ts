@@ -7,13 +7,14 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
+import { EditReview } from '../../src/host/editor/editReview'
 
 interface HookFixture {
   readonly enabled: boolean
@@ -62,6 +63,84 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('holds a manual revert across lazy startup and a same-id replacement without creating an own round', async () => {
+    const m = manager('/ws')
+    const entered = Promise.withResolvers<undefined>()
+    const writing = Promise.withResolvers<undefined>()
+    const added = vi.spyOn(m.manager.workspaceEdits, 'add')
+    const review = new EditReview({
+      workspaceRoot: '/ws',
+      platform: 'linux',
+      realPath: (file) => Promise.resolve(file),
+      readFile: () => Promise.resolve('after\n'),
+      hasUnsavedChanges: () => false,
+      beginEdit: (file) => m.manager.beginExternalEdit(undefined, [file]),
+      withAdmission: async (work) => await work(() => undefined),
+      io: {
+        writeFileIfUnchanged: async () => {
+          entered.resolve(undefined)
+          await writing.promise
+          return 'written'
+        },
+        trashFileIfUnchanged: vi.fn(),
+        createFileIfAbsent: vi.fn(),
+      },
+      openDiff: vi.fn(),
+      log: m.log,
+    })
+    const patch =
+      '{"files":[{"path":"notes.md","hunks":[{"oldStart":1,"newStart":1,"lines":["-before","+after"]}]}]}'
+    const reverting = review.revert('i', patch)
+    await entered.promise
+    expect(m.manager.isRunning).toBe(false)
+    expect(m.api.responseBodies()).toEqual([])
+    const host = await m.manager.ensureHost()
+    const options = { workspaceRoot: '/ws', modelId: 'muse-spark-1.3', approvalMode: 'onRequest' }
+    const original = await host.startSession(options)
+    original.dispose()
+    const replacement = await host.startSession(options)
+    expect(replacement.sessionId).toBe(original.sessionId)
+    const ledger = added.mock.calls.at(-1)?.[0]
+    if (!(ledger instanceof VerifyLedger) || !(replacement instanceof ModelApiSession)) {
+      throw new TypeError('expected replacement source-module session and ledger')
+    }
+    const note = vi.spyOn(replacement, 'noteExternalEdit')
+    ledger.resetForMessage()
+    ledger.record('passed', ledger.snapshot('lint', 'project'))
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    writing.resolve(undefined)
+    await reverting
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(false)
+    expect(note).not.toHaveBeenCalled()
+    expect(ledger.takeRoundEdits()).toEqual([])
+    ledger.resetForMessage()
+    ledger.record('passed', ledger.snapshot('lint', 'project'))
+    expect(ledger.hasCurrentRun('lint', 'project')).toBe(true)
+    expect(m.api.responseBodies()).toEqual([])
+    await m.manager.dispose()
+  })
+
+  it('M80 forwards only an explicitly provided stream idle interval to real client construction', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    try {
+      const api = fakeModelApi()
+      const log = new FakeLogOutputChannel()
+      const manager = new ModelApiBackendManager(
+        fakeManagerDeps(api, log, {
+          workspaceRoot: '/ws',
+          store: undefined,
+          streamIdleMs: 37,
+          bundlePath: 'src/host/backend/modelApiEntry.ts',
+          loadBundle: () => modelApiEntry,
+        }),
+      )
+      await manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].client.streamIdleMs).toBe(37)
+      await manager.dispose()
+    } finally {
+      create.mockRestore()
+    }
+  })
   it('keeps host-origin writes pending before the lazy host and newly live ledger exist', async () => {
     const m = manager('/ws')
     const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }
@@ -139,6 +218,23 @@ describe('ModelApiBackendManager', () => {
       await m.manager.dispose()
     },
   )
+
+  it('reads hash-only account identity without a folder, bundle load or model request', async () => {
+    const api = fakeModelApi()
+    const loadBundle = vi.fn(() => modelApiEntry)
+    const m = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle,
+      }),
+    )
+    expect(await m.accountId()).toBe(FAKE_MODEL_API_ACCOUNT_ID)
+    expect(m.isRunning).toBe(false)
+    expect(loadBundle).not.toHaveBeenCalled()
+    expect(api.requests).toEqual([])
+    await m.dispose()
+  })
 
   it('loads no hook command until the machine opt-in is on', async () => {
     const files = new Map([

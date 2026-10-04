@@ -26,6 +26,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
   PARTIAL_EDIT_TOOLS,
+  PENDING_APPROVAL_RESOLUTIONS_MAX,
   type PermissionMode,
   type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
@@ -46,12 +47,15 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReviewFile,
   SettingsSnapshot,
   SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { ScheduleView } from '../../shared/schedule'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
@@ -145,6 +149,25 @@ export type ToolImageState =
   | { readonly kind: 'failed'; readonly reason: string }
 
 /**
+ * The review pane (M70): the conversation's changes as the host listed them
+ * for the pane's last request; `files` is undefined while it reads them.
+ */
+export interface ReviewPaneState {
+  readonly requestId: string
+  readonly files: readonly ReviewFile[] | undefined
+  readonly omittedEdits: number
+  /** Why there is nothing to list (no live session, not signed in). */
+  readonly reason: string | undefined
+}
+
+/** What the user did with a change in the review pane (M70), by `reviewHunkKey`. */
+export type ReviewHunkState =
+  | { readonly kind: 'accepted' }
+  | { readonly kind: 'reverting' }
+  | { readonly kind: 'reverted' }
+  | { readonly kind: 'failed'; readonly reason: string }
+
+/**
  * A conversation the panel brought back from its saved state (M25), waiting
  * for the host to say which session is live: kept when it is the same one,
  * dropped otherwise (a window reload restarts every host).
@@ -166,6 +189,8 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  /** Newest resolutions whose tool rows have not arrived yet; never saved. */
+  readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
   readonly isSideChat: boolean
   readonly emptyStateHint: string
@@ -181,6 +206,10 @@ export interface UiState {
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** The session board's rows, once the board asked (M77). */
+  readonly board: readonly BoardRow[] | undefined
+  /** The best-of-N run this surface last heard of (M77). */
+  readonly bestOfN: BestOfNRun | undefined
   readonly draft: string
   /** Every local draft edit, including edits that return to the same text. */
   readonly draftRevision: number
@@ -301,6 +330,10 @@ export interface UiState {
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
   readonly toolImages: Readonly<Record<string, ToolImageState>>
+  /** The review pane's changes (M70); never saved. */
+  readonly reviewPane: ReviewPaneState | undefined
+  /** What the user did with each change in the pane (M70), by `reviewHunkKey`; never saved. */
+  readonly reviewHunks: Readonly<Record<string, ReviewHunkState>>
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
@@ -401,10 +434,30 @@ export type UiAction =
    * form waits for the reply.
    */
   | { readonly type: 'gitDraftRequested'; readonly localId: string; readonly text: string }
+  /**
+   * A card that did not come from the composer (M70): a review a palette row
+   * started, or a comment from the review pane. The draft, its chips and its
+   * reference chip stay as they are.
+   */
+  | {
+      readonly type: 'cardSubmitted'
+      readonly localId: string
+      readonly text: string
+      readonly reference?: ChatReference | undefined
+      /** What the live region says, the card being out of sight behind the pane. */
+      readonly announcement?: string | undefined
+    }
+  /** The review pane asked the host for the conversation's changes (M70). */
+  | { readonly type: 'reviewPaneRequested'; readonly requestId: string }
+  /** Accept on a change in the review pane, or taking it back (M70). */
+  | { readonly type: 'reviewHunkAccepted'; readonly key: string; readonly isAccepted: boolean }
+  /** Revert on a change in the review pane: it waits for the host (M70). */
+  | { readonly type: 'reviewHunkReverting'; readonly key: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
 
 export const initialUiState: UiState = {
+  pendingApprovalResolutions: [],
   phase: 'connecting',
   isSideChat: false,
   emptyStateHint: '',
@@ -423,6 +476,8 @@ export const initialUiState: UiState = {
   },
   sessions: undefined,
   archivedIds: [],
+  board: undefined,
+  bestOfN: undefined,
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
@@ -467,6 +522,8 @@ export const initialUiState: UiState = {
   git: initialGitUiState,
   outputPages: {},
   toolImages: {},
+  reviewPane: undefined,
+  reviewHunks: {},
   localSequence: 0,
   sequence: 0,
   editorContext: undefined,
@@ -961,6 +1018,8 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         text: item.text ?? '',
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
+        usage: item.usage,
+        costUsd: item.costUsd,
       }
     }
     case 'reasoning': {
@@ -1007,6 +1066,8 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         text: item.text ?? entry.text,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
+        usage: item.usage ?? entry.usage,
+        costUsd: item.costUsd ?? entry.costUsd,
       }
     }
     case 'reasoning': {
@@ -1185,6 +1246,17 @@ function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false):
   }
 }
 
+/** Resolutions that arrived before their rows, applied to rows a history read made. */
+function withPendingResolutions(state: UiState, at: number): UiState {
+  let next = state
+  for (const resolution of state.pendingApprovalResolutions) {
+    if (findEntry(next.transcript, resolution.itemId) !== undefined) {
+      next = applyAgentEvent(next, resolution, at)
+    }
+  }
+  return next
+}
+
 /**
  * Rebuild the transcript from a session's stored items (`historyLoaded`):
  * user messages become cards (the live path hides them, its own echo being
@@ -1199,9 +1271,14 @@ function replayHistory(
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
   const knownWorkflows = new Map<string, WorkflowEntry>()
+  // History carries no approval outcomes: a row read again keeps the one the
+  // panel saw (who allowed it, and why).
+  const knownOutcomes = new Map<string, ToolEntry['approvalOutcome']>()
   for (const entry of previous) {
     if (entry.kind === WORKFLOW_KIND) {
       knownWorkflows.set(entry.id, entry)
+    } else if (entry.kind === 'tool' && entry.approvalOutcome !== undefined) {
+      knownOutcomes.set(entry.id, entry.approvalOutcome)
     }
   }
   let next = sequence
@@ -1219,7 +1296,12 @@ function replayHistory(
         (before.workflowRunId === undefined ||
           item.workflowRunId === undefined ||
           before.workflowRunId === item.workflowRunId)
-      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const built = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const outcome = knownOutcomes.get(item.itemId)
+      const entry =
+        outcome !== undefined && built.kind === 'tool'
+          ? { ...built, approvalOutcome: outcome }
+          : built
       entries.push(stampCompletion(entry, next))
     }
   }
@@ -1509,7 +1591,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'itemStarted':
     case 'itemUpdated':
     case 'itemCompleted': {
-      return applyItem(state, event.item, at)
+      const next = applyItem(state, event.item, at)
+      const resolution = state.pendingApprovalResolutions.find(
+        (pending) => pending.itemId === event.item.itemId,
+      )
+      return resolution === undefined ? next : applyAgentEvent(next, resolution, at)
     }
     case 'textDelta': {
       const childId = own(state.childOwners, event.itemId)
@@ -1618,6 +1704,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        note: event.note,
       }
       return announce(
         withToolEntry(
@@ -1672,14 +1759,28 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       }
     }
     case 'approvalResolved': {
+      const pending = state.pendingApprovalResolutions.filter(
+        (resolution) => resolution.itemId !== event.itemId,
+      )
+      if (findEntry(state.transcript, event.itemId) === undefined) {
+        return {
+          ...state,
+          pendingApprovalResolutions: [...pending, event].slice(-PENDING_APPROVAL_RESOLUTIONS_MAX),
+        }
+      }
       return {
         ...state,
+        pendingApprovalResolutions: pending,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>
           entry.kind === 'tool'
             ? {
                 ...entry,
                 approval: undefined,
-                approvalOutcome: { decision: event.decision, resolvedBy: event.resolvedBy },
+                approvalOutcome: {
+                  decision: event.decision,
+                  resolvedBy: event.resolvedBy,
+                  ...(event.reason !== undefined && { reason: event.reason }),
+                },
               }
             : entry,
         ),
@@ -1765,6 +1866,38 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
   }
 }
 
+/** The key of one change in the review pane (M70): its edit, file and hunk. */
+export function reviewHunkKey(itemId: string, fileIndex: number, hunkIndex: number): string {
+  return [itemId, String(fileIndex), String(hunkIndex)].join('\n')
+}
+
+/** How the review pane and a screen reader name a change (M70): "change 2 of src/a.ts". */
+export function reviewHunkName(path: string, hunkIndex: number): string {
+  return fill(UI_TEXT.reviewHunkName, { index: hunkIndex + 1, path })
+}
+
+/** The host's word on a change's Revert (M70): reverted, or not with the reason. */
+function reviewHunkSettled(
+  state: UiState,
+  message: Extract<HostToWebviewMessage, { type: 'reviewHunkResult' }>,
+): UiState {
+  const key = reviewHunkKey(message.itemId, message.fileIndex, message.hunkIndex)
+  const reason = message.reason ?? UI_TEXT.reviewNotReverted
+  const hunk: ReviewHunkState = message.isReverted
+    ? { kind: 'reverted' }
+    : { kind: 'failed', reason }
+  const file = state.reviewPane?.files?.find(
+    (candidate) => candidate.itemId === message.itemId && candidate.fileIndex === message.fileIndex,
+  )
+  const name = reviewHunkName(file?.path ?? '', message.hunkIndex)
+  return announce(
+    { ...state, reviewHunks: { ...state.reviewHunks, [key]: hunk } },
+    message.isReverted
+      ? fill(UI_TEXT.reviewAnnounceReverted, { name })
+      : fill(UI_TEXT.reviewAnnounceNotReverted, { name, reason }),
+  )
+}
+
 /**
  * A pending user card at the end of the transcript, its chips kept until
  * the host accepts or refuses it: the composer's Send, or a message the host
@@ -1841,6 +1974,7 @@ export function planReplyIdOf(state: UiState): string | undefined {
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
     pendingGoalCommand: undefined,
@@ -1875,6 +2009,8 @@ function clearedConversation(state: UiState): UiState {
     git: { ...state.git, form: undefined },
     outputPages: {},
     toolImages: {},
+    reviewPane: undefined,
+    reviewHunks: {},
     share: undefined,
     isImported: false,
   }
@@ -1889,6 +2025,8 @@ function clearedAccountView(state: UiState): UiState {
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     archivedIds: [],
+    board: undefined,
+    bestOfN: undefined,
     model: undefined,
     models: [],
     skills: undefined,
@@ -2166,6 +2304,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
+    case 'sessionBoard': {
+      return { ...state, board: message.rows }
+    }
+    case 'bestOfNUpdate': {
+      return { ...state, bestOfN: message.run }
+    }
     case 'childTranscript': {
       const owner = childOwnerOf(state, message.sessionId)
       const live = own(state.childTranscripts, message.sessionId)
@@ -2240,34 +2384,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
               goalEditRevision: state.goalEditRevision,
             }
       return announce(
-        {
-          ...state,
-          attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
-          attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
-          isSideChat: message.sideChat ?? state.isSideChat,
-          isImported: message.imported === true,
-          sessionId: message.sessionId,
-          restoredSessionId: undefined,
-          title: message.name,
-          transcript: replayed.entries,
-          sequence: replayed.sequence,
-          todos: message.todos,
-          goal,
-          ...editor,
-          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
-          pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
-          schedules: isSameSession ? state.schedules : [],
-          activeTurnId: message.activeTurnId,
-          lastCompletedTurnId: undefined,
-          pendingReplayTurns: {},
-          usage: isSameSession ? state.usage : undefined,
-          context: isSameSession ? state.context : undefined,
-          outputPages: {},
-          toolImages: {},
-          childTranscripts: {},
-          childOwners: {},
-          strayItems: {},
-        },
+        withPendingResolutions(
+          {
+            ...state,
+            attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
+            attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
+            isSideChat: message.sideChat ?? state.isSideChat,
+            isImported: message.imported === true,
+            sessionId: message.sessionId,
+            restoredSessionId: undefined,
+            title: message.name,
+            transcript: replayed.entries,
+            sequence: replayed.sequence,
+            todos: message.todos,
+            goal,
+            ...editor,
+            pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+            pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            schedules: isSameSession ? state.schedules : [],
+            activeTurnId: message.activeTurnId,
+            lastCompletedTurnId: undefined,
+            pendingReplayTurns: {},
+            usage: isSameSession ? state.usage : undefined,
+            context: isSameSession ? state.context : undefined,
+            outputPages: {},
+            toolImages: {},
+            // The pane's changes are another conversation's once it is replaced (M70).
+            reviewPane: isSameSession ? state.reviewPane : undefined,
+            reviewHunks: isSameSession ? state.reviewHunks : {},
+            childTranscripts: {},
+            childOwners: {},
+            strayItems: {},
+            // Another session's early resolutions never meet this one's rows.
+            pendingApprovalResolutions: isSameSession ? state.pendingApprovalResolutions : [],
+          },
+          at,
+        ),
         UI_TEXT.announceResumed,
       )
     }
@@ -2500,6 +2652,23 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'taskRefused': {
       // The host said no (M46): the row's button can be pressed again.
       return { ...state, transcript: withTaskRequest(state.transcript, message.itemId, undefined) }
+    }
+    case 'reviewChanges': {
+      // Only the pane's latest request: an older answer is another moment's.
+      return state.reviewPane?.requestId === message.requestId
+        ? {
+            ...state,
+            reviewPane: {
+              requestId: message.requestId,
+              files: message.files,
+              omittedEdits: message.omittedEdits,
+              reason: message.reason,
+            },
+          }
+        : state
+    }
+    case 'reviewHunkResult': {
+      return reviewHunkSettled(state, message)
     }
     case 'userShellRefused': {
       // The command comes back to an empty prompt, to be fixed and run again (M46).
@@ -2764,6 +2933,39 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         pendingClearEchoes: state.pendingClearEchoes + 1,
       }
     }
+    case 'cardSubmitted': {
+      return announce(withPendingCard(state, { ...action, attachments: [] }), action.announcement)
+    }
+    case 'reviewPaneRequested': {
+      return {
+        ...state,
+        reviewPane: {
+          requestId: action.requestId,
+          files: undefined,
+          omittedEdits: 0,
+          reason: undefined,
+        },
+      }
+    }
+    case 'reviewHunkAccepted': {
+      const current = own(state.reviewHunks, action.key)
+      // A change being reverted, or gone, is past accepting.
+      if (current !== undefined && current.kind !== 'accepted' && current.kind !== 'failed') {
+        return state
+      }
+      return {
+        ...state,
+        reviewHunks: action.isAccepted
+          ? { ...state.reviewHunks, [action.key]: { kind: 'accepted' } }
+          : without(state.reviewHunks, action.key),
+      }
+    }
+    case 'reviewHunkReverting': {
+      return {
+        ...state,
+        reviewHunks: { ...state.reviewHunks, [action.key]: { kind: 'reverting' } },
+      }
+    }
   }
 }
 
@@ -2841,9 +3043,26 @@ export function forkCutBefore(
  */
 export function editsAfter(state: UiState, entryId: string): readonly EditRef[] {
   const message = state.transcript.find((entry) => entry.id === entryId)
-  if (message?.kind !== 'user') {
-    return []
-  }
+  return message?.kind === 'user'
+    ? landedEdits(state)
+        .filter((entry) => entry.completedSeq > message.seq)
+        .toReversed()
+        .map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+    : []
+}
+
+/**
+ * Every edit of the conversation and its agents with a patch document, in
+ * the order it landed on disk (M20): what the review pane lists (M70).
+ */
+export function conversationEdits(state: UiState): readonly EditRef[] {
+  return landedEdits(state).map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+}
+
+/** The completed edit rows with a patch, oldest first by the arrival number they completed at. */
+function landedEdits(
+  state: UiState,
+): readonly (ToolEntry & { readonly completedSeq: number; readonly patchRef: OutputRef })[] {
   const pools = [
     state.transcript,
     ...Object.values(state.childTranscripts).map((child) => child.entries),
@@ -2860,11 +3079,9 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
         entry.kind === 'tool' &&
         hasLandedEdits(entry) &&
         entry.patchRef !== undefined &&
-        entry.completedSeq !== undefined &&
-        entry.completedSeq > message.seq,
+        entry.completedSeq !== undefined,
     )
-    .toSorted((a, b) => b.completedSeq - a.completedSeq)
-    .map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+    .toSorted((a, b) => a.completedSeq - b.completedSeq)
 }
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>

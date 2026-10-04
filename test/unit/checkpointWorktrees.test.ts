@@ -62,13 +62,14 @@ function featuresOver(h: Harness, manager: MuseCodeBackendManager, signal: Abort
   const mutation = vi.fn(
     async (args: readonly string[], cwd: string, timeoutMs?: number, beforeRun?: () => void) => {
       expect(h.store.isNativeUnsafe).toBe(true)
-      return await realGit(args, cwd, timeoutMs, beforeRun)
+      return await realGit(args, cwd, timeoutMs, undefined, beforeRun)
     },
   )
   const features = createWorktreeFeatures({
     workspaceRoot: h.root,
     isWorkspaceTrusted: () => true,
-    runGit: realGit,
+    runGit: (args, cwd, timeoutMs, beforeRun) =>
+      realGit(args, cwd, timeoutMs, undefined, beforeRun),
     mutationGit: (args, cwd, timeoutMs, beforeRun) =>
       manager.startWorktreeMutation(
         cwd,

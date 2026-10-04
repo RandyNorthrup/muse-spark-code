@@ -10,13 +10,19 @@
 // pace, audio recorded while the handshake is answered is held and sent at
 // once, well inside the 5 s Meta allows ahead); then `{"type":"endStream"}`,
 // after which the final transcript arrives and the server closes with 1000.
-// Every whole second sent is counted for the window's tally, the way Meta
-// bills it. Audio exists outside the machine only between the press and the
+// Whole locally sent seconds are counted for the window's estimate; the
+// protocol supplies no billed-duration receipt. Audio leaves this machine
+// only between the press and the
 // release, and only on Meta's endpoint.
 //
 // No `vscode` and no socket here: the host injects the WebSocket.
 
 import * as z from 'zod/mini'
+import { createHash } from 'node:crypto'
+import type {
+  OwnedSessionBudgetScope,
+  SessionBudgetClaim,
+} from '../backends/modelapi/sessionBudget'
 import {
   MUSE_VOICE_AUDIO_ENCODING,
   MUSE_VOICE_BYTES_PER_SECOND,
@@ -26,12 +32,19 @@ import {
   MUSE_VOICE_MODE,
   MUSE_VOICE_MODEL,
   MUSE_VOICE_PARTIAL_MODE,
+  PAID_PRICES_USD,
+  SECONDS_PER_HOUR,
   UI_TEXT,
   WEBSOCKET_CLOSE_NORMAL,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
-import type { DictationHandle, DictationListener, DictationStatus } from './dictation'
+import type {
+  DictationHandle,
+  DictationListener,
+  DictationStatus,
+  VoiceConsentFence,
+} from './dictation'
 
 /** What the stream hears from the socket; the host adapts the platform's WebSocket to it. */
 export interface VoiceSocketHandlers {
@@ -68,6 +81,8 @@ export interface VoiceStreamDeps {
   readonly url: string
   readonly openSocket: OpenVoiceSocket
   readonly log: CoreLogger
+  readonly admitSend?: () => void
+  readonly onAuthorizationStarted?: () => void
 }
 
 export interface VoiceStreamCallbacks {
@@ -145,18 +160,28 @@ export class MuseVoiceStream {
   }
 
   private sendAudio(bytes: Uint8Array): void {
+    if (!this.canSend()) {
+      return
+    }
     this.socket?.sendBinary(bytes)
     this.bytesSent += bytes.length
   }
 
   private sendEnd(): void {
+    if (!this.canSend()) {
+      return
+    }
     this.state = 'finishing'
     this.socket?.sendText(JSON.stringify({ type: 'endStream' }))
     this.arm(MUSE_VOICE_FINISH_TIMEOUT_MS, UI_TEXT.museVoiceNoFinal)
   }
 
   private onOpen(): void {
+    if (!this.canSend()) {
+      return
+    }
     this.state = 'handshaking'
+    this.deps.onAuthorizationStarted?.()
     this.socket?.sendText(
       JSON.stringify({
         authorization: { accessToken: `Bearer ${this.apiKey}` },
@@ -167,6 +192,19 @@ export class MuseVoiceStream {
         emitAudioProgress: false,
       }),
     )
+  }
+
+  private canSend(): boolean {
+    if (this.state === 'done') {
+      return false
+    }
+    try {
+      this.deps.admitSend?.()
+      return true
+    } catch (error: unknown) {
+      this.fail(error instanceof Error ? error.message : String(error))
+      return false
+    }
   }
 
   private onText(text: string): void {
@@ -217,7 +255,12 @@ export class MuseVoiceStream {
     this.fail(closeReason(code, reason))
   }
 
-  /** Whole seconds of audio sent: what Meta bills, rounded down. */
+  /** Locally sent audio duration, not a server billing receipt. */
+  public get audioSeconds(): number {
+    return this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND
+  }
+
+  /** Whole locally sent seconds, retained for the window's existing estimate. */
   public get seconds(): number {
     return Math.floor(this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND)
   }
@@ -297,6 +340,14 @@ export interface MuseVoiceDeps {
   readonly log: CoreLogger
 }
 
+interface VoiceBudgetState {
+  scope: OwnedSessionBudgetScope | undefined
+  claim: SessionBudgetClaim | undefined
+  keyDigest: string | undefined
+  hasAuthorizationStarted: boolean
+  isSettled: boolean
+}
+
 /**
  * The microphone on the paid engine: the capture helper records, each
  * recording is streamed as it is made, and its transcript is the listener's
@@ -309,6 +360,7 @@ export class MuseVoiceDictation implements DictationHandle {
   private recording: MuseVoiceStream | undefined
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
+  private readonly budgets = new Map<MuseVoiceStream, VoiceBudgetState>()
   private status: DictationStatus = 'idle'
   private isDisposed = false
 
@@ -345,17 +397,135 @@ export class MuseVoiceDictation implements DictationHandle {
 
   /** A stream that ended: its seconds are counted, once. */
   private settle(stream: MuseVoiceStream): void {
-    if (this.open.delete(stream)) {
-      this.deps.onSeconds(stream.seconds)
+    if (!this.open.delete(stream)) {
+      return
+    }
+    this.deps.onSeconds(stream.seconds)
+    const budget = this.budgets.get(stream)
+    this.budgets.delete(stream)
+    if (budget !== undefined) {
+      void this.settleBudget(budget, stream.audioSeconds)
+    }
+  }
+
+  private isStreamOpen(stream: MuseVoiceStream): boolean {
+    return this.open.has(stream) && !this.isDisposed
+  }
+
+  private async settleBudget(state: VoiceBudgetState, seconds: number): Promise<void> {
+    if (state.claim === undefined || state.isSettled) {
+      return
+    }
+    state.isSettled = true
+    const estimateUsd = state.hasAuthorizationStarted
+      ? (seconds * PAID_PRICES_USD.voicePerHour) / SECONDS_PER_HOUR
+      : 0
+    try {
+      await state.claim.settle(estimateUsd, state.hasAuthorizationStarted)
+    } catch {
+      this.deps.log.warn('Muse Voice spend was not saved')
+      this.listener.onError(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
+  }
+
+  private async prepareStream(
+    stream: MuseVoiceStream,
+    state: VoiceBudgetState,
+    key: Promise<string | undefined>,
+    consentFence: VoiceConsentFence | undefined,
+  ): Promise<void> {
+    try {
+      const [scope, apiKey] = await Promise.all([this.listener.ownedBudgetScope?.(), key])
+      state.scope = scope
+      if (!this.isStreamOpen(stream)) {
+        return
+      }
+      if (state.scope !== undefined) {
+        if (state.scope.capUsd() > 0) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+        }
+        state.claim = await state.scope.journal.reserve(
+          state.scope.sessionId,
+          state.scope.accountId,
+          0,
+          { isUnbounded: true },
+        )
+      }
+      if (!this.isStreamOpen(stream)) {
+        await this.settleBudget(state, 0)
+        return
+      }
+      // The durable write may have waited while SecretStorage changed.
+      // An owned recording reads the actual key again after that await.
+      const sendingKey = state.scope === undefined ? apiKey : await this.deps.apiKey()
+      if (!this.isStreamOpen(stream)) {
+        await this.settleBudget(state, 0)
+        return
+      }
+      if (sendingKey === undefined) {
+        stream.fail(UI_TEXT.museVoiceNoKey)
+        return
+      }
+      state.keyDigest = createHash('sha256').update(sendingKey).digest('hex')
+      consentFence?.(state.keyDigest, true)
+      this.admitBudgetSend(state)
+      stream.start(sendingKey)
+    } catch (error: unknown) {
+      stream.fail(error instanceof Error ? error.message : String(error))
+      if (!this.open.has(stream)) {
+        await this.settleBudget(state, stream.audioSeconds)
+      }
+    }
+  }
+
+  private admitBudgetSend(state: VoiceBudgetState): void {
+    if (state.scope === undefined) {
+      return
+    }
+    if (state.scope.capUsd() > 0) {
+      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+    }
+    if (state.keyDigest !== state.scope.accountId) {
+      throw new Error(UI_TEXT.notSignedInReason)
+    }
+    if (!state.scope.isStillAllowed(state.keyDigest)) {
+      throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
     }
   }
 
   private newStream(key: Promise<string | undefined>): MuseVoiceStream {
+    const consentFence = this.listener.voiceConsentFence?.()
+    const state: VoiceBudgetState = {
+      scope: undefined,
+      claim: undefined,
+      keyDigest: undefined,
+      hasAuthorizationStarted: false,
+      isSettled: false,
+    }
     const stream: MuseVoiceStream = new MuseVoiceStream(
-      { url: this.deps.url, openSocket: this.deps.openSocket, log: this.deps.log },
+      {
+        url: this.deps.url,
+        openSocket: this.deps.openSocket,
+        log: this.deps.log,
+        admitSend: () => {
+          consentFence?.(state.keyDigest, true)
+          this.admitBudgetSend(state)
+        },
+        onAuthorizationStarted: () => {
+          state.hasAuthorizationStarted = true
+        },
+      },
       {
         onFinal: (text) => {
           this.settle(stream)
+          try {
+            consentFence?.(state.keyDigest, false)
+          } catch {
+            return
+          }
+          if (state.scope?.isStillAllowed(state.keyDigest) === false) {
+            return
+          }
           const trimmed = text.trim()
           if (trimmed !== '') {
             this.listener.onText(trimmed)
@@ -372,19 +542,10 @@ export class MuseVoiceDictation implements DictationHandle {
       },
     )
     this.open.add(stream)
+    this.budgets.set(stream, state)
     // The helper records from the press; the key is read meanwhile, and the
     // stream holds the audio until its handshake is answered.
-    void key
-      .then((apiKey) => {
-        if (apiKey === undefined) {
-          stream.fail(UI_TEXT.museVoiceNoKey)
-        } else {
-          stream.start(apiKey)
-        }
-      })
-      .catch((error: unknown) => {
-        stream.fail(error instanceof Error ? error.message : String(error))
-      })
+    void this.prepareStream(stream, state, key, consentFence)
     return stream
   }
 

@@ -52,6 +52,7 @@ export interface PullRequestCheckoutDeps {
     args: readonly string[],
     cwd: string,
     timeoutMs?: number,
+    input?: string,
     beforeRun?: () => void,
   ) => Promise<string>
   /**
@@ -301,6 +302,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
       ['rev-parse', '--verify', `FETCH_HEAD${COMMIT_PEEL}`],
       cwd,
       undefined,
+      undefined,
       check,
     )
     check()
@@ -345,6 +347,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
             ],
             cwd,
             GIT_WORKTREE_TIMEOUT_MS,
+            undefined,
             check,
           )
         : deps.checkOutHeld(folder, pullRequest.headSha, cwd, check))

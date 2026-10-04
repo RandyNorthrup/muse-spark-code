@@ -115,6 +115,7 @@ export type AuthPort = Pick<
   AuthService,
   | 'current'
   | 'backend'
+  | 'admissionGeneration'
   | 'toMessage'
   | 'signIn'
   | 'installMuseCode'

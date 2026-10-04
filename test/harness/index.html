@@ -139,6 +139,8 @@
         confidentialWorkspace: false,
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
+        modelApiReplyUsage: false,
+        museCodeAutoReviewer: true,
       }
       const models = [
         {
@@ -876,6 +878,120 @@
               })
               break
             }
+            // --- Review (M70): a review turn whose reply ends with its findings,
+            // and the review pane's changes and reverts.
+            case 'startReview': {
+              turn += 1
+              const turnId = `t${String(turn)}`
+              send({ type: 'turnAccepted', localId: message.localId, turnId })
+              send({ type: 'agentEvent', event: { type: 'turnStarted', turnId } })
+              const findings = {
+                findings: [
+                  {
+                    file: 'src/auth/login.ts',
+                    line: 42,
+                    endLine: 44,
+                    severity: 'high',
+                    title:
+                      'The password is compared with ==, which leaks its length through timing',
+                    detail: 'Compare the hashes with timingSafeEqual instead.',
+                  },
+                  {
+                    file: 'src/api/users.ts',
+                    line: 17,
+                    severity: 'medium',
+                    title: 'The user id reaches the SQL string unescaped',
+                    detail: 'Pass it as a query parameter.',
+                  },
+                  {
+                    file: 'README.md',
+                    severity: 'suggestion',
+                    title: 'The new setting is not documented',
+                  },
+                ],
+              }
+              later(200, () => {
+                send({
+                  type: 'agentEvent',
+                  event: {
+                    type: 'itemCompleted',
+                    item: {
+                      itemId: `rv${String(turn)}`,
+                      kind: 'agentMessage',
+                      status: 'completed',
+                      turnId,
+                      text: `Two security problems in the login change, and one gap in the docs.\n\n\`\`\`muse-review\n${JSON.stringify(findings, null, 2)}\n\`\`\``,
+                    },
+                  },
+                })
+                send({
+                  type: 'agentEvent',
+                  event: { type: 'turnCompleted', turnId, terminal: 'completed' },
+                })
+              })
+              break
+            }
+            case 'readReviewChanges': {
+              later(60, () =>
+                send({
+                  type: 'reviewChanges',
+                  requestId: message.requestId,
+                  omittedEdits: 0,
+                  files: [
+                    {
+                      itemId: 'ed1',
+                      outputRef: 'tool_patch-ed1',
+                      fileIndex: 0,
+                      path: 'notes.md',
+                      hunks: [
+                        {
+                          oldStart: 1,
+                          oldLines: 3,
+                          newStart: 1,
+                          newLines: 4,
+                          lines: [' # Notes', ' ', '-first line', '+second line', '+third line'],
+                        },
+                        {
+                          oldStart: 12,
+                          oldLines: 1,
+                          newStart: 13,
+                          newLines: 1,
+                          lines: ['-See the old guide.', '+See the new guide.'],
+                        },
+                      ],
+                    },
+                    {
+                      itemId: 'ed2',
+                      outputRef: 'tool_patch-ed2',
+                      fileIndex: 0,
+                      path: '../shared/config.json',
+                      refusal:
+                        harnessL10n.table?.editPathRefused?.replace(
+                          '{path}',
+                          '../shared/config.json',
+                        ) ??
+                        '../shared/config.json refused: the edited path is outside the workspace.',
+                      hunks: [
+                        { oldStart: 3, newStart: 3, lines: ['-  "retries": 1', '+  "retries": 3'] },
+                      ],
+                    },
+                  ],
+                }),
+              )
+              break
+            }
+            case 'revertReviewHunk': {
+              later(60, () =>
+                send({
+                  type: 'reviewHunkResult',
+                  itemId: message.itemId,
+                  fileIndex: message.fileIndex,
+                  hunkIndex: message.hunkIndex,
+                  isReverted: true,
+                }),
+              )
+              break
+            }
             default: {
               break
             }
@@ -945,6 +1061,7 @@
         Model: ['modelPillLabel'],
         'Record voice': ['dictationLabel'],
         'Session history': ['historyTitle'],
+        'Session board': ['boardTitle'],
         // The permission-mode button reads "<title>: <mode>".
         'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
       }
@@ -1718,7 +1835,46 @@
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
-        // --- M14: the usage modal on the Model API backend (a cost estimate) ---
+        // --- M82: a Model API reply with its tokens and cost under it, and
+        // the session budget's notices after it ---
+        'reply-usage': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'settingsChanged', settings: { ...settings, modelApiReplyUsage: true } })
+          window.harnessSilent = true
+          setDraft('Which files set the session budget?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The cap is read in `src/host/settings.ts` and kept in `sessionBudget.ts`.',
+              usage: {
+                inputTokens: 23_410,
+                outputTokens: 912,
+                cachedTokens: 18_000,
+                reasoningTokens: 240,
+              },
+              costUsd: 0.0133,
+            },
+          })
+          // The controller posts a backend's notices as its own (D26).
+          send({
+            type: 'notice',
+            level: 'warning',
+            text: 'The response reached the output limit the session budget left it (max_output_tokens 912) and may be cut short.',
+          })
+          send({
+            type: 'notice',
+            level: 'info',
+            text: 'This turn cost $0.0133 ($0.4870 of $0.5000 used).',
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        // --- M14: the usage modal on the Model API backend (a cost estimate;
+        // since M82 also what the prompt cache saved) ---
         'usage-api': () => {
           window.harnessBackend = 'modelApi'
           send({
@@ -1850,6 +2006,122 @@
             type: 'itemUpdated',
             item: { itemId: 'sa2', kind: 'subagent', status: 'completed', paid: 'subagents' },
           })
+        },
+        // --- M78: the Auto reviewer's paid row, and the card it leaves when it asks ---
+        'auto-review': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['autoReviewer'],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              autoReviews: 1,
+              autoReviewTokens: 1180,
+              autoReviewCostUsd: 0.0016,
+            },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('Clean the build output and run the tests')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'rv-shell',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'bash',
+              args: '{"command":"rm -r dist","description":"Remove the build output"}',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'rv-row',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'auto_review',
+              args: '{"tool":"bash","action":"rm -r dist"}',
+              paid: 'autoReviewer',
+              visibleOutput: 'Asks you: deletes the build output, which the request did not name',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'rv1',
+            itemId: 'rv-shell',
+            toolName: 'bash',
+            rawArgs: '{"command":"rm -r dist","description":"Remove the build output"}',
+            requirementId: { approvalId: 'rv1', sourceIndex: 0 },
+            subject: { kind: 'shell', command: 'rm -r dist' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'allow_session',
+                label: 'Always allow in this session: rm -r dist',
+                decision: 'approvedPolicyAmendment',
+                scope: 'session',
+              },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: true,
+            isProtectedWrite: false,
+            note: 'Asks you: deletes the build output, which the request did not name',
+          })
+        },
+        'auto-review-rule': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          window.harnessSilent = true
+          setDraft('Push the branch')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'rule-shell',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'bash',
+              args: '{"command":"git push origin main"}',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'rule1',
+            itemId: 'rule-shell',
+            toolName: 'bash',
+            rawArgs: '{"command":"git push origin main"}',
+            requirementId: { approvalId: 'rule1', sourceIndex: 0 },
+            subject: { kind: 'shell', command: 'git push origin main' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+            note: 'Your command rule asks about this command every time: pushes are reviewed',
+          })
+        },
+        'auto-review-usage': () => {
+          steps['auto-review']()
+          whenFound('.paid-badge', (badge) => badge.click())
         },
         // --- M34, M58: an image's row while the paid-use popup asks first ---
         'paid-image': () => {
@@ -3137,6 +3409,41 @@
             document.querySelectorAll('.message-assistant a')[1].click()
           })
         },
+        // --- M70: a review's findings, and the review pane over the changes ---
+        // `/review security` in the prompt; the fake host answers as a review turn.
+        'review-findings': () => {
+          textarea().focus()
+          setDraft('/review security')
+          key({ key: 'Enter' })
+        },
+        // The review pane: the edit rows of transcriptFixture, then `/changes`.
+        'review-pane': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            textarea().focus()
+            setDraft('/changes')
+            later(200, () => key({ key: 'Enter' }))
+          })
+        },
+        'review-pane-narrow': () => {
+          document.body.style.maxWidth = '300px'
+          steps['review-pane']()
+        },
+        // A change accepted, one reverted, one refused, and a comment open on a line.
+        'review-comment': () => {
+          steps['review-pane']()
+          whenFound('.review-hunk', () => {
+            const buttons = document.querySelectorAll('.review-hunk .review-actions button')
+            buttons[0].click()
+            buttons[4].click()
+            later(200, () => {
+              document.querySelectorAll('.review-hunk .review-actions button')[2].click()
+              whenFound('.review-comment textarea', (box) => {
+                setValue(box, HTMLTextAreaElement.prototype, 'Keep the old name here.')
+              })
+            })
+          })
+        },
         // --- D26: a notice said again is one row with its count, a different one apart ---
         'notice-repeat': () => {
           send({
@@ -3244,6 +3551,104 @@
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
+        // --- M77: the session board: every conversation's state, branch, changes ---
+        board: () => {
+          click('Session board')
+          send({
+            type: 'sessionBoard',
+            rows: [
+              {
+                sessionId: 's1',
+                title: 'Swap the precedence rows',
+                backend: 'modelApi',
+                status: 'running',
+                branch: 'bestofn/swap-precedence-a',
+                changedFiles: 3,
+                awaitingApproval: true,
+              },
+              {
+                sessionId: 's2',
+                title: 'Edit notes.md, then list the folder',
+                backend: 'museCode',
+                status: 'idle',
+                branch: 'main',
+                worktreePath: '/tmp/demo-notes',
+                changedFiles: 1,
+                awaitingApproval: false,
+              },
+              {
+                sessionId: 's3',
+                title: 'Review the workspace changes',
+                backend: 'modelApi',
+                status: 'idle',
+                awaitingApproval: false,
+              },
+            ],
+          })
+        },
+        // --- M77: best-of-N: parallel attempts, their diffs side by side, "take this one" ---
+        bestofn: () => {
+          // The run lands first: the dialog shows the run view only for a run
+          // it already knows when it opens.
+          send({
+            type: 'bestOfNUpdate',
+            run: {
+              runId: 'run1',
+              prompt: 'Swap the precedence rows',
+              modelId: 'muse-spark-1',
+              baseRef: 'abc123',
+              attempts: 3,
+              requestCeilingPerAttempt: 8,
+              status: 'running',
+              runAttempts: [
+                {
+                  attemptId: 'a1',
+                  branch: 'bestofn/swap-precedence-a',
+                  worktreePath: '/tmp/bestofn-a',
+                  hasWorktree: true,
+                  status: 'completed',
+                  requestsMade: 4,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [{ path: 'src/parser.ts', insertions: 2, deletions: 2 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n+    ['??', 4],",
+                  isDiffClipped: false,
+                },
+                {
+                  attemptId: 'a2',
+                  branch: 'bestofn/swap-precedence-b',
+                  worktreePath: '/tmp/bestofn-b',
+                  hasWorktree: true,
+                  status: 'completed',
+                  requestsMade: 8,
+                  ceilingReached: true,
+                  approvalsDenied: 1,
+                  files: [{ path: 'src/parser.ts', insertions: 3, deletions: 1 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n-    ['??', 5],\n+    ['??', 4],\n+    ['||', 5],",
+                  isDiffClipped: true,
+                },
+                {
+                  attemptId: 'a3',
+                  branch: 'bestofn/swap-precedence-c',
+                  worktreePath: '/tmp/bestofn-c',
+                  hasWorktree: true,
+                  status: 'running',
+                  requestsMade: 2,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [],
+                  changedLines: 0,
+                },
+              ],
+            },
+          })
+          steps.board()
+          whenFound('#board-listbox', () => {
+            document.querySelector('.palette-header .button-secondary').click()
+          })
+        },
       }
       // A scenario starts once the panel has drawn its surface: the composer,
       // a sign-in or install gate, or the crash screen; never sooner than the
@@ -3344,11 +3749,45 @@
           })
         )
       }
+      // WCAG 2.1.1 asks that a scrolling list be operable from the keyboard.
+      // The composer's "/" and "@" lists are, as WAI-ARIA's combobox pattern
+      // has it: the box keeps the focus, its aria-activedescendant moves
+      // through the options, and the active option is scrolled into view
+      // (Composer.tsx). axe's scrollable-region-focusable rule cannot see
+      // that and asks the region itself to take the focus, a Tab stop the
+      // pattern does not have. A finding of that rule is exempt, and
+      // reported, only when the region holds a listbox whose id a focused
+      // or focusable element names in aria-controls while its
+      // aria-activedescendant is one of that listbox's options (PLAN.md §8).
+      const isFocusedOrFocusable = (element) =>
+        element === document.activeElement ||
+        (element.tabIndex >= 0 && !element.disabled && element.closest('[inert]') === null)
+      const isActiveDescendantList = (node) => {
+        const region = elementAt(node.target)
+        if (region === null) {
+          return false
+        }
+        const owners = [...document.querySelectorAll('[aria-controls][aria-activedescendant]')]
+        return [...region.querySelectorAll('[role="listbox"][id]')].some((listbox) =>
+          owners.some((owner) => {
+            const active = document.getElementById(owner.getAttribute('aria-activedescendant'))
+            return (
+              owner.getAttribute('aria-controls').split(/\s+/).includes(listbox.id) &&
+              active !== null &&
+              listbox.contains(active) &&
+              isFocusedOrFocusable(owner)
+            )
+          }),
+        )
+      }
+      const isExempt = (rule, node) =>
+        (rule === 'target-size' && isObscuredByOpenedContent(node)) ||
+        (rule === 'scrollable-region-focusable' && isActiveDescendantList(node))
       // One of axe's result lists, the exempt elements taken out and noted.
       const findingsOf = (list, exempt) =>
         list.flatMap((finding) => {
           const nodes = finding.nodes.filter((node) => {
-            if (finding.id === 'target-size' && isObscuredByOpenedContent(node)) {
+            if (isExempt(finding.id, node)) {
               exempt.push({ rule: finding.id, target: node.target.join(' ') })
               return false
             }

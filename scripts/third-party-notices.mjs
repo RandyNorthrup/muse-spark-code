@@ -32,6 +32,7 @@ const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'reviewer.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),
   path.join(METAFILE_DIR, 'pageWorker.json'),
 ]
@@ -55,12 +56,16 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/planMarkdown.js, dist/checkpointStore.js, dist/agentImport.js, dist/conversationGit.js,
-dist/searchWorker.js, dist/pageWorker.js,
+dist/sessionBoard.js, dist/reviewer.js, dist/planMarkdown.js, dist/checkpointStore.js,
+dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/bundledSkills.js,
+dist/codeIntel.js, dist/voice.js, dist/museCodeReviewer.js,
+dist/uiText.js, dist/searchWorker.js, dist/pageWorker.js,
 dist/webview/main.js and
 dist/webview/main.css)
 include code from the packages below, each under its own licence,
-reproduced here as the package ships it. The macOS dictation helper links
+reproduced here as the package ships it. The vendored
+high-quality-projects-skill workflow package is also included below.
+The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
 
@@ -72,7 +77,7 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/modelApi.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/uiText.js, dist/searchWorker.js and
 dist/pageWorker.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
@@ -186,6 +191,14 @@ const metafiles =
     : ACP_METAFILES
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
+if (acpOutput === undefined) {
+  packages.push({
+    name: 'high-quality-projects-skill',
+    licence: 'MIT',
+    url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
+    text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
+  })
+}
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)
   for (const problem of problems) {

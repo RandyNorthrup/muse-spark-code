@@ -18,9 +18,17 @@ import {
   LOOP_SLASH_COMMAND,
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
+  REVIEW_SLASH_COMMAND,
+  SETTING_DEFAULTS,
   type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
+import {
+  parseReviewPrompt,
+  reviewCommandText,
+  type ReviewRequest,
+  reviewRequestSchema,
+} from '../shared/reviewCommand'
 import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
@@ -37,8 +45,10 @@ import { buildPalette, formatTokenWindow, type PaletteAction } from '../shared/p
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
+  ChatReference,
   LineRange,
   NoticeAction,
+  ReviewFile,
   SignInMethod,
   WebviewToHostMessage,
 } from '../shared/protocol'
@@ -54,6 +64,9 @@ import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
+import { ReviewPane } from './components/ReviewPane'
+import { SessionBoardDialog } from './components/SessionBoardDialog'
+import { BestOfNDialog } from './components/BestOfNDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
@@ -71,12 +84,14 @@ import {
   canSend,
   agentsOf,
   backgroundTasksOf,
+  conversationEdits,
   editsAfter,
   forkCutBefore,
   initialUiState,
   isRunningTask,
   planReplyIdOf,
   referenceLabel,
+  reviewHunkKey,
   type UiState,
   userShellCommandOf,
   visibleEditorContext,
@@ -147,8 +162,9 @@ function restoreNoteOf(state: UiState): string | undefined {
   return notes[state.checkpoints.availability]
 }
 
-/** What floats above the composer: a palette view, a menu or the History dialog. */
-type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage' | 'agents'
+/** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
+type Overlay =
+  PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -163,6 +179,8 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
 // What choosing `/goal` leaves in the prompt: the command, ready for the objective (M45).
 const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
+// What choosing `/review` leaves: the command, ready for what to review (M70).
+const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
 const HANDOFF_PROMPT_START = `/${HANDOFF_SLASH_COMMAND} `
 const GATED_STATUSES = new Set(['noCli', 'installing', 'signedOut', 'signingIn', 'error'])
@@ -283,6 +301,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     case 'startLoop': {
       return LOOP_PROMPT_START
     }
+    case 'startReview': {
+      return REVIEW_PROMPT_START
+    }
     case 'startHandoff': {
       return HANDOFF_PROMPT_START
     }
@@ -305,10 +326,17 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
-  const [overlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
+  // The review pane's changes go with their conversation (a clear, another
+  // session), and the pane goes with them (M70).
+  const overlay =
+    chosenOverlay === 'review' && state.reviewPane === undefined ? undefined : chosenOverlay
   const [isInstallConfirmOpen, setIsInstallConfirmOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
+  // The Auto reviewer on Muse Code (M90), as its setting says.
+  const hasMuseCodeReviewer =
+    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
 
   // The transcript follows new entries while the reader is at its end; once
   // they scroll up it holds still and offers a jump to the newest (M15).
@@ -573,6 +601,27 @@ export function App({
   const onScheduleEnable = useCallback(() => {
     postMessage({ type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true })
   }, [postMessage])
+  // `/review …` and the palette's review rows (M70): the card first, then the
+  // host's word on it, as for a message. False when the request is refused here.
+  const onReview = useCallback(
+    (request: ReviewRequest, text: string): boolean => {
+      const parsed = reviewRequestSchema.safeParse(request)
+      if (!parsed.success) {
+        dispatch({
+          type: 'noticeRaised',
+          level: 'warning',
+          text: UI_TEXT.reviewInstructionsTooLong,
+        })
+        return false
+      }
+      const localId = newLocalId()
+      dispatch({ type: 'cardSubmitted', localId, text })
+      postMessage({ type: 'startReview', localId, text, request: parsed.data })
+      setIsPinnedToEnd(true)
+      return true
+    },
+    [dispatch, newLocalId, postMessage],
+  )
   const onSubmit = useCallback(() => {
     const current = store.getState()
     if (!canSend(current)) {
@@ -588,6 +637,15 @@ export function App({
       return
     }
     const text = current.draft.trim()
+    // `/review …` (M70): a review turn, its card what was typed. The chips
+    // and the reference chip wait for the next message.
+    const review = parseReviewPrompt(text)
+    if (review !== undefined) {
+      if (onReview(review, text)) {
+        dispatch({ type: 'draftChanged', draft: '' })
+      }
+      return
+    }
     // `/goal …` is a command to the backend, not a message (M45): no card.
     const goal = parseGoalPrompt(text)
     if (goal !== undefined) {
@@ -665,7 +723,7 @@ export function App({
     })
     // The reader's own message always lands in view (M15).
     setIsPinnedToEnd(true)
-  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onHandoff])
+  }, [store, dispatch, newLocalId, postMessage, onGoalCommand, onReview, onHandoff])
   const onDismissEditorContext = useCallback(() => {
     dispatch({ type: 'editorContextDismissed' })
   }, [dispatch])
@@ -906,13 +964,28 @@ export function App({
       if ((view === 'actions' || view === 'models') && store.getState().skills === undefined) {
         postMessage({ type: 'listSkills' })
       }
-      if (view === 'history') {
-        // Always re-list: the rows change while the dialog is closed.
-        postMessage({ type: 'listSessions' })
-      } else if (view === 'usage' || view === 'agents') {
-        // The Agent map notes Muse Code's delegation and workflow settings
-        // from the same account facts (M47), read fresh as the dialog's are.
-        postMessage({ type: 'readUsage' })
+      switch (view) {
+        case 'history': {
+          // Always re-list: the rows change while the dialog is closed.
+          postMessage({ type: 'listSessions' })
+          break
+        }
+        case 'board': {
+          // The board re-reads too: conversations change while it is closed.
+          postMessage({ type: 'listSessions' })
+          postMessage({ type: 'requestSessionBoard' })
+          break
+        }
+        case 'usage':
+        case 'agents': {
+          // The Agent map notes Muse Code's delegation and workflow settings
+          // from the same account facts (M47), read fresh as the dialog's are.
+          postMessage({ type: 'readUsage' })
+          break
+        }
+        default: {
+          break
+        }
       }
       setOverlay(view)
     },
@@ -966,9 +1039,85 @@ export function App({
   const onPaletteBack = useCallback(() => {
     setOverlay('actions')
   }, [])
+  // The review pane (M70): the conversation's edits, read afresh each time it opens.
+  const openReviewPane = useCallback(() => {
+    const requestId = `review:${newLocalId()}`
+    dispatch({ type: 'reviewPaneRequested', requestId })
+    postMessage({
+      type: 'readReviewChanges',
+      requestId,
+      edits: [...conversationEdits(store.getState())],
+    })
+    setOverlay('review')
+  }, [dispatch, newLocalId, postMessage, store])
+  const onReviewAccept = useCallback(
+    (key: string, isAccepted: boolean) => {
+      dispatch({ type: 'reviewHunkAccepted', key, isAccepted })
+    },
+    [dispatch],
+  )
+  const onReviewRevert = useCallback(
+    (file: ReviewFile, hunkIndex: number) => {
+      dispatch({
+        type: 'reviewHunkReverting',
+        key: reviewHunkKey(file.itemId, file.fileIndex, hunkIndex),
+      })
+      postMessage({
+        type: 'revertReviewHunk',
+        itemId: file.itemId,
+        outputRef: file.outputRef,
+        fileIndex: file.fileIndex,
+        hunkIndex,
+      })
+    },
+    [dispatch, postMessage],
+  )
+  // A comment on a line (M70): a message with the lines it is about, which
+  // steers the running turn or starts the next one, as any message does.
+  const onReviewComment = useCallback(
+    (text: string, reference: ChatReference) => {
+      const localId = newLocalId()
+      dispatch({
+        type: 'cardSubmitted',
+        localId,
+        text,
+        reference,
+        announcement: UI_TEXT.reviewCommentSent,
+      })
+      postMessage({ type: 'sendMessage', localId, text, attachmentIds: [], reference })
+    },
+    [dispatch, newLocalId, postMessage],
+  )
   const onOpenHistory = useCallback(() => {
     toggleOverlay('history')
   }, [toggleOverlay])
+  const onOpenBoard = useCallback(() => {
+    toggleOverlay('board')
+  }, [toggleOverlay])
+  const onOpenBestOfN = useCallback(() => {
+    setOverlay('bestOfN')
+  }, [])
+  const onStartBestOfN = useCallback(
+    (prompt: string, attempts: number, requestCeilingPerAttempt: number) => {
+      postMessage({ type: 'startBestOfN', prompt, attempts, requestCeilingPerAttempt })
+    },
+    [postMessage],
+  )
+  const onTakeBestOfNAttempt = useCallback(
+    (attemptId: string) => {
+      const run = store.getState().bestOfN
+      if (run !== undefined) {
+        postMessage({ type: 'takeBestOfNAttempt', runId: run.runId, attemptId })
+      }
+    },
+    [postMessage, store],
+  )
+  const onCancelBestOfN = useCallback(() => {
+    const run = store.getState().bestOfN
+    if (run !== undefined) {
+      postMessage({ type: 'cancelBestOfN', runId: run.runId })
+    }
+  }, [postMessage, store])
   const onOpenSideChat = useCallback(() => {
     const sessionId = store.getState().sessionId
     if (sessionId !== undefined) {
@@ -1404,12 +1553,36 @@ export function App({
           postMessage({ type: 'setPaidFeature', feature: action.feature, isOn: action.isOn })
           break
         }
+        case 'startReview': {
+          // The prompt becomes `/review ` for what to review (M70).
+          dispatch({ type: 'draftChanged', draft: REVIEW_PROMPT_START })
+          closeOverlay()
+          break
+        }
+        case 'review': {
+          onReview(action.request, reviewCommandText(action.request))
+          closeOverlay()
+          break
+        }
+        case 'openReviewPane': {
+          openReviewPane()
+          break
+        }
         case 'none': {
           break
         }
       }
     },
-    [store, dispatch, postMessage, closeOverlay, openOverlay, onNewConversation],
+    [
+      store,
+      dispatch,
+      postMessage,
+      closeOverlay,
+      openOverlay,
+      onNewConversation,
+      onReview,
+      openReviewPane,
+    ],
   )
 
   const paletteGroups = useMemo(
@@ -1499,11 +1672,11 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: UI_TEXT.permissionModes[mode],
-        detail: permissionModeDetail(mode, state.auth.backend),
+        detail: permissionModeDetail(mode, state.auth.backend, hasMuseCodeReviewer),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode, state.auth.backend],
+    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer],
   )
   const agents = agentsOf(state)
   // The approvals waiting, docked above the composer (D26).
@@ -1670,6 +1843,7 @@ export function App({
               : undefined
           }
           onReply={onReply}
+          showReplyUsage={state.settings.modelApiReplyUsage}
           planReplyId={planReplyIdOf(state)}
           onSavePlan={onSavePlan}
           onImplementPlan={state.isSideChat ? undefined : onImplementPlan}
@@ -1752,12 +1926,26 @@ export function App({
     case 'history':
     case 'usage':
     case 'agents':
+    case 'review':
     case undefined: {
-      // History hangs from the header; usage and the Agent map are modals.
+      // History hangs from the header; usage, the Agent map and the review pane are modals.
       floating = null
       break
     }
   }
+  const reviewPane =
+    overlay === 'review' && state.reviewPane !== undefined ? (
+      <ReviewPane
+        pane={state.reviewPane}
+        hunks={state.reviewHunks}
+        isRunning={isRunning}
+        onAccept={onReviewAccept}
+        onRevert={onReviewRevert}
+        onOpenFile={onOpenFile}
+        onComment={onReviewComment}
+        onClose={closeOverlay}
+      />
+    ) : null
   const agentMap =
     overlay === 'agents' ? (
       <AgentMap
@@ -1796,6 +1984,35 @@ export function App({
         onClose={closeOverlay}
       />
     ) : null
+  const board =
+    overlay === 'board' ? (
+      <SessionBoardDialog
+        rows={state.board}
+        currentSessionId={state.sessionId}
+        onResume={(sessionId, backend) => {
+          postMessage({ type: 'activateBoardSession', sessionId, backend })
+          closeOverlay()
+        }}
+        onStartBestOfN={onOpenBestOfN}
+        onClose={closeOverlay}
+      />
+    ) : null
+  const bestOfN =
+    overlay === 'bestOfN' ? (
+      <BestOfNDialog
+        run={state.bestOfN}
+        isPaidOn={state.paid.features.includes('bestOfN')}
+        defaultPrompt={state.draft}
+        onStart={onStartBestOfN}
+        onTake={onTakeBestOfNAttempt}
+        onOpen={(attemptId) => {
+          if (state.bestOfN !== undefined)
+            postMessage({ type: 'openBestOfNAttempt', runId: state.bestOfN.runId, attemptId })
+        }}
+        onCancelRun={onCancelBestOfN}
+        onClose={closeOverlay}
+      />
+    ) : null
   const usageDialog =
     overlay === 'usage' ? (
       <UsageDialog
@@ -1821,10 +2038,14 @@ export function App({
       />
     ) : null
   // One modal at a time (M74): a brief that arrives while Usage, the Agent
-  // map, a share file or the install confirmation is open waits for it to close, then
+  // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
-    overlay === 'usage' || overlay === 'agents' || isInstallConfirmOpen || state.share !== undefined
+    overlay === 'usage' ||
+    overlay === 'agents' ||
+    reviewPane !== null ||
+    isInstallConfirmOpen ||
+    state.share !== undefined
   const handoffDialog =
     isOtherModalOpen || state.handoff === undefined ? null : (
       <HandoffDialog
@@ -1855,6 +2076,7 @@ export function App({
           isSideChat={state.isSideChat}
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
+          onOpenBoard={onOpenBoard}
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
           agentCount={agentCount}
           runningAgentCount={runningAgentCount}
@@ -1863,10 +2085,13 @@ export function App({
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
         {history}
+        {board}
+        {bestOfN}
       </div>
       {usageDialog}
       {handoffDialog}
       {agentMap}
+      {reviewPane}
       {state.share === undefined ? null : (
         <ShareView
           title={state.share.title}

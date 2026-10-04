@@ -50,6 +50,7 @@ function loadBundle(file, exportName) {
 
 loadBundle(path.resolve('dist/extension.js'), 'activate')
 loadBundle(path.resolve('dist/modelApi.js'), 'createModelApiHost')
+loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 // The installed agent's own copy of the backend, which `--help` never loads.
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
@@ -61,4 +62,6 @@ const help = execFileSync(process.execPath, [agent, '--help'], {
   env: { LC_ALL: 'en_US.UTF-8' },
 })
 assert.equal(help.trim(), table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp').trim())
-console.log('ok   extension, Model API and installed ACP tarball load the shared English fallback')
+console.log(
+  'ok   extension, Model API, review and installed ACP tarball load the shared English fallback',
+)

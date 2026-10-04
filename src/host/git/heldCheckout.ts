@@ -46,6 +46,7 @@ export interface HeldCheckoutDeps {
     args: readonly string[],
     cwd: string,
     timeoutMs?: number,
+    input?: string,
     beforeRun?: () => void,
   ) => Promise<string>
   /** git with binary stdout (git.ts `createGitProcess`), for the one `cat-file --batch`. */
@@ -231,6 +232,7 @@ async function removeWorktree(deps: HeldCheckoutDeps, target: Target): Promise<v
       ['worktree', 'remove', '--force', target.folder],
       target.cwd,
       GIT_WORKTREE_TIMEOUT_MS,
+      undefined,
       target.check,
     )
   } catch (error: unknown) {
@@ -250,6 +252,7 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
         ['ls-tree', '-r', '-z', '--full-tree', '--long', commit],
         cwd,
         GIT_WORKTREE_TIMEOUT_MS,
+        undefined,
         check,
       )
     } catch (error: unknown) {
@@ -271,10 +274,16 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
     if (!tree.ok) {
       throw new GitUnavailableError(tree.reason)
     }
-    await deps.runGit(worktreeAddHeldArgs(folder, commit), cwd, GIT_WORKTREE_TIMEOUT_MS, check)
+    await deps.runGit(
+      worktreeAddHeldArgs(folder, commit),
+      cwd,
+      GIT_WORKTREE_TIMEOUT_MS,
+      undefined,
+      check,
+    )
     try {
       // In the worktree, so named hooks its own configuration defines are found and switched off.
-      await deps.runGit(['read-tree', commit], folder, GIT_WORKTREE_TIMEOUT_MS, check)
+      await deps.runGit(['read-tree', commit], folder, GIT_WORKTREE_TIMEOUT_MS, undefined, check)
       await writeEntries(deps, target, tree.entries)
     } catch (error: unknown) {
       await removeWorktree(deps, target)

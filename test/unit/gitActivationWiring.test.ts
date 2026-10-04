@@ -38,7 +38,7 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
 
   it('carries a worktree command’s last check through the admission to Git', () => {
     expect(source).toMatch(
-      /mutationGit:\s*\(args,\s*cwd,\s*timeoutMs,\s*beforeRun\)\s*=>\s*backend\.startWorktreeMutation\(\s*cwd,\s*\(ownedCwd\)\s*=>\s*runGit\(args,\s*ownedCwd,\s*timeoutMs,\s*beforeRun\),\s*nativeStarts\.signal,\s*\)/,
+      /mutationGit:\s*\(args,\s*cwd,\s*timeoutMs,\s*beforeRun\)\s*=>\s*backend\.startWorktreeMutation\(\s*cwd,\s*\(ownedCwd\)\s*=>\s*runGit\(args,\s*ownedCwd,\s*timeoutMs,\s*undefined,\s*beforeRun\),\s*nativeStarts\.signal,\s*\)/,
     )
   })
 
@@ -55,5 +55,26 @@ describe('activation wires git and pull requests to the window’s guards (M71)'
     expect(source).not.toMatch(/vscode\.workspace\.isTrusted\s*\?\s*settings\.checkCommands/)
     // The environment facts carry commit subjects: the same rule at the git call's own gate.
     expect(source).toMatch(/!isProjectTrusted\(\)\s*\|\|\s*!isSamePath\(cwd,\s*workspaceRoot,/)
+  })
+
+  it('admits Best-of-N’s git at its native entry by project trust, and reads VS Code’s alone nowhere git follows', () => {
+    // The RVMG78 review: a held window VS Code trusts could `git worktree add`.
+    expect(source).toMatch(
+      /const runBestOfNGit[^\n]*\n(?:[^\n]*\n){0,8}\s*if \(!isProjectTrusted\(\)\) \{/,
+    )
+    // The rest: the hold's own input, the paid-use memory, the controller's
+    // trust beside the hold (it asks both before git) and the support report.
+    const raw = Array.from(source.matchAll(/^.*vscode\.workspace\.isTrusted.*$/gm), ([line]) =>
+      line.trim(),
+    )
+    expect(raw).toEqual([
+      'windowHold.allowsProjectConfiguration(vscode.workspace.isTrusted)',
+      'vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,',
+      'isWorkspaceTrusted: () => vscode.workspace.isTrusted,',
+      'isWorkspaceTrusted: vscode.workspace.isTrusted,',
+    ])
+    expect(source).toMatch(
+      /isWorkspaceTrusted:\s*\(\)\s*=>\s*vscode\.workspace\.isTrusted,\s*isWorktreeHeld:\s*\(\)\s*=>\s*windowHold\.isHeld,/,
+    )
   })
 })

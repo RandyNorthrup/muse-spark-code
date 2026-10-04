@@ -6,11 +6,7 @@ import { describeEnvironment } from '../../src/host/backend/environment'
 import { withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { processGitRunner } from '../../src/host/git'
 import { posixQuoted } from '../../src/core/shellQuote'
-import {
-  GIT_FILTER_NAME_MAX_CHARS,
-  GIT_FILTER_NAMES_MAX,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import {
   changedFileTurn,
   checkpointPort,
@@ -25,6 +21,7 @@ import {
   runGit,
   write,
 } from './helpers/checkpointHarness'
+import { hostileFilterListings } from './helpers/gitFilterNames'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 
 afterEach(removeCheckpointFolders)
@@ -35,7 +32,8 @@ function factsOver(h: Harness, signal = new AbortController().signal, trusted = 
   const port = checkpointPort(h)
   const check = manager.workspaceActionGuard(signal, h.root)
   const process = vi.fn(
-    async (args: readonly string[], cwd: string) => await realGit(args, cwd, undefined, check),
+    async (args: readonly string[], cwd: string) =>
+      await realGit(args, cwd, undefined, undefined, check),
   )
   const facts = () =>
     describeEnvironment({
@@ -221,7 +219,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
       const manager = fakeMuseCodeManager({ workspaceRoot: h.root })
       const check = manager.workspaceActionGuard(new AbortController().signal, other.root)
       await expect(
-        realGit(['rev-parse', '--show-toplevel'], other.root, undefined, check),
+        realGit(['rev-parse', '--show-toplevel'], other.root, undefined, undefined, check),
       ).rejects.toThrow(UI_TEXT.checkpointFailed)
     },
     REAL_GIT_TIMEOUT_MS,
@@ -233,7 +231,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
       const h = await committedWorkspace()
       const fixture = factsOver(h)
       fixture.process.mockImplementationOnce(async (args, cwd) => {
-        const result = await realGit(args, cwd, undefined, fixture.check)
+        const result = await realGit(args, cwd, undefined, undefined, fixture.check)
         await fixture.manager.dispose()
         return result
       })
@@ -279,15 +277,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
     REAL_GIT_TIMEOUT_MS,
   )
 
-  it.each([
-    'filter.bad=name.clean\u{0}',
-    `filter.${'x'.repeat(GIT_FILTER_NAME_MAX_CHARS)}.clean\u{0}`,
-    Array.from(
-      { length: GIT_FILTER_NAMES_MAX + 1 },
-      (_, index) => `filter.p${String(index)}.clean\u{0}`,
-    ).join(''),
-    Object.assign(new Error('unreadable /arbitrary/profile/path'), { code: 'EACCES' }),
-  ])(
+  it.each(hostileFilterListings('unreadable /arbitrary/profile/path'))(
     'refuses malformed/excessive/unreadable names without status or raw error logs',
     async (names) => {
       const h = await harness()

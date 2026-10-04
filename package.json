@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -225,6 +225,16 @@
       {
         "command": "museSpark.restartMuseCode",
         "title": "%command.restartMuseCode.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.installBundledSkills",
+        "title": "%command.installBundledSkills.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.removeBundledSkills",
+        "title": "%command.removeBundledSkills.title%",
         "category": "%command.category%"
       }
     ],
@@ -563,6 +573,12 @@
           "description": "%config.modelApiSubagents.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiBestOfN": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiBestOfN.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiHooks": {
           "type": "boolean",
           "default": false,
@@ -622,6 +638,23 @@
           "description": "%config.formatOnEdit.description%",
           "scope": "machine"
         },
+        "museSpark.notifyOnBackgroundTurn": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.notifyOnBackgroundTurn.description%"
+        },
+        "museSpark.modelApiReplyUsage": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiReplyUsage.description%"
+        },
+        "museSpark.modelApiSessionBudgetUsd": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0,
+          "description": "%config.modelApiSessionBudgetUsd.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiRepoMap": {
           "type": "boolean",
           "default": false,
@@ -638,6 +671,202 @@
           "type": "boolean",
           "default": true,
           "description": "%config.turnCheckpoints.description%",
+          "scope": "machine"
+        },
+        "museSpark.bundledSkills": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.bundledSkills.description%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiCommandRules": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "%config.modelApiCommandRules.markdownDescription%",
+          "maxItems": 500,
+          "items": {
+            "type": "object",
+            "required": [
+              "pattern",
+              "decision",
+              "match"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pattern": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                "minItems": 1,
+                "maxItems": 32
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "ask",
+                  "forbid"
+                ]
+              },
+              "shell": {
+                "type": "string",
+                "enum": [
+                  "bash",
+                  "powershell"
+                ]
+              },
+              "justification": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "match": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "minItems": 1,
+                "maxItems": 20
+              },
+              "notMatch": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "maxItems": 20
+              }
+            }
+          },
+          "scope": "machine"
+        },
+        "museSpark.modelApiPermissionProfiles": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "%config.modelApiPermissionProfiles.markdownDescription%",
+          "maxProperties": 50,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "denyRead": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 200
+              },
+              "extraRoots": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            }
+          },
+          "scope": "machine"
+        },
+        "museSpark.modelApiPermissionProfile": {
+          "type": "string",
+          "default": "",
+          "maxLength": 64,
+          "markdownDescription": "%config.modelApiPermissionProfile.markdownDescription%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiRepositoryRules": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "%config.modelApiRepositoryRules.markdownDescription%",
+          "additionalProperties": false,
+          "properties": {
+            "commandRules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "pattern",
+                  "decision",
+                  "match"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "pattern": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256
+                    },
+                    "minItems": 1,
+                    "maxItems": 32
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "allow",
+                      "ask",
+                      "forbid"
+                    ]
+                  },
+                  "shell": {
+                    "type": "string",
+                    "enum": [
+                      "bash",
+                      "powershell"
+                    ]
+                  },
+                  "justification": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "match": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "notMatch": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1000
+                    },
+                    "maxItems": 20
+                  }
+                }
+              },
+              "maxItems": 500
+            },
+            "denyRead": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 200
+            }
+          }
+        },
+        "museSpark.modelApiAutoReviewer": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiAutoReviewer.description%",
+          "scope": "machine"
+        },
+        "museSpark.museCodeAutoReviewer": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
         }
       }
@@ -709,7 +938,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "run-s lint:js lint:css lint:ps",
-    "lint:js": "eslint . --max-warnings=0",
+    "lint:js": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js . --max-warnings=0",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings=0",
     "lint:ps": "node scripts/lint-ps.mjs",
     "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration",
@@ -719,7 +948,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/agentImportEntry.ts src/host/git/conversationGitEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/host/git/conversationGitEntry.ts src/webview/main.tsx src/runtime/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -735,21 +964,22 @@
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
     "package": "vsce package --no-dependencies",
-    "package:acp": "node scripts/build.mjs --production && node scripts/package-acp.mjs",
+    "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
-    "security:sast": "node scripts/sast.mjs"
+    "security:sast": "node scripts/sast.mjs",
+    "schema:exec": "node scripts/exec-schema.mjs"
   },
   "lint-staged": {
-    "*.{ts,tsx,mjs}": [
+    "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
       "eslint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.css": [
+    "{*.css,!(vendor)/**/*.css}": [
       "stylelint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.{json,jsonc,md,yml,yaml}": "prettier --write"
+    "{*.{json,jsonc,md,yml,yaml},!(vendor)/**/*.{json,jsonc,md,yml,yaml}}": "prettier --write"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.5.0",
@@ -765,7 +995,7 @@
     "@types/react-dom": "19.3.0",
     "@types/vscode": "1.99.0",
     "@types/vscode-webview": "1.57.5",
-    "@vitest/coverage-v8": "5.0.1",
+    "@vitest/coverage-v8": "5.0.2",
     "@vscode/test-cli": "0.0.15",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.0.0",
@@ -776,10 +1006,10 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unicorn": "76.0.0",
     "husky": "9.1.7",
-    "jscpd": "5.3.1",
+    "jscpd": "5.3.2",
     "jsdom": "30.1.1",
-    "knip": "6.37.0",
-    "lint-staged": "17.5.1",
+    "knip": "6.38.0",
+    "lint-staged": "17.6.0",
     "npm-run-all2": "9.0.3",
     "ovsx": "1.2.0",
     "playwright-core": "1.63.0",
@@ -791,7 +1021,7 @@
     "stylelint-config-standard": "40.0.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
-    "vitest": "5.0.1",
+    "vitest": "5.0.2",
     "zod": "4.6.5"
   },
   "overrides": {

@@ -160,7 +160,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
   // Whole tokens, recognised by their shape and replaced entirely.
   // GitHub tokens, GitLab personal access tokens, npm tokens.
   {
-    pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,255}|github_pat_\w{20,255})/g,
+    pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,})/g,
     literals: ['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'github_pat_'],
     replace: mark,
   },
@@ -264,18 +264,71 @@ export const SECRET_RULES: readonly SecretRule[] = [
 export const MAY_HOLD_SECRET =
   /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=/i
 
-export function redactSecrets(text: string): string {
+function redactPatterns(text: string, matched?: () => void): string {
   if (!MAY_HOLD_SECRET.test(text)) {
     return text
   }
   let result = text
   for (const rule of SECRET_RULES) {
     // A function, so no `$` sequence in the mark is interpreted.
-    result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) =>
-      rule.replace(match, lead, quote),
-    )
+    result = result.replaceAll(rule.pattern, (match: string, lead: string, quote: string) => {
+      const replacement = rule.replace(match, lead, quote)
+      if (replacement !== match) {
+        matched?.()
+      }
+      return replacement
+    })
   }
   return result
+}
+
+/**
+ * The forms of one exact literal that literal-first redaction replaces (M80,
+ * SPEC §4.2): the literal, its percent-encoded form, and what a pattern-only
+ * pass leaves of it. Text that an earlier step already redacted by pattern
+ * alone (a network error's description) still carries that residue, such as a
+ * legacy key's tail after the `%` its pattern stops at.
+ */
+function literalForms(literal: string): string[] {
+  const forms = [literal]
+  try {
+    forms.push(encodeURIComponent(literal))
+  } catch {
+    // A lone surrogate has no encoded form; the literal itself still applies.
+  }
+  const residue = redactPatterns(literal)
+  if (residue !== literal && residue !== REDACTED_MARK) {
+    forms.push(residue)
+  }
+  return forms
+}
+
+function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
+  let result = text
+  const ordered = [
+    ...new Set(literals.filter((value) => value !== '').flatMap((value) => literalForms(value))),
+  ].toSorted((a, b) => b.length - a.length)
+  for (const literal of ordered) {
+    result = result.replaceAll(literal, () => {
+      matched?.()
+      return REDACTED_MARK
+    })
+  }
+  return redactPatterns(result, matched)
+}
+
+/** Exact run keys precede patterns, including legacy keys containing percent signs. */
+export function redactSecrets(text: string, literals: readonly string[] = []): string {
+  return redactWith(text, literals)
+}
+
+/** Counts only changed, nonoverlapping matches in the same order as redaction. */
+export function countSecretMatches(text: string, literals: readonly string[]): number {
+  let count = 0
+  redactWith(text, literals, () => {
+    count += 1
+  })
+  return count
 }
 
 // --- Long text in slices (RV84 #9) ---

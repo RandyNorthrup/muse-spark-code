@@ -15,9 +15,10 @@ export interface SlashMenuProps {
 }
 
 export const SLASH_LISTBOX_ID = 'slash-listbox'
+export const SLASH_OPTION_ID_PREFIX = 'slash-option-'
 
 export function slashOptionId(index: number): string {
-  return `slash-option-${String(index)}`
+  return `${SLASH_OPTION_ID_PREFIX}${String(index)}`
 }
 
 export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuProps) {

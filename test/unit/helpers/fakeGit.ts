@@ -96,8 +96,8 @@ export function fakeRepository(state: Partial<FakeRepositoryState> = {}): FakeRe
 }
 
 /** A `vscode.Memento` in memory. */
-export function memoryMemento() {
-  const values = new Map<string, unknown>()
+export function memoryMemento(initial: Record<string, unknown> = {}) {
+  const values = new Map<string, unknown>(Object.entries(initial))
   return {
     values,
     get: (key: string) => values.get(key),

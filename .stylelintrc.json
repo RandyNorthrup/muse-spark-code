@@ -38,5 +38,11 @@
       }
     ]
   },
-  "ignoreFiles": ["**/node_modules/**", "**/dist/**", "**/coverage/**", "**/*.min.css"]
+  "ignoreFiles": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/*.min.css",
+    "**/vendor/**"
+  ]
 }

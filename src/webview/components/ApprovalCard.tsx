@@ -135,6 +135,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}
         </div>
       ) : null}
+      {approval.note === undefined ? null : (
+        <p className="approval-note" dir="auto">
+          {approval.note}
+        </p>
+      )}
       {hasFeedbackChoice ? (
         <textarea
           className="approval-feedback"

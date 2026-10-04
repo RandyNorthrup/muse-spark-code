@@ -113,7 +113,7 @@ async function heldCheckout(entries: readonly Entry[], options: FakeOptions = {}
   }
   const checkOut = createHeldCheckout({
     platform: process.platform,
-    runGit: async (args, cwd, _timeoutMs, beforeRun) => {
+    runGit: async (args, cwd, _timeoutMs, _input, beforeRun) => {
       beforeRun?.()
       calls.push({ args, cwd })
       if (args[0] === 'ls-tree') {

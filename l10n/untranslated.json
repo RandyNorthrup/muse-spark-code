@@ -30,6 +30,7 @@
       "onboardingShortcuts.mentionFile",
       "onboardingShortcuts.dictation",
       "paidVoiceName",
+      "usageCacheSavingsValue",
       "mcpToolLabel",
       "goalItem",
       "composerShellMode",
@@ -42,7 +43,10 @@
       "gitPullRequestName",
       "handoffItem",
       "agentImportSourceCursor",
-      "noticeRepeatBadge"
+      "noticeRepeatBadge",
+      "reviewItem",
+      "execUsage",
+      "execScanUsage"
     ],
     "cs": [
       "groupModel",

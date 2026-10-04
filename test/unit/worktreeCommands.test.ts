@@ -79,7 +79,8 @@ function harness(options: HarnessOptions = {}) {
     workspaceRoot: 'workspaceRoot' in options ? options.workspaceRoot : repo,
     platform: process.platform,
     isWorkspaceTrusted: () => options.isTrusted ?? true,
-    runGit: realGit,
+    runGit: (args, cwd, timeoutMs, beforeRun) =>
+      realGit(args, cwd, timeoutMs, undefined, beforeRun),
     pathExists: existsSync,
     askBranchName: async (validate) => {
       if (!('branch' in options) || options.branch === undefined) {

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createToolIo } from '../../src/host/backend/toolIo'
-import { SHELL_DEFAULT_TIMEOUT_MS } from '../../src/shared/constants'
+import { SHELL_DEFAULT_TIMEOUT_MS, SHELL_JOB_TYPE_NAME } from '../../src/shared/constants'
 
 vi.mock('node:fs', async () => {
   const actual = await vi.importActual<typeof NodeFs>('node:fs')
@@ -208,5 +208,75 @@ describe('native command final owner admission', () => {
       }
     },
     REAL_SHELL_TIMEOUT_MS,
+  )
+})
+
+function windowsIo(assembly: string | undefined) {
+  return createToolIo({
+    platform: 'win32',
+    systemRoot: path.join(rootDirectory(), 'absent-windows'),
+    env: () => ({}),
+    listFiles: () => Promise.resolve([]),
+    searchWorkerPath: 'unused',
+    log: () => undefined,
+    unsavedFiles: () => [],
+    shellJobAssembly: () => Promise.resolve(assembly),
+  })
+}
+
+type WindowsIo = ReturnType<typeof windowsIo>
+
+/** The script the shell would have started, with no process entered. */
+async function startedScript(
+  run: (io: WindowsIo) => Promise<unknown>,
+  assembly: string | undefined,
+): Promise<string> {
+  const spawn = vi.mocked(childProcess.spawn).mockImplementation(() => {
+    throw new Error('no process in this test')
+  })
+  spawn.mockClear()
+  try {
+    await run(windowsIo(assembly))
+  } catch {
+    // The blocked spawn fails the run; only its arguments matter here.
+  }
+  return (spawn.mock.calls.at(-1)?.[1] ?? []).join(' ')
+}
+
+const ASSEMBLY = String.raw`C:\jobs\MuseSparkJob-test.dll`
+const shell = (io: WindowsIo) =>
+  io.runShell(
+    'Write-Output joined',
+    rootDirectory(),
+    SHELL_DEFAULT_TIMEOUT_MS,
+    new AbortController().signal,
+  )
+const hook = async (io: WindowsIo) => {
+  const runHook = io.runHook
+  if (runHook === undefined) throw new Error('this io runs no hooks')
+  return await runHook(
+    'echo joined',
+    '{}',
+    rootDirectory(),
+    SHELL_DEFAULT_TIMEOUT_MS,
+    new AbortController().signal,
+  )
+}
+
+describe('Windows commands join their job (M27)', () => {
+  it.each([
+    ['a shell command', shell],
+    ['a hook', hook],
+  ] as const)(
+    'starts %s by joining its job when the helper is there, and without one when it is not',
+    async (_kind, run) => {
+      const joined = await startedScript(run, ASSEMBLY)
+      expect(joined).toContain(`[${SHELL_JOB_TYPE_NAME}]::Join(`)
+      expect(joined).toContain(ASSEMBLY)
+      const alone = await startedScript(run, undefined)
+      // Without a helper the command still starts, just outside a job.
+      expect(alone).toContain('joined')
+      expect(alone).not.toContain(SHELL_JOB_TYPE_NAME)
+    },
   )
 })
