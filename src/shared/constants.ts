@@ -452,6 +452,46 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'ANTHROPIC_KEY',
   'META_KEY',
 ])
+// Hooks from every popular agent (M91, PLAN.md D70), landed by lane 0 before
+// the lanes that read them. Muse Code's own two new events, Interrupt (1.4.0)
+// and SessionFork (1.4.2), join `HOOK_EVENTS` in hooks.ts (lane R).
+
+// Muse Code never reads spark-hooks.json, so extension events neither warn on every CLI start nor change meaning if Muse Code adopts a name (D70).
+export const SPARK_HOOKS_SEGMENTS = {
+  /** Under the workspace root, inside the protected `.muse`. */
+  project: ['.muse', 'spark-hooks.json'],
+  /** Under the config home (`$XDG_CONFIG_HOME`, else `~/.config`), beside Muse Code's settings.json. */
+  user: ['muse', 'spark-hooks.json'],
+} as const
+// The events only this extension runs, from spark-hooks.json: Claude Code's names (the de facto standard), else the source agent's in PascalCase.
+export const EXTENSION_HOOK_EVENTS = [
+  'InstructionsLoaded',
+  'UserPromptExpansion',
+  'PermissionDenied',
+  'PreModelSwitch',
+  'PostModelSwitch',
+  'TaskCreated',
+  'TaskCompleted',
+  'FileChanged',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  // Adopted on the owner's direction of 2026-10-04, each with its operation.
+  'Setup',
+  'DirectoryAdded',
+  'CwdChanged',
+  'Elicitation',
+  'ElicitationResult',
+  'TeammateIdle',
+  'MessageDisplay',
+  'BeforeToolSelection',
+  'AfterAgentThought',
+  'Manual',
+] as const
+// A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
+export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
+// At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
+export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 

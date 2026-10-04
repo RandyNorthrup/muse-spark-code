@@ -27,7 +27,10 @@ happened, not what was planned; superseded entries are kept.
       block and a close included.
     - SessionFork, StopFailure and PostToolBatch did not run.
 
-    Nothing a user can reach has changed yet.
+    Also built: the milestone's strings in all 14 languages, and its hook
+    constants (the spark-hooks.json paths, the 21 extension events, and
+    FileChanged's debounce and per-minute cap). Nothing a user can reach has
+    changed yet.
 
 ## [0.12.1] - 2026-10-04
 

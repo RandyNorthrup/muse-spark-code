@@ -45,7 +45,14 @@
       "agentImportSourceCursor",
       "exportThenRunSkipped",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "hooksSparkProjectFile",
+      "agentImportSourceGemini",
+      "agentImportSourceWindsurf",
+      "agentImportSourceKiro",
+      "agentImportSourceCline",
+      "agentImportSourceAmp",
+      "agentImportSourceOpenCode"
     ],
     "cs": [
       "groupModel",
@@ -102,7 +109,8 @@
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "shellDirectory"
     ],
     "es": [
       "usagePlan",

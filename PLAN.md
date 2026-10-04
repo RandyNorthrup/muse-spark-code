@@ -4280,8 +4280,11 @@ The step 1 captures are in `docs/certification/m91.md`.
   - **Ten more get their operation built or narrowed, so that they are
     real:**
     - **Setup** (Claude). Its operations are **Muse Spark: Run Setup Hooks**
-      and the headless `exec --init` and `--maintenance`. The matcher is
+      and the ACP agent's `--trust-workspace setup [--maintenance]`, which
+      runs the Setup hooks and exits with no model call. The matcher is
       `init` or `maintenance`. Observation only.
+      - Claude's `--init` and `--maintenance` flags do not go on headless
+        `exec`: it refuses workspace trust (D65), so it runs no hooks at all.
     - **DirectoryAdded** (Claude; Cursor's workspaceOpen). It fires when a
       trusted workspace activates and when a folder is added to the window
       (`onDidChangeWorkspaceFolders`). Observation only.
@@ -13535,9 +13538,15 @@ live) and the controller filters its id as well.
 
 ### M91 — Hooks from every popular agent (D70)
 
-**Status 2026-10-04: planned.** On `feature/m91-hooks-parity`, the step 1
-captures are recorded (`docs/certification/m91.md`,
-`docs/certification/m91-captures/`). The early protected-paths fix is its own pull request,
+**Status 2026-10-04: in progress on `feature/m91-hooks-parity`.**
+
+- The step 1 captures are recorded (`docs/certification/m91.md`,
+  `docs/certification/m91-captures/`).
+- Lane 0 is built: 88 strings in all 14 tables, and the hook region's four
+  constants.
+- Lanes R, E, I, P, S, M, H and X are next.
+
+The early protected-paths fix is its own pull request,
 `fix/protect-agent-folders`.
 
 - **Goal.** A hook written for any of these agents runs on the Model API
@@ -13584,7 +13593,7 @@ captures are recorded (`docs/certification/m91.md`,
   | ConfigChange                           | A settings or hook file changes                                                                | Observation                                                                                                                            | Both                          |
   | WorktreeCreate                         | After Best-of-N creates its worktree                                                           | A non-zero exit fails that attempt; cannot choose a path                                                                               | Model API                     |
   | WorktreeRemove                         | Before Best-of-N removes it                                                                    | Observation                                                                                                                            | Model API                     |
-  | Setup                                  | **Run Setup Hooks**; `exec --init` or `--maintenance`                                          | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
+  | Setup                                  | **Run Setup Hooks**; the ACP agent's `setup` (`--maintenance` for that matcher)                | Observation; matcher `init` or `maintenance`                                                                                           | Both                          |
   | DirectoryAdded                         | A trusted workspace activates; a folder is added to the window                                 | Observation                                                                                                                            | Both                          |
   | CwdChanged                             | The kept shell directory changes                                                               | Observation; old and new directory, workspace-relative                                                                                 | Model API                     |
   | Elicitation                            | An MCP server sends `elicitation/create`                                                       | A project hook may decline or cancel; a user hook may answer, validated against the server's schema                                    | Model API                     |
@@ -13602,19 +13611,37 @@ captures are recorded (`docs/certification/m91.md`,
     region of `src/shared/constants.ts`, never at the file's end.
   - `hooks.ts` is region-owned: lane R owns its events, lane H its handler
     fields.
+  - **Settings and commands.** A lane that adds a setting or a command adds
+    all of it in one commit:
+    - its constant and `SETTING_DEFAULTS` entry, and its place among the
+      machine-scoped settings;
+    - its `package.json` contribution;
+    - its text in `package.nls.json` and the 14 `package.nls.<lang>.json`;
+    - its registration.
 
-  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-  | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                       |
-  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                    |
-  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the runtime's `exec --init` and `--maintenance`; tests |
-  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                         |
-  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                   |
-  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                               |
-  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                   |
-  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                         |
-  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                       |
-  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; `package.json` and the 15 `package.nls*.json` (the new settings and commands); README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                 |
+    `manifest.test.ts` holds every contributed command to a registered one,
+    and check-l10n holds every manifest string to its use, so none can land
+    ahead. `package.json` and the 15 `package.nls*.json` are region-owned:
+    each lane edits only its own entries, beside the related ones.
+
+    | Lane | Adds                                                                                                                                                                                           |
+    | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | S    | `museSpark.modelApiShellKeepsDirectory`: boolean, default `true`, machine-scoped                                                                                                               |
+    | H    | `museSpark.hookHttpAllowedHosts`: string array, default empty, machine-scoped; the paid feature `hookModels` and its `museSpark.modelApiHookModels` (boolean, default `false`, machine-scoped) |
+    | E    | the commands `museSpark.runSetupHooks` (Run Setup Hooks) and `museSpark.runHook` (Run Hook…), and `/hook run` in the slash menu                                                                |
+
+  | Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+  | 0 Strings and constants | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json` and `l10n/untranslated.json`; the hook region of `src/shared/constants.ts` (`SPARK_HOOKS_SEGMENTS`, `EXTENSION_HOOK_EVENTS`, `HOOK_FILE_CHANGED_DEBOUNCE_MS`, `HOOK_FILE_CHANGED_MAX_PER_MINUTE`)                                                                                                                                                                                                                                         |
+  | R Muse parity           | `hooks.ts`'s events (Interrupt, SessionFork's acceptance, PostToolUseFailure `updatedInput`); the cancel, dispose, forkSession and tool-failure regions of `ModelApiHost.ts`; the modelApiHooks tests                                                                                                                                                                                                                                                                                      |
+  | E Extension events      | the new `src/core/backends/modelapi/extensionHooks.ts`; `toolHookPayload.ts`; the setModel, todo_write, skill-invocation, touchPath/rules, autoReview/refused, noteExternalEdit, request (BeforeToolSelection's admission), reasoning and message regions of `ModelApiHost.ts`; `bestOfNRunner.ts` and `worktrees.ts`; the watcher, configuration, folders and command regions of `extension.ts`; the ACP agent's `setup` command (`src/runtime/cliArgs.ts`, `src/runtime/main.ts`); tests |
+  | I Import                | `agentImport.ts`, `importConvert.ts`, the `AGENT_IMPORT_*` constants (new sources gemini, copilot, windsurf, kiro and cline; their paths; per-source event and tool maps); tests                                                                                                                                                                                                                                                                                                           |
+  | P Adapters              | the new `src/core/backends/modelapi/hookFormats.ts` (formats gemini, cursor, copilot, windsurf, kiro and cline); tests                                                                                                                                                                                                                                                                                                                                                                     |
+  | S Shell directory       | the shell tool's directory: its regions of `tools.ts`, `ModelApiHost.ts` and `src/host/backend/toolIo.ts`; the tool row's directory; tests                                                                                                                                                                                                                                                                                                                                                 |
+  | M MCP elicitation       | `src/core/backends/modelapi/mcp/` (the capability, `elicitation/create`, the answer); the panel's form and its protocol messages; the ACP agent's form (`src/acp/questions.ts`); tests                                                                                                                                                                                                                                                                                                     |
+  | H Handler types         | `hooks.ts`'s handler fields; the new `src/core/backends/modelapi/hookHandlers.ts` (`http`, `mcp_tool`, `prompt`, `agent`); the paid gate's new feature and its tally; the Muse Code side session for `prompt` and `agent`; tests                                                                                                                                                                                                                                                           |
+  | X Plugin host           | the new `src/core/backends/modelapi/pluginHost.ts` and its child entry (its own bundle if D6 needs it; M91b if the budget does); the Amp and OpenCode shims; tests                                                                                                                                                                                                                                                                                                                         |
+  | W Wiring                | the Hooks picker (`museConfigCommands.ts`); the MessageDisplay marker in the panel; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN, `docs/certification/m91.md`; the full gate                                                                                                                                                                                                                                                                                                  |
 
 - **Steps.**
   1. **Capture first: done 2026-10-04** (`docs/certification/m91.md`). The
@@ -13681,7 +13708,6 @@ captures are recorded (`docs/certification/m91.md`,
       - The Hooks picker lists both files per scope and says which backend
         runs each.
       - The MessageDisplay marker and the original.
-      - The settings: the shell directory and the `http` host allowlist.
       - Then the docs, the certification and the full gate.
 - **Acceptance.**
   1. **Interrupt and SessionFork.** One `.muse/hooks.json` with Interrupt
@@ -13859,7 +13885,8 @@ captures are recorded (`docs/certification/m91.md`,
     - MessageDisplay cannot touch a card, a tool row or a notice.
 - **Certification checklist.**
   - [x] Step 1 captures recorded (2026-10-04, 0 model calls).
-  - [ ] Lane 0's keys in all 14 tables, and its constants.
+  - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
+        `check-l10n` 0 problems).
   - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
   - [ ] Acceptance 15: the owner's answer.
   - [ ] Live check and its call count.
