@@ -157,6 +157,12 @@ export const HOST_ACTIONS = [
   'removeWorktree',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
+  /**
+   * The task list's "Open in a tab" (M87, PLAN.md D66): an editor tab that
+   * mirrors this conversation's list, which the user can move into a window
+   * of its own. The conversation controller answers it itself.
+   */
+  'openTasksTab',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -255,6 +261,17 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     includeEditorContext: z.optional(z.boolean()),
     /** The message replies to an output or quotes a passage (M17). */
     reference: z.optional(chatReferenceSchema),
+  }),
+  // Edit on a queued message (M87, PLAN.md D66): take it back before the
+  // model has it. The ids are those `turnAccepted` gave its card; the host
+  // acts only on a message it accepted as queued or steered in this
+  // conversation under the same ids, and answers `queuedWithdrawn` or
+  // `withdrawRefused`.
+  z.object({
+    type: z.literal('withdrawQueued'),
+    localId: z.string().check(z.minLength(1)),
+    turnId: z.string().check(z.minLength(1)),
+    userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
   // The user pressed Stop.
   z.object({ type: z.literal('cancelTurn') }),
@@ -645,11 +662,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     attachments: z.array(attachmentSchema),
   }),
   // The host accepted a sendMessage. Model API also returns its durable user-item ID.
+  // `disposition` (M87, PLAN.md D66) is the backend's word for what became
+  // of it: `started`, `queued` or `steered`, kept open (D36).
   z.object({
     type: z.literal('turnAccepted'),
     localId: z.string(),
     turnId: z.string(),
     userMessageId: z.optional(z.string().check(z.minLength(1))),
+    disposition: z.optional(z.string()),
   }),
   // The host could not submit a sendMessage. `attachmentsKept` (M25): the
   // host still holds the message's images, so the composer shows them again;
@@ -659,6 +679,21 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     localId: z.string(),
     reason: z.string(),
     attachmentsKept: z.optional(z.boolean()),
+  }),
+  // A queued message was taken back (M87, PLAN.md D66): its card goes and
+  // its text returns to the composer. `attachmentsKept`, as on `sendFailed`
+  // (M25): its images are back in the composer, each sent before this as
+  // `attachmentAdded`; absent, the backend could not give them back.
+  z.object({
+    type: z.literal('queuedWithdrawn'),
+    localId: z.string().check(z.minLength(1)),
+    attachmentsKept: z.optional(z.boolean()),
+  }),
+  // The host did not take it back (M87): the card stays, `reason` says why.
+  z.object({
+    type: z.literal('withdrawRefused'),
+    localId: z.string().check(z.minLength(1)),
+    reason: z.string(),
   }),
   // The command's admission result. Correlation protects a newer composer draft.
   z.object({ type: z.literal('goalCommandResult'), requestId: z.string(), accepted: z.boolean() }),

@@ -560,6 +560,8 @@ describe('mapNotification: the M46 capture', () => {
           kind: 'userShell',
           status: 'inProgress',
           commandText: "Write-Output 'hello-m46'",
+          // The item's recorded time, as captured (M87: the message timestamps).
+          recordedAt: '2026-09-25T19:13:49.136845Z',
         },
       },
     })
@@ -575,6 +577,7 @@ describe('mapNotification: the M46 capture', () => {
           visibleOutput: 'tool failed: exit code: 3\nstdout:\nfailing-m46\r\n',
           exitCode: 3,
           durationMs: 617,
+          recordedAt: '2026-09-25T19:13:50.354709Z',
         },
       },
     })

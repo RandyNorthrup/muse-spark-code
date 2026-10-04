@@ -1717,6 +1717,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       // The host confirms the resulting composer state / skill list itself.
       return state
     }
+    case 'messageAdmitted': {
+      // A card is marked sent when the host accepts it (M87): its message
+      // reaching a request changes nothing it shows.
+      return state
+    }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
       // turn keeps its rows and its Stop.
@@ -2374,6 +2379,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
         message.reason,
       )
+    }
+    case 'queuedWithdrawn': {
+      // A queued message taken back (M87, PLAN.md D66): its card goes and its
+      // text returns to the composer, alone in an empty box, else first with
+      // a blank line before the draft, so no draft is lost. Its images came
+      // back before this, as `attachmentAdded`.
+      const card = state.transcript.find((entry) => entry.id === message.localId)
+      if (card?.kind !== 'user') {
+        return state
+      }
+      return {
+        ...state,
+        transcript: state.transcript.filter((entry) => entry !== card),
+        draft: state.draft === '' ? card.text : `${card.text}\n\n${state.draft}`,
+        draftRevision: state.draftRevision + 1,
+        focusRequests: state.focusRequests + 1,
+      }
+    }
+    case 'withdrawRefused': {
+      // Not taken back (M87): the card stays, and the reason is said.
+      return announce(withNotice(state, 'warning', message.reason), message.reason)
     }
     case 'agentEvent': {
       return applyAgentEvent(state, message.event, at)

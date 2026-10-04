@@ -2394,6 +2394,105 @@ describe('clears, restores and refusals (M25)', () => {
   })
 })
 
+/** A running turn t1, then `queued` accepted as its own queued turn t2 (M87), and `draft`. */
+function queuedBehindRunning(draft: string): UiState {
+  return reduceAll([
+    { type: 'submitted', localId: 'l1', text: 'first', attachments: [], contextLabel: undefined },
+    host({ type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' }),
+    agent({ type: 'turnStarted', turnId: 't1' }),
+    { type: 'submitted', localId: 'l2', text: 'queued', attachments: [], contextLabel: undefined },
+    host({ type: 'turnAccepted', localId: 'l2', turnId: 't2', disposition: 'queued' }),
+    { type: 'draftChanged', draft },
+  ])
+}
+
+describe('uiReducer: a queued message taken back (M87, PLAN.md D66)', () => {
+  it('marks a queued message sent on its acceptance, whatever its disposition', () => {
+    const state = queuedBehindRunning('')
+    expect(entryOf(state, 'l2')).toMatchObject({ status: 'sent', turnId: 't2' })
+  })
+
+  it('takes the card out and puts its text alone into an empty prompt box', () => {
+    const before = queuedBehindRunning('')
+    const state = uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'l2' }))
+    expect(entryOf(state, 'l2')).toBeUndefined()
+    expect(entryOf(state, 'l1')).toEqual(entryOf(before, 'l1'))
+    expect(state.activeTurnId).toBe(before.activeTurnId)
+    expect(state.draft).toBe('queued')
+    expect(state.focusRequests).toBe(before.focusRequests + 1)
+  })
+
+  it('puts its text before the draft with a blank line, so no draft is lost', () => {
+    const state = uiReducer(
+      queuedBehindRunning('half a thought'),
+      host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }),
+    )
+    expect(state.draft).toBe('queued\n\nhalf a thought')
+  })
+
+  it('keeps the merged draft from a command that was waiting on the old one', () => {
+    const waiting = uiReducer(queuedBehindRunning('/goal ship'), {
+      type: 'goalSubmitted',
+      requestId: 'g1',
+    })
+    const state = reduceAll(
+      [
+        host({ type: 'queuedWithdrawn', localId: 'l2' }),
+        host({ type: 'goalCommandResult', requestId: 'g1', accepted: true }),
+      ],
+      waiting,
+    )
+    expect(state.draft).toBe('queued\n\n/goal ship')
+  })
+
+  it('leaves the images the host sent back in the composer beside the draft', () => {
+    const state = reduceAll(
+      [
+        host({ type: 'attachmentAdded', attachment }),
+        host({ type: 'queuedWithdrawn', localId: 'l2', attachmentsKept: true }),
+      ],
+      queuedBehindRunning(''),
+    )
+    expect(state.attachments).toEqual([attachment])
+    expect(state.attachmentsToRelease).toEqual([])
+  })
+
+  it('changes nothing for a card it does not hold, or one that is not a message', () => {
+    const before = reduceAll(
+      [
+        agent({
+          type: 'itemCompleted',
+          item: { itemId: 'r1', kind: 'agentMessage', status: 'completed', text: 'x' },
+        }),
+      ],
+      queuedBehindRunning('draft'),
+    )
+    expect(uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'gone' }))).toBe(before)
+    expect(uiReducer(before, host({ type: 'queuedWithdrawn', localId: 'r1' }))).toBe(before)
+  })
+
+  it('keeps the card when the host refuses, and says why', () => {
+    const before = queuedBehindRunning('draft')
+    const state = uiReducer(
+      before,
+      host({ type: 'withdrawRefused', localId: 'l2', reason: UI_TEXT.queuedTooLate }),
+    )
+    expect(entryOf(state, 'l2')).toEqual(entryOf(before, 'l2'))
+    expect(state.draft).toBe('draft')
+    expect(state.transcript.at(-1)).toMatchObject({
+      kind: 'notice',
+      level: 'warning',
+      text: UI_TEXT.queuedTooLate,
+    })
+    expect(state.announcement).toMatchObject({ text: UI_TEXT.queuedTooLate })
+  })
+
+  it('shows nothing new when a message reaches a request', () => {
+    const before = queuedBehindRunning('')
+    expect(uiReducer(before, agent({ type: 'messageAdmitted', userMessageId: 'u2' }))).toBe(before)
+  })
+})
+
 describe('uiReducer: prompts the host moved on (D26)', () => {
   const approval = SHELL_APPROVAL
   const question = {
