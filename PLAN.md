@@ -12071,6 +12071,13 @@ and returned green. Full M87 certification remains the lead's work.
      (and the images, when kept) into the draft: alone in an empty box,
      otherwise first with a blank line.
 - **D Tasks.**
+  - Implemented in lane D; scoped evidence is
+    `docs/certification/m87-d.md`. Lane W still supplies the chat's
+    `onOpenInTab` callback. Full M87 certification remains the lead's work.
+  - Protocol clarification: the tasks-only boundary also accepts
+    `moveTasksToWindow`, required by the window-move button in D66. It cannot
+    send prompts or other conversation actions. `revealConversation` remains
+    a read-only host action.
   1. `TodoPanel` gets a header button (`aria-expanded`, `aria-controls`)
      with the title and `todoProgress`. Collapsed, it shows only the task in
      progress, on one ellipsised line. An optional `onOpenInTab` adds the
@@ -12084,8 +12091,8 @@ and returned green. Full M87 certification remains the lead's work.
        `workbench.action.moveEditorToNewWindow`. The button appears only
        when `getCommands(true)` lists that command.
   3. `main.tsx` mounts `TasksApp` for the tasks surface. It is validated by
-     `tasksProtocol.ts`'s zod schemas, posts only `tasksReady` and
-     `revealConversation`, and renders `TodoPanel`.
+     `tasksProtocol.ts`'s zod schemas, posts only `tasksReady`,
+     `revealConversation` and `moveTasksToWindow`, and renders `TodoPanel`.
   4. `extension.ts` registers `museSpark.openTasks` and passes each
      surface's controller its port. `npm run check:host-api -- --write`
      records the new command id.
@@ -13407,6 +13414,15 @@ The packages contribute bytes to the intended bundles. Preserve the gate
 and shared dependency target; the lead must rerun the build with dependencies
 local to the worktree. This is not a passing full build or M87 certification.
 Evidence and the scoped localization checks: `docs/certification/m87-l10ngate.md`.
+
+**M87 D local gate limits (2026-10-03).** Lane D inherits the same dependency
+junction and bundle-split failure above; every bundle size still passes.
+`npm run deadcode` also reports the already-tracked lane A harness entry
+`test/harness/m87a.mjs` as unused. Lane D does not own that file or knip's
+configuration. Neither gate is weakened. The lead must reconcile lane A's
+harness entry and rerun the aggregate build with local dependencies before
+full M87 certification. Lane D's tests, drills and visual checks are recorded
+in `docs/certification/m87-d.md`.
 
 The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
 and format checks with fewer simultaneous children. On 2026-09-25 Windows

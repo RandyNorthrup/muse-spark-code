@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Otwórz na pasku bocznym",
   "command.openInNewTab.title": "Otwórz na nowej karcie",
+  "command.openTasks.title": "Otwórz zadania na karcie",
   "command.focusInput.title": "Przełącz fokus",
   "command.insertMentionReference.title": "Wstaw @-wzmiankę o zaznaczeniu",
   "command.toggleFocusView.title": "Przełącz widok skupienia",

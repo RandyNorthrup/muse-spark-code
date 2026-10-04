@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Task lists can collapse to progress and the task in progress. **Open Tasks
+  in a Tab** mirrors the active conversation's list in a read-only editor tab,
+  rebuilds it after the webview reloads, and marks a closed conversation.
+  Hosts offering **Move into New Window** expose that action in the tab.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file

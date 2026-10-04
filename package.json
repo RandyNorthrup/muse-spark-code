@@ -98,6 +98,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.openTasks",
+        "title": "%command.openTasks.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.insertMentionReference",
         "title": "%command.insertMentionReference.title%",
         "category": "%command.category%"

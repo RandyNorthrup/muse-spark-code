@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Kenar Çubuğunda Aç",
   "command.openInNewTab.title": "Yeni Sekmede Aç",
+  "command.openTasks.title": "Görevleri bir sekmede aç",
   "command.focusInput.title": "Odağı Değiştir",
   "command.insertMentionReference.title": "Seçim için @-Bahsetme Ekle",
   "command.toggleFocusView.title": "Odak Görünümünü Aç/Kapat",

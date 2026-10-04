@@ -176,6 +176,9 @@ l10n/                 translated tables (ui.<language>.json) and the names the
                       localization gate lets stay English
 package.nls.json      the manifest's text (commands, settings, walkthrough)
 src/webview/**        React 19 app (browser project, own tsconfig)
+                      TasksApp is the read-only tasks document, using
+                      shared/tasksProtocol and host/views/tasksPanel;
+                      the tasks tab has no serializer or composer
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

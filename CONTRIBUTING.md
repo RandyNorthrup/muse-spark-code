@@ -82,6 +82,9 @@ Use this order for a candidate branch:
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
   the machine.
+- M87 task visuals use `todo-collapsed`, `tasks-tab`, `tasks-tab-ended` and
+  `tasks-tab-plain` in the harness. Capture them with `harness:shots` and
+  check them with `node scripts/a11y.mjs` followed by the scenario names.
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
