@@ -271,6 +271,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Revert rechecks its session and turn state through patch loading, file
+  preparation and actual write/delete admission. A turn started meanwhile
+  refuses the action, and new sends cannot overlap Revert's file I/O (M87).
+- M87 certification keeps native VS Code Tasks acceptance open alongside
+  hosted CI. The Tasks guide names the built-in window-move command and
+  accurately describes the generated host-API inventory.
+
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 - The localization gate now requires `{count}` in a language's `one` form

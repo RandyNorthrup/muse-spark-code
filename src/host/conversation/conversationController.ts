@@ -237,7 +237,7 @@ export interface MentionSearch {
 /** Edit review (M5): each call returns the notices to show in the transcript. */
 export interface EditReviewActions {
   openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
-  revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
+  revert(itemId: string, patchJson: string, check?: () => void): Promise<readonly ReviewNotice[]>
 }
 
 /** What Plans… does with the plan the user picked (M79). */
@@ -887,6 +887,11 @@ export async function restartConversationBackends(
 }
 
 export class ConversationController {
+  // Revert owns turn admission until file I/O settles; pending sends own it
+  // even before their turnStarted event or acknowledgement reaches the panel.
+  private revertsInFlight = 0
+  private turnSubmissionsInFlight = 0
+  private turnStartEpoch = 0
   private session: AgentSession | undefined
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
@@ -1779,6 +1784,7 @@ export class ConversationController {
   private track(event: AgentEvent): void {
     switch (event.type) {
       case 'turnStarted': {
+        this.turnStartEpoch += 1
         // A queued message's turn started: the model has it now (M87).
         this.forgetQueuedTurn(event.turnId)
         // A child's own turn reaches the parent stream; the running parent
@@ -2278,6 +2284,7 @@ export class ConversationController {
       return
     }
     const generation = this.sendInvalidationEpoch
+    this.turnSubmissionsInFlight += 1
     try {
       const session = await this.ensureSession(workspaceRoot)
       if (!this.isCurrentSessionAction(session, generation)) {
@@ -2288,7 +2295,12 @@ export class ConversationController {
         return
       }
       this.deps.log.info(`Running a command the user typed (${String(trimmed.length)} characters)`)
-      await this.runResuming(host, session, (current) => current.runUserShell(trimmed))
+      await this.runResuming(host, session, (current) => {
+        if (this.revertsInFlight > 0) {
+          throw new Error(UI_TEXT.restoreTurnRunning)
+        }
+        return current.runUserShell(trimmed)
+      })
       if (generation === this.sendInvalidationEpoch && this.isAuthAdmitted()) {
         this.noteActivity()
       }
@@ -2299,6 +2311,8 @@ export class ConversationController {
       const reason = `${UI_TEXT.userShellFailed}: ${describe(error)}`
       this.deps.log.warn(reason)
       this.post({ type: 'userShellRefused', command: trimmed, reason })
+    } finally {
+      this.turnSubmissionsInFlight -= 1
     }
   }
 
@@ -2485,10 +2499,12 @@ export class ConversationController {
     itemId: string,
     outputRef: string,
     maxPages = PATCH_DOCUMENT_MAX_PAGES,
+    check?: () => void,
   ): Promise<string | undefined> {
     let content = ''
     let offsetBytes = 0
     for (let page = 0; page < maxPages; page += 1) {
+      check?.()
       if (!this.isCurrentSessionAction(session, generation)) {
         return undefined
       }
@@ -2498,6 +2514,7 @@ export class ConversationController {
         offsetBytes,
         lengthBytes: OUTPUT_PAGE_BYTES,
       })
+      check?.()
       if (!this.isCurrentSessionAction(session, generation)) {
         return undefined
       }
@@ -2582,6 +2599,7 @@ export class ConversationController {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
+    const turnStartEpoch = this.turnStartEpoch
     const isConfirmed = await this.deps.confirmFileAction(
       UI_TEXT.revertEditConfirmTitle,
       UI_TEXT.revertEditConfirmDetail,
@@ -2595,7 +2613,7 @@ export class ConversationController {
     ) {
       return
     }
-    if (this.isTurnRunning()) {
+    if (this.isTurnRunning() || this.turnStartEpoch !== turnStartEpoch) {
       this.notice('info', UI_TEXT.restoreTurnRunning)
       return
     }
@@ -2613,22 +2631,55 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(session, generation)) {
       return false
     }
+    const turnStartEpoch = this.turnStartEpoch
+    const check = (): void => {
+      if (!this.isCurrentSessionAction(session, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      if (action === 'revert' && (this.isTurnRunning() || this.turnStartEpoch !== turnStartEpoch)) {
+        throw new Error(UI_TEXT.restoreTurnRunning)
+      }
+    }
     try {
-      const patch = await this.fetchPatch(session, generation, itemId, outputRef)
+      check()
+      const patch = await this.fetchPatch(
+        session,
+        generation,
+        itemId,
+        outputRef,
+        PATCH_DOCUMENT_MAX_PAGES,
+        check,
+      )
+      check()
       if (patch === undefined || !this.isCurrentSessionAction(session, generation)) {
         return false
       }
-      const notices = await this.deps.editReview[action](itemId, patch)
-      if (!this.isCurrentSessionAction(session, generation)) {
-        return false
+      let notices: readonly ReviewNotice[]
+      if (action === 'revert') {
+        this.revertsInFlight += 1
+        try {
+          notices = await this.deps.editReview.revert(itemId, patch, check)
+        } finally {
+          this.revertsInFlight -= 1
+        }
+      } else {
+        notices = await this.deps.editReview.openDiff(itemId, patch)
       }
+      check()
       for (const notice of notices) {
         this.notice(notice.level, notice.text)
       }
       return notices.every((notice) => notice.level === 'info')
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
+        if (
+          action === 'revert' &&
+          (this.isTurnRunning() || this.turnStartEpoch !== turnStartEpoch)
+        ) {
+          this.notice('info', UI_TEXT.restoreTurnRunning)
+        } else {
+          this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
+        }
       }
       return false
     }
@@ -4907,7 +4958,7 @@ export class ConversationController {
    * narrowed `activeTurnId` would not be.
    */
   private isTurnRunning(): boolean {
-    return this.activeTurnId !== undefined
+    return this.activeTurnId !== undefined || this.turnSubmissionsInFlight > 0
   }
 
   /**
@@ -4979,6 +5030,9 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    if (this.revertsInFlight > 0) {
+      throw new Error(UI_TEXT.restoreTurnRunning)
+    }
     if (!shouldQueueForDisplayText && this.activeTurnId !== undefined) {
       try {
         return await session.steer(this.activeTurnId, parts)
@@ -5000,6 +5054,9 @@ export class ConversationController {
     }
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    if (this.revertsInFlight > 0) {
+      throw new Error(UI_TEXT.restoreTurnRunning)
     }
     return await session.sendTurn(parts, displayText)
   }
@@ -5075,6 +5132,7 @@ export class ConversationController {
     cardText?: string,
     handoff?: PendingHandoff,
   ): Promise<SendOutcome> {
+    this.turnSubmissionsInFlight += 1
     const isComposerMessage = brief === undefined
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
@@ -5311,6 +5369,8 @@ export class ConversationController {
         this.noteMuseCodeFault(error)
       }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    } finally {
+      this.turnSubmissionsInFlight -= 1
     }
   }
 

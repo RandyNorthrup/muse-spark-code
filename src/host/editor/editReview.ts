@@ -21,9 +21,10 @@ export interface EditReviewDeps {
   readonly readFile: (fsPath: string) => Promise<string | undefined>
   /** The canonical form of a path, links resolved through the nearest existing ancestor. */
   readonly realPath: (fsPath: string) => Promise<string>
-  readonly writeFile: (fsPath: string, content: string) => Promise<void>
+  /** Recheck after any admission wait, immediately before the actual I/O. */
+  readonly writeFile: (fsPath: string, content: string, check: () => void) => Promise<void>
   /** Move to the trash (a file the edit created). */
-  readonly deleteFile: (fsPath: string) => Promise<void>
+  readonly deleteFile: (fsPath: string, check: () => void) => Promise<void>
   /** `vscode.diff(before, after, title)`; `beforeUri` is a `muse-edit:` URI string. */
   readonly openDiff: (beforeUri: string, fsPath: string, title: string) => Promise<void>
   readonly log: Logger
@@ -94,7 +95,11 @@ export class EditReview {
    * escapes: by text, then by the canonical forms, so a link inside the
    * workspace that leads outside it is refused (PLAN.md D24).
    */
-  private async resolve(workspaceRoot: string, file: PatchFile): Promise<ResolvedFile | undefined> {
+  private async resolve(
+    workspaceRoot: string,
+    file: PatchFile,
+    check?: () => void,
+  ): Promise<ResolvedFile | undefined> {
     const root = this.paths.resolve(stripExtendedLengthPrefix(workspaceRoot))
     const fsPath = this.paths.resolve(root, stripExtendedLengthPrefix(file.path))
     const relative = this.paths.relative(root, fsPath)
@@ -106,10 +111,12 @@ export class EditReview {
         this.deps.realPath(root),
         this.deps.realPath(fsPath),
       ])
+      check?.()
       if (!this.isBelow(this.paths.relative(realRoot, realTarget))) {
         return undefined
       }
     } catch (error: unknown) {
+      check?.()
       this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
       return undefined
     }
@@ -121,8 +128,9 @@ export class EditReview {
    * UTF-8 BOM is not part of any hunk: it is set aside for the match and
    * kept on the text written back (PLAN.md D27).
    */
-  private async rebuild(resolved: ResolvedFile): Promise<Rebuilt> {
+  private async rebuild(resolved: ResolvedFile, check?: () => void): Promise<Rebuilt> {
     const raw = (await this.deps.readFile(resolved.fsPath)) ?? ''
+    check?.()
     const hasBom = raw.startsWith(BOM)
     const current = hasBom ? raw.slice(BOM.length) : raw
     const result = revertHunks(current, resolved.file.hunks, resolved.file.created)
@@ -140,7 +148,10 @@ export class EditReview {
   }
 
   /** Resolves and rebuilds every file of the patch, collecting notices. */
-  private async prepare(patchJson: string): Promise<{
+  private async prepare(
+    patchJson: string,
+    check?: () => void,
+  ): Promise<{
     ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[]
     notices: ReviewNotice[]
   }> {
@@ -155,7 +166,9 @@ export class EditReview {
     const ready: { resolved: ResolvedFile; rebuilt: Rebuilt & { ok: true } }[] = []
     const notices: ReviewNotice[] = []
     for (const file of files) {
-      const resolved = await this.resolve(workspaceRoot, file)
+      check?.()
+      const resolved = await this.resolve(workspaceRoot, file, check)
+      check?.()
       if (resolved === undefined) {
         notices.push({
           level: 'warning',
@@ -163,7 +176,8 @@ export class EditReview {
         })
         continue
       }
-      const rebuilt = await this.rebuild(resolved)
+      const rebuilt = await this.rebuild(resolved, check)
+      check?.()
       if (rebuilt.ok) {
         ready.push({ resolved, rebuilt })
       } else {
@@ -194,17 +208,28 @@ export class EditReview {
   }
 
   /** Writes the pre-edit text back (or trashes a created file); returns the notices. */
-  public async revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]> {
-    const { ready, notices } = await this.prepare(patchJson)
+  public async revert(
+    itemId: string,
+    patchJson: string,
+    check: () => void = () => {
+      // A direct review has no controller session; the controller supplies its guard.
+    },
+  ): Promise<readonly ReviewNotice[]> {
+    check()
+    const { ready, notices } = await this.prepare(patchJson, check)
+    check()
     for (const { resolved, rebuilt } of ready) {
+      check()
       if (rebuilt.isCreatedFile) {
-        await this.deps.deleteFile(resolved.fsPath)
+        await this.deps.deleteFile(resolved.fsPath, check)
+        check()
         notices.push({
           level: 'info',
           text: fill(UI_TEXT.editCreatedRemovedPath, { path: resolved.relativePath }),
         })
       } else {
-        await this.deps.writeFile(resolved.fsPath, rebuilt.content)
+        await this.deps.writeFile(resolved.fsPath, rebuilt.content, check)
+        check()
         notices.push({
           level: 'info',
           text: fill(UI_TEXT.editRevertedPath, { path: resolved.relativePath }),

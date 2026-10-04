@@ -1306,11 +1306,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     readFile: readTextFile,
     realPath: canonicalPath,
     // A Revert the user pressed, a write or a delete: the file is theirs from then on.
-    writeFile: async (fsPath, content) => {
-      await writeUserFile(backend.workspaceActionGuard(nativeStarts.signal), fsPath, content)
+    writeFile: async (fsPath, content, checkRevert) => {
+      const checkBackend = backend.workspaceActionGuard(nativeStarts.signal)
+      await writeUserFile(
+        () => {
+          checkBackend()
+          checkRevert()
+        },
+        fsPath,
+        content,
+      )
     },
-    deleteFile: async (fsPath) => {
-      const check = backend.workspaceActionGuard(nativeStarts.signal)
+    deleteFile: async (fsPath, checkRevert) => {
+      const checkBackend = backend.workspaceActionGuard(nativeStarts.signal)
+      const check = (): void => {
+        checkBackend()
+        checkRevert()
+      }
       await withCheckpointEdit(checkpoints, log, check, async () => {
         await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
       })

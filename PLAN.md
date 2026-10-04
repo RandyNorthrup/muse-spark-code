@@ -11935,9 +11935,21 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
+**Integration review fixes (FIXM87W, 2026-10-04).** Fence Revert's patch
+loading, preparation and actual I/O with the current session and idle-turn
+guard; hold turn admission until Revert I/O settles, and count unacknowledged
+sends as running. Prove held-output/start-turn, held preparation and I/O
+interleavings in the owning tests and red drills. Keep the native Tasks check
+below explicitly open and correct the README's command-inventory claim.
+Evidence: [m87-w-fixes.md](docs/certification/m87-w-fixes.md).
+The scoped fix's 461 owning tests and nine scoped gates pass on macmini;
+seven red/restored drills match their saved bytes. The retired candidate ref
+and the port to newer main's M70 Revert remain lead integration work, recorded
+in that receipt; native Tasks acceptance and full/hosted gates remain open.
+
 **Status 2026-10-04: built and joined on the integration branch `m87/l0`
-(`feature/m87-panel-polish`); certified there except hosted CI on the
-milestone PR's exact head.** Every lane is merged: 0 (strings), P
+(`feature/m87-panel-polish`); native VS Code Tasks acceptance and hosted CI on the
+milestone PR's exact head remain open.** Every lane is merged: 0 (strings), P
 (plumbing), A (composer and menus), B (rows and status line), C
 (transcript and backends, with the `turn/unqueue` live capture), D (tasks),
 E (diff tally), F1 and F2 (the gooey menu and its rows), the plural gate

@@ -1074,8 +1074,10 @@ and runs the editor's own window-move action. Its limits:
   extension each time it loads.
 - The tab is not restored after a full window reload, since its
   conversation may no longer exist.
-- The window-move action is a VS Code command, not extension API, so the
-  host-API record lists it; editors without it get the plain tab, which
+- The window-move action uses VS Code's built-in
+  `workbench.action.moveEditorToNewWindow` command. The host-API record
+  lists the APIs that probe and execute it, not command IDs; editors
+  without it get the plain tab, which
   their tab context menu may still move.
 - Chat tabs opened with **Open in New Tab** move the same way.
 

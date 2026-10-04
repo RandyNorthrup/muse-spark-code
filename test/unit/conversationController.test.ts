@@ -97,6 +97,8 @@ import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
 import { readPickedFile } from '../../src/host/backend/toolIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
+import { EditReview } from '../../src/host/editor/editReview'
+import { withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
 import { PendingPrompts } from '../../src/core/sessionBoard'
 import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
@@ -140,6 +142,8 @@ const NO_FOLDER_CHECKPOINT: Extract<HostToWebviewMessage, { type: 'checkpointSta
   restoreBlocker: 'modelApiOnly',
   turnIds: [],
 }
+
+const REVERT_EDIT = { type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' } as const
 
 interface FakeAuth {
   readonly service: AuthPort
@@ -338,6 +342,7 @@ function setup(
     confirmsFileAction?: boolean
     /** A revert that refuses (a stale patch): it answers with a warning. */
     refusesRevert?: boolean
+    editReview?: ConversationDeps['editReview']
     /** A picked session-transfer file's text (M84); undefined dismisses the dialog. */
     transferFileContent?: string | undefined
     /** What the picker answers instead of the text (M84): too large, or a read that throws. */
@@ -670,7 +675,7 @@ function setup(
       applied.push(text)
       return Promise.resolve(hasEditor)
     },
-    editReview: {
+    editReview: options.editReview ?? {
       openDiff: (itemId: string, patchJson: string) => {
         reviews.push(['openDiff', itemId, patchJson])
         return Promise.resolve([{ level: 'info' as const, text: `opened ${itemId}` }])
@@ -765,6 +770,7 @@ function setup(
     surface,
     controller,
     deps,
+    checkpoints,
     planFiles,
     openExternal,
     log,
@@ -2817,6 +2823,8 @@ describe('ConversationController: editor integration (M5)', () => {
   it('rewinds code by reverting the edits after a message newest first, or says there is nothing (M13)', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
     await t.controller.handle({
       type: 'rewindCode',
       edits: [
@@ -2999,6 +3007,224 @@ describe('ConversationController: editor integration (M5)', () => {
     })
     expect(started.reviews).toEqual([])
     expect(started.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+  })
+
+  it.each([false, true])(
+    'refuses Revert when a turn starts during held patch output (completed: %s, M87)',
+    async (hasCompleted) => {
+      const t = setup()
+      await t.send('l1', 'edit it')
+      t.finishTurn()
+      await settle()
+      t.server.silence('item/readOutput')
+      const reverting = t.controller.handle(REVERT_EDIT)
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('item/readOutput')).toHaveLength(1)
+      })
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      if (hasCompleted) {
+        t.server.notify('turn/completed', { sessionId: 's1', turnId: 't2', terminal: 'completed' })
+      }
+      await settle()
+      const request = t.server.requestsFor('item/readOutput')[0]!
+      t.server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            content: '{"files":[{"path":"notes.md","hunks":[]}]}',
+            encoding: 'utf8',
+            mediaType: 'application/json',
+            offsetBytes: 0,
+            byteLen: 40,
+            eof: true,
+          },
+        })}\n`,
+      )
+      await reverting
+      expect(t.reviews).toEqual([])
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        level: 'info',
+        text: UI_TEXT.restoreTurnRunning,
+      })
+    },
+  )
+
+  it.each(
+    ['resolve', 'read', 'write', 'delete'].flatMap((stage) =>
+      [false, true].map((changesSession) => ({ stage, changesSession })),
+    ),
+  )(
+    'refuses Revert during held $stage admission (changesSession: $changesSession, M87)',
+    async ({ stage, changesSession }) => {
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const pause = async (): Promise<void> => {
+        entered.resolve(undefined)
+        await held.promise
+      }
+      let content = 'hi\n'
+      const writes = vi.fn((next: string) => {
+        content = next
+      })
+      const reads = vi.fn(async () => {
+        const snapshot = content
+        if (stage === 'read') {
+          await pause()
+        }
+        return snapshot
+      })
+      const log = new FakeLogOutputChannel()
+      const review = new EditReview({
+        platform: 'linux',
+        workspaceRoot: '/ws',
+        log,
+        realPath: async (fsPath) => {
+          if (stage === 'resolve') {
+            await pause()
+          }
+          return fsPath
+        },
+        readFile: reads,
+        writeFile: (_fsPath, next, check) => mutate(next, check),
+        deleteFile: (_fsPath, check) => mutate('', check),
+        openDiff: () => Promise.resolve(),
+      })
+      const t = setup({ editReview: review })
+      // Match the extension adapter: the actual checkpoint lease may await
+      // admission, then must recheck the controller before touching the disk.
+      const mutate = async (next: string, check: () => void): Promise<void> => {
+        await withCheckpointEdit(
+          {
+            ...t.checkpoints,
+            markTurn: async (_key, isRunning) => {
+              if (isRunning) {
+                await pause()
+              }
+            },
+          },
+          log,
+          check,
+          () => {
+            writes(next)
+            return Promise.resolve()
+          },
+        )
+      }
+      await t.send('l1', 'edit it')
+      t.finishTurn()
+      await settle()
+      // The same created-file patch as EditReview's existing fixture.
+      const patch =
+        '{"files":[{"path":"new.txt","hunks":[{"oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":["+hi"]}]}]}'
+      t.server.handle('item/readOutput', () => ({
+        content:
+          stage === 'delete'
+            ? patch
+            : patch.replace('"path":"new.txt",', '"path":"new.txt","created":false,'),
+        encoding: 'utf8',
+        mediaType: 'application/json',
+        offsetBytes: 0,
+        byteLen: 40,
+        eof: true,
+      }))
+      const reverting = t.controller.handle(REVERT_EDIT)
+      await entered.promise
+      if (changesSession) {
+        await t.controller.handle({ type: 'clearConversation' })
+      } else {
+        t.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      }
+      await settle()
+      content = 'running turn writes\n'
+      held.resolve(undefined)
+      await reverting
+      expect(writes).not.toHaveBeenCalled()
+      if (stage === 'resolve') {
+        expect(reads).not.toHaveBeenCalled()
+      }
+      expect(content).toBe('running turn writes\n')
+      if (changesSession) {
+        return
+      }
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        level: 'info',
+        text: UI_TEXT.restoreTurnRunning,
+      })
+    },
+  )
+
+  it('refuses Revert while a submitted turn still awaits its acknowledgement (M87)', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    t.server.silence('turn/start')
+    const sending = t.send('l2', 'next edit')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    })
+    await t.controller.handle(REVERT_EDIT)
+    expect(t.reviews).toEqual([])
+    expect(t.fileConfirmations).toEqual([])
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    const request = t.server.requestsFor('turn/start')[1]!
+    t.server.incoming.push(
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          turnId: 't2',
+          status: 'accepted',
+          disposition: 'started',
+          startedNewTurn: true,
+          commandId: request.params?.['commandId'],
+        },
+      })}\n`,
+    )
+    await sending
+  })
+
+  it('holds send admission until Revert I/O settles and releases it after failure (M87)', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const t = setup({
+      editReview: {
+        openDiff: () => Promise.resolve([]),
+        revert: async (_itemId, _patch, check) => {
+          entered.resolve(undefined)
+          await held.promise
+          check?.()
+          throw new Error('file write refused')
+        },
+      },
+    })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const reverting = t.controller.handle(REVERT_EDIT)
+    await entered.promise
+    await t.send('l2', 'next edit')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'sendFailed',
+        localId: 'l2',
+        reason: UI_TEXT.restoreTurnRunning,
+      }),
+    )
+    await t.controller.handle({ type: 'runUserShell', command: 'write files' })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'userShellRefused',
+        reason: expect.stringContaining(UI_TEXT.restoreTurnRunning),
+      }),
+    )
+    held.resolve(undefined)
+    await reverting
+    await t.send('l3', 'retry edit')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
   })
 
   it('does nothing for a review without a session', async () => {
