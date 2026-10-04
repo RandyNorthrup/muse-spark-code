@@ -10,6 +10,7 @@ import type {
   CodeLocation,
   CodePosition,
   CodeSymbol,
+  FileEdits,
   LanguageServiceHost,
   RenameEdits,
 } from '../../../src/core/codeIntel/languageService'
@@ -108,6 +109,19 @@ export function sym(
     location,
     selection: location.range,
     children: extra.children ?? [],
+  }
+}
+
+/** The rename edit that turns the five letters of `greet` at a 0-based line and column into `welcome`. */
+export function renamed(path: string | undefined, line: number, character: number): FileEdits {
+  return {
+    path,
+    edits: [
+      {
+        range: { start: { line, character }, end: { line, character: character + 5 } },
+        newText: 'welcome',
+      },
+    ],
   }
 }
 

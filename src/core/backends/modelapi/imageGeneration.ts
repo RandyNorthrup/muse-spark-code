@@ -32,7 +32,7 @@ import {
 } from '../../../shared/constants'
 import type { PaidUseRequest } from '../../../shared/paid'
 import { pathModule } from '../../workspaceRoot'
-import type { ModelApiClient } from './client'
+import type { ModelApiClient, ResponseAttemptGuard } from './client'
 import { IMAGE_ASPECTS } from './imageToolDefinitions'
 import type { ImagesResponse } from './schemas'
 import { confineWorkspacePath } from '../../workspacePath'
@@ -230,7 +230,7 @@ export interface ImageRunDeps {
   /** Called once an image was returned: Meta bills it whether or not it can be saved. */
   readonly onBilled: () => void
   /** Rechecked with the key read for each paid image attempt and retry. */
-  readonly admitAttempt?: (keyDigest: string | undefined) => void
+  readonly admitAttempt?: ResponseAttemptGuard
 }
 
 function failure(reason: string): ToolOutcome {

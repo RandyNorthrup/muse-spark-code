@@ -52,6 +52,8 @@ import type {
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { ScheduleView } from '../../shared/schedule'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
@@ -167,6 +169,10 @@ export interface UiState {
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** The session board's rows, once the board asked (M77). */
+  readonly board: readonly BoardRow[] | undefined
+  /** The best-of-N run this surface last heard of (M77). */
+  readonly bestOfN: BestOfNRun | undefined
   readonly draft: string
   /** Every local draft edit, including edits that return to the same text. */
   readonly draftRevision: number
@@ -396,6 +402,8 @@ export const initialUiState: UiState = {
   },
   sessions: undefined,
   archivedIds: [],
+  board: undefined,
+  bestOfN: undefined,
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
@@ -933,6 +941,8 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         text: item.text ?? '',
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
+        usage: item.usage,
+        costUsd: item.costUsd,
       }
     }
     case 'reasoning': {
@@ -979,6 +989,8 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         text: item.text ?? entry.text,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
+        usage: item.usage ?? entry.usage,
+        costUsd: item.costUsd ?? entry.costUsd,
       }
     }
     case 'reasoning': {
@@ -1590,6 +1602,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        note: event.note,
       }
       return announce(
         withToolEntry(
@@ -1859,6 +1872,8 @@ function clearedAccountView(state: UiState): UiState {
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     archivedIds: [],
+    board: undefined,
+    bestOfN: undefined,
     model: undefined,
     models: [],
     skills: undefined,
@@ -2135,6 +2150,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
+    }
+    case 'sessionBoard': {
+      return { ...state, board: message.rows }
+    }
+    case 'bestOfNUpdate': {
+      return { ...state, bestOfN: message.run }
     }
     case 'childTranscript': {
       const owner = childOwnerOf(state, message.sessionId)
