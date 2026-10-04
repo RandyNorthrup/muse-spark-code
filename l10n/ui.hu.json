@@ -896,13 +896,15 @@
   },
   "permissionModeDetails": {
     "manual": "A Muse parancsok futtatása előtt rákérdez; a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait",
-    "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
+    "acceptEdits": "A Muse Code-ban ugyanaz, mint a Kézi: a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait, a parancsok futtatása előtt pedig rákérdez",
     "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be",
-    "auto": "A Muse jóváhagyja a biztonsági ellenőrzésen átmenő műveleteket, és minden kockázatos dolognál megáll",
+    "auto": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat, a többi előtt pedig rákérdez",
     "bypassPermissions": "A Muse kérdezés nélkül szerkeszt fájlokat és futtat parancsokat"
   },
+  "museCodeReviewedAutoDetail": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat; a többit egy ellenőrző vizsgálja meg, és ha bizonytalan, Önt kérdezi",
   "modelApiPermissionModeDetails": {
     "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
+    "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
     "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez"
   },
   "effortLevels": {
@@ -1574,6 +1576,7 @@
   "autoReviewerUnreadable": "Az automatikus ellenőrző válasza nem olvasható, ezért Ön dönt.",
   "autoReviewerPaused": "Az automatikus ellenőrző ismételt elutasítások vagy hibák után a következő üzenetéig szünetel, ezért Ön dönt.",
   "autoReviewerTripped": "Az automatikus ellenőrző ismételt elutasítások vagy hibák után leállt. Amíg nem küldi el a következő üzenetét, minden kockázatos művelet Önt kérdezi.",
+  "museCodeReviewerNotice": "Automatikus módban mostantól egy ellenőrző vizsgál meg minden műveletet, amelyre a Muse Code rákérdez, mielőtt Ön látná: ellenőrzésenként egy rövid Muse Code-kör az Ön előfizetéséből. Egyszer engedélyezheti a műveletet; különben Önt kérdezi, megindokolva. Kikapcsolás: museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatikus ellenőrző",
   "paidConfirmAutoReviewer": "Automatikus módban a Model API háttérrendszeren egy külön modellhívás értékel minden kockázatos műveletet, amelyről egyetlen szabály sem dönt, és kérdés nélkül futtatja, ha biztonságosnak tűnik. Soha nem engedélyez tiltott parancsot, olyan parancsot, amelyre a szabályai rákérdeznek, védett írást vagy fizetős hívást; ha elutasít vagy hibázik, Ön dönt. Minden ellenőrzés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden ellenőrzés előbb engedélyt kér, hacsak nem engedélyezi mindig az ellenőrzéseket ezen a munkaterületen.",
   "paidUseAutoReviewerTitle": "Értékelje az automatikus ellenőrző ezt a(z) {tool}-hívást?",

@@ -205,6 +205,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiPermissionProfile: readSetting(config, 'modelApiPermissionProfile', log),
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
+    museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
   }
 }
 
@@ -233,5 +234,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     allowDangerouslySkipPermissions: settings.allowDangerouslySkipPermissions,
     archiveInactiveSessions: settings.archiveInactiveSessions,
     modelApiReplyUsage: settings.modelApiReplyUsage,
+    museCodeAutoReviewer: settings.museCodeAutoReviewer,
   }
 }

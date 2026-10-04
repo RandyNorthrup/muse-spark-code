@@ -4,8 +4,9 @@
 // loaded on a worker thread started for each page, never at activation), the
 // import from other agents (M83: the scan, the converters, the file access and
 // smol-toml, loaded on the first import), code intelligence's `ide` answers
-// (M67, loaded on the first call) and voice's drivers (M9/M35, loaded on the
-// first recording), the webview, and (in dev mode) the integration tests with esbuild.
+// (M67, loaded on the first call), voice's drivers (M9/M35, loaded on the
+// first recording) and the Auto reviewer on Muse Code (M90, loaded on the
+// first review), the webview, and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -63,6 +64,8 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
+const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -190,6 +193,13 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const museCodeReviewerOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
+  outfile: MUSE_CODE_REVIEWER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -300,6 +310,7 @@ if (isWatch) {
     esbuild.context(agentImportOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(museCodeReviewerOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -318,6 +329,7 @@ if (isWatch) {
     agentImport: esbuild.build(agentImportOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -349,6 +361,7 @@ if (isWatch) {
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

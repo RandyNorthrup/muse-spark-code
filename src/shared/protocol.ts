@@ -59,6 +59,8 @@ export const settingsSnapshotShape = {
   archiveInactiveSessions: z.number(),
   /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
   modelApiReplyUsage: z.boolean(),
+  /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
+  museCodeAutoReviewer: z.boolean(),
 } as const
 
 const settingsSnapshotSchema = z.object(settingsSnapshotShape)

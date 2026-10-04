@@ -919,13 +919,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse chiederà prima di eseguire comandi; Muse Code modifica i file dell’area di lavoro senza chiedere",
-    "acceptEdits": "Muse modificherà i file senza chiedere e chiederà prima di eseguire comandi",
+    "acceptEdits": "Su Muse Code, uguale a Manuale: Muse Code modifica i file dell’area di lavoro senza chiedere e chiede prima di eseguire comandi",
     "plan": "Muse esplorerà il codice e presenterà un piano prima di apportare modifiche",
-    "auto": "Muse approverà le azioni che superano un controllo di sicurezza e si fermerà per qualsiasi azione rischiosa",
+    "auto": "Muse Code esegue senza chiedere i comandi che ritiene semplici e chiede prima degli altri",
     "bypassPermissions": "Muse modificherà i file ed eseguirà comandi senza chiedere"
   },
+  "museCodeReviewedAutoDetail": "Muse Code esegue senza chiedere i comandi che ritiene semplici; un revisore controlla gli altri e ti chiede quando ha dubbi",
   "modelApiPermissionModeDetails": {
     "manual": "Muse chiederà l’approvazione prima di ogni modifica e di ogni comando",
+    "acceptEdits": "Muse modificherà i file senza chiedere e chiederà prima di eseguire comandi",
     "auto": "Muse modificherà i file senza chiedere, tranne i file protetti, e chiederà prima di eseguire comandi"
   },
   "effortLevels": {
@@ -1626,6 +1628,7 @@
   "autoReviewerUnreadable": "La risposta del revisore automatico non era leggibile, quindi decidi tu.",
   "autoReviewerPaused": "Dopo rifiuti o errori ripetuti, il revisore automatico è in pausa fino al tuo prossimo messaggio, quindi decidi tu.",
   "autoReviewerTripped": "Il revisore automatico si è fermato dopo rifiuti o errori ripetuti. Finché non invii il prossimo messaggio, ogni azione rischiosa ti chiederà conferma.",
+  "museCodeReviewerNotice": "In Automatica, ora un revisore controlla ogni azione per cui Muse Code chiede conferma prima che tu la veda: un breve turno di Muse Code sul tuo abbonamento per ogni revisione. Può consentire l’azione una volta; altrimenti chiede a te, con il suo motivo. Disattivalo con museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Revisore automatico",
   "paidConfirmAutoReviewer": "Nella modalità Automatica sul backend Model API, una chiamata al modello separata valuta ogni azione rischiosa che nessuna regola decide, e la esegue senza chiedere se sembra sicura. Non consente mai un comando vietato, un comando per cui le tue regole chiedono conferma, una scrittura protetta o una chiamata a pagamento; se rifiuta o non riesce, decidi tu. Ogni revisione viene addebitata alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nOgni revisione chiede prima conferma, a meno che tu non consenta sempre le revisioni in questa area di lavoro.",
   "paidUseAutoReviewerTitle": "Lasciare che il revisore automatico valuti questa chiamata a {tool}?",

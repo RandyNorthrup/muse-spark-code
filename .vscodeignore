@@ -8,6 +8,7 @@
 !dist/agentImport.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/museCodeReviewer.js
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js

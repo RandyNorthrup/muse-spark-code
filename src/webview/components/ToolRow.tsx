@@ -546,6 +546,12 @@ function ToolRowView({
           {entry.approvalOutcome.resolvedBy})
         </div>
       )}
+      {entry.approvalOutcome?.reason === undefined ? null : (
+        // The Auto reviewer's reason on Muse Code (M90), in its own words.
+        <div className="tool-outcome" dir="auto">
+          {entry.approvalOutcome.reason}
+        </div>
+      )}
       {entry.question === undefined ? null : (
         <QuestionCard
           question={entry.question}

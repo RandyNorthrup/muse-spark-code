@@ -179,7 +179,7 @@ jobs:
             extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js extension/dist/agentImport.js extension/dist/uiText.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
-            extension/dist/codeIntel.js extension/dist/voice.js \
+            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2

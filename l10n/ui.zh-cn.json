@@ -873,13 +873,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问",
-    "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",
+    "acceptEdits": "在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问",
     "plan": "Muse 会先探索代码并提出计划，然后再编辑",
-    "auto": "Muse 会批准通过安全检查的操作，遇到任何有风险的操作则暂停",
+    "auto": "Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问",
     "bypassPermissions": "Muse 会直接编辑文件和运行命令而不询问"
   },
+  "museCodeReviewedAutoDetail": "Muse Code 会直接运行它判断为简单的命令而不询问；其余命令由审查器检查，不确定时会询问您",
   "modelApiPermissionModeDetails": {
     "manual": "Muse 会在每次编辑和每条命令前请求批准",
+    "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",
     "auto": "Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问"
   },
   "effortLevels": {
@@ -1522,6 +1524,7 @@
   "autoReviewerUnreadable": "无法读取自动审查器的回答，因此由您决定。",
   "autoReviewerPaused": "由于多次拒绝或失败，自动审查器已暂停至您的下一条消息，因此由您决定。",
   "autoReviewerTripped": "由于多次拒绝或失败，自动审查器已停止。在您发送下一条消息之前，每个有风险的操作都会询问您。",
+  "museCodeReviewerNotice": "在自动模式下，Muse Code 请求批准的每个操作现在都会先由审查器检查，然后才显示给您：每次审查使用您订阅中的一次简短 Muse Code 轮次。它可能允许该操作一次；否则会附上理由询问您。可通过 museSpark.museCodeAutoReviewer 关闭。",
   "paidAutoReviewerName": "自动审查器",
   "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
   "paidUseAutoReviewerTitle": "让自动审查器评判此 {tool} 调用吗？",

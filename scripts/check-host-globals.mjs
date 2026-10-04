@@ -21,6 +21,7 @@ const HOST_BUNDLES = [
   'dist/agentImport.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

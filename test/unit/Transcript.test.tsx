@@ -217,6 +217,26 @@ describe('Transcript', () => {
     expect(screen.getByText('Loading…')).toBeInTheDocument()
   })
 
+  it('names the Auto reviewer and its reason under a call it allowed (M90)', () => {
+    renderTranscript([
+      tool({
+        id: 'r',
+        tool: 'powershell',
+        args: '{"command":"Get-Content notes.md"}',
+        status: 'completed',
+        approvalOutcome: {
+          decision: 'approved',
+          resolvedBy: 'Auto reviewer',
+          reason: 'Allowed: reads workspace file to fulfill line-count request',
+        },
+      }),
+    ])
+    expect(screen.getByText(/Decided: approved \(Auto reviewer\)/)).toBeInTheDocument()
+    expect(
+      screen.getByText('Allowed: reads workspace file to fulfill line-count request'),
+    ).toBeInTheDocument()
+  })
+
   it('shows failures, generic bodies, and decided or answered outcomes', () => {
     renderTranscript([
       tool({
@@ -243,6 +263,8 @@ describe('Transcript', () => {
     expect(screen.getByText(/Rejected/)).toBeInTheDocument()
     expect(screen.getByText(/Decided: approved \(user\)/)).toBeInTheDocument()
     expect(screen.getByText(/Answered: Red/)).toBeInTheDocument()
+    // Only an approval the Auto reviewer allowed carries its reason (M90).
+    expect(screen.queryByText(/^Allowed:/)).toBeNull()
     fireEvent.click(screen.getByText('grep_files'))
     // Indented as data (M43).
     expect(screen.getByText('{ "pattern": "x" }')).toBeInTheDocument()

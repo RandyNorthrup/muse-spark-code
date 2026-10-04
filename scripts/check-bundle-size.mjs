@@ -36,6 +36,10 @@ const BUDGETS = [
   // 25 KiB (PLAN.md D6).
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
+  // The Auto reviewer on Muse Code (M90), loaded on the first review: its
+  // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
+  // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // Shared English fallback; existing host budgets stay unchanged.
   { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },

@@ -380,6 +380,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),
+    /**
+     * The turn that asked (Muse Code's `turnId`, captured 2026-10-02): the
+     * Auto reviewer answers only the running parent turn's (M90).
+     */
+    turnId: z.optional(z.string()),
   }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({
@@ -395,6 +400,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     itemId: z.string(),
     decision: z.string(),
     resolvedBy: z.string(),
+    /** Why the one who answered allowed it (the Auto reviewer on Muse Code, M90); the extension's own. */
+    reason: z.optional(z.string()),
   }),
   // The agent asked the user something (`request_user_input`).
   z.object({

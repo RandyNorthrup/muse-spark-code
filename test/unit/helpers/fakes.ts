@@ -126,6 +126,7 @@ export const testSettings: SettingsSnapshot = {
   allowDangerouslySkipPermissions: false,
   archiveInactiveSessions: 14,
   modelApiReplyUsage: false,
+  museCodeAutoReviewer: true,
 }
 
 export interface FakeHostContext extends WebviewHostContext {

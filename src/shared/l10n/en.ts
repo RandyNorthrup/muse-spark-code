@@ -1265,18 +1265,26 @@ export const EN = {
   },
   // One line under each mode in the Modes menu (the Claude Code wording, with
   // Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md
-  // D7), per backend where they differ (D24): in Manual Muse Code applies
-  // edits inside the workspace without an approval (verified live in M4), and
-  // the Model API backend has no safety-check judge behind Auto.
+  // D7, D69), per backend where they differ (D24). On Muse Code (the default
+  // lines): in Manual it applies edits inside the workspace without an
+  // approval (verified live in M4), so Edit automatically is Manual there,
+  // and under `muse serve` Auto skips only the commands Muse Code judges
+  // simple, with no safety-check judge (D69); the panel's reviewer checks the
+  // rest while its setting is on (museCodeReviewedAutoDetail). The Model API
+  // backend has no safety-check judge behind Auto either.
   permissionModeDetails: {
     manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
-    acceptEdits: 'Muse will edit files without asking and ask before running commands',
+    acceptEdits:
+      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
     plan: 'Muse will explore the code and present a plan before editing',
-    auto: 'Muse will approve actions that pass a safety check and pause for anything risky',
+    auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
+  museCodeReviewedAutoDetail:
+    'Muse Code runs the commands it judges simple without asking; a reviewer checks the rest and asks you when unsure',
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
+    acceptEdits: 'Muse will edit files without asking and ask before running commands',
     auto: 'Muse will edit files without asking, except protected files, and ask before commands',
   },
   effortLevels: {
@@ -1988,6 +1996,9 @@ export const EN = {
     'The Auto reviewer is paused for this turn after repeated declines or failures, so you decide.',
   autoReviewerTripped:
     'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
+  // The window's first review on Muse Code (M90, PLAN.md D69).
+  museCodeReviewerNotice:
+    'In Auto, a reviewer now checks each action Muse Code asks about before you see it: one short Muse Code turn on your subscription per review. It may allow the action once; otherwise it asks you, with its reason. Turn it off with museSpark.museCodeAutoReviewer.',
   // The paid feature (D48): its name, confirmation, popup and tally.
   paidAutoReviewerName: 'Auto reviewer',
   paidConfirmAutoReviewer:

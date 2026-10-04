@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { PERMISSION_MODES } from '../../src/shared/constants'
+import { PERMISSION_MODES, UI_TEXT } from '../../src/shared/constants'
 import {
   approvalModeFor,
   availablePermissionModes,
   isPermissionMode,
   nextPermissionMode,
+  permissionModeDetail,
 } from '../../src/shared/permissionModes'
 
 describe('approvalModeFor', () => {
@@ -55,5 +56,34 @@ describe('isPermissionMode', () => {
   it('accepts the declared modes only', () => {
     expect(isPermissionMode('plan')).toBe(true)
     expect(isPermissionMode('yolo')).toBe(false)
+  })
+})
+
+describe('permissionModeDetail (D24, D69)', () => {
+  it('says on Muse Code what each mode does under muse serve', () => {
+    expect(permissionModeDetail('acceptEdits', 'museCode')).toBe(
+      UI_TEXT.permissionModeDetails.acceptEdits,
+    )
+    expect(UI_TEXT.permissionModeDetails.acceptEdits).toContain(UI_TEXT.permissionModes.manual)
+    // Auto: Muse Code's own skip of simple commands, plus the reviewer while it is on.
+    expect(permissionModeDetail('auto', 'museCode')).toBe(UI_TEXT.permissionModeDetails.auto)
+    expect(permissionModeDetail('auto', 'museCode', true)).toBe(UI_TEXT.museCodeReviewedAutoDetail)
+    expect(permissionModeDetail('auto', undefined, true)).toBe(UI_TEXT.museCodeReviewedAutoDetail)
+    // No line promises a safety check Muse Code does not run under serve (0.11.0).
+    for (const mode of PERMISSION_MODES) {
+      for (const hasReviewer of [false, true]) {
+        expect(permissionModeDetail(mode, 'museCode', hasReviewer)).not.toMatch(/safety check/iu)
+      }
+    }
+  })
+
+  it('keeps the Model API backend’s own lines, which the Muse Code reviewer never changes', () => {
+    expect(permissionModeDetail('acceptEdits', 'modelApi')).toBe(
+      UI_TEXT.modelApiPermissionModeDetails.acceptEdits,
+    )
+    expect(permissionModeDetail('auto', 'modelApi', true)).toBe(
+      UI_TEXT.modelApiPermissionModeDetails.auto,
+    )
+    expect(permissionModeDetail('plan', 'modelApi')).toBe(UI_TEXT.permissionModeDetails.plan)
   })
 })

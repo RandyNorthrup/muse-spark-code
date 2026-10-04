@@ -114,5 +114,6 @@
   "config.modelApiPermissionProfiles.markdownDescription": "Model API 后端：命名的权限配置文件。每个配置文件可以列出 `denyRead` glob（文件工具不得读取、列出、搜索或写入的相对于工作区的路径）和 `extraRoots`（`read_file` 可以读取的工作区之外的绝对路径文件夹）。使用 `museSpark.modelApiPermissionProfile` 选择一个。仅限用户和计算机设置。",
   "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，每条 shell 命令都会询问，因为 shell 在配置文件的文件规则之外运行。仅限用户和计算机设置。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
-  "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。"
+  "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
+  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 后端的自动模式下，Muse Code 请求的每项批准都会先交给审查器：在它自己的、处于规划模式的隐藏会话中，使用您的订阅进行一次简短的 Muse Code 轮次。它可能允许该操作一次；它拒绝、无法回答或失败时由您决定。它绝不会回应受保护的写入、付费调用、子任务或提问。"
 }

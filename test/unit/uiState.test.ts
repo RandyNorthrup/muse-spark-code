@@ -739,6 +739,29 @@ describe('uiReducer: agent events', () => {
     },
   )
 
+  it('keeps the Auto reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
+    const reason = 'Allowed: reads workspace file to fulfill line-count request'
+    const resolved = reduceAll(
+      [
+        agent(SHELL_APPROVAL),
+        agent({
+          type: 'approvalResolved',
+          approvalId: SHELL_APPROVAL.approvalId,
+          itemId: SHELL_APPROVAL.itemId,
+          decision: 'approved',
+          resolvedBy: 'Auto reviewer',
+          reason,
+        }),
+      ],
+      { ...initialUiState, sessionId: 'reviewed-session' },
+    )
+    const outcome = { decision: 'approved', resolvedBy: 'Auto reviewer', reason }
+    expect(resolved.transcript[0]).toMatchObject({ approvalOutcome: outcome })
+    expect(restoredUiState(webviewStateOf(resolved, true)).transcript[0]).toMatchObject({
+      approvalOutcome: outcome,
+    })
+  })
+
   it('lists the approvals waiting for the dock, oldest first, until each resolves (D26)', () => {
     const second = { ...SHELL_APPROVAL, approvalId: 'a2', itemId: 'c2', toolName: 'write_file' }
     const both = reduceAll([agent(SHELL_APPROVAL), agent(second)])

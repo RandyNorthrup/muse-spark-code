@@ -873,13 +873,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問",
-    "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
+    "acceptEdits": "在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問",
     "plan": "Muse 會先探索程式碼並提出計畫，再進行編輯",
-    "auto": "Muse 會核准通過安全檢查的動作，遇到任何有風險的動作則暫停",
+    "auto": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問",
     "bypassPermissions": "Muse 會直接編輯檔案及執行命令，不會詢問"
   },
+  "museCodeReviewedAutoDetail": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問；其餘命令由審查器檢查，不確定時會詢問您",
   "modelApiPermissionModeDetails": {
     "manual": "Muse 會在每次編輯和每個命令前要求核准",
+    "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
     "auto": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問"
   },
   "effortLevels": {
@@ -1522,6 +1524,7 @@
   "autoReviewerUnreadable": "無法讀取自動審查器的回答，因此由您決定。",
   "autoReviewerPaused": "由於多次拒絕或失敗，自動審查器已暫停至您的下一則訊息，因此由您決定。",
   "autoReviewerTripped": "由於多次拒絕或失敗，自動審查器已停止。在您傳送下一則訊息之前，每個有風險的操作都會詢問您。",
+  "museCodeReviewerNotice": "在自動模式下，Muse Code 要求核准的每個動作現在都會先由審查器檢查，然後才顯示給您：每次審查使用您訂閱中的一次簡短 Muse Code 回合。它可能允許該動作一次；否則會附上理由詢問您。可透過 museSpark.museCodeAutoReviewer 關閉。",
   "paidAutoReviewerName": "自動審查器",
   "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
   "paidUseAutoReviewerTitle": "要讓自動審查器評判此 {tool} 呼叫嗎？",

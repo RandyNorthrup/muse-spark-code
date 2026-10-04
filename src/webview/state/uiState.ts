@@ -1664,7 +1664,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             ? {
                 ...entry,
                 approval: undefined,
-                approvalOutcome: { decision: event.decision, resolvedBy: event.resolvedBy },
+                approvalOutcome: {
+                  decision: event.decision,
+                  resolvedBy: event.resolvedBy,
+                  ...(event.reason !== undefined && { reason: event.reason }),
+                },
               }
             : entry,
         ),
