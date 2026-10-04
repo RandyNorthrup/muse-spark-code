@@ -7,6 +7,47 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
+
+## [0.12.0] - 2026-10-04
+
 ### Added
 
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
@@ -307,11 +348,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- **Tiered CI and merge-queue checks.** PRs run fast Ubuntu checks; queue
-  candidates run all three OSes with four test shards and merged coverage,
-  the full Ubuntu accessibility harness, integration, native-helper and
-  universal-package checks. Existing required names and release artifacts
-  stay unchanged; enabling the repository's merge queue remains maintainer work.
 - **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
   from 100 KiB: new strings bring `dist/uiText.js` to 100.2 KiB; the new
   budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so
