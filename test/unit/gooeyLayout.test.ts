@@ -1,135 +1,104 @@
 import { describe, expect, it } from 'vitest'
-import { gooeyLabelBox, gooeyLayout, gooeySecondBurst } from '../../src/webview/gooeyLayout'
+import {
+  gooeyLayout,
+  gooeyPillMaxWidth,
+  gooeySecondBurst,
+  type GooeyPill,
+} from '../../src/webview/gooeyLayout'
 
-const viewport = { width: 320, height: 760 }
+const narrow = { width: 320, height: 760 }
+const wide = { width: 690, height: 760 }
+const HEIGHT = 40
 
-// A label at the stylesheet's bound, min(180 px, 50vw - 40 px), on one line and on two.
-const labelSizes = (box: { readonly width: number }) => [
-  { width: Math.min(180, box.width / 2 - 40), height: 27 },
-  { width: Math.min(180, box.width / 2 - 40), height: 46 },
-]
-const isOverBubble = (
-  label: { readonly left: number; readonly top: number },
-  size: { readonly width: number; readonly height: number },
-  point: { readonly x: number; readonly y: number },
-) =>
-  label.left < point.x + 20 &&
-  point.x - 20 < label.left + size.width &&
-  label.top < point.y + 20 &&
-  point.y - 20 < label.top + size.height
+// Drawn widths from a short English label to a German or pseudo-locale one
+// wider than any panel's room, which the layout caps at the panel's width.
+const LONG = [96, 188, 262, 341, 410, 520]
 
-describe('gooeyLayout', () => {
-  it('places equally spaced centres on an arc', () => {
-    const { points, origin } = gooeyLayout({ x: 160, y: 380 }, 3, viewport)
-    const distances = points.map((point) => Math.hypot(point.x - origin.x, point.y - origin.y))
-    expect(distances[0]).toBeCloseTo(76)
-    expect(distances[1]).toBeCloseTo(76)
-    expect(distances[2]).toBeCloseTo(76)
-    expect(points[0]?.x).toBeCloseTo(160)
-    expect(points[1]?.x).toBeCloseTo(84)
-    expect(points[2]?.x).toBeCloseTo(160)
-    expect(points[0]?.y).toBeCloseTo(456)
-    expect(points[2]?.y).toBeCloseTo(304)
+const isOverlapping = (a: GooeyPill, b: GooeyPill) =>
+  a.left < b.left + b.width &&
+  b.left < a.left + a.width &&
+  a.top < b.top + HEIGHT &&
+  b.top < a.top + HEIGHT
+
+const expectInside = (
+  pills: readonly GooeyPill[],
+  viewport: { readonly width: number; readonly height: number },
+) => {
+  for (const pill of pills) {
+    expect(pill.left).toBeGreaterThanOrEqual(8)
+    expect(pill.top).toBeGreaterThanOrEqual(8)
+    expect(pill.left + pill.width).toBeLessThanOrEqual(viewport.width - 8)
+    expect(pill.top + HEIGHT).toBeLessThanOrEqual(viewport.height - 8)
+  }
+}
+
+const expectApart = (pills: readonly GooeyPill[], where: string) => {
+  for (const [index, pill] of pills.entries()) {
+    const later = pills.slice(index + 1)
+    for (const other of later) {
+      expect(isOverlapping(pill, other), `${where}: pills overlap`).toBe(false)
+    }
+  }
+}
+
+describe('gooeyLayout (pills, 2026-10-04)', () => {
+  it('stacks the pills 20 px apart, centred on the origin, on an arc that bows out', () => {
+    const { origin, side, pills } = gooeyLayout({ x: 300, y: 380 }, [100, 120, 140], narrow)
+    expect(origin).toEqual({ x: 300, y: 380 })
+    expect(side).toBe(-1)
+    expect(pills.map((pill) => pill.top)).toEqual([300, 360, 420])
+    expect(pills.map((pill) => pill.width)).toEqual([100, 120, 140])
+    // Near ends: 16 px plus up to 32 px of bow, the middle pill farthest out.
+    const reach = pills.map((pill) => origin.x - (pill.left + pill.width))
+    expect(reach[1]).toBeCloseTo(48)
+    expect(reach[0]).toBeCloseTo(16 + 32 * Math.sqrt(5 / 9))
+    expect(reach[2]).toBeCloseTo(reach[0] ?? 0)
   })
 
   it.each([
-    [0, 380, 1, 0],
-    [320, 380, -1, 0],
-    [160, 0, 0, 1],
-    [160, 760, 0, -1],
-    [0, 0, 1, 1],
-    [320, 0, -1, 1],
-    [0, 760, 1, -1],
-    [320, 760, -1, -1],
-  ])('fans inward at edge/corner (%s,%s)', (x, y, dx, dy) => {
-    const result = gooeyLayout({ x, y }, 3, viewport)
-    expect(Math.cos(result.direction)).toBeCloseTo(dx === 0 ? 0 : dx / Math.hypot(dx, dy))
-    expect(Math.sin(result.direction)).toBeCloseTo(dy === 0 ? 0 : dy / Math.hypot(dx, dy))
-  })
-
-  it.each([1, 3, 4, 6])('keeps all %s bubbles inside 320 px, without overlap', (count) => {
-    for (const x of [0, 70, 160, 250, 320]) {
-      for (const y of [0, 70, 380, 690, 760]) {
-        const { points } = gooeyLayout({ x, y }, count, viewport)
-        for (const [index, point] of points.entries()) {
-          expect(point.x).toBeGreaterThanOrEqual(28)
-          expect(point.x).toBeLessThanOrEqual(292)
-          expect(point.y).toBeGreaterThanOrEqual(28)
-          expect(point.y).toBeLessThanOrEqual(732)
-          const next = points[index + 1]
-          if (next !== undefined) {
-            expect(Math.hypot(point.x - next.x, point.y - next.y)).toBeGreaterThanOrEqual(51.99)
-          }
-        }
+    [10, 380, 1],
+    [159, 380, 1],
+    [161, 380, -1],
+    [312, 380, -1],
+  ])('reaches away from the nearer side edge from x = %s', (x, y, side) => {
+    const result = gooeyLayout({ x, y }, [80, 80, 80], narrow)
+    expect(result.side).toBe(side)
+    for (const pill of result.pills) {
+      if (side === 1) {
+        expect(pill.left).toBeGreaterThanOrEqual(result.origin.x + 16)
+      } else {
+        expect(pill.left + pill.width).toBeLessThanOrEqual(result.origin.x - 16)
       }
     }
   })
 
-  it('opens a second inward burst from a group bubble', () => {
-    const { points } = gooeyLayout({ x: 319, y: 759 }, 3, viewport)
-    const bubble = points[1]
-    expect(bubble).toBeDefined()
-    if (bubble === undefined) {
-      throw new Error('missing bubble')
-    }
-    const burst = gooeySecondBurst(bubble, 4, viewport)
-    expect(burst.origin).toEqual(bubble)
-    expect(burst.points).toHaveLength(4)
-    for (const point of burst.points) {
-      expect(point.x).toBeGreaterThanOrEqual(28)
-      expect(point.x).toBeLessThanOrEqual(292)
-      expect(point.y).toBeGreaterThanOrEqual(28)
-      expect(point.y).toBeLessThanOrEqual(732)
-    }
-    expect(gooeyLayout({ x: 0, y: 0 }, 0, viewport).points).toEqual([])
-  })
-
-  // Lane W: a label hangs past its bubble on the side away from the fan's centre.
-  it('puts each label past its bubble, away from the centre', () => {
-    const wide = { width: 690, height: 760 }
-    const size = { width: 60, height: 27 }
-    // From the right edge the fan opens left: down, left and up of the centre.
-    const layout = gooeyLayout({ x: 682, y: 380 }, 3, wide)
-    expect(gooeyLabelBox(layout, 0, size, wide)).toEqual({ left: 574, top: 488 })
-    const beside = gooeyLabelBox(layout, 1, size, wide)
-    expect(beside?.left).toBeCloseTo(498)
-    expect(beside?.top).toBeCloseTo(366.5)
-    expect(gooeyLabelBox(layout, 2, size, wide)).toEqual({ left: 574, top: 245 })
-    expect(gooeyLabelBox(layout, 3, size, wide)).toBeUndefined()
-  })
-
-  it('turns a label that would leave the panel to another side', () => {
-    const wide = { width: 690, height: 760 }
-    const size = { width: 180, height: 46 }
-    // Two bubbles level with a centre at the top edge: outward is off the panel.
-    const layout = gooeyLayout({ x: 586, y: 56 }, 2, wide)
-    for (const index of [0, 1]) {
-      const box = gooeyLabelBox(layout, index, size, wide)
-      expect(box).toBeDefined()
-      expect(box?.left).toBeGreaterThanOrEqual(0)
-      expect((box?.left ?? 0) + size.width).toBeLessThanOrEqual(wide.width)
-    }
+  it('opens down from a top corner and up from a bottom one, curving back to the origin', () => {
+    const down = gooeyLayout({ x: 312, y: 20 }, [120, 120, 120, 120], narrow)
+    expect(down.pills[0]?.top).toBe(8)
+    const up = gooeyLayout({ x: 312, y: 750 }, [120, 120, 120, 120], narrow)
+    expect((up.pills.at(-1)?.top ?? 0) + HEIGHT).toBe(752)
+    const reachOf = ({ origin, pills }: typeof down) =>
+      pills.map((pill) => origin.x - (pill.left + pill.width))
+    // The pill level with the origin reaches farthest; the far end curves back.
+    const downReach = reachOf(down)
+    expect(downReach[0]).toBeGreaterThan(downReach.at(-1) ?? Infinity)
+    const upReach = reachOf(up)
+    expect(upReach.at(-1)).toBeGreaterThan(upReach[0] ?? Infinity)
   })
 
   it.each([2, 3, 4, 5, 6])(
-    'keeps every label of %s bubbles inside the panel and off its own bubble',
+    'keeps %s pills with long labels inside 320 and 690 px, apart',
     (count) => {
-      for (const box of [viewport, { width: 690, height: 760 }]) {
-        for (const size of labelSizes(box)) {
-          for (const x of [0, 70, 160, 250, box.width - 70, box.width]) {
-            for (const y of [0, 70, 380, 690, box.height]) {
-              const layout = gooeyLayout({ x, y }, count, box)
-              for (const [index, point] of layout.points.entries()) {
-                const label = gooeyLabelBox(layout, index, size, box)
-                if (label === undefined) {
-                  throw new Error('no label box')
-                }
-                expect(label.left).toBeGreaterThanOrEqual(0)
-                expect(label.top).toBeGreaterThanOrEqual(0)
-                expect(label.left + size.width).toBeLessThanOrEqual(box.width)
-                expect(label.top + size.height).toBeLessThanOrEqual(box.height)
-                expect(isOverBubble(label, size, point)).toBe(false)
-              }
+      for (const viewport of [narrow, wide]) {
+        for (const x of [0, 40, 160, 250, viewport.width - 20, viewport.width]) {
+          for (const y of [0, 40, 380, 700, viewport.height]) {
+            const widths = LONG.slice(0, count)
+            const { pills } = gooeyLayout({ x, y }, widths, viewport)
+            expect(pills).toHaveLength(count)
+            expectInside(pills, viewport)
+            expectApart(pills, `${String(viewport.width)} px from (${String(x)}, ${String(y)})`)
+            for (const [index, pill] of pills.entries()) {
+              expect(pill.width).toBe(Math.min(widths[index] ?? 0, viewport.width - 16))
             }
           }
         }
@@ -137,29 +106,44 @@ describe('gooeyLayout', () => {
     },
   )
 
-  // A row's ⋯ sits at the right edge, and a pointer near either side fans
-  // inward: there every label clears every bubble.
-  it.each([2, 3, 4, 5, 6])(
-    'keeps every label of %s bubbles off the others from a side',
-    (count) => {
-      for (const box of [viewport, { width: 690, height: 760 }]) {
-        for (const size of labelSizes(box)) {
-          for (const x of [0, 70, box.width - 70, box.width]) {
-            for (const y of [0, 70, 380, 690, box.height]) {
-              const layout = gooeyLayout({ x, y }, count, box)
-              for (const index of layout.points.keys()) {
-                const label = gooeyLabelBox(layout, index, size, box)
-                for (const [other, point] of layout.points.entries()) {
-                  expect(
-                    label !== undefined && isOverBubble(label, size, point),
-                    `label ${String(index)} over bubble ${String(other)} from (${String(x)}, ${String(y)})`,
-                  ).toBe(false)
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-  )
+  it('caps a pill at the panel less its padding', () => {
+    expect(gooeyPillMaxWidth(narrow)).toBe(304)
+    expect(gooeyPillMaxWidth({ width: 10, height: 10 })).toBe(0)
+    const { pills } = gooeyLayout({ x: 312, y: 380 }, [900], narrow)
+    expect(pills[0]).toMatchObject({ left: 8, width: 304 })
+  })
+
+  it('shares out a short panel’s height, still inside and apart while the rows fit', () => {
+    // Six 40 px rows in 280 px of room: 8 px gaps instead of 20.
+    const short = { width: 320, height: 296 }
+    const { pills } = gooeyLayout({ x: 312, y: 150 }, LONG, short)
+    expect(pills.map((pill) => pill.top)).toEqual([8, 56, 104, 152, 200, 248])
+    expectInside(pills, short)
+    expectApart(pills, 'short panel')
+  })
+
+  it('opens a second burst from a group pill, on the same side, inside the panel', () => {
+    const layout = gooeyLayout({ x: 312, y: 740 }, [140, 90, 210], narrow)
+    const group = layout.pills[1]
+    if (group === undefined) {
+      throw new Error('missing group pill')
+    }
+    const burst = gooeySecondBurst(layout, 1, [230, 300, 180, 340], narrow)
+    expect(burst?.origin).toEqual({ x: group.left + group.width / 2, y: group.top + HEIGHT / 2 })
+    expect(burst?.side).toBe(layout.side)
+    expect(burst?.pills).toHaveLength(4)
+    expectInside(burst?.pills ?? [], narrow)
+    expectApart(burst?.pills ?? [], 'second burst')
+    // Centred on the group's own pill (top 240, middle 260), not the origin
+    // (380), unless the panel's edge moves it, as at the foot above.
+    const first = gooeySecondBurst(
+      gooeyLayout({ x: 312, y: 380 }, [90, 90, 90, 90, 90], narrow),
+      0,
+      [100, 100, 100],
+      narrow,
+    )
+    expect(first?.pills.map((pill) => pill.top)).toEqual([180, 240, 300])
+    expect(gooeySecondBurst(layout, 3, [100], narrow)).toBeUndefined()
+    expect(gooeyLayout({ x: 0, y: 0 }, [], narrow).pills).toEqual([])
+  })
 })

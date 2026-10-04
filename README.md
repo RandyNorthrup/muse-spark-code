@@ -1585,7 +1585,9 @@ the text as it is.
 - Each actionable message, reply, tool output or restore notice has one **More
   actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
-  to open the same radial menu. The **Rewind** bubble opens the available
+  to open the same radial menu: each action is a pill with its icon and its
+  name, the pills stacked in a fanned column beside the pointer or ⋯ and
+  inside the panel. The **Rewind** pill opens the available
   rewind and restore choices. Escape returns from that burst first, then
   closes the menu and returns focus to ⋯. Edit review still opens the editor
   where Revert asks for confirmation.
@@ -1594,11 +1596,12 @@ the text as it is.
   right-click it for **Copy**, **Ask about this** or **Comment on this**; the
   passage, its author and your intent travel with the message. The composer
   shows a chip for either; × drops it.
-  The highlighted-text menu fans into round icon buttons, fitting panels as
-  narrow as 320 px. Hover or focus shows the action's label. Arrow keys move
+  The highlighted-text menu fans into the same labelled pills, fitting panels
+  as narrow as 320 px; a label too long for the panel ends in an ellipsis,
+  with the whole label in its tooltip. Arrow keys move
   between actions, Home/End select the first/last, Enter/Space choose, and
-  Escape closes and returns focus. Reduced motion shows stationary buttons
-  without the goo filter; forced colors uses bordered buttons.
+  Escape closes and returns focus. Reduced motion shows stationary pills
+  without the goo filter; forced colors uses bordered pills.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
   multi-step shell lines are approved one step at a time.

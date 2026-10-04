@@ -1,8 +1,51 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { renderTranscript, selectPassage, tool } from './helpers/transcriptFixtures'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/** Every shown pill shows its own label, the icon before it. */
+function expectLabelledPills() {
+  const pills = screen.getAllByRole('menuitem')
+  for (const pill of pills) {
+    const name = pill.getAttribute('aria-label') ?? ''
+    expect(pill.lastElementChild).toHaveTextContent(name)
+    expect(pill.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+    expect(within(pill).getByText(name)).toBeVisible()
+  }
+  return pills
+}
+
+const px = (value: string) => Number(value.replace('px', ''))
+
+/** The shown pills, as drawn (capped at their max width), inside 320 × 760 and apart. */
+function expectPlacedInNarrowPanel(count: number) {
+  const boxes = expectLabelledPills().map((pill) => ({
+    left: px(pill.style.left),
+    top: px(pill.style.top),
+    width: Math.min(pill.offsetWidth, px(pill.style.maxWidth)),
+  }))
+  expect(boxes).toHaveLength(count)
+  for (const [index, box] of boxes.entries()) {
+    expect(box.left).toBeGreaterThanOrEqual(8)
+    expect(box.left + box.width).toBeLessThanOrEqual(312)
+    expect(box.top).toBeGreaterThanOrEqual(8)
+    expect(box.top + 40).toBeLessThanOrEqual(752)
+    const later = boxes.slice(index + 1)
+    for (const other of later) {
+      const isApart =
+        box.left + box.width <= other.left ||
+        other.left + other.width <= box.left ||
+        box.top + 40 <= other.top ||
+        other.top + 40 <= box.top
+      expect(isApart).toBe(true)
+    }
+  }
+}
 
 const user = {
   kind: 'user',
@@ -316,11 +359,73 @@ describe('M87 F2 row menus', () => {
     choose(UI_TEXT.rowRewindGroup)
     for (const note of notes) {
       const item = screen.getByRole('menuitem', { name: note })
+      // A note reads on its own pill now, with no hover (2026-10-04).
+      expect(within(item).getByText(note)).toBeVisible()
       expect(item).toHaveAttribute('aria-disabled', 'true')
       fireEvent.click(item)
       expect(screen.getByRole('menu', { name: UI_TEXT.rowRewindGroup })).toBeInTheDocument()
     }
     expect(onRewind).not.toHaveBeenCalled()
+  })
+
+  // The owner's request of 2026-10-04: pills with labels, laid out by width.
+  it('labels every pill of the user, reply and tool menus', () => {
+    renderTranscript(
+      [
+        user,
+        { kind: 'assistant', id: 'a', text: 'done', isStreaming: false },
+        tool({
+          id: 'e',
+          tool: 'edit_file',
+          output: 'patch',
+          patchRef: { id: 'p', byteLen: 1 },
+          outputRef: { id: 'o', byteLen: 1 },
+        }),
+      ],
+      { onRewind: vi.fn(), onFork: vi.fn(), onReply: vi.fn(), onRevertEdit: vi.fn() },
+    )
+    const [userOpener, replyOpener, toolOpener] = screen.getAllByRole('button', {
+      name: UI_TEXT.rowMoreActions,
+    })
+    fireEvent.click(userOpener!)
+    expect(expectLabelledPills()).toHaveLength(2)
+    choose(UI_TEXT.rowRewindGroup)
+    expectLabelledPills()
+    fireEvent.click(replyOpener!)
+    expect(expectLabelledPills().map((pill) => pill.textContent)).toEqual([
+      UI_TEXT.copyResponse,
+      UI_TEXT.replyToOutput,
+    ])
+    fireEvent.click(toolOpener!)
+    expect(expectLabelledPills().map((pill) => pill.textContent)).toEqual([
+      UI_TEXT.rowOpenOutput,
+      UI_TEXT.diffTallyReview,
+      UI_TEXT.rowRevertEdit,
+    ])
+  })
+
+  it('keeps a row menu’s pills inside a 320 px panel and apart, in both bursts', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(760)
+    // About 7 px a character plus the icon and padding: the notes are wider
+    // than the panel and are capped at it, 304 px.
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.getAttribute('role') === 'menuitem' ? 52 + 7 * this.textContent.length : 0
+    })
+    renderTranscript([user], {
+      onRewind: vi.fn(),
+      onFork: vi.fn(),
+      onForkRewind: vi.fn(),
+      onRewindConversation: vi.fn(),
+      restoreNote: UI_TEXT.checkpointsNoGit,
+      conversationNote: UI_TEXT.conversationRewindUnavailable,
+    })
+    fireEvent.contextMenu(screen.getByText('hello'), { clientX: 300, clientY: 90 })
+    expectPlacedInNarrowPanel(3)
+    choose(UI_TEXT.rowRewindGroup)
+    expectPlacedInNarrowPanel(4)
   })
 
   it('leaves selected text to the enclosing quote menu', () => {

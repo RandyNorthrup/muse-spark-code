@@ -14,6 +14,13 @@ happened, not what was planned; superseded entries are kept.
   rewind choices open a second burst; queued Edit, response Copy and Reply,
   restore Redo, and tool output/edit review keep their existing handlers and
   availability checks. Selected text keeps its quote menu.
+  Every action is one blue pill holding its icon and its name (the owner's
+  request of 2026-10-04), in place of a round icon bubble with a separate
+  label on hover. The pills stack in a fanned column beside the pointer or
+  ⋯, apart and inside panels as narrow as 320 px, and merge in the goo only
+  as they burst out; a label too long for the panel ends in an ellipsis and
+  its tooltip shows it whole. Unavailable notes are the same pill, opaque
+  with a dimmed icon, so the chat no longer shows through their text.
 
 - Task lists can collapse to progress and the task in progress. **Open Tasks
   in a Tab** mirrors the active conversation's list in a read-only editor tab,

@@ -11,13 +11,7 @@ import {
   useState,
 } from 'react'
 import { GOOEY_MENU, UI_TEXT } from '../../shared/constants'
-import {
-  gooeyLabelBox,
-  gooeyLayout,
-  gooeySecondBurst,
-  type GooeyLabelSize,
-  type MenuPoint,
-} from '../gooeyLayout'
+import { gooeyLayout, gooeyPillMaxWidth, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
 import { useDismiss } from '../useDismiss'
 import { MoreIcon } from './icons'
 
@@ -44,6 +38,21 @@ interface GooeyMenuProps {
   readonly onClose: () => void
 }
 
+/** A drawn pill's width, and whether its label had to end in an ellipsis. */
+interface PillSize {
+  readonly width: number
+  readonly isClipped: boolean
+}
+
+/** Sizes are kept per level, so an open group's own pill keeps its place. */
+function sizeKey(level: string | undefined, id: string): string {
+  return JSON.stringify([level ?? null, id])
+}
+
+function viewportNow() {
+  return { width: window.innerWidth, height: window.innerHeight }
+}
+
 export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   const menu = useRef<HTMLDivElement>(null)
   const buttons = useRef(new Map<string, HTMLButtonElement>())
@@ -52,14 +61,11 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   const [opener] = useState(() => document.activeElement)
   const [groupId, setGroup] = useState<string>()
   const [active, setActive] = useState<string>()
-  const [hovered, setHovered] = useState<string>()
-  // The shown label, measured once drawn, so its place can keep it inside
-  // the panel and off every bubble (lane W).
-  const labelRef = useRef<HTMLSpanElement>(null)
-  const [labelSize, setLabelSize] = useState<GooeyLabelSize & { readonly id: string }>()
-  const [layout, setLayout] = useState(() =>
-    gooeyLayout({ x: 0, y: 0 }, 0, { width: 0, height: 0 }),
-  )
+  // Where the menu opened, and the panel's size: placed again on a resize.
+  const [frame, setFrame] = useState(() => ({ point: { x: 0, y: 0 }, viewport: viewportNow() }))
+  // Each pill as drawn, measured before the first paint, so the layout keeps
+  // a pill of any label's width inside the panel and off its neighbours.
+  const [sizes, setSizes] = useState<ReadonlyMap<string, PillSize>>(() => new Map())
   const filterId = useId()
   const group = items.find((item): item is GooeyGroup => item.id === groupId && 'children' in item)
   const visibleItems = group?.children ?? items
@@ -83,12 +89,22 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     const place = () => {
       const anchor = origin instanceof HTMLElement ? origin : menu.current?.parentElement
       const rect = anchor?.getBoundingClientRect()
+      // An element's centre: the pills burst from the "…" itself.
       const point =
         origin !== undefined && !(origin instanceof HTMLElement)
           ? origin
-          : { x: rect?.right ?? 0, y: rect?.top ?? 0 }
-      setLayout(
-        gooeyLayout(point, items.length, { width: window.innerWidth, height: window.innerHeight }),
+          : {
+              x: rect === undefined ? 0 : rect.left + rect.width / 2,
+              y: rect === undefined ? 0 : rect.top + rect.height / 2,
+            }
+      const viewport = viewportNow()
+      setFrame((current) =>
+        current.point.x === point.x &&
+        current.point.y === point.y &&
+        current.viewport.width === viewport.width &&
+        current.viewport.height === viewport.height
+          ? current
+          : { point, viewport },
       )
     }
     place()
@@ -97,11 +113,37 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     return () => {
       observer?.disconnect()
     }
-  }, [origin, items.length])
+  }, [origin])
+
+  const level = group?.id
+  const maxWidth = gooeyPillMaxWidth(frame.viewport)
+  useLayoutEffect(() => {
+    // A label, a level or the panel's width may change a pill's size; the
+    // state changes only when a size did.
+    const drawn = buttons.current
+    const measured = visibleItems.flatMap((item): (readonly [string, PillSize])[] => {
+      const button = drawn.get(item.id)
+      if (button === undefined) {
+        return []
+      }
+      const text = button.querySelector('.gooey-menu-pill-label')
+      const isClipped = text !== null && text.scrollWidth > text.clientWidth
+      return [[sizeKey(level, item.id), { width: button.offsetWidth, isClipped }]]
+    })
+    const isChanged = measured.some(([key, size]) => {
+      const known = sizes.get(key)
+      return known?.width !== size.width || known.isClipped !== size.isClipped
+    })
+    if (!isChanged) {
+      return
+    }
+    const next = new Map([...sizes, ...measured])
+    setSizes(next)
+  }, [visibleItems, level, sizes, maxWidth])
 
   useLayoutEffect(() => {
     // A parent's re-render passes new item objects; focus stays put unless the
-    // level changed (its bubbles unmounted) or Escape asked for the group.
+    // level changed (its pills unmounted) or Escape asked for the group.
     const focused = document.activeElement
     const isKeeps = visibleItems.some((item) => buttons.current.get(item.id) === focused)
     if (isKeeps && parentFocus.current === undefined) {
@@ -132,21 +174,23 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     [opener],
   )
 
-  const groupIndex = group === undefined ? -1 : items.findIndex((item) => item.id === group.id)
-  const groupPoint = layout.points[groupIndex]
+  const widthsOf = (level: string | undefined, list: readonly GooeyItem[]) =>
+    list.map((item) => sizes.get(sizeKey(level, item.id))?.width ?? 0)
+  const layout = gooeyLayout(frame.point, widthsOf(undefined, items), frame.viewport)
   const burst =
-    groupPoint === undefined
-      ? layout
-      : gooeySecondBurst(groupPoint, visibleItems.length, {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        })
+    (group === undefined
+      ? undefined
+      : gooeySecondBurst(
+          layout,
+          items.indexOf(group),
+          widthsOf(group.id, group.children),
+          frame.viewport,
+        )) ?? layout
   const select = (item: GooeyItem) => {
     if (item.disabled === true || closed.current) {
       return
     }
     if ('children' in item) {
-      setHovered(undefined)
       setGroup(item.id)
     } else {
       item.onSelect()
@@ -189,7 +233,6 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
         } else {
           parentFocus.current = group.id
           setGroup(undefined)
-          setHovered(undefined)
         }
         break
       }
@@ -203,20 +246,6 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
       buttons.current.get(next.id)?.focus()
     }
   }
-  const labelledId = hovered ?? active ?? visibleItems[0]?.id
-  useLayoutEffect(() => {
-    const label = labelRef.current
-    if (label === null || labelledId === undefined) {
-      return
-    }
-    const width = label.offsetWidth
-    const height = label.offsetHeight
-    if (labelSize?.id !== labelledId || labelSize.width !== width || labelSize.height !== height) {
-      setLabelSize({ id: labelledId, width, height })
-    }
-    // The label appears once the layout has points and takes its text from
-    // the items, so either changing measures it again.
-  }, [labelledId, labelSize, visibleItems, layout, groupId])
   const gooStyle: CSSProperties & { '--ms-goo-filter': string } = {
     '--ms-goo-filter': `url(#${filterId})`,
   }
@@ -244,9 +273,13 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
           </filter>
         </defs>
       </svg>
-      <div className="gooey-menu-bubbles" style={gooStyle}>
+      <div className="gooey-menu-pills" style={gooStyle}>
         {visibleItems.map((item, index) => {
-          const point = burst.points[index]
+          const pill = burst.pills[index]
+          const left = pill?.left ?? 0
+          const top = pill?.top ?? 0
+          // A label cut short by the ellipsis is whole in the tooltip too.
+          const isClipped = sizes.get(sizeKey(level, item.id))?.isClipped === true
           return (
             <button
               key={item.id}
@@ -260,63 +293,32 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
               type="button"
               role="menuitem"
               aria-label={item.label}
-              title={item.title}
+              title={item.title ?? (isClipped ? item.label : undefined)}
               aria-disabled={item.disabled === true || undefined}
               aria-haspopup={'children' in item ? 'menu' : undefined}
               tabIndex={item.id === active ? 0 : -1}
-              className="gooey-menu-bubble"
+              className="gooey-menu-pill"
               style={{
-                left: point?.x,
-                top: point?.y,
-                transformOrigin: `${String(burst.origin.x - (point?.x ?? 0) + GOOEY_MENU.bubbleSize / 2)}px ${String(burst.origin.y - (point?.y ?? 0) + GOOEY_MENU.bubbleSize / 2)}px`,
+                left,
+                top,
+                maxWidth,
+                transformOrigin: `${String(burst.origin.x - left)}px ${String(burst.origin.y - top)}px`,
               }}
               onFocus={() => {
                 setActive(item.id)
-              }}
-              onMouseEnter={() => {
-                setHovered(item.id)
-              }}
-              onMouseLeave={() => {
-                setHovered(undefined)
               }}
               onClick={() => {
                 select(item)
               }}
             >
-              <span aria-hidden="true">{item.icon}</span>
+              <span className="gooey-menu-pill-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+              <span className="gooey-menu-pill-label">{item.label}</span>
             </button>
           )
         })}
       </div>
-      {visibleItems.map((item, index) => {
-        const point = burst.points[index]
-        if (point === undefined || item.id !== labelledId) {
-          return null
-        }
-        // Drawn unseen at its bubble first, to be measured; then placed.
-        const box =
-          labelSize?.id === item.id
-            ? gooeyLabelBox(burst, index, labelSize, {
-                width: window.innerWidth,
-                height: window.innerHeight,
-              })
-            : undefined
-        return (
-          <span
-            key={item.id}
-            ref={labelRef}
-            aria-hidden="true"
-            className="gooey-menu-label"
-            style={
-              box === undefined
-                ? { left: point.x, top: point.y, visibility: 'hidden' }
-                : { left: box.left, top: box.top }
-            }
-          >
-            {item.label}
-          </span>
-        )
-      })}
     </div>
   )
 }
