@@ -13446,35 +13446,6 @@ advisory.
 
 Aggregates: `quality:gates` = format:check, lint, typecheck, check:l10n, check:host-api, deadcode, cycles, duplication, test:unit, build, security:audit; `quality` = quality:gates + test:a11y + security:secrets + security:sast; `quality:ci` = quality:gates + test:a11y + test:integration (secrets and SAST are separate CI jobs). Integration tests run only in CI or via `npm run test:integration`.
 
-**L10NGATE local build deferral (2026-10-03).** All bundle sizes passed,
-but the split gate reported five missing packages. This worktree's
-`node_modules` is a pre-existing junction to `mx-cli-live/node_modules`;
-generated metafiles contain those packages under `../mx-cli-live/node_modules/`,
-while the unchanged gate requires prefixes starting `node_modules/`.
-The packages contribute bytes to the intended bundles. Preserve the gate
-and shared dependency target; the lead must rerun the build with dependencies
-local to the worktree. This is not a passing full build or M87 certification.
-Evidence and the scoped localization checks: `docs/certification/m87-l10ngate.md`.
-
-**M87 F2 label-drill deferral (2026-10-04).** The row migration passes its
-focused checks and thirty deliberate defects (28 rig guards/payloads, the
-inert-control guard and non-hover visibility). Two label-offset mutations
-survived the browser observation attempts; adding corner events did not
-establish settled placement. Per the common brief's two-attempt rule, this
-path stopped, all bytes restored, and the drill remains open. Lane W must
-wait for changed-origin placement before asserting bounds, then prove the
-label defect fails and restore green. No rule, threshold or test was weakened.
-Details and build-junction limitation: `docs/certification/m87-f.md` F2.
-
-**M87 D local gate limits (2026-10-03).** Lane D inherits the same dependency
-junction and bundle-split failure above; every bundle size still passes.
-`npm run deadcode` also reports the already-tracked lane A harness entry
-`test/harness/m87a.mjs` as unused. Lane D does not own that file or knip's
-configuration. Neither gate is weakened. The lead must reconcile lane A's
-harness entry and rerun the aggregate build with local dependencies before
-full M87 certification. Lane D's tests, drills and visual checks are recorded
-in `docs/certification/m87-d.md`.
-
 The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
 and format checks with fewer simultaneous children. On 2026-09-25 Windows
 stalled and required a restart. A repeated local quality run exposed a burst
