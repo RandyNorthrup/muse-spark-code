@@ -2102,6 +2102,20 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 // The spinner line under the last row changes its verb this often while a
 // turn runs (the verbs are `UI_TEXT.statusVerbs`).
 export const STATUS_VERB_INTERVAL_MS = 4000
+// The working line's heart-monitor beam (M87, D66): a canvas port of Vahid's
+// HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT; written fresh). The beam
+// advances this far every tick, so the 100-unit box sweeps in about 1.2 s —
+// slower than the reference's 0.6 s, which reads as frantic at this size.
+export const HEARTBEAT_BEAM_TICK_MS = 6
+export const HEARTBEAT_BEAM_STEP_PX = 0.5
+// Each tick erases this fraction of the canvas's own pixels (destination-out),
+// so the beam's trail fades behind it on every theme.
+export const HEARTBEAT_BEAM_FADE_ALPHA = 0.06
+// Beam width in CSS pixels.
+export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
+// At most this many fixed ticks run per animation frame; excess time is
+// dropped so a stalled frame never replays its debt as a burst.
+export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE

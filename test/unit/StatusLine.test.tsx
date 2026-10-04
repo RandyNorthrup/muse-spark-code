@@ -11,10 +11,16 @@ const VERBS = Object.values(EN.statusVerbs)
 describe('StatusLine', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    // jsdom has no canvas backing; the trace renders its element and stops.
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+      value: () => null,
+      configurable: true,
+    })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    Reflect.deleteProperty(HTMLCanvasElement.prototype, 'getContext')
     setUiText(EN, BASE_LOCALE)
   })
 
@@ -48,15 +54,12 @@ describe('StatusLine', () => {
       'aria-hidden',
       'true',
     )
-    const trace = container.querySelector('svg.heartbeat-trace')
+    // The beam draws on a canvas; nothing static is rendered.
+    const trace = container.querySelector('canvas.heartbeat-trace')
     expect(trace).toHaveAttribute('aria-hidden', 'true')
-    expect(trace).toHaveAttribute('focusable', 'false')
-    const paths = trace?.querySelectorAll('path')
-    expect(paths).toHaveLength(2)
-    expect(paths?.[0]).toHaveAttribute('pathLength', '100')
-    expect(paths?.[1]).toHaveAttribute('pathLength', '100')
-    expect(paths?.[0]?.getAttribute('d')).toBe(paths?.[1]?.getAttribute('d'))
-    expect(trace?.querySelector('.heartbeat-sweep')).toBeTruthy()
+    expect(container.querySelector('svg.heartbeat-trace')).toBeNull()
+    expect(container.querySelector('.heartbeat-base')).toBeNull()
+    expect(container.querySelector('.heartbeat-sweep')).toBeNull()
     expect(container.querySelector('[aria-live], [role="status"]')).toBeNull()
   })
 

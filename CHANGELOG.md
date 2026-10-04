@@ -215,6 +215,13 @@ happened, not what was planned; superseded entries are kept.
   navigation, and focus return. Copy, Ask about this and Comment on this keep
   their existing behavior. Reduced motion removes the burst and goo filter;
   forced colors uses bordered system-color buttons.
+- **The working line's heart monitor (M87, PLAN.md D66).** The trace is no
+  longer a static path with a highlight sliding along it: a beam draws the
+  P/QRS/T shape itself on a canvas, sweeping about every 1.2 s while its
+  fading trail decays behind it, in the progress-bar blue on every theme
+  (`CanvasText` under forced colours). It sits right after the verb instead
+  of floating mid-chat. Reduced motion shows one still beat; nothing about
+  the line is announced to assistive technology.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.

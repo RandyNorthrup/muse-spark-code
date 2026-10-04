@@ -144,6 +144,7 @@ export const SCENARIOS = [
   'plan-narrow',
   'handoff',
   'code-intel',
+  'status-heartbeat',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

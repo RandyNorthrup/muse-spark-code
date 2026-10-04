@@ -1357,7 +1357,7 @@ body {
 
 .status-line {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto auto 1fr;
   gap: var(--ms-gap);
   align-items: center;
   container-type: inline-size;
@@ -1371,38 +1371,11 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* The beam draws in brand blue on the canvas itself; the canvas keeps the
+   trace's box. The working line's grid puts it right after the verb. */
 .heartbeat-trace {
   width: 6em;
   height: 1.5em;
-  overflow: visible;
-  fill: none;
-  stroke: var(--vscode-progressBar-background);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.heartbeat-base {
-  opacity: 30%;
-}
-
-.heartbeat-sweep {
-  stroke-dasharray: 20 80;
-  animation: heartbeat-sweep 1.6s linear infinite;
-}
-
-.vscode-dark .heartbeat-trace {
-  filter: drop-shadow(0 0 2px var(--vscode-progressBar-background));
-}
-
-@keyframes heartbeat-sweep {
-  from {
-    stroke-dashoffset: 100;
-  }
-
-  to {
-    stroke-dashoffset: 0;
-  }
 }
 
 @container (width < 260px) {
@@ -3246,16 +3219,11 @@ li:focus-within > .row-actions .row-actions-button,
 @media (prefers-reduced-motion: reduce) {
   .cursor,
   .tool-dot-running,
-  .heartbeat-sweep,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
   .agent-dot-running,
   .gooey-menu-bubble {
     animation: none;
-  }
-
-  .heartbeat-sweep {
-    stroke-dasharray: none;
   }
 
   .toggle-knob,
