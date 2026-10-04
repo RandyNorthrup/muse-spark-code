@@ -106,10 +106,18 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   }
 }
 
-/** The helper's assembly, compiled and tested on first use; undefined where it cannot be. */
+/** The helper's assembly; a failed preparation can be tried again by the next caller. */
 export function shellJobAssembly(deps: ShellJobDeps): () => Promise<string | undefined> {
   let ready: Promise<string | undefined> | undefined
-  return () => (ready ??= prepare(deps))
+  const attempt = async (): Promise<string | undefined> => {
+    const assembly = await prepare(deps)
+    // Share an in-flight attempt and keep success, but not a transient failure.
+    if (assembly === undefined) {
+      ready = undefined
+    }
+    return assembly
+  }
+  return () => (ready ??= attempt())
 }
 
 /** A fresh job for one command. */

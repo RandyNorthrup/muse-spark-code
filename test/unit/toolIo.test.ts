@@ -227,13 +227,16 @@ const SWEEP_DELAY_MS = 1000
 // On Windows the commands run in job objects, as the extension runs them
 // (M27): the helper is compiled once, into a folder of this file's own.
 const jobStorage = mkdtempSync(path.join(tmpdir(), 'muse-toolio-jobs-'))
+const jobLog: string[] = []
 const jobAssembly =
   process.platform === 'win32'
     ? shellJobAssembly({
         readJobSource,
         storageDir: jobStorage,
         systemRoot: String(process.env['SystemRoot']),
-        log: () => undefined,
+        log: (message) => {
+          jobLog.push(message)
+        },
       })
     : undefined
 
@@ -607,7 +610,7 @@ describe('createToolIo (real file system and shell)', () => {
       // With auto-loading off, any such cmdlet fails here at once.
       const assembly = await jobAssembly?.()
       if (assembly === undefined) {
-        throw new Error('job helper missing')
+        throw new Error(`job helper missing: ${jobLog.join('\n')}`)
       }
       const report =
         "[Console]::Out.WriteLine(('{0} {1} {2}' -f ($null -ne ('MuseSparkJob' -as [type])), $Error.Count, [Console]::OutputEncoding.WebName))"

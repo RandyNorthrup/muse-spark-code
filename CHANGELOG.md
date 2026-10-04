@@ -9,6 +9,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 
 ## [0.11.0] - 2026-10-03
