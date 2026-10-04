@@ -13602,6 +13602,38 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
+said it took "like 4 40 minute checks just to get a release cut": the full
+three-OS gate ran on each PR push, again after each refresh from `main`, and
+again in the release. He approved a GitHub merge queue plus tiered CI. PRs
+run a fast Ubuntu tier: the static gates, the production build, every
+unit/e2e test, gitleaks and semgrep, in about 12 minutes or less. The merge
+group runs the full tier once, on the commit that becomes `main`, in an
+estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498. The full tier runs:
+
+- the static gates on all three OSes;
+- four coverage shards per OS, merged before the unchanged 90/85/90/90
+  thresholds apply;
+- the a11y harness once, on Ubuntu;
+- integration on Linux and Windows;
+- the macOS helper and the universal packages.
+
+An aggregate job produces the seven required names on both tiers. Lead
+review found and fixed two defects:
+
+- **gitleaks on `merge_group`.** The gitleaks action exits 1 on that event,
+  so every queue entry would have failed. The queue now runs the pinned,
+  checksum-checked CLI over the history that lands.
+- **No interlock.** Nothing stopped PRs taking the fast tier with no queue
+  behind it, so they would have merged with no full gate. PRs now get the
+  fast tier only after the maintainer sets `CI_MERGE_QUEUE=on`, once the
+  ruleset has the queue.
+
+Blocker for the owner: GitHub's documentation offers merge queues only in
+organization-owned repositories, and this one is user-owned. Until that is
+settled, PRs keep the full tier and no check is weaker than before. Record:
+`docs/certification/ciflow.md`.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import

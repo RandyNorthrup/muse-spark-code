@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

@@ -1,6 +1,7 @@
 // Guards against drift between package.json contribution points and the ids
 // and defaults the code is built around.
 
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,6 +20,14 @@ import {
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
 } from '../../src/shared/constants'
+import { findBash } from './helpers/shellParsers'
+
+const byText = (a: string, b: string) => a.localeCompare(b)
+
+/** One aggregate case's outcome, named, so a failure says which case flipped. */
+function verdict(label: string, isPassing: boolean): string {
+  return `${label}: ${isPassing ? 'passes' : 'fails'}`
+}
 
 /** How many times a pattern (with the `g` flag) occurs in a text. */
 function count(text: string, pattern: RegExp): number {
@@ -345,6 +354,199 @@ describe('packaging (M26)', () => {
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
     expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
   })
+})
+
+describe('tiered CI (CIFLOW)', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..')
+  const read = (file: string) => readFileSync(path.join(root, file), 'utf8')
+  const build = read('.github/workflows/build.yml')
+  const job = (id: string) => {
+    const body = build.split(`\n  ${id}:\n`, 2)[1]?.split(/\n {2}[\w-]+:\n/, 1)[0]
+    if (body === undefined) throw new Error(`missing job ${id}`)
+    return body
+  }
+  it('checks PRs quickly and merge groups/manual calls fully, on the event commit', () => {
+    const ci = read('.github/workflows/ci.yml')
+    for (const event of ['pull_request', 'merge_group', 'workflow_dispatch']) {
+      expect(ci).toContain(`\n  ${event}:\n`)
+    }
+    // The fast tier waits for the maintainer's switch: without a merge queue
+    // a fast-only PR would land without the full gate ever running.
+    expect(ci).toContain(
+      "fast: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}",
+    )
+    expect(build).toContain('        default: false')
+    expect(build).not.toMatch(/\n {10}ref:/)
+    for (const id of ['checks', 'unit']) {
+      expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
+      expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
+    }
+    // Exactly quality:gates without the tests, which run in their own jobs: a
+    // gate added to quality:gates and not to CI fails here.
+    const gates = manifest.scripts['quality:gates'].split(' ')
+    expect(gates.slice(0, 1)).toEqual(['run-s'])
+    expect(gates).toContain('test:unit')
+    expect(job('checks')).toContain(
+      `      - run: npx run-s ${gates
+        .slice(1)
+        .filter((gate) => gate !== 'test:unit')
+        .join(' ')}\n`,
+    )
+    expect(job('unit')).toContain('npx vitest run\n')
+    for (const id of ['coverage', 'accessibility', 'integration', 'native-build', 'packages']) {
+      expect(job(id)).toContain('if: ${{ !inputs.fast }}')
+    }
+    expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
+    expect(job('accessibility')).toContain('run: npm run test:a11y\n')
+    expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
+    expect(job('packages')).toContain('name: muse-spark-code-vsix')
+    expect(job('packages')).toContain('name: muse-spark-code-acp')
+    expect(job('packages')).toContain('name: muse-spark-code-sboms')
+  })
+
+  it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}")
+    expect(job('unit')).toContain('--shard="$SHARD/4" --reporter=default --reporter=blob')
+    expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
+    expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
+    expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
+    expect(job('coverage')).toContain('merge-multiple: true')
+    expect(job('coverage')).toContain('for shard in 1 2 3 4; do')
+    expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
+    expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
+    const config = read('vitest.config.ts')
+    expect(config).toContain('statements: 90,\n  branches: 85,\n  functions: 90,\n  lines: 90,')
+    expect(config).toContain("arg !== '--shard' && !arg.startsWith('--shard=')")
+    expect(config).toContain('...(process.argv.every')
+    expect(config).toContain('thresholds: COVERAGE_THRESHOLDS,')
+    expect(config).toContain("fileParallelism: process.platform !== 'win32'")
+  })
+
+  it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
+    const id = 'required'
+    expect(job(id)).toContain('name: ${{ matrix.check }}')
+    for (const name of [
+      'quality (ubuntu-latest)',
+      'quality (windows-latest)',
+      'quality (macos-latest)',
+      'dictation helper (macos)',
+      'package (.vsix)',
+    ]) {
+      expect(job(id)).toContain(`- ${name}\n`)
+    }
+    expect(job(id)).toMatch(
+      /needs:\s+\[checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast\]/,
+    )
+    expect(job(id)).toContain('if: always()')
+    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+      expect(job(id)).toContain(`          test "$${key}" = success\n`)
+    }
+    expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
+    for (const key of ['COVERAGE', 'ACCESSIBILITY', 'INTEGRATION', 'HELPER', 'PACKAGES']) {
+      expect(job(id)).toContain(`            test "$${key}" = success\n`)
+    }
+    expect(job(id)).not.toContain('continue-on-error')
+    expect(job('secrets')).toContain('name: gitleaks')
+    expect(job('sast')).toContain('name: semgrep')
+  })
+
+  it('scans a merge group with the checked CLI, since the action refuses that event', () => {
+    const secrets = job('secrets')
+    expect(secrets).toContain('          fetch-depth: 0\n')
+    expect(secrets).toContain(
+      "      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0\n        if: github.event_name != 'merge_group'\n",
+    )
+    expect(secrets).toContain(
+      "      - name: gitleaks (merge group, the history that lands)\n        if: github.event_name == 'merge_group'\n",
+    )
+    expect(secrets).toContain('          GITLEAKS_VERSION: 8.24.3\n')
+    expect(secrets).toContain(
+      '          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c\n',
+    )
+    expect(secrets).toContain('          echo "$GITLEAKS_SHA256  $archive" | sha256sum -c -\n')
+    expect(secrets).toContain(
+      '          "$RUNNER_TEMP/gitleaks" git --redact --no-banner -v --log-opts=HEAD .\n',
+    )
+    expect(secrets).not.toContain('continue-on-error')
+  })
+
+  const bash = findBash()
+  // 22 subshells: about 7.5 s on a loaded Windows host, where each one is a
+  // new process; well under a second on Linux.
+  const BASH_CASES_TIMEOUT_MS = 60_000
+  // The aggregate's own step, run the way GitHub runs a bash step (-e, pipefail)
+  // over every way a selected-tier job can end: only all green passes.
+  it.runIf(bash !== undefined)(
+    'passes a required name only when its whole tier succeeded',
+    { timeout: BASH_CASES_TIMEOUT_MS },
+    () => {
+      const required = job('required')
+      // Each step variable and the expression it reads: FAST from the input,
+      // the rest from one needed job's result.
+      const pairs = Array.from(
+        required.matchAll(/^ {10}([A-Z]+): \$\{\{ (\S+) \}\}$/gm),
+        (match) => [match[2] ?? '', match[1] ?? ''] as const,
+      )
+      const env = new Map(pairs)
+      const ids = /needs:\s+\[([^\]]+)\]/.exec(required)?.[1]?.split(', ') ?? []
+      const always = ['checks', 'unit', 'secrets', 'sast']
+      const fullOnly = ['coverage', 'accessibility', 'integration', 'native-build', 'packages']
+      expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
+      expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
+        ['inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(byText),
+      )
+      const key = (id: string) => env.get(`needs.${id}.result`) ?? ''
+      const lines = required.split('\n')
+      const afterRun = lines.slice(lines.indexOf('        run: |') + 1)
+      const body: string[] = []
+      for (const line of afterRun) {
+        if (line !== '' && !line.startsWith(' '.repeat(10))) break
+        body.push(line.slice(10))
+      }
+      const results = (isFast: boolean, overrides: Readonly<Record<string, string>> = {}) => ({
+        [env.get('inputs.fast') ?? '']: String(isFast),
+        ...Object.fromEntries(
+          ids.map((id) => [key(id), isFast && fullOnly.includes(id) ? 'skipped' : 'success']),
+        ),
+        ...overrides,
+      })
+      const cases: readonly (readonly [string, Record<string, string>, boolean])[] = [
+        ['full tier, every job green', results(false), true],
+        ...ids.map(
+          (id) => [`full, ${id} failed`, results(false, { [key(id)]: 'failure' }), false] as const,
+        ),
+        ...fullOnly.map(
+          (id) => [`full, ${id} skipped`, results(false, { [key(id)]: 'skipped' }), false] as const,
+        ),
+        ['full, helper cancelled', results(false, { [key('native-build')]: 'cancelled' }), false],
+        ['fast tier, its jobs green, the rest skipped', results(true), true],
+        ...always.map(
+          (id) => [`fast, ${id} skipped`, results(true, { [key(id)]: 'skipped' }), false] as const,
+        ),
+        ['fast, semgrep cancelled', results(true, { [key('sast')]: 'cancelled' }), false],
+      ]
+      // One shell for every case (Windows starts each process slowly); each
+      // case runs in its own subshell as a plain statement, so -e applies.
+      const wrapper = cases
+        .map(([, values]) => {
+          const exports = Object.entries(values)
+            .map(([name, value]) => `${name}=${value}`)
+            .join(' ')
+          return `( export ${exports}; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; echo "$?"`
+        })
+        .join('\n')
+      const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
+        env: { STEP: body.join('\n') },
+        encoding: 'utf8',
+        timeout: BASH_CASES_TIMEOUT_MS,
+      })
+      expect(run.status).toBe(0)
+      const codes = run.stdout.trim().split(/\r?\n/)
+      expect(cases.map(([label], index) => verdict(label, codes[index] === '0'))).toEqual(
+        cases.map(([label, , isPassing]) => verdict(label, isPassing)),
+      )
+    },
+  )
 })
 
 describe('toolchain pins (AGENTS.md)', () => {
