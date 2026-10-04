@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HEARTBEAT_BEAM_STEP_PX, HEARTBEAT_BEAM_TRAIL_TICKS } from '../../src/shared/constants'
 import { HeartbeatTrace } from '../../src/webview/components/HeartbeatTrace'
+
+// The canvas box the tests give the trace, in device pixels (100 × 24 at ratio 1).
+const TRACE_BOX_WIDTH = 100
 
 const REDUCED_QUERY = '(prefers-reduced-motion: reduce)'
 const FORCED_QUERY = '(forced-colors: active)'
@@ -185,43 +189,82 @@ describe('HeartbeatTrace (M87)', () => {
     Reflect.deleteProperty(document, 'hidden')
   })
 
-  it('fades with destination-out before drawing each tick', () => {
+  /** The segments stroked in the last drawn frame, as [fromX, toX] in canvas pixels. */
+  const lastFrameSegments = (): (readonly [number, number])[] => {
+    const clear = log.lastIndexOf('clearRect 0 0 100 24')
+    const frameLog = log.slice(clear)
+    const segments: (readonly [number, number])[] = []
+    for (const [index, entry] of frameLog.entries()) {
+      const next = frameLog[index + 1]
+      if (entry.startsWith('moveTo') && next?.startsWith('lineTo') === true) {
+        segments.push([Number(entry.split(' ', 2)[1]), Number(next.split(' ', 2)[1])])
+      }
+    }
+    return segments
+  }
+
+  it('clears the whole canvas, then strokes only the trail, each frame', () => {
     render(<HeartbeatTrace />)
     runFrame(16)
-    const save = log.indexOf('save')
-    const fade = log.indexOf('composite destination-out')
-    const fill = log.findIndex((entry) => entry.startsWith('fillRect 0 0 100 24'))
-    const restore = log.indexOf('restore')
+    const clear = log.indexOf('clearRect 0 0 100 24')
     const begin = log.indexOf('beginPath')
-    const stroke = log.indexOf('stroke')
-    expect(save).toBeGreaterThanOrEqual(0)
-    expect(fade).toBeGreaterThan(save)
-    expect(fill).toBeGreaterThan(fade)
-    expect(restore).toBeGreaterThan(fill)
-    expect(begin).toBeGreaterThan(restore)
-    expect(stroke).toBeGreaterThan(begin)
+    expect(clear).toBeGreaterThanOrEqual(0)
+    expect(begin).toBeGreaterThan(clear)
+    // Two 6 ms ticks in a 16 ms frame: two segments from the left edge.
+    expect(lastFrameSegments()).toEqual([
+      [0, 0.5],
+      [0.5, 1],
+    ])
     expect(log).toContain('moveTo 0 12')
-    expect(log).toContain('lineTo 0.5 12')
     expect(log).toContain('style currentColor')
+    // No pixel fading (it left a ghost of the whole wave behind the beam).
+    expect(log.some((entry) => entry.startsWith('composite'))).toBe(false)
+    runFrame(32)
+    expect(log.filter((entry) => entry === 'clearRect 0 0 100 24')).toHaveLength(2)
+  })
+
+  it('never draws the wave older than the trail, so the shape exists only behind the blip', () => {
+    render(<HeartbeatTrace />)
+    // Two full sweeps and more.
+    for (let time = 16; time <= 3000; time += 16) {
+      runFrame(time)
+    }
+    const segments = lastFrameSegments()
+    expect(segments.length).toBeGreaterThan(0)
+    expect(segments.length).toBeLessThanOrEqual(HEARTBEAT_BEAM_TRAIL_TICKS)
+    // Every stroke lies within the trail's reach of the newest one (allowing
+    // for the wrap), never across the whole box.
+    const newest = segments.at(-1)?.[1] ?? 0
+    const reach = HEARTBEAT_BEAM_TRAIL_TICKS * HEARTBEAT_BEAM_STEP_PX
+    for (const [fromX] of segments) {
+      const behind = (newest - fromX + TRACE_BOX_WIDTH) % TRACE_BOX_WIDTH
+      expect(behind).toBeLessThanOrEqual(reach)
+    }
+    // Opacity falls with age: the newest stroke is the most opaque.
+    const alphas = log
+      .slice(log.lastIndexOf('clearRect 0 0 100 24'))
+      .filter((entry) => entry.startsWith('alpha'))
+      .map((entry) => Number(entry.split(' ', 2)[1]))
+    expect(alphas.at(-1)).toBe(1)
+    expect(alphas[0]).toBeLessThan(alphas.at(-1) ?? 0)
   })
 
   it('wraps past the right edge with a pen lift, then restarts at the left', () => {
     render(<HeartbeatTrace />)
+    let isSawWrap = false
     for (let time = 16; time <= 4000; time += 20) {
       runFrame(time)
+      const segments = lastFrameSegments()
+      // No stroke ever joins the right edge back to the left.
+      for (const [fromX, toX] of segments) {
+        expect(toX).toBeGreaterThan(fromX)
+      }
+      if (segments.some(([fromX]) => fromX === 0)) {
+        isSawWrap ||= time > 1300
+      }
     }
-    // A wrap tick fades but starts no segment: a save with no beginPath
-    // before the next save.
-    const saves = log.flatMap((entry, index) => (entry === 'save' ? [index] : []))
-    expect(saves.length).toBeGreaterThan(10)
-    const wrapIndex = saves.findIndex((start, i) => {
-      const end = saves[i + 1] ?? log.length
-      return !log.slice(start, end).includes('beginPath')
-    })
-    expect(wrapIndex).toBeGreaterThan(0)
-    // And the beam keeps drawing afterwards instead of stopping at the edge.
-    const wrapSave = saves[wrapIndex] ?? 0
-    expect(log.slice(wrapSave)).toContain('stroke')
+    // And the beam keeps drawing from the left after the wrap.
+    expect(isSawWrap).toBe(true)
   })
 
   it('stops its loop on unmount', () => {
@@ -281,10 +324,7 @@ describe('HeartbeatTrace (M87)', () => {
     render(<HeartbeatTrace />)
     runFrame(16)
     expect(log).toContain('style CanvasText')
-    expect(log.filter((entry) => entry.startsWith('composite'))).toEqual([
-      'composite destination-out',
-      'composite destination-out',
-    ])
+    expect(log).not.toContain('style currentColor')
   })
 
   it('sizes the canvas by device pixels and re-sizes on window resize', () => {

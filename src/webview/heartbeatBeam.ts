@@ -7,8 +7,10 @@
 // persistence); the shape exists only as the beam's fading trail, and the
 // beam wraps and repeats. The shape stays ours: the beam's height follows
 // beamY below, our P/QRS/T waveform sampled in the trace's 0..100 by 0..24
-// box. We fade with destination-out (toward transparent, so every theme shows
-// through) instead of repainting a background colour.
+// box. Instead of repainting a translucent background (which on an 8-bit
+// canvas never fully clears, so a ghost of the whole wave lingered and the
+// beam seemed to run along it), each frame clears the canvas and redraws only
+// the trail's last ticks, fading by age (trailSegments).
 
 import { HEARTBEAT_BEAM_STEP_PX } from '../shared/constants'
 
@@ -109,4 +111,45 @@ export interface BeamStep {
 export function stepBeam(x: number): BeamStep {
   const next = x + HEARTBEAT_BEAM_STEP_PX
   return next > TRACE_WIDTH ? { x: 0, wrapped: true } : { x: next, wrapped: false }
+}
+
+/** Where the beam was at one tick; `isPenDown` is false where it restarted at the left edge. */
+export interface TrailPoint {
+  readonly x: number
+  readonly tick: number
+  readonly isPenDown: boolean
+}
+
+/** One stroke of the trail, with its opacity. */
+export interface TrailSegment {
+  readonly fromX: number
+  readonly toX: number
+  readonly alpha: number
+}
+
+/**
+ * The strokes to draw this frame: only the beam's last `trailTicks` ticks of
+ * path, oldest first, fading from opaque at the beam to nothing at the end of
+ * the trail. Nothing older is returned, and the canvas is cleared before
+ * these are drawn, so no part of the waveform exists except what the beam
+ * has just drawn (the owner's rule: the shape comes from the blip).
+ */
+export function trailSegments(
+  points: readonly TrailPoint[],
+  nowTick: number,
+  trailTicks: number,
+): readonly TrailSegment[] {
+  const segments: TrailSegment[] = []
+  for (let index = 1; index < points.length; index += 1) {
+    const from = points[index - 1]
+    const to = points[index]
+    if (from === undefined || !to?.isPenDown) {
+      continue
+    }
+    const alpha = 1 - (nowTick - to.tick) / trailTicks
+    if (alpha > 0) {
+      segments.push({ fromX: from.x, toX: to.x, alpha })
+    }
+  }
+  return segments
 }

@@ -3607,30 +3607,38 @@ choices:
     along it; the highlight must CREATE the shape).** The trace is a
     `<canvas>` port of Vahid's HTML5 Canvas Heart Monitor (CodePen MWvmvd,
     MIT; written fresh, credited in the module): a beam moves right in
-    6 ms ticks drawing short segments of our P/QRS/T wave while each tick
-    fades the canvas's own pixels 6 % toward transparent
-    (`destination-out` phosphor, so every theme shows through), then wraps
-    and repeats. Nothing static is drawn: the shape exists only as the
-    beam's fading trail. The beam's height follows `beamY` in
+    6 ms ticks along our P/QRS/T wave, then wraps and repeats. Each frame
+    clears the canvas and strokes only the beam's last
+    `HEARTBEAT_BEAM_TRAIL_TICKS` (100 ticks, half a sweep) of path, fading
+    by age from opaque at the beam to nothing (`trailSegments`). Nothing
+    static is drawn and nothing older survives: the shape exists only as
+    the blip's own trail (owner, 2026-10-04: "the shape comes from the
+    blip, not the blip follows the shape"). The first canvas cut faded the
+    canvas's pixels 6 % a tick with `destination-out`; on an 8-bit canvas
+    the faintest pixels never reach zero, so a ghost of the whole wave
+    stayed painted and the beam seemed to run along it. The beam's height follows `beamY` in
     `src/webview/heartbeatBeam.ts`, our waveform sampled in the 0..100 by
     0..24 box (flat at 12; P bump 18–29; dip at 38, spike to y=2 at 43 and
     down to 22 at 48, back at 53; T bump 63–73; flat). One sweep takes
     about 1.2 s (half a pixel per tick: the reference's 0.6 s reads as
     frantic at this size), driven by one `requestAnimationFrame` loop with
-    fixed ticks, paused while the page is hidden. Step and fade tunables
+    fixed ticks, paused while the page is hidden. Step and trail tunables
     are `HEARTBEAT_BEAM_*` in `src/shared/constants.ts`.
   - **Size and place.** 1.5 em high (inside one line of the 13 px text)
     and 6 em wide, backed by `devicePixelRatio`. The working line's grid
-    (`auto auto 1fr`) puts the trace right after the verb with the line's
-    gap, so mark, verb and trace read as one unit; the trace never floats
-    away from the text. A container query hides it below 260 px.
+    (`auto auto 1fr`) puts the trace right after the verb box with the
+    line's gap, so mark, verb and trace read as one unit. The verb box is
+    as wide as the longest verb in the installed language (every verb sits
+    in one grid cell, only the current one visible, the rest `aria-hidden`
+    width holders), so the trace never moves while the verb changes
+    (owner, 2026-10-04). A container query hides it below 260 px.
   - **Motion budget.** Only the small canvas repaints. The bullet pulses
     as the step rows' do. Nothing flashes (WCAG 2.3.1). No bezel, grid,
     glow or shadow: just the trace in brand blue.
   - **Colour.** `--vscode-progressBar-background`, read from the canvas at
     each wrap so a theme change lands within one sweep, `currentColor`
-    when unset, `CanvasText` under forced colours (the fade erases toward
-    transparent, so it carries no tint).
+    when unset, `CanvasText` under forced colours (the canvas is cleared to
+    transparent each frame, so it carries no tint).
   - **Contrast.** The beam uses `--vscode-progressBar-background`, which
     measures 3.6:1 (Dark Modern, editor background) to 10.5:1 (High
     Contrast) on the captured backgrounds. It is decorative and

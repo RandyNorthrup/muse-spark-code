@@ -1,20 +1,29 @@
 // The working line's heart-monitor trace (M87, D66): a canvas the beam draws
 // itself, after Vahid's HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT;
 // written fresh). Nothing static is drawn: one requestAnimationFrame loop
-// moves the beam right in fixed 6 ms ticks, stroking short segments of our
-// P/QRS/T wave (beamY in heartbeatBeam.ts) while each tick fades the canvas's
-// own pixels a little toward transparent (destination-out phosphor, so every
-// theme shows through), then wraps and repeats. Decorative and aria-hidden:
-// still under reduced motion, CanvasText under forced colours.
+// moves the beam right in fixed 6 ms ticks along our P/QRS/T wave (beamY in
+// heartbeatBeam.ts). Each frame clears the canvas and strokes only the
+// beam's last HEARTBEAT_BEAM_TRAIL_TICKS ticks of path, fading by age, so
+// the wave exists only as the blip's own trail; then it wraps and repeats.
+// Decorative and aria-hidden: still under reduced motion, CanvasText under
+// forced colours.
 
 import { useEffect, useRef } from 'react'
 import {
-  HEARTBEAT_BEAM_FADE_ALPHA,
   HEARTBEAT_BEAM_LINE_WIDTH_PX,
   HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME,
   HEARTBEAT_BEAM_TICK_MS,
+  HEARTBEAT_BEAM_TRAIL_TICKS,
 } from '../../shared/constants'
-import { beamY, stepBeam, TRACE_HEIGHT, TRACE_WIDTH, type BeamStep } from '../heartbeatBeam'
+import {
+  beamY,
+  stepBeam,
+  trailSegments,
+  TRACE_HEIGHT,
+  TRACE_WIDTH,
+  type BeamStep,
+  type TrailPoint,
+} from '../heartbeatBeam'
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 const FORCED_COLORS_QUERY = '(forced-colors: active)'
@@ -43,6 +52,8 @@ export function HeartbeatTrace() {
     const reduced = window.matchMedia(REDUCED_MOTION_QUERY)
     const forced = window.matchMedia(FORCED_COLORS_QUERY)
     let beamX = 0
+    let tickCount = 0
+    let trail: TrailPoint[] = []
     let debtMs = 0
     let lastMs = 0
     let frame = 0
@@ -64,37 +75,44 @@ export function HeartbeatTrace() {
       unitPx = canvas.width / (canvas.clientWidth > 0 ? canvas.clientWidth : canvas.width)
     }
 
-    const strokeSegment = (fromX: number, toX: number) => {
-      // A cached Path2D would freeze the beam: every tick draws a new
-      // segment at the beam's current position.
+    const strokeSegment = (fromX: number, toX: number, alpha: number) => {
+      // A cached Path2D would freeze the beam: every frame strokes the
+      // trail's segments where the beam has just been.
       ctx.beginPath()
       // eslint-disable-next-line unicorn/prefer-path2d
       ctx.moveTo(fromX * scaleX, beamY(fromX) * scaleY)
       ctx.lineTo(toX * scaleX, beamY(toX) * scaleY)
-      ctx.strokeStyle = color
-      ctx.lineWidth = HEARTBEAT_BEAM_LINE_WIDTH_PX * unitPx
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
+      ctx.globalAlpha = alpha
       ctx.stroke()
     }
 
     const tick = () => {
-      // Fade first, then draw: the trail behind the beam decays every tick.
-      ctx.save()
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.globalAlpha = HEARTBEAT_BEAM_FADE_ALPHA
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.restore()
-      const fromX = beamX
       const next: BeamStep = stepBeam(beamX)
       beamX = next.x
+      tickCount += 1
       if (next.wrapped) {
         // Pen lift at the right edge: restart from the left, re-reading the
         // theme colour so a theme change lands within one sweep.
         color = beamColor(canvas, forced.matches)
-        return
       }
-      strokeSegment(fromX, beamX)
+      trail.push({ x: beamX, tick: tickCount, isPenDown: !next.wrapped })
+      // Keep one point older than the trail, so its oldest segment has a start.
+      while (trail.length > HEARTBEAT_BEAM_TRAIL_TICKS + 1) {
+        trail.shift()
+      }
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.save()
+      ctx.strokeStyle = color
+      ctx.lineWidth = HEARTBEAT_BEAM_LINE_WIDTH_PX * unitPx
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      for (const segment of trailSegments(trail, tickCount, HEARTBEAT_BEAM_TRAIL_TICKS)) {
+        strokeSegment(segment.fromX, segment.toX, segment.alpha)
+      }
+      ctx.restore()
     }
 
     const onFrame = (now: number) => {
@@ -109,6 +127,9 @@ export function HeartbeatTrace() {
       }
       if (debtMs >= HEARTBEAT_BEAM_TICK_MS) {
         debtMs = 0
+      }
+      if (ticks > 0) {
+        draw()
       }
     }
 
@@ -142,6 +163,8 @@ export function HeartbeatTrace() {
         return
       }
       beamX = 0
+      tickCount = 0
+      trail = [{ x: 0, tick: 0, isPenDown: false }]
       debtMs = 0
       lastMs = 0
       color = beamColor(canvas, forced.matches)

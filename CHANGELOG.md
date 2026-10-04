@@ -217,10 +217,11 @@ happened, not what was planned; superseded entries are kept.
   forced colors uses bordered system-color buttons.
 - **The working line's heart monitor (M87, PLAN.md D66).** The trace is no
   longer a static path with a highlight sliding along it: a beam draws the
-  P/QRS/T shape itself on a canvas, sweeping about every 1.2 s while its
-  fading trail decays behind it, in the progress-bar blue on every theme
-  (`CanvasText` under forced colours). It sits right after the verb instead
-  of floating mid-chat. Reduced motion shows one still beat; nothing about
+  P/QRS/T shape itself on a canvas, sweeping about every 1.2 s; only its
+  fading trail is ever drawn, so nothing of the wave exists ahead of it or
+  lingers behind it, in the progress-bar blue on every theme (`CanvasText`
+  under forced colours). It sits right after the verb, whose box is as wide
+  as the longest verb, so the trace stays put while the verb changes. Reduced motion shows one still beat; nothing about
   the line is announced to assistive technology.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX

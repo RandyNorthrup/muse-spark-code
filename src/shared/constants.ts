@@ -2108,9 +2108,10 @@ export const STATUS_VERB_INTERVAL_MS = 4000
 // slower than the reference's 0.6 s, which reads as frantic at this size.
 export const HEARTBEAT_BEAM_TICK_MS = 6
 export const HEARTBEAT_BEAM_STEP_PX = 0.5
-// Each tick erases this fraction of the canvas's own pixels (destination-out),
-// so the beam's trail fades behind it on every theme.
-export const HEARTBEAT_BEAM_FADE_ALPHA = 0.06
+// The beam's trail: the last this-many ticks of its path are drawn, fading
+// from opaque at the beam to nothing (100 ticks = half a sweep, 0.6 s). Nothing
+// older is drawn, so the wave exists only where the beam has just been.
+export const HEARTBEAT_BEAM_TRAIL_TICKS = 100
 // Beam width in CSS pixels.
 export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 // At most this many fixed ticks run per animation frame; excess time is

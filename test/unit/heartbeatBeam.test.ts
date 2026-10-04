@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { HEARTBEAT_BEAM_STEP_PX } from '../../src/shared/constants'
-import { beamY, stepBeam, TRACE_BASELINE_Y, TRACE_WIDTH } from '../../src/webview/heartbeatBeam'
+import {
+  beamY,
+  stepBeam,
+  trailSegments,
+  TRACE_BASELINE_Y,
+  TRACE_WIDTH,
+  type TrailPoint,
+} from '../../src/webview/heartbeatBeam'
 
 describe('heartbeatBeam beamY (M87)', () => {
   it('rests on the baseline outside the P/QRS/T regions', () => {
@@ -52,5 +59,47 @@ describe('heartbeatBeam stepBeam (M87)', () => {
 
   it('wraps past the right edge back to the left', () => {
     expect(stepBeam(TRACE_WIDTH + 0.1)).toEqual({ x: 0, wrapped: true })
+  })
+})
+
+const TRAIL = 4
+
+function point(x: number, tick: number, isPenDown = true): TrailPoint {
+  return { x, tick, isPenDown }
+}
+
+describe('heartbeatBeam trailSegments (M87)', () => {
+  it('returns only the strokes within the trail, fading from the beam', () => {
+    const points = [
+      point(0, 0, false),
+      point(1, 1),
+      point(2, 2),
+      point(3, 3),
+      point(4, 4),
+      point(5, 5),
+    ]
+    const segments = trailSegments(points, 5, TRAIL)
+    // Ticks 2..5 are within 4 ticks of now; tick 1's stroke has faded to nothing.
+    expect(segments.map((segment) => [segment.fromX, segment.toX])).toEqual([
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+    ])
+    expect(segments.map((segment) => segment.alpha)).toEqual([0.25, 0.5, 0.75, 1])
+  })
+
+  it('draws nothing older than the trail, however long the beam has run', () => {
+    const points = [point(10, 100), point(11, 101)]
+    expect(trailSegments(points, 200, TRAIL)).toEqual([])
+  })
+
+  it('lifts the pen at a wrap: no stroke from the right edge back to the left', () => {
+    const points = [point(99, 1), point(100, 2), point(0, 3, false), point(1, 4)]
+    const segments = trailSegments(points, 4, TRAIL)
+    expect(segments.map((segment) => [segment.fromX, segment.toX])).toEqual([
+      [99, 100],
+      [0, 1],
+    ])
   })
 })

@@ -1371,8 +1371,22 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* All verbs share one cell; the hidden ones only give it the longest verb's
+   width, so the trace after it stays put while the verb changes. */
+.status-verb-text {
+  display: grid;
+}
+
+.status-verb-text > * {
+  grid-area: 1 / 1;
+}
+
+.status-verb-sizer {
+  visibility: hidden;
+}
+
 /* The beam draws in brand blue on the canvas itself; the canvas keeps the
-   trace's box. The working line's grid puts it right after the verb. */
+   trace's box. The working line's grid puts it right after the verb box. */
 .heartbeat-trace {
   width: 6em;
   height: 1.5em;

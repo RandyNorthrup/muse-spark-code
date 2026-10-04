@@ -8,6 +8,11 @@ import { StatusLine } from '../../src/webview/components/StatusLine'
 
 const VERBS = Object.values(EN.statusVerbs)
 
+/** The one verb shown; the others are hidden width holders. */
+function shownVerb(): string | null | undefined {
+  return document.querySelector('.status-verb-text > :not([aria-hidden])')?.textContent
+}
+
 describe('StatusLine', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -29,22 +34,40 @@ describe('StatusLine', () => {
     // The verb changes every few seconds; a live region here read each one out.
     expect(screen.queryByRole('status')).toBeNull()
     expect(document.querySelector('[aria-live]')).toBeNull()
-    const status = screen.getByRole('listitem')
-    expect(status).toHaveTextContent('Thinking…')
+    expect(screen.getByRole('listitem')).toBeInTheDocument()
+    expect(shownVerb()).toBe('Thinking…')
     act(() => {
       vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS)
     })
-    expect(status).toHaveTextContent('Working…')
+    expect(shownVerb()).toBe('Working…')
     act(() => {
       vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS * (VERBS.length - 1))
     })
-    expect(status).toHaveTextContent('Thinking…')
+    expect(shownVerb()).toBe('Thinking…')
   })
 
   it('shows the installed table’s verbs', () => {
     setUiText({ ...EN, statusVerbs: { ...EN.statusVerbs, thinking: 'Denkt nach…' } }, 'de')
     render(<StatusLine />)
-    expect(screen.getByRole('listitem')).toHaveTextContent('Denkt nach…')
+    expect(shownVerb()).toBe('Denkt nach…')
+  })
+
+  it('keeps every verb in one cell, so the box is the longest verb wide and the trace stays put', () => {
+    render(<StatusLine />)
+    const cells = [...document.querySelectorAll('.status-verb-text > *')]
+    expect(cells.map((cell) => cell.textContent)).toEqual(VERBS)
+    // Exactly one is shown; every other one only holds the width, hidden from
+    // sight and from assistive technology.
+    const holders = cells.filter((cell) => cell.classList.contains('status-verb-sizer'))
+    expect(holders).toHaveLength(VERBS.length - 1)
+    for (const holder of holders) {
+      expect(holder).toHaveAttribute('aria-hidden', 'true')
+    }
+    act(() => {
+      vi.advanceTimersByTime(STATUS_VERB_INTERVAL_MS)
+    })
+    // The verb changes, the set of cells (and so the box's width) does not.
+    expect(document.querySelectorAll('.status-verb-text > *')).toHaveLength(VERBS.length)
   })
 
   it('uses the step bullet and a decorative heartbeat outside live regions', () => {

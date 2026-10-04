@@ -24,7 +24,20 @@ export function StatusLine() {
     <li className="status-line">
       <span className="status-verb">
         <span className="tool-dot tool-dot-running" aria-hidden="true" />
-        <span>{verbs[index]}</span>
+        {/* Every verb sits in the same grid cell and only the current one is
+            visible, so the box is as wide as the longest verb in this
+            language and the trace after it never moves (owner, 2026-10-04). */}
+        <span className="status-verb-text">
+          {verbs.map((verb, verbIndex) =>
+            verbIndex === index ? (
+              <span key={verb}>{verb}</span>
+            ) : (
+              <span key={verb} className="status-verb-sizer" aria-hidden="true">
+                {verb}
+              </span>
+            ),
+          )}
+        </span>
       </span>
       <HeartbeatTrace />
     </li>
