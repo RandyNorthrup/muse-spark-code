@@ -3603,7 +3603,10 @@ choices:
   bullet the step rows use (`.tool-dot.tool-dot-running`: 8 px,
   `--vscode-progressBar-background`, the existing 1.2 s `pulse`). After
   the bullet comes the verb, then a heartbeat trace centred in the chat's
-  width.
+  width. Owner's request 2026-10-04: the bullet is now a small looping
+  circle-pattern mark (after Inclushe's circle pattern animation lighten,
+  CodePen OPWreWR, MIT, written fresh with no pointer tracking); the verb,
+  its timer and the heartbeat trace are unchanged.
   - **Our own trace, not the pens'.** The three pens the owner sent
     (vahidseo MWvmvd, borntofrappe GRgBvxa, MAW QbgLmV) were looked at for
     the idea only. The trace is one SVG path drawn for this panel: flat, a
@@ -12047,7 +12050,9 @@ until M70's review pane (PR #69) reaches main. The evidence is
      block (border and radius on the block, a rule between the parts).
      Every part is `Clipped` at `IO_PREVIEW_LINES = 5`; the IN box was
      unclipped until now.
-  3. `StatusLine` renders `<span class="tool-dot tool-dot-running">`, the
+  3. `StatusLine` renders `StatusMark` (six `aria-hidden` circles, the
+     owner's mark of 2026-10-04, in place of the earlier
+     `<span class="tool-dot tool-dot-running">`), the
      verb, and `HeartbeatTrace`: an `aria-hidden` SVG with the base path and
      the sweeping segment.
   4. The `.status-spark` rules and `@keyframes spin` are removed. The
@@ -13543,6 +13548,10 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
 | -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+
+| File                                                                  | Construct                                                                   | Reason                                                                                                                                                                                                                        | Added      |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (two ranges) | The owner's request keeps the pen's `--angle`, `--offset`, `--amplitude` and `--scale` names so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
 

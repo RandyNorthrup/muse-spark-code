@@ -41,13 +41,14 @@ describe('StatusLine', () => {
     expect(screen.getByRole('listitem')).toHaveTextContent('Denkt nach…')
   })
 
-  it('uses the step bullet and a decorative heartbeat outside live regions', () => {
+  it('shows the looping circle mark and a decorative heartbeat outside live regions', () => {
     const { container } = render(<StatusLine />)
     expect(container.querySelector('.status-spark')).toBeNull()
-    expect(container.querySelector('.tool-dot.tool-dot-running')).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    )
+    const line = container.querySelector('.status-line')
+    expect(line?.querySelector('.tool-dot')).toBeNull()
+    const mark = line?.querySelector('.status-mark')
+    expect(mark).toHaveAttribute('aria-hidden', 'true')
+    expect(mark?.querySelectorAll('.status-mark-circle')).toHaveLength(6)
     const trace = container.querySelector('svg.heartbeat-trace')
     expect(trace).toHaveAttribute('aria-hidden', 'true')
     expect(trace).toHaveAttribute('focusable', 'false')

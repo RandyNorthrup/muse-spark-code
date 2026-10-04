@@ -1411,6 +1411,113 @@ body {
   }
 }
 
+/* The working line's mark (M87, D66). After Inclushe's "circle pattern
+   animation lighten" (CodePen OPWreWR, MIT), written fresh: no pointer
+   tracking. Six 3 px circles share a 16 px box on the pen's 4.01 s loop,
+   scaled from its 100 px circles at 150→100 px amplitude. The 100 %
+   keyframe spreads 9 px from the centre, 1 px into the gap beside the mark,
+   so the box keeps `overflow: visible` and clips no edge. `isolate` keeps
+   the circles' `lighten` blend between themselves, off the panel. */
+/* stylelint-disable custom-property-pattern -- the pen's --angle, --offset,
+   --amplitude and --scale names stay as the owner asked, so the keyframes
+   read against the original. */
+@property --amplitude {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.status-mark {
+  --offset: 30deg;
+
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.status-mark-circle {
+  position: absolute;
+  inset: 0;
+  width: 3px;
+  height: 3px;
+  margin: auto;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 0%,
+    oklch(11.86% 0.0248 260.66deg),
+    oklch(31.33% 0.1419 260.73deg),
+    oklch(60.61% 0.2122 260.66deg)
+  );
+  mix-blend-mode: lighten;
+  transform: translate(
+      calc(cos(var(--angle)) * var(--amplitude)),
+      calc(sin(var(--angle)) * var(--amplitude) * -1)
+    )
+    scale(var(--scale)) rotate(calc(-1 * var(--angle) + 17deg));
+  animation: status-mark-expand 4.01s cubic-bezier(0.8, 0, 0.2, 1) infinite alternate;
+}
+
+.status-mark-circle:nth-child(1) {
+  --angle: calc(0 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(2) {
+  --angle: calc(1 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(3) {
+  --angle: calc(2 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(4) {
+  --angle: calc(3 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(5) {
+  --angle: calc(4 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(6) {
+  --angle: calc(5 * 60deg + var(--offset));
+}
+
+@keyframes status-mark-expand {
+  0% {
+    --amplitude: 4.5px;
+    --scale: 1;
+  }
+
+  50% {
+    --amplitude: 3px;
+    --scale: 3;
+  }
+
+  100% {
+    --amplitude: 4.5px;
+    --scale: 3;
+  }
+}
+
+@media (forced-colors: active) {
+  .status-mark-circle {
+    background: CanvasText;
+    mix-blend-mode: normal;
+  }
+}
+/* stylelint-enable custom-property-pattern */
+
 /* --- approval and question cards --- */
 
 .approval,
@@ -3252,6 +3359,7 @@ li:focus-within > .row-actions .row-actions-button,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
   .agent-dot-running,
+  .status-mark-circle,
   .gooey-menu-bubble {
     animation: none;
   }
@@ -3259,6 +3367,14 @@ li:focus-within > .row-actions .row-actions-button,
   .heartbeat-sweep {
     stroke-dasharray: none;
   }
+
+  /* The mark's still pose is the loop's middle, so it stays visible. */
+  /* stylelint-disable custom-property-pattern -- same pen names as above. */
+  .status-mark-circle {
+    --amplitude: 3px;
+    --scale: 3;
+  }
+  /* stylelint-enable custom-property-pattern */
 
   .toggle-knob,
   .chevron {

@@ -1615,8 +1615,8 @@ the text as it is.
   you never folds, and a running one stays below the summary until it
   finishes. **Focus view** (`Ctrl+Alt+F`) folds every step that is not
   waiting, under the same summary.
-- While Muse works, the status line shows the step rows' pulsing blue
-  bullet, the verb, and a heartbeat trace centred in the chat (hidden below
+- While Muse works, the status line shows a small looping circle-pattern
+  mark, the verb, and a heartbeat trace centred in the chat (hidden below
   260 px). With reduced motion both stand still.
 - **Message times.** Hover a message or move the keyboard into it to see
   when it was sent or received, at the card's corner: the time alone for

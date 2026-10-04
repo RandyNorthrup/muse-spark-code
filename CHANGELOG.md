@@ -52,9 +52,11 @@ happened, not what was planned; superseded entries are kept.
     description, or "Run the _name_ skill." for one without.
   - **Rows and the status line.** A shell row's IN and OUT are one bordered
     block, five lines each with its own Show more (your `!` rows too). The
-    working indicator is the step rows' pulsing bullet and a heartbeat
-    trace, both still under reduced motion. Stop turns red on hover and
-    focus.
+    working line leads with a small looping circle-pattern mark (after
+    Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT,
+    written fresh with no pointer tracking), then the verb and a heartbeat
+    trace; under reduced motion both stand still. Stop turns red on hover
+    and focus.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
