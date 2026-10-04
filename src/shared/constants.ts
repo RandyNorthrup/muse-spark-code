@@ -24,6 +24,8 @@ export const GOOEY_MENU = {
   edgePadding: 8,
   radius: 76,
   gap: 12,
+  /** How far past its bubble's side a label starts (M87, lane W). */
+  labelSide: 8,
   blur: 10,
 } as const
 

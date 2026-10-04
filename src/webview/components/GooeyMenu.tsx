@@ -11,7 +11,13 @@ import {
   useState,
 } from 'react'
 import { GOOEY_MENU, UI_TEXT } from '../../shared/constants'
-import { gooeyLayout, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
+import {
+  gooeyLabelBox,
+  gooeyLayout,
+  gooeySecondBurst,
+  type GooeyLabelSize,
+  type MenuPoint,
+} from '../gooeyLayout'
 import { useDismiss } from '../useDismiss'
 import { MoreIcon } from './icons'
 
@@ -47,6 +53,10 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   const [groupId, setGroup] = useState<string>()
   const [active, setActive] = useState<string>()
   const [hovered, setHovered] = useState<string>()
+  // The shown label, measured once drawn, so its place can keep it inside
+  // the panel and off every bubble (lane W).
+  const labelRef = useRef<HTMLSpanElement>(null)
+  const [labelSize, setLabelSize] = useState<GooeyLabelSize & { readonly id: string }>()
   const [layout, setLayout] = useState(() =>
     gooeyLayout({ x: 0, y: 0 }, 0, { width: 0, height: 0 }),
   )
@@ -194,6 +204,19 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     }
   }
   const labelledId = hovered ?? active ?? visibleItems[0]?.id
+  useLayoutEffect(() => {
+    const label = labelRef.current
+    if (label === null || labelledId === undefined) {
+      return
+    }
+    const width = label.offsetWidth
+    const height = label.offsetHeight
+    if (labelSize?.id !== labelledId || labelSize.width !== width || labelSize.height !== height) {
+      setLabelSize({ id: labelledId, width, height })
+    }
+    // The label appears once the layout has points and takes its text from
+    // the items, so either changing measures it again.
+  }, [labelledId, labelSize, visibleItems, layout, groupId])
   const gooStyle: CSSProperties & { '--ms-goo-filter': string } = {
     '--ms-goo-filter': `url(#${filterId})`,
   }
@@ -267,19 +290,28 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
       </div>
       {visibleItems.map((item, index) => {
         const point = burst.points[index]
-        return point === undefined || item.id !== labelledId ? null : (
+        if (point === undefined || item.id !== labelledId) {
+          return null
+        }
+        // Drawn unseen at its bubble first, to be measured; then placed.
+        const box =
+          labelSize?.id === item.id
+            ? gooeyLabelBox(burst, index, labelSize, {
+                width: window.innerWidth,
+                height: window.innerHeight,
+              })
+            : undefined
+        return (
           <span
             key={item.id}
+            ref={labelRef}
             aria-hidden="true"
-            className={`gooey-menu-label ${point.x > window.innerWidth / 2 ? 'gooey-menu-label-left' : ''}`}
-            style={{
-              left: point.x,
-              top:
-                point.y +
-                (point.y > window.innerHeight / 2 ? -1 : 1) *
-                  (GOOEY_MENU.bubbleSize / 2 + GOOEY_MENU.gap),
-              translate: `${point.x > window.innerWidth / 2 ? '-100%' : '0'} ${point.y > window.innerHeight / 2 ? '-100%' : '0'}`,
-            }}
+            className="gooey-menu-label"
+            style={
+              box === undefined
+                ? { left: point.x, top: point.y, visibility: 'hidden' }
+                : { left: box.left, top: box.top }
+            }
           >
             {item.label}
           </span>
@@ -289,11 +321,18 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   )
 }
 
+/** What the opener shows for a moment after an action, as "Copied" (the review of F2). */
+export interface RowMenuFeedback {
+  readonly icon: ReactNode
+  readonly title: string
+}
+
 /** One opener and one menu per row; selection belongs to the transcript's quote menu. */
 export function useRowMenu(
   items: readonly GooeyItem[],
   label: string,
   quoteMenu: ReactNode = null,
+  feedback?: RowMenuFeedback,
 ) {
   const button = useRef<HTMLButtonElement>(null)
   const [origin, setOrigin] = useState<MenuPoint | HTMLElement>()
@@ -309,12 +348,14 @@ export function useRowMenu(
   }
   const onContextMenu = (event: MouseEvent<HTMLElement>) => {
     const selection = globalThis.getSelection()
-    const transcript = event.currentTarget.closest('.transcript')
+    const row = event.currentTarget
+    // Only text selected in this row is its quote menu's; a selection in
+    // another row leaves this row's menu to open (the review of F2, P1).
     if (
       selection !== null &&
       !selection.isCollapsed &&
       selection.toString().trim() !== '' &&
-      transcript?.contains(selection.anchorNode) === true
+      (row.contains(selection.anchorNode) || row.contains(selection.focusNode))
     ) {
       close()
       return
@@ -350,7 +391,7 @@ export function useRowMenu(
             type="button"
             className="row-actions-button"
             aria-label={UI_TEXT.rowMoreActions}
-            title={UI_TEXT.rowMoreActions}
+            title={feedback?.title ?? UI_TEXT.rowMoreActions}
             aria-haspopup="menu"
             aria-expanded={origin !== undefined && quoteMenu === null}
             onClick={() => {
@@ -361,7 +402,7 @@ export function useRowMenu(
               }
             }}
           >
-            <MoreIcon />
+            {feedback?.icon ?? <MoreIcon />}
           </button>
           {origin === undefined || quoteMenu !== null ? null : (
             <GooeyMenu items={items} label={label} origin={origin} onClose={close} />

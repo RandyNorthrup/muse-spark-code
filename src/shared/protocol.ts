@@ -413,6 +413,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Edit review (M5): the stored patch of a completed edit-family item in the
   // diff editor (the inline diff's "Click to expand" since M15).
   z.object({ type: z.literal('openEditDiff'), itemId: z.string(), outputRef: z.string() }),
+  // An edit row's Revert (M87, PLAN.md D66 item 17): that edit's stored patch
+  // reverse-applied after the file-action confirmation, as one step of
+  // "Rewind code to here" is (M13, M72).
+  z.object({ type: z.literal('revertEdit'), itemId: z.string(), outputRef: z.string() }),
   // A tool row's path: open the file, selecting the changed lines when known (M16, `LineRange`).
   z.object({
     type: z.literal('openFile'),

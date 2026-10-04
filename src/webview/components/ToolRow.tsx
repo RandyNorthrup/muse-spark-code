@@ -69,6 +69,11 @@ export interface ToolRowProps {
   readonly onClarifyQuestion: QuestionCardProps['onClarify']
   /** Edit review (M5): the stored patch of a completed edit-family item in the diff editor. */
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  /**
+   * The edit's Revert in the row's menu (M87, D66 item 17), after the host's
+   * confirmation; absent where nothing may write the workspace's files.
+   */
+  readonly onRevertEdit?: ((itemId: string, outputRef: string) => void) | undefined
   /** The row's path: the file at its change (M16). */
   readonly onOpenFile: (path: string, range: LineRange | undefined) => void
   /** A search result's page (M43), opened as a reply's links are. */
@@ -360,6 +365,7 @@ function ToolRowView({
   onCancelQuestion,
   onClarifyQuestion,
   onOpenEditDiff,
+  onRevertEdit,
   onOpenFile,
   onOpenLink,
   onRefuseLink,
@@ -442,6 +448,18 @@ function ToolRowView({
       onSelect: () => {
         menu.close()
         openReview()
+      },
+    })
+  }
+  // Not while a turn runs: it may be writing the same file (the host refuses it too).
+  if (reviewRef !== undefined && onRevertEdit !== undefined && !isRunning) {
+    items.push({
+      id: 'revert',
+      label: UI_TEXT.rowRevertEdit,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        menu.close()
+        onRevertEdit(entry.id, reviewRef.id)
       },
     })
   }

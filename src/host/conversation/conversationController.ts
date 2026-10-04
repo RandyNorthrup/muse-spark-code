@@ -494,6 +494,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'readToolImage',
   'openOutput',
   'openEditDiff',
+  'revertEdit',
   'rewindCode',
   'exportConversation',
   'decideApproval',
@@ -2563,6 +2564,42 @@ export class ConversationController {
     }
     this.beginBrowserSessionChange(fork.attachmentEpoch)
     await this.forkSession(fork.lastTurnId)
+  }
+
+  /**
+   * An edit row's Revert (M87, D66 item 17): the one edit undone after the
+   * same kind of confirmation as "Rewind code to here", whose single step
+   * it is. `reviewEdit` says what was reverted, or why a file was not.
+   */
+  private async revertEdit(itemId: string, outputRef: string): Promise<void> {
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    if (!this.isCurrentSessionAction(session, generation)) {
+      return
+    }
+    // A running turn may be writing the same file, as for a restore (M72).
+    if (this.isTurnRunning()) {
+      this.notice('info', UI_TEXT.restoreTurnRunning)
+      return
+    }
+    const isConfirmed = await this.deps.confirmFileAction(
+      UI_TEXT.revertEditConfirmTitle,
+      UI_TEXT.revertEditConfirmDetail,
+      UI_TEXT.rowRevertEdit,
+    )
+    // The conversation may have changed, or a turn started, while it was open.
+    if (
+      !isConfirmed ||
+      this.accountStopsInFlight > 0 ||
+      !this.isCurrentSessionAction(session, generation)
+    ) {
+      return
+    }
+    if (this.isTurnRunning()) {
+      this.notice('info', UI_TEXT.restoreTurnRunning)
+      return
+    }
+    await this.reviewEdit('revert', itemId, outputRef)
   }
 
   /** Whether the action finished with nothing refused: a warning, an error or no patch is not. */
@@ -6915,6 +6952,10 @@ export class ConversationController {
       }
       case 'openEditDiff': {
         await this.reviewEdit('openDiff', message.itemId, message.outputRef)
+        break
+      }
+      case 'revertEdit': {
+        await this.revertEdit(message.itemId, message.outputRef)
         break
       }
       case 'openFile': {

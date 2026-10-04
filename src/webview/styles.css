@@ -1709,6 +1709,13 @@ body {
   color: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-foreground));
 }
 
+/* Dark Modern's deleted-resource colour measures 3.87:1 on the panel (the
+   VS Code 1.140.0 capture), under text's 4.5:1: the foreground stands in, as
+   D66 says; the minus sign still marks the number. */
+.vscode-dark .diff-tally-removed {
+  color: var(--vscode-foreground);
+}
+
 .diff-tally-review {
   min-height: var(--ms-control-size);
   margin-inline-start: auto;
@@ -2338,16 +2345,11 @@ li:focus-within > .row-actions .row-actions-button,
   width: max-content;
   max-width: min(180px, calc(50vw - 40px));
   padding: 4px 8px;
-  margin-left: 28px;
   overflow-wrap: anywhere;
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
   border: 1px solid var(--vscode-focusBorder);
   border-radius: 4px;
-}
-
-.gooey-menu-label-left {
-  margin-left: -28px;
 }
 
 @keyframes gooey-burst {

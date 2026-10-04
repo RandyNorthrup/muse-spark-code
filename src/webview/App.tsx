@@ -620,11 +620,15 @@ export function App({
       const element = anchor instanceof Element ? anchor : anchor?.parentElement
       const row = element?.closest<HTMLElement>('[data-entry-id]') ?? null
       const entryId = row?.dataset['entryId']
+      // A right-click on another row than the one holding the text is not a
+      // quote of it (the review of F2, P1); the gaps between rows still are.
+      const target = event.target instanceof Element ? event.target : null
+      const clickedRow = target?.closest('[data-entry-id]') ?? null
       if (
         text === '' ||
         row === null ||
         entryId === undefined ||
-        !event.currentTarget.contains(row)
+        (clickedRow !== null && clickedRow !== row)
       ) {
         return
       }
@@ -741,6 +745,13 @@ export function App({
   const onOpenEditDiff = useCallback(
     (itemId: string, outputRef: string) => {
       postMessage({ type: 'openEditDiff', itemId, outputRef })
+    },
+    [postMessage],
+  )
+  // An edit row's Revert (M87, D66 item 17): the host confirms before it writes.
+  const onRevertEdit = useCallback(
+    (itemId: string, outputRef: string) => {
+      postMessage({ type: 'revertEdit', itemId, outputRef })
     },
     [postMessage],
   )
@@ -1617,6 +1628,10 @@ export function App({
           canStopUserShell={state.auth.backend === 'modelApi'}
           onApply={state.isImported ? undefined : onApply}
           onOpenEditDiff={onOpenEditDiff}
+          // Imported history (M84) is someone else's: nothing in it writes the workspace.
+          onRevertEdit={
+            state.isImported || state.sessionId === undefined ? undefined : onRevertEdit
+          }
           onOpenFile={onOpenFile}
           onRefuseLink={onRefuseLink}
           onFork={state.sessionId === undefined || !state.canEditSessions ? undefined : onFork}

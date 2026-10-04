@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
@@ -1256,6 +1259,54 @@ describe('Transcript: message times (M87, PLAN.md D66)', () => {
     for (const time of document.querySelectorAll('time')) {
       expect(time).not.toHaveAttribute('tabindex')
     }
+  })
+
+  // RV87C finding 3, closed by lane F2's one "…" per row: an ordinary sent
+  // card and a finished reply reveal their time through a real Tab stop of
+  // their own (the "…"); a card without one has the time itself.
+  it('reveals every card’s time from a Tab stop inside the card', () => {
+    renderTranscript(
+      [
+        {
+          kind: 'user',
+          id: 'u1',
+          seq: 0,
+          turnId: 't1',
+          text: 'sent',
+          status: 'sent',
+          attachments: [],
+          atMs: TODAY,
+        },
+        { kind: 'assistant', id: 'a1', text: 'done', isStreaming: false, atMs: TODAY },
+        { kind: 'assistant', id: 'a2', text: 'streaming', isStreaming: true, atMs: TODAY },
+      ],
+      { onRewind: vi.fn() },
+    )
+    const times = [...document.querySelectorAll('time')]
+    expect(times).toHaveLength(3)
+    for (const time of times) {
+      const card = time.closest('li')
+      if (card === null) {
+        throw new Error('A time outside a card')
+      }
+      const stops = [
+        ...card.querySelectorAll<HTMLElement>('button, [tabindex]:not(button)'),
+      ].filter(
+        (element) =>
+          element.tabIndex >= 0 &&
+          !element.hasAttribute('disabled') &&
+          !element.hasAttribute('hidden') &&
+          element.closest('[inert], [aria-hidden="true"]') === null,
+      )
+      expect(stops.length).toBeGreaterThan(0)
+      stops[0]?.focus()
+      expect(card.matches(':focus-within')).toBe(true)
+    }
+    // What the focus inside a card turns on.
+    // jsdom's import.meta.url is not a file URL; vitest runs from the repository root.
+    const css = readFileSync(path.join(process.cwd(), 'src/webview/styles.css'), 'utf8')
+    expect(css).toContain('.message-assistant:focus-within > .message-time')
+    expect(css).toContain('.message-user:focus-within > .message-time')
   })
 
   it('shows no time where none was recorded', () => {

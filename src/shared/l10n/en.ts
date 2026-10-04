@@ -770,6 +770,11 @@ export const EN = {
   rowMoreActions: 'More actions',
   rowRewindGroup: 'Rewind',
   rowOpenOutput: 'Open output',
+  // An edit row's Revert (M87, D66 item 17): its label, and the confirmation before it writes.
+  rowRevertEdit: 'Revert',
+  revertEditConfirmTitle: 'Revert this edit?',
+  revertEditConfirmDetail:
+    'The lines this edit changed are put back as they were. A file where those lines changed since is left as it is and named. Later edits, and what commands changed, are not undone.',
   replyToOutput: 'Reply to this output',
   // Tokens and the dollar estimate under a Model API reply (M82).
   replyUsage: '{input} in · {output} out · estimated {cost}',

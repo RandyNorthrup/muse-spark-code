@@ -86,6 +86,8 @@ export interface TranscriptProps {
   /** Code block Apply (M5); absent as `onInsert` is. */
   readonly onApply: ((text: string) => void) | undefined
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  /** An edit row's Revert (M87); absent in imported history or without a session. */
+  readonly onRevertEdit?: ToolRowProps['onRevertEdit']
   /** A tool row's path, or a reply's relative link: the file (M16, M25). */
   readonly onOpenFile: ToolRowProps['onOpenFile']
   /** A reply's link to a file outside the workspace (M25). */
@@ -624,7 +626,13 @@ const AssistantRow = memo(function AssistantRow({
               },
             ]),
       ]
-  const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
+  // The menu closes on Copy, so its "Copied" shows on the row's "…" (the review of F2).
+  const menu = useRowMenu(
+    items,
+    UI_TEXT.messageActions,
+    quoteMenu,
+    isCopied ? { icon: <CheckIcon />, title: UI_TEXT.copiedCode } : undefined,
+  )
   return (
     <li
       className="message message-assistant"
@@ -928,6 +936,7 @@ function TranscriptList(props: TranscriptProps) {
     canStopUserShell,
     onApply,
     onOpenEditDiff,
+    onRevertEdit,
     onOpenFile,
     onRefuseLink,
     onFork,
@@ -988,6 +997,7 @@ function TranscriptList(props: TranscriptProps) {
         onCancelQuestion={onCancelQuestion}
         onClarifyQuestion={onClarifyQuestion}
         onOpenEditDiff={onOpenEditDiff}
+        onRevertEdit={onRevertEdit}
         onOpenFile={onOpenFile}
         onOpenLink={onOpenLink}
         onRefuseLink={onRefuseLink}

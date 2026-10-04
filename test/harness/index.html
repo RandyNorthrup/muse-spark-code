@@ -1300,7 +1300,10 @@
           document.body.style.width = '100%'
           steps['chat-menu']()
         },
+        // An edit row's menu (D66 item 17): Open output, Review and, with a
+        // session to revert in, Revert.
         'chat-tool-menu': () => {
+          send({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 'harness-tools' })
           transcriptFixture({ isDone: true })
           later(300, () => {
             document.querySelector('.steps-toggle').click()
@@ -2371,8 +2374,9 @@
             delta: 'Comparing the two folders and deciding which file to edit first.',
           })
         },
-        // --- M87 lane B: joined five-line shell previews and working trace ---
-        'm87-b-rows': () => {
+        // --- M87: a shell row's IN and OUT joined, five lines each with Show more,
+        // the user's own `!` row the same, and the working trace below them.
+        'tool-io': () => {
           window.harnessSilent = true
           setDraft('List the project files')
           key({ key: 'Enter' })
@@ -2404,19 +2408,26 @@
             },
           })
         },
-        'm87-b-dark': () => {
-          steps['m87-b-rows']()
-          void applyTheme('dark').catch((error) => {
-            harnessErrors.push(String(error))
-            report(String(error))
+        'tool-io-expanded': () => {
+          steps['tool-io']()
+          whenFound('.shell .tool-more', () => {
+            for (const toggle of document.querySelectorAll('.shell .tool-more')) {
+              toggle.click()
+            }
+            document.querySelector('.shell .tool-more')?.focus()
           })
         },
-        'm87-b-light': () => {
-          steps['m87-b-rows']()
-          void applyTheme('light').catch((error) => {
-            harnessErrors.push(String(error))
-            report(String(error))
-          })
+        // The working indicator alone: the pulsing bullet, the verb and the
+        // heartbeat trace centred in the chat; narrow, it never covers the verb.
+        'status-heartbeat': () => {
+          window.harnessSilent = true
+          setDraft('Run the parser tests')
+          key({ key: 'Enter' })
+          whenFound('.status-line', () => {})
+        },
+        'status-heartbeat-narrow': () => {
+          document.body.style.maxWidth = '320px'
+          steps['status-heartbeat']()
         },
         // --- M16: the question card filled in, on its second tab ---
         'question-filled': () => {

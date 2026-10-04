@@ -149,6 +149,48 @@ describe('M87 F2 row menus', () => {
     expect(props.onOpenEditDiff).toHaveBeenCalledWith('t', 'p')
   })
 
+  // D66 item 17: an edit row's menu holds Review and Revert (lane W).
+  it('routes a landed edit’s Revert with its stored patch', () => {
+    const onRevertEdit = vi.fn()
+    renderTranscript(
+      [
+        tool({
+          tool: 'edit_file',
+          output: 'patch',
+          patchRef: { id: 'p', byteLen: 1 },
+          outputRef: { id: 'o', byteLen: 1 },
+        }),
+      ],
+      { onRevertEdit },
+    )
+    fireEvent.click(opener())
+    choose(UI_TEXT.rowRevertEdit)
+    expect(onRevertEdit).toHaveBeenCalledWith('t', 'p')
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it.each([
+    ['while a turn runs', 'completed', { onRevertEdit: vi.fn(), isRunning: true }],
+    ['where nothing may write the files', 'completed', {}],
+    ['before the edit lands', 'inProgress', { onRevertEdit: vi.fn() }],
+  ] as const)('offers no Revert %s', (_case, status, overrides) => {
+    renderTranscript(
+      [
+        tool({
+          tool: 'edit_file',
+          status,
+          output: 'patch',
+          patchRef: { id: 'p', byteLen: 1 },
+          outputRef: { id: 'o', byteLen: 1 },
+        }),
+      ],
+      overrides,
+    )
+    fireEvent.click(opener())
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.rowOpenOutput })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: UI_TEXT.rowRevertEdit })).toBeNull()
+  })
+
   it('withholds edit review before edits land and offers stored output with no preview', () => {
     renderTranscript([
       tool({
@@ -205,6 +247,80 @@ describe('M87 F2 row menus', () => {
     fireEvent.click(opener())
     expect(screen.getAllByRole('menu')).toHaveLength(1)
     expect(screen.getByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeInTheDocument()
+  })
+
+  // F2 review fixes (lane W), from the independent review of fafa8783.
+  it('opens the right-clicked row’s menu while text is selected in another row (P1)', () => {
+    renderTranscript([user, { ...user, id: 'u2', seq: 2, turnId: 't2', text: 'world' }], {
+      onRewind: vi.fn(),
+    })
+    const clearSelection = selectPassage(screen.getByText('hello'))
+    try {
+      const other = screen.getByText('world')
+      expect(fireEvent.contextMenu(other, { clientX: 100, clientY: 100 })).toBe(false)
+      expect(within(other.closest('li')!).getByRole('menu')).toBeInTheDocument()
+    } finally {
+      clearSelection()
+    }
+  })
+
+  it('shows the Copied feedback on the row’s "…" once Copy closes the menu (P2)', () => {
+    renderTranscript([{ kind: 'assistant', id: 'a', text: '**done**', isStreaming: false }])
+    expect(opener()).toHaveAttribute('title', UI_TEXT.rowMoreActions)
+    fireEvent.click(opener())
+    choose(UI_TEXT.copyResponse)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(opener()).toHaveAttribute('title', UI_TEXT.copiedCode)
+    expect(opener().querySelector('path[d="m3 8.5 3 3 7-7"]')).not.toBeNull()
+  })
+
+  it.each(['button', 'pointer'])(
+    'keeps one row menu open when another row’s opens by %s (P3)',
+    (method) => {
+      renderTranscript([user, { ...user, id: 'u2', seq: 2, turnId: 't2', text: 'world' }], {
+        onRewind: vi.fn(),
+      })
+      const [first, second] = screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })
+      fireEvent.click(first!)
+      expect(screen.getAllByRole('menu')).toHaveLength(1)
+      if (method === 'button') {
+        fireEvent.click(second!)
+      } else {
+        fireEvent.contextMenu(screen.getByText('world'), { clientX: 50, clientY: 50 })
+      }
+      expect(screen.getAllByRole('menu')).toHaveLength(1)
+      expect(within(screen.getByText('world').closest('li')!).getByRole('menu')).toBeInTheDocument()
+    },
+  )
+
+  it('opens nothing on a bare F10, nor on Shift+F10 or the menu key on a row with no actions (P3)', () => {
+    renderTranscript([user, { kind: 'assistant', id: 'a', text: 'stream', isStreaming: true }], {
+      onRewind: vi.fn(),
+    })
+    const button = opener()
+    button.focus()
+    expect(fireEvent.keyDown(button, { key: 'F10' })).toBe(true)
+    expect(screen.queryByRole('menu')).toBeNull()
+    const streaming = screen.getByText('stream').closest('li')!
+    for (const init of [{ key: 'F10', shiftKey: true }, { key: 'ContextMenu' }]) {
+      expect(fireEvent.keyDown(streaming, init)).toBe(true)
+      expect(screen.queryByRole('menu')).toBeNull()
+    }
+  })
+
+  it('keeps the Rewind group’s notes in its second burst, present and inert (P3)', () => {
+    const onRewind = vi.fn()
+    const notes = [UI_TEXT.checkpointsNoGit, UI_TEXT.conversationRewindUnavailable]
+    renderTranscript([user], { onRewind, restoreNote: notes[0], conversationNote: notes[1] })
+    fireEvent.click(opener())
+    choose(UI_TEXT.rowRewindGroup)
+    for (const note of notes) {
+      const item = screen.getByRole('menuitem', { name: note })
+      expect(item).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(item)
+      expect(screen.getByRole('menu', { name: UI_TEXT.rowRewindGroup })).toBeInTheDocument()
+    }
+    expect(onRewind).not.toHaveBeenCalled()
   })
 
   it('leaves selected text to the enclosing quote menu', () => {

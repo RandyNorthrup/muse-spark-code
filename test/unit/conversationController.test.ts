@@ -2949,6 +2949,58 @@ describe('ConversationController: editor integration (M5)', () => {
     expect(notices).toEqual(['opened c1'])
   })
 
+  // D66 item 17: an edit row's Revert is one step of "Rewind code to here".
+  it('reverts one edit after its confirmation, and nothing once it is declined (M87)', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.revertEditConfirmTitle])
+    expect(t.reviews).toEqual([
+      ['revert', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
+    ])
+    const declined = setup({ confirmsFileAction: false })
+    await declined.send('l1', 'edit it')
+    declined.finishTurn()
+    await settle()
+    await declined.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(declined.fileConfirmations).toEqual([UI_TEXT.revertEditConfirmTitle])
+    expect(declined.reviews).toEqual([])
+  })
+
+  it('reverts nothing while a turn runs, or once one started under the confirmation (M87)', async () => {
+    const running = setup()
+    await running.send('l1', 'edit it')
+    await running.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(running.fileConfirmations).toEqual([])
+    expect(running.reviews).toEqual([])
+    expect(running.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    const started = setup()
+    await started.send('l1', 'edit it')
+    started.finishTurn()
+    await settle()
+    started.whileConfirming.current = async () => {
+      started.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      await settle()
+    }
+    await started.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(started.reviews).toEqual([])
+    expect(started.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+  })
+
   it('does nothing for a review without a session', async () => {
     const t = setup()
     await t.controller.handle({ type: 'openEditDiff', itemId: 'c1', outputRef: 'r' })

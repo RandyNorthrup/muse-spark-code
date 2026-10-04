@@ -2213,6 +2213,47 @@ describe('App chat references (M17)', () => {
   })
 })
 
+// F2 review fixes (lane W): a selection in one row never opens its quote menu from another.
+describe('App: a right-click away from the selected text (the review of F2, P1)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('opens the clicked row’s own menu, not the quote menu of the row holding the text', () => {
+    renderReady()
+    reply('m1', 'Use pnpm.')
+    reply('m2', 'Then run the tests.')
+    const passage = screen.getByText('Use pnpm.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'pnpm',
+      anchorNode: passage,
+      focusNode: passage,
+      isCollapsed: false,
+    } as unknown as Selection)
+    expect(fireEvent.contextMenu(screen.getByText('Then run the tests.'))).toBe(false)
+    expect(screen.queryByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
+  })
+
+  it('opens no quote menu from a row with no actions of its own', () => {
+    renderReady()
+    reply('m1', 'Use pnpm.')
+    send('which one?')
+    const passage = screen.getByText('Use pnpm.')
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      toString: () => 'pnpm',
+      anchorNode: passage,
+      focusNode: passage,
+      isCollapsed: false,
+    } as unknown as Selection)
+    fireEvent.contextMenu(screen.getByText('which one?'))
+    expect(screen.queryByRole('menu')).toBeNull()
+    // On the row that holds the text, the quote menu still opens (M17).
+    fireEvent.contextMenu(passage)
+    expect(screen.getByRole('menu', { name: UI_TEXT.quoteMenuLabel })).toBeInTheDocument()
+  })
+})
+
 describe('App webview and UI state (M25)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -3099,6 +3140,35 @@ describe('App: the M87 wiring (PLAN.md D66)', () => {
     for (const below of [goal, tasks, textarea()]) {
       expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     }
+  })
+
+  it('reverts a landed edit from its row’s menu (D66 item 17)', () => {
+    const postMessage = renderBackend('modelApi')
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'itemCompleted',
+        item: {
+          itemId: 'e1',
+          kind: 'toolCall',
+          status: 'completed',
+          tool: 'edit_file',
+          args: '{"path":"src/a.ts"}',
+          patchRef: { id: 'p1', byteLen: 10 },
+        },
+      },
+    })
+    const row = document.querySelector<HTMLElement>('[data-entry-id="e1"]')
+    if (row === null) {
+      throw new Error('The edit row did not render')
+    }
+    fireEvent.click(within(row).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRevertEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'revertEdit',
+      itemId: 'e1',
+      outputRef: 'p1',
+    })
   })
 
   it('opens the task list in a tab from the tasks pane', () => {
