@@ -152,6 +152,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
+  1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
+  to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
 - **Code intelligence and voice load on first use** (PLAN.md D6). Muse
   Code's `ide` code intelligence answers and both voice engines' drivers now
   ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
