@@ -1240,6 +1240,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Documented D72/M93's approved Report a problem plan: crash-safe local
+  recording, exact draft preview, user-controlled exports and standalone ACP
+  report, with VS Code 1.99 prefill research and its separate privacy boundary.
+  This is planning documentation; commands and recording are not implemented.
+
 - **The diagnostics tool reads a file no editor shows.** VS Code's language
   servers report only on files an editor shows (TypeScript and JSON,
   measured in VS Code 1.139.1 and 1.125.0), so when the agent asks

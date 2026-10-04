@@ -4259,6 +4259,102 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D72 — Report a problem, without recording the conversation (M93, 2026-10-04)
+
+The owner approved a local, crash-safe support workflow on 2026-10-04:
+someone can report a failure after a crash, Reload Window or a new chat,
+without giving the extension access to their GitHub account or recording
+their prompts, code or model output. **Planned; no product code in this lane.**
+Research and the engine-floor source check: `docs/certification/m93-research.md`.
+D70, D71 and D73 remain reserved for the other planning branches.
+
+- **A flight recorder, not a log attachment.** A versioned, bounded journal
+  under `ExtensionContext.globalStorageUri`, never Settings Sync or workspace
+  storage; 7 days and 256 KiB, oldest entries removed first. Prune at startup,
+  append and report read; a closed editor cannot expire files until next use.
+  Record errors, backend exits, failed tool calls, webview `window.onerror` and
+  `unhandledrejection` (scrubbed, schema-validated posts to the host), React
+  boundary failures, and activation failures once the recorder
+  can start. Record each event as it happens, without relying on deactivate.
+  An incomplete final record after a crash is discarded; valid earlier records
+  survive. Disk failures leave the extension usable and the report states that
+  recording was unavailable, without recursively recording its own failure.
+  Confine journal/marker reads and writes to owned storage; refuse links or
+  unexpected file types that could redirect them to another file.
+- **Scrub before writing.** A strict zod allowlist accepts only fixed event
+  kinds, known error codes (unknown codes become a fixed word), extension/host
+  versions, a retention timestamp, and bounded frames inside the installed
+  extension. Frames contain verified package-relative paths and line/column
+  numbers, never the stack's message, absolute roots, outside frames or arbitrary
+  function names. Reject traversal, URLs and unknown entry fields. No prompts,
+  code, file contents, model output, tool arguments/results, command text,
+  conversation/session ids, credentials or raw MSP/stderr/error messages enter
+  the file. Run every `redactSecrets` pattern too; regexes alone are insufficient.
+- **Unclean shutdown is a hint.** Set an activation marker before normal
+  startup and clear only this activation's marker on deactivate. On next
+  activation, consume a stale marker before offering once: “Muse Spark Code
+  stopped unexpectedly last time — report it?” Dismissal is remembered across
+  reloads. A new abnormal exit can produce a new offer. Window ownership must
+  keep a second live window from being reported as a crash; any local ownership
+  metadata stays out of reports. Never promise to distinguish a crash from a
+  forced exit, or capture a failure before the extension's entry point runs.
+- **Build from facts.** Reuse D14's `SupportFacts`/`renderSupportReport`, not
+  the log channel. Revalidate support-field values against fixed vocabularies;
+  CLI install paths and failure reasons are not inherently safe. Add the last
+  50 valid entries by default, a bounded stack and relative ages. These limits,
+  the entry-size bound and URL limit are named tunables in `constants.ts`, not
+  new settings. Gather facts locally without starting a session, authenticating,
+  inspecting credential values or running workspace commands.
+- **Scrub again before export.** Replace workspace roots with `<workspace>`
+  before replacing home with `~`; remove other absolute user paths, user/machine
+  names, emails, IPv4/IPv6 addresses, URL credentials, queries and fragments.
+  Apply every `redact.ts` secret pattern to the entire final draft, including
+  title and user description. Validate stored entries again; a tampered journal
+  cannot become an arbitrary text attachment. No existing log file is read.
+- **The exact draft comes first.** A labelled description field, section
+  switches for support facts/recent events, and a read-only preview of the final
+  scrubbed text. Changes rebuild the preview; actions use that same immutable
+  draft. Cancel leaves without exporting. Explain that a user-written description
+  can still disclose confidential information; no description is kept in the
+  recorder. Keyboard operation, focus return, screen-reader labels, narrow-panel
+  layout, long-line wrapping and the four VS Code themes are acceptance gates.
+- **User-controlled export.** Open on GitHub opens only this repository's
+  HTTPS new-issue page in the user's browser/account, with encoded title/body.
+  Measure the full encoded URL against a conservative named 2,000-character
+  limit. Above it, copy the same draft, then open the unfilled page with a paste
+  instruction; a failed clipboard write must not pretend the draft was copied.
+  Copy and Save as file are independent choices; save uses the user's picker.
+  No token, automatic submission, upload, extension network call or model call.
+  Opening a browser deliberately hands the draft to GitHub; clipboard history,
+  saved files and browser history are outside the recorder's retention.
+- **Built-in reporter, with a separate boundary.** VS Code 1.99 supports
+  `workbench.action.openIssueReporter` prefill (`extensionId`, `issueTitle`,
+  `issueBody`; `data` is forwarded but absent from the documented option schema).
+  Use the supported body/title fields for an explicitly chosen “VS Code issue
+  reporter” action after our preview. Disclose that VS Code adds its own data,
+  may search GitHub, and controls sign-in/submission; its output is not our
+  exact-only export. Keep the browser/Copy/Save paths available. No private
+  inclusion flags, extension token access, telemetry setting changes or fallback
+  that silently opens a different reporter. Missing/disabled commands show the
+  normal export choices. Engine-floor and current-host receipts remain required.
+- **Every entry point reaches the same workflow.** A contributed command
+  `museSpark.reportProblem`; the palette's Support item replaces its bare link;
+  “Report this” on error notices, transcript error rows and the render-failure
+  fallback. Only a sanitized event reference is handed off, never the row text.
+  After reload/new chat the command reads the journal independently of history.
+  A standalone `muse-spark-code-acp report` prints the same scrubbed report to
+  stdout, with no backend started, sign-in, editor required or browser opened.
+  Its recorder uses the runtime's local data directory and the same policy.
+  Report mode only reads retained records; it does not create an activation
+  marker or consume the editor's crash offer. ACP protocol mode never writes
+  report text to stdout; it remains ACP frames.
+- **SoL-Pi is untouched.** Reporting observes sanitized failures after they
+  occur; it never changes requests, tool declarations, admission, outputs,
+  ObservationPack/archive/sticky swaps, history, paid consent/budgets, guarded
+  `then_run`, todo compaction, hidden turns or M75 evaluation. No paid call is
+  added. Golden request bytes must match with recording on/off and after a
+  report; existing M68/M73/M74/M75 guards must still fail when deliberately broken.
+
 ## 3. Open questions (need the owner)
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
@@ -4314,6 +4410,12 @@ Decisions (the owner chose the reviewer on 2026-10-03):
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
+
+- **M93:** No new owner choice blocks the approved plan. Last 50 entries and
+  a 2,000-character encoded URL are conservative implementation defaults,
+  tunable after browser receipts. Native-reporter source support is proved;
+  host behavior, multi-window recovery and remote-storage behavior still need
+  implementation receipts, not another design approval.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -13670,6 +13772,69 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M93 — Report a problem after a crash or reload (D72, planned)
+
+- **Goal.** A user can prepare and inspect a useful, scrubbed report without
+  an active chat, backend or credential, then choose where it goes.
+- **Scope.** D72's journal, crash offer, report builder, preview and export;
+  error entry points and the standalone ACP command. No automatic issue
+  submission, log upload, telemetry, model call or wire-shape changes.
+- **Lanes and file ownership.** Muse implements; Codex reviews each completed
+  lane and its failing-test receipts. The lead serializes shared-file edits,
+  merges and aggregate certification. Lane 0 first; R and P next; W and A
+  after their contracts; I last. These are future lanes, not agents launched
+  by this plan-only task.
+
+  | Lane                | Muse owns                                                                                                                                                                                                                                                                               | Codex review focus                                                                                   |
+  | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+  | 0 Strings/contracts | Report constants region; `src/shared/l10n/en.ts`, all 14 `l10n/ui.*.json`, `package.nls*.json`; report-message region in shared protocol; owning schema tests                                                                                                                           | Real translations, runtime lookup, bounded zod shapes, no free-text event payload                    |
+  | R Recorder          | New portable `src/core/support/flightRecorder.ts`; journal/marker adapter in `src/host/support/`; `test/unit/flightRecorder.test.ts`                                                                                                                                                    | Write-time scrub, size/age caps, truncated/tampered records, multi-window ownership, storage failure |
+  | P Report/export     | `src/core/support/report.ts`, new scrubbed report builder and `src/host/support/reportProblem.ts`; owning report/export unit tests                                                                                                                                                      | D14 value allowlist, final draft identity, second scrub, URL/clipboard/save failures, no network     |
+  | W Webview           | Report preview and render-failure UI in `src/webview/**`; report-only message handler in `src/host/conversation/`; error-row/notice regions; harness scenarios and owning UI tests                                                                                                      | Error transport contains no raw text; keyboard/focus/labels; 320px, pseudo-locale, four themes       |
+  | A ACP/headless      | `src/runtime/**` report subcommand and recorder adapter; ACP error-observer region; runtime/stdio owning tests; `docs/acp.md`                                                                                                                                                           | No backend/auth/model startup; local capped data; stdout is text only in standalone report mode      |
+  | I Integration/docs  | Report registration/activation/error-observer regions in `src/extension.ts` and backend managers; `src/shared/palette.ts`, `package.json`, build/split scripts if needed; README, `docs/PRIVACY.md`, CHANGELOG, PLAN, `docs/ide-compatibility/host-api.md`, `docs/certification/m93.md` | Both backends; native-command disclosure/fallback; D6 measured; invariant and complete gate receipts |
+
+- **Acceptance and red drills.** Each row needs a real failing test, restored
+  source SHA-256, then passing receipt in `docs/certification/m93.md`.
+
+  | Proof                         | Test and intentional break                                                                                                                                                                                                                                       |
+  | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Privacy at rest and export    | Inject paths, names, email, IPv4/IPv6, URL queries, every supported token shape, prompt/code/file-content sentinels in errors, stack headers and extra fields; inspect raw disk and every export. Bypass write scrub and final scrub separately; each must fail. |
+  | Crash recovery                | Leave a marker set, restart, dismiss, restart again, then simulate a new crash. Offer once per abnormal activation; reload/new chat retain entries. Break marker consumption; test fails. Include normal deactivate, activation failure and two live windows.    |
+  | Caps and allowlist            | Controlled clock: day boundary and oldest-first eviction; UTF-8 byte size including multibyte input, oversize entry, corrupt/partial records, unknown schema/kind/code/fields, outside frames and traversal. Break each age/byte/schema guard separately.        |
+  | Exact export and URL fallback | Description/section changes update preview; Copy, decoded URL body, saved bytes and fallback clipboard equal it. URL at/over cap, Unicode encoding, clipboard/save/browser failures and cancellation. Break threshold/draft binding; test fails.                 |
+  | No network or charge          | Fetch/socket/HTTP/model/auth/backend-start fakes throw on contact during record/build/Copy/Save/standalone report. Only explicit Open actions call the opener or host command. Add a forbidden call; test fails.                                                 |
+  | UI and host routing           | Command, Support item, error row, notice and render fallback reach preview; malformed messages are dropped. Test absent/disabled native reporter; receipt in 1.99/current VS Code, remote host and ACP stdio. Break routing/schema; test fails.                  |
+  | SoL-Pi preservation           | Golden requests equal before/after recording and reporting; no history/output/tool mutation, no hidden prompt hook, no budget/consent change. Rerun owning M68/M73/M74/M75 invariant tests and record their guard drills.                                        |
+
+- **Gates.** The lead runs `npm run quality`, integration/a11y, check-l10n
+  (all 14 tables), host-API, deadcode, duplication and production builds on
+  the required rigs. D6 caps stay unchanged: keep activation's observer small,
+  lazy-load the recorder/report implementation if needed, and extend split
+  checks to prove the heavy bundle is absent before first use. Record actual
+  sizes, no estimate presented as a pass. No new dependency is assumed.
+- **Security and privacy.** Threats: malicious error text/webview messages,
+  forged journal fields, external stack paths, failed disk writes, retention
+  overflow, concurrent windows and accidental export. Strict boundary schemas,
+  bounded local writes, both scrubs, per-window marker ownership and explicit
+  preview/actions address them. Local user/admin access and voluntarily typed
+  confidential prose remain residuals; a crash before initialization is unseen.
+  Existing raw MSP/stderr log cleanup is separate work; never ingest those logs.
+- **Docs.** README and `docs/acp.md` gain commands only after successfully run.
+  `docs/PRIVACY.md` must describe local storage (remote host when applicable),
+  7-day/256-KiB caps and next-use pruning, excluded content, crash-offer limits,
+  exact preview, browser/clipboard/file consequences, and VS Code reporter's
+  separate host data/network/submission policy. CHANGELOG calls implementation
+  shipped only once certified; this lane records a plan, not a working command.
+- **Certification checklist.**
+  - [x] Owner-approved decision and milestone planned; source research recorded.
+  - [ ] All acceptance tests fail under their breaks, then pass on restored code.
+  - [ ] Both backends, reload/new chat, crash recovery and multi-window proof.
+  - [ ] Engine floor/current VS Code, remote-host and standalone ACP receipts.
+  - [ ] Accessibility, real translations/pseudo-locale and exact-export proof.
+  - [ ] SoL-Pi invariants, D6 sizes and full lead gate exit 0 on the final tree.
+  - [ ] README/ACP/privacy/changelog/host-API and `m93.md` match shipped behavior.
+
 ## 7. Gates
 
 **CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
@@ -13892,6 +14057,13 @@ to 91/91; all archive bytes and candidate source remained unchanged. External
 Installed M68 tools were reused only after lock/npmrc and installed package
 metadata equality checks; fresh `npm ci`, full quality and rig gates remain
 required. See `docs/certification/m75.md`. No packing or model run occurred.
+
+**M93 planning lane (2026-10-04).** Documentation only. Its task-specific
+`common.md` forbids a local aggregate quality run and delegates it to the lead;
+the lane verifies changed Markdown and commits with hooks enabled. Product
+tests, drills, build sizes and runtime certification remain M93 implementation
+gates, unchecked above. Integration state and lane receipts are in
+`docs/certification/m93-research.md`.
 
 **Merge goal progress (2026-09-29, America/Los_Angeles):** PR #32 merged at
 17:31 (`fefb6068`), PR #57/M67 at 18:20 (`4c35e73e`), and PR #52/M69 at
@@ -14147,6 +14319,12 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M93 (planned).** Support recording accepts facts, not arbitrary log text;
+  write-time validation/scrub and export-time validation/scrub are separate
+  boundaries. Local user/admin access, confidential user-authored descriptions,
+  retention while the editor is closed, and host/browser/clipboard/file behavior
+  after an explicit handoff remain limits stated in D72 and the privacy guide.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
