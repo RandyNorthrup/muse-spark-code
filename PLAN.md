@@ -4218,8 +4218,9 @@ What the research settled:
 - **Five wire formats cover the requested providers.** OpenAI Responses
   (OpenAI, Azure OpenAI's v1 API, xAI; OpenAI's current reasoning models
   call tools only there), Chat Completions (OpenRouter, Groq, DeepSeek,
-  Mistral, Together, Fireworks, LM Studio, vLLM, llama.cpp, any compatible
-  server), Anthropic Messages (Anthropic; Claude on Bedrock), Gemini
+  Mistral, Together, Fireworks, Hugging Face's router, Z.ai, LM Studio,
+  vLLM, llama.cpp, any compatible server), Anthropic Messages (Anthropic;
+  Claude on Bedrock), Gemini
   `generateContent`, and Ollama's native API, which alone lets a request
   set `num_ctx`: its default under 24 GiB of VRAM is 4k, which our prompt
   and tools overflow silently through its `/v1` (research §1).
@@ -4345,8 +4346,10 @@ Decisions:
   output, per-request and per-image prices where they exist, an optional
   long-context tier, and its source and date. Sources, in order: the
   provider's own models list where it prices (OpenRouter, xAI, Together,
-  Fireworks), the vendored models.dev snapshot (MIT, filtered and
-  checksummed as D68's vendor is, refreshed by a script in a PR), what the
+  Groq, and Hugging Face's router per upstream; captured 2026-10-04, when
+  Fireworks' lists carried no prices), the vendored models.dev snapshot
+  (MIT, filtered and checksummed as D68's vendor is, refreshed by a script
+  in a PR), what the
   user entered in the panel. A local model is free; a plan's model is
   "plan" (M95b). Anything else is **unpriced**: it runs, its tokens are
   counted and shown, the UI says "unpriced", and a session with a dollar
@@ -4354,13 +4357,15 @@ Decisions:
   `estimateCostUsd`'s Standard-rate fallback goes: an unknown id is
   unpriced. Reservations take the worst case (full input price, the
   long-context tier when the estimate reaches it, the highest upstream
-  price OpenRouter may route to); settlement takes the provider's actual
-  `cost` where it reports one (OpenRouter). DeepSeek's off-peak half price
+  price OpenRouter or Hugging Face's router may route to); settlement takes
+  the provider's actual cost where it reports one (OpenRouter's `cost`,
+  xAI's `cost_in_usd_ticks` in 1e-10 USD). DeepSeek's off-peak half price
   is ignored (the peak price bounds it).
 - **Windows and output caps** come from the provider's models list where it
   gives one (Anthropic, Gemini, xAI, DeepSeek, Mistral, Groq, OpenRouter,
-  Together, LM Studio, vLLM, llama.cpp), the catalogue otherwise (OpenAI,
-  Azure), and the user for a custom server (required). Ollama's is the
+  Together, Fireworks, Hugging Face's router, LM Studio, vLLM, llama.cpp),
+  the catalogue otherwise (OpenAI, Azure, Z.ai), and the user for a custom
+  server (required). Ollama's is the
   `num_ctx` the panel sets (32k, 64k or 128k, with the memory it takes
   said), never the trained maximum.
 - **OpenRouter is first-class** (the owner, 2026-10-04):
@@ -4516,6 +4521,33 @@ Decisions:
     `muse-spark-code-acp providers add` in a terminal run the same flow
     (`wizardFlow.ts`, one pure state machine) without the panel: pick a
     provider, enter or connect the credential, test, pick models, confirm.
+  - **Start with your own model** (the owner, 2026-10-04: "as part of this
+    whole push i would like to add a button to the first run screen to begin
+    with a byo model and this should kick off a wizard").
+    - **The first-run screen.** This is the panel's sign-in gate
+      (`SignIn.tsx`, shown while no credential exists, in its sign-in state
+      and its no-CLI install state). It gains a third primary choice,
+      **Start with your own model**, beside **Sign in with Muse** (the
+      subscription) and the Meta Model API key.
+    - **No backend at all.** When no backend is set up, the three choices
+      rank equally: the same button style, in a row or a stack, and Muse is
+      not presumed.
+    - **What it opens.** The Models & Agents panel's wizard, straight at
+      "Pick a provider", through the command `museSpark.startWithOwnModel`.
+      The getting-started walkthrough (`contributes.walkthroughs`) gains a
+      matching step whose command link runs it.
+    - **When the wizard finishes:**
+      - the chosen model becomes the composer's model and the default model
+        (`providers.json`'s `defaultModel`, which M96's orchestrating role
+        reads as its default);
+      - the panel leaves the first-run state, and the composer accepts a
+        message at once;
+      - a short confirmation, "You're set up with `<provider>` ·
+        `<model>`", links to **Manage providers**.
+    - **Cancel**, at any step, returns to the first-run screen with nothing
+      saved: no provider in `providers.json`, no secret in SecretStorage.
+      The wizard keeps a draft only in memory and writes the file and the
+      secret together at **Save**.
 - **The picker.** The composer's list shows Meta's models (with a Meta key)
   and the chosen BYO models, grouped by provider, each with its window and
   price, "unpriced", "local" or "plan". A conversation can switch between
@@ -4539,7 +4571,13 @@ Decisions:
   Fireworks `fw_`, Hugging Face `hf_`, Bedrock `ABSK`), each in the
   `MAY_HOLD_SECRET` prefilter; a key with no prefix is caught by the header
   and field rules and by the exact value the transport registers for the
-  life of each request.
+  life of each request. Account ids are redacted too, as the 2026-10-04
+  captures found them: xAI's error text names the team id, OpenRouter's
+  error and `/key` bodies carry `user_id`, `creator_user_id` and
+  `workspace_id`, and Anthropic's and OpenAI's headers carry organization,
+  workspace and project ids. So the id fields, those headers, and a UUID
+  after "team", "account", "organization" or "project" in prose never reach
+  a log, a notice or a hook.
 - **Lazy, within budget.** The codecs, registry, transport additions and
   catalogue reader build to `dist/providers.js`, required the first time a
   BYO model is listed or used; the panel's host side and the quick pick to
@@ -4672,7 +4710,9 @@ Decisions:
   - **Partner and allowlisted plans.** xAI's SuperGrok sign-in, Z.ai's
     coding plan and Kimi Code's plan keys are not offered (partner-only,
     allowlisted, or terms too unclear to risk a user's account); their
-    pay-as-you-go APIs are presets (xAI in M95; Moonshot and Z.ai in M95c).
+    pay-as-you-go APIs are presets (xAI and Z.ai in M95; Moonshot in M95c).
+    Z.ai moved into M95 on the owner's word of 2026-10-04 ("i want to also
+    be able to use glm models from z ai").
     Asking them to list the extension is an owner step. _Reason:_ a user's
     account is never put at risk on unclear terms.
   - **Gemini's stored caches.** Not used: implicit caching only. _Reason:_
@@ -4693,6 +4733,48 @@ Decisions:
     neither works does a remote window say to sign in from a local one.
     _Reason:_ OpenAI allows only a `127.0.0.1` redirect, and both routes
     keep to it.
+- **Settled from the live captures** (2026-10-04,
+  `docs/certification/m95-captures.md`). The twelve cloud presets' wires
+  were captured with the owner's keys: 46 model-call attempts, 44 billed,
+  about $0.07. Where a capture differed from the research, the fuller and
+  more robust option was taken:
+  - **Z.ai** is a `chat` preset at `https://api.z.ai/api/paas/v4`, with
+    `tool_stream: true` and `reasoning_content` replayed, not the Anthropic
+    route. _Reason:_ the general API is the documented pay-as-you-go
+    endpoint; its Anthropic route is documented for the Coding Plan, signs
+    with a non-Anthropic signature and reports no cache writes. Business
+    codes 1113 and 1308 arrive as 429 and are not retried.
+  - **Anthropic's header** is `Authorization: Bearer` on the Anthropic
+    preset, accepted live; the Anthropic-format Custom server defaults to
+    `x-api-key`. _Reason:_ each origin gets the header it documents (Bedrock,
+    Z.ai's route and gateways take `x-api-key`).
+  - **Anthropic thinking can be absent**, even on Opus 5.5 at adaptive `low`,
+    and on 5.x its text is omitted with the signature carrying it. The codec
+    assumes no thinking block, replays an empty-text block with its
+    signature byte for byte, and keeps new fields (`tool_use.caller`,
+    `container`, `stop_details`). _Reason:_ all of this was seen on the wire.
+  - **The compaction rule keeps tools** on every non-Meta codec, although
+    Anthropic and OpenRouter accepted tool history without `tools`.
+    _Reason:_ the cached prefix and vLLM's empty-list refusal still need it.
+  - **xAI** sends its own single `function_call_arguments.delta`; the
+    Responses codec accepts that and never synthesises one. Its
+    `cost_in_usd_ticks` settles like OpenRouter's `cost`.
+  - **Together's list is not proof a model runs.** A listed model can be
+    non-serverless (a free 400 `model_not_available`). Badges and default
+    suggestions draw only on catalogue-marked serverless models, and the
+    refusal is said in plain words with Together's link.
+  - **DeepSeek** did not refuse a missing `reasoning_content` in the current
+    turn; the codec replays it on every earlier turn anyway, as documented.
+  - **Gemini.** Tool calls are detected by `functionCall` parts, since the
+    finish reason is `STOP`. Error bodies are read by content, since a JSON
+    error arrives under `text/event-stream`. Implicit caching was not seen in
+    two calls, so its cached count is unknown.
+  - **Chat usage can share a chunk with deltas** (Mistral sends the tool call,
+    the finish reason and the usage in one chunk). The codec reads both from
+    every chunk.
+  - **Prices and windows from lists.** Groq and Hugging Face's router join
+    the list-priced sources; Fireworks moves to the catalogue. Fireworks' and
+    Hugging Face's lists give windows.
 
 ## 3. Open questions (need the owner)
 
@@ -13798,8 +13880,11 @@ live) and the controller filters its id as well.
 ### M95 — Bring-your-own model providers (D74)
 
 **Status 2026-10-04: planned on `feature/m95-byo-providers` from main
-`1e93c67c`; research in `docs/certification/m95-research.md`. No code yet;
-implementation starts after the lead's review.**
+`1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
+wire captures were recorded 2026-10-04 for the twelve cloud presets the
+owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
+attempts, 44 billed, about $0.07). No code yet; implementation starts after
+the lead's review.**
 
 - **Goal.** A user adds any listed provider, or a compatible server of their
   own, in the Models & Agents panel in under a minute, and every harness
@@ -13825,6 +13910,10 @@ implementation starts after the lead's review.**
     sections, the quick-pick fast path, the workspace suggestion, the
     composer picker's rows and Account & usage's rows per provider. M96
     adds the panel's **Roles** and **Agent map** sections.
+  - **Start with your own model** on the first-run screen and in the
+    getting-started walkthrough (D74). It opens the wizard at "Pick a
+    provider". On finish it sets the composer's model and the default
+    model, leaves first run and confirms. Cancel leaves nothing saved.
   - OpenRouter as a first-class provider (D74): account connection over
     OAuth PKCE with a shared loopback helper (M95b reuses it), privacy
     routing, its key's usage and limit, prices fetched with their time,
@@ -13835,15 +13924,26 @@ implementation starts after the lead's review.**
     README, PRIVACY, SECURITY, CHANGELOG, AGENTS.md, `docs/acp.md`,
     `docs/ci.md`, this plan and `docs/certification/m95.md`.
 - **Providers in the first release.** The panel lists a preset only once
-  its own capture is recorded (AGENTS.md rule 13):
+  its own capture is recorded (AGENTS.md rule 13). The captured frames are
+  in `docs/certification/m95-captures/<provider>/`:
 
-  | Codec       | Presets                                                                                                           |
-  | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-  | `responses` | OpenAI, Azure OpenAI (v1 API), xAI                                                                                |
-  | `chat`      | OpenRouter, Groq, DeepSeek, Mistral, Together, Fireworks, Hugging Face (token), LM Studio, vLLM, llama.cpp server |
-  | `anthropic` | Anthropic                                                                                                         |
-  | `gemini`    | Google Gemini (API key, `generateContent`)                                                                        |
-  | `ollama`    | Ollama (local)                                                                                                    |
+  | Codec       | Preset                                     | Wire capture                                                                                             |
+  | ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                     |
+  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                       |
+  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                         |
+  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`) |
+  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                               |
+  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                   |
+  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                              |
+  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                              |
+  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                     |
+  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                               |
+  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                 |
+  | `chat`      | LM Studio, vLLM, llama.cpp server          | not yet: step 1 on the rigs                                                                              |
+  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                     |
+  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                            |
+  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                              |
 
   The **Custom server** preset speaks any of the `chat`, `responses` and
   `anthropic` formats. M95b adds the subscription sign-ins and plan keys;
@@ -13857,24 +13957,24 @@ implementation starts after the lead's review.**
   R, H, A, G, O, K, M, U, X and S in parallel; I after T and after M91
   merges; W last. Region-owned files follow M87's lane rules.
 
-| Lane                  | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Strings             | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| P Providers core      | new `src/core/providers/**`: `providersFile.ts` (the zod schema of `providers.json`, read and atomic write), `presets.ts` (formats, origins, auth headers, key pages and shapes, key tests, quirks as data, OpenRouter's routing and attribution), `modelRef.ts`, `capabilities.ts`, `priceCard.ts`, `endpointPolicy.ts` (URL rules and the address classifier over M69's ranges), `credentialRecord.ts`, `pkce.ts` (verifier, challenge, state), `wizardFlow.ts` (adding a provider as a pure state machine the panel and the quick pick both drive), `suggest.ts` (the local suggestion engine, each value with its reason), `scanDiff.ts` (a scan against the last one), `modelFilters.ts` (search, filters, sorting and badges as pure functions); tests `providers*.test.ts` |
-| C Catalogue           | `scripts/sync-provider-catalog.mjs`, `vendor/models-dev/**` (the filtered snapshot and `VENDOR.json`), the copy to `dist/providerCatalog.json` in the build, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`; tests `providerCatalog.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| T Transport           | `src/core/backends/modelapi/client.ts` (its request loop out to `transport.ts`), new `providerClient.ts` and `authSource.ts`, `sse.ts`, new `ndjson.ts`; the Meta golden fixtures and tests; `redirect: 'error'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| R Responses codec     | new `modelapi/codecs/responses.ts` (OpenAI, Azure, xAI); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| H Chat codec          | new `modelapi/codecs/chat.ts` (the family's quirks read from the presets; OpenRouter's breakpoints, `reasoning_details` and routing object); tests and goldens per preset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| A Anthropic codec     | new `modelapi/codecs/anthropic.ts` (breakpoints, thinking replay and the edit rule); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| G Gemini codec        | new `modelapi/codecs/gemini.ts` (thought signatures, the schema subset); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| O Ollama codec        | new `modelapi/codecs/ollama.ts` (NDJSON, `num_ctx`, `think`); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| I Integration         | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, window, output cap, effort tiers, price lookup, compaction's tools, the identity line, hook fields), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                          |
-| K Keys and panel host | new `src/host/providers/**` (SecretStorage records, the password box with the preset's live shape check, the local-server probe, `oauthLoopback.ts` (a one-shot `127.0.0.1` callback server), OpenRouter's connect and key usage, the model scans' cache and diff, removal with undo, import and export, the workspace suggestion), new `src/host/models/modelsPanel.ts` (the `WebviewPanel`, its CSP, its zod-validated bridge) and the quick-pick fast path; entry → `dist/modelsPanel.js`; `src/host/auth/credentialStore.ts`, `src/host/auth/authService.ts` (a provider counts as a Model API credential), the command region of `src/extension.ts`                                                                                                                          |
-| M Models panel UI     | new `src/webview/models/**`: the entry (→ `dist/webview/models.js`, a second entry in `scripts/build.mjs`), the section registry, the Providers and Models sections, the shared components (below), the panel's reducer; new `src/shared/modelsPanel.ts` (the panel's message and state schemas); the harness scenarios and accessibility cases for every state                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| U Picker and usage UI | `src/shared/protocol.ts` (`modelOptionSchema` gains provider fields), the `listModels` and `setModel` regions of `src/host/conversation/conversationController.ts`, `src/webview/components/Palette.tsx` (groups, pinned favourites first, **Add a model provider…** and **Manage models…**), the composer pill, `UsageDialog.tsx` (rows per provider, "unpriced", "local", OpenRouter's key usage), `src/webview/state/uiState.ts`, their harness scenarios                                                                                                                                                                                                                                                                                                                      |
-| X ACP and headless    | `src/runtime/authCommands.ts`, `keyStore.ts`, `credentialVariables.ts`, `cliArgs.ts`, new `src/runtime/providersCommands.ts`, `src/runtime/backends.ts`, `src/runtime/exec/**` (`--provider`, per-codec origin pins and path allowlists), `src/acp/agent.ts` (model options)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| S Security            | `src/core/redact.ts` (the presets' key shapes), the credential-variable names in `constants.ts`, the threat-model tests (`providersThreats.test.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| W Wiring              | `package.json` (commands, `museSpark.suggestedProvider`), README, `docs/PRIVACY.md`, `SECURITY.md`, CHANGELOG, AGENTS.md (rule 8's provider credentials), `docs/acp.md`, `docs/ci.md`, PLAN, `scripts/check-bundle-size.mjs`, `scripts/check-bundle-split.mjs`, `scripts/check-vsix-size.mjs`, knip and dpdm entries, CI's VSIX member list, `docs/certification/m95.md`, the full gate                                                                                                                                                                                                                                                                                                                                                                                           |
+| Lane                             | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings                        | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| P Providers core                 | new `src/core/providers/**`: `providersFile.ts` (the zod schema of `providers.json`, read and atomic write), `presets.ts` (formats, origins, auth headers, key pages and shapes, key tests, quirks as data, OpenRouter's routing and attribution), `modelRef.ts`, `capabilities.ts`, `priceCard.ts`, `endpointPolicy.ts` (URL rules and the address classifier over M69's ranges), `credentialRecord.ts`, `pkce.ts` (verifier, challenge, state), `wizardFlow.ts` (adding a provider as a pure state machine the panel and the quick pick both drive), `suggest.ts` (the local suggestion engine, each value with its reason), `scanDiff.ts` (a scan against the last one), `modelFilters.ts` (search, filters, sorting and badges as pure functions); tests `providers*.test.ts`                                                                                                                                                                                                                                                                                                               |
+| C Catalogue                      | `scripts/sync-provider-catalog.mjs`, `vendor/models-dev/**` (the filtered snapshot and `VENDOR.json`), the copy to `dist/providerCatalog.json` in the build, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`; tests `providerCatalog.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| T Transport                      | `src/core/backends/modelapi/client.ts` (its request loop out to `transport.ts`), new `providerClient.ts` and `authSource.ts`, `sse.ts`, new `ndjson.ts`; the Meta golden fixtures and tests; `redirect: 'error'`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| R Responses codec                | new `modelapi/codecs/responses.ts` (OpenAI, Azure, xAI); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| H Chat codec                     | new `modelapi/codecs/chat.ts` (the family's quirks read from the presets; OpenRouter's breakpoints, `reasoning_details` and routing object); tests and goldens per preset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| A Anthropic codec                | new `modelapi/codecs/anthropic.ts` (breakpoints, thinking replay and the edit rule); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| G Gemini codec                   | new `modelapi/codecs/gemini.ts` (thought signatures, the schema subset); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| O Ollama codec                   | new `modelapi/codecs/ollama.ts` (NDJSON, `num_ctx`, `think`); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, window, output cap, effort tiers, price lookup, compaction's tools, the identity line, hook fields), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| K Keys and panel host            | new `src/host/providers/**` (SecretStorage records, the password box with the preset's live shape check, the local-server probe, `oauthLoopback.ts` (a one-shot `127.0.0.1` callback server), OpenRouter's connect and key usage, the model scans' cache and diff, removal with undo, import and export, the workspace suggestion), new `src/host/models/modelsPanel.ts` (the `WebviewPanel`, its CSP, its zod-validated bridge) and the quick-pick fast path; entry → `dist/modelsPanel.js`; `src/host/auth/credentialStore.ts`, `src/host/auth/authService.ts` (a provider counts as a Model API credential), the command region of `src/extension.ts` (with `museSpark.startWithOwnModel`: the wizard opened at "Pick a provider"; its draft held in memory only; **Save** writes `providers.json` and the secret together, sets the default model and asks the conversation to set the composer's model; **Cancel** discards the draft, so nothing is written)                                                                                                                              |
+| M Models panel UI                | new `src/webview/models/**`: the entry (→ `dist/webview/models.js`, a second entry in `scripts/build.mjs`), the section registry, the Providers and Models sections, the shared components (below), the panel's reducer; new `src/shared/modelsPanel.ts` (the panel's message and state schemas); the harness scenarios and accessibility cases for every state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| U Picker, first-run and usage UI | `src/shared/protocol.ts` (`modelOptionSchema` gains provider fields; `SIGN_IN_METHODS` gains `byo`), the `listModels`, `setModel` and `signIn` regions of `src/host/conversation/conversationController.ts` (`byo` runs `museSpark.startWithOwnModel`), `src/webview/components/SignIn.tsx` (the first-run screen's **Start with your own model**, ranked equally with the other two when no backend is set up), the "You're set up with `<provider>` · `<model>`" confirmation with **Manage providers**, `src/webview/components/Palette.tsx` (groups, pinned favourites first, **Add a model provider…** and **Manage models…**), the composer pill, `UsageDialog.tsx` (rows per provider, "unpriced", "local", OpenRouter's key usage; its setup rows offer the BYO choice too), `src/webview/state/uiState.ts`, the walkthrough region of `package.json` (`contributes.walkthroughs`: a step with a `command:museSpark.startWithOwnModel` link) and its `resources/` media, their harness scenarios and accessibility cases (the first-run screen with the new button, in both its states) |
+| X ACP and headless               | `src/runtime/authCommands.ts`, `keyStore.ts`, `credentialVariables.ts`, `cliArgs.ts`, new `src/runtime/providersCommands.ts`, `src/runtime/backends.ts`, `src/runtime/exec/**` (`--provider`, per-codec origin pins and path allowlists), `src/acp/agent.ts` (model options)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| S Security                       | `src/core/redact.ts` (the presets' key shapes), the credential-variable names in `constants.ts`, the threat-model tests (`providersThreats.test.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| W Wiring                         | `package.json` (commands, `museSpark.suggestedProvider`; the walkthrough region is lane U's), README (with **Get started** naming the three ways in), `docs/PRIVACY.md`, `SECURITY.md`, CHANGELOG, AGENTS.md (rule 8's provider credentials), `docs/acp.md`, `docs/ci.md`, PLAN, `scripts/check-bundle-size.mjs`, `scripts/check-bundle-split.mjs`, `scripts/check-vsix-size.mjs`, knip and dpdm entries, CI's VSIX member list, `docs/certification/m95.md`, the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 - **The panel's components and state, for M95 and M96.**
   - **Sections.** `src/webview/models/sections.ts` registers each
@@ -13975,7 +14075,10 @@ implementation starts after the lead's review.**
      **Reconnect**, **Refresh models**, **Edit**, **Remove** (with
      **Undo**), **Export** and **Import**.
 
-  9. **Picker and usage** (lane U).
+  9. **Picker, first run and usage** (lane U). The first-run screen's
+     **Start with your own model** (equal rank when no backend is set up),
+     the walkthrough step, and the post-wizard confirmation. The wizard is
+     step 8's, opened at "Pick a provider".
   10. **ACP and headless** (lane X).
   11. **Security** (lane S).
   12. **Docs** (lane W).
@@ -13985,6 +14088,19 @@ implementation starts after the lead's review.**
       request log, the frames saved as that preset's fixtures; for
       Anthropic also a tool-use turn after a packing swap, with and without
       the stale-block rule, and a compaction with tools.
+      - **Recorded 2026-10-04** for OpenAI, xAI, Anthropic, Gemini,
+        OpenRouter, Groq, Mistral, Together, Fireworks, DeepSeek, Hugging
+        Face and Z.ai (`docs/certification/m95-captures.md`). Each has its
+        model list, a streamed tool call and its follow-up, usage, an
+        invalid-model error, and the cache pair where the provider caches.
+        The calls were made directly from scratchpad scripts, with no
+        workspace, and counted per request.
+      - **Still to capture:**
+        - Azure (needs a deployment);
+        - Anthropic's packing-swap turn with and without the stale-block
+          rule, and its compaction with tools (these need the codec);
+        - one live turn per preset through the built codec (acceptance 2),
+          which also rechecks Together's leaked `final` word.
 - **Acceptance.**
   1. The panel adds a provider in under a minute from its first screen
      (timed on Ollama and on OpenRouter with **Connect**), from every
@@ -14051,8 +14167,29 @@ implementation starts after the lead's review.**
       arrows, Enter, Escape); at 320 px nothing scrolls sideways; all 14
       languages; the accessibility gate passes in all four themes for
       every state.
+  19. **Start with your own model.** The first-run screen shows the choice
+      in both its states, ranked equally with the other two when no backend
+      is set up.
+      - It opens the wizard at "Pick a provider", and so does the
+        walkthrough step's command link.
+      - Finishing sets the composer's model and the default model, leaves
+        first run, accepts a message at once and shows "You're set up with
+        `<provider>` · `<model>`" with **Manage providers**.
+      - Cancelling at any step returns to the first-run screen with no
+        provider in `providers.json` and no secret in SecretStorage.
 - **Tests** (each guard broken once on purpose, seen red, restored; the
   drills in `docs/certification/m95.md`):
+  - **First run**, each able to fail:
+    - the button opens the wizard at "Pick a provider";
+    - a completed wizard sets the composer's model and the default model
+      and leaves first run;
+    - cancel at each step leaves `providers.json` and SecretStorage
+      unchanged;
+    - the walkthrough's command opens the wizard;
+    - with no backend, the three choices render with equal rank.
+
+    Drill: let cancel keep the draft's secret.
+
   - **Golden requests**: one per codec per scenario (first turn, tool loop
     with reasoning, image, packed output, compaction), checked-in bytes;
     Meta's against step 2. Drill: reorder a key; add a timestamp.
@@ -14197,8 +14334,9 @@ implementation starts after the lead's review.**
   follows Q-M74 per provider); paid features unchanged (D48), Meta-hosted
   ones billed to the Meta key only; the M75 evaluation unchanged; live tests
   local or free only, captures with the owner's keys counted and reported.
-- **Docs.** README: **Model providers** (the panel and the quick pick,
-  each preset's notes,
+- **Docs.** README: **Get started** names the three ways in (Muse sign-in,
+  a Meta Model API key, **Start with your own model**); **Model providers**
+  (the panel and the quick pick, each preset's notes,
   local servers and Ollama's context, OpenRouter's connect, privacy routing
   and usage, prices and "unpriced", what stays Meta's, the ACP and CI
   commands); PRIVACY: which hosts receive code and keys for each provider,
@@ -14214,11 +14352,18 @@ implementation starts after the lead's review.**
     to step 13 by the existing in-memory route (standard input from a DPAPI
     file, `auth clear` after; M73's handling). Nothing is minted on his
     behalf; a preset without a capture stays out of the panel.
+    - Done 2026-10-04 for twelve presets: OpenRouter, Groq, Mistral, Gemini,
+      Together, xAI, OpenAI, DeepSeek, Fireworks, Hugging Face, Z.ai and
+      Anthropic.
+    - Azure needs a resource and a deployment.
 - **Certification checklist.**
   - [ ] Step 1 captures recorded, with server versions and counted calls.
   - [ ] Meta goldens recorded at `1e93c67c` and unchanged at the end.
-  - [ ] Acceptance 1–16 with tests and drills (`docs/certification/m95.md`).
-  - [ ] Each listed preset's capture (step 13).
+  - [ ] Acceptance 1–19 with tests and drills (`docs/certification/m95.md`).
+  - [x] Step 13's wire captures for the twelve keyed cloud presets
+        (2026-10-04, `docs/certification/m95-captures.md`).
+  - [ ] Each listed preset's capture (step 13): Azure and the local servers,
+        and one live turn per preset through the built codec.
   - [ ] Bundles within D6, measured.
   - [ ] README, PRIVACY, SECURITY, AGENTS.md, CHANGELOG, `docs/acp.md`,
         `docs/ci.md` and this record updated.
@@ -14378,7 +14523,8 @@ and is its own pull request, with its own capture and certification
      page, asked before each use, tallied, off by default; Meta's web
      search rules (no budget cap while on) apply to each.
   5. **More presets**: Ollama Cloud (`https://ollama.com`, an API key),
-     Moonshot and Z.ai's pay-as-you-go APIs, and each further provider the
+     Moonshot's pay-as-you-go API (Z.ai's moved into M95 on 2026-10-04), and
+     each further provider the
      catalogue lists with a Chat, Responses or Messages endpoint, each after
      its research note and capture.
   6. **Custom request headers** (user scope; values in SecretStorage bound
@@ -14403,8 +14549,7 @@ and is its own pull request, with its own capture and certification
 - **Gates.** As M95's; part 2's code loads only once a model is exposed, so
   activation carries its registration call and loader alone.
 - **Owner steps.** Keys for each part's capture: an AWS account with
-  Bedrock access, an Ollama Cloud key, Moonshot and Z.ai keys (a few cents
-  each); part 4's capture spends search fees, a new kind of spend, so it
+  Bedrock access, an Ollama Cloud key, a Moonshot key (a few cents each); part 4's capture spends search fees, a new kind of spend, so it
   waits for his go.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
