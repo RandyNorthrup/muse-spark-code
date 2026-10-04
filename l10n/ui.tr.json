@@ -615,15 +615,6 @@
       "other": "{count} başarısız"
     }
   },
-  "showHiddenSteps": {
-    "one": "Odak görünümünün gizlediği {count} adımı göster",
-    "other": "Odak görünümünün gizlediği {count} adımı göster"
-  },
-  "hideHiddenSteps": {
-    "one": "Odak görünümünün gizlediği {count} adımı gizle",
-    "other": "Odak görünümünün gizlediği {count} adımı gizle"
-  },
-  "contextPercent": "{percent} bağlam",
   "contextMeterLabel": "Bağlam {percent} kullanıldı",
   "contextMeterOver": "Bağlam penceresinin üstünde",
   "contextMeterUnderOne": "<1",

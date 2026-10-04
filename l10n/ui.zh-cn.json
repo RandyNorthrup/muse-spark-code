@@ -594,13 +594,6 @@
       "other": "{count} 个失败"
     }
   },
-  "showHiddenSteps": {
-    "other": "显示专注视图隐藏的 {count} 个步骤"
-  },
-  "hideHiddenSteps": {
-    "other": "收起专注视图隐藏的 {count} 个步骤"
-  },
-  "contextPercent": "上下文 {percent}",
   "contextMeterLabel": "已使用上下文 {percent}",
   "contextMeterOver": "超出上下文窗口",
   "contextMeterUnderOne": "<1",

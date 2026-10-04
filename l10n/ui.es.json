@@ -636,17 +636,6 @@
       "other": "{count} fallaron"
     }
   },
-  "showHiddenSteps": {
-    "one": "Mostrar {count} paso oculto por la vista de enfoque",
-    "many": "Mostrar {count} de pasos ocultos por la vista de enfoque",
-    "other": "Mostrar {count} pasos ocultos por la vista de enfoque"
-  },
-  "hideHiddenSteps": {
-    "one": "Ocultar {count} paso oculto por la vista de enfoque",
-    "many": "Ocultar {count} de pasos ocultos por la vista de enfoque",
-    "other": "Ocultar {count} pasos ocultos por la vista de enfoque"
-  },
-  "contextPercent": "{percent} de contexto",
   "contextMeterLabel": "Contexto {percent} usado",
   "contextMeterOver": "Por encima de la ventana de contexto",
   "contextMeterUnderOne": "<1",

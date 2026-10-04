@@ -823,15 +823,6 @@ export const EN = {
       other: '{count} failed',
     }),
   },
-  showHiddenSteps: forms({
-    one: 'Show {count} step hidden by Focus view',
-    other: 'Show {count} steps hidden by Focus view',
-  }),
-  hideHiddenSteps: forms({
-    one: 'Hide {count} step hidden by Focus view',
-    other: 'Hide {count} steps hidden by Focus view',
-  }),
-  contextPercent: '{percent} context',
   contextMeterLabel: 'Context {percent} used',
   contextMeterOver: 'Over the context window',
   contextMeterUnderOne: '<1',

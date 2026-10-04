@@ -657,19 +657,6 @@
       "other": "nezdařilo se {count}"
     }
   },
-  "showHiddenSteps": {
-    "one": "Zobrazit {count} krok skrytý zaměřeným zobrazením",
-    "few": "Zobrazit {count} kroky skryté zaměřeným zobrazením",
-    "many": "Zobrazit {count} kroku skrytého zaměřeným zobrazením",
-    "other": "Zobrazit {count} kroků skrytých zaměřeným zobrazením"
-  },
-  "hideHiddenSteps": {
-    "one": "Skrýt {count} krok skrývaný zaměřeným zobrazením",
-    "few": "Skrýt {count} kroky skrývané zaměřeným zobrazením",
-    "many": "Skrýt {count} kroku skrývaného zaměřeným zobrazením",
-    "other": "Skrýt {count} kroků skrývaných zaměřeným zobrazením"
-  },
-  "contextPercent": "{percent} kontextu",
   "contextMeterLabel": "Kontext využit z {percent}",
   "contextMeterOver": "Překračuje okno kontextu",
   "contextMeterUnderOne": "<1",

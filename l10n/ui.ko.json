@@ -594,13 +594,6 @@
       "other": "{count}개 실패"
     }
   },
-  "showHiddenSteps": {
-    "other": "포커스 보기에서 숨겨진 단계 {count}개 표시"
-  },
-  "hideHiddenSteps": {
-    "other": "포커스 보기에서 숨겨진 단계 {count}개 숨기기"
-  },
-  "contextPercent": "컨텍스트 {percent}",
   "contextMeterLabel": "컨텍스트 {percent} 사용 중",
   "contextMeterOver": "컨텍스트 창 초과",
   "contextMeterUnderOne": "<1",

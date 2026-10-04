@@ -594,13 +594,6 @@
       "other": "{count} 件が失敗"
     }
   },
-  "showHiddenSteps": {
-    "other": "フォーカス ビューで非表示の {count} ステップを表示"
-  },
-  "hideHiddenSteps": {
-    "other": "フォーカス ビューで非表示の {count} ステップを隠す"
-  },
-  "contextPercent": "コンテキスト {percent}",
   "contextMeterLabel": "コンテキスト {percent} 使用済み",
   "contextMeterOver": "コンテキスト ウィンドウを超過",
   "contextMeterUnderOne": "<1",

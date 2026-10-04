@@ -615,15 +615,6 @@
       "other": "{count} fehlgeschlagen"
     }
   },
-  "showHiddenSteps": {
-    "one": "{count} durch die Fokusansicht ausgeblendeten Schritt anzeigen",
-    "other": "{count} durch die Fokusansicht ausgeblendete Schritte anzeigen"
-  },
-  "hideHiddenSteps": {
-    "one": "{count} durch die Fokusansicht ausgeblendeten Schritt verbergen",
-    "other": "{count} durch die Fokusansicht ausgeblendete Schritte verbergen"
-  },
-  "contextPercent": "{percent} Kontext",
   "contextMeterLabel": "Kontext {percent} verwendet",
   "contextMeterOver": "Über dem Kontextfenster",
   "contextMeterUnderOne": "<1",

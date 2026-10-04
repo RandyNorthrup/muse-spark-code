@@ -636,17 +636,6 @@
       "other": "{count} ont échoué"
     }
   },
-  "showHiddenSteps": {
-    "one": "Afficher {count} étape masquée par la vue concentrée",
-    "many": "Afficher {count} d’étapes masquées par la vue concentrée",
-    "other": "Afficher {count} étapes masquées par la vue concentrée"
-  },
-  "hideHiddenSteps": {
-    "one": "Replier {count} étape masquée par la vue concentrée",
-    "many": "Replier {count} d’étapes masquées par la vue concentrée",
-    "other": "Replier {count} étapes masquées par la vue concentrée"
-  },
-  "contextPercent": "{percent} du contexte",
   "contextMeterLabel": "Contexte {percent} utilisé",
   "contextMeterOver": "Au-delà de la fenêtre de contexte",
   "contextMeterUnderOne": "<1",

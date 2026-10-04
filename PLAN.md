@@ -3580,11 +3580,19 @@ choices:
     - A failed step folds, but the summary names the failures and carries
       the failure dot, so no failure is hidden.
   - **The summary** is built from what ran, in first-seen order: "Edited 2
-    files, ran a command, read 3 files".
+    files, ran a command, and read 3 files".
     - Files count distinct paths.
-    - Each part is a plural form, and `Intl.ListFormat` (`type: 'unit'`)
-      joins them. Only the first letter is raised, in the display
-      language's own case rules.
+    - Each part is a plural form, joined by `Intl.ListFormat` with
+      `type: 'conjunction'` and `style: 'long'`. Only the first letter is
+      raised, in the display language's own case rules. (Amended
+      2026-10-04, lane C: `type: 'unit'` joins with bare spaces in Turkish,
+      Japanese, Korean, Russian and both Chinese tables, "X1 X2 X3", which
+      no list of actions reads as; the conjunction list reads "… und …",
+      "… ve …", "…、…、…". Measured on Node 24.20's ICU for all 15
+      languages; `docs/certification/m87-c.md`, drill `list-unit`.)
+    - The step-summary forms start lowercase in every table (the cs, de,
+      pl and ru forms began with a capital, which reads wrong mid-list);
+      only the first letter of the joined sentence is raised.
     - Reasoning rows are folded but not named.
   - **Focus view** keeps folding every non-waiting step, now under the same
     summary instead of "Show N hidden steps". No new setting is added:
@@ -12046,8 +12054,9 @@ and returned green. Full M87 certification remains the lead's work.
   1. `stepSummary(steps)` is pure. It reads `describeTool()`'s `body` and
      the edit and read tool sets, counts distinct paths, and returns the
      parts and the failed count.
-  2. `text.ts` gains `formatList`, on `Intl.ListFormat` with `type: 'unit'`
-     and `style: 'short'`. For the timestamps it gains `formatTime`
+  2. `text.ts` gains `formatList`, on `Intl.ListFormat` with
+     `type: 'conjunction'` and `style: 'long'` (amended 2026-10-04, for
+     D66's reason). For the timestamps it gains `formatTime`
      (`timeStyle: 'short'`), `formatFullDateTime` (`dateStyle: 'full'`,
      `timeStyle: 'short'`) and `isSameLocalDay(aMs, bMs)` (the same local
      year, month and day). The formats are built once per display language,
@@ -12085,6 +12094,23 @@ and returned green. Full M87 certification remains the lead's work.
   8. On `queuedWithdrawn` the reducer removes the card and puts the text
      (and the images, when kept) into the draft: alone in an empty box,
      otherwise first with a blank line.
+  - **Lane C's decisions (2026-10-04), kept by lane W.**
+    - Muse Code sessions have `withdrawQueued` too: the controller keeps
+      their steers for an Edit, the backend answers a steer `tooLate`
+      without a command, and the panel shows the delivered note instead.
+    - A Model API queued turn taken back ends with `turnWithdrawn`
+      (`UI_TEXT.turnUnqueued`), as Muse Code's `turn/unqueued` does; a
+      withdrawn steer emits nothing. `messageAdmitted` is emitted for
+      steers only: a queued turn's `turnStarted` already ends its card's
+      queue.
+    - The queued card's menu opens from the row's one "…" (lane F2's
+      shared opener: a real Tab stop, shown on hover and focus, always on
+      a device without hover), and from right-click, Shift+F10 and the
+      context-menu key. Lane C's always-visible "…" became that opener.
+    - A card's time starts at its send (`submitted` carries `at`, lane W)
+      and the host's recorded time replaces it when it arrives.
+    - Edit rows inside a folded group fetch their patch only once the group
+      opens, as a collapsed row already did.
 - **D Tasks.**
   - Implemented in lane D; scoped evidence is
     `docs/certification/m87-d.md`. Lane W still supplies the chat's

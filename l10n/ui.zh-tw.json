@@ -594,13 +594,6 @@
       "other": "{count} 個失敗"
     }
   },
-  "showHiddenSteps": {
-    "other": "顯示被專注檢視隱藏的 {count} 個步驟"
-  },
-  "hideHiddenSteps": {
-    "other": "收合被專注檢視隱藏的 {count} 個步驟"
-  },
-  "contextPercent": "上下文 {percent}",
   "contextMeterLabel": "已使用上下文 {percent}",
   "contextMeterOver": "超出上下文視窗",
   "contextMeterUnderOne": "<1",

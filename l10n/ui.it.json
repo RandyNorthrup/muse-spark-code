@@ -636,17 +636,6 @@
       "other": "{count} non riusciti"
     }
   },
-  "showHiddenSteps": {
-    "one": "Mostra {count} passaggio nascosto dalla vista focalizzata",
-    "many": "Mostra {count} di passaggi nascosti dalla vista focalizzata",
-    "other": "Mostra {count} passaggi nascosti dalla vista focalizzata"
-  },
-  "hideHiddenSteps": {
-    "one": "Comprimi {count} passaggio nascosto dalla vista focalizzata",
-    "many": "Comprimi {count} di passaggi nascosti dalla vista focalizzata",
-    "other": "Comprimi {count} passaggi nascosti dalla vista focalizzata"
-  },
-  "contextPercent": "{percent} del contesto",
   "contextMeterLabel": "Contesto {percent} usato",
   "contextMeterOver": "Oltre la finestra di contesto",
   "contextMeterUnderOne": "<1",

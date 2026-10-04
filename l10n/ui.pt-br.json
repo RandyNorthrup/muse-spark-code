@@ -636,17 +636,6 @@
       "other": "{count} falharam"
     }
   },
-  "showHiddenSteps": {
-    "one": "Mostrar {count} etapa oculta pela exibição de foco",
-    "many": "Mostrar {count} de etapas ocultas pela exibição de foco",
-    "other": "Mostrar {count} etapas ocultas pela exibição de foco"
-  },
-  "hideHiddenSteps": {
-    "one": "Ocultar {count} etapa oculta pela exibição de foco",
-    "many": "Ocultar {count} de etapas ocultas pela exibição de foco",
-    "other": "Ocultar {count} etapas ocultas pela exibição de foco"
-  },
-  "contextPercent": "{percent} de contexto",
   "contextMeterLabel": "Contexto {percent} usado",
   "contextMeterOver": "Acima da janela de contexto",
   "contextMeterUnderOne": "<1",

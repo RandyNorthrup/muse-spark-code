@@ -615,15 +615,6 @@
       "other": "{count} sikertelen"
     }
   },
-  "showHiddenSteps": {
-    "one": "A Fókusznézet által elrejtett {count} lépés megjelenítése",
-    "other": "A Fókusznézet által elrejtett {count} lépés megjelenítése"
-  },
-  "hideHiddenSteps": {
-    "one": "A Fókusznézet által elrejtett {count} lépés elrejtése",
-    "other": "A Fókusznézet által elrejtett {count} lépés elrejtése"
-  },
-  "contextPercent": "{percent} kontextus",
   "contextMeterLabel": "Kontextus felhasználva: {percent}",
   "contextMeterOver": "A kontextusablak felett",
   "contextMeterUnderOne": "<1",

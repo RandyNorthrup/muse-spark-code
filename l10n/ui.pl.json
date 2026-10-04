@@ -657,19 +657,6 @@
       "other": "nie powiodło się: {count}"
     }
   },
-  "showHiddenSteps": {
-    "one": "Pokaż {count} krok ukryty przez widok skupienia",
-    "few": "Pokaż {count} kroki ukryte przez widok skupienia",
-    "many": "Pokaż {count} kroków ukrytych przez widok skupienia",
-    "other": "Pokaż {count} kroku ukrytego przez widok skupienia"
-  },
-  "hideHiddenSteps": {
-    "one": "Ukryj {count} krok ukrywany przez widok skupienia",
-    "few": "Ukryj {count} kroki ukrywane przez widok skupienia",
-    "many": "Ukryj {count} kroków ukrywanych przez widok skupienia",
-    "other": "Ukryj {count} kroku ukrywanego przez widok skupienia"
-  },
-  "contextPercent": "Kontekst: {percent}",
   "contextMeterLabel": "Wykorzystano {percent} kontekstu",
   "contextMeterOver": "Ponad oknem kontekstu",
   "contextMeterUnderOne": "<1",
