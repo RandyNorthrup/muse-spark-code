@@ -167,9 +167,13 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   `.agents/**`, `.muse/**`, another coding agent's folder (`.claude/**`,
   `.codex/**`, `.cursor/**`, `.gemini/**`, `.github/hooks/**`,
   `.github/copilot/**`, `.devin/**`, `.windsurf/**`, `.kiro/**`,
-  `.clinerules/**`, `.amp/**`, `.opencode/**`: hooks, MCP servers, plugins
-  and settings that agent runs outside these approvals), `AGENTS.md`,
-  `CLAUDE.md`, `.envrc` or `.gitmodules`, at any depth and in any letter
+  `.clinerules/**`, `.amp/**`, `.opencode/**`, `.continue/**`, `.roo/**`:
+  hooks, MCP servers, plugins and settings that agent runs outside these
+  approvals), an agent's MCP or instruction file (`.mcp.json`,
+  `opencode.json`, `opencode.jsonc`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes`, `.clinerules`,
+  `.github/copilot-instructions.md`: an instruction steers the next agent
+  that reads it), `.envrc` or `.gitmodules`, at any depth and in any letter
   case, and judged by where links and junctions lead, shows an approval card
   in every mode but Bypass (Plan refuses it), and no "always allow" rule
   covers it. The one exception is a Markdown note written by the memory

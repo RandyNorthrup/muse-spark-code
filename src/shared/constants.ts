@@ -1889,7 +1889,8 @@ export const GLOB_MAX_ALTERNATIVES = 256
 // hooks, MCP servers, plugins and settings those agents run outside this
 // extension's approvals the next time the user opens them here
 // (2026-10-04): Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot,
-// Devin and Windsurf, Kiro, Cline, Amp and OpenCode.
+// Devin and Windsurf, Kiro, Cline, Amp, OpenCode, Continue and Roo Code.
+// `.github/copilot-instructions.md` is a file: a run may end at the name.
 export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.git'],
   ['.husky'],
@@ -1911,10 +1912,24 @@ export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.clinerules'],
   ['.amp'],
   ['.opencode'],
+  ['.continue'],
+  ['.roo'],
+  ['.github', 'copilot-instructions.md'],
 ]
+// Files protected by name in any folder. Some run code (`.envrc`, the MCP
+// servers in `.mcp.json` and `opencode.json`); the agents' instruction files
+// steer the next agent that reads them, which keeps an injected instruction
+// alive after the conversation that planted it (2026-10-04).
 export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   'agents.md',
   'claude.md',
+  'gemini.md',
+  '.cursorrules',
+  '.windsurfrules',
+  '.roomodes',
+  '.mcp.json',
+  'opencode.json',
+  'opencode.jsonc',
   '.envrc',
   '.gitmodules',
 ])

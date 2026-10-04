@@ -236,6 +236,53 @@ describe('isProtectedPath: other coding agents’ folders', () => {
   })
 })
 
+// The agents' own files outside those folders (2026-10-04): MCP servers they
+// start, and instructions that steer the next agent to read them.
+describe('isProtectedPath: other coding agents’ files', () => {
+  it.each([
+    ['.mcp.json', ['.mcp.json']],
+    ['GEMINI.md', ['GEMINI.md']],
+    ['AGENTS.md', ['AGENTS.md']],
+    ['CLAUDE.md', ['CLAUDE.md']],
+    ['.cursorrules', ['.cursorrules']],
+    ['.windsurfrules', ['.windsurfrules']],
+    ['.github/copilot-instructions.md', ['.github/copilot-instructions.md']],
+    ['opencode.json', ['opencode.json', 'opencode.jsonc']],
+    ['.roomodes', ['.roomodes']],
+    ['.clinerules as a file', ['.clinerules']],
+    ['.continue', ['.continue/rules/a.md', '.continue/mcpServers/run.yaml']],
+    ['.roo', ['.roo/mcp.json', '.roo/rules/a.md', '.roo/rules-code/a.md']],
+  ])('protects %s, at any depth and in any case', (_file, paths) => {
+    for (const path of paths) {
+      expect(isProtectedPath(path), path).toBe(true)
+      expect(isProtectedPath(`packages/app/${path.toUpperCase()}`), path).toBe(true)
+      expect(isProtectedPath(`src/${path.toLowerCase()}`), path).toBe(true)
+    }
+  })
+
+  it('leaves look-alikes alone', () => {
+    for (const path of [
+      '.mcp.json.bak',
+      'mcp.json',
+      'docs/GEMINI-notes.md',
+      'gemini.md.txt',
+      '.cursorrules.md',
+      'windsurfrules',
+      'copilot-instructions.md',
+      '.github/docs/copilot-instructions.md',
+      'my-opencode.json',
+      'opencode.json5',
+      '.roomodes.bak',
+      '.continuex/rules/a.md',
+      'continue/rules/a.md',
+      '.roo-backup/mcp.json',
+      'roo/mcp.json',
+    ]) {
+      expect(isProtectedPath(path), path).toBe(false)
+    }
+  })
+})
+
 describe('PermissionEngine', () => {
   it('applies session rules only where the mode would ask', () => {
     const engine = new PermissionEngine('promptUnmatched')

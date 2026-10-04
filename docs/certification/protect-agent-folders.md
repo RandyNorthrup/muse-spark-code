@@ -103,3 +103,83 @@ The entry was restored and the same run passes again (30 passed).
 | Muse Code backend, M90 reviewer     | The CLI's own `protectedWrite` flag; Edit automatically and the M90 reviewer never answer a flagged write. The extension's list is not applied to Muse Code's approvals.                                                                                                        |
 | Checkpoint restore and Redo         | Not path-checked: they put back only bytes the model's own file tools wrote (already through the cards above), on the user's own action.                                                                                                                                        |
 | Picked text attachments (M54)       | Refused as private, as for the other protected paths.                                                                                                                                                                                                                           |
+
+## 2026-10-04, second pass: the agents' own files
+
+Approved by the owner after the first pass named these as not protected.
+
+### The change
+
+- `PROTECTED_FILE_NAMES` gains `gemini.md`, `.cursorrules`,
+  `.windsurfrules`, `.roomodes`, `.mcp.json`, `opencode.json` and
+  `opencode.jsonc`, matched by the last path segment in any folder, letter
+  case ignored.
+- `PROTECTED_PATH_SEGMENTS` gains `['.continue']`, `['.roo']` and
+  `['.github', 'copilot-instructions.md']`. A run may end at the file name,
+  so the last one protects that file only directly under `.github`.
+- Already covered, now tested as files: `AGENTS.md` and `CLAUDE.md` (file
+  names since D24) and `.clinerules` as a file (the segment rule matches the
+  last segment).
+- Some of these run nothing: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes`, `.clinerules` and
+  `.github/copilot-instructions.md` are instructions. They are protected
+  anyway because they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (PLAN.md §9).
+
+Roo Code and Continue, from their documentation (2026-10-04):
+
+- Roo Code (`roocodeinc.github.io/Roo-Code`): custom modes in `.roomodes`,
+  "a file in your project root" (YAML or JSON); rules in `.roo/rules/` and
+  `.roo/rules-{mode-slug}/`, with a `.roorules-{mode-slug}` file fallback;
+  project MCP servers in `.roo/mcp.json`, whose stdio servers run "as a
+  child process on your machine".
+- Continue (`docs.continue.dev`): rules in `.continue/rules` and workspace
+  MCP servers in `.continue/mcpServers` (YAML or JSON), stdio servers
+  started as local commands.
+
+### Tests
+
+- `test/unit/permissions.test.ts`, `isProtectedPath: other coding agents’
+files` (13 tests): one per file or folder (12), each at the root, under
+  `packages/app/` in upper case and under `src/` in lower case, and one for
+  look-alikes that stay ordinary: `.mcp.json.bak`, `mcp.json`,
+  `docs/GEMINI-notes.md`, `gemini.md.txt`, `.cursorrules.md`,
+  `windsurfrules`, `copilot-instructions.md` at the root,
+  `.github/docs/copilot-instructions.md`, `my-opencode.json`,
+  `opencode.json5`, `.roomodes.bak`, `.continuex/rules/a.md`,
+  `continue/rules/a.md`, `.roo-backup/mcp.json`, `roo/mcp.json`.
+- `test/unit/modelApiHost.test.ts` (13 more rows of the same per-path
+  test): each file asks under Edit automatically, Edit automatically leaves
+  it to the card, declining writes nothing, and Bypass writes it with no
+  approval.
+
+Run on the Kubuntu rig (`scratchpad/rig-gate/rig-test.sh kubuntu`, slot
+`protect-a`, the owner's rule from 2026-10-04 that vitest runs on a rig):
+
+```
+test/unit/permissions.test.ts --maxWorkers=2
+      Tests  61 passed (61)
+test/unit/modelApiHost.test.ts --maxWorkers=2 -t "agent folder|in Edit automatically, and Bypass writes it|protected write"
+      Tests  29 passed | 550 skipped (579)
+```
+
+### Test-fire proof (red drill)
+
+With `'.mcp.json'` removed from the file names and `['.roo']` from the
+segments, the targeted run fails (exit 1):
+
+```
+     × protects .mcp.json, at any depth and in any case
+     × protects .roo, at any depth and in any case
+     × asks before a write to .mcp.json in Edit automatically, and Bypass writes it
+     × asks before a write to .roo in Edit automatically, and Bypass writes it
+ FAIL  test/unit/permissions.test.ts > isProtectedPath: other coding agents’ files > protects .mcp.json, at any depth and in any case
+AssertionError: .mcp.json: expected false to be true // Object.is equality
+ FAIL  test/unit/permissions.test.ts > isProtectedPath: other coding agents’ files > protects .roo, at any depth and in any case
+AssertionError: .roo/mcp.json: expected false to be true // Object.is equality
+ Test Files  2 failed (2)
+      Tests  4 failed | 50 passed | 586 skipped (640)
+```
+
+Both entries were restored and the same run passes again (54 passed).

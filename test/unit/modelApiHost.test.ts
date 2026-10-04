@@ -4062,9 +4062,23 @@ describe('ModelApiSession: turns', () => {
     expect(t.files.has(`${ROOT}/.git/hooks/pre-commit`)).toBe(false)
   })
 
-  // Other coding agents' folders (2026-10-04): a hook planted there runs the
-  // next time the user starts that agent in this workspace.
+  // Other coding agents' folders and files (2026-10-04): a hook, server or
+  // instruction planted there acts the next time the user starts that agent
+  // in this workspace.
   it.each([
+    ['.mcp.json', '.mcp.json'],
+    ['GEMINI.md', 'GEMINI.md'],
+    ['AGENTS.md', 'packages/app/AGENTS.md'],
+    ['CLAUDE.md', 'CLAUDE.md'],
+    ['.cursorrules', '.cursorrules'],
+    ['.windsurfrules', '.windsurfrules'],
+    ['.github/copilot-instructions.md', '.github/copilot-instructions.md'],
+    ['opencode.json', 'opencode.json'],
+    ['opencode.jsonc', 'opencode.jsonc'],
+    ['.roomodes', '.roomodes'],
+    ['.clinerules (a file)', '.clinerules'],
+    ['.continue', '.continue/mcpServers/run.yaml'],
+    ['.roo', '.roo/mcp.json'],
     ['.claude', '.claude/settings.json'],
     ['.codex', '.codex/hooks.json'],
     ['.cursor', '.cursor/hooks.json'],

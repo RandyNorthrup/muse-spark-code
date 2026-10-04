@@ -9,15 +9,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Security
 
-- **Other coding agents' folders are protected writes.** On the Model API
-  backend, a write into `.claude`, `.codex`, `.cursor`, `.gemini`,
+- **Other coding agents' folders and files are protected writes.** On the
+  Model API backend, a write into `.claude`, `.codex`, `.cursor`, `.gemini`,
   `.github/hooks`, `.github/copilot`, `.devin`, `.windsurf`, `.kiro`,
-  `.clinerules`, `.amp` or `.opencode` now always shows an approval card,
-  "Edit automatically" and Auto included; only Bypass writes it without
-  asking. Those folders hold hooks, MCP servers, plugins and settings that
-  the other agent runs on its own, so before this a model could plant a
-  hook there without a card and have it run the next time you started that
-  agent in the workspace.
+  `.clinerules`, `.amp`, `.opencode`, `.continue` or `.roo`, or to
+  `.mcp.json`, `opencode.json`, `opencode.jsonc`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.roomodes` or
+  `.github/copilot-instructions.md` (like `AGENTS.md` and `CLAUDE.md`
+  already), now always shows an approval card, "Edit automatically" and
+  Auto included; only Bypass writes it without asking. Those folders hold
+  hooks, MCP servers, plugins and settings that the other agent runs on its
+  own, and the instruction files steer the next agent that reads them, so
+  before this a model could plant a hook or an instruction there without a
+  card and have it act the next time you started that agent in the
+  workspace.
 
 ## [0.12.1] - 2026-10-04
 

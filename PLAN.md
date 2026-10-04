@@ -14072,21 +14072,31 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
-- Other coding agents' folders (2026-10-04,
+- Other coding agents' folders and files (2026-10-04,
   `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
   `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
-  `.windsurf`, `.kiro`, `.clinerules`, `.amp` and `.opencode` hold hooks,
-  MCP servers, plugins and settings that those agents run outside our
-  approvals, so they are protected writes (D24) like `.muse`. Residual
-  risks: (1) a shell command, an MCP tool or a Best-of-N attempt in its own
-  worktree can still write there; the extension does not parse commands
-  for paths, so the command's own card (every mode but Bypass, unless a
-  rule or the Auto reviewer allows it) is the control; (2) on Muse Code
-  the CLI decides which writes are protected, and the extension's Edit
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp`, `.opencode`, `.continue` and
+  `.roo` hold hooks, MCP servers, plugins and settings that those agents
+  run outside our approvals, and `.mcp.json`, `opencode.json` and
+  `opencode.jsonc` name MCP servers they start, so all are protected writes
+  (D24) like `.muse`. The instruction files (`AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.roomodes`,
+  `.clinerules`, `.github/copilot-instructions.md`) run nothing, but they
+  are protected too: they steer the next agent that reads them, so an
+  instruction a prompt injection plants there persists after the
+  conversation (prompt-injection persistence). Roo Code's and Continue's
+  paths are from their documentation (Roo: `.roomodes` at the root,
+  `.roo/rules*`, `.roo/mcp.json`; Continue: `.continue/rules`,
+  `.continue/mcpServers`; both start stdio MCP servers as local commands).
+  Residual risks: (1) a shell command, an MCP tool or a Best-of-N attempt in
+  its own worktree can still write there; the extension does not parse
+  commands for paths, so the command's own card (every mode but Bypass,
+  unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
+  Code the CLI decides which writes are protected, and the extension's Edit
   automatically and Auto reviewer trust its `protectedWrite` flag; (3)
-  agent files outside these folders (`.mcp.json`, `GEMINI.md`,
-  `.cursorrules`, `.windsurfrules`, `.github/copilot-instructions.md`,
-  `opencode.json`) are not protected.
+  names matched by pattern rather than exactly are not protected: Roo's
+  `.roorules-<mode>` fallback and Copilot's
+  `.github/instructions/*.instructions.md`.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.
