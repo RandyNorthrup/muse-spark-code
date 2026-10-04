@@ -4237,8 +4237,8 @@ The step 1 captures are in `docs/certification/m91.md`.
     WriteFailed, sdk #31) before any hook. There is no payload to capture
     (AGENTS.md rule 13). So the Model API backend accepts it the same way and
     runs nothing, and the two backends agree. Its veto is wired in the release
-    whose capture shows it running. The question goes to Meta with the
-    event-log report.
+    whose capture shows it running. Filed upstream as
+    [meta-models/muse-code-sdk#84](https://github.com/meta-models/muse-code-sdk/issues/84).
 
   - **StopFailure did not fire under `muse serve`** on two turns that
     failed (`modelError`). This matches the 1.4.2 trace schema's
@@ -13574,6 +13574,34 @@ The early protected-paths fix is its own pull request,
 - **Depends on.** `fix/protect-agent-folders` (acceptance 7 ships there).
   The two items under M74 (SoL-Pi rule 5's compaction cases) wait on Q-M74,
   the owner's contract for automatic compaction.
+- **Upstream.** Two items wait on Meta:
+  - [meta-models/muse-code-sdk#84](https://github.com/meta-models/muse-code-sdk/issues/84):
+    1.4.2 accepts SessionFork as runnable but never starts it.
+    **SessionFork waits on #84 (Meta-blocked).** Lane R parses it, so the
+    same file is accepted on both backends. The Model API fires it only once
+    Meta confirms what it means.
+  - [meta-models/muse-code-sdk#85](https://github.com/meta-models/muse-code-sdk/issues/85):
+    Muse Code's own reminder agents fire SubagentStart and SubagentStop, and
+    PreLLMCall and PostLLMCall. Their payloads carry only the child session
+    id, with no parent session or turn.
+
+  [#31](https://github.com/meta-models/muse-code-sdk/issues/31)
+  (`session/fork` refused on Windows) is still open on 1.4.2.
+
+- **Internal helper turns.** Today the Model API runtime fires hooks for a
+  call it makes for itself only where M51 documents it.
+  - Compaction's summary request runs PreLLMCall and PostLLMCall, between
+    PreCompact and PostCompact.
+  - These run no hooks at all: the Auto reviewer's calls (M78), side chats
+    (M51), and Best-of-N attempt hosts (M77: `isHooksEnabled` is off in
+    `modelApiBackendManager.ts`).
+
+  M91 keeps it so. A `prompt` or `agent` handler's own model call fires no
+  hook, so a hook cannot recurse. Neither do M74's hidden follow-up and
+  memory flush, once built (SoL-Pi rule 5). So TeammateIdle for a Best-of-N
+  attempt fires from the parent session's snapshot in the coordinator, never
+  inside the attempt, which still runs no hooks.
+
 - **Event behaviour.** The Muse Code events first, then the 21 extension
   events.
 
@@ -13653,8 +13681,8 @@ The early protected-paths fix is its own pull request,
        is cancelled: by Stop, by a UserPromptSubmit block, or by the session
        closing while the turn runs. That is when Muse Code fires it
        (captured). It never fires when an idle session closes.
-     - SessionFork must be sync and is accepted, and runs nothing until a
-       capture shows it running.
+     - SessionFork must be sync and is accepted. It runs nothing until
+       upstream #84 is answered and a capture shows it running.
      - The PostToolUseFailure `updatedInput` correction takes the same tool
        only, as a new call through PreToolUse, policy, path confinement and
        approval, bounded by `HOOK_ON_FAILURE_MAX_DEPTH`.
@@ -13888,6 +13916,7 @@ The early protected-paths fix is its own pull request,
   - [x] Lane 0's keys in all 14 tables, and its constants (2026-10-04,
         `check-l10n` 0 problems).
   - [ ] Acceptance 1–14, each with its test and drill; 14e waits on Q-M74.
+  - [ ] SessionFork's veto: waits on meta-models/muse-code-sdk#84 (Meta-blocked).
   - [ ] Acceptance 15: the owner's answer.
   - [ ] Live check and its call count.
   - [ ] Docs: README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, PLAN,
