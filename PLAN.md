@@ -4189,6 +4189,322 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D73 — Inline completions (Tab), billed to the Model API key (M94, 2026-10-04)
+
+The owner, 2026-10-04: "yes plan and build the feature". Inline code
+completions ("Tab") are added, and Cursor's two Tab hooks
+(`beforeTabFileRead`, `afterTabFileEdit`) work with them. The research,
+with a source and date for every fact, is
+`docs/certification/m94-research.md`; its fact numbers (A1, C3, V10…) are
+cited here. D70 (M91) owns hooks in general; this decision owns the Tab side
+and the two hook points.
+
+- **The Model API only, never the subscription.** Muse Code has no
+  completion method: its 1.4.2 schema and the SDK's index offer only
+  `turn/start` (C3). A short turn there costs four model attempts and about
+  33,000 input tokens, and its first token comes at 5.4 s (C5). Tab runs
+  only on a stored Model API key. On the Muse Code backend it is offered only
+  while a key is stored, as M44's images and voice are. With no key it never
+  asks for one and never falls back; the status bar says "no key". If Meta
+  adds a completion method to MSP, this decision is revisited.
+- **A chat model fills a marked hole.** No FIM or completion endpoint exists,
+  and `stop`, `prediction` and `n` > 1 are refused (A1, A2). Each Tab request is
+  its own `POST /responses` through the existing key client:
+  - `stream: true`, `store: false`, no tools, no `previous_response_id`;
+  - `reasoning.effort: "minimal"`, since `none` is refused (A3), with no
+    reasoning summary requested;
+  - a mode's `max_output_tokens`, which counts reasoning and is at least 16
+    (A4);
+  - instructions from `TAB_MODEL_TEXT`, a block of its own that only the Tab
+    bundle reads (AGENTS rule 5);
+  - one user message holding the file's workspace-relative path and language
+    id, the prefix, a fixed hole marker, the suffix and, in multi-line mode,
+    context snippets, each fenced as data.
+
+  The reply is the text between two fixed tags. Anything outside them, or no
+  tags at all, means no suggestion.
+
+- **Never the conversation's cache or history (SoL-Pi, M68/M73–M75).**
+  - A Tab request never carries, reads or changes a session's input, history,
+    goal or memory.
+  - It has its own `prompt_cache_key`: `TAB_PROMPT_CACHE_KEY_PREFIX` plus a
+    digest of the model and the Tab instructions, never a chat key (A7).
+  - The request is ordered for prefix caching: instructions, context snippets
+    (sorted by path), the file header, then the prefix window, the marker and
+    the suffix. The prefix window starts on a line that is a multiple of
+    `TAB_PREFIX_ANCHOR_LINES`, so its start stays put while the user types
+    and consecutive requests share a cached prefix (A6, A7).
+- **Two modes.**
+  - **Fast** (automatic triggers, the default): the current file only,
+    `TAB_FAST_PREFIX_CHARS` before and `TAB_FAST_SUFFIX_CHARS` after the
+    cursor. It completes the rest of the line, or at most
+    `TAB_FAST_MAX_LINES` lines.
+  - **Multi-line**: used when the cursor's line is blank, or ends in a block
+    opener with nothing after the cursor, and `museSpark.tabMultiline` is
+    `auto`; and on every explicit Invoke (VS Code's
+    `editor.action.inlineSuggest.trigger`). It adds context snippets:
+    - the user's recent edits in other eligible files;
+    - the definitions of identifiers on the cursor's line, found through
+      code intelligence (`src/core/codeIntel/definitions.ts`).
+
+    The snippets are bounded by `TAB_CONTEXT_CHARS`, and a completion by
+    `TAB_MULTILINE_MAX_LINES` lines.
+
+  - `museSpark.tabMultiline` is `auto` (default), `onInvoke` or `never`.
+  - **Planned values** (lane 0 sets them; the probe may retune those marked
+    \*). These are what research §7's estimate assumes:
+
+    | Constant                                                             | Value          |
+    | -------------------------------------------------------------------- | -------------- |
+    | `TAB_FAST_PREFIX_CHARS` / `TAB_FAST_SUFFIX_CHARS`                    | 6,000 / 1,600  |
+    | `TAB_MULTILINE_PREFIX_CHARS` / `TAB_MULTILINE_SUFFIX_CHARS`          | 12,000 / 3,200 |
+    | `TAB_CONTEXT_CHARS`                                                  | 8,000          |
+    | `TAB_PREFIX_ANCHOR_LINES`                                            | 32             |
+    | `TAB_FAST_MAX_LINES` / `TAB_MULTILINE_MAX_LINES`                     | 3 / 16         |
+    | `TAB_MAX_COMPLETION_CHARS`                                           | 2,000          |
+    | `TAB_DEBOUNCE_MS`\*                                                  | 350            |
+    | `TAB_FAST_MAX_OUTPUT_TOKENS`\* / `TAB_MULTILINE_MAX_OUTPUT_TOKENS`\* | 128 / 512      |
+    | `TAB_CACHE_ENTRIES` / `TAB_HOOK_VERDICT_CACHE`                       | 64 / 128       |
+
+  - VS Code's core gives `editor.action.inlineSuggest.trigger` no key here
+    (research §3, UNKNOWN). M94 binds Alt+\ to it while Tab is on (the
+    `museSpark.tabOn` context key). That is the key the description of
+    Copilot's `github.copilot.enable` names for triggering by hand. M94 adds
+    no trigger command of its own.
+- **Debounce; a sent request is never aborted.**
+  - VS Code's own delay is effectively 0 to 50 ms (V14), so Tab waits
+    `TAB_DEBOUNCE_MS` (350, retuned once from the probe) on the token after an
+    Automatic trigger. A keystroke cancels the token (V15), and then nothing is
+    sent. Invoke skips the wait.
+  - `museSpark.tabTrigger` is `automatic` or `onInvoke`. Its default comes
+    from M94's latency probe: `onInvoke` if a fast suggestion's median first
+    text is slower than `TAB_AUTOMATIC_LATENCY_CEILING_MS` (1,500 ms).
+  - Once a request is sent it runs to its end, even when the token is
+    cancelled. Meta does not say what an abandoned `store: false` stream bills,
+    and an aborted stream reports no usage (A10). Letting it finish keeps the
+    ledger exact. Its answer goes to the cache.
+  - At most `TAB_MAX_IN_FLIGHT` requests (2) are open at once, and at most
+    `TAB_MAX_REQUESTS_PER_MINUTE` (20) start per window, below the contributor
+    tier's 100 RPM team limit (A8). A trigger that finds no slot waits; a newer
+    trigger replaces a waiting one, unsent.
+- **The typing-through cache** (Continue's design, research §4).
+  - The window keeps an LRU of `TAB_CACHE_ENTRIES` entries. Each holds the
+    document, the prefix it answered, its suffix and the completion.
+  - A lookup takes the entry with the longest prefix that the current prefix
+    starts with and the same suffix. It serves the rest of the completion
+    only if the text typed since that prefix is the start of the completion.
+    No request is sent.
+  - The same key is used to read and to write: the document's raw prefix, not
+    the compiled request. Research §4 notes a read/write key mismatch in
+    Continue.
+  - A trigger whose prefix extends an open request's prefix, matching what
+    that request has streamed so far, waits for it instead of sending another
+    (Continue, Zed).
+- **Filters** (from Continue's, research §4).
+  - **Before anything else:** a code fence or a lead-in sentence around the
+    tags is stripped.
+  - **No suggestion** when the reply:
+    - is empty, whitespace, or outside the tags;
+    - only repeats the start of the suffix (the overlap is trimmed first),
+      the line above, or the next non-blank line below;
+    - holds a run of three identical lines;
+    - closes brackets it never opened (fast mode);
+    - holds a secret (`countSecretMatches`) or the redactor's mark.
+  - **Cuts:** a multi-line reply ends at its first blank line after the first
+    line. A reply longer than its mode allows is cut at a line boundary, then
+    at `TAB_MAX_COMPLETION_CHARS`.
+
+  "Repeats" means equal after trimming whitespace. While the suggest widget
+  has a selection, Tab returns nothing (V2). On Invoke it returns one item
+  (A2). Sampling stays at Meta's tuned defaults (A11).
+
+- **Partial accept.** VS Code's own Accept Word (Ctrl/Cmd+Right) and Accept
+  Line (no default key) work for every provider and do not ask the provider
+  again (V7). Tab adds no keys of its own; the README names both commands.
+  The cache keeps the unaccepted rest, so typing on serves it without a
+  request.
+- **Cost: opt in, loud and capped** (AGENTS rule 12, D30, D34, D48).
+  - **The paid feature `tab`** joins `PAID_FEATURES`. Its setting is
+    `museSpark.modelApiTab`: machine-scoped, default `false`. Its description
+    and its confirmation name the model's rates and the estimated cost per
+    hour of typing (research §7). The confirmation also says that Copilot, if
+    on, is yielded to.
+  - **A hard daily budget**, `museSpark.tabDailyBudgetUsd` (machine-scoped;
+    default $1.00 until Q-M94c is answered; from $0.05 to $50).
+    - It is kept for each local calendar day, across every window on the
+      machine, in a ledger of its own under the extension's global storage:
+      one file per window per day (`tab-spend/<date>/<window>.json`),
+      written atomically.
+    - Before every request, the window writes the request's worst case into
+      its file: input at one token per UTF-8 byte at the input price, plus
+      `max_output_tokens` at the output price (M82's estimate). The request is
+      sent only if that write succeeds and today's total across all files,
+      plus this worst case, stays within the budget. Reported usage then
+      replaces the reservation.
+    - A request that never reports usage keeps its whole reservation (M82). A
+      missing, corrupt or unreadable ledger refuses the request.
+    - At the budget, Tab stops for the day. The status bar says so in its
+      warning colour, and the next local day or a raised budget resumes it.
+  - **The model.** `museSpark.tabModel` is `muse-spark-1.3` (default:
+    Standard, Meta does not train on it) or `muse-spark-1.3-contributor`,
+    which the setting and the confirmation say is cheaper and that Meta trains
+    on the code it is sent (D4; Q-M94b).
+  - **The D48 popup, once per window, not per keystroke** (Q-M94a). A popup
+    before each request is impossible. The first request in a window asks
+    D48's question, naming Tab, the model's rates and today's budget:
+    - **Allow once** allows Tab in this window until it closes;
+    - **Allow always in this workspace** is D48's revocable grant;
+    - **Deny** snoozes Tab in this window.
+  - **Shown and counted.** The status bar shows today's spend, and Account &
+    usage gains a Tab row (requests, tokens, cached tokens, cost today and
+    this window, the budget). `PaidUsage` counts each request. Hooks never
+    answer the popup.
+- **When Tab runs.** All of these must hold:
+  - the feature is on and its price accepted;
+  - a key is stored, the workspace is trusted, and Tab is not snoozed;
+  - the document's scheme is `file`, inside a workspace folder;
+  - its language is on in `museSpark.tabLanguages`. This is machine-scoped,
+    shaped like Copilot's `github.copilot.enable` and has the same default
+    (V12): every language on except `plaintext`, `markdown` and `scminput`;
+  - Copilot is not yielded to (below);
+  - the budget allows the request;
+  - every file the request reads is eligible.
+- **Eligible files (privacy).** Tab reads a file, whether the current one or a
+  context one, only when it:
+  - is inside the trusted workspace;
+  - is not private (`isPrivateFileName`: `.env*`, keys, credential files) and
+    not protected (`isProtectedPath`, with M91's additions). Lane 0 widens
+    the one shared private list with the other leaders' entries (research
+    §4): `*.crt`, `*.cert`, `*.keystore`, `secrets.yml` and `.dev.vars`. The
+    attachments and the review use the same list, and they are tightened
+    with it (a CHANGELOG line);
+  - is not ignored by git (`git check-ignore`, cached per path and dropped
+    when an ignore file changes);
+  - is not matched by a workspace root's `.cursorignore` or `.continueignore`.
+    Cursor's and Continue's own autocomplete obey these files (research §4),
+    and a user who moves from either keeps them. They are checked by the
+    same git call, given `-c core.excludesFile=<file>` and `--no-index` so
+    that a tracked file is caught too;
+  - for both git checks: where git cannot answer (no git, or no repository)
+    and such an ignore file is present, no file there is read;
+  - is not matched by `files.exclude`;
+  - is no larger than `TAB_FILE_MAX_BYTES` (192 KiB);
+  - is allowed by `beforeTabFileRead`.
+
+  `museSpark.respectGitIgnore` belongs to mentions and does not loosen this.
+  Everything sent goes through `redactSecrets` first. Only the
+  workspace-relative path and the language id go with the text. **No
+  telemetry.** Tab logs counts, sizes, timings, statuses and the cache hit
+  rate, never code, a completion or a path.
+
+- **Copilot: yield by default.**
+  - Copilot is built into VS Code since 1.116, its provider asks with a 0 ms
+    delay, and on an Automatic trigger the first provider with an answer is
+    shown and the rest cancelled (V10, V12). With both on, Tab would be billed
+    for suggestions nobody sees.
+  - Whether Copilot actually holds a token cannot be seen (V13). So under
+    `museSpark.tabWithCopilot: "yield"` (the default), Tab sends no automatic
+    request for a language while all of these hold:
+    - `GitHub.copilot` or `GitHub.copilot-chat` is installed;
+    - `github.copilot.enable` is on for the language;
+    - `chat.disableAIFeatures` is not `true`.
+
+    Invoke still works, and VS Code merges both answers there (V10).
+
+  - The status bar says "Tab: on Invoke while Copilot is on". Its menu offers
+    **Turn off Copilot's suggestions for <language>**, which writes
+    `github.copilot.enable` in user settings after a confirmation, and
+    **Run both**, which sets `"both"`. Tab never changes another extension's
+    settings without that click.
+- **The status bar and the snooze.**
+  - One item while the feature is on, showing today's spend (`Tab $0.12`).
+    Its tooltip gives the model, the budget and today's requests.
+  - It names each state: on, snoozed (with the minutes left), budget reached,
+    no key, untrusted, the language off, on Invoke for Copilot, and the last
+    failure's class.
+  - Its menu: turn off, snooze (15 minutes, an hour, until restart),
+    languages, the multi-line mode, Account & usage.
+  - Snooze is also a command. A timed snooze applies to every window, kept
+    in global state with its end time; "until restart" applies to this
+    window.
+  - Its icon is a codicon, never `$(sparkle)` (the owner's branding rule).
+- **The two Cursor Tab hooks, M91's runner.**
+  - **Where they come from.** M91's `spark-hooks.json` (both scopes) lists
+    them under Cursor's names with Cursor's contract (research §5).
+    `format: cursor` handlers imported from `.cursor/hooks.json` run there
+    through M91's adapter. They are bound by M51 and D70's rules:
+    - a trusted workspace and `museSpark.modelApiHooks`;
+    - a scrubbed environment;
+    - `HOOK_STDIN_MAX_BYTES`, `HOOK_OUTPUT_MAX_BYTES` and
+      `HOOK_MAX_RUNNING_COMMANDS`;
+    - the process tree killed when it ends;
+    - no hook grants anything.
+  - **`beforeTabFileRead`** runs before Tab reads any file into a request.
+    - Its payload fields are `hook_event_name`, `file_path` (absolute),
+      `content`, `workspace_roots`, `model` and `generation_id` (the Tab
+      request's id). `content` is the file's full text, unredacted, as Cursor
+      sends it: the hook is the user's own code on the user's machine.
+    - A payload over `HOOK_STDIN_MAX_BYTES` refuses the read without running
+      the hook.
+    - The answer is `{"permission": "allow" | "deny"}`. `deny`, exit 2,
+      invalid JSON, an answer that fails the schema, a crash, a timeout, or no
+      answer all refuse the read; for Tab every failure fails closed, which
+      is stricter than Cursor's default and allowed by D70's "never weaker".
+    - Each hook's timeout is capped at `TAB_HOOK_TIMEOUT_MS` (1,500 ms), since
+      a suggestion waits for it.
+    - Answers are cached per path and content digest
+      (`TAB_HOOK_VERDICT_CACHE` entries). The cache is cleared when the hook
+      configuration changes, and a `deny` holds until then.
+    - A refused current file means no suggestion. A refused context file is
+      left out.
+  - **`afterTabFileEdit`** runs after an accepted Tab edit is in the
+    document.
+    - Its payload fields are `hook_event_name`, `file_path`,
+      `workspace_roots`, `model`, `generation_id` and `edits`. Each edit
+      carries `old_string`, `new_string`, `old_line`, `new_line` and a
+      `range` of `start_line_number`, `start_column`, `end_line_number` and
+      `end_column`.
+    - Lines and columns count from 1. Cursor does not say, and its example
+      reads as 1-based.
+    - The strings are capped at `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, with the
+      cut counted.
+    - A full accept is known exactly from the item's `command` (V8).
+    - A partial accept has no stable signal (V9). It is inferred when a single
+      change of at least two characters inserts the start of the item's
+      unaccepted rest at its position while the item is current. Such an edit
+      carries `"inferred": true`; Cursor's adapter drops the field.
+    - It is observation only: its output and exit code are logged, never
+      used. It never blocks the editor. At most `TAB_EDIT_HOOK_QUEUE`
+      (8) wait; past that the oldest is dropped and the drop logged.
+- **Activation (the lead's engineering call, recorded).**
+  - A provider must be registered in windows where the panel was never
+    opened, so `onStartupFinished` joins `activationEvents`. That makes the
+    extension start in every window, which M62 declined because `activate()`
+    reads SecretStorage at once.
+  - M94 therefore defers that read (`refreshKeyPresence`) to the first view,
+    panel, command or Tab request. A test proves that an activation with no
+    view or panel and Tab off reads no secret, starts no process and requires
+    no lazy bundle.
+  - The Tab bundle is required on the first request. This also starts Theia's
+    sidebar (M62's note).
+- **The bundle.** `dist/tab.js` is loaded on the first Tab request
+  (`tabEntry.ts`). Activation keeps a shim of no more than 4 KiB: the
+  provider registration, the status bar item, the commands and the setting
+  reads. It is handed the activation bundle's key client (which M57 keeps in
+  activation for M44) and its installed table, rather than carrying copies.
+  Its errors cross the bundle boundary, so the Tab bundle tells them apart by
+  name and fields through new `isModelApiError` and `isMissingApiKeyError`
+  guards beside the classes, never by `instanceof` (M57's rule and lint). Its D6 budget is the measured size plus 15%, rounded up
+  to 25 KiB. `check-bundle-split.mjs` gains a rule that keeps Tab's modules out
+  of `dist/extension.js`.
+- **Next edit suggestions wait.** No stable API offers an edit away from the
+  cursor. `isInlineEdit` and `showRange` are proposed only, the older
+  `inlineEdit` proposal was removed, and a stable item's range must stay on
+  one line (V16). A Marketplace extension cannot use a proposal (V17). They are
+  planned as M94b, which starts when a stable `vscode.d.ts` carries those
+  fields. Each VS Code release's notes are checked for it, and §3 holds it as
+  a watch item (Q-M94d).
+
 ## 3. Open questions (need the owner)
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
@@ -4244,6 +4560,24 @@ Decisions (the owner chose the reviewer on 2026-10-03):
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
+- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
+  use; Tab would ask on every keystroke pause. D73 asks once per window
+  instead: Allow once (this window until it closes), Allow always in this
+  workspace, or Deny (Tab snoozed in this window). Is that acceptable as Tab's
+  form of D48? **Default until answered: as D73 says.**
+- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
+  does not train on the code, and typing costs about $0.80 an hour (from $0.40
+  to $2.00; research §7). On the contributor model it costs about $0.05 an
+  hour, and Meta trains on every file window Tab sends. **Default until
+  answered: Standard; the contributor model is a setting the user chooses,
+  with the training said in the setting and the confirmation.**
+- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
+  minutes of typical typing on Standard, or a full working day and more on the
+  contributor model. **Default until answered: $1.00, from $0.05 to $50.**
+- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
+  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
+  V16 and V17). Each VS Code release's notes are read for it. When it lands,
+  M94b is planned against that release and the engine floor it needs.
 
 | #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -13289,6 +13623,339 @@ live) and the controller filters its id as well.
   - [x] Acceptance 1–6 with tests and drills (`docs/certification/m90.md`).
   - [x] Live check recorded with its call count.
   - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
+
+### M94 — Inline completions (Tab) (D73)
+
+**Status 2026-10-04: planned on `feature/m94-tab` from main `1e93c67c`.** The
+plan is D73, Q-M94a–d and this section; the research is
+`docs/certification/m94-research.md`. Implementation lanes start after the
+lead reviews the plan.
+
+- **Goal.** Ghost-text completions as the user types, in every language the
+  user enables, billed to the Model API key. Tab is off until the user turns
+  it on and accepts the price. It is capped by a hard daily budget, counted
+  in the status bar and in Account & usage, and never sends a private,
+  protected or ignored file. It never touches a conversation's cache or
+  history. Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run at
+  its two points.
+- **Depends on.** Main, for every lane except K. Lane K needs M91 (D70) on
+  main: its hook runner, `spark-hooks.json` and the Cursor format adapter.
+- **Scope.**
+  - D73's provider: the fast and multi-line modes, the debounce, the
+    typing-through cache, the filters and partial accept (VS Code's own).
+  - The paid feature `tab`: its confirmation, the once-per-window D48
+    question, the daily ledger, the status bar, the snooze and the Account &
+    usage row.
+  - The language list, the Copilot yield and the two hook points.
+  - The activation change (`onStartupFinished` with the secret read
+    deferred) and the lazy `dist/tab.js`.
+  - Strings in all 14 tables.
+  - README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan and
+    `docs/certification/m94.md`.
+  - **Not here:** next edit suggestions (M94b, which waits for a stable API;
+    Q-M94d) and a local or self-hosted model (Muse Glimmer, research A13; a
+    product question for later, not part of this milestone).
+- **Settings** (all machine-scoped, so a workspace's settings cannot change
+  what Tab spends):
+  - `museSpark.modelApiTab` (boolean, default `false`; paid);
+  - `museSpark.tabModel` (`muse-spark-1.3` | `muse-spark-1.3-contributor`);
+  - `museSpark.tabDailyBudgetUsd` (number, $1.00, from $0.05 to $50);
+  - `museSpark.tabLanguages` (object, Copilot's default shape);
+  - `museSpark.tabMultiline` (`auto` | `onInvoke` | `never`);
+  - `museSpark.tabTrigger` (`automatic` | `onInvoke`; the default is set by
+    the probe, step 1);
+  - `museSpark.tabWithCopilot` (`yield` | `both`, default `yield`).
+- **Commands:** Turn Tab On, Turn Tab Off, Snooze Tab, Tab Menu (the status
+  bar's), Tab Languages.
+- **Lanes and file ownership.** One integration branch, `feature/m94-tab`.
+  - Lane 0 and lane P go first, in parallel; P touches no source.
+  - Then C, L, H and U run in parallel. K follows once M91 is on main, and W
+    comes last.
+  - Region-owned shared files follow M87's lane rules: constants, styles,
+    harness, `extension.ts`, `protocol.ts`.
+
+| Lane                    | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings and constants | `src/shared/l10n/en.ts` and the 14 `l10n/ui.*.json`; `package.nls*.json` (the settings and commands); the Tab region of `src/shared/constants.ts` (`TAB_*`, `TAB_MODEL_TEXT`, `TAB_PROMPT_CACHE_KEY_PREFIX`, `tab` in `PAID_FEATURES` and `PAID_FEATURE_SETTINGS`, the defaults); the five new private entries in `PRIVATE_ATTACHMENT_NAMES`/`PRIVATE_ATTACHMENT_EXTENSIONS`, with `privateFiles` tests; `src/shared/paid.ts` (the tally's Tab fields)                                                                                                                                                    |
+| P Probe                 | `test/e2e/tab.live.e2e.test.ts` (opt-in, bills the key, contributor model) and the probe section of `docs/certification/m94.md`; no source file                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| C Core                  | the new `src/core/tab/`: `tabContext.ts` (windows, the anchor, snippet order), `tabRequest.ts` (the body and the cache key), `tabReply.ts` (the tags and the filters), `tabCache.ts` (typing through, open-request reuse), `tabScheduler.ts` (debounce, in-flight and per-minute caps, never abort), `tabSpend.ts` (worst case, settlement, the local day); `isModelApiError` and `isMissingApiKeyError` in `src/core/backends/modelapi/client.ts`; in `schemas.ts`, `CreateResponseBody`'s `reasoning.summary` made optional (types only), since Tab asks for no reasoning summary; tests `tab*.test.ts` |
+| L Ledger and paid       | the new `src/host/tab/tabLedger.ts` (one file per window per day, atomic writes, the cross-window total); the `tab` cases of `src/core/paid/paidFeatures.ts` (`PaidUsage`) and `paidConsent.ts` (the window-scoped Allow once); the Tab wording region of `src/host/paid/paidHost.ts`; tests                                                                                                                                                                                                                                                                                                              |
+| H Host                  | the new `src/host/tab/`: `tabProvider.ts` (the provider, eligibility, the `git check-ignore` cache, the Copilot yield, the accept command, the inferred partial accept), `tabStatus.ts` (the status bar, its menu, the snooze), `tabEntry.ts` (the `dist/tab.js` entry) and `tabBundle.ts` (types-only interface and loader); the Tab region of `src/extension.ts` (the shim, and `refreshKeyPresence` deferred); tests, and `test/integration/tab.test.ts` with a local fake Model API                                                                                                                   |
+| K Hook points           | the new `src/core/tab/tabHooks.ts` (the two payloads, the verdict cache, fail-closed mapping, the edit queue); one region each in M91's `EXTENSION_HOOK_EVENTS` and Cursor adapter (`src/core/backends/modelapi/hookFormats.ts`) for the two events; tests                                                                                                                                                                                                                                                                                                                                                |
+| U Usage UI              | the Tab row of the Account & usage dialog (`src/webview/components/UsageDialog.tsx`), reading the tally fields lane 0 adds to `paidStateSchema` (`src/shared/paid.ts`); harness shots in both themes; the accessibility gate                                                                                                                                                                                                                                                                                                                                                                              |
+| W Wiring                | `package.json` (settings, commands, the Alt+\ binding of `editor.action.inlineSuggest.trigger` under `museSpark.tabOn`, `onStartupFinished`); `scripts/build.mjs` (`dist/tab.js` in production, dev and watch); `scripts/check-bundle-size.mjs`, `scripts/check-bundle-split.mjs` (Tab's modules never in `dist/extension.js`); `.vscodeignore`, `knip.jsonc`, the dpdm entry; the host-API record; README, PRIVACY, CHANGELOG, AGENTS.md (layout and rule 12), CONTRIBUTING, PLAN, `docs/certification/m94.md`; the full gate                                                                            |
+
+- **Steps.**
+  1. **The probe (lane P), before any constant is tuned.**
+     - **Where and with what.** `muse-spark-1.3-contributor` (the owner's
+       live-test rule), in the empty workspace `C:\muse-live-ws`, on generated
+       throwaway files, through the real key client.
+     - **What runs.** 20 fast-shaped requests (10 pairs, the second of each
+       typed three characters on from the first, sharing the prefix) and 10
+       multi-line-shaped ones. They have D73's shape, with no reasoning
+       summary. The probe's instructions are the first draft of
+       `TAB_MODEL_TEXT`, and lane C starts from them.
+     - **Expected model calls: 30.** They are counted afterwards from the
+       client's trace lines and from `usage`. Retries are counted apart.
+     - **Recorded per request:** time to the first `output_text` delta,
+       total time, input, cached, output and reasoning tokens, the status, and
+       whether the reply stayed inside the tags.
+     - **What it sets** (from the medians and the 95th percentiles):
+       `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS` and
+       `TAB_MULTILINE_MAX_OUTPUT_TOKENS` (the p99 reasoning plus the mode's
+       completion allowance), and `TAB_REQUEST_TIMEOUT_MS`. It also replaces
+       research §7's estimate with measured cost per request and the cache hit
+       rate (U1–U3).
+     - **The latency gate.** If the median time to the first text of a fast
+       request is over `TAB_AUTOMATIC_LATENCY_CEILING_MS` (1,500 ms),
+       `museSpark.tabTrigger` defaults to `onInvoke` and the README says why.
+       Otherwise it defaults to `automatic`.
+     - **A gap.** Standard-tier latency is not measured (the owner's rule is
+       the contributor model), so the record says it is assumed equal.
+  2. **Lane 0:** every string and constant above, in all 14 tables.
+  3. **Lane C:** the pure core, against fakes; no `vscode` import (AGENTS
+     layout).
+  4. **Lane L:** the ledger, the `tab` paid feature, the once-per-window
+     question and the tally.
+  5. **Lane H:** the provider, eligibility, the Copilot yield, the status bar
+     and snooze, the shim, the deferred secret read, and the lazy bundle with
+     its loader. Then the integration test against a local fake Model API, at
+     the 1.99 floor and at stable.
+  6. **Lane U:** the Account & usage row.
+  7. **Lane K (after M91 merges):** the two hook points. Their fixtures come
+     from real hook scripts run on the rigs (a POSIX shell script and a
+     PowerShell one, each allowing, denying and crashing), not from a guess
+     (AGENTS rule 13: the contract is Cursor's page, the fixtures are the
+     scripts' real output).
+  8. **Lane W:** the wiring, the docs and the full gate.
+  9. **The live check (end).** In `C:\muse-live-ws` on the contributor
+     model, with Tab on:
+     - type a short throwaway function: about 10 requests are expected. The
+       count is checked against the ledger and the trace log, and the
+       ledger's cost against the reported usage;
+     - then with a `beforeTabFileRead` script that denies: 0 requests;
+     - then with an `afterTabFileEdit` script that writes a marker on an
+       accept, accepted once in full and once by word: 0 additional requests
+       beyond the accepted suggestions.
+
+     State the expected count before running. Record what was spent.
+- **Acceptance.**
+  1. **Off by default.** With the setting off, no request is sent, no lazy
+     bundle loads and nothing reaches the network. Turning it on shows the
+     price confirmation; declining leaves it off.
+  2. **No key.** No request, the status bar says "no key", and Tab never
+     prompts for a key. On Muse Code with no key, nothing is offered.
+  3. **Where it stays quiet.** No request in an untrusted workspace, for a
+     scheme other than `file`, for a file outside the workspace folders, in a
+     language turned off, while snoozed, or while the suggest widget has a
+     selection.
+  4. **Files it never reads.** Tab never reads a file, as the current file or
+     as context, if it is:
+     - private (including the five new entries) or protected;
+     - git-ignored, or `.cursorignore`d or `.continueignore`d (tracked or
+       not);
+     - `files.exclude`d;
+     - oversize.
+
+     Where git cannot answer and an ignore file is present, nothing in that
+     folder is read.
+
+  5. **Secrets.** Every byte sent has passed `redactSecrets`, and a secret in
+     the window reaches the fake server only as the mark. A reply holding a
+     secret or the mark is dropped.
+  6. **The request.** Its own `TAB_PROMPT_CACHE_KEY_PREFIX` key, never equal
+     to a conversation's. No `previous_response_id`, `store: false`, no tools,
+     `minimal` effort and the mode's `max_output_tokens`. Two consecutive
+     requests while typing forward are byte-identical up to the earlier
+     cursor.
+  7. **Debounce and never abort.** Keystrokes inside the debounce send
+     nothing, and a token cancelled before sending sends nothing. A token
+     cancelled after sending leaves the request running, and its answer
+     reaches the cache and its usage the ledger.
+  8. **Typing through and partial accept.** After a suggestion, typing its
+     first characters shows the rest with no request. After VS Code's Accept
+     Word, the rest is served from the cache.
+  9. **Caps.** At most 2 open requests. The 21st trigger in a minute sends
+     nothing.
+  10. **The daily budget.**
+      - A request whose worst case would pass the budget is not sent.
+      - Two windows, two ledger writers on one folder, never pass it together.
+      - An open reservation survives a crash.
+      - Reported usage replaces the reservation.
+      - A corrupt or unreadable ledger refuses the request.
+      - The local day's change starts a new total.
+  11. **The question.** The first request in a window asks. Allow once covers
+      that window. Always persists for the workspace and is voided by a price
+      change (D48). Deny snoozes the window. No hook answers it.
+  12. **Filters.** Each refusal has its own case: empty, outside the tags, a
+      repeat of the suffix, of the line above or of the next line below,
+      three identical lines, unbalanced in fast mode, and a secret. Each
+      cut has its own case too: fences and lead-ins stripped, the first blank
+      line, and the line and character limits.
+  13. **Modes.**
+      - Fast or multi-line is chosen by D73's rules, and Invoke is always
+        multi-line.
+      - `tabMultiline` `never` and `onInvoke` and `tabTrigger` `onInvoke` are
+        obeyed.
+      - Invoke returns one item.
+  14. **Copilot.** With a Copilot extension installed, `github.copilot.enable`
+      on for the language and AI features not turned off, no automatic
+      request is sent and Invoke still works. **Run both** and **Turn off
+      Copilot's suggestions** act only when clicked, the latter only after its
+      confirmation.
+  15. **Status bar and snooze.** Each state of D73 shows. The spend shown
+      equals the ledger's total for the day across windows. A 15-minute snooze
+      ends on time in every window.
+  16. **Account & usage.** The Tab row shows requests, tokens, cached tokens,
+      cost today and in this window, and the budget, in both themes and at
+      the accessibility gate.
+  17. **Hooks.**
+      - Each refusal refuses the read: `beforeTabFileRead` `deny`, exit 2,
+        invalid JSON, a schema mismatch, a crash, a timeout, and an oversize
+        payload (which is never run). `allow` reads.
+      - Verdicts are cached and cleared on a configuration change.
+      - `afterTabFileEdit` gets D73's payload on a full accept, gets it with
+        `inferred: true` on an Accept Word, and never runs on typing. Its
+        queue bound holds.
+  18. **Activation.** With Tab off and no view or panel, activation reads no
+      secret, starts no process and requires no lazy bundle. With Tab on,
+      `dist/tab.js` is required on the first request only.
+  19. **Size.** `dist/tab.js` fits its budget. `dist/extension.js` grows by no
+      more than 4 KiB and stays within 600. The split gate and the VSIX
+      budget pass.
+  20. **Logs.** No code, completion or path appears in any log line at any
+      level.
+- **Tests** (each can fail; each has a red drill recorded in
+  `docs/certification/m94.md`).
+  - **Unit, lane C:**
+    - `tabContext`: drill, remove the anchor; the prefix-identity case fails.
+    - `tabRequest`: drill, reuse a chat cache key or add
+      `previous_response_id`; the request-shape cases fail.
+    - `tabReply`: drill, drop each filter in turn; its own case fails.
+    - `tabCache`: drill, skip the prefix check; a stale suggestion is served
+      and the case fails.
+    - `tabScheduler`: drill, abort on cancel; the "never aborts" case fails.
+      Drill, lift the per-minute cap; the cap case fails.
+    - `tabSpend`: drill, reserve after the fetch; the ordering case fails.
+  - **Unit, lane L:**
+    - the ledger: drills, a two-writer race on a real temporary folder, a
+      corrupt file accepted, and a missed day boundary;
+    - the consent: drills, a question on every request, and Allow once kept
+      past the window.
+  - **Unit, lane H:**
+    - eligibility: drill, remove each exclusion; its case fails;
+    - redaction: drill, skip `redactSecrets`; the fake server sees the
+      secret and the case fails;
+    - the Copilot yield: drill, ignore `github.copilot.enable`;
+    - activation: drill, restore the eager `refreshKeyPresence`; the
+      no-secret-at-startup case fails;
+    - logs: drill, log the completion; the log scan fails.
+  - **Unit, lane K:** drills, timeout fails open, the verdict survives a
+    configuration change, and `afterTabFileEdit` fires on typing.
+  - **Integration** (`test/integration/tab.test.ts`, at the 1.99 floor and at
+    stable):
+    - the provider is built from the dev build's `dist/tab.js` against a
+      local fake Model API;
+    - `editor.action.inlineSuggest.trigger` then
+      `editor.action.inlineSuggest.commit` changes the document, and the
+      item's `command` runs a fixture `afterTabFileEdit`;
+    - `editor.action.inlineSuggest.acceptNextWord` inserts one word and the
+      inference fires.
+  - **Live (opt-in):** the probe (step 1) and the live check (step 9), with
+    their call counts.
+- **Gates.** The full quality gate. `check:l10n`. `check:host-api`, whose new
+  entries are the inline-completion API, the status bar and
+  `extensions.getExtension`. The bundle-size and bundle-split gates, with
+  `dist/tab.js`'s budget and its split rule. The VSIX size gate. The
+  accessibility gate for the usage row. Secrets and SAST. Every new gate and
+  rule is broken once on purpose (drills above).
+- **Security and privacy.**
+  - What may be read: D73's eligibility, enforced at each read (the current
+    file and every context file), not once per request.
+  - What leaves the machine: `redactSecrets` on everything sent, and only the
+    workspace-relative path and language id beside the text.
+  - Logging: no telemetry; the log scan test (acceptance 20).
+  - The key: read per request from SecretStorage by the existing client, and
+    never handed to a hook or child process (AGENTS rule 8). Hook
+    environments are scrubbed as in M51.
+  - Hooks: a `beforeTabFileRead` hook sees the file's full text because it
+    is the user's own code on the user's machine. PRIVACY says so.
+  - Copilot: Tab never writes another extension's setting without the
+    user's click and confirmation.
+  - Workspace settings cannot widen what Tab does: every Tab setting is
+    machine-scoped.
+  - **Residuals, recorded.**
+    - An inferred partial accept could also match a paste of the same text at
+      the same place. The edit is marked `inferred`, and the hook observes
+      only.
+    - The Copilot yield cannot see whether Copilot is signed in (V13), so a
+      signed-out Copilot still makes Tab wait for Invoke. The status bar says
+      so, and **Run both** is one click.
+    - A request whose answer the user typed past is still billed, because it
+      is never aborted. It is counted, and the cache often uses it.
+- **Cost controls.**
+  - The setting is off by default, and turning it on shows the price.
+  - The D48 question comes once per window (Q-M94a).
+  - The model choice says which tier trains on the code (Q-M94b).
+  - The hard daily budget is reserved before every request across windows
+    (Q-M94c).
+  - At most 2 requests are open, and at most 20 start per minute.
+  - A sent request is never aborted, so its usage is always counted.
+  - The typing-through cache, and yielding to Copilot, avoid requests whose
+    answer nobody would see.
+  - Today's spend is in the status bar, and the Tab row in Account & usage.
+  - The subscription never pays for Tab.
+- **The two hook points.**
+
+| Hook                | When                                                                                                                                  | Payload (stdin)                                                                                                                                                                                                          | Answer                                             | Bounds                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `beforeTabFileRead` | Before Tab reads any file into a request (the current file each request, each context file); matcher `TabRead`                        | `hook_event_name`, `file_path` (absolute), `content` (the full text, unredacted), `workspace_roots`, `model`, `generation_id` (the Tab request's id)                                                                     | `{"permission": "allow" \| "deny"}`; exit 2 = deny | Stdin ≤ `HOOK_STDIN_MAX_BYTES` (a larger payload refuses the read, unrun); timeout ≤ `TAB_HOOK_TIMEOUT_MS` (1,500 ms); every failure refuses; verdicts cached per path and content digest; M51's caps |
+| `afterTabFileEdit`  | After an accepted Tab edit is in the document: a full accept (the item's `command`) or an inferred partial accept; matcher `TabWrite` | `hook_event_name`, `file_path`, `edits[]` with `old_string`, `new_string`, `range` (1-based lines and columns), `old_line`, `new_line` and, when inferred, `inferred: true`; `workspace_roots`, `model`, `generation_id` | None; output and exit code logged only             | Strings ≤ `HOOK_TOOL_VALUE_PREVIEW_CHARS` each, the cut counted; never blocks the editor; queue ≤ `TAB_EDIT_HOOK_QUEUE` (8), the oldest dropped and logged; M51's caps                                |
+
+- **Docs.**
+  - **README.** A Tab section covering turning it on, the price and the
+    estimate, the budget, languages, snooze, the multi-line and trigger
+    settings, partial accept with VS Code's Accept Word (Ctrl/Cmd+Right) and
+    Accept Line (bind it yourself), and Copilot. Also the hooks.
+  - **PRIVACY.** What Tab sends to Meta and under which tier; contributor
+    training; that hooks see the full file locally; no telemetry; the
+    ledger's files.
+  - **CHANGELOG.** Under `[Unreleased]`.
+  - **AGENTS.md.** The layout (`src/core/tab`, `src/host/tab`, `dist/tab.js`)
+    and rule 12's once-per-window form for Tab.
+  - **CONTRIBUTING.** The probe and the live check.
+  - **This plan, and `docs/certification/m94.md`.** The drills, the probe's
+    receipts, the live counts and the bundle sizes.
+- **Owner steps.** None are needed to build it. Q-M94a–c have defaults until
+  he answers. The probe and the live check use the existing DPAPI test key on
+  the contributor model under his live-spend rule, so no credential is minted.
+- **Certification checklist.**
+  - [ ] The probe recorded, with its call count; the constants and §7 of the
+        research updated from it.
+  - [ ] Acceptance 1–20, each with its test and drill
+        (`docs/certification/m94.md`).
+  - [ ] The integration test at the 1.99 floor and at stable.
+  - [ ] The live check recorded, with its call count and spend.
+  - [ ] Bundle sizes measured and within budget.
+  - [ ] README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING and this record
+        updated.
+
+### M94b — Next edit suggestions (D73; waits)
+
+**Status 2026-10-04: waiting for a stable API (Q-M94d).** Edits away from the
+cursor, which Copilot's NES and Cursor's Tab jumps offer, need
+`isInlineEdit`/`showRange` or an equivalent in a stable `vscode.d.ts`. Today
+they are only in the `inlineCompletionsAdditions` proposal. A Marketplace
+extension cannot ship a proposal, and a stable item's range must stay on one
+line (research V16 and V17). When a VS Code release makes them stable, this
+milestone is planned against it:
+
+- the engine floor it needs;
+- the edit-history context it sends, through the same eligibility,
+  redaction, budget and hooks as M94;
+- a separate mode with its own price line.
+
+Until then nothing is built for it.
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 
