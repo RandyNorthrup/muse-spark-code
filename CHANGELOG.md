@@ -210,9 +210,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- The composer is centered with a maximum width (the owner's request of
-  2026-10-04): the message box and the approval dock cap at 760 px and align,
-  while narrow panels keep the full-width layout.
+- **The chat is one centered column** (the owner's requests of 2026-10-04).
+  The transcript (queued messages and the working line included), the goal,
+  task and schedule panes, the approval dock and the composer share one
+  column, at most 760 px wide with its side gutters, so their edges line up
+  at every width. A wide panel centers the column, and the transcript's
+  scrollbar no longer shifts it. Narrow panels keep the full width.
+- **Approval buttons.** "Always allow …" and "Allow once" are now the same
+  height (28 px), one line each, and the fill alone tells approving from
+  rejecting. A label longer than the card ends in an ellipsis, with the full
+  text in its tooltip. In a narrow card the choices stack, each one as wide
+  as the card.
+- **The model pill is shorter.** Its fill is 20 px tall instead of 26 px, the
+  same height as the open-file chip, inside the same 26 px click target.
+- **Narrow panels.** The composer's controls stay on one row at one height:
+  the icon buttons are square, the mode button shows only its icon, and the
+  model pill shortens. An open-file chip that no longer fits moves to its
+  own row below the controls, instead of the controls splitting into two
+  offset rows.
 - Highlighted-text actions now open as themed round bubbles, with an inward
   fan that fits a 320 px panel, visible focus/hover labels, arrow and Home/End
   navigation, and focus return. Copy, Ask about this and Comment on this keep

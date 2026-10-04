@@ -1118,6 +1118,224 @@
           document.querySelectorAll('.tool-header')[1]?.click()
         })
       }
+      // M87 (the owner's requests of 2026-10-04): the chat column. A reply,
+      // a queued steer, the working line, the docked approval card and the
+      // composer with an open file. The column scenarios play it and then
+      // measure the layout (columnGeometry, below).
+      const columnFixture = () => {
+        window.harnessSilent = true
+        send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+        send({
+          type: 'editorContext',
+          context: {
+            relativePath: 'src/webview/App.tsx',
+            startLine: 1,
+            endLine: 1,
+            isEmpty: true,
+          },
+        })
+        event({
+          type: 'contextUsage',
+          usedTokens: 420_000,
+          windowTokens: 1_000_000,
+          pressure: 'normal',
+        })
+        setDraft('Start the refactor')
+        key({ key: 'Enter' })
+        event({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'col-reply',
+            kind: 'agentMessage',
+            status: 'completed',
+            text: 'Reading the parser first, then the call sites.',
+          },
+        })
+        send({
+          type: 'briefSubmitted',
+          localId: 'steer-1',
+          text: 'Keep the old names',
+          attachments: [],
+        })
+        send({
+          type: 'turnAccepted',
+          localId: 'steer-1',
+          turnId: 't1',
+          userMessageId: 'u-steer-1',
+          disposition: 'steered',
+        })
+        event({
+          type: 'itemStarted',
+          item: {
+            itemId: 'col-sh',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'powershell',
+            args: '{"command":"Set-Content -Path x -Value outside"}',
+          },
+        })
+        event({
+          type: 'approvalRequested',
+          approvalId: 'col-a',
+          itemId: 'col-sh',
+          toolName: 'powershell',
+          rawArgs: '{"command":"Set-Content -Path x -Value outside"}',
+          requirementId: { approvalId: 'col-a', sourceIndex: 0 },
+          subject: { kind: 'shell', command: 'Set-Content -Path x -Value outside' },
+          availableChoices: [
+            { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+            {
+              choiceId: 'allow_local_prefix',
+              label: 'Always allow in this workspace: Set-Content ...',
+              decision: 'approvedPolicyAmendment',
+              scope: 'localPersistent',
+              rulePreview: 'Always allow in this workspace: Set-Content ...',
+            },
+            {
+              choiceId: 'abort',
+              label: 'Reject',
+              decision: 'abort',
+              scope: 'once',
+              acceptsFeedback: true,
+            },
+          ],
+          isJudgeEscalated: false,
+          isProtectedWrite: false,
+        })
+      }
+      const COLUMN_NARROW_PX = 320
+      const COLUMN_WIDE_PX = 1400
+      // Sub-pixel layout rounding.
+      const EDGE_TOLERANCE_PX = 0.5
+      // The column's geometry, measured once the fixture has drawn. A miss
+      // throws, naming each part and its numbers, which fails the
+      // accessibility gate (a11y.mjs) and shows on the screenshot. The
+      // tokens are read from the stylesheet, so a value changed there moves
+      // the check with it; one that is gone fails it.
+      const columnGeometry = () => {
+        const root = getComputedStyle(document.documentElement)
+        const token = (name) => {
+          const value = Number.parseFloat(root.getPropertyValue(name))
+          if (!Number.isFinite(value)) {
+            throw new Error(`column geometry: ${name} is not set`)
+          }
+          return value
+        }
+        const element = (selector) => {
+          const found = document.querySelector(selector)
+          if (found === null) {
+            throw new Error(`column geometry: never rendered: ${selector}`)
+          }
+          return found
+        }
+        const near = (a, b) => Math.abs(a - b) <= EDGE_TOLERANCE_PX
+        const round = (value) => String(Math.round(value * 10) / 10)
+        const centre = (rect) => rect.top + rect.height / 2
+        // The end of a scroller's content: its scrollbar, when it shows one,
+        // takes room there and nowhere else.
+        const contentEnd = (scroller) =>
+          scroller.getBoundingClientRect().left +
+          scroller.clientWidth -
+          Number.parseFloat(getComputedStyle(scroller).paddingRight)
+        const misses = []
+        // One column: each part has the composer box's start edge, and its
+        // end edge unless its scroller's scrollbar takes that room.
+        const composer = element('.composer').getBoundingClientRect()
+        for (const [selector, scroller] of [
+          ['.transcript', '.body'],
+          ['.message-queued', '.body'],
+          ['.status-line', '.body'],
+          ['.approval', '.approval-dock'],
+        ]) {
+          const part = element(selector).getBoundingClientRect()
+          const end = Math.min(composer.right, contentEnd(element(scroller)))
+          if (!near(part.left, composer.left) || !near(part.right, end)) {
+            misses.push(
+              `${selector} spans ${round(part.left)}–${round(part.right)}, not ${round(composer.left)}–${round(end)}`,
+            )
+          }
+        }
+        // Capped and centred: the column, its gutters included, is at most
+        // --ms-column-max-width wide, in the middle of the panel.
+        const gap = token('--ms-gap')
+        const panel = element('.app').getBoundingClientRect().width
+        const column = Math.min(panel, token('--ms-column-max-width'))
+        const left = (panel - column) / 2 + gap
+        if (!near(composer.width, column - 2 * gap) || !near(composer.left, left)) {
+          misses.push(
+            `the composer is ${round(composer.width)} px wide at ${round(composer.left)}, not ${round(column - 2 * gap)} at ${round(left)}`,
+          )
+        }
+        // The approval choices: one height, one line of text each, and every
+        // row of them starting at the same edge.
+        const buttonHeight = token('--ms-button-height')
+        const choices = [...document.querySelectorAll('.approval-choices > button')]
+        const rowStart = choices[0].getBoundingClientRect().left
+        for (const choice of choices) {
+          const rect = choice.getBoundingClientRect()
+          const text = document.createRange()
+          text.selectNodeContents(choice)
+          const lines = new Set([...text.getClientRects()].map((line) => Math.round(line.top)))
+          const isRowStart =
+            choice === choices[0] ||
+            rect.top > choice.previousElementSibling.getBoundingClientRect().top
+          if (!near(rect.height, buttonHeight) || lines.size !== 1) {
+            misses.push(
+              `the choice "${choice.textContent}" is ${round(rect.height)} px tall on ${String(lines.size)} lines, not ${round(buttonHeight)} on 1`,
+            )
+          }
+          if (isRowStart && !near(rect.left, rowStart)) {
+            misses.push(
+              `the choice "${choice.textContent}" starts a row at ${round(rect.left)}, not ${round(rowStart)}`,
+            )
+          }
+        }
+        // The composer's controls: one height on one centre line.
+        const controlSize = token('--ms-control-size')
+        const controls = [
+          ...document.querySelectorAll('.composer-toolbar button:not(.chip-remove)'),
+        ]
+        const line = centre(controls[0].getBoundingClientRect())
+        for (const control of controls) {
+          const rect = control.getBoundingClientRect()
+          if (!near(rect.height, controlSize) || !near(centre(rect), line)) {
+            misses.push(
+              `the control "${control.getAttribute('aria-label')}" is ${round(rect.height)} px tall centred at ${round(centre(rect))}, not ${round(controlSize)} at ${round(line)}`,
+            )
+          }
+        }
+        // The model pill's fill and the open-file chip: the chips' height.
+        const chipHeight = token('--ms-chip-height')
+        const pill = element('.pill')
+        const pillStyle = getComputedStyle(pill)
+        const fill =
+          pill.getBoundingClientRect().height -
+          Number.parseFloat(pillStyle.borderTopWidth) -
+          Number.parseFloat(pillStyle.borderBottomWidth)
+        const chip = element('.editor-chip').getBoundingClientRect()
+        if (!near(fill, chipHeight) || !near(chip.height, chipHeight)) {
+          misses.push(
+            `the pill's fill is ${round(fill)} px and the chip ${round(chip.height)} px, not ${round(chipHeight)}`,
+          )
+        }
+        if (misses.length > 0) {
+          throw new Error(`column geometry at ${String(panel)} px: ${misses.join('; ')}`)
+        }
+        document.body.dataset.columnChecked = 'true'
+      }
+      // Plays the fixture at the viewport width the runner gave (the scenario
+      // names it), the page as wide as the viewport, then measures it.
+      const columnScenario = (width) => {
+        if (width !== undefined) {
+          if (window.innerWidth !== width) {
+            throw new Error(`this scenario requires a ${String(width)} px viewport`)
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+        }
+        columnFixture()
+        whenFound('.approval-choices > button', () => later(SETTLE_MS, columnGeometry))
+      }
       const steps = {
         empty: () => {},
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a
@@ -1692,6 +1910,37 @@
             disposition: 'steered',
           })
           whenFound('[data-entry-id="steer-1"] .row-actions-button', (button) => button.click())
+        },
+        // The chat column at the panel width the runner gives (690 px), at
+        // 320 px and at 1400 px (SIZED_SCENARIOS in scripts/lib/harnessServer.mjs).
+        column: () => {
+          columnScenario()
+        },
+        'column-narrow': () => {
+          columnScenario(COLUMN_NARROW_PX)
+        },
+        // A transcript long enough to scroll, with the 10 px scrollbar VS
+        // Code's webviews draw (the runner keeps scrollbars for this one), so
+        // the check sees that it moves nothing.
+        'column-wide': () => {
+          const scrollbar = document.createElement('style')
+          scrollbar.textContent = [
+            '::-webkit-scrollbar { width: 10px; height: 10px; }',
+            '::-webkit-scrollbar-thumb { background-color: var(--vscode-scrollbarSlider-background, rgb(121 121 121 / 40%)); }',
+          ].join('\n')
+          document.head.append(scrollbar)
+          columnScenario(COLUMN_WIDE_PX)
+          for (const index of [1, 2, 3, 4, 5, 6]) {
+            event({
+              type: 'itemCompleted',
+              item: {
+                itemId: `col-step-${String(index)}`,
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'Another step of the refactor, so that the transcript scrolls.',
+              },
+            })
+          }
         },
         'add-context': () => {
           click('Attach')

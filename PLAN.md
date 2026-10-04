@@ -3785,12 +3785,65 @@ choices:
   - **Reduced motion and forced colours:** under `prefers-reduced-motion` the
     bubbles appear in place without the burst or the goo; under
     `forced-colors` the filter is off and the bubbles are bordered buttons.
-- **Centered composer (the owner's request of 2026-10-04).** The composer is
-  centered with a maximum width: the composer area and the approval dock cap
-  at `--ms-composer-max-width` (760 px; the transcript has no reading width of
-  its own) and center with `margin-inline: auto`, so the box, its banners,
-  chips and menus, the floating palette and popovers, and the dock stay
-  aligned. Narrow panels keep the full-width layout and side gutters.
+- **The chat column (the owner's requests of 2026-10-04).** His four
+  requests, word for word, then what was built.
+  - **"The chat control stuff box should be centered in the chat not
+    stretched to fill."** The chat is one shared column, as in Claude Code's
+    panel. The transcript (queued cards, the working line and the row menus
+    with it), the diff tally's text, the goal, task and schedule panes, the
+    approval dock and the composer all sit in it.
+    - **Width.** `--ms-column-max-width` is 760 px, side gutters included,
+      so the composer box is 744 px wide at most. The column is centered in a
+      wider panel; a narrower one keeps the full width.
+    - **The inset is measured on the panel.** `--ms-column-inset` is
+      `max(0px, (100vw − 760px) / 2)`: the webview's viewport is the panel.
+      The transcript's scroller is not used, so its scrollbar (10 px in VS
+      Code's webviews) does not move the transcript off the composer's edges.
+      The transcript keeps a fixed start inset and caps its width; the
+      scrollbar takes its room from the slack at the end.
+    - **First cut.** Commit `33acd064` centered only the composer and the
+      dock. Codex's review found the rows still spanning 1384 px at 1400 px
+      (P2), and tests that read only the declaration text (P3).
+  - **"The always allow button wraps weird and is too big in contrast to
+    the allow once button."** Every approval choice is now one line at
+    `--ms-button-height` (28 px). The fill alone tells approving from
+    rejecting: `button-primary` against `button-secondary`.
+    - A row too short for the next choice moves that choice whole onto the
+      next row. A label longer than the card ellipsizes, and the button's
+      `title` holds the full text (`rulePreview`, else the label).
+    - In a card narrower than 340 px (a 320 px panel) the choices stack,
+      each as wide as the card.
+    - The order and the keys are unchanged.
+  - **"The pill spacing around the model on the top and bottom is too large
+    and makes the pill too tall."** The pill's fill is now
+    `--ms-chip-height` (20 px, the open-file chip's height) instead of 26 px.
+    - It is painted inside transparent 3 px block borders
+      (`background-clip: padding-box`), so the target stays a whole
+      `--ms-control-size` control (26 px, over WCAG 2.5.8's 24 px).
+    - Under forced colours those borders are painted, so the pill goes back
+      to 1 px.
+  - **"The buttons and stuff in the mobile view look weird the buttons and
+    stuff looks staggered and stacked."** In a composer narrower than 340 px,
+    every control stays on one row, at one height on one centre line.
+    - The icon buttons are square, the mode button shows only its icon, and
+      the pill takes the room that is left, down to `--ms-pill-min-width`.
+    - An open-file or reference chip that no longer fits moves to a row of
+      its own below the controls, at the start.
+    - Only a composer too narrow for Attach, Commands, the shortest pill and
+      the right group (under about 207 px) puts the right group on a second
+      row.
+  - **Checked in a browser.** `columnGeometry` in the harness runs in the
+    `column`, `column-narrow` (320 px) and `column-wide` scenarios. The
+    `column-wide` scenario is 1400 px wide, with a scrollbar and a
+    transcript long enough to scroll. The check measures:
+    - the shared edges;
+    - the cap and the centering;
+    - each choice: its height, its single line, and where its row starts;
+    - each control's height and centre line;
+    - the pill's fill and the chip's height.
+
+    A miss throws, which fails the accessibility gate.
+    `docs/certification/m87-composer.md` holds the numbers and the drills.
 
 ### D67 — Saved prompts, bookmarks and timed sends (M88)
 
