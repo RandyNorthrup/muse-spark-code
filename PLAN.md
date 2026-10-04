@@ -5753,6 +5753,54 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
 
 ### M26 — The audit: packaging, CI, platform and voice (D29)
 
+**Release-build reuse request (RELFAST, 2026-10-04).** The owner asked why a
+release repeats roughly 50 minutes of gates after its release PR already passed.
+Reuse only this repository's successful PR/merge-group/main-push CI run whose package job
+recorded the exact tag tree, including the PR merge checkout. Record CI asset
+SHA-256 hashes, retain packages/SBOMs/receipt for 30 days, verify tree and package
+versions before staging unchanged bytes for the existing publishers. Any lookup,
+download or verification miss falls back to the full shared build, with a job
+summary; `RELEASE_FORCE_REBUILD=true` forces that path. Scope: build/release
+workflows, one release-only lookup/receipt script, owning release tests and docs.
+Acceptance: exact-tree success, fork/event/workflow/status refusal, version/hash
+refusal and rebuild wiring proved by tests and byte-exact guard drills. No new
+dependencies, publication or gate relaxation. Lane checks follow RELFAST/common;
+aggregate quality and hosted reuse/fallback remain the lead's gates. Evidence:
+`docs/certification/relfast.md`. Design is in `docs/RELEASING.md` before code.
+
+**RELFAST2 completion (2026-10-04).** Merge PR #107's manual
+`artifacts_run_id` recovery into the same lookup/download/verification/staging
+path. Automatic reuse requires the tag's exact recorded checkout tree; merge
+queue commits qualify by that tree, never by their temporary branch or head SHA.
+Manual recovery pins an earlier own-repository Release run on the same version
+tag with all seven build jobs successful. Its original source commit/tree may
+precede a recovery-only workflow/changelog fix: preserve those original package
+bytes. Validate the source run, nonexpired artifact inventory and both manifests;
+use its recorded hashes when present. Pre-receipt Release runs remain recoverable
+with the pinned download action's artifact integrity check and manifest/inventory
+verification, without claiming an older CI hash receipt. Recovery failures stop;
+they never rebuild an already-published version. Publishers download only the
+verified bytes staged in the current run. Every release job condition respects
+cancellation, including skipped-build handling. Finish the 19 pending guard
+drills and drill these new recovery/merge-queue/cancellation guards byte-exact.
+Lane checks follow RELFAST2 and common.md; full quality and hosted receipts
+remain lead-owned. No push, tag or workflow run.
+
+**RELFAST3 completion (2026-10-04).** Preserve the staged RELFAST2 work with
+enabled commit hooks and merge `origin/main` at `1e93c67c`, keeping every released
+CHANGELOG section. The owner reports that release run `37225339230` could create
+`v0` but its update failed with HTTP 422 under the release-tags ruleset
+`23893754` (admin bypass only). Keep that ruleset unchanged. A failed major-tag
+step retains its failure outcome and reports an admin move without failing the
+already-published channels' summary. Keep all-channel admission, cancellation,
+ancestor and divergent-history guards; request only a fast-forward update.
+Document the owner's admin PATCH command in `docs/RELEASING.md`. Acceptance:
+execute the actual workflow shell with synthetic Git/API responses, prove
+failure reporting and successful/no-op/divergent paths, drill each new guard
+with byte-exact restoration, and run the owning workflow tests and lane checks.
+Hosted reuse/fallback, CIFLOW integration and the actual admin tag move remain
+lead-owned; no network publication or ruleset mutation is authorized here.
+
 **Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
 Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
 CycloneDX ingredient lists from the shipped bundle inputs and the ACP native
@@ -13671,6 +13719,30 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
+dead-code, duplication, localization, host API, production build, actionlint
+and scoped formatting pass; the fixture's two ESLint style findings are fixed
+without suppression and its generated workflow shell is byte-identical.
+Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
+RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
+fixture timed out at the unchanged five-second limit and is not green proof.
+The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
+430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
+compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
+and the skill's unsupported ledger-format validator remain deferred to the
+lead; no required gate was weakened. See `docs/certification/relfast.md`,
+`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
+
+**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
+requires scoped eslint/Prettier, owning release tests, available actionlint and
+hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
+Fresh common.md aggregate typecheck, dead-code, duplication, localization,
+host-API and production-build runs are deferred to the lead: this change touches
+release tooling/workflows and owning tests, with no production bundle changes.
+This is a deferral, not current aggregate-green evidence; full quality, hosted
+reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
+`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
 
 **CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
 said it took "like 4 40 minute checks just to get a release cut": the full

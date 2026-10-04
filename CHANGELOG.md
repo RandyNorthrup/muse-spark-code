@@ -39,6 +39,17 @@ happened, not what was planned; superseded entries are kept.
   block it does not read, or when `MODEL_TEXT` holds a key no source file
   of `dist/extension.js` reads; the code intelligence and web fetch
   bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Releases reuse verified universal CI packages when the successful own-repository
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
+### Fixed
+
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
 
 ### Fixed
 
