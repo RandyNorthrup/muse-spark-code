@@ -232,6 +232,7 @@ quality`) and as a CI job.
 | `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
 | `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
 | `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/bundledSkills.js`   | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
 | `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
 | `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 
@@ -4011,6 +4012,55 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     window's reset) gets no timer: a timed send could only go before it
     lifts. The row says when it lifts instead.
 
+### D68 — Bundled skills: high-quality-projects in the box (M89, 2026-10-03)
+
+The owner asked to bundle his skill package
+([high-quality-projects-skill](https://github.com/RandyNorthrup/high-quality-projects-skill),
+MIT, © Randy Northrup) so every user of the extension has it. It holds three
+workflows (`project_setup`, `feature_delivery`, `quality_retrofit`) that depend
+on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
+`templates/` and references, so a skill is never shipped as a lone `SKILL.md`.
+
+- **The owner's answers (2026-10-03).** Both backends, Muse Code by opt-in;
+  on by default.
+- **A pinned, vendored release.** `vendor/high-quality-projects-skill/` holds
+  the files of one tagged release (v0.7.0 first), copied by
+  `scripts/sync-bundled-skills.mjs` from the release archive after its SHA-256
+  matches the release's `SHA256SUMS.txt`. `VENDOR.json` records the tag, the
+  archive's SHA-256 and each copied path's SHA-256, pinning the vendored bytes. Builds stay offline and
+  reproducible; nothing is downloaded at run time. A newer tag is taken by
+  rerunning the script in a PR, with its CHANGELOG entry. Only what the
+  workflows read ships: `skills/`, `scripts/` (not `build-release.ps1`),
+  `templates/`, `AGENTS.md`, `LICENSE`, `README.md` and the `docs/` pages the
+  skills cite; never `tests/`, `docs/assets/`, `docs/evaluations/` or the
+  package's own CI files. The licence is listed in `THIRD_PARTY_NOTICES.txt`.
+- **Model API backend: a third skill source.** `SKILL_SOURCES` gains
+  `bundled`, the lowest precedence: a project or personal skill with the same
+  id shadows it, so a user's own copy always wins. Its root is the vendored
+  `skills/` folder inside the installed extension, read through the same
+  bounded loader as the others. `museSpark.bundledSkills` (machine-scoped
+  boolean, default `true`) turns the source off. When the model reads a
+  bundled skill (`read_skill` or a typed `/id`), the body is preceded by one
+  line naming the package root, so the skill's `SKILL_ROOT` resolves to the
+  vendored package; its scripts still run only through the shell tool, under
+  the session's permission mode, like any other command.
+- **Muse Code backend: an explicit install.** Muse Code reads only its own
+  skill folders, so **Muse Spark: Install Bundled Skills for Muse Code** copies
+  the vendored package to `<config home>/muse/skill-sources/high-quality-projects-skill/`
+  and links each workflow into Muse Code's personal skills folder
+  (`<config home>/muse/skills/<id>`): a junction on Windows, a directory symlink
+  elsewhere, as the package's own install guide prescribes. An id that already
+  exists there is left alone and named in the result. A marker file in the
+  copied package records the installed tag, and only folders carrying it are
+  ever replaced or removed. The install is offered once (a panel notice with
+  **Install** and **Not now**, the first time a Muse Code conversation starts
+  with the setting on). When the extension ships a newer vendored tag than an
+  installed one, the panel offers **Update** once. **Muse Spark: Remove Bundled
+  Skills from Muse Code** removes exactly what the install made. Nothing is
+  written to the user's config folder without one of these actions.
+- **Requirements stay the package's.** The delivery helpers need Python 3;
+  the README says so, and a missing Python is the script's own error.
+
 ## 3. Open questions (need the owner)
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
@@ -5539,6 +5589,24 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   signing credentials created.
 
 ### M27 — The tree kill's orphans (D25)
+
+**JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
+PRs #96 and #89 hid the helper's preparation error and kept its failed
+promise for the session. Keep compilation and success caching unchanged;
+clear only an unavailable result so the next caller tries preparation
+again, sharing each in-flight attempt. Collect the real helper log in
+`toolIo.test.ts`'s missing-helper assertion. Prove compile and self-test
+recovery with fake runners, deliberately restore the old cache to see the
+regressions fail, then restore exact bytes. Run the two owned suites on
+Win11 and the lane's scoped gates; full quality remains the lead's gate
+under `common.md`. Record the paths to unavailability and actual receipts
+in `docs/certification/jobflake.md`. The first hosted failure's specific
+trigger remains unknown until the improved assertion captures it.
+Final Win11 proof: 53 passed, 2 existing platform skips. All five type
+projects, scoped lint/format, host API, duplication, dead code,
+localization and production build passed. Both recovery controls failed
+with the old cache and passed after exact-byte restoration. Aggregate
+quality and the unchanged pins' npm audit triage remain with the lead.
 
 **Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
 merged through pull request #12 from `hardening/m27-orphans`, shipped in
@@ -12717,6 +12785,69 @@ usage window gives has never been captured (§3).
       them.
 - [ ] Hosted CI green on the milestone PR's exact head.
 
+### M89 — Bundled skills (D68)
+
+- **Goal.** The high-quality-projects workflows work out of the box on the
+  Model API backend and, after one click, on Muse Code.
+- **Scope.** D68: the vendored release and its sync script; the `bundled` skill
+  source and its setting; the Muse Code install, update offer and removal;
+  strings in all 14 tables; README, PRIVACY (the files the install writes),
+  CHANGELOG, this plan and `docs/certification/m89.md`.
+- **Lanes and file ownership.** One integration branch
+  (`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
+  then W. Region-owned files follow M87's lane rules (constants, styles,
+  harness).
+
+| Lane      | Owns                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Strings | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (setting and command titles)                                                                                                                                                           |
+| V Vendor  | `scripts/sync-bundled-skills.mjs`, `vendor/high-quality-projects-skill/**`, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`, `scripts/check-vsix-size.mjs` only if the budget needs it; tests `bundledSkillsVendor.test.ts` |
+| S Source  | `src/core/context/skills.ts`, `src/core/context/catalogFiles.ts` (if needed), the `bundled` constants region, the Model API `read_skill`/`/id` path; tests `skills.test.ts`                                                                                  |
+| I Install | the new `src/host/skills/bundledSkillsInstall.ts`, its command registration region in `src/extension.ts`, the controller's one-time offer; tests `bundledSkillsInstall.test.ts`                                                                              |
+| W Wiring  | `package.json` (setting, commands), README, PRIVACY, CHANGELOG, PLAN, `docs/certification/m89.md`, the full gate                                                                                                                                             |
+
+- **Acceptance.**
+  1. A fresh install on the Model API backend lists `project_setup`,
+     `feature_delivery` and `quality_retrofit` in the slash menu and the
+     model's catalogue; turning `museSpark.bundledSkills` off removes them.
+  2. A project or personal skill with one of those ids shadows the bundled one.
+  3. A bundled skill's body names the package root, and its `SKILL_ROOT`
+     resolves inside the installed extension.
+  4. The VSIX carries exactly the vendored paths in `VENDOR.json`, and the
+     sync script refuses an archive whose SHA-256 differs from `SHA256SUMS.txt`.
+  5. Install for Muse Code creates the package copy, the marker and the three
+     links; an existing same-id folder is left alone and reported; Remove
+     deletes only marked folders and links; both work on Windows (junctions),
+     macOS and Linux (symlinks).
+  6. The offer appears once; Not now is remembered; a newer vendored tag
+     offers Update once.
+  7. The VSIX stays within its D6 budget.
+- **Tests.** Unit tests for each lane (fakes, temp folders, no network), with
+  a red drill for every guard recorded in `docs/certification/m89.md`; the
+  install on all three rigs.
+- **Vendor review follow-up (2026-10-03).** Minimal ustar fixtures test the
+  copy allow-list, required files, entry types, traversal, duplicates and the
+  archive root; names that collide by case or trailing dots and spaces are
+  refused before selection, so an excluded alias cannot replace an allowed
+  file. `VENDOR.json` records each file's SHA-256 and the test checks every
+  vendored file against it; the Muse Code installer reads the new records.
+  Drills in `docs/certification/m89-vendor.md`.
+- **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
+- **Security.** Vendored files are fixed at build time and checksum-verified;
+  nothing downloads at run time; the install writes only under the user's
+  Muse config home, only on a click, and only removes what it marked; links
+  never point outside the copied package.
+- **Certification checklist.**
+  - [x] Lane 0's keys in all 14 tables (2026-10-03, `check-l10n` 0 problems).
+  - [ ] Every acceptance item above, with its test and drill (1, 2, 3, 5 and 6
+        done by lanes S and I, `docs/certification/m89.md`; 4 and 7 are lane
+        V's).
+  - [ ] VSIX size within budget, measured.
+  - [x] Install and remove proven on Windows, macOS and Linux (the three
+        rigs, 56 tests each, real junctions and symlinks).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated (lanes 0, S, I
+        and W done; lane V's rows to add).
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -13394,13 +13525,14 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                 | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                 | 2026-10-02 |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
-| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                       | 2026-10-02 |
-| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                          | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                              | 2026-09-30 |
-| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
+| File                                            | Construct                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                     | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                           | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                    | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
+| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -14092,3 +14224,24 @@ merge queue's child process kept running. The tag therefore names the
 release commit, based on main `44b76f24` before M84 merged, rather than
 main's tip; the release workflow's ancestor check allows this. The release
 commit is an ancestor of main through PR #75 (merge `2a03a79b`).
+
+**0.11.0 released (2026-10-03, tag `v0.11.0` on main's release merge `11d06066`, PR #97, release run 37161958638).**
+The release contains the Muse Code recovery and merged repeat notices
+(#96), approval decisions docked and serialized (#90), turn checkpoints
+rebuilt on the model's own writes (M86, #95), custom agents (M76, #70),
+handoff (M74, #71, #84), import from other agents (M83, #77), session export,
+import and share (M84, #80), observation packing (M73, #76, #81), Muse Code
+1.4.2 (#85) and the release artifacts' checksums, SBOMs and attestations
+(#86). A read-only check of the README's What's new against the code
+corrected two overstatements and five missing scopes before the release PR
+merged. Published: the GitHub Release (`muse-spark-code-0.11.0.vsix`,
+1,749,424 bytes, SHA-256
+`1dcc420fca9bc8b55d34def666d048d53f75676675faccf88a9cdeb508c8923f`;
+`muse-spark-code-acp-0.11.0.tgz`, 865,556 bytes, `0363cc1d…aaf1`), Open VSX and
+the VS Code Marketplace, all serving byte-identical VSIX files (each
+downloaded and hashed). npm (`muse-spark-code-acp`) failed with `EOTP` again
+and awaits the owner's token. Install smoke: the released VSIX, checked
+against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
+Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
+(1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
+`muse-spark-code-acp --version` prints 0.11.0.

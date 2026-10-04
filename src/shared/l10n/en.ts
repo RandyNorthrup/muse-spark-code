@@ -1547,6 +1547,37 @@ export const EN = {
     one: '{count} failed: {skills}',
     other: '{count} failed: {skills}',
   }),
+  // The bundled skills for Muse Code (M89, PLAN.md D68): the panel's one-time
+  // offer and its buttons, then what Install, Update and Remove did. {skills}
+  // lists skill ids, {tag} is the package's release (v0.7.0), {folder} a path.
+  bundledSkillsOffer:
+    'Muse Spark comes with the skills {skills}. Install them for Muse Code? They are copied into your Muse config folder.',
+  bundledSkillsUpdateOffer:
+    'Muse Spark comes with a newer release of its bundled skills ({tag}). Update the copy Muse Code uses?',
+  bundledSkillsInstall: 'Install',
+  bundledSkillsUpdate: 'Update',
+  bundledSkillsNotNow: 'Not now',
+  bundledSkillsInstalled: forms({
+    one: 'Installed {count} bundled skill ({tag}) for Muse Code: {skills}',
+    other: 'Installed {count} bundled skills ({tag}) for Muse Code: {skills}',
+  }),
+  bundledSkillsSkipped: forms({
+    one: 'Left {count} skill out because a skill of yours has that name: {skills}',
+    other: 'Left {count} skills out because skills of yours have those names: {skills}',
+  }),
+  bundledSkillsRemoved: forms({
+    one: 'Removed {count} bundled skill from Muse Code: {skills}',
+    other: 'Removed {count} bundled skills from Muse Code: {skills}',
+  }),
+  bundledSkillsNothingToRemove:
+    'No bundled skills are installed for Muse Code, so nothing was removed.',
+  bundledSkillsInstallFailed: 'The bundled skills could not be installed at {folder}: {reason}',
+  bundledSkillsRemoveFailed: 'The bundled skills could not be removed at {folder}: {reason}',
+  // The reason when the folder is there but holds no mark of the extension's install.
+  bundledSkillsNotOurs:
+    'a folder of that name exists that Muse Spark did not install, so it was left alone',
+  bundledSkillsUnavailable:
+    'The bundled skills installer could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',

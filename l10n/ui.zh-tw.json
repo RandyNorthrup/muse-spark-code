@@ -1070,6 +1070,25 @@
   "importFailedSummary": {
     "other": "{count} 個失敗：{skills}"
   },
+  "bundledSkillsOffer": "Muse Spark 隨附技能 {skills}。要為 Muse Code 安裝這些技能嗎？它們會複製到您的 Muse 設定資料夾。",
+  "bundledSkillsUpdateOffer": "Muse Spark 提供了其隨附技能的較新版本（{tag}）。要更新 Muse Code 使用的複本嗎？",
+  "bundledSkillsInstall": "安裝",
+  "bundledSkillsUpdate": "更新",
+  "bundledSkillsNotNow": "現在不要",
+  "bundledSkillsInstalled": {
+    "other": "已為 Muse Code 安裝 {count} 個隨附技能（{tag}）：{skills}"
+  },
+  "bundledSkillsSkipped": {
+    "other": "已略過 {count} 個技能，因為您已有同名的技能：{skills}"
+  },
+  "bundledSkillsRemoved": {
+    "other": "已從 Muse Code 移除 {count} 個隨附技能：{skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code 未安裝任何隨附技能，因此沒有移除任何項目。",
+  "bundledSkillsInstallFailed": "無法在 {folder} 安裝隨附技能：{reason}",
+  "bundledSkillsRemoveFailed": "無法在 {folder} 移除隨附技能：{reason}",
+  "bundledSkillsNotOurs": "已有同名資料夾，但並非由 Muse Spark 安裝，因此未加變更",
+  "bundledSkillsUnavailable": "無法載入隨附技能安裝程式；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "notSignedInReason": "請先登入再傳送訊息。",
   "noWorkspaceReason": "請先開啟資料夾；Muse 需在工作區內運作。",
   "nothingToSendReason": "請先輸入訊息或附加圖片。",

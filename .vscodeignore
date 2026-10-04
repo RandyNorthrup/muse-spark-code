@@ -6,6 +6,7 @@
 !dist/planMarkdown.js
 !dist/checkpointStore.js
 !dist/agentImport.js
+!dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
 !dist/uiText.js
@@ -31,3 +32,4 @@
 !LICENSE
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
+!vendor/high-quality-projects-skill/**

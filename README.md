@@ -583,7 +583,8 @@ In a trusted workspace the agent follows the same files Muse Code does:
   (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
-  matter keeps a skill out of the palette.
+  matter keeps a skill out of the palette. The extension also brings three
+  skills of its own; see [Bundled skills](#bundled-skills).
 - **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
   workspace (project scope) and the personal root `~/.config/muse/agents`
   (`$XDG_CONFIG_HOME/muse/agents` when set), plus the built-in `explore` and
@@ -628,6 +629,52 @@ the workspace to enable them. Muse Code itself, by its documentation,
 still reads a repository's committed project memory in an untrusted
 workspace: treat a checkout's `.agents/memory/MEMORY.md` as text someone
 else wrote.
+
+### Bundled skills
+
+The extension ships the three workflows of the
+[high-quality-projects](https://github.com/RandyNorthrup/high-quality-projects-skill)
+package (MIT, one pinned release, vendored into the extension at build time
+and never downloaded while it runs):
+
+- **project_setup:** a new project from a product interview through strict
+  quality gates.
+- **feature_delivery:** a scoped feature or change in an existing project,
+  with tests and red drills.
+- **quality_retrofit:** an existing codebase brought up to strict standards.
+
+They lean on the package's shared `scripts/`, `templates/` and `docs/`, so
+each workflow is the whole package, never a lone `SKILL.md`. The delivery
+helpers need **Python 3** on your `PATH`; without it the script says so
+itself. The scripts run only through the shell tool, under the
+conversation's permission mode, like any other command.
+
+- **Model API backend:** they are a third skill source, after the project's
+  and your own: a project or personal skill with the same id wins. They are
+  listed in the palette, invoked with `/project_setup …`, and read by the
+  model like the others. When the model reads one, the skill's text is
+  preceded by one line naming the package folder inside the installed
+  extension, which is the skill's `SKILL_ROOT`.
+- **Muse Code:** the CLI reads only its own folders, so the skills are
+  installed there on request. **Muse Spark: Install Bundled Skills for Muse
+  Code** copies the package to
+  `~/.config/muse/skill-sources/high-quality-projects-skill/`
+  (`$XDG_CONFIG_HOME/muse/…` when set), marks the copy as the extension's
+  (`.muse-spark-bundled.json`), and links each skill into Muse Code's
+  personal skills folder, `~/.config/muse/skills/<id>`: a junction on
+  Windows, a directory symlink on macOS and Linux. A skill of yours with the
+  same name is left alone and named in the result. The first Muse Code
+  conversation offers the install once, in the panel, with **Install** and
+  **Not now** (Not now is remembered); when an update of the extension
+  brings a newer release of the package, it offers **Update** once.
+  **Muse Spark: Remove Bundled Skills from Muse Code** removes the links that
+  lead into the marked copy, then the copy, and nothing else. A running Muse
+  Code keeps the skills it started with, so both end by offering to restart
+  it.
+
+`museSpark.bundledSkills` (on by default, a user setting) turns them off: the
+Model API backend stops listing them at once, and no install is offered. It
+does not remove an install; the Remove command does.
 
 ### Memory
 
@@ -2356,6 +2403,8 @@ What stays in English:
 | Muse Spark: Manage Skills                           | —                                                                                    | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                           |
 | Muse Spark: Import Skills from Claude Code or Codex | —                                                                                    | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                             |
 | Muse Spark: Import from Other Agents                | —                                                                                    | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                 |
+| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                    | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept  |
+| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                    | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                         |
 | Muse Spark: Export Conversation                     | —                                                                                    | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                   |
 | Muse Spark: Import Session                          | —                                                                                    | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                             |
 | Muse Spark: Open Share File                         | —                                                                                    | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                       |
@@ -2386,7 +2435,7 @@ immediately. The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
-`modelApiPromptCacheRetention`, `turnCheckpoints`,
+`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiSessionBudgetUsd` and the six paid features, `modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
@@ -2429,6 +2478,7 @@ Bypass at once.
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                           |
 | `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                                                                                                                                                         |
 | `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                          |
+| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the one-time install offer for Muse Code. Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                          |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                 |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
@@ -2586,6 +2636,12 @@ stopped and the next message resumes the same session.
   under its own terms. The memory snapshot is each scope's `MEMORY.md` and
   its notes' names, your personal scopes included; a note's text goes only
   when the model reads it.
+- The [bundled skills](#bundled-skills) are files of one pinned release,
+  checked against its published SHA-256 when the extension is built;
+  nothing is downloaded while it runs. Installing them for Muse Code writes
+  only under Muse Code's config folder (`muse/skill-sources/` and links in
+  `muse/skills/`), only when you click Install or Update or run the command,
+  and Remove deletes only what carries the install's mark.
 - The Model API backend's file tools resolve every path through the file
   system before touching it: a path that leaves the workspace, directly or
   through a link, is refused, and Windows names that would be reinterpreted
@@ -2888,6 +2944,18 @@ Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
 
+**Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
+contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
+the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
+the reviewed release tag), then `npm run notices`. The sync checks the
+release's SHA-256 before replacing the package, rejects unsafe archive paths
+and links, rejects case and trailing-dot/space filename collisions, and
+records each file's path and SHA-256 in `VENDOR.json`. The vendor tests
+check every recorded file hash. Vendored bytes
+are excluded from formatting and linting; builds use them offline.
+The delivery helpers require Python 3.12 or newer. See the
+[vendor lane record](docs/certification/m89-vendor.md) for packaging checks.
+
 **Prerequisites.**
 
 - Node 22 or newer (`.npmrc` enforces `engine-strict`).
@@ -3008,7 +3076,7 @@ as Meta documents); the extension never sets it. The tooling also reads
 
 ```
 src/extension.ts            activation: the view, the panel, the commands, the output and file openers
-src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side and the ide image tools
+src/host/                   VS Code-facing code: views and webview wiring, conversation, backend managers, the Model API bundle's entry, the search worker and web fetch's page converter worker (started for each page), commands, auth, settings, mentions, editor tracking, usage trace logs, voice, the diagnostics MCP server, the MCP servers' spawner, the network posture, the paid features' host side, the ide image tools and the bundled skills' Muse Code installer (its own bundle, loaded on first use)
 src/core/                   backend-agnostic logic, no `vscode` import: MSP host, Model API client and tools, the MCP client, rules/skills/memory, export, worktrees, usage insights, dictation driver, PDF and text attachments, the paid gate, Muse Voice, network failures
 src/shared/                 constants + zod message protocol shared with the webview
 src/shared/l10n/            the English table (en.ts), the fill, plural and Intl helpers, and the table checks

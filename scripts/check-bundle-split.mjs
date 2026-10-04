@@ -20,6 +20,9 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - the bundled skills installer (M89: the copy and links for Muse Code) is
+//   in dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
+//   dist/bundledSkills.js, or that bundle carries its own English table.
 // - code intelligence's `ide` answers (M67: the queries, the read tools, the
 //   repo map and the rename) or voice's drivers (M9, M35: the dictation
 //   driver, Muse Voice's stream, the processes and the socket) are in
@@ -268,6 +271,10 @@ const checkpointStore = inputsOf(CHECKPOINT_STORE)
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const BUNDLED_SKILLS = {
+  output: 'dist/bundledSkills.js',
+  metafile: 'dist/meta/bundledSkills.json',
+}
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
 const ON_FIRST_USE = [
@@ -308,6 +315,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   ...DEFERRED,
   AGENT_IMPORT,
+  BUNDLED_SKILLS,
   ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
@@ -370,6 +378,24 @@ for (const prefix of IMPORT_ONLY) {
   }
   if (!hasPrefix(agentImport, prefix)) {
     problems.push(`${AGENT_IMPORT.output} no longer carries ${prefix}`)
+  }
+}
+
+// M89: the bundled skills installer loads on its first install, removal or
+// offer; the activation bundle has its loader, its offer and its types only.
+const BUNDLED_SKILLS_ONLY = [
+  'src/host/skills/bundledSkillsEntry.ts',
+  'src/host/skills/bundledSkillsInstall.ts',
+]
+const bundledSkills = inputsOf(BUNDLED_SKILLS)
+for (const file of BUNDLED_SKILLS_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which loads only with the installer`)
+    }
+  }
+  if (!bundledSkills.has(file)) {
+    problems.push(`${BUNDLED_SKILLS.output} no longer carries ${file}`)
   }
 }
 

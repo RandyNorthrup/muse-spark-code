@@ -70,6 +70,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
+  /** The skills that ship with the extension (M89, PLAN.md D68). */
+  readonly bundledSkills: boolean
   /** Notify when a turn needs attention while the window is unfocused (M82). */
   readonly notifyOnBackgroundTurn: boolean
   /** Tokens and the dollar estimate under each Model API reply (M82). */
@@ -120,6 +122,7 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   turnCheckpoints: z.boolean(),
+  bundledSkills: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
@@ -197,6 +200,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
+    bundledSkills: readSetting(config, 'bundledSkills', log),
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),

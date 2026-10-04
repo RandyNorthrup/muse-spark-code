@@ -1154,6 +1154,34 @@
     "many": "Не удалось импортировать {count} навыков: {skills}",
     "other": "Не удалось импортировать {count} навыка: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark поставляется с навыками {skills}. Установить их для Muse Code? Они будут скопированы в вашу папку конфигурации Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark поставляется с более новой версией прилагаемых навыков ({tag}). Обновить копию, которую использует Muse Code?",
+  "bundledSkillsInstall": "Установить",
+  "bundledSkillsUpdate": "Обновить",
+  "bundledSkillsNotNow": "Не сейчас",
+  "bundledSkillsInstalled": {
+    "one": "Для Muse Code установлен {count} прилагаемый навык ({tag}): {skills}",
+    "few": "Для Muse Code установлено {count} прилагаемых навыка ({tag}): {skills}",
+    "many": "Для Muse Code установлено {count} прилагаемых навыков ({tag}): {skills}",
+    "other": "Для Muse Code установлено {count} прилагаемого навыка ({tag}): {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Пропущен {count} навык, так как ваш навык называется так же: {skills}",
+    "few": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}",
+    "many": "Пропущено {count} навыков, так как ваши навыки называются так же: {skills}",
+    "other": "Пропущено {count} навыка, так как ваши навыки называются так же: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Из Muse Code удалён {count} прилагаемый навык: {skills}",
+    "few": "Из Muse Code удалено {count} прилагаемых навыка: {skills}",
+    "many": "Из Muse Code удалено {count} прилагаемых навыков: {skills}",
+    "other": "Из Muse Code удалено {count} прилагаемого навыка: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Прилагаемые навыки для Muse Code не установлены, поэтому ничего не удалено.",
+  "bundledSkillsInstallFailed": "Не удалось установить прилагаемые навыки в {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "Не удалось удалить прилагаемые навыки из {folder}: {reason}",
+  "bundledSkillsNotOurs": "папка с таким именем уже существует, но её установил не Muse Spark, поэтому она оставлена без изменений",
+  "bundledSkillsUnavailable": "Не удалось загрузить установщик прилагаемых навыков; переустановите расширение и перезагрузите окно. Подробности — в журнале.",
   "notSignedInReason": "Войдите, прежде чем отправлять сообщение.",
   "noWorkspaceReason": "Сначала откройте папку; Muse работает внутри рабочей области.",
   "nothingToSendReason": "Сначала введите сообщение или прикрепите изображение.",

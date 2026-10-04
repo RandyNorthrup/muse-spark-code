@@ -1126,6 +1126,31 @@
     "many": "Compétences en échec ({count}) : {skills}",
     "other": "Compétences en échec ({count}) : {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark est fourni avec les compétences {skills}. Les installer pour Muse Code ? Elles sont copiées dans votre dossier de configuration Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark est fourni avec une version plus récente de ses compétences incluses ({tag}). Mettre à jour la copie utilisée par Muse Code ?",
+  "bundledSkillsInstall": "Installer",
+  "bundledSkillsUpdate": "Mettre à jour",
+  "bundledSkillsNotNow": "Pas maintenant",
+  "bundledSkillsInstalled": {
+    "one": "{count} compétence incluse ({tag}) installée pour Muse Code : {skills}",
+    "many": "{count} compétences incluses ({tag}) installées pour Muse Code : {skills}",
+    "other": "{count} compétences incluses ({tag}) installées pour Muse Code : {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} compétence laissée de côté, car l’une de vos compétences porte ce nom : {skills}",
+    "many": "{count} compétences laissées de côté, car certaines de vos compétences portent ces noms : {skills}",
+    "other": "{count} compétences laissées de côté, car certaines de vos compétences portent ces noms : {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} compétence incluse supprimée de Muse Code : {skills}",
+    "many": "{count} compétences incluses supprimées de Muse Code : {skills}",
+    "other": "{count} compétences incluses supprimées de Muse Code : {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Aucune compétence incluse n’est installée pour Muse Code ; rien n’a donc été supprimé.",
+  "bundledSkillsInstallFailed": "Les compétences incluses n’ont pas pu être installées dans {folder} : {reason}",
+  "bundledSkillsRemoveFailed": "Les compétences incluses n’ont pas pu être supprimées de {folder} : {reason}",
+  "bundledSkillsNotOurs": "un dossier de ce nom existe déjà sans avoir été installé par Muse Spark, il a donc été laissé tel quel",
+  "bundledSkillsUnavailable": "Le programme d’installation des compétences incluses n’a pas pu être chargé ; réinstallez l’extension et rechargez la fenêtre. Le journal contient les détails.",
   "notSignedInReason": "Connectez-vous avant d’envoyer un message.",
   "noWorkspaceReason": "Ouvrez d’abord un dossier ; Muse travaille dans un espace de travail.",
   "nothingToSendReason": "Tapez d’abord un message ou joignez une image.",
