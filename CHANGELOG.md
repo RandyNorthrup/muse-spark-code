@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The localization gate now requires `{count}` in a language's `one` form
+  when it also covers an integer other than 1 in 0–200. Seven step-summary
+  forms each in Russian, French and Brazilian Portuguese now show the
+  actual count; German forms may still omit it when English does.
+- Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+
+## [0.11.0] - 2026-10-03
+
 ### Added
 
 - **Turn checkpoints (M86).** On by default again, with restore rebuilt on
@@ -216,34 +226,6 @@ happened, not what was planned; superseded entries are kept.
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
-- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
-  optionally with a goal after it, asks the model — as your own turn in the
-  current conversation — for a distilled brief: the goal, the decisions,
-  the files touched, the open work and the todo list. Anything drawn from
-  tool output, fetched pages or imported files is marked `[untrusted]` in
-  the brief, and the new conversation is told what that means. The brief
-  opens in a dialog before anything starts, with the open items the new
-  todo list will hold: review it, edit it, then start the new
-  conversation, or cancel and nothing starts; a reloaded panel shows it
-  again, and a brief that is ready while Account & usage, the Agent map or a share file
-  is open waits until you close it. Starting leaves the old conversation
-  in History and seeds the new one through the plan brief path, with the
-  open items (never completed or dropped ones) as its todo list before
-  the first request. The model wrote the brief, so the new conversation
-  starts in your starting mode only when the dialog showed all of it: a
-  brief or an item holding a character the dialog does not show (a
-  direction override, a zero-width character) starts in a mode that asks,
-  and the panel says so. A handoff from Plan mode stays in Plan. Model API
-  backend only (on Muse Code the command says it is unavailable there).
-  Side chats are refused; one handoff runs at a time; a `/handoff` while a
-  reply runs is refused ("Wait for the reply to finish, or stop it,
-  first."), nothing queued; an oversized (over 256 KB) or empty brief is
-  refused with the reason; a refused `/handoff` stays in the prompt with
-  its goal. While a new API key is being activated, a Start is refused
-  before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
-  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so

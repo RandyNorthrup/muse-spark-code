@@ -588,37 +588,37 @@
   "tasksTabEnded": "La conversation à laquelle cette liste appartient a été fermée.",
   "stepSummary": {
     "edited": {
-      "one": "a modifié un fichier",
+      "one": "a modifié {count} fichier",
       "many": "a modifié {count} fichiers",
       "other": "a modifié {count} fichiers"
     },
     "read": {
-      "one": "a lu un fichier",
+      "one": "a lu {count} fichier",
       "many": "a lu {count} fichiers",
       "other": "a lu {count} fichiers"
     },
     "searched": {
-      "one": "a cherché dans un dossier",
+      "one": "a cherché dans {count} dossier",
       "many": "a cherché dans {count} dossiers",
       "other": "a cherché dans {count} dossiers"
     },
     "ran": {
-      "one": "a exécuté une commande",
+      "one": "a exécuté {count} commande",
       "many": "a exécuté {count} commandes",
       "other": "a exécuté {count} commandes"
     },
     "fetched": {
-      "one": "a récupéré une page",
+      "one": "a récupéré {count} page",
       "many": "a récupéré {count} pages",
       "other": "a récupéré {count} pages"
     },
     "searchedWeb": {
-      "one": "a cherché sur le web",
+      "one": "a cherché sur le web {count} fois",
       "many": "a cherché sur le web {count} fois",
       "other": "a cherché sur le web {count} fois"
     },
     "used": {
-      "one": "a utilisé un outil",
+      "one": "a utilisé {count} outil",
       "many": "a utilisé {count} outils",
       "other": "a utilisé {count} outils"
     },

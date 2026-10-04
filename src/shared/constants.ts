@@ -695,6 +695,10 @@ export const CHECKPOINT_SEQUENCE_ATTEMPTS = 64
 // A unit record changed by another window between its read and its write is
 // read and folded again, at most this many times.
 export const CHECKPOINT_FOLD_ATTEMPTS = 8
+// Total CAS attempts when a rival's ref lock leaves the previous value unchanged.
+export const CHECKPOINT_REF_LOCK_ATTEMPTS = 3
+// Wait between unchanged-ref failures, multiplied by the failed attempt number.
+export const CHECKPOINT_REF_LOCK_RETRY_MS = 25
 // Unreferenced copies are pruned at most this often, at once when a
 // conversation's checkpoints are dropped, and when the window opens.
 export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000
@@ -3293,6 +3297,8 @@ export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
+// Inclusive integer range used to check whether a locale's `one` needs a count.
+export const L10N_PLURAL_SAMPLE_MAX = 200
 // The JSON script element the host writes into each webview's HTML with
 // `{ locale, table }`, read before the first render (D33).
 export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'

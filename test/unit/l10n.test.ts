@@ -221,6 +221,49 @@ describe('tableProblems', () => {
     ])
   })
 
+  it.each(['ru', 'uk', 'fr', 'pt-br'])(
+    'requires the count in %s one forms even when English omits it',
+    (locale) => {
+      const source = {
+        files: forms({ one: 'a file in `{path}`', other: '{count} files in `{path}`' }),
+      }
+      const translated = Object.fromEntries(
+        new Intl.PluralRules(locale)
+          .resolvedOptions()
+          .pluralCategories.map((category) => [category, '{count} fichier dans `{path}`']),
+      )
+      const options = { locale, isStrict: true }
+      const missingCount = { files: { ...translated, one: 'un fichier dans `{path}`' } }
+      const problem = 'files.one: slots {count}, {path} expected, found {path}'
+      expect(tableProblems(source, missingCount, options)).toEqual([problem])
+      expect(tableProblems(source, missingCount, { ...options, isStrict: false })).toEqual([
+        problem,
+      ])
+      expect(tableProblems(source, { files: translated }, options)).toEqual([])
+      expect(
+        tableProblems(
+          source,
+          { files: { ...translated, one: '{count} fichier {extra}' } },
+          options,
+        ),
+      ).toEqual([
+        'files.one: slots {count}, {path} expected, found {count}, {extra}',
+        'files.one: the code spans (`) differ from the English',
+      ])
+    },
+  )
+
+  it('allows German one forms to omit the count when English does, keeping other slots required', () => {
+    const source = { files: forms({ one: 'a file in {path}', other: '{count} files in {path}' }) }
+    const translated = {
+      files: { one: 'eine Datei in {path}', other: '{count} Dateien in {path}' },
+    }
+    expect(tableProblems(source, translated, { locale: 'de', isStrict: true })).toEqual([])
+    expect(
+      tableProblems(source, { files: { ...translated.files, other: 'Dateien in {path}' } }, strict),
+    ).toEqual(['files.other: slots {count}, {path} expected, found {path}'])
+  })
+
   it('accepts the English table against itself in shape', () => {
     expect(tableProblems(EN, EN, { locale: 'en', isStrict: false })).toEqual([])
   })
