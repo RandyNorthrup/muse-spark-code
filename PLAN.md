@@ -13056,19 +13056,6 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**M90FIX scoped deferral (2026-10-04).** `npx jscpd` remains red on two
-pre-existing clones in the opt-in live drills: `live.e2e.test.ts` lines
-36–69 versus `reviewer.live.e2e.test.ts` lines 55–87, and lines 79–89
-versus 118–128. Both files match the supplied HEAD `d2da0193` byte-for-byte
-(Git blobs `5508528e66eeb34e4b8f79372b1f18d2cea9d608` and
-`2eca291e508b00824f335704ef27731277b37fcd`). Six new unit-test clone
-reports were removed by sharing assertions and using the existing
-`allowOnce` helper; the remaining result is two clones, 43 duplicate
-lines, 244 duplicate tokens. Threshold remains zero, with no new ignore
-or suppression. The lane forbids live calls and unrelated refactors, so
-the lead must reconcile those live fixtures and rerun this gate before
-certification. This is a recorded deferral, not a passing duplication gate.
-
 **MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
 build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,
 board and reviewer, under the existing 600/475/75/75 KiB caps. The M78m

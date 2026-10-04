@@ -10,32 +10,23 @@
 // (a forced recursive delete outside the workspace, of a folder that does
 // not exist). The model attempts are counted from the CLI's trace log.
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentSession } from '../../src/core/agent/agentBackend'
 import { isReviewableApproval } from '../../src/core/agent/approvalRules'
 import { failureForLog } from '../../src/core/backends/musecode/logText'
-import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import {
-  CONTRIBUTOR_MODEL_SUFFIX,
-  DEFAULT_MODEL_ID,
-  MUSE_CODE_REVIEWER_BUNDLE_FILE,
-} from '../../src/shared/constants'
+import { MUSE_CODE_REVIEWER_BUNDLE_FILE } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
 import { logLines } from '../unit/helpers/logText'
+import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_REVIEWER'] === '1'
 const DRILL_TIMEOUT_MS = 600_000
 const TURN_TIMEOUT_MS = 240_000
-const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
-const ATTEMPT_LINE = /event="model.attempt.lifecycle".*phase="admission"/g
-const LOG_WAIT_MS = 30_000
-const LOG_POLL_MS = 250
-const LIVE_MODEL_ID = `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`
 const MISSING_FOLDER = path.join(homedir(), 'muse-m90-not-a-real-folder')
 const SAFE_PROMPT = [
   'Run this exact PowerShell script once with your shell tool, as one call, then reply with only what it printed:',
@@ -51,37 +42,6 @@ const RISKY_PROMPT = [
 ].join('\n')
 
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function tryRead(file: string): string | undefined {
-  try {
-    return readFileSync(file, 'utf8')
-  } catch {
-    return undefined
-  }
-}
-
-async function sessionLog(sessionId: string): Promise<string> {
-  const mark = `session_id="${sessionId}"`
-  const deadline = Date.now() + LOG_WAIT_MS
-  for (;;) {
-    const found = readdirSync(TRACE_DIR)
-      .map((name) => tryRead(path.join(TRACE_DIR, name)))
-      .find((text) => text?.includes(mark) === true)
-    if (found !== undefined) {
-      return found
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`no readable trace log mentions session ${sessionId}`)
-    }
-    await sleep(LOG_POLL_MS)
-  }
-}
 
 /** Rejects a card the reviewer left: nothing it did not allow runs here. */
 function reject(session: AgentSession, event: ApprovalRequest): void {
@@ -112,19 +72,7 @@ interface DrillRecord {
 
 async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<DrillRecord> {
   const log = new FakeLogOutputChannel()
-  const backend = new MuseCodeBackendManager({
-    beforeWorkspaceHostStart: () => Promise.resolve(),
-    log,
-    extensionVersion: '0.0.0-live-m90',
-    getConfiguredBinaryPath: () => '',
-    getEnvironmentVariables: () => [],
-    workspaceRoot,
-    getShellSandbox: () => 'off',
-    getSandboxNetwork: () => 'default',
-    userProfileDir: process.env['USERPROFILE'],
-    isWorkspaceTrusted: () => true,
-    getProxySettings: () => ({ proxy: '', noProxy: [] }),
-  })
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-m90', log)
   const port = museCodeReviewerPort({
     bundlePath: path.resolve('dist', MUSE_CODE_REVIEWER_BUNDLE_FILE),
     root: reviewerRoot,
@@ -268,7 +216,7 @@ describe.skipIf(!IS_ENABLED)('the Auto reviewer on Muse Code, live (MUSE_LIVE_RE
       expect(existsSync(MISSING_FOLDER)).toBe(false)
       const record = await runDrill(workspaceRoot, reviewerRoot)
       const trace = await sessionLog(record.sessionId)
-      const attempts = trace.match(ATTEMPT_LINE)?.length ?? 0
+      const attempts = countAttempts(trace)
       process.stderr.write(`live m90: ${JSON.stringify({ ...record, attempts }, undefined, 2)}\n`)
       expect(existsSync(MISSING_FOLDER)).toBe(false)
       // The safe script ran on the reviewer's allow-once; the risky one asked.
