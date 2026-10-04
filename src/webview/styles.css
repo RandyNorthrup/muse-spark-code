@@ -2347,13 +2347,10 @@ body {
   }
 }
 
+/* The bubbles' burst stops in the closing reduced-motion block. */
 @media (prefers-reduced-motion: reduce) {
   .gooey-menu-motion-safe .gooey-menu-bubbles {
     filter: none;
-  }
-
-  .gooey-menu-motion-safe .gooey-menu-bubble {
-    animation: none;
   }
 }
 
@@ -3251,7 +3248,8 @@ body {
   .heartbeat-sweep,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
-  .agent-dot-running {
+  .agent-dot-running,
+  .gooey-menu-bubble {
     animation: none;
   }
 
