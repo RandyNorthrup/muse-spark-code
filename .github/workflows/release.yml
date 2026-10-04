@@ -1,8 +1,9 @@
 # A version tag (v1.2.3) runs the shared build, then publishes its universal
 # VSIX, ACP tarball, CycloneDX inventories and SHA256SUMS on GitHub with
 # CHANGELOG notes and package attestations. The identical packages go to
-# Marketplace/Open VSX/npm when the tag-only `marketplace` environment has
-# VSCE_PAT/OVSX_PAT/NPM_TOKEN. Registry reruns require matching bytes/SRI;
+# Marketplace/Open VSX when the tag-only `marketplace` environment has
+# VSCE_PAT/OVSX_PAT, and to npm by trusted publishing (OIDC, no token).
+# Registry reruns require matching bytes/SRI;
 # network retries are bounded. The final summary reports every channel,
 # including missing-secret skips, and fails any failed channel.
 # Recovery, npm auth and signing decisions: docs/RELEASING.md.
@@ -210,16 +211,18 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Only the publish job can request the OIDC identity for npm provenance.
+    # npm trusted publishing (OIDC, 2026-10-04): npm trusts this workflow file in
+    # this environment to publish muse-spark-code-acp, so no npm token is stored
+    # anywhere. Only this job can request the OIDC identity, which also signs the
+    # provenance.
     permissions:
       contents: read
       id-token: write
-    # The same tag-only environment as the other registries' tokens.
+    # The same tag-only environment as the other registries' tokens; npm's
+    # trusted publisher names it, so a run outside it cannot publish.
     environment: marketplace
-    env:
-      HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
     outputs:
-      outcome: ${{ steps.skipped.outputs.outcome || steps.published.outputs.outcome }}
+      outcome: ${{ steps.published.outputs.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -232,20 +235,16 @@ jobs:
         with:
           name: muse-spark-code-acp
           path: release
-      - name: skipped without NPM_TOKEN
-        id: skipped
-        if: env.HAS_NPM_TOKEN != 'true'
-        run: echo 'outcome=skipped-no-secret' >> "$GITHUB_OUTPUT"
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 bundles npm 10.
+      # Pinned to the last npm 11, with no install scripts.
+      - name: npm with trusted publishing
+        run: npm install --global npm@11.21.0 --ignore-scripts --no-audit --no-fund
       - name: install the verification tools without install scripts
-        if: env.HAS_NPM_TOKEN == 'true'
         run: npm ci --ignore-scripts --no-audit
       # The packed tarball as it is: no install, no script of any package. The
       # leading ./ matters: npm reads `release/x.tgz` as a GitHub owner/repo.
       - name: publish muse-spark-code-acp to npm
         id: published
-        if: env.HAS_NPM_TOKEN == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node scripts/publish-registry.mjs npm release/muse-spark-code-acp-*.tgz
 
   summary:
