@@ -169,10 +169,11 @@ describe('runEvalTurn', () => {
           isPaidUseRemembered: () => true,
           notePaidUse: () => undefined,
           noteSubagentUsage: () => undefined,
+          noteReviewerUsage: () => undefined,
         }),
       }),
     ).rejects.toThrow(
-      'the mechanism changed allowsPaidUse, isPaidUseRemembered, notePaidUse, noteSubagentUsage, which',
+      'the mechanism changed allowsPaidUse, isPaidUseRemembered, notePaidUse, noteSubagentUsage, noteReviewerUsage, which',
     )
     expect(api.requests).toEqual([])
   })

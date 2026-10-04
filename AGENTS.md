@@ -139,6 +139,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
                       when that backend first starts), the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
+                      code intelligence's `ide` answers (dist/codeIntel.js,
+                      loaded on the first call) and voice's drivers
+                      (dist/voice.js, loaded on the first recording),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,

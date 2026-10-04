@@ -82,10 +82,12 @@ async function placeAll<T>(
   readonly inside: readonly (PlacedResult & { readonly item: T })[]
   readonly outside: number
 }> {
+  let outside = 0
   const placed = await Promise.all(
     items.map(async (item) => {
       const { path, at } = where(item)
       const file = await query.place(path)
+      if (file === undefined && !query.wasDenied(path)) outside += 1
       return file === undefined ? undefined : { item, file, relative: file.relative, at }
     }),
   )
@@ -98,7 +100,7 @@ async function placeAll<T>(
     seen.add(key)
     return true
   })
-  return { inside, outside: placed.filter((entry) => entry === undefined).length }
+  return { inside, outside }
 }
 
 /** Locations as `path:line:column: the line`, capped, with the notes. */
@@ -155,6 +157,9 @@ async function hover(query: CodeIntelQuery, raw: unknown): Promise<string> {
   const describable = await Promise.all(
     definitions.map(async (definition) => await query.isDescribable(definition.path)),
   )
+  if (definitions.some((definition) => query.wasDenied(definition.path))) {
+    throw query.policyRefusal()
+  }
   const isHeldBack = definitions.length > 0 && describable.every((isShown) => !isShown)
   return joinLines([
     target.lead,
@@ -212,16 +217,35 @@ async function documentSymbols(query: CodeIntelQuery, raw: unknown): Promise<str
   // file, asked at that editor's path (it may name the file another way).
   const { file, document } = await query.openAsEdited(await query.confine(path))
   query.noteDocument(file, document)
-  const symbols = await ask(query.service.documentSymbols(file.absolute))
-  if (symbols.length === 0) {
+  const returned = await ask(query.service.documentSymbols(file.absolute))
+  if (returned.length === 0) {
     throw query.noService(file, document)
   }
+  const symbols = await permittedDocumentSymbols(query, returned, file)
+  if (symbols.length === 0 && query.hasDeniedResults) throw query.policyRefusal()
   const lines = outlineLines(symbols)
   return joinLines([
     `${file.relative} (${document.languageId}):`,
     ...lines,
     ...listingNotes(countSymbols(symbols) - lines.length, 0),
   ])
+}
+
+/** Document providers may return SymbolInformation paths; preserve only permitted entries. */
+async function permittedDocumentSymbols(
+  query: CodeIntelQuery,
+  symbols: readonly CodeSymbol[],
+  document: PlacedFile,
+): Promise<readonly CodeSymbol[]> {
+  const permitted = await Promise.all(
+    symbols.map(async (symbol) => {
+      const file = await query.place(symbol.location.path ?? document.absolute)
+      return file === undefined
+        ? undefined
+        : { ...symbol, children: await permittedDocumentSymbols(query, symbol.children, file) }
+    }),
+  )
+  return permitted.filter((symbol) => symbol !== undefined)
 }
 
 /** Exact names first (then the same name in another case), then by place. */
@@ -243,6 +267,7 @@ async function workspaceSymbols(query: CodeIntelQuery, raw: unknown): Promise<st
     symbolKey,
   )
   if (inside.length === 0) {
+    if (query.hasDeniedResults) throw query.policyRefusal()
     return joinLines([
       fill(MODEL_TEXT.codeIntelNoSymbolsMatch, { query: text }),
       ...listingNotes(0, outside),
@@ -301,6 +326,7 @@ async function callHierarchy(query: CodeIntelQuery, raw: unknown): Promise<strin
         )
   }
   const itemFile = await query.place(answer.item.location.path)
+  if (query.wasDenied(answer.item.location.path)) throw query.policyRefusal()
   const header = fill(
     direction === 'incoming' ? MODEL_TEXT.codeIntelCallsTo : MODEL_TEXT.codeIntelCallsFrom,
     {
@@ -401,7 +427,8 @@ export async function answerCodeIntel(
   const query = new CodeIntelQuery(deps)
   try {
     const text = await answerText(tool, query, raw, signal)
-    return { ok: true, text: joinLines([text, ...query.unsavedNotes()]) }
+    query.checkReadable()
+    return { ok: true, text: joinLines([text, ...query.unsavedNotes(), ...query.policyNotes()]) }
   } catch (error: unknown) {
     if (error instanceof CodeIntelRefusal) {
       return { ok: false, reason: error.message, visibleReason: error.visibleReason }

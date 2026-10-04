@@ -7,7 +7,7 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -160,6 +160,23 @@ describe('ModelApiBackendManager', () => {
       await m.manager.dispose()
     },
   )
+
+  it('reads hash-only account identity without a folder, bundle load or model request', async () => {
+    const api = fakeModelApi()
+    const loadBundle = vi.fn(() => modelApiEntry)
+    const m = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle,
+      }),
+    )
+    expect(await m.accountId()).toBe(FAKE_MODEL_API_ACCOUNT_ID)
+    expect(m.isRunning).toBe(false)
+    expect(loadBundle).not.toHaveBeenCalled()
+    expect(api.requests).toEqual([])
+    await m.dispose()
+  })
 
   it('loads no hook command until the machine opt-in is on', async () => {
     const files = new Map([

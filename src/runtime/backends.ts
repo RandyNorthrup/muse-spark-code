@@ -165,14 +165,16 @@ function modelApiManager(
   const warn = (message: string) => {
     log.warn(message)
   }
-  const listFiles = createWorkspaceFileLister({
-    workspaceRoot,
-    respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
-    isWorkspaceTrusted,
-    runGit: deps.runGit,
-    findFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
-    log,
-  })
+  const filesIn = (root: string) =>
+    createWorkspaceFileLister({
+      workspaceRoot: root,
+      respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
+      isWorkspaceTrusted,
+      runGit: deps.runGit,
+      findFiles: () => walkFiles(root, MENTION_INDEX_LIMIT, log),
+      log,
+    })
+  const listFiles = filesIn(workspaceRoot)
   const io = createToolIo({
     platform,
     listFiles,
@@ -247,6 +249,7 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
+    listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
@@ -277,12 +280,23 @@ function modelApiManager(
         log,
         now: () => Date.now(),
       }),
+    describeAttemptEnvironment: (attemptRoot) =>
+      describeEnvironment({
+        runGit: deps.runGit,
+        workspaceRoot: attemptRoot,
+        isWorkspaceTrusted,
+        log,
+        now: () => Date.now(),
+      }),
     isPaidFeatureOn: (feature) => paid.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.noteUse(feature, units)
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // M82's cap and reply line are VS Code settings; ACP exposes neither.
+    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.
@@ -291,6 +305,9 @@ function modelApiManager(
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
     noteSubagentUsage: (modelId) => {
       log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
+    },
+    noteReviewerUsage: () => {
+      log.warn('An Auto reviewer reported usage, but the ACP agent runs no Auto reviewer')
     },
     memory,
     bundlePath: path.join(deps.distDir, MODEL_API_BUNDLE_FILE),

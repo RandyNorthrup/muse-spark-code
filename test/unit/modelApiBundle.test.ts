@@ -6,10 +6,10 @@
 // classes and its localization state are copies of this file's, which is
 // what the error guards and the table handoff are for.
 
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
+import { copyFileSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
   type AgentSession,
@@ -18,6 +18,7 @@ import {
 } from '../../src/core/agent/agentBackend'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import type { ModelApiBackendManagerDeps } from '../../src/host/backend/modelApiBackendManager'
 import { loadUiTable } from '../../src/host/l10n'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -32,13 +33,19 @@ import { fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { removeFolder } from './helpers/temporaryFolders'
+import { memoryToolIo } from './helpers/fakeToolIo'
+import { watchSessionTurns } from './helpers/sessionTurns'
+import { shellToolFor } from '../../src/core/backends/modelapi/tools'
 
 const ROOT = '/ws'
 const MODEL = 'muse-spark-1.3'
 const built = { folder: '', file: '' }
 
 beforeAll(async () => {
-  built.folder = mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-'))
+  // Node keys its module cache by real path: macOS's temporary folder is
+  // /var/folders, a link to /private/var/folders, so the cache checks below
+  // look the reviewer bundle up by the folder's real path.
+  built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-model-api-bundle-')))
   built.file = await buildModelApiBundle(built.folder)
 })
 
@@ -55,7 +62,7 @@ afterEach(() => {
 })
 
 /** A manager over the fake API whose bundle is the file at `bundlePath`, required for real. */
-function managerFor(bundlePath: string) {
+function managerFor(bundlePath: string, given: Partial<ModelApiBackendManagerDeps> = {}) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   let ids = 0
@@ -67,6 +74,7 @@ function managerFor(bundlePath: string) {
         return `id-${String(ids)}`
       },
       bundlePath,
+      ...given,
     }),
   )
   return { api, log, manager }
@@ -96,6 +104,9 @@ afterAll(async () => {
 describe('the Model API bundle (M57)', () => {
   it('is required from its file and runs a turn on the fake Model API', async () => {
     const t = managerFor(built.file)
+    const nativeRequire = createRequire(built.file)
+    const reviewer = path.join(built.folder, 'reviewerEntry.js')
+    expect(nativeRequire.cache[reviewer]).toBeUndefined()
     const host = await t.manager.ensureHost()
     // The bundle's own class, not this file's: the host came from the built file.
     expect(host).not.toBeInstanceOf(ModelApiHost)
@@ -120,8 +131,140 @@ describe('the Model API bundle (M57)', () => {
       expect.objectContaining({ type: 'turnCompleted', terminal: 'completed' }),
     )
     expect(t.api.responseBodies()).toHaveLength(1)
+    expect(nativeRequire.cache[reviewer]).toBeUndefined()
     expect(t.log.info).toHaveBeenCalledWith(expect.stringContaining('Model API backend ready'))
     await t.manager.dispose()
+  })
+
+  it('loads a paid reviewer on first consented use and installs the current language', async () => {
+    setUiText({ ...EN, autoReviewAllowed: 'BUNDLE REVIEW {reason}' }, 'de')
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo({}, ROOT)
+    const paid: string[] = []
+    let ids = 0
+    const manager = new ModelApiBackendManager(
+      fakeManagerDeps(api, log, {
+        workspaceRoot: ROOT,
+        bundlePath: built.file,
+        io,
+        newId: () => `review-${String(++ids)}`,
+        isPaidFeatureOn: (feature) => feature === 'autoReviewer',
+        allowsPaidUse: () => Promise.resolve(true),
+        notePaidUse: (feature) => {
+          paid.push(feature)
+        },
+      }),
+    )
+    const host = await manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: ROOT,
+      modelId: MODEL,
+      approvalMode: 'onRequest',
+    })
+    const events: AgentEvent[] = []
+    session.onEvent((event) => {
+      events.push(event)
+    })
+    const turns = watchSessionTurns(session)
+    api.script(
+      {
+        calls: [
+          {
+            name: shellToolFor(process.platform).name,
+            arguments: JSON.stringify({ command: 'npm test' }),
+            callId: 'risk',
+          },
+        ],
+      },
+      { text: 'ALLOW: runs the tests', usage: { input: 900, output: 20 } },
+      { text: 'done' },
+    )
+    try {
+      const done = turns.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'run tests' }])
+      await done
+      expect(io.shellCalls.map((call) => call.command)).toEqual(['npm test'])
+      expect(paid).toEqual(['autoReviewer'])
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({
+            tool: 'auto_review',
+            visibleOutput: 'BUNDLE REVIEW runs the tests',
+          }),
+        }),
+      )
+      expect(
+        createRequire(built.file).cache[path.join(built.folder, 'reviewerEntry.js')],
+      ).toBeDefined()
+    } finally {
+      await manager.dispose()
+    }
+  })
+
+  it.each([
+    { name: 'missing', body: undefined },
+    { name: 'malformed', body: 'module.exports = { reviewPaidCall: 1 }' },
+  ])('asks without billing when the deferred reviewer bundle is $name', async ({ body }) => {
+    const file = path.join(scratchFolder(), MODEL_API_BUNDLE_FILE)
+    copyBundleTo(file)
+    if (body !== undefined) writeFileSync(path.join(path.dirname(file), 'reviewerEntry.js'), body)
+    const paid: string[] = []
+    const t = managerFor(file, {
+      io: memoryToolIo({}, ROOT),
+      isPaidFeatureOn: (feature) => feature === 'autoReviewer',
+      allowsPaidUse: () => Promise.resolve(true),
+      notePaidUse: (feature) => {
+        paid.push(feature)
+      },
+    })
+    const host = await t.manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: ROOT,
+      modelId: MODEL,
+      approvalMode: 'onRequest',
+    })
+    const turns = watchSessionTurns(session)
+    const decisions: Promise<void>[] = []
+    session.onEvent((event) => {
+      if (event.type === 'approvalRequested')
+        decisions.push(
+          session.decideApproval({
+            approvalId: event.approvalId,
+            requirementId: event.requirementId,
+            choiceId: 'abort',
+          }),
+        )
+    })
+    t.api.script(
+      {
+        calls: [
+          {
+            name: shellToolFor(process.platform).name,
+            arguments: JSON.stringify({ command: 'npm test' }),
+            callId: 'risk',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    try {
+      const done = turns.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'run tests' }])
+      await done
+      await Promise.all(decisions)
+      expect(paid).toEqual([])
+      expect(t.api.responseBodies()).toHaveLength(2)
+      expect(turns.events).toContainEqual(
+        expect.objectContaining({
+          type: 'approvalRequested',
+          note: UI_TEXT.autoReviewerFailed,
+        }),
+      )
+    } finally {
+      await t.manager.dispose()
+    }
   })
 
   it('refuses a missing file in the user’s words, logs the path, and loads it once it is there', async () => {
