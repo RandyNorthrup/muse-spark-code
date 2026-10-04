@@ -40,6 +40,15 @@ happened, not what was planned; superseded entries are kept.
   of `dist/extension.js` reads; the code intelligence and web fetch
   bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
 
+### Fixed
+
+- **CI reliability: flaky tests no longer race a deadline.**
+  The Model API host's fork, Auto reviewer and two-host budget tests, the
+  Action's signal tests (G18) and the headless deadline test (D9) failed now
+  and then on slow runners. Each now waits for the event it tests: a settled
+  parent turn, a held request, published claims, the fake agent's ready
+  line, a held response. Tests only; the product is unchanged.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
