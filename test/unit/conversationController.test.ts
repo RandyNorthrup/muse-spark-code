@@ -10949,6 +10949,20 @@ function withWithdraw(
   }
 }
 
+/**
+ * The sessions `t`'s host starts have no `withdrawQueued` (M87 lane C): Muse
+ * Code's own sessions now take a queued message back, so a backend without
+ * the verb is one whose method is hidden.
+ */
+function withoutWithdraw(t: ReturnType<typeof setup>): void {
+  const start = t.host.startSession.bind(t.host)
+  vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+    const session = await start(options)
+    Object.defineProperty(session, 'withdrawQueued', { value: undefined })
+    return session
+  })
+}
+
 /** A running turn t1 on `t`, with one message steered into it as `l2`. */
 async function steeredIntoRunning(t: ReturnType<typeof setup>): Promise<void> {
   await t.send('l1', 'hi')
@@ -11076,12 +11090,16 @@ describe('ConversationController: queued messages (M87, PLAN.md D66)', () => {
     await started.send('l1', 'now')
     await withdraw(started, 'l1', 't1')
     expect(startedRig.calls).toEqual([])
-    // A session with no way to take one back.
+    // A session with no way to take one back says so, not that it is too late (M87 lane C).
     const plain = setup()
     queueEverySubmit(plain)
+    withoutWithdraw(plain)
     await plain.send('l1', 'later')
     await withdraw(plain, 'l1', 'tq')
-    expect(plain.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+    expect(plain.surface.posted.at(-1)).toEqual(
+      withdrawRefusal('l1', UI_TEXT.queuedEditUnsupported),
+    )
+    expect(plain.server.requestsFor('turn/unqueue')).toEqual([])
   })
 
   it('answers a signed-out panel’s Edit with the reason, asking nothing', async () => {

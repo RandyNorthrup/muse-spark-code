@@ -17,6 +17,8 @@
   "queuedEditTitle": "將訊息從佇列取出，放回提示詞方塊",
   "queuedDelivered": "已送達正在執行的回合",
   "queuedTooLate": "此訊息已送達模型，無法再編輯。",
+  "queuedEditUnsupported": "此對話無法收回排入佇列的訊息，因此無法編輯。",
+  "queuedImagesNotReturned": "訊息已回到輸入框，但其圖片無法還原。傳送前請重新附加。",
   "composerLabel": "傳送訊息給 Muse",
   "connecting": "正在連線到延伸主機…",
   "notSignedIn": "未登入",

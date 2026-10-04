@@ -17,6 +17,8 @@
   "queuedEditTitle": "İletiyi kuyruktan çıkarıp istem kutusuna geri al",
   "queuedDelivered": "Çalışan tura zaten iletildi",
   "queuedTooLate": "Bu ileti modele zaten ulaştı, bu yüzden artık düzenlenemez.",
+  "queuedEditUnsupported": "Bu konuşma sıradaki bir iletiyi geri alamaz, bu yüzden ileti düzenlenemez.",
+  "queuedImagesNotReturned": "İleti istem kutusuna geri döndü, ancak görselleri geri getirilemedi. Göndermeden önce bunları yeniden ekleyin.",
   "composerLabel": "Muse'a mesaj",
   "connecting": "Uzantı konağına bağlanılıyor…",
   "notSignedIn": "Oturum açılmadı",

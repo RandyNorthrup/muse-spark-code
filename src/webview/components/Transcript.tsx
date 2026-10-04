@@ -1,18 +1,36 @@
 // The conversation: user cards with their image chips, assistant markdown,
 // reasoning rows, tool rows (with approval / question cards), generic items,
-// errors and notices, and the status line while a turn runs. Focus view
-// collapses tool and reasoning rows behind one expandable row per run.
+// errors and notices, and the status line while a turn runs. A run of two or
+// more finished steps folds under one summary row (M87); Focus view folds
+// every step that is not waiting on the user.
 //
 // Every row is memoised and every callback the app passes is stable (M25), so
 // a keystroke in the composer renders no row and a streamed delta renders
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } from 'react'
+import {
+  memo,
+  type ReactNode,
+  useDeferredValue,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
-import { hasFileAttachment } from '../state/transcriptEntries'
+import {
+  fill,
+  formatDateTime,
+  formatFullDateTime,
+  formatTime,
+  isSameLocalDay,
+  plural,
+} from '../../shared/l10n/text'
+import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
+import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
 import {
   forkCutBefore,
   type OutputPage,
@@ -26,7 +44,16 @@ import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
 import { ExternalLink } from './ExternalLink'
-import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
+import {
+  CheckIcon,
+  CopyIcon,
+  ExpandChevron,
+  FileIcon,
+  ImageIcon,
+  MoreIcon,
+  ReplyIcon,
+  RewindIcon,
+} from './icons'
 import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
@@ -105,6 +132,24 @@ export interface TranscriptProps {
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
+  /**
+   * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
+   * `withdrawQueued`. Absent while nothing can take a message back.
+   */
+  readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
+  /**
+   * Whether a steered message can still be taken back before a request reads
+   * it: the Model API's can; Muse Code's is delivered at once, and its card's
+   * menu says so instead (D66).
+   */
+  readonly canEditSteered?: boolean | undefined
+}
+
+/** A queued card as `withdrawQueued` names it (M87). */
+export interface QueuedCardRef {
+  readonly localId: string
+  readonly turnId: string
+  readonly userMessageId: string | undefined
 }
 
 type RewindChoice = 'fork' | 'conversation' | 'restore' | 'rewind' | 'restoreBoth' | 'forkRewind'
@@ -140,9 +185,7 @@ function turnOpeners(entries: readonly TranscriptEntry[]): ReadonlySet<string> {
   return openers
 }
 
-type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
-
-/** Consecutive tool/reasoning rows folded into one group for Focus view. */
+/** Consecutive tool/reasoning rows folded into one group under a summary (M16, M87). */
 type Segment =
   | { readonly kind: 'entry'; readonly entry: TranscriptEntry }
   | { readonly kind: 'steps'; readonly id: string; readonly steps: readonly StepEntry[] }
@@ -156,11 +199,12 @@ function isWaiting(entry: StepEntry): boolean {
   return entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined)
 }
 
-export function segment(entries: readonly TranscriptEntry[], isFocusView: boolean): Segment[] {
+/** Focus view (M16): every step not waiting on the user folds, a waiting one splits the run. */
+function focusSegments(entries: readonly TranscriptEntry[]): Segment[] {
   const segments: Segment[] = []
   for (const entry of entries) {
     const last = segments.at(-1)
-    if (isFocusView && isStep(entry) && !isWaiting(entry)) {
+    if (isStep(entry) && !isWaiting(entry)) {
       if (last?.kind === 'steps') {
         segments[segments.length - 1] = { ...last, steps: [...last.steps, entry] }
       } else {
@@ -171,6 +215,126 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
     segments.push({ kind: 'entry', entry })
   }
   return segments
+}
+
+/**
+ * The default view (M87, PLAN.md D66): in a run of steps with no other row
+ * between them, two or more finished steps fold into one group. A step
+ * waiting on the user never folds, and a running one stays below the group
+ * until it finishes; one finished step alone stays as it is.
+ */
+function defaultSegments(entries: readonly TranscriptEntry[]): Segment[] {
+  const segments: Segment[] = []
+  let run: StepEntry[] = []
+  const flush = () => {
+    const folded = run.filter((step) => isFinishedStep(step) && !isWaiting(step))
+    const first = folded[0]
+    if (first !== undefined && folded.length >= 2) {
+      segments.push({ kind: 'steps', id: `steps:${first.id}`, steps: folded })
+      run = run.filter((step) => !folded.includes(step))
+    }
+    segments.push(...run.map((step): Segment => ({ kind: 'entry', entry: step })))
+    run = []
+  }
+  for (const entry of entries) {
+    if (isStep(entry)) {
+      run.push(entry)
+      continue
+    }
+    flush()
+    segments.push({ kind: 'entry', entry })
+  }
+  flush()
+  return segments
+}
+
+export function segment(entries: readonly TranscriptEntry[], isFocusView: boolean): Segment[] {
+  return isFocusView ? focusSegments(entries) : defaultSegments(entries)
+}
+
+/**
+ * A message's time at its card's corner (M87, PLAN.md D66): the time alone
+ * for today, else the date and time, in the display language; the full date
+ * and time in its title. Revealed on hover and on focus inside the card; a
+ * card with no button of its own makes the time itself a keyboard stop.
+ */
+function MessageTime({
+  atMs,
+  template,
+  isFocusable,
+}: {
+  readonly atMs: number
+  readonly template: string
+  readonly isFocusable: boolean
+}) {
+  // "Today" is judged when the card mounts: one left open past midnight keeps
+  // its time-only label, and its title still names the day (D66).
+  const [renderedAtMs] = useState(Date.now)
+  return (
+    <time
+      className="message-time"
+      dateTime={new Date(atMs).toISOString()}
+      title={fill(template, { time: formatFullDateTime(atMs) })}
+      tabIndex={isFocusable ? 0 : undefined}
+    >
+      {isSameLocalDay(atMs, renderedAtMs) ? formatTime(atMs) : formatDateTime(atMs)}
+    </time>
+  )
+}
+
+/** Whether a text selection lies inside `area`: then the quote menu (M17) owns the right-click. */
+function hasSelectionIn(area: HTMLElement | null): boolean {
+  const selection = globalThis.getSelection()
+  return (
+    area !== null &&
+    selection !== null &&
+    !selection.isCollapsed &&
+    selection.toString().trim() !== '' &&
+    area.contains(selection.anchorNode)
+  )
+}
+
+/**
+ * A queued card's menu (M87): Edit while the model does not have the
+ * message, or the note that a steered message was delivered already. It
+ * opens from the card's "…", a right-click, Shift+F10 or the context-menu
+ * key, and takes the focus to its first row.
+ */
+function QueuedMenu({
+  isDelivered,
+  onEdit,
+}: {
+  readonly isDelivered: boolean
+  readonly onEdit: () => void
+}) {
+  const menu = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+  }, [])
+  return (
+    <div ref={menu} className="rewind-menu" role="menu" aria-label={UI_TEXT.queuedMenuLabel}>
+      {isDelivered ? (
+        <div
+          role="menuitem"
+          aria-disabled="true"
+          tabIndex={-1}
+          className="rewind-menu-item rewind-menu-note"
+        >
+          {UI_TEXT.queuedDelivered}
+        </div>
+      ) : (
+        <button
+          type="button"
+          role="menuitem"
+          className="rewind-menu-item"
+          title={UI_TEXT.queuedEditTitle}
+          onClick={onEdit}
+        >
+          {UI_TEXT.queuedEdit}
+        </button>
+      )}
+    </div>
+  )
 }
 
 /** Escape inside an open menu closes it and stays inside the row. */
@@ -195,6 +359,8 @@ const UserCard = memo(function UserCard({
   restoreNote,
   conversationNote,
   quoteMenu,
+  onEditQueued,
+  canEditSteered,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
@@ -206,6 +372,8 @@ const UserCard = memo(function UserCard({
   readonly restoreNote: string | undefined
   readonly conversationNote: string | undefined
   readonly quoteMenu: ReactNode
+  readonly onEditQueued: ((card: QueuedCardRef) => void) | undefined
+  readonly canEditSteered: boolean
 }) {
   const hasChips =
     entry.attachments.length > 0 ||
@@ -213,12 +381,39 @@ const UserCard = memo(function UserCard({
     entry.referenceLabel !== undefined
   const [isMenuOpen, setMenuOpen] = useState(false)
   const menuArea = useRef<HTMLDivElement>(null)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const card = useRef<HTMLLIElement>(null)
   const closeMenu = () => {
     setMenuOpen(false)
   }
   const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
   const hasMenu = onRewind !== undefined && entry.status === 'sent'
+  // A queued card's menu (M87): Edit, or the note that a steer was delivered.
+  const { turnId } = entry
+  const isQueued = entry.status === 'queued' && turnId !== undefined
+  const isDelivered = isQueued && entry.disposition === STEERED_DISPOSITION && !canEditSteered
+  const hasQueuedMenu = isQueued && (isDelivered || onEditQueued !== undefined)
+  const openQueuedMenu = (event: React.SyntheticEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setMenuOpen(true)
+  }
+  const onQueuedKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      openQueuedMenu(event)
+    } else if (isMenuOpen && event.key === 'Escape') {
+      event.stopPropagation()
+      closeMenu()
+      menuButton.current?.focus()
+    }
+  }
+  const editQueued = () => {
+    setMenuOpen(false)
+    if (turnId !== undefined) {
+      onEditQueued?.({ localId: entry.id, turnId, userMessageId: entry.replayItemId })
+    }
+  }
   const offered: Readonly<Record<RewindChoice, boolean>> = {
     fork: onFork !== undefined,
     conversation: onRewindConversation !== undefined,
@@ -260,10 +455,21 @@ const UserCard = memo(function UserCard({
   }
   return (
     <li
+      ref={card}
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
-      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
+      onKeyDown={hasQueuedMenu ? onQueuedKeyDown : closeOnEscape(isMenuOpen, closeMenu)}
+      onContextMenu={
+        hasQueuedMenu
+          ? (event) => {
+              // Selected text keeps the quote menu (M17).
+              if (!hasSelectionIn(card.current)) {
+                openQueuedMenu(event)
+              }
+            }
+          : undefined
+      }
     >
       {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
@@ -297,7 +503,38 @@ const UserCard = memo(function UserCard({
       <div className="message-text" dir="auto">
         {entry.text}
       </div>
+      {isQueued && !isDelivered ? (
+        <div className="message-queued-badge">
+          <span className="badge">{UI_TEXT.queuedLabel}</span>
+        </div>
+      ) : null}
       {entry.status === 'failed' ? <div className="message-error">{entry.reason}</div> : null}
+      {entry.atMs === undefined ? null : (
+        <MessageTime
+          atMs={entry.atMs}
+          template={UI_TEXT.messageSentAt}
+          isFocusable={!hasMenu && !hasQueuedMenu}
+        />
+      )}
+      {hasQueuedMenu ? (
+        <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
+          <button
+            ref={menuButton}
+            type="button"
+            className="rewind-button queued-button"
+            title={UI_TEXT.queuedMenuLabel}
+            aria-label={UI_TEXT.queuedMenuLabel}
+            aria-haspopup="menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => {
+              setMenuOpen((isOpen) => !isOpen)
+            }}
+          >
+            <MoreIcon />
+          </button>
+          {isMenuOpen ? <QueuedMenu isDelivered={isDelivered} onEdit={editQueued} /> : null}
+        </div>
+      ) : null}
       {hasMenu ? (
         <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
           <button
@@ -512,6 +749,14 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
       </div>
+      {entry.atMs === undefined ? null : (
+        // A reply still streaming has no button of its own: the time is the keyboard stop.
+        <MessageTime
+          atMs={entry.atMs}
+          template={UI_TEXT.messageReceivedAt}
+          isFocusable={entry.isStreaming}
+        />
+      )}
       {entry.isStreaming ? null : (
         <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>
           <button
@@ -571,20 +816,33 @@ function StepsGroup({
   readonly render: (entry: StepEntry) => React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const count = group.steps.length
+  const listId = useId()
+  const summary = stepSummary(group.steps)
+  // A failure folds but is never hidden: the summary names it and carries its dot.
+  const hasFailure = summary.failed > 0
   return (
     <li className="steps">
       <button
         type="button"
         className="steps-toggle"
         aria-expanded={isOpen}
+        aria-controls={listId}
         onClick={() => {
           setIsOpen(!isOpen)
         }}
       >
-        {plural(isOpen ? UI_TEXT.hideHiddenSteps : UI_TEXT.showHiddenSteps, count)}
+        <span
+          className={hasFailure ? 'tool-dot tool-dot-failed' : 'tool-dot tool-dot-muted'}
+          aria-hidden="true"
+        />
+        <span className="steps-summary">{stepSummaryText(summary)}</span>
+        <ExpandChevron isOpen={isOpen} />
       </button>
-      {isOpen ? <ul className="steps-list">{group.steps.map((step) => render(step))}</ul> : null}
+      {isOpen ? (
+        <ul id={listId} className="steps-list">
+          {group.steps.map((step) => render(step))}
+        </ul>
+      ) : null}
     </li>
   )
 }
@@ -805,6 +1063,8 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    onEditQueued,
+    canEditSteered = false,
   } = props
   const openers = useMemo(() => turnOpeners(entries), [entries])
   const quoteMenuFor = (entryId: string): ReactNode =>
@@ -871,6 +1131,8 @@ function TranscriptList(props: TranscriptProps) {
             }
             conversationNote={conversationNote}
             quoteMenu={quoteMenuFor(entry.id)}
+            onEditQueued={onEditQueued}
+            canEditSteered={canEditSteered}
           />
         )
       }

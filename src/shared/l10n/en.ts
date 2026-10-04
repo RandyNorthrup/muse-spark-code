@@ -38,6 +38,10 @@ export const EN = {
   queuedEditTitle: 'Take the message out of the queue and back into the prompt box',
   queuedDelivered: 'Already delivered to the running turn',
   queuedTooLate: 'This message already reached the model, so it can no longer be edited.',
+  queuedEditUnsupported:
+    'This conversation cannot take a queued message back, so it cannot be edited.',
+  queuedImagesNotReturned:
+    'The message is back in the prompt box, but its images could not be returned. Attach them again before sending.',
   composerLabel: 'Message Muse',
   connecting: 'Connecting to the extension host…',
   notSignedIn: 'Not signed in',

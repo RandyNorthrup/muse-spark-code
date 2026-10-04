@@ -17,6 +17,8 @@
   "queuedEditTitle": "メッセージをキューから取り出し、プロンプト欄に戻す",
   "queuedDelivered": "実行中のターンに引き渡し済み",
   "queuedTooLate": "このメッセージは既にモデルに到達したため、編集できません。",
+  "queuedEditUnsupported": "この会話はキュー内のメッセージを取り戻せないため、編集できません。",
+  "queuedImagesNotReturned": "メッセージは入力ボックスに戻りましたが、画像は戻せませんでした。送信する前にもう一度添付してください。",
   "composerLabel": "Muse へのメッセージ",
   "connecting": "拡張機能ホストに接続しています…",
   "notSignedIn": "サインインしていません",

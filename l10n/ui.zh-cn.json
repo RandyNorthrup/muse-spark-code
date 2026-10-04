@@ -17,6 +17,8 @@
   "queuedEditTitle": "将消息从队列中取出，放回提示词框",
   "queuedDelivered": "已送达正在运行的轮次",
   "queuedTooLate": "此消息已送达模型，无法再编辑。",
+  "queuedEditUnsupported": "此对话无法撤回排队中的消息，因此无法编辑。",
+  "queuedImagesNotReturned": "消息已回到输入框，但其图片无法恢复。发送前请重新附加。",
   "composerLabel": "给 Muse 发消息",
   "connecting": "正在连接到扩展主机…",
   "notSignedIn": "未登录",

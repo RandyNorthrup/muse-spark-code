@@ -4,7 +4,7 @@
 // (docs/certification/m43.md), trimmed to what the row reads.
 import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { renderSteps, renderTranscript, tool } from './helpers/transcriptFixtures'
 
 const GOAL = {
   session_id: 's',
@@ -224,7 +224,7 @@ describe('web search rows (M43)', () => {
   })
 
   it('says a search found nothing, and shows any other result as text', () => {
-    renderTranscript([
+    renderSteps([
       tool({
         id: 'w1',
         tool: 'web_search',
@@ -363,7 +363,7 @@ describe('pictures a tool read or made (M43)', () => {
 
   it('shows a loaded picture, opens its file on click, and says why one failed', () => {
     const onOpenFile = vi.fn()
-    renderTranscript(
+    renderSteps(
       [
         tool({
           id: 'i1',

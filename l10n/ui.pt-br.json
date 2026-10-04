@@ -17,6 +17,8 @@
   "queuedEditTitle": "Tira a mensagem da fila e devolve-a à caixa de texto",
   "queuedDelivered": "Já entregue ao turno em andamento",
   "queuedTooLate": "Esta mensagem já chegou ao modelo, então não pode mais ser editada.",
+  "queuedEditUnsupported": "Esta conversa não pode retirar uma mensagem da fila, então ela não pode ser editada.",
+  "queuedImagesNotReturned": "A mensagem voltou para a caixa de texto, mas as imagens dela não puderam ser recuperadas. Anexe-as novamente antes de enviar.",
   "composerLabel": "Mensagem para o Muse",
   "connecting": "Conectando ao host de extensão…",
   "notSignedIn": "Não conectado",

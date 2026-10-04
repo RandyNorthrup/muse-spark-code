@@ -1,6 +1,6 @@
 // A tool row entry and the transcript's props, for the tests that render the
 // conversation (Transcript, the tool rows of M43).
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../../src/webview/state/uiState'
@@ -81,6 +81,29 @@ export function renderTranscript(
 ) {
   const props = transcriptProps(entries, overrides)
   render(<Transcript {...props} />)
+  return props
+}
+
+/**
+ * Opens every run of steps folded under its summary (M87, PLAN.md D66): two
+ * or more finished steps fold by default, so a test about the rows
+ * themselves opens them first, as the user would.
+ */
+export function openStepGroups(): void {
+  for (const summary of document.querySelectorAll<HTMLButtonElement>(
+    '.steps-toggle[aria-expanded="false"]',
+  )) {
+    fireEvent.click(summary)
+  }
+}
+
+/** The transcript with every folded run of steps opened (M87). */
+export function renderSteps(
+  entries: readonly TranscriptEntry[],
+  overrides: Partial<TranscriptProps> = {},
+) {
+  const props = renderTranscript(entries, overrides)
+  openStepGroups()
   return props
 }
 

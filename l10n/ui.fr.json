@@ -17,6 +17,8 @@
   "queuedEditTitle": "Sort le message de la file d’attente pour le remettre dans la zone de saisie",
   "queuedDelivered": "Déjà transmis au tour en cours",
   "queuedTooLate": "Ce message est déjà parvenu au modèle, il ne peut donc plus être modifié.",
+  "queuedEditUnsupported": "Cette conversation ne peut pas reprendre un message en file d’attente, il ne peut donc pas être modifié.",
+  "queuedImagesNotReturned": "Le message est revenu dans la zone de saisie, mais ses images n’ont pas pu être récupérées. Joignez-les à nouveau avant l’envoi.",
   "composerLabel": "Écrire à Muse",
   "connecting": "Connexion à l’hôte d’extension…",
   "notSignedIn": "Non connecté",

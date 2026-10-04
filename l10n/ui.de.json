@@ -17,6 +17,8 @@
   "queuedEditTitle": "Die Nachricht aus der Warteschlange zurück in das Nachrichtenfeld holen",
   "queuedDelivered": "Bereits an den laufenden Durchgang übergeben",
   "queuedTooLate": "Diese Nachricht hat das Modell bereits erreicht und kann daher nicht mehr bearbeitet werden.",
+  "queuedEditUnsupported": "Diese Unterhaltung kann eine eingereihte Nachricht nicht zurücknehmen, daher kann sie nicht bearbeitet werden.",
+  "queuedImagesNotReturned": "Die Nachricht ist wieder im Nachrichtenfeld, ihre Bilder konnten aber nicht zurückgegeben werden. Hängen Sie sie vor dem Senden erneut an.",
   "composerLabel": "Nachricht an Muse",
   "connecting": "Verbindung mit dem Erweiterungshost wird hergestellt…",
   "notSignedIn": "Nicht angemeldet",
@@ -575,31 +577,31 @@
   "tasksTabEnded": "Die Unterhaltung, zu der diese Liste gehört, wurde geschlossen.",
   "stepSummary": {
     "edited": {
-      "one": "Eine Datei bearbeitet",
+      "one": "eine Datei bearbeitet",
       "other": "{count} Dateien bearbeitet"
     },
     "read": {
-      "one": "Eine Datei gelesen",
+      "one": "eine Datei gelesen",
       "other": "{count} Dateien gelesen"
     },
     "searched": {
-      "one": "Einen Ordner durchsucht",
+      "one": "einen Ordner durchsucht",
       "other": "{count} Ordner durchsucht"
     },
     "ran": {
-      "one": "Einen Befehl ausgeführt",
+      "one": "einen Befehl ausgeführt",
       "other": "{count} Befehle ausgeführt"
     },
     "fetched": {
-      "one": "Eine Seite abgerufen",
+      "one": "eine Seite abgerufen",
       "other": "{count} Seiten abgerufen"
     },
     "searchedWeb": {
-      "one": "Das Web durchsucht",
-      "other": "Das Web {count} Mal durchsucht"
+      "one": "das Web durchsucht",
+      "other": "das Web {count} Mal durchsucht"
     },
     "used": {
-      "one": "Ein Tool verwendet",
+      "one": "ein Tool verwendet",
       "other": "{count} Tools verwendet"
     },
     "failed": {
