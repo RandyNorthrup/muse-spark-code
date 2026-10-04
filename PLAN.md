@@ -11884,6 +11884,12 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
+**Lane F1 (item 17).** The reusable edge-aware radial layout, grouped menu
+and highlighted-text adapter are implemented in `m87/f`. The bounded lane's
+readiness, tests, drills and theme captures are recorded in
+`docs/certification/m87-f.md`. Transcript row wiring and replacing hover
+actions remain F2, after lane C; full M87 certification belongs to the lead.
+
 **L10NGATE follow-up (2026-10-03).** Strengthen the existing shared table
 checker used by `scripts/check-l10n.mjs`: sample integer counts 0 through
 200 with each locale's `Intl.PluralRules`, and require `{count}` in `one`

@@ -2264,9 +2264,110 @@ body {
   background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
 }
 
-/* The highlighted-text menu sits at a row's top-right (M17). */
+/* M87 F: the highlighted-text anchor stays at its row's top-right. */
 .quote-menu {
+  position: absolute;
   top: 4px;
+  right: 4px;
+  width: 0;
+  height: 0;
+}
+
+.gooey-menu {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gooey-menu-defs {
+  position: absolute;
+}
+
+.gooey-menu-bubbles {
+  position: absolute;
+  inset: 0;
+  filter: var(--ms-goo-filter);
+}
+
+.gooey-menu-bubble {
+  position: absolute;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  place-items: center;
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 50%;
+  translate: -50% -50%;
+  pointer-events: auto;
+  animation: gooey-burst 180ms ease-out;
+}
+
+.gooey-menu-bubble:hover,
+.gooey-menu-bubble:focus-visible {
+  background: var(--vscode-button-hoverBackground);
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.gooey-menu-bubble[aria-disabled='true'] {
+  cursor: default;
+  opacity: 50%;
+}
+
+.gooey-menu-label {
+  position: absolute;
+  max-width: min(180px, calc(50vw - 40px));
+  padding: 4px 8px;
+  margin-left: 28px;
+  overflow-wrap: anywhere;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 4px;
+  translate: 0 -50%;
+}
+
+.gooey-menu-label-left {
+  margin-left: -28px;
+  translate: -100% -50%;
+}
+
+@keyframes gooey-burst {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gooey-menu-motion-safe .gooey-menu-bubbles {
+    filter: none;
+  }
+
+  .gooey-menu-motion-safe .gooey-menu-bubble {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .gooey-menu-colors-safe .gooey-menu-bubbles {
+    filter: none;
+  }
+
+  .gooey-menu-colors-safe .gooey-menu-bubble,
+  .gooey-menu-colors-safe .gooey-menu-label {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
 }
 
 .tool {

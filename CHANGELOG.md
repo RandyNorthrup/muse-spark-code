@@ -204,6 +204,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Highlighted-text actions now open as themed round bubbles, with an inward
+  fan that fits a 320 px panel, visible focus/hover labels, arrow and Home/End
+  navigation, and focus return. Copy, Ask about this and Comment on this keep
+  their existing behavior. Reduced motion removes the burst and goo filter;
+  forced colors uses bordered system-color buttons.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.

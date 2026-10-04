@@ -1273,6 +1273,17 @@
             key({ key: 'Enter' })
           })
         },
+        'chat-menu': () => {
+          steps['quote-menu']()
+        },
+        'chat-menu-narrow': () => {
+          if (window.innerWidth !== 320) {
+            throw new Error('chat-menu-narrow requires a 320 px viewport')
+          }
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['chat-menu']()
+        },
         shifttab: () => {
           textarea().focus()
           key({ key: 'Tab', shiftKey: true })
@@ -2342,7 +2353,7 @@
         'quote-chip': () => {
           steps['quote-menu']()
           later(600, () => {
-            document.querySelector('.quote-menu .rewind-menu-item').click()
+            document.querySelector('.quote-menu .gooey-menu-bubble').click()
             setDraft('Are you sure about the count?')
           })
         },

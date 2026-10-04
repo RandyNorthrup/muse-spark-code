@@ -36,6 +36,8 @@ export const SCENARIOS = [
   'mention',
   'chips',
   'transcript',
+  'chat-menu',
+  'chat-menu-narrow',
   'shifttab',
   'filter',
   'modes',
