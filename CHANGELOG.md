@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-04
+
 ### Added
 
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
