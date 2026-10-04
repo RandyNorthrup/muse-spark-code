@@ -9,7 +9,7 @@
   "snapshotTooLong": "Bu konuşma, yeniden yükleme boyunca panelde tutulamayacak kadar uzundu; tamamını görmek için Geçmiş'ten açın.",
   "linkOutsideWorkspace": "Çalışma alanı dışındaki dosyalara giden bağlantılar dökümden açılmaz.",
   "emptyStateHint": "İş için doğru aracı seçmek üzere /model yazın.",
-  "composerPlaceholder": "Muse'a odaklanmak veya odağı bırakmak için ctrl esc (Windows'ta ctrl alt esc)",
+  "composerPlaceholder": "Muse'a odaklanmak veya odağı bırakmak için ctrl esc (macOS'ta cmd esc, Windows'ta ctrl alt esc)",
   "composerQueuePlaceholder": "Başka bir mesajı kuyruğa ekle…",
   "composerLabel": "Muse'a mesaj",
   "connecting": "Uzantı konağına bağlanılıyor…",
@@ -908,6 +908,7 @@
     "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
     "auto": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler ve komutlardan önce sorar"
   },
+  "modelApiReviewedAutoDetail": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler; ücretli bir inceleyici bazı komutlara bir kez izin verebilir, geri kalanlar size sorulur",
   "effortLevels": {
     "minimal": "Minimum",
     "low": "Düşük",
@@ -1228,12 +1229,12 @@
     "composing": "Yazıyor…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (Windows'ta Ctrl+Alt+Esc)",
+    "focus": "Ctrl+Esc (macOS'ta Cmd+Esc, Windows'ta Ctrl+Alt+Esc)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc (Windows'ta Ctrl+Shift+Alt+Esc)",
+    "newTab": "Ctrl+Shift+Esc (macOS'ta Cmd+Shift+Esc, Windows'ta Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1759,7 +1760,7 @@
   "autoReviewerTripped": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra durdu. Bir sonraki mesajınızı gönderene kadar her riskli işlem size sorar.",
   "museCodeReviewerNotice": "Varsayılan olarak açık. Muse Code Otomatik modunda yalnızca çalışan turun hiçbir kuralın karara bağlamadığı onayları uygundur: gizli Planlama oturumunda aboneliğinizden kısa bir Muse Code turu. Korumalı yazmalar, ücretli çağrılar, alt görevler, sorular, yeniden sunulan veya üst değerlendirmeye aktarılan istekler, bilinmeyen konular, bir kez izin verme seçeneği olmayan istekler ve panellerce paylaşılan oturumlar asla incelenmez. Başarılı inceleme bir kez izin verebilir; retler, hatalar, meşgul oturumlar, zaman aşımları veya devre kesicinin açılması onay kartını gösterir. Ana süreç çıktığında yan oturum yeniden oluşturulur. museSpark.museCodeAutoReviewer ile kapatabilirsiniz.",
   "paidAutoReviewerName": "Otomatik inceleyici",
-  "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı hiçbir kuralın karara bağlamadığı her riskli işlemi değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
+  "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı, onay isteyecek ve hiçbir kuralın veya izin profilinin karara bağlamadığı her basit kabuk komutunu ya da MCP aracı çağrısını değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
   "paidUseAutoReviewerTitle": "Bu {tool} çağrısını otomatik inceleyici değerlendirsin mi?",
   "paidUseAutoReviewerDetail": "{action}\n\n{model} modeline yapılan ayrı bir çağrı, işlemin size sormadan çalışıp çalışamayacağını değerlendirir. Model API anahtarınıza faturalandırılır: {price}. Toplam, kullanılan tokenlara göre değişir. İzin vermezseniz bunun yerine onay kartını görürsünüz.",
   "usagePaidAutoReviews": {

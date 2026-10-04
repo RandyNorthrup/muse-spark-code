@@ -9,7 +9,7 @@
   "snapshotTooLong": "Diese Unterhaltung war zu lang, um sie beim Neuladen im Panel zu behalten. Öffnen Sie sie über den Verlauf, um sie vollständig zu sehen.",
   "linkOutsideWorkspace": "Links zu Dateien außerhalb des Arbeitsbereichs werden nicht aus dem Transkript geöffnet.",
   "emptyStateHint": "Geben Sie /model ein, um das passende Werkzeug für die Aufgabe zu wählen.",
-  "composerPlaceholder": "Strg+Esc (unter Windows Strg+Alt+Esc), um Muse zu fokussieren oder den Fokus zu verlassen",
+  "composerPlaceholder": "Strg+Esc (unter macOS Cmd+Esc, unter Windows Strg+Alt+Esc), um Muse zu fokussieren oder den Fokus zu verlassen",
   "composerQueuePlaceholder": "Weitere Nachricht einreihen…",
   "composerLabel": "Nachricht an Muse",
   "connecting": "Verbindung mit dem Erweiterungshost wird hergestellt…",
@@ -908,6 +908,7 @@
     "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
     "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen"
   },
+  "modelApiReviewedAutoDetail": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien; ein kostenpflichtiger Prüfer kann manche Befehle einmal erlauben, zu den übrigen werden Sie gefragt",
   "effortLevels": {
     "minimal": "Minimal",
     "low": "Niedrig",
@@ -1228,12 +1229,12 @@
     "composing": "Formuliert…"
   },
   "onboardingShortcuts": {
-    "focus": "Strg+Esc (Strg+Alt+Esc unter Windows)",
+    "focus": "Strg+Esc (Cmd+Esc unter macOS, Strg+Alt+Esc unter Windows)",
     "palette": "/",
     "cycleMode": "Umschalt+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Strg+Umschalt+Esc (Strg+Umschalt+Alt+Esc unter Windows)",
+    "newTab": "Strg+Umschalt+Esc (Cmd+Umschalt+Esc unter macOS, Strg+Umschalt+Alt+Esc unter Windows)",
     "dictation": "Strg+D",
     "shell": "!",
     "moveToBackground": "Strg+B"
@@ -1759,7 +1760,7 @@
   "autoReviewerTripped": "Der Auto-Prüfer hat nach wiederholten Ablehnungen oder Fehlern angehalten. Bis Sie Ihre nächste Nachricht senden, fragt jede riskante Aktion Sie.",
   "museCodeReviewerNotice": "Standardmäßig an. In Auto auf Muse Code kommen nur Genehmigungen für den laufenden Durchgang infrage, die keine Regel entscheidet: ein kurzer Muse-Code-Durchgang über Ihr Abonnement in einer verborgenen Plan-Sitzung. Geschützte Schreibvorgänge, kostenpflichtige Aufrufe, untergeordnete Aufgaben, Fragen, erneut zugestellte oder eskalierte Anfragen, unbekannte Gegenstände, Anfragen ohne einmalige Erlaubnis und von mehreren Panels geteilte Sitzungen werden nie geprüft. Eine erfolgreiche Prüfung kann einmal erlauben; Ablehnungen, Fehler, belegte Sitzungen, Zeitüberschreitungen oder eine ausgelöste Abschaltung zeigen die Genehmigungskarte. Nach Ende des Hosts wird die Nebensitzung neu erstellt. Ausschalten mit museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Auto-Prüfer",
-  "paidConfirmAutoReviewer": "Im Modus „Auto“ auf dem Model-API-Backend beurteilt ein separater Modellaufruf jede riskante Aktion, die keine Regel klärt, und führt sie ohne Nachfrage aus, wenn sie sicher wirkt. Er lässt niemals einen verbotenen Befehl, einen Befehl, bei dem Ihre Regeln nachfragen, einen geschützten Schreibvorgang oder einen kostenpflichtigen Aufruf zu; lehnt er ab oder scheitert er, entscheiden Sie. Jede Prüfung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Prüfung fragt zuerst nach, es sei denn, Sie lassen Prüfungen in diesem Arbeitsbereich immer zu.",
+  "paidConfirmAutoReviewer": "Im Modus „Auto“ auf dem Model-API-Backend beurteilt ein separater Modellaufruf jeden einfachen Shellbefehl und jeden MCP-Werkzeugaufruf, der nachfragen würde und den weder eine Regel noch ein Berechtigungsprofil klärt, und führt ihn ohne Nachfrage aus, wenn er sicher wirkt. Er lässt niemals einen verbotenen Befehl, einen Befehl, bei dem Ihre Regeln nachfragen, einen geschützten Schreibvorgang oder einen kostenpflichtigen Aufruf zu; lehnt er ab oder scheitert er, entscheiden Sie. Jede Prüfung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Prüfung fragt zuerst nach, es sei denn, Sie lassen Prüfungen in diesem Arbeitsbereich immer zu.",
   "paidUseAutoReviewerTitle": "Den Auto-Prüfer diesen {tool}-Aufruf beurteilen lassen?",
   "paidUseAutoReviewerDetail": "{action}\n\nEin separater Aufruf von {model} beurteilt, ob die Aktion ohne Nachfrage ausgeführt werden darf. Abrechnung über Ihren Model-API-Schlüssel: {price}. Der Gesamtbetrag hängt von den verwendeten Token ab. Bei „Verweigern“ sehen Sie stattdessen die Genehmigungskarte.",
   "usagePaidAutoReviews": {

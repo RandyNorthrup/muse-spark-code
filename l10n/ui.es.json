@@ -9,7 +9,7 @@
   "snapshotTooLong": "Esta conversación era demasiado larga para conservarla en el panel tras la recarga; ábrala desde el historial para verla completa.",
   "linkOutsideWorkspace": "Los vínculos a archivos fuera del área de trabajo no se abren desde la transcripción.",
   "emptyStateHint": "Escriba /model para elegir la herramienta adecuada para cada tarea.",
-  "composerPlaceholder": "ctrl esc (ctrl alt esc en Windows) para enfocar o desenfocar Muse",
+  "composerPlaceholder": "ctrl esc (cmd esc en macOS, ctrl alt esc en Windows) para enfocar o desenfocar Muse",
   "composerQueuePlaceholder": "Poner otro mensaje en cola…",
   "composerLabel": "Mensaje para Muse",
   "connecting": "Conectando con el host de extensiones…",
@@ -931,6 +931,7 @@
     "acceptEdits": "Muse editará archivos sin preguntar y preguntará antes de ejecutar comandos",
     "auto": "Muse editará archivos sin preguntar, salvo los archivos protegidos, y preguntará antes de los comandos"
   },
+  "modelApiReviewedAutoDetail": "Muse editará archivos sin preguntar, salvo los archivos protegidos; un revisor de pago puede permitir algunos comandos una vez, y se te pregunta por el resto",
   "effortLevels": {
     "minimal": "Mínimo",
     "low": "Bajo",
@@ -1264,12 +1265,12 @@
     "composing": "Redactando…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (Ctrl+Alt+Esc en Windows)",
+    "focus": "Ctrl+Esc (Cmd+Esc en macOS, Ctrl+Alt+Esc en Windows)",
     "palette": "/",
     "cycleMode": "Mayús+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Mayús+Esc (Ctrl+Mayús+Alt+Esc en Windows)",
+    "newTab": "Ctrl+Mayús+Esc (Cmd+Mayús+Esc en macOS, Ctrl+Mayús+Alt+Esc en Windows)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1824,7 +1825,7 @@
   "autoReviewerTripped": "El revisor automático se detuvo tras rechazos o fallos repetidos. Hasta que envíes tu próximo mensaje, cada acción arriesgada te pedirá confirmación.",
   "museCodeReviewerNotice": "Activado de forma predeterminada. En Automático con Muse Code, solo se pueden revisar las aprobaciones del turno en curso que ninguna regla resuelve: un turno breve de Muse Code con tu suscripción en una sesión oculta de Planificar. Nunca se revisan escrituras protegidas, llamadas de pago, tareas secundarias, preguntas, solicitudes reenviadas o escaladas, asuntos desconocidos, solicitudes sin permiso de una sola vez ni sesiones compartidas por paneles. Una revisión correcta puede permitir una vez; los rechazos, fallos, sesiones ocupadas, tiempos de espera agotados o un interruptor activado muestran la tarjeta de aprobación. Al salir el proceso anfitrión, se vuelve a crear la sesión auxiliar. Desactívalo con museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Revisor automático",
-  "paidConfirmAutoReviewer": "En el modo Automático del backend Model API, una llamada de modelo aparte evalúa cada acción arriesgada que ninguna regla resuelve, y la ejecuta sin preguntar si parece segura. Nunca permite un comando prohibido, un comando para el que tus reglas piden confirmación, una escritura protegida ni una llamada de pago; si rechaza o falla, decides tú. Cada revisión se factura a tu clave de Model API según las tarifas por token del modelo de la conversación:\n{price}\nCada revisión pide confirmación primero, salvo que permitas siempre las revisiones en esta área de trabajo.",
+  "paidConfirmAutoReviewer": "En el modo Automático del backend Model API, una llamada de modelo aparte evalúa cada comando de shell simple o llamada a una herramienta MCP que pediría confirmación y que ninguna regla ni perfil de permisos resuelve, y lo ejecuta sin preguntar si parece seguro. Nunca permite un comando prohibido, un comando para el que tus reglas piden confirmación, una escritura protegida ni una llamada de pago; si rechaza o falla, decides tú. Cada revisión se factura a tu clave de Model API según las tarifas por token del modelo de la conversación:\n{price}\nCada revisión pide confirmación primero, salvo que permitas siempre las revisiones en esta área de trabajo.",
   "paidUseAutoReviewerTitle": "¿Dejar que el revisor automático evalúe esta llamada a {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nUna llamada aparte a {model} evalúa si la acción puede ejecutarse sin preguntarte. Se factura a tu clave de Model API: {price}. El total varía según los tokens usados. Si deniegas, verás la tarjeta de aprobación.",
   "usagePaidAutoReviews": {

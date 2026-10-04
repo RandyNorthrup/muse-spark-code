@@ -9,7 +9,7 @@
   "snapshotTooLong": "此对话过长，重新加载后无法完整保留在面板中；请从历史记录中打开以查看全部内容。",
   "linkOutsideWorkspace": "不会从对话记录中打开指向工作区外文件的链接。",
   "emptyStateHint": "输入 /model，为手头的任务选择合适的模型。",
-  "composerPlaceholder": "按 ctrl esc（Windows 上为 ctrl alt esc）聚焦或取消聚焦 Muse",
+  "composerPlaceholder": "按 ctrl esc（macOS 上为 cmd esc，Windows 上为 ctrl alt esc）聚焦或取消聚焦 Muse",
   "composerQueuePlaceholder": "排队发送另一条消息…",
   "composerLabel": "给 Muse 发消息",
   "connecting": "正在连接到扩展主机…",
@@ -885,6 +885,7 @@
     "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",
     "auto": "Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问"
   },
+  "modelApiReviewedAutoDetail": "Muse 会直接编辑文件而不询问（受保护的文件除外）；付费审查器可能会允许部分命令运行一次，其余命令会询问您",
   "effortLevels": {
     "minimal": "极低",
     "low": "低",
@@ -1192,12 +1193,12 @@
     "composing": "正在撰写…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc（Windows 上为 Ctrl+Alt+Esc）",
+    "focus": "Ctrl+Esc（macOS 上为 Cmd+Esc，Windows 上为 Ctrl+Alt+Esc）",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc（Windows 上为 Ctrl+Shift+Alt+Esc）",
+    "newTab": "Ctrl+Shift+Esc（macOS 上为 Cmd+Shift+Esc，Windows 上为 Ctrl+Shift+Alt+Esc）",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1694,7 +1695,7 @@
   "autoReviewerTripped": "由于多次拒绝或失败，自动审查器已停止。在您发送下一条消息之前，每个有风险的操作都会询问您。",
   "museCodeReviewerNotice": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。 可通过 museSpark.museCodeAutoReviewer 关闭。",
   "paidAutoReviewerName": "自动审查器",
-  "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
+  "paidConfirmAutoReviewer": "在 Model API 后端的自动模式下，一次单独的模型调用会评判每个会询问、且没有规则或权限配置文件决定的简单 shell 命令或 MCP 工具调用，看起来安全时不询问直接运行。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用；它拒绝或失败时由您决定。每次审查按对话模型的令牌费率计入您的 Model API 密钥：\n{price}\n除非您在此工作区中始终允许审查，否则每次审查前都会先询问。",
   "paidUseAutoReviewerTitle": "让自动审查器评判此 {tool} 调用吗？",
   "paidUseAutoReviewerDetail": "{action}\n\n对 {model} 的一次单独调用会评判此操作能否不经询问直接运行。费用计入您的 Model API 密钥：{price}。总额随使用的令牌数变化。选择不允许则改为显示审批卡片。",
   "usagePaidAutoReviews": {

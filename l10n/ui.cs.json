@@ -9,7 +9,7 @@
   "snapshotTooLong": "Tato konverzace byla příliš dlouhá, než aby ji panel uchoval přes opětovné načtení; celou ji uvidíte, když ji otevřete z Historie.",
   "linkOutsideWorkspace": "Odkazy na soubory mimo pracovní prostor se z přepisu neotevírají.",
   "emptyStateHint": "Napište /model a vyberte správný nástroj pro danou práci.",
-  "composerPlaceholder": "ctrl esc (ve Windows ctrl alt esc) přesune fokus do Muse a zpět",
+  "composerPlaceholder": "ctrl esc (v macOS cmd esc, ve Windows ctrl alt esc) přesune fokus do Muse a zpět",
   "composerQueuePlaceholder": "Zařadit do fronty další zprávu…",
   "composerLabel": "Zpráva pro Muse",
   "connecting": "Připojování k hostiteli rozšíření…",
@@ -954,6 +954,7 @@
     "acceptEdits": "Muse bude upravovat soubory bez ptaní a před spuštěním příkazů se zeptá",
     "auto": "Muse bude upravovat soubory bez ptaní, kromě chráněných souborů, a před příkazy se zeptá"
   },
+  "modelApiReviewedAutoDetail": "Muse bude upravovat soubory bez ptaní, kromě chráněných souborů; placený kontrolor může některé příkazy jednou povolit a na zbytek se zeptá vás",
   "effortLevels": {
     "minimal": "Minimální",
     "low": "Nízké",
@@ -1300,12 +1301,12 @@
     "composing": "Píše…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (ve Windows Ctrl+Alt+Esc)",
+    "focus": "Ctrl+Esc (v macOS Cmd+Esc, ve Windows Ctrl+Alt+Esc)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc (ve Windows Ctrl+Shift+Alt+Esc)",
+    "newTab": "Ctrl+Shift+Esc (v macOS Cmd+Shift+Esc, ve Windows Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1889,7 +1890,7 @@
   "autoReviewerTripped": "Automatický kontrolor se po opakovaných zamítnutích nebo selháních zastavil. Dokud nepošlete další zprávu, každá riziková akce se zeptá vás.",
   "museCodeReviewerNotice": "Ve výchozím nastavení zapnuto. V automatickém režimu Muse Code lze posoudit pouze schválení pro běžící kolo, která nerozhodne žádné pravidlo: jedno krátké kolo Muse Code z vašeho předplatného ve skryté relaci Plán. Chráněné zápisy, placená volání, podřízené úlohy, otázky, opakované nebo eskalované požadavky, neznámé předměty, požadavky bez jednorázového povolení a relace sdílené panely se nikdy neposuzují. Úspěšná kontrola může povolit jednou; odmítnutí, selhání, obsazená relace, časový limit nebo aktivovaný jistič zobrazí kartu schválení. Po ukončení hostitele se vedlejší relace vytvoří znovu. Vypnete jej nastavením museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatický kontrolor",
-  "paidConfirmAutoReviewer": "V automatickém režimu na back-endu Model API posuzuje samostatné volání modelu každou rizikovou akci, kterou žádné pravidlo nerozhodne, a spustí ji bez ptaní, pokud vypadá bezpečně. Nikdy nepovolí zakázaný příkaz, příkaz, u kterého se vaše pravidla ptají, chráněný zápis ani placené volání; když zamítne nebo selže, rozhodujete vy. Každá kontrola se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nKaždá kontrola se nejprve zeptá, pokud kontroly v tomto pracovním prostoru nepovolíte vždy.",
+  "paidConfirmAutoReviewer": "V automatickém režimu na back-endu Model API posuzuje samostatné volání modelu každý jednoduchý příkaz shellu nebo volání nástroje MCP, které by se ptalo a které nerozhodne žádné pravidlo ani profil oprávnění, a spustí je bez ptaní, pokud vypadá bezpečně. Nikdy nepovolí zakázaný příkaz, příkaz, u kterého se vaše pravidla ptají, chráněný zápis ani placené volání; když zamítne nebo selže, rozhodujete vy. Každá kontrola se účtuje vašemu klíči Model API podle cen za tokeny modelu konverzace:\n{price}\nKaždá kontrola se nejprve zeptá, pokud kontroly v tomto pracovním prostoru nepovolíte vždy.",
   "paidUseAutoReviewerTitle": "Nechat automatického kontrolora posoudit toto volání {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nSamostatné volání modelu {model} posoudí, zda se akce smí spustit bez vašeho potvrzení. Účtováno vašemu klíči Model API: {price}. Celková cena závisí na použitých tokenech. Zamítnutí vám místo toho ukáže kartu schválení.",
   "usagePaidAutoReviews": {

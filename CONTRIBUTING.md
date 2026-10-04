@@ -41,7 +41,8 @@ Use this order for a candidate branch:
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
-   Its `pull_request` event starts the seven hosted jobs. Do not also dispatch
+   Its `pull_request` event starts CI's seven jobs (the required checks) and,
+   when their paths match, the Hosts, Action check and Forks workflows. Do not also dispatch
    `ci.yml` manually for the same commit; `workflow_dispatch` remains available
    when an explicit branch check is needed without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
@@ -49,22 +50,25 @@ Use this order for a candidate branch:
    commit and check every job: Ubuntu, Windows and macOS quality; Linux and
    Windows accessibility and VS Code integration; macOS dictation; packaging;
    gitleaks; and semgrep. Fix failures and repeat from the exact-tree gate.
-   Later branch changes need a fresh pull-request run. The protected merge
-   does not repeat identical CI on a `main` push; release tags still build.
+   Later branch changes need a fresh pull-request run. Merging does not rerun
+   `ci.yml` on `main` (`hosts.yml` runs again when its paths change); release
+   tags still build.
 6. Add the pull-request run ID, `headSha`, seven conclusions, independent
    review, and any unproved platform or live gate to the PR proof once checks
    finish. A printed success line without the process exit status is not a
    gate result.
 
-- Run `npm run quality` and make it green. It runs every gate: formatting,
-  ESLint (zero warnings), stylelint, type checks, dead-code and cycle
-  detection, duplication, unit tests with coverage thresholds, the
+- Run `npm run quality` and make it green. It runs every local gate except
+  the VS Code integration tests (`npm run test:integration`, run by
+  `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
+  stylelint, the PowerShell lint, type checks, the localization and host-API
+  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI runs the gates on
   Ubuntu, Windows and macOS, the accessibility gate and the integration
   tests on Ubuntu and Windows, and gitleaks and semgrep as jobs of their
-  own; the PowerShell lint runs only where Windows PowerShell exists, so a
-  green run on one platform is not quite the whole set.
+  own; the PowerShell lint runs only on Windows (elsewhere it reports a skip
+  and exits 0), so a green run on one platform is not quite the whole set.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
@@ -92,7 +96,8 @@ Use this order for a candidate branch:
   configured check.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
-  (`v*`) cannot be moved or deleted.
+  (`v*`) cannot be moved or deleted, except by a repository admin (both
+  rulesets let the Admin role bypass them).
 
 ## Style
 
@@ -118,10 +123,11 @@ never a literal in the code:
 - **Text the model reads** is `MODEL_TEXT` in constants.ts and stays
   English; a feature only a lazily loaded bundle reads keeps a block of its
   own beside it (`REVIEW_MODEL_TEXT`), so the activation bundle does not
-  carry it. The Model API and review bundles carry no English table at all
-  (they install the activation bundle's before they run, and `npm run build`
-  fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
-  must do the same in its factory.
+  carry it. No checked Node bundle carries the English table itself: each
+  loads the shared `dist/uiText.js`, and `npm run build` fails if one
+  duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
+  own language state, so one that reads `UI_TEXT` must install the caller's
+  table in its factory.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

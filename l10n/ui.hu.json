@@ -9,7 +9,7 @@
   "snapshotTooLong": "Ez a beszélgetés túl hosszú volt ahhoz, hogy az újratöltés során a panelen maradjon; a teljes beszélgetéshez nyissa meg az Előzményekből.",
   "linkOutsideWorkspace": "A munkaterületen kívüli fájlokra mutató hivatkozások nem nyílnak meg az átiratból.",
   "emptyStateHint": "Írja be a /model parancsot, hogy a feladathoz illő eszközt válassza.",
-  "composerPlaceholder": "Ctrl+Esc (Windowson Ctrl+Alt+Esc): a Muse fókuszba hozása vagy a fókusz elhagyása",
+  "composerPlaceholder": "Ctrl+Esc (macOS-en Cmd+Esc, Windowson Ctrl+Alt+Esc): a Muse fókuszba hozása vagy a fókusz elhagyása",
   "composerQueuePlaceholder": "Újabb üzenet sorba állítása…",
   "composerLabel": "Üzenet a Muse számára",
   "connecting": "Csatlakozás a kiegészítők gazdafolyamatához…",
@@ -908,6 +908,7 @@
     "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
     "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez"
   },
+  "modelApiReviewedAutoDetail": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat; egy fizetős ellenőrző néhány parancsot egyszer engedélyezhet, a többiről Önt kérdezi",
   "effortLevels": {
     "minimal": "Minimális",
     "low": "Alacsony",
@@ -1228,12 +1229,12 @@
     "composing": "Fogalmaz…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (Windowson Ctrl+Alt+Esc)",
+    "focus": "Ctrl+Esc (macOS-en Cmd+Esc, Windowson Ctrl+Alt+Esc)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc (Windowson Ctrl+Shift+Alt+Esc)",
+    "newTab": "Ctrl+Shift+Esc (macOS-en Cmd+Shift+Esc, Windowson Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1759,7 +1760,7 @@
   "autoReviewerTripped": "Az automatikus ellenőrző ismételt elutasítások vagy hibák után leállt. Amíg nem küldi el a következő üzenetét, minden kockázatos művelet Önt kérdezi.",
   "museCodeReviewerNotice": "Alapértelmezés szerint bekapcsolva. A Muse Code Automatikus módjában csak a futó kör olyan jóváhagyásai ellenőrizhetők, amelyeket egyetlen szabály sem dönt el: egy rövid Muse Code-kör az előfizetéséből, rejtett Tervezés munkamenetben. Védett írások, fizetős hívások, gyermekfeladatok, kérdések, újraküldött vagy eszkalált kérések, ismeretlen tárgyak, egyszeri engedély nélküli kérések és több panel által használt munkamenetek soha nem kerülnek ellenőrzésre. A sikeres ellenőrzés egyszer engedélyezhet; elutasítás, hiba, foglalt munkamenet, időtúllépés vagy bekapcsolt megszakító esetén megjelenik a jóváhagyási kártya. A gazdafolyamat kilépése után a mellékmunkamenet újra létrejön. Kikapcsolás: museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatikus ellenőrző",
-  "paidConfirmAutoReviewer": "Automatikus módban a Model API háttérrendszeren egy külön modellhívás értékel minden kockázatos műveletet, amelyről egyetlen szabály sem dönt, és kérdés nélkül futtatja, ha biztonságosnak tűnik. Soha nem engedélyez tiltott parancsot, olyan parancsot, amelyre a szabályai rákérdeznek, védett írást vagy fizetős hívást; ha elutasít vagy hibázik, Ön dönt. Minden ellenőrzés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden ellenőrzés előbb engedélyt kér, hacsak nem engedélyezi mindig az ellenőrzéseket ezen a munkaterületen.",
+  "paidConfirmAutoReviewer": "Automatikus módban a Model API háttérrendszeren egy külön modellhívás értékel minden olyan egyszerű shell-parancsot vagy MCP-eszközhívást, amely rákérdezne, és amelyről sem szabály, sem engedélyprofil nem dönt, és kérdés nélkül futtatja, ha biztonságosnak tűnik. Soha nem engedélyez tiltott parancsot, olyan parancsot, amelyre a szabályai rákérdeznek, védett írást vagy fizetős hívást; ha elutasít vagy hibázik, Ön dönt. Minden ellenőrzés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden ellenőrzés előbb engedélyt kér, hacsak nem engedélyezi mindig az ellenőrzéseket ezen a munkaterületen.",
   "paidUseAutoReviewerTitle": "Értékelje az automatikus ellenőrző ezt a(z) {tool}-hívást?",
   "paidUseAutoReviewerDetail": "{action}\n\nEgy külön {model}-hívás értékeli, hogy a művelet futhat-e az Ön megkérdezése nélkül. A díj a Model API-kulcsára terhelődik: {price}. A végösszeg a felhasznált tokenektől függ. Megtagadás esetén inkább a jóváhagyási kártyát látja.",
   "usagePaidAutoReviews": {

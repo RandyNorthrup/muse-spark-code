@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Docs, setting descriptions and panel hints now match the code** (a
+  truth audit of the 0.12.0 tree). The README, PRIVACY.md, SECURITY.md,
+  acp.md, ci.md, RELEASING.md, CONTRIBUTING.md, the walkthrough and the
+  manifest's setting and command text no longer overstate what asks: Plan
+  refuses where they said "asks", allow rules, session allowances and hooks
+  settle some asks in Manual, and "Allow always in this workspace" covers
+  subagents, scheduled runs, best-of-N and reviews. They name all seven paid
+  features (the Auto reviewer was missing), say the ACP agent is on npm
+  since 0.11.0, and give the current bundle caps, exec and scanner rules,
+  release recovery run and hosted Action check status. The Modes menu's Auto
+  line on the Model API names the paid Auto reviewer while it is on, and the
+  panel's focus shortcuts name Cmd+Esc on macOS.
+
 ## [0.12.0] - 2026-10-04
 
 ### Added

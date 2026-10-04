@@ -23,15 +23,17 @@ unless you prefer otherwise.
 
 ## Supported versions
 
-Only the latest release on the Visual Studio Marketplace receives fixes.
+Only the latest release receives fixes: the extension on the Visual Studio
+Marketplace, Open VSX and GitHub Releases, and the ACP agent on GitHub
+Releases and npm.
 
 ## What the extension protects, and how
 
 - **Credentials.** A pasted Model API key lives only in VS Code's
   SecretStorage, is sent only to `api.meta.ai`, and is never passed to a
   child process, written to settings or logs, or shown in the panel. The
-  extension reads only the structure of the Muse Code CLI's own credential
-  file, never a token in it: the schema version, which providers it names
+  extension reads the Muse Code CLI's own credential file but keeps only its
+  structure, never a token from it: the schema version, which providers it names
   (only `meta` speaks for the sign-in), each one's storage lane (the macOS
   Keychain), and whether `meta` has an `api_key` or `access_token` entry
   (the parse keeps the fact, never the value). When that is not enough, it
@@ -47,8 +49,11 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   Meta's current `LLM_…` form and the older `LLM|<id>|<secret>` one; it
   cannot catch a path or an e-mail address, so free text Muse Code writes
   (sign-in endings, MSP error messages, `muse serve` and `muse skills`
-  stderr) is logged in fixed words, by its kind, or by its length, never
-  as sent.
+  stderr) is logged in fixed words, by its kind, or by its length where
+  the log helpers are used. Not everywhere: some MSP error messages (a
+  failed `skill/list` or `turn/cancel`, and a failure shown as a panel
+  notice) and the first stderr or stdout line of a failed skill activation
+  are logged as sent, with keys redacted.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs
@@ -60,8 +65,10 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   `allowDangerouslySkipPermissions`, `modelApiHooks`, `modelApiRepoMap`,
   `modelApiObservationPacking`, `modelApiPromptCacheRetention`,
   `turnCheckpoints`, the verify loop's `checkCommands`,
-  `formatOnEdit` and `diagnosticsAfterEdits`, and the five paid
-  `modelApi*` features) are machine-scoped in every workspace, trusted or
+  `formatOnEdit` and `diagnosticsAfterEdits`, `bundledSkills`,
+  `modelApiSessionBudgetUsd`, the permission settings `modelApiCommandRules`,
+  `modelApiPermissionProfiles` and `modelApiPermissionProfile`,
+  `museCodeAutoReviewer`, and the seven paid `modelApi*` features) are machine-scoped in every workspace, trusted or
   not: a repository's
   `.vscode/settings.json` cannot point the extension at its own executable. In a remote window a dev container
   definition can write machine settings, so there Bypass permissions is
@@ -80,8 +87,9 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   folder is 0700 on macOS and Linux. No checkpoint is taken when the
   storage and the workspace hold one another, compared as written and as
   resolved through links and junctions, and the tools never write inside
-  the storage, so a model cannot plant a hook or filter there. Each window owns its index, pinned
-  captures, staged copies and presence; records use Git compare-and-swap
+  the storage, so a model cannot plant a hook or filter there. Each window owns its write journal
+  (with its staged copies) and presence; nothing of the workspace is
+  captured; records use Git compare-and-swap
   refs, and a file restore/Redo claims one shared CAS ref before changes.
   Cleanup preserves a live window's resources and recent unreferenced
   objects, so another window can finish its ref writes. A stopped restore
@@ -117,20 +125,21 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   destructive path is disabled. A tool write whose preimage cannot be staged fails with a
   localized reason; failure logs contain error kinds rather than storage
   paths.
-  Git for Windows walks into junctions, so a capture
-  leaves out, and names, any path under a folder link or junction, and a
-  restore refuses a path whose canonical form is not the workspace's
+  A restore refuses a path whose canonical form is not the workspace's
   canonical root plus the path (a link or junction on the way) before each
   write or delete. A restore deletes only regular files, checks each file's
   content against what it expects just before changing it, writes through a
-  temporary file whose permissions are the old file's with only the
-  execute bits set from the checkpoint, and leaves a file changed outside
+  temporary file that keeps an existing file's permissions (a re-created
+  file gets default permissions with the execute bit it had), and leaves a file changed outside
   the conversation's turns, by another conversation's overlapping turn, or
   with unsaved editor or notebook changes as it is. File names reach git as
   literal paths, never as pathspec magic. None are taken in Restricted Mode.
-- **Path confinement (Model API backend).** Every path a tool names is
+- **Path confinement (Model API backend).** Every path a file tool names is
   resolved through the file system (links, junctions and short names)
-  before it is read or written, and refused when it leaves the workspace;
+  before it is read or written, and refused when it leaves the workspace,
+  except that the memory tools are confined to their memory folders (the
+  personal ones are outside it) and `read_file` may also read under the
+  permission profile's `extraRoots`;
   the search worker skips any listed file that does. Edit Review and the
   rewind apply the same check before writing a file back. Windows names
   that would be reinterpreted are refused: alternate data streams
@@ -157,12 +166,13 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   the card), and every file is confined and read again after the card and
   once more right before its own write, so nothing a formatter, a hook or
   the user wrote meanwhile is overwritten; a Stop before the first write
-  writes nothing. On the Muse Code backend the `ide` server's tools change
-  nothing and declare themselves read-only; its rename returns the edits for
+  writes nothing. On the Muse Code backend the `ide` server's code intelligence tools
+  change nothing and declare themselves read-only (its image tools write
+  images and its web fetch is not read-only); its rename returns the edits for
   Muse Code's own edit tool, and Muse Code 1.4.0 asks its own card for these
   tools in its on-request mode. The repo map reaches the Model API's
   instructions only in a trusted workspace.
-- **Protected writes (Model API backend).** Writing `.git/**`, `.husky/**`,
+- **Protected writes (Model API backend).** A file tool's write to `.git/**`, `.husky/**`,
   `.vscode/**`, `.idea/**`, `.devcontainer/**`, `.github/workflows/**`,
   `.agents/**`, `.muse/**`, `AGENTS.md`, `CLAUDE.md`, `.envrc` or
   `.gitmodules`, at any depth and in any letter case, shows an approval card
@@ -200,7 +210,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Shell commands.** On the Model API backend the extension's own shell
   tool runs the command as an argument array through PowerShell or bash,
   never as a shell string, in the workspace root, with a timeout and an
-  output cap, and only after the user's approval in the modes that ask. On
+  output cap, and, in the modes that ask, only after the user's approval, a
+  matching allow rule, or (in Auto) the opt-in Auto reviewer's ALLOW. On
   the Muse Code CLI backend the CLI runs the commands inside its OS sandbox
   where that is set up; `museSpark.shellSandbox` at `auto` starts the CLI
   without the sandbox for a Windows workspace under the user's profile
@@ -212,8 +223,9 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   take the shell tool's own hooks and permission path: the user's
   PreToolUse, PostToolUse and PostToolUseFailure hooks see each as a call
   of the shell tool (a denial, a rewrite or a demanded question holds), as
-  does PermissionRequest wherever the shell's card would show; they ask wherever a shell command would ask (every mode
-  but Bypass permissions), never run in Plan mode or Restricted Mode, and
+  does PermissionRequest wherever the shell's card would show; they ask wherever a shell command would ask (Manual,
+  Edit automatically and Auto, unless one of your command rules allows them),
+  never run in Plan mode or Restricted Mode, and
   run with the shell tool's runner, job object and time cap. The agent can
   change what a check runs (a `package.json` script), which is why they
   ask. Their "Always allow in this session" is kept apart from the shell
@@ -276,7 +288,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   and any `*_API_KEY`, standard input capped at 256 KiB, output capped at
   16 KiB, a timeout of at most 600 s, and the process tree ended on cancel.
   A hook can approve an ordinary tool call but never a paid call or a
-  protected write: a paid call always reaches the paid-use popup, unless
+  protected write: a paid call always reaches the paid-use popup (Plan
+  refuses it), unless
   the user allowed that feature always in this (trusted) workspace, and a
   paid image aimed at a protected path asks even then.
 - **MCP servers (Model API backend).** Started only in a trusted
@@ -374,7 +387,7 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Prompt injection.** Workspace files, rules, skills and custom agents
   reach the model by design in a trusted workspace, and so do fetched web
   pages (marked as untrusted content); the permission modes and the approval
-  cards are the control, and the Diagnostics report and the log show what ran.
+  cards are the control, and the transcript shows each tool call.
 - **Custom agents (Model API backend, M76).** An `AGENT.md` is input someone
   else may have written: it is read only up to 64 KB and only as a regular
   file, parsed with a schema, and refused when its front matter cannot be
@@ -389,7 +402,8 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   prompt is explicitly labelled as untrusted, with its source, below the workspace rules; in
   an untrusted workspace no agent is offered and a project file's prompt is
   left out of a resumed child's instructions. A model writing an agent file
-  is a protected write (`.agents/**`) and asks in every mode but Bypass.
+  is a protected write (`.agents/**`) and asks in every mode but Bypass
+  (Plan refuses it).
 
 - **Imported sessions (M84).** A session-export file may come from anyone.
   Parser failures do not quote the file, and field names are scrubbed before
@@ -425,8 +439,9 @@ More detail: `docs/PRIVACY.md` and PLAN.md §9.
 ## Headless CI boundary (M80, PLAN D65)
 
 The frozen M80 contract adds memory-only stdin authentication to exec and a
-second trusted installed scanner child. B/C implementation and actual L/LA/LR
-acceptance are pending; this policy defines their required boundary.
+second trusted installed scanner child. Lanes A to D are implemented and the
+hosted fake-only Action check passes; the live L/LA/LR acceptance is pending,
+and this policy defines its required boundary.
 The Action step directly execs its trusted absolute launcher. Only that initial
 run-step environment holds the Model API key; launcher deletes variable before
 children and holds it in memory until cleanup. It sends key only by private

@@ -9,7 +9,7 @@
   "snapshotTooLong": "Ta rozmowa była zbyt długa, aby zachować ją w panelu po ponownym załadowaniu; otwórz ją z Historii, aby zobaczyć całość.",
   "linkOutsideWorkspace": "Linki do plików spoza obszaru roboczego nie są otwierane z zapisu rozmowy.",
   "emptyStateHint": "Wpisz /model, aby wybrać odpowiednie narzędzie do zadania.",
-  "composerPlaceholder": "ctrl esc (ctrl alt esc w systemie Windows), aby ustawić fokus na Muse lub go zdjąć",
+  "composerPlaceholder": "ctrl esc (cmd esc w systemie macOS, ctrl alt esc w systemie Windows), aby ustawić fokus na Muse lub go zdjąć",
   "composerQueuePlaceholder": "Dodaj kolejną wiadomość do kolejki…",
   "composerLabel": "Wiadomość do Muse",
   "connecting": "Łączenie z hostem rozszerzeń…",
@@ -954,6 +954,7 @@
     "acceptEdits": "Muse będzie edytować pliki bez pytania i pytać przed uruchomieniem poleceń",
     "auto": "Muse będzie edytować pliki bez pytania, z wyjątkiem plików chronionych, i pytać przed poleceniami"
   },
+  "modelApiReviewedAutoDetail": "Muse będzie edytować pliki bez pytania, z wyjątkiem plików chronionych; płatny oceniający może jednorazowo zezwolić na niektóre polecenia, o resztę pyta Ciebie",
   "effortLevels": {
     "minimal": "Minimalny",
     "low": "Niski",
@@ -1300,12 +1301,12 @@
     "composing": "Redaguję…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc (Ctrl+Alt+Esc w systemie Windows)",
+    "focus": "Ctrl+Esc (Cmd+Esc w systemie macOS, Ctrl+Alt+Esc w systemie Windows)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc (Ctrl+Shift+Alt+Esc w systemie Windows)",
+    "newTab": "Ctrl+Shift+Esc (Cmd+Shift+Esc w systemie macOS, Ctrl+Shift+Alt+Esc w systemie Windows)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1889,7 +1890,7 @@
   "autoReviewerTripped": "Automatyczny oceniający zatrzymał się po powtarzających się odmowach lub błędach. Dopóki nie wyślesz następnej wiadomości, każda ryzykowna akcja będzie pytać Ciebie.",
   "museCodeReviewerNotice": "Domyślnie włączone. W trybie automatycznym Muse Code kwalifikują się tylko zatwierdzenia bieżącej tury, których nie rozstrzyga żadna reguła: jedna krótka tura Muse Code z Twojej subskrypcji w ukrytej sesji Planowanie. Chronione zapisy, płatne wywołania, zadania podrzędne, pytania, ponowione lub eskalowane żądania, nieznane przedmioty, żądania bez jednorazowego zezwolenia i sesje współdzielone przez panele nigdy nie są oceniane. Pomyślna ocena może zezwolić raz; odmowy, błędy, zajęte sesje, przekroczenie czasu lub uruchomiony bezpiecznik pokazują kartę zatwierdzenia. Po zakończeniu procesu hosta sesja pomocnicza jest tworzona ponownie. Wyłącz za pomocą museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatyczny oceniający",
-  "paidConfirmAutoReviewer": "W trybie automatycznym na zapleczu Model API osobne wywołanie modelu ocenia każdą ryzykowną akcję, której nie rozstrzyga żadna reguła, i uruchamia ją bez pytania, jeśli wygląda na bezpieczną. Nigdy nie zezwala na zabronione polecenie, polecenie, o które pytają Twoje reguły, chroniony zapis ani płatne wywołanie; gdy odmówi lub zawiedzie, decydujesz Ty. Każda ocena jest rozliczana przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nKażda ocena najpierw pyta, chyba że zawsze zezwolisz na oceny w tym obszarze roboczym.",
+  "paidConfirmAutoReviewer": "W trybie automatycznym na zapleczu Model API osobne wywołanie modelu ocenia każde proste polecenie powłoki lub wywołanie narzędzia MCP, które pytałoby o zgodę i którego nie rozstrzyga żadna reguła ani profil uprawnień, i uruchamia je bez pytania, jeśli wygląda na bezpieczne. Nigdy nie zezwala na zabronione polecenie, polecenie, o które pytają Twoje reguły, chroniony zapis ani płatne wywołanie; gdy odmówi lub zawiedzie, decydujesz Ty. Każda ocena jest rozliczana przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nKażda ocena najpierw pyta, chyba że zawsze zezwolisz na oceny w tym obszarze roboczym.",
   "paidUseAutoReviewerTitle": "Czy automatyczny oceniający ma ocenić to wywołanie {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nOsobne wywołanie modelu {model} ocenia, czy akcję można uruchomić bez pytania Ciebie. Rozliczane przez Twój klucz Model API: {price}. Łączna kwota zależy od użytych tokenów. Po odmowie zobaczysz zamiast tego kartę zatwierdzenia.",
   "usagePaidAutoReviews": {

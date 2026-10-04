@@ -9,9 +9,10 @@ security notes for contributors are in `PLAN.md` §9.
 
 - **Your prompts, attachments and mentioned files.** Everything you type into
   the panel, every image or PDF you attach or drop, text files you explicitly
-  pick for attachment in a trusted, indexed workspace, the contents of files you
-  `@`-mention, the open file or selection when the "attach open file" setting
-  is on, and the outputs of the tools the agent runs (file contents,
+  pick for attachment in a trusted, indexed workspace, the paths you
+  `@`-mention (a file's contents go when the agent reads it), the open
+  file's path or your selected lines when the "attach open file" setting is
+  on, and the outputs of the tools the agent runs (file contents,
   command output, Problems-panel diagnostics, and what VS Code's language
   services answer about your code: definitions, references, symbols, hover
   text) are sent to Meta so the model can answer. Nothing is sent until you
@@ -26,25 +27,29 @@ security notes for contributors are in `PLAN.md` §9.
   your machine and sends what it printed with the review turn, as your
   message would travel on the backend in use: the diff, the changed and
   untracked files' names, the branch name and, for one commit, its
-  message. Environment files, keys and credentials (`.env*`, `*.pem`,
+  message. Environment files, keys and credentials (`.env`, `.env.*`, `*.pem`,
   `*.key`, `id_rsa`, `credentials.json` and the like) are left out of
   the diff and only named. Git metadata is omitted from Reviewer system
   instructions and remains in the review turn's untrusted material block.
   `/review <what to look at>` sends only your
   words. The review pane, its Accept and Revert, stay on your machine; a
-  comment on a line is a message, with the changed lines around it. The
-  `/review` you request is part of your own Model API turn (PLAN.md D49);
-  a Reviewer child task remains a paid use under D48.
+  comment on a line is a message, with the changed lines around it. On the
+  Model API backend the `/review` you request is part of your own turn
+  (PLAN.md D49), and a Reviewer child task remains a paid use under D48; on
+  Muse Code it is an ordinary Muse Code turn.
 - **Checks after the agent's edits (Model API backend).** After a round of
   edits, the edited files' errors and warnings from VS Code's language
   servers (`museSpark.diagnosticsAfterEdits`, on by default), and the
   commands and output of your check commands (`museSpark.checkCommands`,
-  none by default) and of an edit's `then_run`, go to Meta with the next
-  request (at most 64,000 characters together), as the shell tool's output
-  does, with what your tool hooks add about those commands. Files that the
+  none by default) go to Meta with the next request (at most 64,000
+  characters together), and an edit's `then_run` command and output return
+  with that edit's result, as the shell tool's output does, with what your tool hooks add about those commands. Files that the
   editor's tools would run as code are not opened for their diagnostics.
   On Muse Code the extension
-  sends only a note naming your check commands; Muse Code runs them itself.
+  sends only a note naming your check commands (with their command lines)
+  and, with `museSpark.diagnosticsAfterEdits` on, asking it to read the
+  edited files' problems through the extension's tool server; Muse Code runs
+  them itself.
 - **Through the Muse Code CLI** (what `museSpark.backend` at `auto` picks
   when the CLI is installed and signed in), the extension hands
   your messages to Meta's `muse serve` process on your machine, which talks
@@ -103,8 +108,10 @@ security notes for contributors are in `PLAN.md` §9.
   backend, an eligible approval Muse Code raises for the running turn that
   no rule settles is first
   judged by the same reviewer, run as one turn of a hidden side session in
-  your own `muse serve`. That turn is sent to Meta through Muse Code, on your
-  Muse subscription (no Model API key is used), and holds: your latest
+  your own `muse serve`. That turn is sent to Meta through Muse Code, on
+  Muse Code's own sign-in (your subscription; the extension's stored key is
+  never used, though a `META_API_KEY` set in Muse Code's environment would
+  be), and holds: your latest
   message as you typed it, up to eight of the turn's earlier tool names and
   arguments, the proposed command or arguments, the workspace path and the
   platform, each clipped and marked as data, with the reviewer's
@@ -221,7 +228,7 @@ security notes for contributors are in `PLAN.md` §9.
   every request name the workspace's absolute path, the operating system
   and shell, and today's date. In a trusted workspace that is a git
   repository they also carry the branch name, how many files `git status`
-  lists as changed, and the subjects of the last five commits (never file
+  lists as changed, and the last five commits' short hashes and subjects (never file
   contents or diffs); in Restricted Mode git is not run and none of this is
   sent. The Muse Code CLI assembles its own context under Meta's terms.
 - **The repo map (Model API backend, off by default).** With
@@ -234,9 +241,10 @@ security notes for contributors are in `PLAN.md` §9.
   is defined. The `repo_map` tool sends the same kind of map when the model
   calls it, setting or not.
 - **Contributor-tier models.** Meta may use traffic to the models whose id
-  ends in `-contributor` to train its models. The extension asks once per
-  conversation before using one, and refuses them entirely when the
-  `museSpark.confidentialWorkspace` setting is on.
+  ends in `-contributor` to train its models. The extension asks before a
+  panel first uses one (and again for a different contributor model), and
+  refuses them when the `museSpark.confidentialWorkspace` setting is on and
+  the panel has not already confirmed that model.
 
 - **Voice dictation**, the free default, never sends audio to Meta or to
   this extension's author. On Windows, speech is recognised by the
@@ -261,7 +269,9 @@ security notes for contributors are in `PLAN.md` §9.
 - **The paid features (off unless you turn them on).** Each is billed to
   your Model API key, never to your Muse Code subscription, and each asks
   you to accept its price when you turn it on, then asks again in a popup
-  before each use (Allow once, Allow always in this workspace, or Deny). All five work on the Model
+  before each use (web search once per prompt): Allow once, Allow always in
+  this workspace (a trusted workspace with a folder open only), or Deny.
+  These five, and the Auto reviewer and best-of-N, work on the Model
   API backend; image generation and Muse Voice also work on the Muse Code
   backend while a key is stored, the images made by the extension itself
   (the key is never given to the Muse Code CLI):
@@ -284,24 +294,28 @@ security notes for contributors are in `PLAN.md` §9.
   - **Subagents** send each child task's objective, which the model writes
     from the conversation, and the child's own tool results to Meta as
     separate Model API conversations billed to your key. Each new task asks
-    you first and names its model and rates.
+    you first and names its model and rates, unless you allowed subagents
+    always in this workspace (a task on another model still asks).
   - **Scheduled prompts** (`/loop`) save the prompt you typed, its schedule
     and the conversation it belongs to in VS Code's workspace storage for
     the extension. The prompt goes to Meta only when you choose **Run now**
-    and confirm that run; a due prompt never runs on its own.
+    (and confirm that run, unless you allowed scheduled prompts always in
+    this workspace); a due prompt never runs on its own.
 
 The extension itself has **no telemetry**, no analytics, no crash reporting
 and no hosted server of its own. It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
-you confirmed, or open a panel while signed in (to list models; that request
+with **Run now**, or open a panel while signed in (to list models; that request
 carries no message). **Install Muse Code** downloads Meta's installer from
 `dev.meta.ai`. On the Model API backend it also contacts remote MCP servers
 you configured when a conversation starts or uses their tools. On either
-backend it contacts the site of a web page the model asks to read, once you
-allow it (see **Web fetch** above). On macOS,
+backend it contacts the site of a web page the model asks to read, once
+allowed (Bypass on the Model API backend does not ask; see **Web fetch**
+above). On macOS,
 dictation may contact Apple as described above. Behind a proxy, those
 requests go through the proxy VS Code is set to use under its `http.*`
-settings. When neither Muse Code's environment nor
+settings where VS Code routes them (Muse Voice's socket from VS Code 1.112;
+see the README's Proxies and certificates). When neither Muse Code's environment nor
 `museSpark.environmentVariables` names a proxy, the extension hands Muse
 Code VS Code's `http.proxy` and `http.noProxy` (loopback always bypassed),
 so Muse Code's requests use the same proxy; Diagnostics reports only
@@ -331,7 +345,8 @@ generation fields, never raw configuration or failed-command output.
     (`account/read` on a short-lived `muse serve` that owns no
     conversation). On macOS that is every file but the empty one a
     sign-out leaves. It keeps the answer until the file changes, or until
-    you sign in, sign out or choose **Check again**.
+    you sign in, sign out or choose **Check again**; on macOS a later click
+    asks again.
   - When the file is in a form Muse Code cannot start with here, the panel
     names the file's path; the log says so without the path.
   - The CLI's answer carries your account's e-mail address as a label, and
@@ -375,7 +390,9 @@ generation fields, never raw configuration or failed-command output.
 
 - Conversation history on the Muse Code backend is the CLI's own session
   store under `~/.local/share/muse` (Meta's format). The extension reads it
-  to show the History dialog and never copies it anywhere.
+  to show the History dialog, and copies it only into the panel's own
+  webview state (what the panel shows, for a reload) and into an export you
+  save.
 - Conversations on the Model API backend are saved, one JSON file each, in
   VS Code's per-workspace storage directory for this extension (the
   `storageUri` VS Code assigns; outside the repository, under your user
@@ -392,7 +409,9 @@ generation fields, never raw configuration or failed-command output.
   extension's workspace storage directory removes them all. Scheduled prompts are saved
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
-  History dialog hides it; deleting the directory removes them all.
+  History dialog hides it; deleting the directory removes them all. A
+  conversation idle longer than `museSpark.cleanupPeriodDays` (30 days by
+  default) is deleted when History is listed.
 - Turn checkpoints (M86, on by default, `museSpark.turnCheckpoints`) are
   kept under extension global storage in `checkpoints/<canonical-root-key>`.
   The physical canonical workspace root determines the key; windows in the
@@ -438,12 +457,14 @@ generation fields, never raw configuration or failed-command output.
 - Settings (`museSpark.*`), the archived-session list, the "last session"
   memory per panel, which paid features' prices you accepted, which paid
   features you allowed always in a workspace (kept in that workspace's
-  state, feature names only), and whether
+  state: feature names and a grant counter), the panel's webview state (a
+  snapshot of the conversation it shows and your unsent draft), and whether
   you signed out of Muse Code are stored by VS Code's settings and state
   APIs. On Windows the small job helpers the extension compiles are kept in
   its global storage folder.
-- The "Muse Spark" output channel logs what the extension does, with keys
-  and tokens redacted. It is not written to disk by the extension.
+- The "Muse Spark" output channel logs what the extension does, with known
+  key and token shapes redacted. VS Code keeps the channel as a log file in
+  its logs folder; the extension writes no log file of its own.
 - **The bundled skills for Muse Code** (M89) are installed only when you
   click Install or Update on the panel's offer or run **Muse Spark: Install
   Bundled Skills for Muse Code**. The install writes only under Muse Code's
@@ -500,7 +521,7 @@ generation fields, never raw configuration or failed-command output.
 
 `muse-spark-code-acp` (the npm package, `docs/acp.md`) runs Muse Spark in
 editors that speak the Agent Client Protocol. It sends what the editor
-hands it, the same way the extension does, and nothing else:
+hands it and what its tools read or run, the same way the extension does:
 
 - **Your prompts** and what the editor attaches to them (files, excerpts,
   images) go to Meta through the backend the editor started it with, as
@@ -533,7 +554,8 @@ hands it, the same way the extension does, and nothing else:
   generations are inert; a stale process cannot restore revoked permission.
   Legacy `paid-uses.json` maps are ignored and their next use asks again.
 - **The network**: the agent's own requests go to `api.meta.ai` through
-  Node's `fetch`, and through a proxy only when its environment asks for
+  Node's `fetch` and, with `--trust-workspace` on the Model API backend, to
+  the site of a web page the model asks to read once you allow it, and through a proxy only when its environment asks for
   one (`docs/acp.md`, "Networks and proxies"); VS Code's proxy and
   certificate settings do not apply to it.
 - **The log** goes to stderr, which the editor shows or keeps as its agent
@@ -553,8 +575,9 @@ hands it, the same way the extension does, and nothing else:
   them from the model list.
 - `museSpark.attachOpenFile` controls whether the active editor rides along
   with a message.
-- `museSpark.respectGitIgnore` keeps ignored files out of `@`-mention
-  suggestions.
+- `museSpark.respectGitIgnore` (in a trusted workspace with git present)
+  keeps ignored files out of `@`-mention suggestions, and their selections
+  and picked text are sent only as paths.
 - Permission modes (Manual, Edit automatically, Plan, Auto, Bypass) decide
   which tool calls run without a card; the card shows the command or path
   before anything runs.

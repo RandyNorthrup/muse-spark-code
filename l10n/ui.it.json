@@ -9,7 +9,7 @@
   "snapshotTooLong": "Questa conversazione era troppo lunga per essere mantenuta nel pannello durante il ricaricamento; aprila dalla Cronologia per vederla per intero.",
   "linkOutsideWorkspace": "I collegamenti a file esterni all’area di lavoro non vengono aperti dalla trascrizione.",
   "emptyStateHint": "Digita /model per scegliere lo strumento giusto per il lavoro.",
-  "composerPlaceholder": "ctrl esc (ctrl alt esc in Windows) per spostare lo stato attivo su Muse o altrove",
+  "composerPlaceholder": "ctrl esc (cmd esc in macOS, ctrl alt esc in Windows) per spostare lo stato attivo su Muse o altrove",
   "composerQueuePlaceholder": "Accoda un altro messaggio…",
   "composerLabel": "Scrivi a Muse",
   "connecting": "Connessione all’host dell’estensione…",
@@ -931,6 +931,7 @@
     "acceptEdits": "Muse modificherà i file senza chiedere e chiederà prima di eseguire comandi",
     "auto": "Muse modificherà i file senza chiedere, tranne i file protetti, e chiederà prima di eseguire comandi"
   },
+  "modelApiReviewedAutoDetail": "Muse modificherà i file senza chiedere, tranne i file protetti; un revisore a pagamento può consentire alcuni comandi una volta, e per il resto viene chiesto a te",
   "effortLevels": {
     "minimal": "Minimo",
     "low": "Basso",
@@ -1264,12 +1265,12 @@
     "composing": "Composizione…"
   },
   "onboardingShortcuts": {
-    "focus": "CTRL+ESC (CTRL+ALT+ESC in Windows)",
+    "focus": "CTRL+ESC (CMD+ESC in macOS, CTRL+ALT+ESC in Windows)",
     "palette": "/",
     "cycleMode": "MAIUSC+TAB",
     "mentionSelection": "ALT+K",
     "mentionFile": "@",
-    "newTab": "CTRL+MAIUSC+ESC (CTRL+MAIUSC+ALT+ESC in Windows)",
+    "newTab": "CTRL+MAIUSC+ESC (CMD+MAIUSC+ESC in macOS, CTRL+MAIUSC+ALT+ESC in Windows)",
     "dictation": "CTRL+D",
     "shell": "!",
     "moveToBackground": "CTRL+B"
@@ -1824,7 +1825,7 @@
   "autoReviewerTripped": "Il revisore automatico si è fermato dopo rifiuti o errori ripetuti. Finché non invii il prossimo messaggio, ogni azione rischiosa ti chiederà conferma.",
   "museCodeReviewerNotice": "Attivato per impostazione predefinita. In modalità Automatica su Muse Code sono idonee solo le approvazioni del turno in corso che nessuna regola risolve: un breve turno Muse Code sul tuo abbonamento in una sessione nascosta Piano. Scritture protette, chiamate a pagamento, attività figlie, domande, richieste riproposte o inoltrate al giudice, oggetti sconosciuti, richieste senza permesso singolo e sessioni condivise tra pannelli non vengono mai esaminati. Una revisione riuscita può consentire una volta; rifiuti, errori, sessioni occupate, scadenze o un interruttore attivato mostrano la scheda di approvazione. All’uscita del processo host, la sessione ausiliaria viene ricreata. Disattivalo con museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Revisore automatico",
-  "paidConfirmAutoReviewer": "Nella modalità Automatica sul backend Model API, una chiamata al modello separata valuta ogni azione rischiosa che nessuna regola decide, e la esegue senza chiedere se sembra sicura. Non consente mai un comando vietato, un comando per cui le tue regole chiedono conferma, una scrittura protetta o una chiamata a pagamento; se rifiuta o non riesce, decidi tu. Ogni revisione viene addebitata alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nOgni revisione chiede prima conferma, a meno che tu non consenta sempre le revisioni in questa area di lavoro.",
+  "paidConfirmAutoReviewer": "Nella modalità Automatica sul backend Model API, una chiamata al modello separata valuta ogni comando semplice della shell o chiamata di strumento MCP che chiederebbe conferma e che nessuna regola né profilo di autorizzazioni decide, e lo esegue senza chiedere se sembra sicuro. Non consente mai un comando vietato, un comando per cui le tue regole chiedono conferma, una scrittura protetta o una chiamata a pagamento; se rifiuta o non riesce, decidi tu. Ogni revisione viene addebitata alla tua chiave Model API alle tariffe per token del modello della conversazione:\n{price}\nOgni revisione chiede prima conferma, a meno che tu non consenta sempre le revisioni in questa area di lavoro.",
   "paidUseAutoReviewerTitle": "Lasciare che il revisore automatico valuti questa chiamata a {tool}?",
   "paidUseAutoReviewerDetail": "{action}\n\nUna chiamata separata a {model} valuta se l’azione può essere eseguita senza chiederti. Addebitato alla tua chiave Model API: {price}. Il totale varia in base ai token usati. Negando, vedrai invece la scheda di approvazione.",
   "usagePaidAutoReviews": {

@@ -9,7 +9,7 @@
   "snapshotTooLong": "此對話過長，重新載入後無法完整保留在面板中；請從歷程記錄開啟以檢視全部內容。",
   "linkOutsideWorkspace": "不會從對話記錄開啟指向工作區外檔案的連結。",
   "emptyStateHint": "輸入 /model，為手邊的工作選擇合適的模型。",
-  "composerPlaceholder": "按 ctrl esc（Windows 上為 ctrl alt esc）聚焦或取消聚焦 Muse",
+  "composerPlaceholder": "按 ctrl esc（macOS 上為 cmd esc，Windows 上為 ctrl alt esc）聚焦或取消聚焦 Muse",
   "composerQueuePlaceholder": "將另一則訊息排入佇列…",
   "composerLabel": "傳送訊息給 Muse",
   "connecting": "正在連線到延伸主機…",
@@ -885,6 +885,7 @@
     "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
     "auto": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問"
   },
+  "modelApiReviewedAutoDetail": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您",
   "effortLevels": {
     "minimal": "極低",
     "low": "低",
@@ -1192,12 +1193,12 @@
     "composing": "正在撰寫…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc（Windows 上為 Ctrl+Alt+Esc）",
+    "focus": "Ctrl+Esc（macOS 上為 Cmd+Esc，Windows 上為 Ctrl+Alt+Esc）",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc（Windows 上為 Ctrl+Shift+Alt+Esc）",
+    "newTab": "Ctrl+Shift+Esc（macOS 上為 Cmd+Shift+Esc，Windows 上為 Ctrl+Shift+Alt+Esc）",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1694,7 +1695,7 @@
   "autoReviewerTripped": "由於多次拒絕或失敗，自動審查器已停止。在您傳送下一則訊息之前，每個有風險的操作都會詢問您。",
   "museCodeReviewerNotice": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。 可透過 museSpark.museCodeAutoReviewer 關閉。",
   "paidAutoReviewerName": "自動審查器",
-  "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
+  "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個會詢問、且沒有規則或權限設定檔決定的簡單 shell 命令或 MCP 工具呼叫，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
   "paidUseAutoReviewerTitle": "要讓自動審查器評判此 {tool} 呼叫嗎？",
   "paidUseAutoReviewerDetail": "{action}\n\n對 {model} 的一次單獨呼叫會評判此操作能否不經詢問直接執行。費用計入您的 Model API 金鑰：{price}。總額依使用的權杖數而變動。選擇不允許則改為顯示核准卡片。",
   "usagePaidAutoReviews": {

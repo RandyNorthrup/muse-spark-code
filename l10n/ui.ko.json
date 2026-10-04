@@ -9,7 +9,7 @@
   "snapshotTooLong": "이 대화는 너무 길어서 다시 로드한 후 패널에 유지할 수 없었습니다. 전체 내용을 보려면 기록에서 여세요.",
   "linkOutsideWorkspace": "작업 영역 외부 파일에 대한 링크는 대화 내용에서 열 수 없습니다.",
   "emptyStateHint": "/model을 입력하여 작업에 맞는 모델을 선택하세요.",
-  "composerPlaceholder": "ctrl esc(Windows에서는 ctrl alt esc)로 Muse 포커스 전환",
+  "composerPlaceholder": "ctrl esc(macOS에서는 cmd esc, Windows에서는 ctrl alt esc)로 Muse 포커스 전환",
   "composerQueuePlaceholder": "다른 메시지를 대기열에 추가…",
   "composerLabel": "Muse에게 메시지 보내기",
   "connecting": "확장 호스트에 연결하는 중…",
@@ -885,6 +885,7 @@
     "acceptEdits": "Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다",
     "auto": "Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다"
   },
+  "modelApiReviewedAutoDetail": "Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집합니다. 유료 검토자가 일부 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다",
   "effortLevels": {
     "minimal": "최소",
     "low": "낮음",
@@ -1192,12 +1193,12 @@
     "composing": "작성하는 중…"
   },
   "onboardingShortcuts": {
-    "focus": "Ctrl+Esc(Windows에서는 Ctrl+Alt+Esc)",
+    "focus": "Ctrl+Esc(macOS에서는 Cmd+Esc, Windows에서는 Ctrl+Alt+Esc)",
     "palette": "/",
     "cycleMode": "Shift+Tab",
     "mentionSelection": "Alt+K",
     "mentionFile": "@",
-    "newTab": "Ctrl+Shift+Esc(Windows에서는 Ctrl+Shift+Alt+Esc)",
+    "newTab": "Ctrl+Shift+Esc(macOS에서는 Cmd+Shift+Esc, Windows에서는 Ctrl+Shift+Alt+Esc)",
     "dictation": "Ctrl+D",
     "shell": "!",
     "moveToBackground": "Ctrl+B"
@@ -1694,7 +1695,7 @@
   "autoReviewerTripped": "거부나 실패가 반복되어 자동 검토자가 중지되었습니다. 다음 메시지를 보낼 때까지 위험한 작업은 모두 사용자에게 확인합니다.",
   "museCodeReviewerNotice": "기본적으로 켜져 있습니다. Muse Code 자동 모드에서는 실행 중인 턴의 승인 중 어떤 규칙도 결정하지 않은 승인만 대상입니다. 숨겨진 계획 세션에서 구독으로 짧은 Muse Code 턴을 실행합니다. 보호된 쓰기, 유료 호출, 하위 작업, 질문, 재전송되거나 상위 판단으로 넘겨진 요청, 알 수 없는 대상, 한 번 허용 선택지가 없는 요청, 여러 패널이 공유하는 세션은 검토하지 않습니다. 성공한 검토는 한 번 허용할 수 있습니다. 거부, 실패, 사용 중인 세션, 시간 초과 또는 연속 실패로 인한 중단 시 승인 카드를 표시합니다. 호스트가 종료되면 보조 세션을 다시 만듭니다. museSpark.museCodeAutoReviewer로 끌 수 있습니다.",
   "paidAutoReviewerName": "자동 검토자",
-  "paidConfirmAutoReviewer": "Model API 백 엔드의 자동 모드에서는 별도의 모델 호출이 어떤 규칙으로도 결정되지 않은 위험한 작업을 판단하고, 안전해 보이면 묻지 않고 실행합니다. 금지된 명령, 규칙상 확인이 필요한 명령, 보호된 쓰기, 유료 호출은 절대 허용하지 않으며, 거부하거나 실패하면 사용자가 결정합니다. 각 검토는 대화 모델의 토큰 요금으로 Model API 키에 청구됩니다.\n{price}\n이 작업 영역에서 검토를 항상 허용하지 않는 한 각 검토 전에 먼저 확인합니다.",
+  "paidConfirmAutoReviewer": "Model API 백 엔드의 자동 모드에서는 별도의 모델 호출이 확인이 필요하고 어떤 규칙이나 권한 프로필로도 결정되지 않은 단순 셸 명령 또는 MCP 도구 호출을 각각 판단하고, 안전해 보이면 묻지 않고 실행합니다. 금지된 명령, 규칙상 확인이 필요한 명령, 보호된 쓰기, 유료 호출은 절대 허용하지 않으며, 거부하거나 실패하면 사용자가 결정합니다. 각 검토는 대화 모델의 토큰 요금으로 Model API 키에 청구됩니다.\n{price}\n이 작업 영역에서 검토를 항상 허용하지 않는 한 각 검토 전에 먼저 확인합니다.",
   "paidUseAutoReviewerTitle": "자동 검토자가 이 {tool} 호출을 판단하도록 할까요?",
   "paidUseAutoReviewerDetail": "{action}\n\n{model}에 대한 별도 호출로 이 작업을 묻지 않고 실행해도 되는지 판단합니다. Model API 키로 청구: {price}. 총액은 사용한 토큰 수에 따라 달라집니다. 거부하면 대신 승인 카드가 표시됩니다.",
   "usagePaidAutoReviews": {
