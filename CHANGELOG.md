@@ -352,6 +352,9 @@ happened, not what was planned; superseded entries are kept.
 - The Reviewer retains whole tool observations when observation packing is
   enabled, because its read-only tools cannot recall packed output. The
   next ordinary request still uses the same packed placeholder.
+- **The `/` and `@` lists keep the highlighted row in view.** The arrow
+  keys move through a list taller than its menu, and the list now scrolls
+  to the row they reach instead of highlighting one out of sight.
 
 ## [0.11.0] - 2026-10-03
 
