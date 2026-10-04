@@ -1582,6 +1582,13 @@ the text as it is.
   opens VS Code's diff editor (the file side is editable).
 - Thinking rows stream their summary while the model thinks and end as
   "Thought for Ns" (a resumed conversation's read "Thought").
+- Each actionable message, reply, tool output or restore notice has one **More
+  actions** (⋯) button, revealed on hover or keyboard focus and always visible
+  on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
+  to open the same radial menu. The **Rewind** bubble opens the available
+  rewind and restore choices. Escape returns from that burst first, then
+  closes the menu and returns focus to ⋯. Edit review still opens the editor
+  where Revert asks for confirmation.
 - A reply's ⋯ menu has **Reply to this output**: the next message carries
   that output to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask about this** or **Comment on this**; the

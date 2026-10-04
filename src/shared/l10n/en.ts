@@ -767,6 +767,9 @@ export const EN = {
   clarifyNotAccepted: 'The explanation was not accepted',
   /** Replying to an output and quoting a highlighted passage (M17). */
   messageActions: 'Message actions',
+  rowMoreActions: 'More actions',
+  rowRewindGroup: 'Rewind',
+  rowOpenOutput: 'Open output',
   replyToOutput: 'Reply to this output',
   // Tokens and the dollar estimate under a Model API reply (M82).
   replyUsage: '{input} in · {output} out · estimated {cost}',

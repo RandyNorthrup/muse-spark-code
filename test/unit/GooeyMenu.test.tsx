@@ -84,6 +84,37 @@ describe('GooeyMenu', () => {
     expect(onSelect).toHaveBeenCalledOnce()
   })
 
+  it('refreshes second-burst guards and handlers while preserving focus', () => {
+    const { rerender, onClose, onSelect } = setup()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind' }))
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' })
+    const freshSelect = vi.fn()
+    rerender(
+      <GooeyMenu
+        label="Actions"
+        onClose={onClose}
+        items={[
+          {
+            id: 'rewind',
+            label: 'Rewind',
+            icon: 'R',
+            children: [
+              { id: 'code', label: 'Code', icon: 'K', disabled: true, onSelect },
+              { id: 'all', label: 'Everything', icon: 'E', onSelect: freshSelect },
+            ],
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('menuitem', { name: 'Everything' })).toHaveFocus()
+    const code = screen.getByRole('menuitem', { name: 'Code' })
+    expect(code).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(code)
+    expect(onSelect).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Everything' }))
+    expect(freshSelect).toHaveBeenCalledOnce()
+  })
+
   it('selects by pointer, displays hover label, refuses disabled selection', () => {
     const { onSelect } = setup()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Disabled' }))
@@ -174,6 +205,7 @@ describe('GooeyMenu', () => {
     )
     const menu = screen.getByRole('menu')
     expect(document.activeElement).toBe(menu)
+    expect(screen.getByText('Off')).toBeVisible()
     for (const key of ['ArrowRight', 'ArrowLeft', 'Home', 'End', 'Enter', ' ']) {
       fireEvent.keyDown(menu, { key })
     }

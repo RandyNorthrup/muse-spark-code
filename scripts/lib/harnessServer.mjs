@@ -38,6 +38,8 @@ export const SCENARIOS = [
   'transcript',
   'chat-menu',
   'chat-menu-narrow',
+  'chat-tool-menu',
+  'chat-tool-menu-narrow',
   'shifttab',
   'filter',
   'modes',

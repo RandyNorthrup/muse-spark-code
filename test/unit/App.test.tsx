@@ -102,9 +102,20 @@ function holdPastedPdf() {
   }
 }
 
+function userMenuButtons(): HTMLButtonElement[] {
+  return [...document.querySelectorAll<HTMLButtonElement>('[data-role="user"] .row-actions-button')]
+}
+
+function rewindItem(name: string): HTMLElement {
+  if (screen.queryByRole('menuitem', { name }) === null) {
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
+  }
+  return screen.getByRole('menuitem', { name })
+}
+
 function chooseConversationRewind(cardIndex: number) {
-  fireEvent.click(screen.getAllByLabelText('Fork or rewind')[cardIndex]!)
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind conversation to here' }))
+  fireEvent.click(userMenuButtons()[cardIndex]!)
+  fireEvent.click(rewindItem('Rewind conversation to here'))
 }
 
 function expectRewindRequest(
@@ -328,7 +339,7 @@ describe('App shell', () => {
         })
         fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
       } else {
-        fireEvent.click(screen.getAllByLabelText('Fork or rewind')[1]!)
+        fireEvent.click(userMenuButtons()[1]!)
         fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
       }
       expect(textarea()).toHaveValue('keep draft')
@@ -1523,7 +1534,7 @@ describe('App session history (M6)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Resumed one')
     expect(screen.getByText('first')).toBeInTheDocument()
     expect(screen.getByText('reply')).toBeInTheDocument()
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     expect(menus).toHaveLength(2)
     fireEvent.click(menus[1]!)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Fork conversation from here' }))
@@ -1575,7 +1586,7 @@ describe('App session history (M6)', () => {
       type: 'agentEvent',
       event: { type: 'turnCompleted', turnId: 't1', terminal: 'completed' },
     })
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[0]!)
+    fireEvent.click(userMenuButtons()[0]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
 
     loadHistory([
@@ -1584,7 +1595,7 @@ describe('App session history (M6)', () => {
         attachments: [{ type: 'file', mediaType, name, sizeBytes: 9 }],
       },
     ])
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[0]!)
+    fireEvent.click(userMenuButtons()[0]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
     expect(postMessage).not.toHaveBeenLastCalledWith(
       expect.objectContaining({ type: 'rewindConversation' }),
@@ -1600,11 +1611,9 @@ describe('App session history (M6)', () => {
         attachments: [{ type: 'file', mediaType: 'text/plain', name: 'notes.txt', sizeBytes: 9 }],
       },
     ])
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    expect(
-      screen.getByRole('menuitem', { name: 'Rewind conversation to here' }),
-    ).toBeInTheDocument()
+    expect(rewindItem('Rewind conversation to here')).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     fireEvent.click(menus[1]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
@@ -1656,7 +1665,7 @@ describe('App session history (M6)', () => {
   it('hides unsafe conversation rewind on a steered first turn (M53)', () => {
     renderReady()
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't1', 'steered')])
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[1]!)
+    fireEvent.click(userMenuButtons()[1]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
   })
 
@@ -1668,7 +1677,7 @@ describe('App session history (M6)', () => {
       historyUser('u3', 't2', 'steered with image'),
     ])
     deliver({ type: 'agentEvent', event: { type: 'turnStarted', turnId: 't2' } })
-    fireEvent.click(screen.getAllByLabelText('Fork or rewind')[2]!)
+    fireEvent.click(userMenuButtons()[2]!)
     expect(screen.queryByRole('menuitem', { name: 'Rewind conversation to here' })).toBeNull()
   })
 
@@ -1729,9 +1738,9 @@ describe('App session history (M6)', () => {
         historyEdit('e2', 't2', 'p2'),
       ],
     })
-    const menus = screen.getAllByLabelText('Fork or rewind')
+    const menus = userMenuButtons()
     fireEvent.click(menus[0]!)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
+    fireEvent.click(rewindItem('Rewind code to here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'rewindCode',
       edits: [
@@ -2136,7 +2145,9 @@ describe('App chat references (M17)', () => {
   it('replies to an output from its actions menu and sends the reference with the message', () => {
     const postMessage = renderReady()
     reply('m1', 'Use pnpm.')
-    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>('[data-role="assistant"] .row-actions-button')!,
+    )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
     expect(screen.getByText('Replying to: Use pnpm.')).toBeInTheDocument()
     fireEvent.change(textarea(), { target: { value: 'why?' } })
@@ -2179,14 +2190,16 @@ describe('App chat references (M17)', () => {
     expect(screen.queryByText('Commenting on: it is fast')).toBeNull()
   })
 
-  it('leaves the browser menu alone without a selection, and Escape closes ours', () => {
+  it('opens row actions without a selection, quotes with one, and Escape closes each', () => {
     renderReady()
     reply('m1', 'plain')
     const passage = screen.getByText('plain')
     const empty = vi
       .spyOn(window, 'getSelection')
       .mockReturnValue({ toString: () => '', anchorNode: passage } as unknown as Selection)
-    expect(fireEvent.contextMenu(passage)).toBe(true)
+    expect(fireEvent.contextMenu(passage)).toBe(false)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.copyResponse })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     empty.mockReturnValue({ toString: () => 'plain', anchorNode: passage } as unknown as Selection)
     expect(fireEvent.contextMenu(passage)).toBe(false)
@@ -2745,13 +2758,18 @@ function checkpointed(turnIds: readonly string[], availability = 'on') {
 }
 
 function openMenu(cardIndex: number) {
-  fireEvent.click(screen.getAllByLabelText('Fork or rewind')[cardIndex]!)
+  for (let level = 0; level < 2; level++) {
+    const menu = screen.queryByRole('menu')
+    if (menu !== null) fireEvent.keyDown(menu, { key: 'Escape' })
+  }
+  fireEvent.click(userMenuButtons()[cardIndex]!)
+  fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
 }
 
 function rowNames() {
   return within(screen.getByRole('menu'))
     .getAllByRole('menuitem')
-    .map((row) => row.textContent)
+    .map((row) => row.getAttribute('aria-label'))
 }
 
 describe('App turn checkpoints (M72)', () => {
@@ -2761,7 +2779,6 @@ describe('App turn checkpoints (M72)', () => {
     checkpointed(['t2'])
     openMenu(1)
     expect(rowNames()).toEqual([
-      'Fork conversation from here',
       'Rewind conversation to here',
       'Restore files to here',
       'Rewind code to here',
@@ -2769,12 +2786,7 @@ describe('App turn checkpoints (M72)', () => {
     ])
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(rowNames()).toEqual([
-      'Fork conversation from here',
-      'Rewind conversation to here',
-      'Rewind code to here',
-      'Fork conversation and rewind code',
-    ])
+    expect(rowNames()).toEqual(['Rewind conversation to here', 'Rewind code to here'])
   })
 
   it('asks the host to restore the files, or the files and the conversation', () => {
@@ -2782,14 +2794,14 @@ describe('App turn checkpoints (M72)', () => {
     loadHistory([historyUser('u1', 't1', 'first'), historyUser('u2', 't2', 'second')])
     checkpointed(['t2'])
     openMenu(1)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Restore files to here' }))
+    fireEvent.click(rewindItem('Restore files to here'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
       turnId: 't2',
     })
     openMenu(1)
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind conversation and restore files' }))
+    fireEvent.click(rewindItem('Rewind conversation and restore files'))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'restoreFiles',
       sourceSessionId: 'old',
@@ -2815,7 +2827,7 @@ describe('App turn checkpoints (M72)', () => {
     expect(screen.queryByRole('menuitem', { name: 'Restore files to here' })).toBeNull()
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
     openMenu(0)
-    expect(screen.getByRole('menuitem', { name: 'Restore files to here' })).toBeInTheDocument()
+    expect(rewindItem('Restore files to here')).toBeInTheDocument()
   })
 
   it('ignores the checkpoints of another conversation', () => {
@@ -2892,19 +2904,28 @@ describe('App turn checkpoints (M72)', () => {
       text: 'Restored 2 files to before this message.',
       redoRestoreId: 'r1',
     })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.redoAction }))
     // The Redo names the conversation it was offered in (M86).
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'redoRestore',
       restoreId: 'r1',
       sourceSessionId: 'old',
     })
-    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeDisabled()
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.redoAction })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: false })
-    expect(screen.getByRole('button', { name: UI_TEXT.redoLabel })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.redoLabel }))
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.redoAction })).not.toHaveAttribute(
+      'aria-disabled',
+    )
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.notice .row-actions-button')!)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.redoAction }))
     deliver({ type: 'restoreRedone', restoreId: 'r1', isSpent: true })
-    expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: UI_TEXT.redoAction })).toBeNull()
     expect(screen.getByText('Restored 2 files to before this message.')).toBeInTheDocument()
   })
 
@@ -2923,7 +2944,7 @@ describe('App turn checkpoints (M72)', () => {
         sessionId: 'old',
         turnIds: ['t1'],
       })
-      expect(screen.queryByRole('button', { name: UI_TEXT.redoLabel })).toBeNull()
+      expect(screen.queryByRole('menuitem', { name: UI_TEXT.redoAction })).toBeNull()
       openMenu(0)
       expect(screen.queryByRole('menuitem', { name: UI_TEXT.restoreFilesToHere })).toBeNull()
       expect(screen.queryByRole('menuitem', { name: UI_TEXT.rewindAndRestore })).toBeNull()

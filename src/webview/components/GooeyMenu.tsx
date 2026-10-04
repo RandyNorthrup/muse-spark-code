@@ -4,20 +4,23 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
+  type MouseEvent,
   useId,
   useLayoutEffect,
   useRef,
   useState,
 } from 'react'
-import { GOOEY_MENU } from '../../shared/constants'
+import { GOOEY_MENU, UI_TEXT } from '../../shared/constants'
 import { gooeyLayout, gooeySecondBurst, type MenuPoint } from '../gooeyLayout'
 import { useDismiss } from '../useDismiss'
+import { MoreIcon } from './icons'
 
 interface ItemBase {
   readonly id: string
   readonly label: string
   readonly icon: ReactNode
   readonly disabled?: boolean
+  readonly title?: string | undefined
 }
 interface GooeyAction extends ItemBase {
   readonly onSelect: () => void
@@ -41,13 +44,14 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   const closed = useRef(false)
   const parentFocus = useRef<string | undefined>(undefined)
   const [opener] = useState(() => document.activeElement)
-  const [group, setGroup] = useState<GooeyGroup>()
+  const [groupId, setGroup] = useState<string>()
   const [active, setActive] = useState<string>()
   const [hovered, setHovered] = useState<string>()
   const [layout, setLayout] = useState(() =>
     gooeyLayout({ x: 0, y: 0 }, 0, { width: 0, height: 0 }),
   )
   const filterId = useId()
+  const group = items.find((item): item is GooeyGroup => item.id === groupId && 'children' in item)
   const visibleItems = group?.children ?? items
   const returnFocus = () => {
     if (opener instanceof HTMLElement && opener.isConnected) {
@@ -133,7 +137,7 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
     }
     if ('children' in item) {
       setHovered(undefined)
-      setGroup(item)
+      setGroup(item.id)
     } else {
       item.onSelect()
     }
@@ -189,7 +193,7 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
       buttons.current.get(next.id)?.focus()
     }
   }
-  const labelledId = hovered ?? active
+  const labelledId = hovered ?? active ?? visibleItems[0]?.id
   const gooStyle: CSSProperties & { '--ms-goo-filter': string } = {
     '--ms-goo-filter': `url(#${filterId})`,
   }
@@ -233,6 +237,7 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
               type="button"
               role="menuitem"
               aria-label={item.label}
+              title={item.title}
               aria-disabled={item.disabled === true || undefined}
               aria-haspopup={'children' in item ? 'menu' : undefined}
               tabIndex={item.id === active ? 0 : -1}
@@ -267,7 +272,14 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
             key={item.id}
             aria-hidden="true"
             className={`gooey-menu-label ${point.x > window.innerWidth / 2 ? 'gooey-menu-label-left' : ''}`}
-            style={{ left: point.x, top: point.y }}
+            style={{
+              left: point.x,
+              top:
+                point.y +
+                (point.y > window.innerHeight / 2 ? -1 : 1) *
+                  (GOOEY_MENU.bubbleSize / 2 + GOOEY_MENU.gap),
+              translate: `${point.x > window.innerWidth / 2 ? '-100%' : '0'} ${point.y > window.innerHeight / 2 ? '-100%' : '0'}`,
+            }}
           >
             {item.label}
           </span>
@@ -275,4 +287,86 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
       })}
     </div>
   )
+}
+
+/** One opener and one menu per row; selection belongs to the transcript's quote menu. */
+export function useRowMenu(
+  items: readonly GooeyItem[],
+  label: string,
+  quoteMenu: ReactNode = null,
+) {
+  const button = useRef<HTMLButtonElement>(null)
+  const [origin, setOrigin] = useState<MenuPoint | HTMLElement>()
+  const close = () => {
+    setOrigin(undefined)
+  }
+  const open = (point: MenuPoint | undefined) => {
+    if (items.length === 0 || button.current === null) {
+      return
+    }
+    button.current.focus()
+    setOrigin(point ?? button.current)
+  }
+  const onContextMenu = (event: MouseEvent<HTMLElement>) => {
+    const selection = globalThis.getSelection()
+    const transcript = event.currentTarget.closest('.transcript')
+    if (
+      selection !== null &&
+      !selection.isCollapsed &&
+      selection.toString().trim() !== '' &&
+      transcript?.contains(selection.anchorNode) === true
+    ) {
+      close()
+      return
+    }
+    if (items.length === 0) {
+      return
+    }
+    event.preventDefault()
+    event.stopPropagation()
+    open({ x: event.clientX, y: event.clientY })
+  }
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (!(
+      items.length > 0 &&
+      (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey))
+    )) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    open(undefined)
+  }
+  return {
+    rowProps: { onContextMenu, onKeyDown },
+    isOpen: origin !== undefined || quoteMenu !== null,
+    close,
+    menu:
+      items.length === 0 ? null : (
+        <div className="row-actions">
+          <button
+            ref={button}
+            type="button"
+            className="row-actions-button"
+            aria-label={UI_TEXT.rowMoreActions}
+            title={UI_TEXT.rowMoreActions}
+            aria-haspopup="menu"
+            aria-expanded={origin !== undefined && quoteMenu === null}
+            onClick={() => {
+              if (origin === undefined) {
+                open(undefined)
+              } else {
+                close()
+              }
+            }}
+          >
+            <MoreIcon />
+          </button>
+          {origin === undefined || quoteMenu !== null ? null : (
+            <GooeyMenu items={items} label={label} origin={origin} onClose={close} />
+          )}
+        </div>
+      ),
+  }
 }

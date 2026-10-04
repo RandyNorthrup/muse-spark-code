@@ -610,6 +610,7 @@ export function App({
         readonly role: string
         readonly text: string
         readonly epoch: number
+        readonly origin: { readonly x: number; readonly y: number }
       }
     | undefined
   >(undefined)
@@ -640,13 +641,19 @@ export function App({
       const element = anchor instanceof Element ? anchor : anchor?.parentElement
       const row = element?.closest<HTMLElement>('[data-entry-id]') ?? null
       const entryId = row?.dataset['entryId']
-      if (text === '' || row === null || entryId === undefined) {
+      if (
+        text === '' ||
+        row === null ||
+        entryId === undefined ||
+        !event.currentTarget.contains(row)
+      ) {
         return
       }
       event.preventDefault()
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
+        origin: { x: event.clientX, y: event.clientY },
         text,
         epoch: store.getState().attachmentEpoch,
       })
@@ -1644,6 +1651,7 @@ export function App({
           onSavePlan={onSavePlan}
           onImplementPlan={state.isSideChat ? undefined : onImplementPlan}
           quoteMenuEntryId={quoteMenu?.entryId}
+          quoteMenuOrigin={quoteMenu?.origin}
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}
           onCloseQuoteMenu={onCloseQuoteMenu}

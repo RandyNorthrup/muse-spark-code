@@ -34,7 +34,8 @@ import {
   type ToolPresentation,
   writtenContent,
 } from '../toolPresentation'
-import { ExpandChevron } from './icons'
+import { ExpandChevron, FileIcon, RewindIcon } from './icons'
+import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import { QuestionCard, type QuestionCardProps } from './QuestionCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -419,6 +420,32 @@ function ToolRowView({
       : () => {
           onOpenEditDiff(entry.id, reviewRef.id)
         }
+  const items: GooeyItem[] =
+    presentation.body !== 'shell' && entry.output === '' && entry.outputRef === undefined
+      ? []
+      : [
+          {
+            id: 'output',
+            label: UI_TEXT.rowOpenOutput,
+            icon: <FileIcon />,
+            onSelect: () => {
+              menu.close()
+              openOutput()
+            },
+          },
+        ]
+  if (openReview !== undefined) {
+    items.push({
+      id: 'review',
+      label: UI_TEXT.diffTallyReview,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        menu.close()
+        openReview()
+      },
+    })
+  }
+  const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   let body: ReactNode
   switch (presentation.body) {
     case 'shell': {
@@ -515,8 +542,9 @@ function ToolRowView({
       data-status={entry.status}
       data-entry-id={entry.id}
       data-role="tool"
+      {...menu.rowProps}
     >
-      <div className="tool-header">
+      <div className="tool-header" inert={menu.isOpen}>
         <button
           type="button"
           className="tool-toggle"
@@ -569,7 +597,7 @@ function ToolRowView({
         </div>
       ) : null}
       {isOpen ? (
-        <div className="tool-body">
+        <div className="tool-body" inert={menu.isOpen}>
           {body}
           {images}
         </div>
@@ -597,6 +625,7 @@ function ToolRowView({
           {questionOutcomeText(entry.questionOutcome)}
         </div>
       )}
+      {menu.menu}
       {quoteMenu}
     </li>
   )
