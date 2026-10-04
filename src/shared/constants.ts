@@ -492,6 +492,14 @@ export const EXTENSION_HOOK_EVENTS = [
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
 // At most this many FileChanged runs a minute per session; the rest are dropped and counted in the log, so a watcher loop cannot spawn processes without bound.
 export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
+// Extension hook payload bounds (M91 lane E, PLAN.md D70): payloads carry a
+// workspace-relative path and a reason, never content; task, thought, display
+// and expansion text is clipped with `[truncated]` (toolHookPayload.ts).
+export const HOOK_TASK_SUBJECT_MAX_CHARS = 256
+export const HOOK_TASK_DESCRIPTION_MAX_CHARS = 1024
+export const HOOK_THOUGHT_MAX_CHARS = 2048
+export const HOOK_DISPLAY_MESSAGE_MAX_CHARS = 4096
+export const HOOK_EXPANSION_MAX_CHARS = 2048
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 
