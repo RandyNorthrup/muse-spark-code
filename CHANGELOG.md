@@ -149,6 +149,54 @@ happened, not what was planned; superseded entries are kept.
   Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
   The activation cap stays 600 KiB. The Model API cap is revisited, as M57
   planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
+- **Headless runs and a GitHub Action** (M80, PLAN.md D65):
+  `muse-spark-code-acp exec` runs one turn on a workspace without an editor.
+  The prompt comes as an argument, from `--prompt-file` or from stdin, with
+  up to eight `--untrusted-file` inputs marked as untrusted data. Plan is the
+  default and Accept edits the only other mode; workspace trust, bypass and
+  hosted web search are refused, every approval request is denied and every
+  question declined, and a Model API run starts no shell, check, hook, MCP,
+  Git or web-fetch process. Output is plain text, one JSON result or JSONL
+  events; the exit code names the outcome (0 completed, 2 usage, 3 sign-in,
+  4 failed, 5 budget or request cap, 6 timeout, 7 denied, 8 incomplete,
+  9 accounting unverified, 130/143 interrupted). Tool output text never
+  leaves exec, and a reply cut short is withheld whole. On Windows a forced
+  stop exits 1 and may lose buffered output.
+  - **Budgets and refusals:** the Model API needs `--max-budget-usd` (up to
+    $20, six decimals) and caps billable requests with `--max-requests`
+    (every attempt, retries included). Each request reserves the most its
+    context window could cost before it is sent: at least $0.108135 on the
+    contributor model and $1.409024 on standard, one cent more with images.
+    A request whose cost is lost or uncertain keeps its whole reservation,
+    and a budget below the minimum is refused before any billable call.
+    Images need `--image-generation` with Accept edits and are tallied per use.
+  - **Keys:** a local run uses the key in your OS credential store;
+    `--key-stdin` reads one line from a pipe and keeps it in memory only.
+    No environment variable is read. Every output removes the run's exact key
+    first, also in its percent-encoded form, then known token shapes.
+  - **Results and schemas:** the result and events are versioned (v1) and
+    validated, and their JSON Schemas ship in the package's `schemas/`;
+    `npm run schema:exec` regenerates them. `muse-spark-code-acp
+    scan-secrets <file>` counts likely secrets in one file and prints only
+    the number.
+  - **The Action:** `action/` reviews, or proposes a fix for, a
+    same-repository pull request on GitHub-hosted runners under the same hard
+    budget. Forks, bots, `pull_request_target` and commenters outside the
+    repository's members are refused before anything is installed; the agent
+    is installed before checkout and verified against its npm provenance (a
+    candidate tarball is pinned by digest and labelled unsigned); the key
+    reaches only exec and the secret scanner, over stdin. It posts one sticky
+    review comment within GitHub's size limit and uploads the validated
+    result; a fix is published as a patch only after a clean secret scan of
+    its exact bytes, and any binary change (a generated image included) or
+    detected secret withholds the whole patch. A stopped or failed run
+    publishes nothing. `action/apply` applies the patch for your own
+    secret-free tests, then pushes it after maintainer approval with a lease
+    on the exact reviewed head, refusing an unexpected or oversized artifact.
+    Every Git step runs with no hooks, filters, fsmonitor, signer or
+    credential helper, and refuses any repository configuration a fresh
+    clone does not carry. npm releases now carry provenance.
+  - Acceptance on hosted runners and with a real key is still pending.
 - **Review** (M70, PLAN.md D49), on both backends:
   - `/review` reviews the uncommitted changes; `/review branch [base]` the
     branch against its base, `/review commit [revision]` one commit (a
@@ -183,7 +231,7 @@ happened, not what was planned; superseded entries are kept.
     Chinese is the table's existing 审阅).
   - **It loads on first use** (M70, PLAN.md D6). Git's material, the
     review turn's text, the Plan-mode hold and edit review (Open diff and
-    Revert) are the new `dist/review.js` (43.2 KiB, budget 50), required the
+    Revert) are the new `dist/review.js` (43.1 KiB, budget 50), required the
     first time one is used; a module that cannot be loaded refuses the review
     with `reviewUnavailable` and the log has the cause.
 
@@ -192,6 +240,7 @@ happened, not what was planned; superseded entries are kept.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
+- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up from 100 KiB: new strings bring `dist/uiText.js` to 102.6 KiB; the new budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so activation is unchanged.
 - **Code intelligence and voice load on first use** (PLAN.md D6). Muse
   Code's `ide` code intelligence answers and both voice engines' drivers now
   ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first

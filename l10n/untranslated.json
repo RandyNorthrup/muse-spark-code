@@ -43,7 +43,9 @@
       "noticeRepeatBadge",
       "reviewItem",
       "agentImportSourceCursor",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "execUsage",
+      "execScanUsage"
     ],
     "cs": [
       "groupModel",

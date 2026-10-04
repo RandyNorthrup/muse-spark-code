@@ -515,3 +515,29 @@ hands it, the same way the extension does, and nothing else:
 Questions and reports: <https://github.com/RandyNorthrup/muse-spark-code/issues>.
 This project is not affiliated with Meta. "Muse Spark" and "Muse Code" are
 Meta trademarks.
+
+## Headless runs and CI (M80 integration pending)
+
+Headless prompt, untrusted resources, PR title/body/diff and ordinary workspace
+files the agent reads can reach Meta. Use a secret-free checkout. Contributor
+models require explicit opt-in; their content is eligible for Meta training.
+The authentication key goes only in the provider auth header, never model
+content. Local runs keep existing OS-store auth. CI launcher receives key in its
+initial environment, removes variable before children, then sends private stdin
+to only trusted exec and scanner commands; both keep it in memory and clear
+references in finally. Initial same-user environment/memory inspection remains
+possible; removal cannot guarantee zeroization.
+
+Scanner is local-only and sends no file or key to a model. It reports only count.
+Exec suppresses all tool output text and withholds incomplete prose whole;
+released output uses exact-literal-first redaction plus known token patterns.
+This does not catch unknown secrets or prevent readable workspace contents
+from entering provider context. GitHub receives only redacted result/events/
+eligible comment outputs, plus exact scanned clean text patch and binding
+manifest. A binary/image change or detected secret withholds the entire patch;
+private staging is not uploaded. Model-generated images are still paid provider
+requests; tally records returned/uncertain liability under explicit flag/cap.
+
+B/C integration and actual L/LA/LR remain open. Read
+[CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
+retention/cleanup bounds, platform limits and support claims.

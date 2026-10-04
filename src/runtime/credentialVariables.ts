@@ -11,7 +11,7 @@
 // extension adds `museSpark.environmentVariables` to them.
 
 import { isCredentialVariable } from '../host/backend/toolIo'
-import type { EnvironmentVariable } from '../shared/constants'
+import { EXEC_CHILD_ENV_DROP, type EnvironmentVariable } from '../shared/constants'
 
 /** The credential variables in `env`, by name and value. */
 function credentialsIn(env: NodeJS.ProcessEnv): EnvironmentVariable[] {
@@ -33,5 +33,15 @@ export function takeCredentials(env: NodeJS.ProcessEnv): readonly EnvironmentVar
 export function withoutCredentials(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const copy = { ...env }
   takeCredentials(copy)
+  return copy
+}
+
+/** Headless tools cannot inherit credential-store sockets or CI token routes. */
+export function withoutKeyringRoutes(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const copy = { ...env }
+  const names: readonly string[] = EXEC_CHILD_ENV_DROP
+  for (const name of Object.keys(copy)) {
+    if (names.includes(name.toUpperCase())) Reflect.deleteProperty(copy, name)
+  }
   return copy
 }
