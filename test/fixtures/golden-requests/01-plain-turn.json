@@ -1,0 +1,428 @@
+{
+  "requests": [
+    {
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "input": [
+        {
+          "content": [
+            {
+              "text": "Hello.",
+              "type": "input_text"
+            }
+          ],
+          "role": "user",
+          "type": "message"
+        }
+      ],
+      "instructions": "You are Muse Spark, a coding agent working inside Visual Studio Code through the Muse Spark Code extension.\n\nThe workspace root is /ws on linux. Every path you give a tool is relative to it (or absolute inside it); paths outside the workspace are refused.\n\nUse the tools for everything that touches the workspace: read_file before editing a file, edit_file for changes inside a file (find must match exactly once), write_file to create or replace a file, search and list_files to look around, and the shell tool to run commands.\n\nThe shell tool (bash) runs one bash command line in the workspace root. Give a one-line description with every command. Some actions need the user's approval; a refused action comes back as a tool error, so move on instead of retrying it.\n\nUse ask_user when you need a decision from the user; when you offer the user a choice between options, ask through ask_user instead of listing the options in prose. Use todo_write to keep a short task list while working on several steps.\n\nNever invent file contents or command output; report what the tools returned. Answer in GitHub-flavoured Markdown, briefly, with code in fenced blocks.\n\n# Environment\n\n- Today's date: 1970-01-01\n- Git: not a repository, or git could not answer.\n\n# How to work\n\n- Read a file before editing it, and prefer edit_file over write_file for a file that exists. write_file replaces an existing file only after you have read it, and only if it has not changed since.\n- Stay within what the user asked for: no extra features, refactors or files.\n- Never create commits, branches or pushes unless the user asks for them.\n- Refer to code as path:line so the user can open it.\n- Keep answers short: lead with the outcome, then what changed and what is next.\n- When something could not be verified, say so instead of guessing.\n\n# Checking your work\n\n- write_file and edit_file take then_run: one command to run right after the edit, such as the test of the code you changed. Its output comes back with the edit's result.",
+      "max_output_tokens": 32768,
+      "model": "muse-spark-1.3",
+      "prompt_cache_key": "muse-spark-code-6bf00fe72adbbcdcab9aecd2a72fac62",
+      "prompt_cache_retention": "in_memory",
+      "reasoning": {
+        "effort": "high",
+        "summary": "auto"
+      },
+      "store": false,
+      "stream": true,
+      "tool_choice": "auto",
+      "tools": [
+        {
+          "description": "Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.",
+          "name": "read_file",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "description": "Maximum lines to return",
+                "type": "integer"
+              },
+              "offset": {
+                "description": "1-based first line to return",
+                "type": "integer"
+              },
+              "path": {
+                "description": "Workspace-relative path",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique.",
+          "name": "edit_file",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "find": {
+                "description": "The exact text to replace",
+                "type": "string"
+              },
+              "path": {
+                "description": "Workspace-relative path",
+                "type": "string"
+              },
+              "replace": {
+                "description": "The replacement text",
+                "type": "string"
+              },
+              "then_run": {
+                "description": "Optional: one shell command to run right after this edit, such as the test of the code you changed. It runs as the shell tool runs a command (asking the user where that would ask), only if the file still holds what this edit wrote, and its output comes back in this result.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "find",
+              "replace"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Create or overwrite a file with the given content.",
+          "name": "write_file",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "content": {
+                "type": "string"
+              },
+              "path": {
+                "description": "Workspace-relative path",
+                "type": "string"
+              },
+              "then_run": {
+                "description": "Optional: one shell command to run right after this edit, such as the test of the code you changed. It runs as the shell tool runs a command (asking the user where that would ask), only if the file still holds what this edit wrote, and its output comes back in this result.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Search file contents with a regular expression, optionally within files matching a glob.",
+          "name": "search",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "glob": {
+                "description": "Only files matching this glob, e.g. src/**/*.ts",
+                "type": "string"
+              },
+              "max_results": {
+                "type": "integer"
+              },
+              "output_mode": {
+                "description": "content (default): matching lines; files_with_matches: paths; count: matches per file",
+                "enum": [
+                  "content",
+                  "files_with_matches",
+                  "count"
+                ],
+                "type": "string"
+              },
+              "pattern": {
+                "description": "JavaScript regular expression",
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "List workspace files, optionally those matching a glob.",
+          "name": "list_files",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "glob": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              }
+            },
+            "required": [],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Run one bash command line in the workspace root and return its output.",
+          "name": "bash",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "description": {
+                "description": "One line saying what the command does",
+                "type": "string"
+              },
+              "timeout_ms": {
+                "description": "Milliseconds before the command is stopped",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "command",
+              "description"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Ask the user one or more questions and wait for the answers. Use it for decisions only the user can make.",
+          "name": "ask_user",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "questions": {
+                "items": {
+                  "properties": {
+                    "header": {
+                      "description": "Short label (a few words)",
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "options": {
+                      "items": {
+                        "properties": {
+                          "description": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "label"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "question": {
+                      "type": "string"
+                    },
+                    "selection": {
+                      "properties": {
+                        "mode": {
+                          "enum": [
+                            "single",
+                            "multiple"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "header",
+                    "question",
+                    "selection",
+                    "options"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "questions"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Replace your task list, shown to the user while you work.",
+          "name": "todo_write",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "activeForm": {
+                      "description": "Present-tense form shown while in progress",
+                      "type": "string"
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "inProgress",
+                        "completed"
+                      ],
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Start a session goal only when requested. Fails if this session already has an unfinished goal; the failure message names the way out.",
+          "name": "create_goal",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "objective": {
+                "description": "What the goal is done by, in a sentence",
+                "type": "string"
+              },
+              "token_budget": {
+                "description": "Optional: the tokens the goal may use before it stops",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "objective"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Read the active session goal and progress. Returns {\"goal\": null} when no goal is set. Do not call to orient yourself, to check whether a goal exists, or on a greeting; only call when you are already working on an explicit goal and need its current state.",
+          "name": "get_goal",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {},
+            "required": [],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Mark the active goal complete or blocked. Use complete only when no required work remains.",
+          "name": "update_goal",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "description": "The terminal goal status to set",
+                "enum": [
+                  "complete",
+                  "blocked"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Report active goal progress. percent_complete=100 is equivalent to update_goal(status=\"complete\").",
+          "name": "report_progress",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "current_work": {
+                "description": "What you are doing now",
+                "type": "string"
+              },
+              "next_work": {
+                "description": "What comes next",
+                "type": "string"
+              },
+              "percent_complete": {
+                "description": "From 0 to 100",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "current_work",
+              "next_work",
+              "percent_complete"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        },
+        {
+          "description": "Read back a packed tool output by its id, one page at a time. A packed output names its id; pass it with a character offset (0 for the first page).",
+          "name": "recall_output",
+          "parameters": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "description": "The packed output id from its placeholder",
+                "type": "string"
+              },
+              "offset": {
+                "description": "Characters to skip; 0 reads from the start",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "strict": false,
+          "type": "function"
+        }
+      ]
+    }
+  ],
+  "scenario": "01-plain-turn"
+}

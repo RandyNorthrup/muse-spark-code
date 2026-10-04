@@ -11,3 +11,9 @@ CHANGELOG.md
 
 # Pinned third-party workflow package; retain archive bytes.
 vendor/
+
+# Lane M91-G golden fixtures: written byte-exact by
+# test/unit/modelApiGoldenRequests.test.ts in regenerate mode (`JSON.stringify`
+# always expands arrays; prettier would collapse them and break the byte
+# comparison).
+test/fixtures/golden-requests/

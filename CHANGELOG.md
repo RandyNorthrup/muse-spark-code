@@ -31,6 +31,11 @@ happened, not what was planned; superseded entries are kept.
     constants (the spark-hooks.json paths, the 21 extension events, and
     FileChanged's debounce and per-minute cap). Nothing a user can reach has
     changed yet.
+  - **Lane G:** the golden "hooks off" request fixtures
+    (`test/fixtures/golden-requests/`): the exact `POST /responses` bodies
+    for a plain turn, a tool call, an `edit_file` with `then_run`, a packed
+    long output, a manual compaction, a subagent child turn, and a turn with
+    skills and rules loaded. Later lanes must not move these bytes.
 
 ## [0.12.1] - 2026-10-04
 
