@@ -4301,14 +4301,21 @@ every fact, is `docs/certification/m96-research.md`.
     - **Its kind follows what it resolves to.** On Muse Code it is a Muse
       Code agent. On the Model API it is an engine agent on the key, so its
       tasks are paid uses under `teamWorkers`.
+    - **Its limits.** Default always carries the level's `task` and `day`
+      token caps, so an unpriced model it resolves to stays bounded. The
+      first `delegate` that resolves Default to a key model asks for that
+      model's price acceptance inside the D48 popup.
     - **Its meters** belong to the entry, whatever it resolved to. Each
       request is priced at the model it went to.
     - **Where it shows.** The Agent map and the roster show what it
       resolves to, for example "Default (muse-spark-1.3 · Muse Code)".
 - **Built-in roles.** Each ships as an `AGENT.md` that the user can copy
   into `.agents/agents/` or the personal folder and edit. An edited copy
-  shadows the built-in (M76's precedence). Users add their own the same
-  way.
+  shadows the built-in (M76's precedence).
+  - A personal copy is the user's own, and may change anything.
+  - A project copy may only narrow the role it shadows (Role keys, below).
+
+  Users add their own roles the same way.
 
 | Role          | Workspace    | Hands back                            | Use it for                                                                   |
 | ------------- | ------------ | ------------------------------------- | ---------------------------------------------------------------------------- |
@@ -4448,7 +4455,10 @@ every fact, is `docs/certification/m96-research.md`.
       - its `write-paths` a subset of that role's globs;
       - its `delegates` a subset of that role's.
 
-      Anything wider refuses the file, naming it.
+      These are compared on resolved values: a missing key resolves
+      first (a missing `write-paths` means the whole branch, which is wider
+      than any list), so leaving a key out never widens. Anything wider
+      refuses the file, naming it.
 
     - **with a new id**, starts as `read-only` with the `read` and
       `codeIntel` groups. The Roles section shows anything more the file
@@ -4578,8 +4588,9 @@ every fact, is `docs/certification/m96-research.md`.
     - an `ssh` command that refuses (`GIT_CONFIG_COUNT` and
       `GIT_SSH_COMMAND`).
 
-    So in the usual setups a push that a script tries fails for want of
-    credentials.
+    So in the usual setups a push to a remote that a script tries fails for
+    want of credentials. A push into the user's own repository is caught by
+    the check below.
 
   - **What is checked.** The user's refs live in the user's repository,
     which no worker's git touches.
@@ -4588,6 +4599,12 @@ every fact, is `docs/certification/m96-research.md`.
       end.
     - Any other value stops the task and refuses its merge, naming the ref,
       its old value and its new one.
+    - **A local push.** A script a worker starts can find the user's
+      repository, because a shared clone names it in
+      `objects/info/alternates`, and push into it without credentials. So
+      an update to any of the user's refs that `receive-pack` wrote (its
+      reflog entry begins `push`) while a worker's command runs is a breach
+      too.
     - Refs that the user or VS Code move (a commit, a fetch) are the
       user's, and are never treated as a breach. The merge card says when
       the user's branch moved during the task.
@@ -4618,7 +4635,9 @@ every fact, is `docs/certification/m96-research.md`.
     - runs a `read-only` role's session in a second `muse serve`, started
       with `--disable-write` and `--disable-shell`. These are host-level
       flags in 1.4.2 (`muse serve --help`, read 2026-10-04, research §4.7),
-      so Muse Code itself refuses that worker's writes and shell. The
+      so Muse Code itself refuses that worker's file writes and shell. MCP
+      tools reach it only through the extension's bridge, which serves a
+      read-only role only tools marked read-only (Shared resources). The
       session is in Plan. That host counts as a process worker, and stops
       when its last read-only task ends;
     - uses `promptUnmatched` for every other role;
@@ -4676,6 +4695,107 @@ every fact, is `docs/certification/m96-research.md`.
   - **`in-place` is for engine agents only.** Its edits land in the user's
     tree, so the harness must hold every call. The wizard does not offer it
     for a Muse Code or external entry.
+- **Shared resources: workers never fight over tools.** The owner,
+  2026-10-04: "we need to account for this type of thing in our harness so
+  our agents are not fighting for tools".
+  - **What happened that day.** Every Muse worker loaded the user's Chrome
+    Control MCP server from its own config. The browser extension accepts
+    one connection, so six workers' servers took it from the orchestrator,
+    and browser control failed for everyone.
+  - **A resource registry, with leases.** Each tool, MCP server or device
+    is declared as one of three kinds:
+    - **exclusive** (a singleton): browser control, a serial port or USB
+      device (M92's gadgets), a debugger or attach session, a fixed local
+      port, a GPU, the clipboard;
+    - **shared**, with a concurrency limit;
+    - **free**.
+
+    A command can be declared to need a resource too. For example,
+    `npm run dev` needs `port:3000`, and `docker compose up` needs
+    `docker`. The worker's shell then takes that resource's lease before
+    running the command.
+
+  - **Leases.**
+    - A worker takes a lease before it first uses an exclusive resource.
+      It keeps the lease until its task ends, or until it makes no call for
+      `TEAM_LEASE_IDLE_MS` (120 seconds), because a browser or a device is
+      stateful and two tasks' calls must not interleave.
+    - The orchestrator is a holder like any other.
+    - A request for a held resource waits in its queue up to
+      `TEAM_LEASE_WAIT_MS` (5 minutes), with the holder named in the
+      worker's transcript and the Agent map. Past that, it answers
+      "resource busy, held by `<role>` task `<id>`" to the orchestrator.
+    - **Release** happens at finish, stop, cancel and crash. Leases follow
+      M86's lease-and-fence pattern (`checkpointLease.ts`, the window
+      presence files):
+      - a lease records its holder and a generation, and every call
+        carries both;
+      - a holder whose window is gone (its presence lapsed) loses the
+        lease;
+      - a late call with an old generation is refused.
+    - **The Agent map** shows who holds what and who waits.
+    - **Take it back.** The user can take a lease back for the
+      orchestrator from the Agent map; the holder's next call is told the
+      resource is busy.
+  - **One instance of each MCP server, shared by everyone.** The extension,
+    as the orchestrator's host, owns one instance of each MCP server and
+    proxies every caller's calls to it: the **MCP bridge**.
+    - It builds on M50's pool and the `ide` server's transport, as loopback
+      streamable HTTP.
+    - Each caller (the orchestrator's session, each task) gets an endpoint
+      of its own with a token of its own.
+    - A call is keyed by the caller and its request id, so two workers'
+      identical ids never cross, and each caller gets only its own results
+      and cancellations.
+    - Exclusive servers pass calls through the lease; shared ones through
+      their concurrency limit.
+    - **A read-only role** is served only tools that declare
+      `readOnlyHint: true`.
+
+    How each kind reaches it:
+    - **Engine workers** call it in-process.
+    - **Muse Code sessions**, the orchestrator's included, get its servers
+      by name in their `config.mcpServers`, pointing at the bridge.
+    - **External agents** get it in `session/new` `mcpServers`, as HTTP
+      where they advertise it.
+
+  - **Workers start with only their role's servers.** A worker starts with
+    the minimal tool and MCP set that its role's tool policy gives. A
+    server from the user's own configuration reaches a role only when the
+    user assigns it to that role, and then only through the bridge.
+    - **Engine workers** have no MCP spawner of their own, so this holds by
+      construction.
+    - **Muse Code workers.** A Muse Code session loads the user's own Muse
+      Code MCP configuration by itself. Step 1 captures whether a session's
+      `config.mcpServers` can override or switch off a server of the same
+      name.
+      - **If it can,** each worker session gets the bridge's entry under
+        that name, or the server switched off.
+      - **If it cannot,** Muse Code workers do not start while the user's
+        Muse Code configuration holds a server the registry marks
+        exclusive. The panel names the server and offers **Move to the
+        shared bridge**: it opens Muse Code's settings file for the user to
+        remove the server (the extension never writes it, D17), and adds
+        the server to the extension's own MCP configuration, where the
+        bridge serves it to the orchestrator and to every worker.
+      - The limitation is upstream U7.
+    - **External agents.** Each preset starts without the user's own MCP
+      servers where its CLI allows. Step 1 captures each one's switch: a
+      strict MCP configuration for Claude's, a configuration override for
+      Codex's, an allowed-server list for Gemini CLI's, and Copilot CLI's
+      equivalent. A preset without one follows the same rule as Muse Code:
+      it does not start while its own configuration holds an exclusive
+      server.
+  - **Defaults.**
+    - **Exclusive:** known singleton servers (Chrome Control and other
+      browser-control servers, Playwright with a fixed profile, and serial
+      or device servers, M92's gadgets among them), matched by command and
+      package name.
+    - **Shared:** unknown servers, with a per-role limit that the user
+      sets (default 2).
+    - **Where it is set:** in the Models & Agents panel's Roles section,
+      under **Tools and devices**, at user level only. A repository cannot
+      declare a resource free or raise a limit.
 - **Which external agents.**
   - **Presets** for the adapters that step 1 captures:
     - Claude's (`@agentclientprotocol/claude-agent-acp`);
@@ -4716,8 +4836,10 @@ every fact, is `docs/certification/m96-research.md`.
       day) or `lifetime` (the workspace's, until reset).
     - For example: 200,000 tokens per task, 2,000,000 per day, and $20
       for the workspace's lifetime.
-  - **Per agent, optional:** running at once across every role. One plan's
-    or key's rate limit is shared by all the entries that use it.
+  - **Per agent:** running at once across every role and conversation.
+    It is set automatically to that agent's computed ceiling (Team
+    intensity, below), because a plan's or key's limit is shared by every
+    entry that uses it. The user may lower it.
   - **Per role:** tasks per orchestrator turn (default 6); minutes per task
     (default 30); the exhausted policy; and `continue on next` (below).
   - **Global, machine-scoped** (with the ceilings under Team intensity):
@@ -4728,9 +4850,12 @@ every fact, is `docs/certification/m96-research.md`.
       Its default is the lowest of 4, the logical CPUs less 2, and the free
       memory at activation less 4 GiB divided by 1.5 GiB, and never below
       1;
-    - the team's daily budget in dollars and in tokens, which the
-      intensity level sets;
-    - `TEAM_MAX_CONCURRENT_COMMANDS`, worker shell commands at once.
+    - the machine's ceilings on any workspace's daily team budget,
+      `museSpark.teamDailyBudgetUsd` and `museSpark.teamDailyBudgetTokens`
+      ($50.00 and 25,000,000 by default). The intensity level sets the
+      workspace's own budget beneath them;
+    - `TEAM_MAX_CONCURRENT_COMMANDS`, engine workers' shell commands at
+      once.
   - **Depth:** 1, or 2 through `delegates`, never more (`TEAM_MAX_DEPTH`).
 - **Model settings per entry.** The owner, 2026-10-04: "roles need effort and
   thinking and all of the adjustables for the models to be easily choosable
@@ -4775,7 +4900,9 @@ model-profile show`, read without a model call);
     The team's intensity shifts these (below).
 
   - **Default inherits.** The Default entry takes the composer picker's
-    current effort and settings, live, as it takes its model.
+    current settings, live, as it takes its model. Its effort is the
+    picker's effort shifted by the intensity level's step, clamped to the
+    model's tiers.
   - **Fixed for a task** (SoL-Pi rule 1). A task's settings are set when it
     starts and never change during it: an effort or thinking change breaks
     the cached prefix on OpenAI and Anthropic (M95 finding 6). An edit
@@ -4793,13 +4920,13 @@ model-profile show`, read without a model call);
     the ceiling below. Each entry's `concurrent` is the same count, clamped
     by that entry's own ceiling.
 
-| Level                  | Running per role | Effort (from the role's base) | Tokens per task | Team per day          |
-| ---------------------- | ---------------- | ----------------------------- | --------------- | --------------------- |
-| **Minimal**            | 1                | two steps lower               | 100,000         | $2.00 and 1,000,000   |
-| **Light**              | 2                | one step lower                | 200,000         | $5.00 and 2,500,000   |
-| **Balanced** (default) | 4                | the role's base               | 400,000         | $10.00 and 5,000,000  |
-| **Heavy**              | 8                | one step higher               | 800,000         | $25.00 and 12,000,000 |
-| **Max**                | the ceiling      | two steps higher              | 1,500,000       | $50.00 and 25,000,000 |
+| Level                  | Running per role | Effort (from the role's base; Default from the picker's) | Tokens per task | Team per day          |
+| ---------------------- | ---------------- | -------------------------------------------------------- | --------------- | --------------------- |
+| **Minimal**            | 1                | two steps lower                                          | 100,000         | $2.00 and 1,000,000   |
+| **Light**              | 2                | one step lower                                           | 200,000         | $5.00 and 2,500,000   |
+| **Balanced** (default) | 4                | the role's base                                          | 400,000         | $10.00 and 5,000,000  |
+| **Heavy**              | 8                | one step higher                                          | 800,000         | $25.00 and 12,000,000 |
+| **Max**                | the ceiling      | two steps higher                                         | 1,500,000       | $50.00 and 25,000,000 |
 
 - **Effort steps** are clamped to the tiers the model serves: Meta never
   gets `none`, and `max` only on Standard 1.3.
@@ -4807,8 +4934,9 @@ model-profile show`, read without a model call);
   that role only, and the role is marked "custom".
   - Changing the level leaves custom roles alone.
   - **Re-apply level** resets one role to the level.
-- **The ceiling is computed, never hard-coded.** For each entry it is the
-  lowest of three things:
+- **The ceiling is computed, never hard-coded.** It belongs to each agent
+  (a provider account, a plan, a CLI), and all of that agent's entries
+  in every role share it. It is the lowest of three things:
   - **The provider's limit**, documented or observed:
     - **Meta's Model API** limits each team, not each key: Standard 3,000
       RPM and 4,000,000 TPM; Contributor 100 RPM and 3,000,000 TPM
@@ -4837,14 +4965,17 @@ model-profile show`, read without a model call);
     - `museSpark.teamMaxProcessWorkers`: for Muse Code and external
       workers, as before;
     - `TEAM_MAX_CONCURRENT_COMMANDS`: half the logical CPUs, at least 1.
-      This is the number of worker shell commands that run at once; the
-      rest wait for a slot, so builds and tests never swamp the host.
+      This is the number of engine workers' shell commands that run at
+      once; the rest wait for a slot. Muse Code and external workers run
+      their own commands, so `museSpark.teamMaxProcessWorkers` bounds
+      them instead.
 - **Live adaptation.**
   - A 429, or a remaining-requests or remaining-tokens header under 10%,
     halves that entry's running cap, down to 1.
   - The Agent map then shows "throttled by provider".
   - Each `TEAM_THROTTLE_RECOVER_MS` (60 seconds) without another 429 adds
-    one back, up to the level's count.
+    one back, up to the entry's configured running cap: the level's, or a
+    custom value.
   - No level and no edit ever passes the ceiling.
 - **The cost of a level, shown first.** Each level shows its estimated
   cost per hour of team work and its tokens per hour, before the user
@@ -4939,9 +5070,11 @@ model-profile show`, read without a model call);
     - A request that does not fit is not sent. For engine workers, this
       replaces M82's rule that a child's requests are reserved against no
       cap. The conversation's own cap keeps M82's rule.
-    - When the orchestrator is on Muse Code, there is no Model API session
-      to own the journal rows, so the team ledger owns a budget scope of
-      its own in the same journal format.
+    - **One scope per workspace.** Every team task's reservations go into
+      the team's own scope of M82's journal, one per workspace, whatever
+      conversation or window started the task. Every admission reads that
+      whole scope, so two windows never pass a cap together. The
+      conversation's own M82 cap keeps M82's rule.
   - **No reported usage** (Copilot's models through `vscode.lm`, whose
     stable stream reports none (M95 research §2.8); an external agent that
     sends none): tokens are counted from what the extension measured. That
@@ -4970,7 +5103,9 @@ model-profile show`, read without a model call);
     zod-parsed and bounded.
     - It may lower limits, turn roles off and require a different reviewer.
     - It never adds an agent, a provider, a command, a role or a pool
-      entry. A file that holds an unknown key is refused whole.
+      entry, never sets `in-place`, never raises the intensity level, and
+      never changes the orchestrator slot. A file that holds an unknown key
+      is refused whole.
     - The wizard shows what it lowered.
 - **The orchestrator's tools.** The same five on both backends.
   - **`roster()`** returns the team as it is now:
@@ -5019,7 +5154,7 @@ brief, reason, files?, entry?, continue? }`.
     consumption. It waits at most `wait_seconds`, within the backend's bound
     (below).
     - `part` (`report`, `diff` or `transcript`) and `offset` page a large
-      part, `TEAM_COLLECT_PAGE_CHARS` at a time.
+      part, `TEAM_COLLECT_PAGE_CHARS` (16,000) at a time.
     - The Model API orchestrator rarely needs paging, because ObservationPack
       packs large results and `recall_output` pages them. The Muse Code
       orchestrator has no ObservationPack (M73 runs on the Model API only),
@@ -5459,6 +5594,9 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       on usage at most every `TEAM_LEDGER_FLUSH_MS` (2 seconds), and when
       the task ends. So partial usage survives a crash.
     - Resets are rows too.
+    - **Retention prunes task rows, never meter totals.** Each entry's
+      totals per window are rows of their own, kept until **Reset**, so a
+      spent `lifetime` cap never refills when old task rows age out.
   - **One source of truth.** The pools' meters (D75's caps by window) are
     sums over these rows, plus the reservations still open in M82's
     journal. Admission therefore never depends on a flush, because the
@@ -5504,10 +5642,16 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - The Agent map offers **Resume** and **Discard**:
       - **Resume** reopens the worker's session where its backend can (a
         stored Model API session, Muse Code's `session/resume`, ACP's
-        `session/load` where advertised). Otherwise it starts a new task on
-        the same branch from D75's handoff brief. Either way it is a new
-        admission: trust, the entry's headroom, every cap and, for a key
-        entry, the D48 popup are checked again before anything is sent.
+        `session/load` where advertised). Otherwise it starts a new task in
+        the same working copy from D75's handoff brief.
+        - An interrupted task keeps its working copy, uncommitted edits and
+          all.
+        - **Resume** first commits that state to the task's branch, as the
+          end-of-task commit would.
+        - It runs on the same kind of host the task started on: the
+          read-only host for a read-only role. Either way it is a new
+          admission: trust, the entry's headroom, every cap and, for a key
+          entry, the D48 popup are checked again before anything is sent.
       - **Discard** removes the working copy and branch.
 
 - **Configuring the team: the Models & Agents panel.** The owner,
@@ -5599,7 +5743,7 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       median of your last 12 engineering tasks".
     - **Inline validation**, as the user types, refuses or warns about:
       - a token cap below one request's minimum (the role's prefix plus
-        `TEAM_MIN_REQUEST_TOKENS`);
+        `TEAM_MIN_REQUEST_TOKENS`, 2,048);
       - a `task` cap above the same measure's `day` cap;
       - a dollar cap on an unpriced model (use a token cap; M95 never
         guesses a price);
@@ -5621,8 +5765,18 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - **Caps from the budget.** It suggests day caps that fit the team's
       remaining daily budget, split by each role's typical use.
     - **Learned locally.** Typical use per role starts from
-      `TEAM_ROLE_TYPICAL_TASK_TOKENS` and follows the local record once a
-      role has five tasks here.
+      `TEAM_ROLE_TYPICAL_TASK_TOKENS`, and follows the local record once a
+      role has five tasks here. The starting values:
+
+      | Role          | Tokens per task |
+      | ------------- | --------------- |
+      | `research`    | 150,000         |
+      | `design`      | 80,000          |
+      | `marketing`   | 40,000          |
+      | `engineering` | 400,000         |
+      | `qa`          | 200,000         |
+      | `code-review` | 120,000         |
+      | `docs`        | 60,000          |
   - **The preview, before anything is saved.** For a sample task, the panel
     shows which roles and entries would be used, any switch the caps would
     force, and the estimated cost range. The user picks a sample ("a
@@ -5733,10 +5887,13 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
   - **Muse Code orchestrates over the `team` MCP server.**
     - Why: the main agent keeps the decision and its context, on a proven
       path.
-  - **Default limits:** a $10.00 and 5,000,000-token daily team budget, 8
-    workers, and process workers from free memory.
+  - **Default limits:**
+    - **Balanced** sets a $10.00 and 5,000,000-token daily team budget,
+      beneath the machine's $50.00 and 25,000,000-token ceilings;
+    - workers: the lower of 20 and twice the logical CPUs;
+    - process workers: from free memory.
     - Why: enough for a working day of a Pair team on contributor-tier
-      prices, and bounded on a laptop.
+      prices, with **Max** reachable, and bounded on a laptop.
   - **The rubric is evaluated with floors** (M96 step 13).
     - Why: the owner asked that the defer-or-do choice be testable.
   - **Intensity levels 1, 2, 4, 8 and the ceiling, with effort from -2 to
@@ -5757,6 +5914,15 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
   - **Interrupted tasks are resumed where the backend can, and otherwise
     continued from the handoff brief.**
     - Why: nothing a crash leaves behind is lost or billed twice.
+  - **One MCP bridge, with leases for exclusive resources; workers start
+    with only their role's servers.**
+    - Why: a singleton server such as Chrome Control accepts one
+      connection, and six workers took it from the orchestrator on
+      2026-10-04.
+  - **A Muse Code or external worker whose own configuration holds an
+    exclusive server does not start until that server moves to the
+    bridge**, unless step 1 finds a per-session switch.
+    - Why: a refusal the user can fix in one click beats a silent fight.
 - **SoL-Pi** (the owner's rule, 2026-10-04): see M96's SoL-Pi line.
   - **Byte-identical when it does not run.** With `museSpark.team` off, with
     **Solo**, or in a conversation where no role can run (the declaration
@@ -14910,6 +15076,9 @@ lead reviews the plan.
     and the team backs off when a provider throttles it.
   - **The Agent map** shows the whole hierarchy as a tree, live and in
     history, from one durable ledger that survives a crash.
+  - **Shared resources.** Workers never fight over tools. One MCP bridge
+    serves each server once to everyone, exclusive resources are leased,
+    and workers start with only their role's servers.
   - **Out of the box.** Every role is staffed by **Default**, which is
     whatever the orchestrator slot resolves to. The orchestrator slot is the
     composer's picker unless the user picks another model for the
@@ -14970,6 +15139,8 @@ lead reviews the plan.
       live adaptation and the shell-command slots.
     - **The team ledger**, with its live and history views, export, and
       interrupted tasks.
+    - **Shared resources:** the registry, leases and fences, the MCP bridge,
+      and worker configuration isolation.
   - The rubric's evaluation fixtures (M75-style).
   - Strings in all 14 tables.
   - README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan and
@@ -14989,25 +15160,28 @@ lead reviews the plan.
     the logical CPUs, from 1 to 32).
   - `museSpark.teamMaxProcessWorkers` (number, default computed as D75
     says, from 1 to 16).
-  - `museSpark.teamDailyBudgetUsd` (number, default $10.00, from $0 to
-    $500; at 0, key tasks never start).
-  - `museSpark.teamDailyBudgetTokens` (number, default 5,000,000), for what
-    M95 cannot price.
+  - `museSpark.teamDailyBudgetUsd` (number, default $50.00, from $0 to
+    $500; at 0, key tasks never start): the machine's ceiling on any
+    workspace's daily team budget. The intensity level sets the workspace's
+    own budget beneath it (**Balanced**: $10.00), and no level or edit
+    passes it.
+  - `museSpark.teamDailyBudgetTokens` (number, default 25,000,000): the same
+    ceiling in tokens, for what M95 cannot price (**Balanced**: 5,000,000).
   - The team itself (roles, pools, caps, policies, the orchestrator slot,
     the intensity level and each entry's model settings) is in workspace
     state, and is set in the panel, not in settings: it
     holds ordered lists and per-workspace choices.
 - **Commands.** Set Up Team…; Open Models & Agents (M95's command, at its
-  Roles section); Show Agent Map; Stop All Team Tasks; Copy Built-in Role to
-  Project; Import Team…; Export Team…; Reset Pool Entry…; Reset Team
-  Record.
+  Roles section); Show Agent Map; Show Team History; Set Team Intensity…;
+  Stop All Team Tasks; Copy Built-in Role to Project; Import Team…; Export
+  Team…; Export Team History…; Reset Pool Entry…; Reset Team Record.
 - **Lanes and file ownership.** One integration branch,
   `feature/m96-agent-roles`.
   - **Order.**
     - Lanes 0 and P go first, in parallel; P touches no source.
     - Lane T's golden request test lands with them, on main's bytes, before
       any lane touches request code. None exists today (SoL-Pi rule 7).
-    - Then R, A, I, H and F in parallel.
+    - Then R, A, I, H, F and B in parallel.
     - W and T follow R and A; L follows W and T.
     - U2 starts after lane 0, against the fake host. U1 starts after F, once
       M95's panel shell is on main.
@@ -15029,11 +15203,12 @@ lead reviews the plan.
 | I Workspaces and integration                         | `src/core/team/teamWorkspaces.ts` on `src/core/bestOfN/` (the base commit; shared clones under `storageUri` with no remote; the `agents/<role>/<task-id>` branches and the extension's own `agents/` refs in the user's repository; scratch copies for every read-only worker; the end-of-task commit and fetch; cleanup), `src/core/team/refFence.ts` (the ref guard, the read-only list's refused options, the credential-free worker environment, the `agents/` ref check), `src/core/team/teamMerge.ts` (the per-file three-way merge with `git merge-file`, conflicts, protected paths, the `write-paths` check, the breach check, Undo merge), `src/core/team/reviewGate.ts` (review before merge), `src/core/team/reviewerPick.ts` (differs from every author)                                                                                                                                                                                                                                                                                                       |
 | H Hooks                                              | the `SubagentStart`/`SubagentStop` payload region of the Model API hook runner; `TeammateIdle` for team tasks and the new `TeamAgentSwitch` in M91's `EXTENSION_HOOK_EVENTS` region (after M91 merges)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | F Autofill, intensity, validation, preview, transfer | `src/core/team/autofill.ts` (M96's suggestion kinds for M95's engine in `src/core/providers/suggest.ts`: `roleModel`, `roleBudget`, `reviewVendor`, `poolFallback`, each with its reason; dismissals; learning from the record), `src/core/team/intensity.ts` (levels to running caps, effort steps, task tokens and daily budgets; custom roles kept; re-apply; each level's cost per hour), `src/core/team/modelSettings.ts` (the settings a model supports, from M95's capabilities, Muse Code's profiles and ACP config options; their cost notes; role defaults), `src/core/team/capValidation.ts`, `src/core/team/preview.ts`, `src/core/team/teamTransfer.ts`, `src/core/team/templates.ts`                                                                                                                                                                                                                                                                                                                                                                          |
-| W Workers                                            | `src/core/team/workers/`: `engineWorker.ts` (M77's attempt host, confined to the worker's working copy or scratch copy, for every engine worker, with M48's child loop, M27's job-object shell and the credential-free environment; after D74, M95's clients, `vscode.lm` included; the `report` tool; limit errors handed to lane A's marks), `museCodeWorker.ts` (a side session per task, M90's pattern), `acpWorker.ts` (the ACP client: `initialize`, terminal sign-in, `session/new` with `cwd`, the mode, the permission answers, confined `fs/*`, cancel), `report.ts` (`muse-team-report`); the new `src/host/team/acpProcess.ts` (spawn in a job, the scrubbed environment, presets found on the PATH, **Install**)                                                                                                                                                                                                                                                                                                                                               |
+| W Workers                                            | `src/core/team/workers/`: `engineWorker.ts` (M77's attempt host, confined to the worker's working copy or scratch copy, for every engine worker, with M48's child loop, M27's job-object shell and the credential-free environment; after D74, M95's clients, `vscode.lm` included; the `report` tool; limit errors handed to lane A's marks), `museCodeWorker.ts` (a side session per task, M90's pattern; the read-only host started with `--disable-write` and `--disable-shell`; the bridge's servers in `config.mcpServers` and the user's exclusive servers switched off where step 1 shows how), `acpWorker.ts` (the ACP client: `initialize`, terminal sign-in, `session/new` with `cwd` and the bridge's servers, each preset's switch for leaving out the user's own MCP servers, the mode, the permission answers, confined `fs/*`, cancel), `report.ts` (`muse-team-report`); the new `src/host/team/acpProcess.ts` (spawn in a job, the scrubbed environment, presets found on the PATH, **Install**)                                                          |
 | T Tools and orchestrator                             | first, `test/unit/modelApiGoldenRequest.test.ts` (today's request bytes for a fixed conversation); then `src/core/team/teamTools.ts` (the five tools for both backends, `command_id`, `reason`, `plan`; `merge` withheld from workers), `src/core/team/roster.ts` (the stable part, the live part, the rubric, the state-change tail note), the declaration rule and the team region of `ModelApiHost.ts` and `subagentTools.ts` (the declaration and its storage with the conversation; the orchestrator's writing tools refused during `in-place`), the new `src/core/team/orchestratorSlot.ts` (the workspace's override, **Reset to Default**, what Default resolves to) with the pill's region of the conversation controller, the new `src/host/team/teamMcpServer.ts` (per-session tokens, on `src/core/mcp.ts`), the Muse Code backend manager's `mcpServers` region                                                                                                                                                                                                |
 | L Pipelines and history                              | `src/core/team/pipelines.ts` (built-ins, loading, rounds, `redesign`, the hand-off to `merge`), `src/core/team/teamHistory.ts` (the ledger's queries: filters, search, sorting, totals per role and agent for today, the week and all time, the record's figures per entry, CSV and JSON export with transcripts only on request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | U1 The Roles section                                 | the `roles` and `agents` sections of M95's Models & Agents panel, registered in `src/webview/models/sections.ts`: the new `src/webview/models/sections/roles/**` (`RolesSection.tsx`, `CharterEditor.tsx`, `ToolChecklist.tsx`, `PoolEditor.tsx` with the model picker from M95's `DataTable` and `FilterBar`, drag and key reordering, caps with their reasons and `InlineError`; the suggestions as `SuggestionCard`s; the preview; import and export; the guided first run) and `src/webview/models/sections/agents/**` (the panel's Agent map, on `TeamTree.tsx`); the `roles` and `agents` slices and the `roles/*` and `agents/*` messages in `src/shared/modelsPanel.ts`; their handlers in the M96 region of `src/host/models/modelsPanel.ts`; the harness scenarios for each state                                                                                                                                                                                                                                                                                 |
 | U2 The Agent map and transcript UI                   | the new `src/webview/components/TeamTree.tsx` (shared by the chat panel's Agent map and the panel's Agent map section), the `AgentMap.tsx` region, the delegation card and plan, the merge card, the switch row, the "waiting for you" card, the worker label on approval cards, the Team section of `UsageDialog.tsx`, the header pill; the harness scenarios `team-tree`, `team-tree-320` and `team-cards`; the styles region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| B Shared resources                                   | `src/core/team/resources.ts` (the registry: exclusive, shared and free; the defaults matched by command and package; command patterns; leases with holder, generation and idle expiry, after M86's `checkpointLease.ts` and the window presence files; the queue, the wait and "busy"), the new `src/host/team/mcpBridge.ts` (one instance of each server on M50's pool, per-caller loopback endpoints with their own tokens, routing by caller and request id, read-only filtering for read-only roles, lease admission per call), the bridge's entries in the Muse Code backend manager's `mcpServers` region (after lane T's), the **Tools and devices** part of the Roles section (with lane U1)                                                                                                                                                                                                                                                                                                                                                                        |
 | X Wiring                                             | `package.json` (settings, commands, the walkthrough step), `scripts/build.mjs`, `scripts/check-bundle-size.mjs` and `check-bundle-split.mjs` (`dist/team.js`, `dist/teamAcp.js`), `.vscodeignore`, the notices gate, the `extension.ts` region, the host API record; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan, `docs/certification/m96.md`; the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 - **Steps.**
@@ -15066,7 +15241,13 @@ lead reviews the plan.
          skills (a canary);
        - the approvals a Plan session and a `promptUnmatched` session raise
          there, for a command, a write and a `git commit`;
-       - whether a Plan session's write reaches the scratch copy.
+       - whether a Plan session's write reaches the scratch copy;
+       - on a host started with `--disable-write` and `--disable-shell`:
+         the refusal a write and a shell call get;
+       - whether a session's `config.mcpServers` can override or switch off
+         a user-configured server of the same name (a recording MCP server
+         configured in a throwaway config home stands in for Chrome
+         Control).
 
        Expected: 4 turns.
 
@@ -15087,6 +15268,8 @@ lead reviews the plan.
          config options, and the capabilities each asks of the client.
        - These records fill the mode table that decides which roles each
          agent may take.
+       - Recorded too: each preset's switch for starting without the user's
+         own MCP servers, from its `--help` and source (no prompt).
        - No prompt is sent to them (D75's decisions). The owner may add
          live receipts on his own sign-ins (Owner steps).
      - **Limit errors.** The shapes that decide a switch:
@@ -15237,7 +15420,7 @@ next`, the exhausted policy and the queue, the meters, reservations and
      - **`read-only`.** Writes are refused at call admission on engine
        workers. Commands off the read-only list are refused, not asked.
        A Muse Code or external worker's change found in its scratch
-       worktree fails the task.
+       copy fails the task.
      - **`own-branch`.** Each writer has its own shared clone, with no
        remote, under the extension's storage, on `agents/<role>/<task-id>`,
        from the base commit. The base includes the uncommitted work when the tree is
@@ -15330,9 +15513,10 @@ next`, the exhausted policy and the queue, the meters, reservations and
         finished one.
       - `continue` reopens a finished task on its own branch.
   14. **The Model API declaration.**
-      - A conversation that starts with a team declares the five team tools
-        and none of M48's six.
-      - One without a team declares exactly today's list.
+      - A conversation in which the team can run declares the five team
+        tools and none of M48's six.
+      - One in which it cannot run (the team off, **Solo**, or no role that
+        can run there) declares exactly today's list.
       - A resumed conversation keeps its declared set.
   15. **The `team` server.**
       - A token reaches only its own session's tasks; another session's
@@ -15465,13 +15649,14 @@ next`, the exhausted policy and the queue, the meters, reservations and
       - `TeammateIdle` carries `teammate_name` and the team fields, and
         keeps a task working only inside its own ceiling.
       - `TeamAgentSwitch` fires once per switch, with D75's payload.
-  28. **The record.** Each outcome updates it, it never reorders a pool, and
-      **Reset** clears it.
+  28. **The record.** Each outcome updates its figures, and it never
+      reorders a pool. **Reset record** clears the figures and keeps the
+      ledger's rows.
   29. **Trust.**
       - An untrusted workspace starts no worker.
       - Trust withdrawn during a task stops it at its next request or
         approval (M76's recheck).
-  30. **Not offered.** The ACP agent and headless `exec` refuse `delegate`,
+  30. **Until M96b.** The ACP agent and headless `exec` refuse `delegate`,
       with the reason.
   31. **Size.**
       - `dist/team.js` and `dist/teamAcp.js` fit their budgets.
@@ -15548,6 +15733,29 @@ next`, the exhausted policy and the queue, the meters, reservations and
         partial usage, and can be resumed or discarded.
       - The ledger's totals equal Account & usage's Team totals, with
         estimated, hook-added and paid-tool lines apart.
+  44. **Leases.**
+      - Two tasks that ask for one exclusive resource: one holds it, the
+        other waits with the holder named, then runs.
+      - A wait past `TEAM_LEASE_WAIT_MS` answers "resource busy".
+      - A lease idle for `TEAM_LEASE_IDLE_MS` is released.
+      - A crashed holder's lease is released, and its late call, with the
+        old generation, is refused.
+      - The user can take a lease back for the orchestrator.
+      - A declared command takes its resource's lease.
+  45. **The MCP bridge.**
+      - Each server runs once.
+      - The orchestrator and every worker reach it through their own
+        endpoints and tokens.
+      - Two workers' calls with the same request id get their own results
+        and cancellations.
+      - A read-only role sees only `readOnlyHint: true` tools.
+  46. **Worker configuration isolation.**
+      - Engine workers have only their role's servers.
+      - A Muse Code worker never runs its own copy of a server marked
+        exclusive: the bridge's entry replaces it, or the worker does not
+        start, and the panel offers **Move to the shared bridge**.
+      - An external preset starts with its switch for leaving out the user's
+        MCP servers, or follows the same rule.
 - **Tests.** Each can fail, and each has a red drill recorded in
   `docs/certification/m96.md`.
   - **Lane R:**
@@ -15723,6 +15931,50 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
       every setting; the case fails.
     - **Settings are fixed for a task.** Drill: apply an edit mid-task; the
       prefix case fails.
+  - **Shared resources** (lane B, with fake MCP servers on stdio and HTTP):
+    - **Two workers request an exclusive resource: one runs, one queues,
+      then runs.** Drill: skip the lease; both run at once, and the case
+      fails.
+    - **A crashed holder releases its lease.** The holder's presence lapses,
+      the waiter gets the lease, and the dead holder's late call is refused
+      by its generation. Drill: never expire a lease; the waiter waits
+      forever, and the timeout case fails. Drill: ignore the generation;
+      the late call runs, and the case fails.
+    - **A worker never spawns its own singleton MCP server.** A fake CLI and
+      a fake ACP agent record every server they would start. Neither starts
+      one marked exclusive. Drill: pass the user's configuration through;
+      the fake records the spawn, and the case fails.
+    - **The shared proxy routes each worker's calls and keeps their results
+      apart.** Two workers send concurrent calls with the same JSON-RPC ids.
+      Drill: route by request id only; the results cross, and the case
+      fails.
+    - **Read-only filtering.** Drill: serve a non-read-only tool to a
+      read-only role; the case fails.
+  - **The second review's fixes** (lanes A, I, R and T):
+    - **A local push.** A worker's script pushes into the user's repository
+      by its path. The fence's reflog check catches it, stops the task and
+      refuses the merge. Drill: drop the reflog check; the case fails.
+    - **Recovery keeps custom caps.** Drill: recover to the level's count; a
+      custom cap of 2 becomes 8, and the case fails.
+    - **The ceiling is per agent.** Three roles' entries on one Contributor
+      key never run more than that key's ceiling together. Drill: compute
+      per entry; the shared case fails.
+    - **Retention never refills a lifetime cap.** Drill: sum meters from the
+      task rows; after pruning, the cap refills, and the case fails.
+    - **One reservation scope per workspace.** Two windows on one workspace
+      reserve against the same `day` headroom, and only one is admitted.
+      Drill: keep the scope per conversation; both are admitted, and the
+      case fails.
+    - **Resume keeps the work.** An interrupted engineering task's
+      uncommitted edit is on its branch after **Resume**, and a read-only
+      task resumes on the read-only host. Drill: start a fresh working
+      copy; the edit is lost, and the case fails.
+    - **Narrowing on resolved values.** A project `design` with `edit_file`
+      and no `write-paths` is refused. Drill: compare present keys only;
+      the case fails.
+    - **Default bounded.** With the orchestrator slot on an unpriced key
+      model, a Default task carries the level's token caps, and the popup
+      asks for the price acceptance. Drill: skip the caps; the case fails.
   - **The ledger and its views** (lanes A, L and U2):
     - **Live state transitions.** queued, running, waiting for approval,
       throttled, then finished, failed, stopped, capped and interrupted,
@@ -15796,8 +16048,8 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
       - Drill: accept a task without `reason`; the case fails.
       - Drill: ignore `command_id`; a retried call starts its tasks twice,
         and the case fails.
-    - **The declaration.** Drill: declare the team tools with no team; the
-      golden test fails.
+    - **The declaration.** Drill: declare the team tools where no role can
+      run; the golden test fails.
     - **The `team` server.** Drill: accept another session's token; the
       identity case fails.
     - **The roster.** Drill: put a live count in the stable part; the
@@ -15870,12 +16122,13 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
 | T14 | An imported team file carries something harmful                                                                                  | An import never takes a credential, an endpoint, a provider or a command; zod refuses unknown keys; it opens as a draft; missing agents stay unmapped until the user maps them                                                                                                                                                                     |
 | T15 | The ledger or its export keeps prompts or code                                                                                   | A row holds only the brief, through `redactSecrets` and bounded; the export holds no transcript unless the user ticks it; retention follows `museSpark.cleanupPeriodDays`                                                                                                                                                                          |
 | T16 | An interrupted task resumes on stale consent or limits                                                                           | **Resume** is a new admission: trust, the entry's headroom, every cap and, for a key entry, the D48 popup are checked again before anything is sent                                                                                                                                                                                                |
+| T17 | Workers fight over a singleton tool or device, or one takes it from the orchestrator                                             | The resource registry and its leases; one MCP bridge that runs each server once; workers start with only their role's servers; a Muse Code or external worker whose own configuration holds an exclusive server does not start until that server moves to the bridge                                                                               |
 
 - **Residuals, recorded.**
   - **Muse Code's own rules.** A Muse Code worker can run a command that
     the user's own Muse Code always-allow rules cover, in its working copy,
     without a card (D69's residual; upstream U3). Its edits inside its
-    worktree are not asked for either (D69). The scratch check, the ref
+    working copy are not asked for either (D69). The scratch check, the ref
     fence and the merge's checks bound both.
   - **External agents.** Their own auto-allowed actions follow their
     vendor's policy, not ours.
@@ -15951,8 +16204,8 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
      - A team is refused during an efficiency evaluation.
      - Worker tokens are shown apart from the savings.
      - The rubric's evaluation is a separate run, on dry runs only.
-  7. **The golden request test.** No team, the same bytes (acceptance 1).
-     It lands first.
+  7. **The golden request test.** Where the team cannot run, the same
+     bytes (acceptance 1). It lands first.
 - **Docs.**
   - **README.** A Team section covering:
     - agents, roles and charters;
@@ -15989,8 +16242,8 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
   - The open questions were settled under his ruling of 2026-10-04 (D75's
     decisions).
 - **Upstream** (drafted here, not filed). The lead files them after a
-  duplicate search, and records each URL here. U1, U5 and U6 are filed in
-  any case; U2, U3 and U4 are filed only if step 1 confirms the gap.
+  duplicate search, and records each URL here. U1, U5, U6 and U8 are filed
+  in any case; U2, U3, U4 and U7 are filed only if step 1 confirms the gap.
   - **U1, meta-models/muse-code-sdk: long-running MCP tool calls.** "An MSP
     host serves an MCP tool whose work takes minutes (a delegated task).
     Today `muse serve` waits up to [step 1's measured timeout] and then
@@ -16023,6 +16276,21 @@ serve`."
     existing `subagent` item. A host's own agents (other models, other
     vendors) would then appear in Muse Code's native delegation and its
     subagent hooks."
+  - **U7, meta-models/muse-code-sdk: the user's MCP servers per
+    session.** Filed only if step 1 finds no switch. "A host that runs
+    several sessions at once (a team's workers) needs to keep a session
+    from loading the user's own MCP servers. A singleton server such as a
+    browser bridge accepts one connection, and every session started its
+    own copy and took it from the others. Please add a per-session option
+    on `session/start` (`mcpServersMode: replace`, or a list of names to
+    leave out), or a host flag to load no user-level servers."
+  - **U8, agentclientprotocol/agent-client-protocol: replace, not add, MCP
+    servers.** "`session/new` `mcpServers` adds to whatever the agent loads
+    from its own configuration. A client that serves a shared, leased copy
+    of a server cannot stop the agent from starting a second one. Please
+    let the client ask for its list to replace the agent's own (an
+    optional `mcpServersMode`)." Checked against the existing RFDs before
+    filing.
   - **U6, agentclientprotocol/agent-client-protocol: a session policy the
     client sets.** "A client that gives an agent a narrow job (a read-only
     review, or writes only under `docs/`) cannot ask for that. It can only
@@ -16036,7 +16304,7 @@ serve`."
   - [ ] The golden request test landed first, on main's bytes.
   - [ ] Step 1's captures recorded with their counts, and the constants set
         from them.
-  - [ ] Acceptance 1–43, each with its test and drill
+  - [ ] Acceptance 1–46, each with its test and drill
         (`docs/certification/m96.md`).
   - [ ] The rubric's evaluation meets its held-out floors, with its count.
   - [ ] The integration test at the 1.99 floor and at stable.
@@ -16065,6 +16333,8 @@ serve`."
     and Bypass shows it as a completed call.
   - The paid popup is D62's `paidUseQuestion` per `delegate` call.
   - External agents and Muse Code workers run as in the panel.
+  - **Default** resolves to the ACP session's own model and backend (its
+    `model` config option and the agent's `--backend`).
   - The Agent map has no view in an editor, so its tree is sent as a `plan`
     with one entry per running task.
 - **Headless `exec`.**
@@ -16077,6 +16347,7 @@ serve`."
     (D65).
   - Only engine and local workers run: Muse Code and external workers need
     sign-ins that CI does not have.
+  - **Default** resolves to `exec`'s `--provider` and `--model`.
 - **Tests.**
   - The ACP host checks against the fake CLI and the fake ACP agent: a
     worker's labelled permission request, a merge request, a `plan`.

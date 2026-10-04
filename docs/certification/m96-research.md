@@ -766,6 +766,18 @@ Sources: [transports](https://agentclientprotocol.com/protocol/transports),
     - A bundled skill's `max_parallel` defaults to 4.
     - No limit on sessions per `muse serve` was found.
 
+- **A singleton tool, observed on 2026-10-04.** On the owner's machine,
+  each Muse worker loaded the user's Chrome Control MCP server from its own
+  configuration. The browser extension accepts one connection, so six
+  workers' servers took it from the orchestrator, and browser control
+  failed for everyone. The lead reported this on 2026-10-04; it was not a
+  capture.
+  - MSP's `config.mcpServers` adds servers per session (the `ide` server).
+    Whether it can switch off a user-configured server of the same name is
+    not known; M96 step 1 captures it.
+  - ACP's `session/new` `mcpServers` also adds to what an agent loads from
+    its own configuration (§4.1).
+
 **What D75 takes from §4.7.**
 
 - **Concurrency on the Model API** is computed from the team's RPM and TPM,
@@ -777,6 +789,10 @@ Sources: [transports](https://agentclientprotocol.com/protocol/transports),
   hidden, and `none` effort is never offered.
 - **A read-only Muse Code worker** runs on a host started with
   `--disable-write` and `--disable-shell`.
+- **One MCP bridge, run by the extension, with leases for exclusive
+  resources.** Workers start with only their role's servers, because
+  neither MSP nor ACP lets a client replace an agent's own servers
+  (upstream U7, U8).
 
 **What D75 takes from §4.**
 
@@ -953,6 +969,11 @@ export.
   - shell-command slots, so builds never swamp the host.
 - **A read-only Muse Code host**, with writes and the shell off by Muse
   Code's own flags.
+- **Shared resources:**
+  - a registry of exclusive, shared and free resources, with leases after
+    M86's lease-and-fence pattern;
+  - one MCP bridge that runs each server once for everyone;
+  - commands declared to need a resource.
 - **The team ledger:**
   - one durable record, whose meters, history and Account & usage rows agree
     by construction;
@@ -984,6 +1005,10 @@ export.
 - **Muse Code's concurrency and plan limits.** Meta states none beyond the
   Everyday plan's prompt range. The 4-session ceiling comes from the
   binary's fixture and is adapted at run time.
+- **MCP servers per session.** Whether a Muse Code session's
+  `config.mcpServers` can switch off a user-configured server, and each
+  external preset's switch for leaving out the user's own servers, are to
+  capture (M96 step 1).
 - **Meta's TPM accounting.** Whether cached input counts toward TPM is not
   stated.
 - **`vscode.lm`.** Usage reporting and the consent prompt for Copilot's
