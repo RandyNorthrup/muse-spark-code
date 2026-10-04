@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-04
+
 ### Added
 
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
@@ -180,9 +182,11 @@ happened, not what was planned; superseded entries are kept.
     scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
-    same-repository pull request on GitHub-hosted runners under the same hard
-    budget. Forks, bots, `pull_request_target` and commenters outside the
-    repository's members are refused before anything is installed; the agent
+    same-repository pull request on GitHub-hosted runners (a private
+    repository may also use a self-hosted one, with a warning) under the
+    same hard budget. Forks, bots, `pull_request_target` and commenters
+    outside the repository's members are refused before anything is
+    installed; the agent
     is installed before checkout and verified against its npm provenance (a
     candidate tarball is pinned by digest and labelled unsigned); the key
     reaches only exec and the secret scanner, over stdin. It posts one sticky
@@ -195,7 +199,10 @@ happened, not what was planned; superseded entries are kept.
     on the exact reviewed head, refusing an unexpected or oversized artifact.
     Every Git step runs with no hooks, filters, fsmonitor, signer or
     credential helper, and refuses any repository configuration a fresh
-    clone does not carry. npm releases now carry provenance.
+    clone does not carry. Its registry install needs an npm release with
+    provenance, which the release workflow requests; none has reached npm
+    yet, so until one does the Action installs only a pinned candidate
+    tarball.
   - Acceptance on hosted runners and with a real key is still pending.
 - **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
   high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
@@ -220,7 +227,10 @@ happened, not what was planned; superseded entries are kept.
   once (Install / Not now, remembered), a newer vendored release offers
   Update once, and **Remove Bundled Skills from Muse Code** removes only the
   marked copy and the links into it. `museSpark.bundledSkills` (on by
-  default, machine-scoped) turns them off. The installer is its own lazily
+  default, machine-scoped) turns off the Model API source and the offer; an
+  installed Muse Code copy stays until Remove, and the Model API backend,
+  which reads the same personal skills folder, lists it as your own skills
+  meanwhile. The installer is its own lazily
   loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
   PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
   Strings in all 14 languages.
@@ -237,8 +247,9 @@ happened, not what was planned; superseded entries are kept.
   context is not excluded) and History never lists it; it is started again
   after Muse Code exits, restarts or closes it, after a timeout, busy fallback
   or tool activity, for another model, and every ten reviews. Native tools
-  cannot be disabled through the SDK: any item other than an agent message
-  or reasoning cancels the review and shows the generic failure card. A
+  cannot be disabled through the SDK: any item other than the prompt's echo,
+  Muse Code's reminder agents, reasoning or the reply cancels the review and
+  shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
   ALLOW the approval is answered *Allow once* (never an "always" choice) for

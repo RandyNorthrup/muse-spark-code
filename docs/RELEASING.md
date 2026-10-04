@@ -13,6 +13,11 @@ the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that universal
 release artifact.
 
+No release has reached npm yet: 0.10.0's npm step failed on a path bug, and
+0.10.1's and 0.11.0's failed with `EOTP` (see
+[npm EOTP and ownership](#npm-eotp-and-ownership)). Until one publishes, the
+ACP agent installs from the GitHub Release's tarball.
+
 GitHub also carries `SHA256SUMS` (the standard `sha256sum` format) and two
 CycloneDX inventories: `muse-spark-code.cdx.json` and
 `muse-spark-code-acp.cdx.json`. `SHA256SUMS` lists every asset: both
