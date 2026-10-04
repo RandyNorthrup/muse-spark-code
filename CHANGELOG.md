@@ -7,10 +7,219 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Auto rules, permission profiles and an optional paid reviewer (M78).**
+  Standing command rules include executable examples; repository rules only
+  tighten them. Complex commands ask, native language-service reads obey file
+  denials, and malformed profiles deny access. Files a profile hides spend
+  none of the repo map's 1,000-file cap: it reads on to readable files.
+  Reviewer consent binds account,
+  model, turn and policy, uses its own M82 claim, and falls back to asking on
+  failure or its circuit breaker. It cannot allow a forbid, an ask rule,
+  a protected write or another paid call. Attempt editors stay rooted in their
+  worktree; applying a selected snapshot invalidates the original check ledger.
+  - **A settings change reaches calls already in flight.** Whatever any tool
+    brings back, an MCP or IDE tool's included, is judged again under the
+    current rules, profile, mode and workspace trust just before it reaches
+    the model. A call they no longer allow is refused with a reason in the
+    user's language and nothing from it is sent; a change it had already
+    written stays, and its row says so. Output that may quote files it
+    cannot list (a shell command's, an MCP or IDE tool's, a check's, a
+    subagent's) is refused if any file rule, the profile or the trust
+    changed at all while the call ran, and a subagent's result is withheld
+    if they changed since it started, after a restart too. A shell command
+    is judged again at its process's entry, a memory note at its write, and
+    an image edit's sources right before the request leaves the machine, so
+    a source denied meanwhile is never sent and nothing is billed.
+    `read_skill` refuses a project skill the file rules deny, and a Stop
+    during a memory read or write, its index line included, ends the call
+    as a stop, not a file error.
+  - Approval cards retain the Auto reviewer's and command rule's explanation
+    through webview delivery, later approval stages and saved-state restoration.
+  - **Automatic checks respect revoked file access.** A verification round keeps
+    the original edited-file policy fence even after denied files are filtered
+    out of lookup. It withholds diagnostics and refuses checks after revocation.
+- **Awareness and budgets** (M82, PLAN.md D49).
+  - While the VS Code window is unfocused, a VS Code notification says when
+    a turn of a minute or more ends, or a turn waits for your approval or
+    answer, with **Show conversation**; nothing shows while the window is
+    focused, and two panels on one conversation raise it once. Off with
+    `museSpark.notifyOnBackgroundTurn`.
+  - On the Model API, `museSpark.modelApiReplyUsage` (off by default) prints
+    the tokens and dollar estimate under each reply, counting every request
+    since the previous line in that turn. Muse Code reports no per-reply
+    totals, so its replies carry none. The dollar amount is labeled
+    estimated, including the unverified tier fallback for unfamiliar models.
+  - The machine-scoped `museSpark.modelApiSessionBudgetUsd` caps what each
+    Model API conversation may spend. Each request's input is estimated high
+    (the last reported input plus what was added since, one token per byte)
+    and `max_output_tokens` is lowered so it fits what is left; a request
+    that cannot fit is not sent and the turn says why. Each request is
+    priced at the model it was sent to, and the spend is saved as it is
+    spent, even while a call waits for approval. Shared durable liabilities
+    cover hosts reopening the same conversation, ordinary requests and known
+    image fees. Unknown sent usage retains its whole reservation;
+    ambiguous failures cannot retry under that same allowance while capped.
+    Hosted search is unavailable with a cap until its billed query bound is
+    verified; cap-off search keeps its paid consent. A model with no published price
+    is refused while a cap is set. The transcript shows each turn's cost
+    against the cap, and warns when a reply used all the output it was left.
+  - Account & usage shows what the prompt cache saved in dollars. Its value
+    (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
+    the localization gate lets it stay the same in every language.
+  - **Voice Stop remains available after a cap or paid setting changes.** It
+    reaches the recording's existing driver instead of applying new-recording
+    availability. Child requests retain separate consent and ceilings; reported
+    cost is counted without reserving against the parent's cap, as decided for
+    M82. The setting and guide name that possible overrun in every language.
+  - **Model API session budgets retain their open reservation before a
+    response arrives.** Capped requests await a durable reservation write
+    before fetch and recheck final admission afterward; failed writes or
+    unavailable storage send no request. A stopped or superseded nonsent
+    request releases its reservation. Switching a model away and back, or
+    changing it during compacted-context counting, cannot restore a stale
+    budget base. Stored usage and reply costs refuse negative values,
+    overflowing usage reports are ignored, and token-count failures log a
+    status and fixed words instead of network text.
+    Stale session saves cannot lower the shared journal's spend, and crashes
+    retain unsettled claims. Unverified historical spending refuses a cap
+    rather than treating unknown amounts as zero. All new reasons and the
+    revised setting description are localized.
+    Shared uncapped requests publish pending uncertainty before HTTP, so a
+    capped host cannot admit around an unresolved earlier request. Verified
+    known usage clears that uncertainty; unknown tariffs or earlier ambiguous
+    retry attempts remain unknown despite a successful final response.
+    Fresh forks and side chats retain copied paid and closed-child history
+    while starting their own spend at verified zero; their first own request
+    is charged only to the new conversation.
+    Attempt observers run only after final admission and request building,
+    adjacent to fetch; Stop or confirmation refusal after preflight leaves
+    the request uncounted and refunds its known nonsent reservation.
+    Paid Muse Voice on the Model API backend is unavailable with a finite
+    cap. Uncapped shared recordings publish uncertainty before authentication
+    and fence the actual account and parent context before sends. Local audio
+    duration remains an estimate without a server billing receipt; CLI voice
+    and free system dictation retain their behavior.
+    Cap-off Model API voice also remains available without a folder or
+    journal, with its original consent account/context fenced before every
+    send. A later finite cap stops authentication, audio and end sends;
+    unshared window usage remains an estimate.
+- **Session board and best-of-N** (M77, PLAN.md D49). The header's board
+  button lists every conversation open in the window, on either backend, and
+  the saved conversations of the backend the window runs on, with its
+  state, branch, changed files and waiting approvals; typing filters and
+  Enter resumes. The board queries the known worktree roots and includes the
+  attempts of a running best-of-N. Its git reads run as the prompt's git
+  facts do: opening it starts no fsmonitor, filter or other program a
+  repository configures, in any mode, and takes no index lock.
+  - Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model
+    API backend, behind the new off-by-default, machine-scoped
+    `museSpark.modelApiBestOfN` setting: one paid-use popup per run names the
+    prompt, the published token rates, the attempt count and the per-attempt
+    request ceiling, and the subscription never pays. Each attempt works on
+    its own `best-of-n/<run>/<index>` branch; attempts that would ask are
+    declined and counted. Attempts run no shell command and no configured
+    check, in any mode, Bypass included: a working folder confines no
+    process. **Open** appears only for an attempt whose worktree was made.
+    Needs a trusted workspace with a folder open. The
+    form stays open after **Start** until the run begins, so a start that is
+    refused keeps its prompt and numbers beside the reason, ready to retry.
+  - Successful attempts compare side by side, and **Apply and stage** takes
+    only that attempt's immutable preview: its uncommitted tracked and
+    unignored new files, binary changes included, applied and staged as exact
+    bytes, with no project commit. A failed, cancelled or unreadable attempt
+    cannot be selected; fresh checkout, editor, ownership and path checks
+    refuse a changed or linked target.
+  - The run reserves its window owner before the paid popup and rechecks
+    context and account after it; actual HTTP tries and retries are counted at
+    the final key-read boundary, and every attempt host binds the M82 parent
+    journal, so a finite session budget refuses when that scope is
+    unavailable. Account & usage shows reported attempt tokens and cost
+    separately, with unreported requests marked unknown. Automatic Git
+    operations run with no hooks, fsmonitor or maintenance and refuse a
+    repository that configures filters or hook commands.
+  - Strings ship in all 14 UI and manifest tables.
+  - A missing or damaged board/best-of-N bundle gives a translated refusal
+    with reinstall guidance; its cause goes to the log. Closing the panel
+    during the first best-of-N load suppresses stale failure notices.
+- Defer the session board and best-of-N execution to their first action, and
+  Auto reviewer execution until paid consent. Each loads its own bundle with
+  the installed language, retaining current policy and budget admission.
+  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
+  The activation cap stays 600 KiB. The Model API cap is revisited, as M57
+  planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
+- **Headless runs and a GitHub Action** (M80, PLAN.md D65):
+  `muse-spark-code-acp exec` runs one turn on a workspace without an editor.
+  The prompt comes as an argument, from `--prompt-file` or from stdin, with
+  up to eight `--untrusted-file` inputs marked as untrusted data. Plan is the
+  default and Accept edits the only other mode; workspace trust, bypass and
+  hosted web search are refused, every approval request is denied and every
+  question declined, and a Model API run starts no shell, check, hook, MCP,
+  Git or web-fetch process. Output is plain text, one JSON result or JSONL
+  events; the exit code names the outcome (0 completed, 2 usage, 3 sign-in,
+  4 failed, 5 budget or request cap, 6 timeout, 7 denied, 8 incomplete,
+  9 accounting unverified, 130/143 interrupted). Tool output text never
+  leaves exec, and a reply cut short is withheld whole. On Windows a forced
+  stop exits 1 and may lose buffered output.
+  - **Budgets and refusals:** the Model API needs `--max-budget-usd` (up to
+    $20, six decimals) and caps billable requests with `--max-requests`
+    (every attempt, retries included). Each request reserves the most its
+    context window could cost before it is sent: at least $0.108135 on the
+    contributor model and $1.409024 on standard, one cent more with images.
+    A request whose cost is lost or uncertain keeps its whole reservation,
+    and a budget below the minimum is refused before any billable call.
+    Images need `--image-generation` with Accept edits and are tallied per use.
+  - **Keys:** a local run uses the key in your OS credential store;
+    `--key-stdin` reads one line from a pipe and keeps it in memory only.
+    No environment variable is read. Every output removes the run's exact key
+    first, also in its percent-encoded form, then known token shapes.
+  - **Results and schemas:** the result and events are versioned (v1) and
+    validated, and their JSON Schemas ship in the package's `schemas/`;
+    `npm run schema:exec` regenerates them. `muse-spark-code-acp
+    scan-secrets <file>` counts likely secrets in one file and prints only
+    the number.
+  - **The Action:** `action/` reviews, or proposes a fix for, a
+    same-repository pull request on GitHub-hosted runners under the same hard
+    budget. Forks, bots, `pull_request_target` and commenters outside the
+    repository's members are refused before anything is installed; the agent
+    is installed before checkout and verified against its npm provenance (a
+    candidate tarball is pinned by digest and labelled unsigned); the key
+    reaches only exec and the secret scanner, over stdin. It posts one sticky
+    review comment within GitHub's size limit and uploads the validated
+    result; a fix is published as a patch only after a clean secret scan of
+    its exact bytes, and any binary change (a generated image included) or
+    detected secret withholds the whole patch. A stopped or failed run
+    publishes nothing. `action/apply` applies the patch for your own
+    secret-free tests, then pushes it after maintainer approval with a lease
+    on the exact reviewed head, refusing an unexpected or oversized artifact.
+    Every Git step runs with no hooks, filters, fsmonitor, signer or
+    credential helper, and refuses any repository configuration a fresh
+    clone does not carry. npm releases now carry provenance.
+  - Acceptance on hosted runners and with a real key is still pending.
+
+### Changed
+
+- **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
+  1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
+  to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
+- **Code intelligence and voice load on first use** (PLAN.md D6). Muse
+  Code's `ide` code intelligence answers and both voice engines' drivers now
+  ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
+  call and the first recording, so `dist/extension.js` goes from 603.3 to
+  568.7 KiB under its unchanged 600 KiB budget (new budgets 100 and 50 KiB).
+  Nothing changes in use. With a damaged install a code intelligence call
+  answers with an error result saying so, and a recording fails with
+  "Voice dictation failed" and reinstall guidance in every UI language; the
+  log has the cause, and the next call or press tries again.
+- Regenerate the host API inventory and bundled-package notices from the
+  combined import, session board, reviewer, budget and handoff source.
+
 ### Fixed
 
-- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
+- Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
 
 ## [0.11.0] - 2026-10-03
 

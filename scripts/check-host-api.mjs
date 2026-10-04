@@ -161,7 +161,10 @@ function moduleSpecifiers(sourceFile) {
 
 /** The source file a relative specifier names, or undefined for a stylesheet or JSON. */
 function resolveRelative(fromFile, specifier) {
-  const base = path.join(path.dirname(fromFile), specifier)
+  // TypeScript resolves a runtime .js specifier to its .ts source. Keep that
+  // source in the portable import graph rather than ignoring the runtime import.
+  const sourceSpecifier = specifier.replace(/\.js$/, '')
+  const base = path.join(path.dirname(fromFile), sourceSpecifier)
   for (const suffix of RESOLVABLE_SUFFIXES) {
     const candidate = `${base}${suffix}`
     if (SCRIPT_FILE.test(candidate) && existsSync(candidate)) {

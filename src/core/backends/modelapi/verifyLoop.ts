@@ -33,6 +33,8 @@ export interface VerifyHooks {
   ) => Promise<readonly FileDiagnostics[]>
   /** The text the file's formatter makes of what an edit wrote, or undefined. */
   readonly formatAfterEdit: (absolutePath: string, text: string) => Promise<string | undefined>
+  /** An attempt-owned editor is released with its host; ordinary editors retain their window owner. */
+  readonly dispose?: () => void
 }
 
 /** One check, finished or not run. */

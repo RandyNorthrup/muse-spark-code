@@ -16,6 +16,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import { parseExec, type ExecOptions } from './exec/execArgs'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -34,10 +35,12 @@ export interface ServeOptions {
 }
 
 export type RuntimeCommand =
+  | { readonly command: 'exec'; readonly options: ExecOptions }
+  | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
-  | { readonly command: 'invalid'; readonly reason: string }
+  | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
 function authCommand(name: string | undefined): 'authSet' | 'authStatus' | 'authClear' | undefined {
@@ -71,6 +74,7 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -119,6 +123,67 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   }
   const auth = first === 'auth' && rest.length === 0 ? authCommand(second) : undefined
   return auth === undefined ? invalid(positionals.join(' ')) : { command: auth }
+}
+
+function parseHeadless(argv: readonly string[]): RuntimeCommand {
+  try {
+    const isScan = argv[0] === 'scan-secrets'
+    const { values, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      strict: true,
+      options: isScan
+        ? {
+            'key-stdin': { type: 'boolean' },
+            help: { type: 'boolean', short: 'h' },
+          }
+        : {
+            backend: { type: 'string' },
+            cwd: { type: 'string' },
+            'prompt-file': { type: 'string' },
+            'untrusted-file': { type: 'string', multiple: true },
+            'permission-mode': { type: 'string' },
+            model: { type: 'string' },
+            effort: { type: 'string' },
+            output: { type: 'string' },
+            'max-budget-usd': { type: 'string' },
+            'max-requests': { type: 'string' },
+            timeout: { type: 'string' },
+            'muse-binary': { type: 'string' },
+            'shell-sandbox': { type: 'string' },
+            'allow-contributor-models': { type: 'boolean' },
+            'image-generation': { type: 'boolean' },
+            'fail-on-denial': { type: 'boolean' },
+            ephemeral: { type: 'boolean' },
+            'key-stdin': { type: 'boolean' },
+            verbose: { type: 'boolean' },
+            'trust-workspace': { type: 'boolean' },
+            'allow-dangerously-skip-permissions': { type: 'boolean' },
+            'web-search': { type: 'boolean' },
+            help: { type: 'boolean', short: 'h' },
+          },
+    })
+    if (values.help === true) return { command: 'help' }
+    if (isScan)
+      return positionals.length === 1 && positionals[0] !== undefined
+        ? {
+            command: 'scan-secrets',
+            file: positionals[0],
+            keyFromStdin: values['key-stdin'] === true,
+          }
+        : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
+    const { help: _help, ...options } = values
+    const parsed = parseExec(options, positionals)
+    return parsed.ok
+      ? { command: 'exec', options: parsed.options }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+  } catch (error: unknown) {
+    return {
+      command: 'invalid',
+      reason: error instanceof Error ? error.message : String(error),
+      exitCode: 2,
+    }
+  }
 }
 
 function parseCommandLineStrictly(argv: readonly string[]) {
