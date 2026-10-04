@@ -164,8 +164,13 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   instructions only in a trusted workspace.
 - **Protected writes (Model API backend).** Writing `.git/**`, `.husky/**`,
   `.vscode/**`, `.idea/**`, `.devcontainer/**`, `.github/workflows/**`,
-  `.agents/**`, `.muse/**`, `AGENTS.md`, `CLAUDE.md`, `.envrc` or
-  `.gitmodules`, at any depth and in any letter case, shows an approval card
+  `.agents/**`, `.muse/**`, another coding agent's folder (`.claude/**`,
+  `.codex/**`, `.cursor/**`, `.gemini/**`, `.github/hooks/**`,
+  `.github/copilot/**`, `.devin/**`, `.windsurf/**`, `.kiro/**`,
+  `.clinerules/**`, `.amp/**`, `.opencode/**`: hooks, MCP servers, plugins
+  and settings that agent runs outside these approvals), `AGENTS.md`,
+  `CLAUDE.md`, `.envrc` or `.gitmodules`, at any depth and in any letter
+  case, and judged by where links and junctions lead, shows an approval card
   in every mode but Bypass (Plan refuses it), and no "always allow" rule
   covers it. The one exception is a Markdown note written by the memory
   tools inside a memory folder, which is an ordinary edit. Muse Code flags

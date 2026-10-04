@@ -612,9 +612,14 @@ choose the permission mode with that in mind.
 **Protected writes.** On the Model API backend, writes to files that
 configure or run code always ask, whatever the mode: `.git`, `.husky`,
 `.vscode`, `.idea`, `.devcontainer`, `.github/workflows`, `.agents` (the
-agent's own skills and memory), `.muse` (Muse Code's hooks), `AGENTS.md`,
-`CLAUDE.md`, `.envrc` and `.gitmodules`. Plan refuses them and Bypass skips
-the card. On Muse Code the CLI decides which writes are protected, and the
+agent's own skills and memory), `.muse` (Muse Code's hooks), other coding
+agents' folders, whose hooks, MCP servers, plugins and settings those agents
+run on their own (`.claude`, `.codex`, `.cursor`, `.gemini`,
+`.github/hooks`, `.github/copilot`, `.devin`, `.windsurf`, `.kiro`,
+`.clinerules`, `.amp` and `.opencode`), `AGENTS.md`, `CLAUDE.md`, `.envrc`
+and `.gitmodules`. They match at any depth and in any letter case, and a
+link or junction is judged by the folder it leads to. Plan refuses them and
+Bypass skips the card. On Muse Code the CLI decides which writes are protected, and the
 extension never approves one for you. A note saved with the memory tools is
 the one exception under `.agents`: those tools write only Markdown notes in
 the memory folders, so they are treated as ordinary edits (see

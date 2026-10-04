@@ -1885,7 +1885,11 @@ export const GLOB_MAX_ALTERNATIVES = 256
 // itself ask for approval in every mode but Bypass, whatever the session
 // rules say. Lower case; compared case-insensitively, anywhere in the path.
 // `.muse` holds `hooks.json`, whose commands Muse Code runs outside its
-// sandbox and approval (M29, D30).
+// sandbox and approval (M29, D30). The other coding agents' folders hold
+// hooks, MCP servers, plugins and settings those agents run outside this
+// extension's approvals the next time the user opens them here
+// (2026-10-04): Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot,
+// Devin and Windsurf, Kiro, Cline, Amp and OpenCode.
 export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.git'],
   ['.husky'],
@@ -1895,6 +1899,18 @@ export const PROTECTED_PATH_SEGMENTS: readonly (readonly string[])[] = [
   ['.github', 'workflows'],
   ['.agents'],
   ['.muse'],
+  ['.claude'],
+  ['.codex'],
+  ['.cursor'],
+  ['.gemini'],
+  ['.github', 'hooks'],
+  ['.github', 'copilot'],
+  ['.devin'],
+  ['.windsurf'],
+  ['.kiro'],
+  ['.clinerules'],
+  ['.amp'],
+  ['.opencode'],
 ]
 export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   'agents.md',

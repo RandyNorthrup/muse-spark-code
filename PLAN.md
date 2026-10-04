@@ -14072,6 +14072,21 @@ before a repaired one loads (2026-09-30).
   confirmed once in a remote window. Residual risk: a file swapped for a link
   between the check and the write (a local attacker already inside the
   workspace); the check runs immediately before each operation.
+- Other coding agents' folders (2026-10-04,
+  `docs/certification/protect-agent-folders.md`): `.claude`, `.codex`,
+  `.cursor`, `.gemini`, `.github/hooks`, `.github/copilot`, `.devin`,
+  `.windsurf`, `.kiro`, `.clinerules`, `.amp` and `.opencode` hold hooks,
+  MCP servers, plugins and settings that those agents run outside our
+  approvals, so they are protected writes (D24) like `.muse`. Residual
+  risks: (1) a shell command, an MCP tool or a Best-of-N attempt in its own
+  worktree can still write there; the extension does not parse commands
+  for paths, so the command's own card (every mode but Bypass, unless a
+  rule or the Auto reviewer allows it) is the control; (2) on Muse Code
+  the CLI decides which writes are protected, and the extension's Edit
+  automatically and Auto reviewer trust its `protectedWrite` flag; (3)
+  agent files outside these folders (`.mcp.json`, `GEMINI.md`,
+  `.cursorrules`, `.windsurfrules`, `.github/copilot-instructions.md`,
+  `opencode.json`) are not protected.
 - Programs are started by absolute path (D24): git, bash and PowerShell from
   absolute `PATH` entries, the CLI from its install layout or an absolute
   `museBinaryPath`; git never runs in Restricted Mode.

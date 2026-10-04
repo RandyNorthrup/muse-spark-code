@@ -1,6 +1,7 @@
 // Protected writes (PLAN.md D24): a file that configures or runs code
 // outside the edit itself (git's hooks and config, the editor's tasks, CI
-// workflows, the agent's own rules and skills). The Model API's permission
+// workflows, the agent's own rules and skills, other coding agents' hooks
+// and settings). The Model API's permission
 // engine asks before writing one; the conversation controller refuses one
 // as a picked text file (M54). Apart from the engine so the activation
 // bundle carries only this (M57, PLAN.md D6).
