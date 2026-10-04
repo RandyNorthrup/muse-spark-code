@@ -93,6 +93,50 @@ happened, not what was planned; superseded entries are kept.
     0–200. Seven step-summary forms each in Russian, French and Brazilian
     Portuguese now show the actual count; German forms may still omit it
     when English does.
+
+### Changed
+
+- **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
+  jobs:
+  - the static gates on all three platforms;
+  - the unit/e2e tests in four coverage shards per platform, merged before
+    the unchanged thresholds apply;
+  - the accessibility harness once, on Ubuntu;
+  - integration on Ubuntu and Windows;
+  - the macOS helper and the universal packages.
+
+  A `merge_group` run checks the commit that will land. Once the maintainer
+  turns on the queue and sets `CI_MERGE_QUEUE=on`, pull requests run only a
+  fast Ubuntu tier: the static gates, the build, every test, gitleaks and
+  semgrep. Until then every pull request keeps the full tier. The seven
+  required check names and the release artifacts are unchanged. In a merge
+  group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
+  action refuses that event.
+
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
+
+## [0.12.0] - 2026-10-04
+
+### Added
+
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -264,9 +308,11 @@ happened, not what was planned; superseded entries are kept.
     scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
-    same-repository pull request on GitHub-hosted runners under the same hard
-    budget. Forks, bots, `pull_request_target` and commenters outside the
-    repository's members are refused before anything is installed; the agent
+    same-repository pull request on GitHub-hosted runners (a private
+    repository may also use a self-hosted one, with a warning) under the
+    same hard budget. Forks, bots, `pull_request_target` and commenters
+    outside the repository's members are refused before anything is
+    installed; the agent
     is installed before checkout and verified against its npm provenance (a
     candidate tarball is pinned by digest and labelled unsigned); the key
     reaches only exec and the secret scanner, over stdin. It posts one sticky
@@ -279,18 +325,123 @@ happened, not what was planned; superseded entries are kept.
     on the exact reviewed head, refusing an unexpected or oversized artifact.
     Every Git step runs with no hooks, filters, fsmonitor, signer or
     credential helper, and refuses any repository configuration a fresh
-    clone does not carry. npm releases now carry provenance.
+    clone does not carry. It installs the agent from npm with its
+    provenance checked, or a pinned candidate tarball.
   - Acceptance on hosted runners and with a real key is still pending.
+- **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
+  high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
+  top-level documentation under their MIT licence. A checksum-verified sync
+  script records the pinned archive and each file's SHA-256 (the tests check
+  every vendored file against it), and refuses archives whose names collide
+  by case or by trailing dots and spaces; packaging includes
+  the assets and third-party notices. Formatting, linting and pre-commit
+  checks preserve vendored bytes. Backend discovery and installation are
+  covered by the other M89 lanes.
+- **Bundled skills** (M89, PLAN.md D68): the high-quality-projects
+  workflows `project_setup`, `feature_delivery` and `quality_retrofit` ship
+  with the extension. On the Model API backend they are a third skill
+  source after the project's and your own (a skill of yours with the same id
+  wins), and the model reads each after one line naming its package root,
+  the skill's `SKILL_ROOT`. For Muse Code, **Muse Spark: Install Bundled
+  Skills for Muse Code** copies the package to
+  `<config home>/muse/skill-sources/high-quality-projects-skill/`, marks the
+  copy, and links each skill into `<config home>/muse/skills/` (junctions on
+  Windows, directory symlinks elsewhere); a skill of yours with the same
+  name is left alone and named. The first Muse Code conversation offers it
+  once (Install / Not now, remembered), a newer vendored release offers
+  Update once, and **Remove Bundled Skills from Muse Code** removes only the
+  marked copy and the links into it. `museSpark.bundledSkills` (on by
+  default, machine-scoped) turns off the Model API source and the offer; an
+  installed Muse Code copy stays until Remove, and the Model API backend,
+  which reads the same personal skills folder, lists it as your own skills
+  meanwhile. The installer is its own lazily
+  loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
+  PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
+  Strings in all 14 languages.
+- **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
+  Muse Code backend, an eligible approval Muse Code raises for the running
+  turn that no rule settles goes
+  to a reviewer before it reaches you: the Model API backend's Auto
+  reviewer (its instructions, its input marked as data, its strict
+  ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
+  session in the same `muse serve`, on your Muse subscription. The side
+  session runs in Plan mode with thinking off, on the conversation's model,
+  in an empty folder under the extension's global storage, so it reads none
+  of your workspace files, rules or skills in the captured setup (CLI-global
+  context is not excluded) and History never lists it; it is started again
+  after Muse Code exits, restarts or closes it, after a timeout, busy fallback
+  or tool activity, for another model, and every ten reviews. Native tools
+  cannot be disabled through the SDK: any item other than the prompt's echo,
+  Muse Code's reminder agents, reasoning or the reply cancels the review and
+  shows the generic failure card. A
+  command covered by an always-allow rule could run in the empty folder
+  before cancellation lands. On
+  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
+  reviewer)" with its reason; on ASK, an unreadable answer, no answer
+  within 45 seconds, an error, a busy side session or a tripped breaker,
+  the card asks you as before, with the reason on it when there is one. It
+  never answers a protected write, a paid call, a child task, a question,
+  a replayed or escalated request, an unknown subject, a request without
+  allow-once, a session shared by panels, or anything in another mode;
+  one review runs at a time
+  in a window. On by default with the machine-scoped
+  `museSpark.museCodeAutoReviewer`; the window's first review says what it
+  does and costs (one short Muse Code turn: four model attempts in the live
+  check). Changed subjects, accepted messages and steering invalidate old
+  verdicts; queued jobs recheck the breaker, setup shares the 45-second
+  deadline and cancellation, and only a completed reply in a completed
+  turn may allow. Attribution survives resolution before the tool row
+  (the newest 50 unseen item ids). It loads on the first review from
+  `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
+  remains within 600 KiB.
+- **Review** (M70, PLAN.md D49), on both backends:
+  - `/review` reviews the uncommitted changes; `/review branch [base]` the
+    branch against its base, `/review commit [revision]` one commit (a
+    picker asks when you leave either out), `/review <what to look at>`
+    anything you describe, with no git. `security` first, or **Security
+    review** (`/security-review`), looks for injection, secrets,
+    authentication and unsafe APIs. The palette's new **Review** group has
+    each preset.
+  - Git's changes go with the review marked as untrusted data, files that
+    may hold secrets left out and only named; in Restricted Mode the git
+    presets say why they cannot run.
+  - On the Model API the review runs as the built-in **Reviewer**: its own
+    prompt and tools that only read, in every permission mode, and no
+    extra charge (it is your own turn). The model can start it as a paid
+    subagent with the role `reviewer` (a custom agent it names instead runs
+    as that agent). On Muse Code the review turn runs in
+    Plan mode and your permission mode comes back when it ends; Muse Code's
+    own allow rules still apply in Plan mode, so that review is not claimed
+    strictly read-only.
+  - Findings end the reply as a list with severity, file and line; each
+    location opens its file there.
+  - **The review pane** (`/changes`): every change this conversation made,
+    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
+    file is now) and **Comment on a line**, which sends your comment with
+    the lines around it into the running turn or as your next message.
+  - A review is a turn: it is marked running and takes its turn checkpoint
+    like a message, and a message you send while a review is starting waits
+    for it and then goes into the review turn. Clearing the conversation
+    while a review is still starting lets the new conversation's review or
+    message start at once.
+  - 70 new strings in the 14 tables (the word for review in Simplified
+    Chinese is the table's existing 审阅).
+  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
+    review turn's text, the Plan-mode hold and edit review (Open diff and
+    Revert) are the new `dist/review.js` (43.1 KiB, budget 50), required the
+    first time one is used; a module that cannot be loaded refuses the review
+    with `reviewUnavailable` and the log has the cause.
 
 ### Changed
 
+- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
+  from 100 KiB: new strings bring `dist/uiText.js` to 100.2 KiB; the new
+  budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so
+  activation is unchanged.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
-- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
-  from 100 KiB: M87's strings on top of main's bring `dist/uiText.js` to
-  102.4 KiB; the new budget is that plus 15 %, rounded up to 25 KiB. It loads
-  lazily, so activation is unchanged.
 - **Code intelligence and voice load on first use** (PLAN.md D6). Muse
   Code's `ide` code intelligence answers and both voice engines' drivers now
   ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
@@ -302,11 +453,48 @@ happened, not what was planned; superseded entries are kept.
   log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
+- The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
 
+- **The ACP agent is on npm.** `muse-spark-code-acp` 0.11.0 reached npm on
+  2026-10-04, and releases from 0.12.0 publish there by npm trusted
+  publishing (OIDC from `release.yml`), with no stored npm token. Before
+  that every release's npm step failed: 0.10.0 on a path bug, 0.10.1 and
+  0.11.0 because the token could not bypass the account's 2FA (`EOTP`).
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
+- **The Modes menu no longer promises a safety check Muse Code does not run
+  (0.11.0, PLAN.md D69).** Auto on Muse Code read "Muse will approve actions
+  that pass a safety check and pause for anything risky", but `muse serve`
+  has no approval judge: Auto skipped only the commands the CLI classifies
+  as simple, and every script asked. Each mode now says what it does on
+  each backend: on Muse Code, Edit automatically is Manual, and Auto is
+  Muse Code's own skip of simple commands plus the new reviewer while it is
+  on (README "Permission modes", PLAN.md D7's correction).
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
+- A handoff brief that arrives while the review pane is open waits until
+  the pane closes, preserving one modal and one focus trap at a time.
+- The Reviewer retains whole tool observations when observation packing is
+  enabled, because its read-only tools cannot recall packed output. The
+  next ordinary request still uses the same packed placeholder.
+- **The `/` and `@` lists keep the highlighted row in view.** The arrow
+  keys move through a list taller than its menu, and the list now scrolls
+  to the row they reach instead of highlighting one out of sight.
 
 ## [0.11.0] - 2026-10-03
 

@@ -3367,6 +3367,160 @@ li:focus-within > .row-actions .row-actions-button,
   align-self: flex-start;
 }
 
+/* --- Review (M70): a review's findings, and the review pane --- */
+
+.review-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.review-findings-heading {
+  margin: 0;
+  font-weight: 600;
+}
+
+.review-findings-list,
+.review-hunks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-finding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-left-width: 3px;
+  border-radius: var(--ms-radius);
+}
+
+.review-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+.review-finding-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.review-finding-location {
+  padding: 0;
+  font-family: var(--vscode-editor-font-family);
+  overflow-wrap: anywhere;
+}
+
+.review-finding-detail {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The severity is a word in the text colour; its colour is the row's edge
+   only, never the text's (contrast in every theme, WCAG 1.4.3). */
+.review-severity {
+  padding: 0 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  font-size: 0.85em;
+}
+
+.review-finding:has(.review-severity-critical),
+.review-finding:has(.review-severity-high) {
+  border-left-color: var(--vscode-errorForeground);
+}
+
+.review-finding:has(.review-severity-medium) {
+  border-left-color: var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+}
+
+.review-finding:has(.review-severity-low),
+.review-finding:has(.review-severity-info) {
+  border-left-color: var(--vscode-focusBorder);
+}
+
+.review-file {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-file-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.review-file-path {
+  margin: 0;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+
+.review-hunk {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-hunk-heading,
+.review-hunk-status {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.review-actions .tool-more[aria-pressed='true'] {
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: var(--ms-radius);
+}
+
+.review-actions .tool-more:disabled {
+  color: var(--vscode-disabledForeground);
+  cursor: default;
+}
+
+.review-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.review-comment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85em;
+}
+
+.review-comment-field select {
+  max-width: 100%;
+}
+
 /* --- Session board and best-of-N (M77) --- */
 
 .bestofn-title {

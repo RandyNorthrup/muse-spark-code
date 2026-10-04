@@ -83,6 +83,8 @@ The PNGs beside the records are that day's harness renders.
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
 - [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
+- [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
+- [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.
 - [M73](m73.md): observation packing on the Model API, `recall_output`, the savings ledger and the M75 packing arm; built and held, its live M75 run not run (PLAN.md D49)
 - [M79](m79.md): plans as files: Save plan and Implement in a fresh conversation, Muse Code's `.agents/plans` convention, the plan's steps as the todo list (PLAN.md D49, D13)
 - [M74](m74.md): long tasks, `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts; automatic compaction, the hidden follow-up and the memory flush not built (blocked on M75 and Q-M74), so M74 is not complete (PLAN.md D49)
@@ -100,3 +102,4 @@ The PNGs beside the records are that day's harness renders.
 - [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
 - [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.
 - [M87](m87.md): panel polish: the context meter, steps under one summary, message times, Edit on a queued message, the diff tally, the tasks pane and its tab, menu tips, the joined shell blocks, the working line and one radial menu for the chat; lane records [P](m87-p.md), [A](m87-a.md), [B](m87-b.md), [C](m87-c.md), [D](m87-d.md), [E](m87-e.md), [F](m87-f.md) and [the plural gate](m87-l10ngate.md) (PLAN.md D66)
+- [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)

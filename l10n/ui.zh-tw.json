@@ -634,6 +634,7 @@
   "diffTallyReview": "檢閱",
   "diffTallyReviewTitle": "開啟這些變更的檢閱窗格",
   "editNotRebuildable": "無法重建 {path}：此編輯之後檔案已變更。",
+  "editUnsavedChanges": "無法還原 {path}：請儲存或捨棄編輯器中尚未儲存的變更，然後重試。",
   "editPathRefused": "已拒絕 {path}：編輯的路徑位於工作區之外。",
   "editNoPatch": "此編輯未留下修補文件。",
   "historyLabel": "歷程記錄",
@@ -980,13 +981,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問",
-    "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
+    "acceptEdits": "在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問",
     "plan": "Muse 會先探索程式碼並提出計畫，再進行編輯",
-    "auto": "Muse 會核准通過安全檢查的動作，遇到任何有風險的動作則暫停",
+    "auto": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問",
     "bypassPermissions": "Muse 會直接編輯檔案及執行命令，不會詢問"
   },
+  "museCodeReviewedAutoDetail": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問；審查器可能會允許其他部分命令執行一次，其餘命令會詢問您",
   "modelApiPermissionModeDetails": {
     "manual": "Muse 會在每次編輯和每個命令前要求核准",
+    "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
     "auto": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問"
   },
   "effortLevels": {
@@ -1177,6 +1180,25 @@
   "importFailedSummary": {
     "other": "{count} 個失敗：{skills}"
   },
+  "bundledSkillsOffer": "Muse Spark 隨附技能 {skills}。要為 Muse Code 安裝這些技能嗎？它們會複製到您的 Muse 設定資料夾。",
+  "bundledSkillsUpdateOffer": "Muse Spark 提供了其隨附技能的較新版本（{tag}）。要更新 Muse Code 使用的複本嗎？",
+  "bundledSkillsInstall": "安裝",
+  "bundledSkillsUpdate": "更新",
+  "bundledSkillsNotNow": "現在不要",
+  "bundledSkillsInstalled": {
+    "other": "已為 Muse Code 安裝 {count} 個隨附技能（{tag}）：{skills}"
+  },
+  "bundledSkillsSkipped": {
+    "other": "已略過 {count} 個技能，因為您已有同名的技能：{skills}"
+  },
+  "bundledSkillsRemoved": {
+    "other": "已從 Muse Code 移除 {count} 個隨附技能：{skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code 未安裝任何隨附技能，因此沒有移除任何項目。",
+  "bundledSkillsInstallFailed": "無法在 {folder} 安裝隨附技能：{reason}",
+  "bundledSkillsRemoveFailed": "無法在 {folder} 移除隨附技能：{reason}",
+  "bundledSkillsNotOurs": "已有同名資料夾，但並非由 Muse Spark 安裝，因此未加變更",
+  "bundledSkillsUnavailable": "無法載入隨附技能安裝程式；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "notSignedInReason": "請先登入再傳送訊息。",
   "noWorkspaceReason": "請先開啟資料夾；Muse 需在工作區內運作。",
   "nothingToSendReason": "請先輸入訊息或附加圖片。",
@@ -1578,6 +1600,95 @@
   "checkpointsModelApiOnly": "檔案還原與重做需要已連線的 Model API 工作階段。 僅還原模型自身檔案工具的編輯，而且只有各檔案仍與模型留下的內容完全一致時才會還原。命令、掛鉤、MCP 工具的變更、你自己的編輯以及其他視窗的寫入均不會還原。",
   "checkpointsNativeUnsafe": "Muse Code 工作階段或不記錄其編輯的視窗仍可能變更檔案，因此檔案還原和重做無法使用。請關閉或重新載入該視窗後再試。",
   "checkpointsLegacyReadOnly": "此訊息由舊版 Muse Spark 記錄。其檔案無法還原。",
+  "groupReview": "檢閱",
+  "reviewItem": "/review",
+  "reviewItemDetail": "檢閱未認可的變更、某個分支、某個認可，或您描述的內容",
+  "reviewUncommittedItem": "檢閱未認可的變更",
+  "reviewUncommittedDetail": "已暫存與未暫存的變更，與最近一次認可比較",
+  "reviewBranchItem": "檢閱此分支…",
+  "reviewBranchDetail": "自您選擇的基準分支分出以來的所有變更",
+  "reviewCommitItem": "檢閱某個認可…",
+  "reviewCommitDetail": "從最近的認可中選擇一個",
+  "reviewSecurityItem": "安全性檢閱",
+  "reviewSecurityDetail": "檢查未認可的變更中的注入、秘密資訊、驗證及不安全 API 問題",
+  "reviewChangesItem": "檢閱此對話中的變更",
+  "reviewChangesDetail": "逐一接受或還原變更，並可對某一行留言",
+  "reviewPickBase": "要與此分支比較的分支",
+  "reviewPickCommit": "要檢閱的認可",
+  "reviewDefaultBase": "預設基準",
+  "reviewBusy": "目前回合結束後才會開始檢閱。",
+  "reviewRestricted": "檢閱 git 的變更需要 git，而 git 不會在限制模式下執行。請信任此工作區，或說明要檢閱的內容：/review <要查看的內容>。",
+  "reviewNotRepository": "此資料夾不在 git 存放庫中，因此沒有可檢閱的 git 變更。請改為說明要檢閱的內容：/review <要查看的內容>。",
+  "reviewNoChanges": "沒有可檢閱的變更。",
+  "reviewOnlyPrivate": "只有可能包含秘密資訊的檔案（環境檔案、金鑰、憑證）有變更，這些檔案不會送交檢閱。",
+  "reviewNoBase": "找不到可比較的基準分支。請指定一個：/review branch <基準>。",
+  "reviewUnknownRevision": "git 無法將 {revision} 識別為分支或認可。",
+  "reviewNoCommits": "此存放庫還沒有可檢閱的認可。",
+  "reviewGitFailed": "git 無法讀取要檢閱的變更。",
+  "reviewCancelled": "檢閱已取消。",
+  "reviewUnavailable": "無法載入檢閱，因此無法開始任何檢閱；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
+  "reviewInstructionsTooLong": "要檢閱的內容說明太長，超出單次檢閱的限制；請簡短描述。",
+  "reviewTruncatedNotice": "差異內容較長，因此只隨檢閱送出開頭部分；檢閱者會自行讀取已變更檔案的其餘部分。",
+  "reviewPrivateLeftOut": {
+    "other": "{count} 個可能包含秘密資訊的已變更檔案僅列出名稱，未送交檢閱。"
+  },
+  "reviewPlanModeNotice": "此檢閱會在規劃模式下執行，結束後會恢復您原本的權限模式。Muse Code 在規劃模式下也會套用自己的允許規則，因此在該模式下進行的檢閱並非嚴格唯讀。",
+  "reviewModeRestored": "檢閱已結束：權限模式已恢復為「{mode}」。",
+  "reviewModeNotRestored": "檢閱結束後無法恢復權限模式，因此對話仍處於規劃模式",
+  "reviewAlreadyReverted": "此變更已還原。",
+  "reviewPaneTitle": "此對話中的變更",
+  "reviewPaneLoading": "正在讀取變更…",
+  "reviewPaneEmpty": "此對話尚未變更任何檔案。",
+  "reviewPaneFiles": {
+    "other": "{count} 個檔案"
+  },
+  "reviewPaneHunks": {
+    "other": "{count} 處變更"
+  },
+  "reviewPaneAccepted": {
+    "other": "已接受 {count} 處"
+  },
+  "reviewPaneReverted": {
+    "other": "已還原 {count} 處"
+  },
+  "reviewPaneOmitted": {
+    "other": "有 {count} 處編輯未在此列出（數量太多無法顯示，或無法讀取其變更）；仍可從對話記錄中的對應項目開啟。"
+  },
+  "reviewHunkLines": "第 {index} 處變更，第 {start}–{end} 行",
+  "reviewHunkLine": "第 {index} 處變更，第 {start} 行",
+  "reviewHunkName": "{path} 的第 {index} 處變更",
+  "reviewAccept": "接受",
+  "reviewAccepted": "已接受",
+  "reviewRevert": "還原",
+  "reviewReverting": "正在還原…",
+  "reviewReverted": "已還原",
+  "reviewNotReverted": "未還原",
+  "reviewComment": "對某一行留言…",
+  "reviewCommentLine": "行",
+  "reviewCommentLabel": "留言",
+  "reviewCommentPlaceholder": "代理程式需要在這裡了解或變更什麼？",
+  "reviewSendSteer": "傳送至進行中的回合",
+  "reviewSendNext": "作為下一則訊息傳送",
+  "reviewCommentCancel": "取消",
+  "reviewLineOption": "第 {line} 行：{text}",
+  "reviewRemovedLineOption": "已移除的第 {line} 行：{text}",
+  "reviewOpenFile": "開啟檔案",
+  "reviewCommentSent": "留言已傳送給代理程式",
+  "reviewAnnounceReverted": "已還原 {name}",
+  "reviewAnnounceNotReverted": "無法還原 {name}：{reason}",
+  "reviewFindingsLabel": "檢閱結果",
+  "reviewFindingsHeading": {
+    "other": "{count} 項發現"
+  },
+  "reviewNoFindings": "檢閱未發現需要回報的問題。",
+  "reviewSeverities": {
+    "critical": "嚴重",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "info": "資訊"
+  },
+  "reviewOpenFinding": "開啟 {location}",
   "verifyErrors": {
     "other": "{count} 個錯誤"
   },
@@ -1688,6 +1799,7 @@
   "autoReviewerUnreadable": "無法讀取自動審查器的回答，因此由您決定。",
   "autoReviewerPaused": "由於多次拒絕或失敗，自動審查器已暫停至您的下一則訊息，因此由您決定。",
   "autoReviewerTripped": "由於多次拒絕或失敗，自動審查器已停止。在您傳送下一則訊息之前，每個有風險的操作都會詢問您。",
+  "museCodeReviewerNotice": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。 可透過 museSpark.museCodeAutoReviewer 關閉。",
   "paidAutoReviewerName": "自動審查器",
   "paidConfirmAutoReviewer": "在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫；它拒絕或失敗時由您決定。每次審查依對話模型的權杖費率計入您的 Model API 金鑰：\n{price}\n除非您在此工作區中一律允許審查，否則每次審查前都會先詢問。",
   "paidUseAutoReviewerTitle": "要讓自動審查器評判此 {tool} 呼叫嗎？",

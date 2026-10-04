@@ -307,6 +307,28 @@ describe('Composer mention menu', () => {
     expect(props.onDraftChange).toHaveBeenLastCalledWith('see @"my notes/a b.md" ')
   })
 
+  // The box keeps the focus (aria-activedescendant), so the list never
+  // scrolls by itself: the active row must be brought into view (WCAG 2.1.1).
+  it('scrolls the active match into view as the arrows move', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
+    try {
+      const { props, view } = renderComposer()
+      type(view, props, '@a')
+      const textarea = type(view, props, '@a', {
+        mentionResults: withResults(['a.ts', 'b/a.ts', 'c/a.ts']),
+      })
+      expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
+      // Up wraps to the last row, the one a short list hides first.
+      fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+      const options = screen.getAllByRole('option')
+      expect(options[2]).toHaveAttribute('aria-selected', 'true')
+      expect(scroll.mock.contexts.at(-1)).toBe(options[2])
+      expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' })
+    } finally {
+      scroll.mockRestore()
+    }
+  })
+
   it('ignores stale results and shows the empty state for no matches', () => {
     const { props, view } = renderComposer()
     type(view, props, '@zz')
@@ -1069,6 +1091,29 @@ describe('Composer "/" menus (M38)', () => {
     // Shift+Tab still cycles the permission mode.
     fireEvent.keyDown(typed, { key: 'Tab', shiftKey: true })
     expect(props.onCyclePermissionMode).toHaveBeenCalledOnce()
+  })
+
+  // The list outgrows its height (M70 added /review): the box keeps the
+  // focus, so the active command is scrolled into view (WCAG 2.1.1).
+  it('scrolls the active command into view as the arrows move, and only then', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
+    try {
+      const { props, view, textarea } = renderComposer()
+      textarea.focus()
+      const typed = type(view, props, '/co')
+      expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
+      // Up wraps to the last row, the one a full list hides first.
+      fireEvent.keyDown(typed, { key: 'ArrowUp' })
+      expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-2')
+      expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[2])
+      expect(scroll).toHaveBeenLastCalledWith({ block: 'nearest' })
+      // A render with the same rows leaves a list the user scrolled alone.
+      const calls = scroll.mock.calls.length
+      type(view, props, '/co')
+      expect(scroll).toHaveBeenCalledTimes(calls)
+    } finally {
+      scroll.mockRestore()
+    }
   })
 
   it('leaves `/handoff ` in the prompt for its goal (M74)', () => {

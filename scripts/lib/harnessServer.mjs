@@ -149,6 +149,10 @@ export const SCENARIOS = [
   'handoff',
   'code-intel',
   'status-heartbeat',
+  'review-findings',
+  'review-pane',
+  'review-pane-narrow',
+  'review-comment',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

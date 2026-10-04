@@ -35,6 +35,8 @@
   "command.moveToBackground.title": "将正在运行的命令移到后台",
   "command.stopBackgroundTasks.title": "停止后台任务",
   "command.restartMuseCode.title": "重启 Muse Code",
+  "command.installBundledSkills.title": "为 Muse Code 安装附带技能",
+  "command.removeBundledSkills.title": "从 Muse Code 删除附带技能",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "新对话的打开位置。",
   "config.preferredLocation.enumDescriptions.sidebar": "在 Muse Spark 侧边栏视图中打开新对话。",
@@ -101,6 +103,7 @@
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最多 24 小时，因此暂停后回到的对话仍可从缓存读取。价格与保留在内存中相同。",
   "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的默认值：保留在内存中，在负载较高或一段时间不活动后会更早移除。",
   "config.turnCheckpoints.description": "默认开启：保存模型自身的文件、图像、工作区记忆和符号重命名工具的写入，以便在已连接的 Model API 会话中进行还原和重做，而且只有文件仍与模型留下的内容完全一致时才会操作。命令、钩子、MCP 工具的更改、你自己的编辑以及其他窗口的写入均不会撤销；副本保存在扩展存储中，不会写入工作区的 .git。",
+  "config.bundledSkills.description": "默认开启：Muse Spark 附带的技能（high-quality-projects 包中的 project_setup、feature_delivery 和 quality_retrofit）可在 Model API 后端使用，优先级低于任何同名的项目技能或个人技能。Muse Code 只读取它自己的文件夹，因此需要通过“Muse Spark: 为 Muse Code 安装附带技能”为其安装，对话中会提示一次。它们的交付辅助脚本需要 Python 3.12 或更高版本。",
   "config.diagnosticsAfterEdits.description": "每轮编辑后，把 VS Code 语言服务器报告的已编辑文件的错误和警告，连同自上次检查以来的变化，交给模型 (Model API 后端)，或提示 Muse Code 自行检查。默认开启。",
   "config.checkCommands.description": "Model API 后端在每轮编辑后、模型下一次请求之前运行的 lint、测试或类型检查命令；模型也可以用 run_checks 运行它们，并提示 Muse Code 自行运行。每条命令都像 shell 工具运行命令那样运行，包括你的工具钩子：在 shell 命令会询问的地方都会询问 (除“绕过权限”外的所有权限模式)，在代理编辑了决定其运行内容的文件后会再次询问，在规划模式和受限模式下从不运行，并在时间限制处停止。连续三轮失败后，在你发送下一条消息之前不再运行。",
   "config.checkCommands.name.description": "检查的简短名称，例如 lint 或 test。",
@@ -113,7 +116,8 @@
   "config.modelApiSessionBudgetUsd.description": "每个 Model API 对话的支出上限，以美元计；0 表示无上限。共享的持久预留金额在发送前覆盖普通令牌请求和图片费用；无法放入剩余额度的请求不会发送，输入估算可能与计费使用量不同。计费查询数没有经过核实的上限，因此启用支出上限时无法使用网页搜索。结果未知的已发送请求会保留预留金额；不明确的失败后将拒绝自动重试。需要正常工作的会话存储。付费功能仍需单独同意。 计费时长上限尚未核实，因此启用支出上限时也无法使用付费 Muse Voice；请使用系统听写。 子代理请求在使用量报告后计入支出，不从父会话上限中预留金额，因此可能超出该上限。",
   "config.modelApiCommandRules.markdownDescription": "Model API 后端：用于 shell 工具的命令规则。每条规则包含命令开头的单词（`pattern`）、一个决定（`decision`：`allow`、`ask` 或 `forbid`）、可选的适用 shell（`shell`）和理由（`justification`），以及它必须匹配（`match`）和不得匹配（`notMatch`）的命令行，每次读取规则时都会检查这些示例。禁止规则或询问规则会在命令行的任意位置查找其单词；允许规则只运行由简单命令组成、且每条命令都以允许规则开头的一行，因此包含替换、重定向、后台 `&` 或换行的行仍会询问。禁止在所有模式下都生效，包括绕过权限模式。仅限用户和计算机设置。 allow 规则只能允许单个简单命令。命令链、管道和求值命令需要用户决定。",
   "config.modelApiPermissionProfiles.markdownDescription": "Model API 后端：命名的权限配置文件。每个配置文件可以列出 `denyRead` glob（文件工具不得读取、列出、搜索或写入的相对于工作区的路径）和 `extraRoots`（`read_file` 可以读取的工作区之外的绝对路径文件夹）。使用 `museSpark.modelApiPermissionProfile` 选择一个。仅限用户和计算机设置。",
-  "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，每条 shell 命令都会询问，因为 shell 在配置文件的文件规则之外运行。仅限用户和计算机设置。",
+  "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，除“绕过权限”外，每条 shell 命令和 MCP 工具调用都会询问，因为 shell 和 MCP 服务器在配置文件的文件规则之外运行。仅限用户和计算机设置。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
-  "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。"
+  "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
+  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。"
 }

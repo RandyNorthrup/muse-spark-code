@@ -1,31 +1,35 @@
-# The shared build: every quality gate on three platforms, the integration
-# tests, the macOS dictation helper, and the .vsix with both helpers as the
-# `muse-spark-code-vsix` artifact. Called by ci.yml (pull requests and
-# optional manual branch runs) and release.yml (version tags), so a release
-# is built exactly the way CI builds every commit.
+# The shared build (CIFLOW, PLAN.md §7). `fast: true` (ci.yml, pull requests
+# once the merge queue is on) runs the Ubuntu static gates, the production
+# build and every unit/process-e2e test; the full tier (merge groups, manual
+# runs, release.yml) runs every gate on three platforms, four coverage shards
+# per OS merged before the unchanged thresholds apply, the accessibility and
+# integration runs, the macOS helper and the universal packages. The required
+# check names come from the `required` aggregate below on both tiers.
 #
-# Every job has a timeout (about three times its usual run; GitHub's default
-# is six hours) and every checkout leaves no token in the git config
-# (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
+# Every job has a timeout and every checkout leaves no token in the git
+# config (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
 name: Build
 
 on:
   workflow_call:
+    inputs:
+      fast:
+        description: Ubuntu PR checks; false runs the full merge/release gate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  quality:
-    name: quality (${{ matrix.os }})
+  checks:
+    name: static gates (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    # The whole job's budget, not a test's: the Windows runner needed ~29 min
-    # by 0.10.0 and was cut off mid-accessibility gate at 30 (2026-10-01).
-    timeout-minutes: 45
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -84,19 +88,126 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # All gates except secrets (separate job) and integration tests (below):
-      # format, lint, typecheck, dead code, cycles, duplication, unit tests with
-      # coverage thresholds, production build with bundle budget, host-global
-      # and third-party-notice checks, the dependency audit.
-      - run: npm run quality:gates
-      # The accessibility gate (M37, PLAN.md D32) checks the production bundle
-      # quality:gates just built. It runs on Linux and Windows only: the
-      # macOS runner's headless Chrome had not finished its 208 pages after
-      # 28 minutes (PR #18's first run), where Linux took 3 minutes 20 and
-      # Windows 4 minutes 33. The page is the same web content everywhere.
-      - name: accessibility (WCAG 2.2 AA)
-        if: runner.os != 'macOS'
-        run: npm run test:a11y
+      # Same static/build/audit gates as quality:gates; tests run separately.
+      - run: npx run-s format:check lint typecheck check:l10n check:host-api deadcode cycles duplication build security:audit
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: matrix.os == 'ubuntu-latest' && !inputs.fast
+        with:
+          name: production-webview
+          path: dist/webview
+          if-no-files-found: error
+
+  unit:
+    name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The default reporter beside the blob one, so a failing shard's log
+      # names the failing test (the blob alone prints nothing).
+      - name: unit and process e2e tests
+        shell: bash
+        env:
+          FAST: ${{ inputs.fast }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ "$FAST" = true ]; then
+            npx vitest run
+          else
+            npx vitest run --coverage --shard="$SHARD/4" --reporter=default --reporter=blob --outputFile="blob-reports/shard-$SHARD.json"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !inputs.fast }}
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.shard }}
+          path: blob-reports/*.json
+          if-no-files-found: error
+
+  coverage:
+    name: merged coverage (${{ matrix.os }})
+    if: ${{ !inputs.fast }}
+    needs: unit
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-${{ matrix.os }}-*
+          path: blob-reports
+          merge-multiple: true
+      - name: every shard and the original coverage thresholds are required
+        shell: bash
+        run: |
+          for shard in 1 2 3 4; do
+            test -s "blob-reports/shard-$shard.json"
+          done
+          npx vitest run --merge-reports=blob-reports --coverage
+
+  accessibility:
+    name: accessibility (WCAG 2.2 AA)
+    if: ${{ !inputs.fast }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: production-webview
+          path: dist/webview
+      # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
+      # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
+      - run: npm run test:a11y
+
+  integration:
+    name: integration (${{ matrix.os }})
+    if: ${{ !inputs.fast }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       # The integration tests run twice (.vscode-test.mjs): on the latest
       # stable VS Code and on the manifest's floor (engines.vscode). The two
       # downloads are cached under a key naming both versions.
@@ -118,12 +229,58 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
+  # The matrix emits the five existing non-security required names on BOTH
+  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  required:
+    name: ${{ matrix.check }}
+    if: always()
+    needs:
+      [checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - quality (ubuntu-latest)
+          - quality (windows-latest)
+          - quality (macos-latest)
+          - dictation helper (macos)
+          - package (.vsix)
+    steps:
+      - name: require every selected-tier job
+        shell: bash
+        env:
+          FAST: ${{ inputs.fast }}
+          CHECKS: ${{ needs.checks.result }}
+          UNIT: ${{ needs.unit.result }}
+          COVERAGE: ${{ needs.coverage.result }}
+          ACCESSIBILITY: ${{ needs.accessibility.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          HELPER: ${{ needs.native-build.result }}
+          PACKAGES: ${{ needs.packages.result }}
+          SECRETS: ${{ needs.secrets.result }}
+          SAST: ${{ needs.sast.result }}
+        run: |
+          test "$CHECKS" = success
+          test "$UNIT" = success
+          test "$SECRETS" = success
+          test "$SAST" = success
+          if [ "$FAST" != true ]; then
+            test "$COVERAGE" = success
+            test "$ACCESSIBILITY" = success
+            test "$INTEGRATION" = success
+            test "$HELPER" = success
+            test "$PACKAGES" = success
+          fi
+
   # The macOS dictation helper (M9): Apple's Speech framework behind the
   # microphone button. Compiled here because only a Mac can; the package job
   # below ships it in the .vsix. build.sh embeds package.json's version and
   # fails when the finished binary carries another.
-  native-darwin:
-    name: dictation helper (macos)
+  native-build:
+    name: compile dictation helper (macos)
+    if: ${{ !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -142,9 +299,10 @@ jobs:
           if-no-files-found: error
 
   # The .vsix with both helpers: what release.yml publishes.
-  package:
-    name: package (.vsix)
-    needs: [quality, native-darwin]
+  packages:
+    name: universal release artifacts
+    if: ${{ !inputs.fast }}
+    needs: [checks, native-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -177,9 +335,11 @@ jobs:
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
             extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js extension/dist/agentImport.js extension/dist/uiText.js \
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
+            extension/dist/review.js extension/dist/agentImport.js extension/dist/bundledSkills.js \
+            extension/dist/uiText.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
-            extension/dist/codeIntel.js extension/dist/voice.js \
+            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
             extension/dist/webview/main.js extension/dist/webview/main.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
@@ -250,8 +410,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        if: github.event_name != 'merge_group'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The action exits 1 on any event but push, pull_request,
+      # workflow_dispatch and schedule ("The [merge_group] event is not yet
+      # supported", src/index.js at the pinned commit). A merge group gets the
+      # action's own default CLI (8.24.3, checked against the release's
+      # SHA-256) over every commit the group's commit reaches: the main it
+      # becomes, PR commits included. A PR-style first-parent range from the
+      # group's merge commit would reach none of the PR's commits.
+      - name: gitleaks (merge group, the history that lands)
+        if: github.event_name == 'merge_group'
+        env:
+          GITLEAKS_VERSION: 8.24.3
+          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
+        run: |
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -fsSL --retry 3 -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  $archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner -v --log-opts=HEAD .
 
   sast:
     name: semgrep

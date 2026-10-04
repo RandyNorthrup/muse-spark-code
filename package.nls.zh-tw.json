@@ -35,6 +35,8 @@
   "command.moveToBackground.title": "將執行中的命令移至背景",
   "command.stopBackgroundTasks.title": "停止背景工作",
   "command.restartMuseCode.title": "重新啟動 Muse Code",
+  "command.installBundledSkills.title": "為 Muse Code 安裝隨附技能",
+  "command.removeBundledSkills.title": "從 Muse Code 移除隨附技能",
   "config.title": "Muse Spark",
   "config.preferredLocation.description": "新對話的開啟位置。",
   "config.preferredLocation.enumDescriptions.sidebar": "在 Muse Spark 側邊欄檢視中開啟新對話。",
@@ -101,6 +103,7 @@
   "config.modelApiPromptCacheRetention.enumDescriptions.24h": "最多 24 小時，因此暫停後回來的對話仍可從快取讀取。價格與保留在記憶體中相同。",
   "config.modelApiPromptCacheRetention.enumDescriptions.inMemory": "Meta 的預設值：保留在記憶體中，在負載較高或一段時間閒置後會提早移除。",
   "config.turnCheckpoints.description": "預設開啟：儲存模型自身的檔案、影像、工作區記憶和符號重新命名工具的寫入，以便在已連線的 Model API 工作階段中進行還原與重做，而且只有檔案仍與模型留下的內容完全一致時才會操作。命令、掛鉤、MCP 工具的變更、你自己的編輯以及其他視窗的寫入均不會還原；副本保存在擴充功能儲存空間中，不會寫入工作區的 .git。",
+  "config.bundledSkills.description": "預設開啟：Muse Spark 隨附的技能（high-quality-projects 套件中的 project_setup、feature_delivery 和 quality_retrofit）可在 Model API 後端使用，優先順序低於任何同名的專案技能或個人技能。Muse Code 只讀取自己的資料夾，因此需要透過「Muse Spark: 為 Muse Code 安裝隨附技能」為其安裝，對話中會提示一次。其交付輔助指令碼需要 Python 3.12 或更新版本。",
   "config.diagnosticsAfterEdits.description": "每次編輯後，把 VS Code 語言伺服器回報的已編輯檔案錯誤與警告，連同自上次檢查以來的變化，交給模型 (Model API 後端)，或提示 Muse Code 自行檢查。預設開啟。",
   "config.checkCommands.description": "Model API 後端在每次編輯後、模型下一個要求之前執行的 lint、測試或型別檢查命令；模型也可以用 run_checks 執行它們，並提示 Muse Code 自行執行。每個命令都像 shell 工具執行命令那樣執行，包括你的工具鉤子：在 shell 命令會詢問的地方都會詢問 (除「略過權限」以外的所有權限模式)，在代理編輯了決定其執行內容的檔案後會再次詢問，在規劃模式和限制模式下絕不執行，並在時間限制處停止。連續三次失敗後，在你傳送下一則訊息之前不再執行。",
   "config.checkCommands.name.description": "檢查的簡短名稱，例如 lint 或 test。",
@@ -113,7 +116,8 @@
   "config.modelApiSessionBudgetUsd.description": "每個 Model API 對話的支出上限，以美元計；0 表示無上限。共用的持久預留金額在傳送前涵蓋一般權杖要求和圖片費用；無法放入剩餘額度的要求不會傳送，輸入估算可能與計費使用量不同。計費查詢數沒有經過驗證的上限，因此啟用支出上限時無法使用網頁搜尋。結果未知的已傳送要求會保留預留金額；不明確的失敗後將拒絕自動重試。需要正常運作的階段儲存空間。付費功能仍須個別同意。 計費時長上限尚未驗證，因此啟用支出上限時也無法使用付費 Muse Voice；請使用系統聽寫。 子代理要求在回報用量後計入支出，不從父階段上限中預留金額，因此可能超出該上限。",
   "config.modelApiCommandRules.markdownDescription": "Model API 後端：用於 shell 工具的命令規則。每條規則包含命令開頭的單字（`pattern`）、一個決定（`decision`：`allow`、`ask` 或 `forbid`）、選用的適用 shell（`shell`）和理由（`justification`），以及它必須符合（`match`）和不得符合（`notMatch`）的命令列，每次讀取規則時都會檢查這些範例。禁止規則或詢問規則會在命令列的任何位置尋找其單字；允許規則只執行由簡單命令組成、且每個命令都以允許規則開頭的一行，因此包含替代、重新導向、背景 `&` 或換行的行仍會詢問。禁止在所有模式下都生效，包括略過權限模式。僅限使用者和電腦設定。 allow 規則只能允許單個簡單命令。命令鏈、管線和求值命令需要使用者決定。",
   "config.modelApiPermissionProfiles.markdownDescription": "Model API 後端：具名的權限設定檔。每個設定檔可以列出 `denyRead` glob（檔案工具不得讀取、列出、搜尋或寫入的工作區相對路徑）和 `extraRoots`（`read_file` 可以讀取的工作區外絕對路徑資料夾）。使用 `museSpark.modelApiPermissionProfile` 選擇一個。僅限使用者和電腦設定。",
-  "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，每個 shell 命令都會詢問，因為 shell 在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
+  "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，除「略過權限」以外，每個 shell 命令和 MCP 工具呼叫都會詢問，因為 shell 和 MCP 伺服器在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 後端：存放庫可以在其 `.vscode/settings.json` 中新增的規則：詢問或禁止的 `commandRules`，以及 `denyRead` glob。它們只能收緊您自己的規則，因此這裡的允許規則不會套用。",
-  "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。"
+  "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。",
+  "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。"
 }

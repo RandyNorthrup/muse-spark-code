@@ -656,6 +656,7 @@
   "diffTallyReview": "Áttekintés",
   "diffTallyReviewTitle": "E változások áttekintő paneljének megnyitása",
   "editNotRebuildable": "{path}: nem állítható elő újra, mert a fájl megváltozott e szerkesztés óta.",
+  "editUnsavedChanges": "{path} nem állítható vissza: mentse vagy vesse el a szerkesztő nem mentett módosításait, majd próbálja újra.",
   "editPathRefused": "{path}: elutasítva, a szerkesztett útvonal a munkaterületen kívül esik.",
   "editNoPatch": "Ez a szerkesztés nem hagyott maga után patch-dokumentumot.",
   "historyLabel": "Előzmények",
@@ -1010,13 +1011,15 @@
   },
   "permissionModeDetails": {
     "manual": "A Muse parancsok futtatása előtt rákérdez; a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait",
-    "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
+    "acceptEdits": "A Muse Code-ban ugyanaz, mint a Kézi: a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait, a parancsok futtatása előtt pedig rákérdez",
     "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be",
-    "auto": "A Muse jóváhagyja a biztonsági ellenőrzésen átmenő műveleteket, és minden kockázatos dolognál megáll",
+    "auto": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat, a többi előtt pedig rákérdez",
     "bypassPermissions": "A Muse kérdezés nélkül szerkeszt fájlokat és futtat parancsokat"
   },
+  "museCodeReviewedAutoDetail": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat; egy ellenőrző néhány továbbit egyszer engedélyezhet, a többiről Önt kérdezi",
   "modelApiPermissionModeDetails": {
     "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
+    "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
     "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez"
   },
   "effortLevels": {
@@ -1212,6 +1215,28 @@
     "one": "Sikertelen ({count}): {skills}",
     "other": "Sikertelen ({count}): {skills}"
   },
+  "bundledSkillsOffer": "A Muse Spark a következő képességekkel érkezik: {skills}. Telepíti őket a Muse Code számára? Az Ön Muse konfigurációs mappájába kerülnek.",
+  "bundledSkillsUpdateOffer": "A Muse Spark a mellékelt képességek újabb kiadását hozza ({tag}). Frissíti a Muse Code által használt példányt?",
+  "bundledSkillsInstall": "Telepítés",
+  "bundledSkillsUpdate": "Frissítés",
+  "bundledSkillsNotNow": "Most nem",
+  "bundledSkillsInstalled": {
+    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
+    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}",
+    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
+    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Nincs a Muse Code számára telepített mellékelt képesség, így semmi sem lett eltávolítva.",
+  "bundledSkillsInstallFailed": "A mellékelt képességeket nem sikerült telepíteni ebbe a mappába ({folder}): {reason}",
+  "bundledSkillsRemoveFailed": "A mellékelt képességeket nem sikerült eltávolítani ebből a mappából ({folder}): {reason}",
+  "bundledSkillsNotOurs": "már létezik ilyen nevű mappa, amelyet nem a Muse Spark telepített, ezért érintetlenül maradt",
+  "bundledSkillsUnavailable": "A mellékelt képességek telepítőjét nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "notSignedInReason": "Üzenet küldése előtt jelentkezzen be.",
   "noWorkspaceReason": "Először nyisson meg egy mappát; a Muse munkaterületen belül dolgozik.",
   "nothingToSendReason": "Először írjon egy üzenetet, vagy csatoljon egy képet.",
@@ -1633,6 +1658,102 @@
   "checkpointsModelApiOnly": "A fájlok visszaállításához és az Újra használatához csatlakoztatott Model API-munkamenet szükséges. Csak a modell saját fájleszközeinek módosításai vonhatók vissza, amíg minden fájl pontosan a modell által hátrahagyott tartalmat őrzi. A parancsok, hookok és MCP-eszközök változtatásai, az Ön módosításai és más ablakok írásai soha nem vonhatók vissza.",
   "checkpointsNativeUnsafe": "A fájlok visszaállítása és az Újra nem érhető el, amíg egy Muse Code-munkamenet vagy egy olyan ablak, amely nem rögzíti a módosításait, még módosíthat fájlokat. Zárja be vagy töltse újra azt az ablakot, majd próbálja ismét.",
   "checkpointsLegacyReadOnly": "Ezt az üzenetet a Muse Spark egy korábbi verziója rögzítette. A fájljai nem állíthatók vissza.",
+  "groupReview": "Áttekintés",
+  "reviewItem": "/review",
+  "reviewItemDetail": "A nem véglegesített módosítások, egy ág, egy commit vagy az Ön által leírtak áttekintése",
+  "reviewUncommittedItem": "Nem véglegesített módosítások áttekintése",
+  "reviewUncommittedDetail": "Előkészített és nem előkészített módosítások a legutóbbi commithoz képest",
+  "reviewBranchItem": "Ennek az ágnak az áttekintése…",
+  "reviewBranchDetail": "Minden módosítás azóta, hogy elvált a kiválasztott alapágtól",
+  "reviewCommitItem": "Egy commit áttekintése…",
+  "reviewCommitDetail": "Az egyik legutóbbi commit, amelyet Ön választ ki",
+  "reviewSecurityItem": "Biztonsági áttekintés",
+  "reviewSecurityDetail": "A nem véglegesített módosítások injektálás, titkos adatok, hitelesítés és nem biztonságos API-k szempontjából",
+  "reviewChangesItem": "A beszélgetés módosításainak áttekintése",
+  "reviewChangesDetail": "Minden módosítás elfogadása vagy visszaállítása, és megjegyzés fűzése egy sorhoz",
+  "reviewPickBase": "Az ág, amellyel ezt össze kell vetni",
+  "reviewPickCommit": "Az áttekintendő commit",
+  "reviewDefaultBase": "alapértelmezett alap",
+  "reviewBusy": "Az áttekintés az aktuális kör befejeződése után indul.",
+  "reviewRestricted": "A git-módosítások áttekintéséhez git szükséges, amely Korlátozott módban nem fut. Bízzon meg ebben a munkaterületben, vagy adja meg, mit kell áttekinteni: /review <mit kell áttekinteni>.",
+  "reviewNotRepository": "Ez a mappa nincs git-adattárban, így nincsenek áttekinthető git-módosítások. Adja meg inkább, mit kell áttekinteni: /review <mit kell áttekinteni>.",
+  "reviewNoChanges": "Nincsenek áttekinthető módosítások.",
+  "reviewOnlyPrivate": "Csak olyan fájlok módosultak, amelyek titkos adatokat tartalmazhatnak (környezeti fájlok, kulcsok, hitelesítő adatok), és ezeket a bővítmény nem küldi el áttekintésre.",
+  "reviewNoBase": "Nem található alapág az összehasonlításhoz. Adjon meg egyet: /review branch <alapág>.",
+  "reviewUnknownRevision": "A git nem ismer ilyen ágat vagy commitot: {revision}.",
+  "reviewNoCommits": "Ebben az adattárban még nincs áttekinthető commit.",
+  "reviewGitFailed": "A git nem tudta beolvasni az áttekintendő módosításokat.",
+  "reviewCancelled": "Az áttekintés megszakítva.",
+  "reviewUnavailable": "Az áttekintést nem sikerült betölteni, ezért nem indítható áttekintés; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
+  "reviewInstructionsTooLong": "Annak leírása, hogy mit kell áttekinteni, túl hosszú egyetlen áttekintéshez; fogalmazza meg röviden.",
+  "reviewTruncatedNotice": "A diff hosszú, ezért csak az első része került az áttekintéshez; a módosított fájlok többi részét az áttekintő maga olvassa el.",
+  "reviewPrivateLeftOut": {
+    "one": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre.",
+    "other": "{count} módosított fájl, amely titkos adatokat tartalmazhat, név szerint szerepel, de nem lett elküldve áttekintésre."
+  },
+  "reviewPlanModeNotice": "Ez az áttekintés Tervezés módban fut, és a végén visszaáll a korábbi engedélyezési mód. A Muse Code Tervezés módban a saját engedélyezési szabályait alkalmazza, ezért az áttekintés ott nem feltétlenül végez csak olvasási műveleteket.",
+  "reviewModeRestored": "Az áttekintés befejeződött: az engedélyezési mód ismét {mode}.",
+  "reviewModeNotRestored": "Az áttekintés után nem sikerült visszaállítani az engedélyezési módot, ezért a beszélgetés Tervezés módban marad",
+  "reviewAlreadyReverted": "Ez a módosítás már vissza van állítva.",
+  "reviewPaneTitle": "A beszélgetés módosításai",
+  "reviewPaneLoading": "Módosítások beolvasása…",
+  "reviewPaneEmpty": "Ez a beszélgetés nem módosított fájlokat.",
+  "reviewPaneFiles": {
+    "one": "{count} fájl",
+    "other": "{count} fájl"
+  },
+  "reviewPaneHunks": {
+    "one": "{count} módosítás",
+    "other": "{count} módosítás"
+  },
+  "reviewPaneAccepted": {
+    "one": "{count} elfogadva",
+    "other": "{count} elfogadva"
+  },
+  "reviewPaneReverted": {
+    "one": "{count} visszaállítva",
+    "other": "{count} visszaállítva"
+  },
+  "reviewPaneOmitted": {
+    "one": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosítása nem olvasható be); a beszélgetésben lévő sora továbbra is megnyitja.",
+    "other": "{count} szerkesztés nem szerepel itt (túl sok a megjelenítéshez, vagy a módosításaik nem olvashatók be); a beszélgetésben lévő soraik továbbra is megnyitják őket."
+  },
+  "reviewHunkLines": "{index}. módosítás, {start}–{end}. sor",
+  "reviewHunkLine": "{index}. módosítás, {start}. sor",
+  "reviewHunkName": "{path} fájl {index}. módosítása",
+  "reviewAccept": "Elfogadás",
+  "reviewAccepted": "Elfogadva",
+  "reviewRevert": "Visszaállítás",
+  "reviewReverting": "Visszaállítás folyamatban…",
+  "reviewReverted": "Visszaállítva",
+  "reviewNotReverted": "Nincs visszaállítva",
+  "reviewComment": "Megjegyzés egy sorhoz…",
+  "reviewCommentLine": "Sor",
+  "reviewCommentLabel": "Megjegyzés",
+  "reviewCommentPlaceholder": "Mit tudjon vagy módosítson itt az ügynök?",
+  "reviewSendSteer": "Küldés a futó körbe",
+  "reviewSendNext": "Küldés következő üzenetként",
+  "reviewCommentCancel": "Mégse",
+  "reviewLineOption": "{line}. sor: {text}",
+  "reviewRemovedLineOption": "Eltávolított {line}. sor: {text}",
+  "reviewOpenFile": "Fájl megnyitása",
+  "reviewCommentSent": "Megjegyzés elküldve az ügynöknek",
+  "reviewAnnounceReverted": "{name} visszaállítva",
+  "reviewAnnounceNotReverted": "{name} nincs visszaállítva: {reason}",
+  "reviewFindingsLabel": "Az áttekintés megállapításai",
+  "reviewFindingsHeading": {
+    "one": "{count} megállapítás",
+    "other": "{count} megállapítás"
+  },
+  "reviewNoFindings": "Az áttekintés nem talált jelentenivalót.",
+  "reviewSeverities": {
+    "critical": "Kritikus",
+    "high": "Magas",
+    "medium": "Közepes",
+    "low": "Alacsony",
+    "info": "Tájékoztató"
+  },
+  "reviewOpenFinding": "{location} megnyitása",
   "verifyErrors": {
     "one": "{count} hiba",
     "other": "{count} hiba"
@@ -1750,6 +1871,7 @@
   "autoReviewerUnreadable": "Az automatikus ellenőrző válasza nem olvasható, ezért Ön dönt.",
   "autoReviewerPaused": "Az automatikus ellenőrző ismételt elutasítások vagy hibák után a következő üzenetéig szünetel, ezért Ön dönt.",
   "autoReviewerTripped": "Az automatikus ellenőrző ismételt elutasítások vagy hibák után leállt. Amíg nem küldi el a következő üzenetét, minden kockázatos művelet Önt kérdezi.",
+  "museCodeReviewerNotice": "Alapértelmezés szerint bekapcsolva. A Muse Code Automatikus módjában csak a futó kör olyan jóváhagyásai ellenőrizhetők, amelyeket egyetlen szabály sem dönt el: egy rövid Muse Code-kör az előfizetéséből, rejtett Tervezés munkamenetben. Védett írások, fizetős hívások, gyermekfeladatok, kérdések, újraküldött vagy eszkalált kérések, ismeretlen tárgyak, egyszeri engedély nélküli kérések és több panel által használt munkamenetek soha nem kerülnek ellenőrzésre. A sikeres ellenőrzés egyszer engedélyezhet; elutasítás, hiba, foglalt munkamenet, időtúllépés vagy bekapcsolt megszakító esetén megjelenik a jóváhagyási kártya. A gazdafolyamat kilépése után a mellékmunkamenet újra létrejön. Kikapcsolás: museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatikus ellenőrző",
   "paidConfirmAutoReviewer": "Automatikus módban a Model API háttérrendszeren egy külön modellhívás értékel minden kockázatos műveletet, amelyről egyetlen szabály sem dönt, és kérdés nélkül futtatja, ha biztonságosnak tűnik. Soha nem engedélyez tiltott parancsot, olyan parancsot, amelyre a szabályai rákérdeznek, védett írást vagy fizetős hívást; ha elutasít vagy hibázik, Ön dönt. Minden ellenőrzés díja a Model API-kulcsára terhelődik a beszélgetés modelljének tokenáraival:\n{price}\nMinden ellenőrzés előbb engedélyt kér, hacsak nem engedélyezi mindig az ellenőrzéseket ezen a munkaterületen.",
   "paidUseAutoReviewerTitle": "Értékelje az automatikus ellenőrző ezt a(z) {tool}-hívást?",

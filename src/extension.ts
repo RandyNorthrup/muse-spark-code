@@ -14,7 +14,11 @@ import { isProtectedPath } from './core/protectedPaths'
 import type { EditedFile } from './core/verify/diagnosticsReport'
 import { readBackendChoice } from './core/backendSelection'
 import { personalAgentsRoot } from './core/context/customAgents'
-import { personalSkillsRoot } from './core/context/skills'
+import {
+  bundledSkillSourcesRoot,
+  bundledSkillsPackageRoot,
+  personalSkillsRoot,
+} from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
@@ -63,7 +67,7 @@ import {
   withTerminalOverrides,
 } from './host/backend/toolIo'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { EditReview } from './host/editor/editReview'
+import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
@@ -94,8 +98,16 @@ import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
+import {
+  bundledSkillsLoader,
+  createBundledSkillsOffer,
+  runBundledSkillsInstall,
+  runBundledSkillsRemove,
+  type BundledSkillsCommandDeps,
+} from './host/skills/bundledSkills'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { lazyReview } from './host/review/reviewBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -122,6 +134,7 @@ import {
   readProxySettings,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
+import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
@@ -135,6 +148,7 @@ import { loadUiTable } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
+import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -156,11 +170,16 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
+  BUNDLED_SKILLS_BUNDLE_FILE,
+  BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  MUSE_CODE_REVIEWER_BUNDLE_FILE,
+  MUSE_CODE_REVIEWER_DIR,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -684,6 +703,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     canRememberPaidUse: () =>
       vscode.workspace.isTrusted && (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
     log,
+  })
+  // The Auto reviewer on Muse Code (M90, PLAN.md D69): dist/museCodeReviewer.js
+  // (D6), required on the first review; one side session and one queue for
+  // the window, in an empty folder of the extension's own.
+  const museCodeReviewer = museCodeReviewerPort({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MUSE_CODE_REVIEWER_BUNDLE_FILE)
+      .fsPath,
+    root: path.join(context.globalStorageUri.fsPath, MUSE_CODE_REVIEWER_DIR),
+    isOn: () => currentSettings().museCodeAutoReviewer,
+    log,
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      museCodeReviewer.dispose()
+    },
   })
   // Both engines' drivers are dist/voice.js (D6), required on the first recording.
   const voice = voiceLoader({
@@ -1300,42 +1334,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   }
 
-  const editReview = new EditReview({
-    platform: process.platform,
-    workspaceRoot,
-    readFile: readTextFile,
-    realPath: canonicalPath,
-    // A Revert the user pressed, a write or a delete: the file is theirs from then on.
-    writeFile: async (fsPath, content, checkRevert) => {
-      const checkBackend = backend.workspaceActionGuard(nativeStarts.signal)
-      await writeUserFile(
-        () => {
-          checkBackend()
-          checkRevert()
-        },
-        fsPath,
-        content,
-      )
-    },
-    deleteFile: async (fsPath, checkRevert) => {
-      const checkBackend = backend.workspaceActionGuard(nativeStarts.signal)
-      const check = (): void => {
-        checkBackend()
-        checkRevert()
-      }
-      await withCheckpointEdit(checkpoints, log, check, async () => {
-        await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
-      })
-    },
-    openDiff: async (beforeUri, fsPath, title) => {
-      await vscode.commands.executeCommand(
-        VSCODE_COMMANDS.diff,
-        vscode.Uri.parse(beforeUri),
-        vscode.Uri.file(fsPath),
-        title,
-      )
-    },
+  // Edit review (M5) and `/review` (M70: git's changes in the workspace folder,
+  // with the pickers for a base branch or a commit the request did not name,
+  // the review turn's text and the pane's hunks) come from the review's own
+  // bundle, loaded the first time one of them is used.
+  const review = lazyReview({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REVIEW_BUNDLE_FILE).fsPath,
     log,
+    workspaceRoot,
+    runGit,
+    pickOne: showPickOne,
+    editReview: {
+      platform: process.platform,
+      workspaceRoot,
+      readFile: readTextFile,
+      realPath: canonicalPath,
+      hasUnsavedChanges: (fsPath) => toolIo.hasUnsavedChanges(fsPath),
+      beginEdit: (file) => modelApi.beginExternalEdit(undefined, [file]),
+      // A Revert the user pressed is one operation under the restore lease
+      // (M72): read, rebuilt, checked and published there, by the guarded
+      // conditional writes, so a save or a swap meanwhile refuses it. A
+      // change that lands is the user's and never recorded (M86).
+      withAdmission: async (work) => {
+        const check = backend.workspaceActionGuard(nativeStarts.signal)
+        return await withCheckpointEdit(checkpoints, log, check, async () => await work(check))
+      },
+      io: createRevertIo({
+        io: toolIo,
+        platform: process.platform,
+        trash: async (fsPath) => {
+          await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { useTrash: true })
+        },
+      }),
+      openDiff: async (beforeUri, fsPath, title) => {
+        await vscode.commands.executeCommand(
+          VSCODE_COMMANDS.diff,
+          vscode.Uri.parse(beforeUri),
+          vscode.Uri.file(fsPath),
+          title,
+        )
+      },
+      log,
+    },
   })
 
   const mentions = new MentionIndex({
@@ -1353,6 +1393,50 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The managed personal agent root (M76, PLAN.md D13): the extension's own
   // folder, since the CLI names none.
   const agentsHome = personalAgentsRoot(museConfig())
+  // The bundled skills (M89, PLAN.md D68): the package vendored inside this
+  // extension, a skill source on the Model API backend while its setting is
+  // on, and installed for Muse Code only by the commands or the panel's
+  // one-time offer, through the installer's own bundle.
+  const bundledPackageRoot = bundledSkillsPackageRoot(context.extensionPath, process.platform)
+  const bundledSkillsBundle = bundledSkillsLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', BUNDLED_SKILLS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const bundledSkillsPaths = () => ({
+    vendorRoot: bundledPackageRoot,
+    skillsRoot: personalSkillsRoot(museConfig()),
+    sourcesRoot: bundledSkillSourcesRoot(museConfig()),
+  })
+  const bundledSkillsOffer = createBundledSkillsOffer({
+    isEnabled: () => currentSettings().bundledSkills,
+    state: context.globalState,
+    keys: {
+      installDeclined: GLOBAL_STATE_KEYS.bundledSkillsInstallDeclined,
+      updateDeclined: GLOBAL_STATE_KEYS.bundledSkillsUpdateDeclined,
+    },
+    status: () => bundledSkillsBundle().bundledSkillsStatus(bundledSkillsPaths()),
+  })
+  const bundledSkillsCommand = (): BundledSkillsCommandDeps => ({
+    bundle: bundledSkillsBundle,
+    paths: bundledSkillsPaths,
+    platform: process.platform,
+    now: () => Date.now(),
+    newId: () => crypto.randomUUID(),
+    showInformation: (message) => {
+      void vscode.window.showInformationMessage(message)
+    },
+    showError: loggedPopups(log).showError,
+    isMuseCodeRunning: () => backend.isRunning,
+    confirmRestart: async () =>
+      (await vscode.window.showInformationMessage(
+        UI_TEXT.skillsRestartPrompt,
+        UI_TEXT.restartNow,
+        UI_TEXT.restartLater,
+      )) === UI_TEXT.restartNow,
+    restart: () => restartMuseCode('the bundled skills changed'),
+    log,
+  })
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
   // home `muse serve` sees (`museSpark.environmentVariables` included). The
@@ -1479,6 +1563,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }),
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
+    bundledSkills: {
+      packageRoot: bundledPackageRoot,
+      isEnabled: () => currentSettings().bundledSkills,
+    },
     personalAgentsRoot: agentsHome,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
@@ -1804,6 +1892,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await restartMuseCode('asked for from a notice in the panel')
         break
       }
+      // The bundled skills' offer (M89): Install and Update are the same steps.
+      case 'installBundledSkills':
+      case 'updateBundledSkills': {
+        await runBundledSkillsInstall(bundledSkillsCommand())
+        break
+      }
+      case 'declineBundledSkills': {
+        await bundledSkillsOffer.decline()
+        break
+      }
     }
   }
 
@@ -1886,6 +1984,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
           })
         },
+        museCodeReviewer,
         copyText: async (text) => {
           await vscode.env.clipboard.writeText(text)
         },
@@ -1929,7 +2028,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           }
           return isApplied
         },
-        editReview,
+        editReview: review.editReview,
+        review,
         openDocument,
         openFile,
         readToolImage: async (imagePath) =>
@@ -2029,6 +2129,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.workspace.isTrusted ? settings.checkCommands : [],
           )
         },
+        bundledSkillsOffer: () => bundledSkillsOffer.next(),
         // The session board's pending prompts, shared by every surface (M77).
         pendingPrompts: boardPrompts,
         boardSessions: () => {
@@ -2219,7 +2320,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       editorContext.update(editorSnapshot)
     }),
     vscode.workspace.registerTextDocumentContentProvider(MUSE_EDIT_SCHEME, {
-      provideTextDocumentContent: (uri) => editReview.provide(uri.path),
+      provideTextDocumentContent: (uri) => review.editReview.provide(uri.path),
     }),
     fileWatcher.onDidCreate(() => {
       mentions.invalidate()
@@ -2248,6 +2349,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
+      }
+      // The bundled skills on or off: the Model API catalogue follows (M89).
+      if (event.affectsConfiguration(BUNDLED_SKILLS_SETTING)) {
+        onSkillFilesChanged()
       }
       // Turning the Bypass setting off ends Bypass everywhere now (D24).
       if (
@@ -2507,6 +2612,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Said in VS Code: the palette may run it with no panel open.
       void vscode.window.showInformationMessage(UI_TEXT.museCodeRestarted)
     }),
+    // M89 (PLAN.md D68): the bundled skills into Muse Code's folders, and out.
+    registerLoggedCommand(log, COMMAND_IDS.installBundledSkills, () =>
+      runBundledSkillsInstall(bundledSkillsCommand()),
+    ),
+    registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, () =>
+      runBundledSkillsRemove(bundledSkillsCommand()),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importFromAgents, () => cliFeatures.importFromAgents()),

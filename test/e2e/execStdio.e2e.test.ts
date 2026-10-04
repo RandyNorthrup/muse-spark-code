@@ -127,6 +127,7 @@ function packagingFixture() {
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
+  writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(dir, 'docs', 'schemas'), { recursive: true })
   writeFileSync(
     path.join(dir, 'test', 'action', 'exec-test-launcher.ts'),

@@ -686,11 +686,13 @@ describe('App conversation', () => {
     expect(screen.getByText('Modes')).toBeInTheDocument()
     expect(screen.getByText('⇧ + tab')).toBeInTheDocument()
     expect(screen.getAllByRole('menuitemradio').map((node) => node.textContent)).toEqual([
-      // Muse Code's wording (D24): its Manual applies in-workspace edits unasked.
+      // Muse Code's wording (D24, D69): its Manual applies in-workspace edits
+      // unasked, so Edit automatically is Manual there; its Auto skips only
+      // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
-      'Edit automaticallyMuse will edit files without asking and ask before running commands',
+      'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
       'PlanMuse will explore the code and present a plan before editing',
-      'AutoMuse will approve actions that pass a safety check and pause for anything risky',
+      'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))
     expect(postMessage).toHaveBeenCalledWith({

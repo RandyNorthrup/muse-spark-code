@@ -15,6 +15,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { AgentSession, HostExit } from '../../src/core/agent/agentBackend'
 import type { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
+import { PlanModeHold, type PlanModeRestore } from '../../src/core/review/planModeHold'
 import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
 import {
   DEFAULT_MODEL_ID,
@@ -534,6 +535,48 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     expect(Date.now() - started).toBeLessThan(TURN_TIMEOUT_MS)
     // The next call spawns afresh instead of reusing the dead attempt.
     await expect(wedged.manager.ensureHost()).rejects.toThrow('did not finish starting')
+  })
+
+  it('holds a review turn in Plan mode and gives the session its mode back when the turn ends (M70)', async () => {
+    const { manager: backend } = manager()
+    const host = await backend.ensureHost()
+    const t = await openSession(host, 'promptUnmatched')
+    const restored: PlanModeRestore[] = []
+    const hold = new PlanModeHold({
+      planMode: 'denyUnmatched',
+      restoreMode: () => 'promptUnmatched',
+      onRestored: (outcome) => {
+        restored.push(outcome)
+      },
+    })
+    t.session.onEvent((event) => {
+      if (event.type === 'turnCompleted') {
+        hold.turnEnded(event.turnId)
+      }
+    })
+    // The review's own turn: in Plan mode the host refuses the tool without asking.
+    await hold.send(t.session, [{ type: 'text', text: 'tool: git push' }], '/review', () => true)
+    await until(() => restored.length === 1)
+    expect(restored).toEqual([{ ok: true, isAfterTurn: true }])
+    expect(t.approval()).toBeUndefined()
+    expect(t.completedItems().find((item) => item.kind === 'toolCall')).toMatchObject({
+      status: 'failed',
+      failureReason: 'denied by policy',
+    })
+    await until(() => t.events.filter((event) => event.type === 'approvalModeChanged').length === 2)
+    expect(
+      t.events.flatMap((event) => (event.type === 'approvalModeChanged' ? [event.mode] : [])),
+    ).toEqual(['denyUnmatched', 'promptUnmatched'])
+    // The next turn runs in the mode the user had: the tool asks again.
+    const next = t.start('tool: git status')
+    await next.submission
+    const request = await approvalOf(t)
+    await t.session.decideApproval({
+      approvalId: request.approvalId,
+      choiceId: ALLOW,
+      requirementId: request.requirementId,
+    })
+    expect(await next.done()).toMatchObject({ terminal: 'completed' })
   })
 
   it('connects a slow start whose process runs past the first deadline (0.10.1)', async () => {

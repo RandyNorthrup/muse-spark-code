@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.11.0",
+  "version": "0.12.1",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -225,6 +225,16 @@
       {
         "command": "museSpark.restartMuseCode",
         "title": "%command.restartMuseCode.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.installBundledSkills",
+        "title": "%command.installBundledSkills.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.removeBundledSkills",
+        "title": "%command.removeBundledSkills.title%",
         "category": "%command.category%"
       }
     ],
@@ -659,6 +669,12 @@
           "description": "%config.turnCheckpoints.description%",
           "scope": "machine"
         },
+        "museSpark.bundledSkills": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.bundledSkills.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiCommandRules": {
           "type": "array",
           "default": [],
@@ -842,6 +858,12 @@
           "default": false,
           "description": "%config.modelApiAutoReviewer.description%",
           "scope": "machine"
+        },
+        "museSpark.museCodeAutoReviewer": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.museCodeAutoReviewer.description%",
+          "scope": "machine"
         }
       }
     },
@@ -922,7 +944,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/webview/main.tsx src/runtime/main.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/extension.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -945,15 +967,15 @@
     "schema:exec": "node scripts/exec-schema.mjs"
   },
   "lint-staged": {
-    "*.{ts,tsx,mjs}": [
+    "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
       "eslint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.css": [
+    "{*.css,!(vendor)/**/*.css}": [
       "stylelint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.{json,jsonc,md,yml,yaml}": "prettier --write"
+    "{*.{json,jsonc,md,yml,yaml},!(vendor)/**/*.{json,jsonc,md,yml,yaml}}": "prettier --write"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.5.0",
@@ -969,7 +991,7 @@
     "@types/react-dom": "19.3.0",
     "@types/vscode": "1.99.0",
     "@types/vscode-webview": "1.57.5",
-    "@vitest/coverage-v8": "5.0.1",
+    "@vitest/coverage-v8": "5.0.2",
     "@vscode/test-cli": "0.0.15",
     "@vscode/test-electron": "3.1.0",
     "@vscode/vsce": "4.0.0",
@@ -980,10 +1002,10 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unicorn": "76.0.0",
     "husky": "9.1.7",
-    "jscpd": "5.3.1",
+    "jscpd": "5.3.2",
     "jsdom": "30.1.1",
-    "knip": "6.37.0",
-    "lint-staged": "17.5.1",
+    "knip": "6.38.0",
+    "lint-staged": "17.6.0",
     "npm-run-all2": "9.0.3",
     "ovsx": "1.2.0",
     "playwright-core": "1.63.0",
@@ -995,7 +1017,7 @@
     "stylelint-config-standard": "40.0.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
-    "vitest": "5.0.1",
+    "vitest": "5.0.2",
     "zod": "4.6.5"
   },
   "overrides": {

@@ -25,6 +25,7 @@ const SEMGREP_ARGS = [
   '--exclude=node_modules',
   '--exclude=.vscode-test',
   '--exclude=.claude',
+  '--exclude=vendor',
 ]
 const PYTHONS = ['python', 'python3', 'py']
 // Asks the interpreter for its user scheme's scripts folder (pip install --user).

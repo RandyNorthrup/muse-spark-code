@@ -12,7 +12,6 @@
 
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { fileIdentityKey, sameFile, statIdentity, statIdentitySync } from '../core/fs/fileIdentity'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
@@ -24,7 +23,6 @@ import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
-import { canonicalPath } from '../host/canonicalPath'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -41,6 +39,7 @@ import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   type EnvironmentVariable,
   MENTION_INDEX_LIMIT,
@@ -420,12 +419,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
-    const canonical = await canonicalPath(cwd)
-    const identity = await statIdentity(canonical)
-    const key = fileIdentityKey(identity)
-    if (key === undefined || !identity.isDirectory()) {
+    const identity = await captureWorkspaceIdentity(cwd)
+    if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
+    const { canonical, key } = identity
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -434,14 +432,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
-      try {
-        for (const root of [cwd, canonical]) {
-          const current = statIdentitySync(root)
-          if (!current.isDirectory() || !sameFile(current, identity)) {
-            throw new Error(MODEL_TEXT.pathChangedAfterApproval)
-          }
-        }
-      } catch {
+      if (!identity.isCurrent()) {
         throw new Error(MODEL_TEXT.pathChangedAfterApproval)
       }
     }

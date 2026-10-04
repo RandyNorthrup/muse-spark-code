@@ -871,6 +871,8 @@ export const EN = {
   diffTallyReview: 'Review',
   diffTallyReviewTitle: 'Open the review pane on these changes',
   editNotRebuildable: '{path} cannot be rebuilt: the file changed since this edit.',
+  editUnsavedChanges:
+    '{path} cannot be reverted: save or discard the unsaved editor changes, then try again.',
   editPathRefused: '{path} refused: the edited path is outside the workspace.',
   editNoPatch: 'This edit left no patch document.',
   // Session history (M6).
@@ -1385,18 +1387,26 @@ export const EN = {
   },
   // One line under each mode in the Modes menu (the Claude Code wording, with
   // Muse in place of Claude and the MSP behaviour behind each mode, PLAN.md
-  // D7), per backend where they differ (D24): in Manual Muse Code applies
-  // edits inside the workspace without an approval (verified live in M4), and
-  // the Model API backend has no safety-check judge behind Auto.
+  // D7, D69), per backend where they differ (D24). On Muse Code (the default
+  // lines): in Manual it applies edits inside the workspace without an
+  // approval (verified live in M4), so Edit automatically is Manual there,
+  // and under `muse serve` Auto skips only the commands Muse Code judges
+  // simple, with no safety-check judge (D69); the panel's reviewer checks the
+  // rest while its setting is on (museCodeReviewedAutoDetail). The Model API
+  // backend has no safety-check judge behind Auto either.
   permissionModeDetails: {
     manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
-    acceptEdits: 'Muse will edit files without asking and ask before running commands',
+    acceptEdits:
+      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
     plan: 'Muse will explore the code and present a plan before editing',
-    auto: 'Muse will approve actions that pass a safety check and pause for anything risky',
+    auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
+  museCodeReviewedAutoDetail:
+    'Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
+    acceptEdits: 'Muse will edit files without asking and ask before running commands',
     auto: 'Muse will edit files without asking, except protected files, and ask before commands',
   },
   effortLevels: {
@@ -1667,6 +1677,37 @@ export const EN = {
     one: '{count} failed: {skills}',
     other: '{count} failed: {skills}',
   }),
+  // The bundled skills for Muse Code (M89, PLAN.md D68): the panel's one-time
+  // offer and its buttons, then what Install, Update and Remove did. {skills}
+  // lists skill ids, {tag} is the package's release (v0.7.0), {folder} a path.
+  bundledSkillsOffer:
+    'Muse Spark comes with the skills {skills}. Install them for Muse Code? They are copied into your Muse config folder.',
+  bundledSkillsUpdateOffer:
+    'Muse Spark comes with a newer release of its bundled skills ({tag}). Update the copy Muse Code uses?',
+  bundledSkillsInstall: 'Install',
+  bundledSkillsUpdate: 'Update',
+  bundledSkillsNotNow: 'Not now',
+  bundledSkillsInstalled: forms({
+    one: 'Installed {count} bundled skill ({tag}) for Muse Code: {skills}',
+    other: 'Installed {count} bundled skills ({tag}) for Muse Code: {skills}',
+  }),
+  bundledSkillsSkipped: forms({
+    one: 'Left {count} skill out because a skill of yours has that name: {skills}',
+    other: 'Left {count} skills out because skills of yours have those names: {skills}',
+  }),
+  bundledSkillsRemoved: forms({
+    one: 'Removed {count} bundled skill from Muse Code: {skills}',
+    other: 'Removed {count} bundled skills from Muse Code: {skills}',
+  }),
+  bundledSkillsNothingToRemove:
+    'No bundled skills are installed for Muse Code, so nothing was removed.',
+  bundledSkillsInstallFailed: 'The bundled skills could not be installed at {folder}: {reason}',
+  bundledSkillsRemoveFailed: 'The bundled skills could not be removed at {folder}: {reason}',
+  // The reason when the folder is there but holds no mark of the extension's install.
+  bundledSkillsNotOurs:
+    'a folder of that name exists that Muse Spark did not install, so it was left alone',
+  bundledSkillsUnavailable:
+    'The bundled skills installer could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
@@ -2149,6 +2190,110 @@ export const EN = {
   // Muse Code refused a permission mode above the ceiling its configuration sets.
   approvalModeCeiling:
     'Muse Code’s configuration (its default permission profile, or a policy your administrator manages) does not allow this permission mode. Choose a stricter one, such as Manual, and send again.',
+  // M70 (PLAN.md D49): review. The palette's rows.
+  groupReview: 'Review',
+  reviewItem: '/review',
+  reviewItemDetail: 'Review the uncommitted changes, a branch, a commit, or what you describe',
+  reviewUncommittedItem: 'Review uncommitted changes',
+  reviewUncommittedDetail: 'Staged and unstaged changes, against the last commit',
+  reviewBranchItem: 'Review this branch…',
+  reviewBranchDetail: 'Every change since it left the base branch you pick',
+  reviewCommitItem: 'Review a commit…',
+  reviewCommitDetail: 'One of the latest commits, which you pick',
+  reviewSecurityItem: 'Security review',
+  reviewSecurityDetail:
+    'The uncommitted changes, for injection, secrets, authentication and unsafe APIs',
+  reviewChangesItem: 'Review this conversation’s changes',
+  reviewChangesDetail: 'Accept or revert each change, and comment on a line',
+  // The base-branch and commit pickers.
+  reviewPickBase: 'The branch to compare this one with',
+  reviewPickCommit: 'The commit to review',
+  reviewDefaultBase: 'default base',
+  // Why a review did not start, on its card.
+  reviewBusy: 'A review starts once the current turn has ended.',
+  reviewRestricted:
+    'Reviewing git’s changes needs git, which does not run in Restricted Mode. Trust this workspace, or say what to review: /review <what to look at>.',
+  reviewNotRepository:
+    'This folder is not in a git repository, so there are no git changes to review. Say what to review instead: /review <what to look at>.',
+  reviewNoChanges: 'There are no changes to review.',
+  reviewOnlyPrivate:
+    'Only files that may hold secrets changed (environment files, keys, credentials), and they are not sent for review.',
+  reviewNoBase: 'No base branch was found to compare with. Name one: /review branch <base>.',
+  // {revision}: the branch or commit named after /review.
+  reviewUnknownRevision: 'Git does not know {revision} as a branch or commit.',
+  reviewNoCommits: 'This repository has no commits to review yet.',
+  reviewGitFailed: 'Git could not read the changes to review.',
+  reviewCancelled: 'Review cancelled.',
+  // The review's own module (dist/review.js) could not be loaded.
+  reviewUnavailable:
+    'The review could not be loaded, so no review can start; reinstall the extension and reload the window. The log has the details.',
+  reviewInstructionsTooLong: 'What to review is too long for one review; say it more briefly.',
+  // What went with a review, and the permission mode around a Muse Code review.
+  reviewTruncatedNotice:
+    'The diff is long, so only its first part went with the review; the reviewer reads the rest of the changed files itself.',
+  reviewPrivateLeftOut: forms({
+    one: '{count} changed file that may hold secrets was named but not sent for review.',
+    other: '{count} changed files that may hold secrets were named but not sent for review.',
+  }),
+  reviewPlanModeNotice:
+    'This review runs in Plan mode, and the permission mode you had comes back when it ends. Muse Code applies its own allow rules in Plan mode, so a review there is not strictly read-only.',
+  // {mode}: the permission mode's name.
+  reviewModeRestored: 'The review ended: the permission mode is {mode} again.',
+  reviewModeNotRestored:
+    'The permission mode could not be set back after the review, so the conversation stays in Plan mode',
+  reviewAlreadyReverted: 'This change was already reverted.',
+  // The review pane.
+  reviewPaneTitle: 'Changes in this conversation',
+  reviewPaneLoading: 'Reading the changes…',
+  reviewPaneEmpty: 'This conversation has not changed any files.',
+  reviewPaneFiles: forms({ one: '{count} file', other: '{count} files' }),
+  reviewPaneHunks: forms({ one: '{count} change', other: '{count} changes' }),
+  reviewPaneAccepted: forms({ one: '{count} accepted', other: '{count} accepted' }),
+  reviewPaneReverted: forms({ one: '{count} reverted', other: '{count} reverted' }),
+  reviewPaneOmitted: forms({
+    one: '{count} edit is not listed here (too many to show, or its change could not be read); its row in the transcript still opens it.',
+    other:
+      '{count} edits are not listed here (too many to show, or their changes could not be read); their rows in the transcript still open them.',
+  }),
+  // {index}: the change's number in its file; {start}, {end}: line numbers.
+  reviewHunkLines: 'Change {index}, lines {start}–{end}',
+  reviewHunkLine: 'Change {index}, line {start}',
+  // {path}: the file; names each change's buttons for a screen reader.
+  reviewHunkName: 'change {index} of {path}',
+  reviewAccept: 'Accept',
+  reviewAccepted: 'Accepted',
+  reviewRevert: 'Revert',
+  reviewReverting: 'Reverting…',
+  reviewReverted: 'Reverted',
+  reviewNotReverted: 'Not reverted',
+  reviewComment: 'Comment on a line…',
+  reviewCommentLine: 'Line',
+  reviewCommentLabel: 'Comment',
+  reviewCommentPlaceholder: 'What should the agent know or change here?',
+  reviewSendSteer: 'Send to the running turn',
+  reviewSendNext: 'Send as the next message',
+  reviewCommentCancel: 'Cancel',
+  // {line}: a line number; {text}: that line's code.
+  reviewLineOption: 'Line {line}: {text}',
+  reviewRemovedLineOption: 'Removed line {line}: {text}',
+  reviewOpenFile: 'Open file',
+  reviewCommentSent: 'Comment sent to the agent',
+  // What the live region says when a change's Revert settles; {name} is reviewHunkName.
+  reviewAnnounceReverted: '{name} reverted',
+  reviewAnnounceNotReverted: '{name} not reverted: {reason}',
+  // The findings list under a review's reply.
+  reviewFindingsLabel: 'Review findings',
+  reviewFindingsHeading: forms({ one: '{count} finding', other: '{count} findings' }),
+  reviewNoFindings: 'The review found nothing to report.',
+  reviewSeverities: {
+    critical: 'Critical',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    info: 'Info',
+  },
+  // {location}: a file and line, such as src/a.ts:12.
+  reviewOpenFinding: 'Open {location}',
   // M78 (PLAN.md D49): command rules, permission profiles and the Auto
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',
@@ -2175,6 +2320,9 @@ export const EN = {
     'The Auto reviewer is paused for this turn after repeated declines or failures, so you decide.',
   autoReviewerTripped:
     'The Auto reviewer stopped for the rest of this turn after repeated declines or failures. Every risky action asks you until you send your next message.',
+  // The window's first review on Muse Code (M90, PLAN.md D69).
+  museCodeReviewerNotice:
+    'On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.',
   // The paid feature (D48): its name, confirmation, popup and tally.
   paidAutoReviewerName: 'Auto reviewer',
   paidConfirmAutoReviewer:

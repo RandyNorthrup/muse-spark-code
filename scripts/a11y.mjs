@@ -49,6 +49,18 @@ const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;
 const CONTRAST_RULE = 'color-contrast'
 const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
 const GLYPH_ONLY_REASON = 'nonBmp'
+// The harness takes these findings out, each only where its own test holds,
+// and they are printed under their own heading with the reason (PLAN.md §8).
+const EXEMPT_REASONS = new Map([
+  [
+    'target-size',
+    'target-size under a menu or dialog the user opened (WCAG 2.5.8 does not apply while a target is obscured by content the user displayed)',
+  ],
+  [
+    'scrollable-region-focusable',
+    'scrollable-region-focusable on a listbox its focused control drives with aria-activedescendant (WCAG 2.1.1 is met: the arrows move through the options and the active one is scrolled into view, so the region needs no Tab stop of its own)',
+  ],
+])
 const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
 
@@ -212,11 +224,10 @@ async function main() {
   const exempt = results.flatMap((result) =>
     (result.exempt ?? []).map((entry) => ({ ...entry, at: result })),
   )
-  if (exempt.length > 0) {
-    console.log(
-      '\nExempt: target-size under a menu or dialog the user opened (WCAG 2.5.8 does not apply while a target is obscured by content the user displayed):',
-    )
-    for (const entry of exempt) {
+  const exemptByRule = Map.groupBy(exempt, (entry) => entry.rule)
+  for (const [rule, entries] of exemptByRule) {
+    console.log(`\nExempt: ${EXEMPT_REASONS.get(rule) ?? rule}:`)
+    for (const entry of entries) {
       console.log(`  ${entry.at.theme}/${entry.at.scenario}: ${entry.target}`)
     }
   }

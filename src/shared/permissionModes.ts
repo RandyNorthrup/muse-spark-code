@@ -5,20 +5,30 @@
 // is richer, so two of its modes are compositions:
 //
 //   manual            → promptUnmatched   (the CLI's `--approval-mode untrusted`:
-//                                          ask for every action no rule allows)
+//                                          ask for every action no rule allows;
+//                                          Muse Code still edits workspace
+//                                          files without asking, M4)
 //   acceptEdits       → promptUnmatched + the extension answers file-edit
-//                                          approvals itself (M4)
+//                                          approvals itself (M4); Muse Code
+//                                          asks none under `muse serve`, so on
+//                                          it this is Manual (PLAN.md D69)
 //   plan              → denyUnmatched     (read and reason only)
-//   auto              → onRequest         (the CLI's default: the LLM judge
-//                                          reviews prompt-bound calls and the
-//                                          host asks only when the tool needs it)
+//   auto              → onRequest         (under `muse serve` Muse Code skips
+//                                          only the commands it classifies as
+//                                          simple and asks for the rest: the
+//                                          LLM judge `muse --help` names runs
+//                                          only in its interactive and `exec`
+//                                          commands, D69; the panel's own
+//                                          reviewer answers what it can, M90)
 //   bypassPermissions → allowAll          (the CLI's `never`)
 //
 // The CLI names come from `muse --help` (Muse Code 1.3.0, 2026-09-21):
-// "Tool approval mode: untrusted|on-request|never (default: on-request)". The
-// live behaviour of each mode is verified when the approval cards land (M4);
-// until then any mode that would make the host wait on a decision the UI
-// cannot give collapses to `denyUnmatched`, which is what M2 shipped with.
+// "Tool approval mode: untrusted|on-request|never (default: on-request)".
+// What each mode does under `muse serve` was read from the CLI's own session
+// log and trace and a live probe on 1.4.2 (2026-10-03, PLAN.md D69); the Modes
+// menu says it per backend (`permissionModeDetail`). Any mode that would make
+// the host wait on a decision the UI cannot give collapses to `denyUnmatched`
+// while `hasApprovalUi` is false, which is what M2 shipped with.
 //
 // Bypass permissions is offered only while the
 // `museSpark.allowDangerouslySkipPermissions` setting is on, exactly as the
@@ -27,18 +37,25 @@
 import { PERMISSION_MODES, type PermissionMode, UI_TEXT } from './constants'
 import type { BackendKind } from './protocol'
 
-/** The Modes menu's line for a mode on the backend in use (PLAN.md D24). */
+/**
+ * The Modes menu's line for a mode on the backend in use (PLAN.md D24, D69).
+ * `hasReviewer`: the Auto reviewer on Muse Code is on (M90); the ACP agent
+ * has none.
+ */
 export function permissionModeDetail(
   mode: PermissionMode,
   backend: BackendKind | undefined,
+  hasReviewer = false,
 ): string {
-  // The Model API backend words only the modes that behave differently there.
-  const modelApiDetails: Readonly<Partial<Record<PermissionMode, string>>> =
-    UI_TEXT.modelApiPermissionModeDetails
-  return (
-    (backend === 'modelApi' ? modelApiDetails[mode] : undefined) ??
-    UI_TEXT.permissionModeDetails[mode]
-  )
+  if (backend === 'modelApi') {
+    // The Model API backend words only the modes that behave differently there.
+    const modelApiDetails: Readonly<Partial<Record<PermissionMode, string>>> =
+      UI_TEXT.modelApiPermissionModeDetails
+    return modelApiDetails[mode] ?? UI_TEXT.permissionModeDetails[mode]
+  }
+  return mode === 'auto' && hasReviewer
+    ? UI_TEXT.museCodeReviewedAutoDetail
+    : UI_TEXT.permissionModeDetails[mode]
 }
 
 export const APPROVAL_MODES = ['allowAll', 'promptUnmatched', 'onRequest', 'denyUnmatched'] as const

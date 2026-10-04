@@ -656,6 +656,7 @@
   "diffTallyReview": "İncele",
   "diffTallyReviewTitle": "Bu değişikliklerin gözden geçirme bölmesini aç",
   "editNotRebuildable": "{path} yeniden oluşturulamıyor: dosya bu düzenlemeden sonra değişti.",
+  "editUnsavedChanges": "{path} geri alınamıyor: düzenleyicideki kaydedilmemiş değişiklikleri kaydedin veya atın, sonra yeniden deneyin.",
   "editPathRefused": "{path} reddedildi: düzenlenen yol çalışma alanının dışında.",
   "editNoPatch": "Bu düzenleme bir yama belgesi bırakmadı.",
   "historyLabel": "Geçmiş",
@@ -1010,13 +1011,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse komut çalıştırmadan önce sorar; Muse Code çalışma alanı dosyalarını sormadan düzenler",
-    "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
+    "acceptEdits": "Muse Code’da El ile ile aynıdır: Muse Code çalışma alanı dosyalarını sormadan düzenler ve komut çalıştırmadan önce sorar",
     "plan": "Muse kodu inceler ve düzenlemeden önce bir plan sunar",
-    "auto": "Muse güvenlik denetiminden geçen eylemleri onaylar ve riskli her şeyde duraklar",
+    "auto": "Muse Code basit saydığı komutları sormadan çalıştırır, diğerlerinden önce sorar",
     "bypassPermissions": "Muse sormadan dosya düzenler ve komut çalıştırır"
   },
+  "museCodeReviewedAutoDetail": "Muse Code basit saydığı komutları sormadan çalıştırır; bir inceleyici bazı diğerlerine bir kez izin verebilir, geri kalanlar size sorulur",
   "modelApiPermissionModeDetails": {
     "manual": "Muse her düzenlemeden ve her komuttan önce onay ister",
+    "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",
     "auto": "Muse korumalı dosyalar dışındaki dosyaları sormadan düzenler ve komutlardan önce sorar"
   },
   "effortLevels": {
@@ -1212,6 +1215,28 @@
     "one": "{count} beceri başarısız oldu: {skills}",
     "other": "{count} beceri başarısız oldu: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark, {skills} becerileriyle birlikte gelir. Bunlar Muse Code için yüklensin mi? Muse yapılandırma klasörünüze kopyalanırlar.",
+  "bundledSkillsUpdateOffer": "Muse Spark, paketlenmiş becerilerinin daha yeni bir sürümüyle ({tag}) birlikte gelir. Muse Code'un kullandığı kopya güncellensin mi?",
+  "bundledSkillsInstall": "Yükle",
+  "bundledSkillsUpdate": "Güncelle",
+  "bundledSkillsNotNow": "Şimdi değil",
+  "bundledSkillsInstalled": {
+    "one": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}",
+    "other": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Kendi becerilerinizden biri aynı adı taşıdığı için {count} beceri dışarıda bırakıldı: {skills}",
+    "other": "Kendi becerileriniz aynı adları taşıdığı için {count} beceri dışarıda bırakıldı: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}",
+    "other": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code için yüklü paketlenmiş beceri yok, bu yüzden hiçbir şey kaldırılmadı.",
+  "bundledSkillsInstallFailed": "Paketlenmiş beceriler {folder} içine yüklenemedi: {reason}",
+  "bundledSkillsRemoveFailed": "Paketlenmiş beceriler {folder} içinden kaldırılamadı: {reason}",
+  "bundledSkillsNotOurs": "bu adda, Muse Spark'ın yüklemediği bir klasör var, bu yüzden ona dokunulmadı",
+  "bundledSkillsUnavailable": "Paketlenmiş becerilerin kurulum modülü yüklenemedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "notSignedInReason": "Mesaj göndermeden önce oturum açın.",
   "noWorkspaceReason": "Önce bir klasör açın; Muse bir çalışma alanı içinde çalışır.",
   "nothingToSendReason": "Önce bir mesaj yazın veya bir görüntü ekleyin.",
@@ -1633,6 +1658,102 @@
   "checkpointsModelApiOnly": "Dosya geri yükleme ve Yinele için bağlı bir Model API oturumu gerekir. Yalnızca modelin kendi dosya araçlarının düzenlemeleri, her dosya modelin bıraktığı içeriği hâlâ tam olarak içeriyorsa geri alınır. Komutların, kancaların ve MCP araçlarının değişiklikleri, kendi düzenlemeleriniz ve diğer pencerelerin yazmaları hiçbir zaman geri alınmaz.",
   "checkpointsNativeUnsafe": "Bir Muse Code oturumu veya düzenlemelerini kaydetmeyen bir pencere dosyaları hâlâ değiştirebileceği sürece dosya geri yükleme ve Yinele kullanılamaz. O pencereyi kapatın veya yeniden yükleyin, sonra tekrar deneyin.",
   "checkpointsLegacyReadOnly": "Bu ileti Muse Spark’ın eski bir sürümüyle kaydedildi. Dosyaları geri yüklenemez.",
+  "groupReview": "İnceleme",
+  "reviewItem": "/review",
+  "reviewItemDetail": "İşlenmemiş değişiklikleri, bir dalı, bir işlemeyi veya tarif ettiğiniz şeyi inceleyin",
+  "reviewUncommittedItem": "İşlenmemiş değişiklikleri incele",
+  "reviewUncommittedDetail": "Son işlemeye göre hazırlanmış ve hazırlanmamış değişiklikler",
+  "reviewBranchItem": "Bu dalı incele…",
+  "reviewBranchDetail": "Seçtiğiniz temel daldan ayrıldığından beri yapılan tüm değişiklikler",
+  "reviewCommitItem": "Bir işlemeyi incele…",
+  "reviewCommitDetail": "Son işlemelerden seçtiğiniz biri",
+  "reviewSecurityItem": "Güvenlik incelemesi",
+  "reviewSecurityDetail": "İşlenmemiş değişiklikler; enjeksiyon, gizli bilgiler, kimlik doğrulama ve güvenli olmayan API'ler açısından",
+  "reviewChangesItem": "Bu konuşmadaki değişiklikleri incele",
+  "reviewChangesDetail": "Her değişikliği kabul edin veya geri alın ve bir satıra yorum yapın",
+  "reviewPickBase": "Geçerli dalın karşılaştırılacağı dal",
+  "reviewPickCommit": "İncelenecek işleme",
+  "reviewDefaultBase": "varsayılan temel",
+  "reviewBusy": "İnceleme, mevcut tur bittiğinde başlar.",
+  "reviewRestricted": "Git değişikliklerini incelemek için git gerekir ve git Kısıtlı Mod'da çalışmaz. Bu çalışma alanına güvenin veya neyin inceleneceğini yazın: /review <neye bakılacağı>.",
+  "reviewNotRepository": "Bu klasör bir git deposunda değil, bu nedenle incelenecek git değişikliği yok. Bunun yerine neyin inceleneceğini yazın: /review <neye bakılacağı>.",
+  "reviewNoChanges": "İncelenecek değişiklik yok.",
+  "reviewOnlyPrivate": "Yalnızca gizli bilgi içerebilecek dosyalar değişti (ortam dosyaları, anahtarlar, kimlik bilgileri) ve bunlar incelemeye gönderilmez.",
+  "reviewNoBase": "Karşılaştırılacak bir temel dal bulunamadı. Bir tane belirtin: /review branch <temel dal>.",
+  "reviewUnknownRevision": "Git, {revision} değerini bir dal veya işleme olarak tanımıyor.",
+  "reviewNoCommits": "Bu depoda henüz incelenecek işleme yok.",
+  "reviewGitFailed": "Git, incelenecek değişiklikleri okuyamadı.",
+  "reviewCancelled": "İnceleme iptal edildi.",
+  "reviewUnavailable": "İnceleme yüklenemedi, bu yüzden hiçbir inceleme başlatılamıyor; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
+  "reviewInstructionsTooLong": "Neyin inceleneceğine ilişkin açıklama tek bir inceleme için çok uzun; daha kısa anlatın.",
+  "reviewTruncatedNotice": "Fark çıktısı uzun olduğu için incelemeye yalnızca ilk kısmı gönderildi; inceleyen, değişen dosyaların geri kalanını kendisi okur.",
+  "reviewPrivateLeftOut": {
+    "one": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adı belirtildi; dosya incelemeye gönderilmedi.",
+    "other": "Gizli bilgi içerebilecek {count} değişen dosyanın yalnızca adları belirtildi; dosyalar incelemeye gönderilmedi."
+  },
+  "reviewPlanModeNotice": "Bu inceleme Planlama modunda çalışır ve bittiğinde önceki izin modunuz geri gelir. Muse Code, Planlama modunda kendi izin kurallarını uygular; bu nedenle bu moddaki bir inceleme tam anlamıyla salt okunur değildir.",
+  "reviewModeRestored": "İnceleme sona erdi: izin modu yeniden {mode}.",
+  "reviewModeNotRestored": "İncelemeden sonra izin modu geri yüklenemedi, bu nedenle konuşma Planlama modunda kalıyor",
+  "reviewAlreadyReverted": "Bu değişiklik zaten geri alındı.",
+  "reviewPaneTitle": "Bu konuşmadaki değişiklikler",
+  "reviewPaneLoading": "Değişiklikler okunuyor…",
+  "reviewPaneEmpty": "Bu konuşma hiçbir dosyayı değiştirmedi.",
+  "reviewPaneFiles": {
+    "one": "{count} dosya",
+    "other": "{count} dosya"
+  },
+  "reviewPaneHunks": {
+    "one": "{count} değişiklik",
+    "other": "{count} değişiklik"
+  },
+  "reviewPaneAccepted": {
+    "one": "{count} kabul edildi",
+    "other": "{count} kabul edildi"
+  },
+  "reviewPaneReverted": {
+    "one": "{count} geri alındı",
+    "other": "{count} geri alındı"
+  },
+  "reviewPaneOmitted": {
+    "one": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişikliği okunamadı); dökümdeki satırından yine de açılabilir.",
+    "other": "{count} düzenleme burada listelenmiyor (gösterilemeyecek kadar çok düzenleme var veya değişiklikleri okunamadı); dökümdeki satırlarından yine de açılabilir."
+  },
+  "reviewHunkLines": "Değişiklik {index}, satır {start}–{end}",
+  "reviewHunkLine": "Değişiklik {index}, satır {start}",
+  "reviewHunkName": "{path} dosyasındaki {index}. değişiklik",
+  "reviewAccept": "Kabul et",
+  "reviewAccepted": "Kabul edildi",
+  "reviewRevert": "Geri al",
+  "reviewReverting": "Geri alınıyor…",
+  "reviewReverted": "Geri alındı",
+  "reviewNotReverted": "Geri alınmadı",
+  "reviewComment": "Bir satıra yorum yap…",
+  "reviewCommentLine": "Satır",
+  "reviewCommentLabel": "Yorum",
+  "reviewCommentPlaceholder": "Aracı burada neyi bilmeli veya neyi değiştirmeli?",
+  "reviewSendSteer": "Devam eden tura gönder",
+  "reviewSendNext": "Sonraki mesaj olarak gönder",
+  "reviewCommentCancel": "İptal",
+  "reviewLineOption": "Satır {line}: {text}",
+  "reviewRemovedLineOption": "Silinen satır {line}: {text}",
+  "reviewOpenFile": "Dosyayı aç",
+  "reviewCommentSent": "Yorum aracıya gönderildi",
+  "reviewAnnounceReverted": "{name} geri alındı",
+  "reviewAnnounceNotReverted": "{name} geri alınmadı: {reason}",
+  "reviewFindingsLabel": "İnceleme bulguları",
+  "reviewFindingsHeading": {
+    "one": "{count} bulgu",
+    "other": "{count} bulgu"
+  },
+  "reviewNoFindings": "İnceleme bildirilecek bir şey bulmadı.",
+  "reviewSeverities": {
+    "critical": "Kritik",
+    "high": "Yüksek",
+    "medium": "Orta",
+    "low": "Düşük",
+    "info": "Bilgi"
+  },
+  "reviewOpenFinding": "{location} konumunu aç",
   "verifyErrors": {
     "one": "{count} hata",
     "other": "{count} hata"
@@ -1750,6 +1871,7 @@
   "autoReviewerUnreadable": "Otomatik inceleyicinin yanıtı okunamadı; kararı siz verirsiniz.",
   "autoReviewerPaused": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra bir sonraki mesajınıza kadar duraklatıldı; kararı siz verirsiniz.",
   "autoReviewerTripped": "Otomatik inceleyici tekrarlanan retler veya hatalardan sonra durdu. Bir sonraki mesajınızı gönderene kadar her riskli işlem size sorar.",
+  "museCodeReviewerNotice": "Varsayılan olarak açık. Muse Code Otomatik modunda yalnızca çalışan turun hiçbir kuralın karara bağlamadığı onayları uygundur: gizli Planlama oturumunda aboneliğinizden kısa bir Muse Code turu. Korumalı yazmalar, ücretli çağrılar, alt görevler, sorular, yeniden sunulan veya üst değerlendirmeye aktarılan istekler, bilinmeyen konular, bir kez izin verme seçeneği olmayan istekler ve panellerce paylaşılan oturumlar asla incelenmez. Başarılı inceleme bir kez izin verebilir; retler, hatalar, meşgul oturumlar, zaman aşımları veya devre kesicinin açılması onay kartını gösterir. Ana süreç çıktığında yan oturum yeniden oluşturulur. museSpark.museCodeAutoReviewer ile kapatabilirsiniz.",
   "paidAutoReviewerName": "Otomatik inceleyici",
   "paidConfirmAutoReviewer": "Model API arka ucunda Otomatik modda, ayrı bir model çağrısı hiçbir kuralın karara bağlamadığı her riskli işlemi değerlendirir ve güvenli görünüyorsa sormadan çalıştırır. Yasaklanmış bir komuta, kurallarınızın onay istediği bir komuta, korumalı bir yazmaya veya ücretli bir çağrıya asla izin vermez; reddederse veya başarısız olursa kararı siz verirsiniz. Her inceleme, konuşma modelinin token ücretleri üzerinden Model API anahtarınıza faturalandırılır:\n{price}\nBu çalışma alanında incelemelere her zaman izin vermediğiniz sürece her inceleme önce onay ister.",
   "paidUseAutoReviewerTitle": "Bu {tool} çağrısını otomatik inceleyici değerlendirsin mi?",

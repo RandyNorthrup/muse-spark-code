@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// Bundles the extension host entry, the Model API backend, the search worker,
+// Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
 // import from other agents (M83: the scan, the converters, the file access and
-// smol-toml, loaded on the first import), code intelligence's `ide` answers
-// (M67, loaded on the first call) and voice's drivers (M9/M35, loaded on the
-// first recording), the webview, and (in dev mode) the integration tests with esbuild.
+// smol-toml, loaded on the first import), the bundled skills installer (M89:
+// the copy and links for Muse Code, loaded on the first install, removal or
+// offer), code intelligence's `ide` answers (M67, loaded on the first call),
+// voice's drivers (M9/M35, loaded on the first recording) and the Auto
+// reviewer on Muse Code (M90, loaded on the first review), the webview, and
+// (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -19,6 +22,10 @@
 // bundle requires it the first time that backend starts. Nothing it bundles
 // may import `vscode` (src/core must not), so `vscode` is not external there
 // and a stray import fails this build.
+//
+// The review (M70) is a third, dist/review.js: git's material for `/review`,
+// its turn text and the Plan-mode hold, required the first time a review
+// starts. Its factory installs the activation bundle's display language before use.
 //
 // A production build also writes each shipped bundle's esbuild metafile to
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
@@ -55,14 +62,20 @@ const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
+const REVIEW_ENTRY = 'src/host/review/reviewEntry.ts'
+const REVIEW_OUTFILE = 'dist/review.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
+const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
+const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
+const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -163,6 +176,17 @@ const reviewerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const reviewOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [REVIEW_ENTRY],
+  outfile: REVIEW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -190,6 +214,13 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const museCodeReviewerOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
+  outfile: MUSE_CODE_REVIEWER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -197,6 +228,17 @@ const agentImportOptions = {
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
   external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const bundledSkillsOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [BUNDLED_SKILLS_ENTRY],
+  outfile: BUNDLED_SKILLS_OUTFILE,
+  platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -293,13 +335,16 @@ if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
+    esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
+    esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(museCodeReviewerOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -311,13 +356,16 @@ if (isWatch) {
   const shipped = {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
+    review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
+    bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -342,13 +390,16 @@ if (isWatch) {
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
+  reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
+  reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

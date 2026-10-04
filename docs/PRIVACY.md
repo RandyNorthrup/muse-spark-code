@@ -22,6 +22,19 @@ security notes for contributors are in `PLAN.md` §9.
   its session log. So does what a command moved to the background printed
   when it ends. A command the Model API backend refused at its start (your
   Stop, lost trust, a closing window) did not run and is not sent.
+- **A review (`/review`, M70).** A review of git's changes runs git on
+  your machine and sends what it printed with the review turn, as your
+  message would travel on the backend in use: the diff, the changed and
+  untracked files' names, the branch name and, for one commit, its
+  message. Environment files, keys and credentials (`.env*`, `*.pem`,
+  `*.key`, `id_rsa`, `credentials.json` and the like) are left out of
+  the diff and only named. Git metadata is omitted from Reviewer system
+  instructions and remains in the review turn's untrusted material block.
+  `/review <what to look at>` sends only your
+  words. The review pane, its Accept and Revert, stay on your machine; a
+  comment on a line is a message, with the changed lines around it. The
+  `/review` you request is part of your own Model API turn (PLAN.md D49);
+  a Reviewer child task remains a paid use under D48.
 - **Checks after the agent's edits (Model API backend).** After a round of
   edits, the edited files' errors and warnings from VS Code's language
   servers (`museSpark.diagnosticsAfterEdits`, on by default), and the
@@ -85,6 +98,34 @@ security notes for contributors are in `PLAN.md` §9.
   earlier-call text are clipped and marked as data. The reviewer has no tools, uses `store: false`,
   and cannot override a forbid, explicit ask rule or file policy. It is billed
   to your Model API key and recorded separately in Account & usage.
+- **Auto reviewer (Muse Code, on by default in Auto).** With
+  `museSpark.museCodeAutoReviewer` on and the panel in Auto on the Muse Code
+  backend, an eligible approval Muse Code raises for the running turn that
+  no rule settles is first
+  judged by the same reviewer, run as one turn of a hidden side session in
+  your own `muse serve`. That turn is sent to Meta through Muse Code, on your
+  Muse subscription (no Model API key is used), and holds: your latest
+  message as you typed it, up to eight of the turn's earlier tool names and
+  arguments, the proposed command or arguments, the workspace path and the
+  platform, each clipped and marked as data, with the reviewer's
+  instructions. The side session runs in Plan mode, with thinking off, in an
+  empty folder under the extension's global storage, so it is given none of
+  your workspace files, rules or skills in the captured setup; CLI-global
+  context is not excluded. Muse Code adds its own system prompt and, as
+  for any turn, its reminder agents (four model attempts and about 33,000
+  input tokens in the live check). Muse Code keeps the side session in its
+  own session store like any other session; the extension never lists it in
+  History. Native tools cannot be disabled through the SDK's
+  `SessionConfig`, which only configures `mcpServers`. Any item other than
+  an agent message or reasoning cancels the review turn, shows the generic
+  failure card, and recreates the side session. A command covered by your
+  always-allow rule could run in the empty folder before cancellation
+  lands. The verdict text is never executed: it can only answer an
+  approval _Allow once_ or leave it to you. Protected writes, paid calls,
+  child tasks, questions, replayed/escalated/unknown requests, requests
+  without allow-once and shared-panel sessions are never reviewed. Busy,
+  timeout and breaker fallbacks leave the card; host exit recreates the
+  side session.
 - **Best-of-N (Model API, off by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta
@@ -157,6 +198,14 @@ security notes for contributors are in `PLAN.md` §9.
   Model API backend reads none of this while VS Code has the folder in
   Restricted Mode; Muse Code's documentation says it still reads a
   repository's committed project memory then.
+- **The bundled skills** (M89, PLAN.md D68: `project_setup`,
+  `feature_delivery` and `quality_retrofit`, shipped inside the extension).
+  On the Model API backend, while `museSpark.bundledSkills` is on (the
+  default), their ids and descriptions join the skill catalogue sent with
+  every request, and a skill's full text, preceded by one line naming the
+  folder the extension is installed in, goes to Meta when the model loads
+  it or you invoke it. Their scripts run only as shell commands under the
+  conversation's permission mode, on your machine.
 - **The Memory view** (M49) reads and writes only those notes on your
   machine; it sends nothing anywhere. A note it deletes goes to your trash.
 - **Saved plans** (M79). **Save plan** writes a Plan-mode reply to
@@ -395,6 +444,19 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **The bundled skills for Muse Code** (M89) are installed only when you
+  click Install or Update on the panel's offer or run **Muse Spark: Install
+  Bundled Skills for Muse Code**. The install writes only under Muse Code's
+  config folder (`~/.config/muse`, or `$XDG_CONFIG_HOME/muse`): a copy of
+  the package in `skill-sources/high-quality-projects-skill/`, with a mark
+  file (`.muse-spark-bundled.json`: the release tag and when it was
+  installed), and one link per skill in `skills/`. Nothing is downloaded:
+  the files are the release vendored into the extension when it was built.
+  **Remove Bundled Skills from Muse Code** deletes only the links that lead
+  into the marked copy and the copy itself; a folder without the mark, a
+  skill of yours, or a link that leads anywhere else is never touched.
+  Whether you answered Not now to the offer is kept in VS Code's extension
+  state.
 - **Import from other agents** (M83, D64) reads other tools' files only
   when requested, locally, without a model call or sending their contents
   anywhere. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.

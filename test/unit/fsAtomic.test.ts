@@ -12,16 +12,19 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises'
+import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   createFileExclusively,
+  deleteFileIfUnchanged,
   isNameTaken,
   isOwnedFile,
   writeFileAtomically,
   writeFileIfUnchanged,
 } from '../../src/host/fsAtomic'
+import { MODEL_TEXT } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import * as identity from '../../src/core/fs/fileIdentity'
 import { ATOMIC_TEMPORARY_SUFFIX } from '../../src/shared/constants'
@@ -294,6 +297,62 @@ describe('writeFileIfUnchanged', () => {
     await expect(readFile(target, 'utf8')).resolves.toBe('someone else')
     const names = await readdir(path.dirname(target))
     expect(names.toSorted((a, b) => a.localeCompare(b))).toEqual(['c.txt', 'd.txt', 'f.txt'])
+  })
+})
+
+// A Revert's conditional removal (M70, RV69): held to the bytes read, as the write is.
+describe('deleteFileIfUnchanged', () => {
+  it('removes the file only while it holds the expected text, unchanged since it was compared', async () => {
+    const target = path.join(paths.root, 'conditional-remove', 'made.txt')
+    await writeFileAtomically(target, 'as created', { sleep: noWait })
+    const remove = vi.fn((file: string) => rm(file))
+    const options = { expectedCanonicalPath: target, remove }
+    await expect(deleteFileIfUnchanged(target, fingerprint('as read'), options)).resolves.toBe(
+      'changed',
+    )
+    await expect(
+      deleteFileIfUnchanged(target, fingerprint('as created'), {
+        ...options,
+        isReplaceable: () => false,
+      }),
+    ).resolves.toBe('changed')
+    // Saved between the comparison and the removal: the file's identity tells.
+    await expect(
+      deleteFileIfUnchanged(target, fingerprint('as created'), {
+        ...options,
+        isReplaceable: () => {
+          writeFileSync(target, 'saved meanwhile')
+          return true
+        },
+      }),
+    ).resolves.toBe('changed')
+    await expect(readFile(target, 'utf8')).resolves.toBe('saved meanwhile')
+    expect(remove).not.toHaveBeenCalled()
+    await expect(
+      deleteFileIfUnchanged(target, fingerprint('saved meanwhile'), options),
+    ).resolves.toBe('written')
+    expect(remove).toHaveBeenCalledExactlyOnceWith(target)
+    await expect(stat(target)).rejects.toThrow('ENOENT')
+    // A file that is gone is not what was expected either.
+    await expect(
+      deleteFileIfUnchanged(target, fingerprint('saved meanwhile'), options),
+    ).resolves.toBe('changed')
+  })
+
+  it('refuses a folder swapped for a junction, removing nothing behind it', async () => {
+    const folder = path.join(paths.root, 'remove-swap')
+    const elsewhere = path.join(paths.root, 'remove-elsewhere')
+    const target = path.join(folder, 'made.txt')
+    await writeFileAtomically(target, 'same', { sleep: noWait })
+    await writeFileAtomically(path.join(elsewhere, 'made.txt'), 'same', { sleep: noWait })
+    await rename(folder, `${folder}-moved`)
+    await symlink(elsewhere, folder, 'junction')
+    const remove = vi.fn((file: string) => rm(file))
+    await expect(
+      deleteFileIfUnchanged(target, fingerprint('same'), { expectedCanonicalPath: target, remove }),
+    ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+    expect(remove).not.toHaveBeenCalled()
+    await expect(readFile(path.join(elsewhere, 'made.txt'), 'utf8')).resolves.toBe('same')
   })
 })
 

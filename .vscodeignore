@@ -5,9 +5,12 @@
 !dist/reviewer.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/review.js
 !dist/agentImport.js
+!dist/bundledSkills.js
 !dist/codeIntel.js
 !dist/voice.js
+!dist/museCodeReviewer.js
 !dist/uiText.js
 !dist/searchWorker.js
 !dist/pageWorker.js
@@ -31,3 +34,4 @@
 !LICENSE
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
+!vendor/high-quality-projects-skill/**

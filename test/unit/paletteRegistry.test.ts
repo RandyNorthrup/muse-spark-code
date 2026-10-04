@@ -138,7 +138,7 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
 }
 
 describe('buildPalette', () => {
-  it('lays out the seven Claude Code groups in order', () => {
+  it('lays out the seven Claude Code groups in order, with Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',
       'Model',
@@ -146,8 +146,30 @@ describe('buildPalette', () => {
       'Account & usage',
       'Skills',
       'Slash commands',
+      'Review',
       'Support',
     ])
+  })
+
+  // M70: the review presets, the security preset and the review pane, on both backends.
+  it('offers /review, the git presets, the security preset and the review pane on both backends', () => {
+    for (const backend of ['museCode', 'modelApi'] as const) {
+      const review = buildPalette({ ...context, backend }).find((group) => group.id === 'review')
+      expect(review?.items.map((item) => [item.id, item.action])).toEqual([
+        ['review', { type: 'startReview' }],
+        [
+          'reviewUncommitted',
+          { type: 'review', request: { scope: 'uncommitted', focus: 'general' } },
+        ],
+        ['reviewBranch', { type: 'review', request: { scope: 'branch', focus: 'general' } }],
+        ['reviewCommit', { type: 'review', request: { scope: 'commit', focus: 'general' } }],
+        [
+          'reviewSecurity',
+          { type: 'review', request: { scope: 'uncommitted', focus: 'security' } },
+        ],
+        ['reviewChanges', { type: 'openReviewPane' }],
+      ])
+    }
   })
 
   it('shows the current model, effort slider, toggles and mode as widgets', () => {
@@ -491,6 +513,9 @@ describe('slashCommandsOf', () => {
       'logout',
       'usage',
       'cost',
+      'review',
+      'security-review',
+      'changes',
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({

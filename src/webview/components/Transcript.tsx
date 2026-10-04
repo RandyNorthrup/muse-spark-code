@@ -874,10 +874,26 @@ const RestoreNotice = memo(function RestoreNotice({
 
 /** A button's label for each way on a notice offers. */
 function noticeActionLabel(action: NoticeAction): string {
-  return action === 'restartMuseCode' ? UI_TEXT.restartNow : UI_TEXT.newConversationTitle
+  switch (action) {
+    case 'restartMuseCode': {
+      return UI_TEXT.restartNow
+    }
+    case 'newConversation': {
+      return UI_TEXT.newConversationTitle
+    }
+    case 'installBundledSkills': {
+      return UI_TEXT.bundledSkillsInstall
+    }
+    case 'updateBundledSkills': {
+      return UI_TEXT.bundledSkillsUpdate
+    }
+    case 'declineBundledSkills': {
+      return UI_TEXT.bundledSkillsNotNow
+    }
+  }
 }
 
-/** A Muse Code fault's notice with its way on (D26): one button per action. */
+/** A notice with its ways on (D26, M89): one button per action. */
 const ActionNotice = memo(function ActionNotice({
   entry,
   actions,

@@ -12,9 +12,12 @@ import { type ComponentProps, memo, type ReactNode } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PLAN_CODE_INFO_ATTRIBUTE, showPlanParts } from '../../shared/planView'
+import { REVIEW_FINDINGS_LANGUAGE } from '../../shared/constants'
 import type { LineRange } from '../../shared/protocol'
+import { parseReviewFindings } from '../../shared/reviewFindings'
 import { linkHref, linkTarget } from '../links'
 import { CodeBlock } from './CodeBlock'
+import { ReviewFindings } from './ReviewFindings'
 
 export interface MarkdownViewProps {
   readonly text: string
@@ -120,6 +123,13 @@ function MarkdownViewInner({
             // Inline code has no language class and no newline.
             if (language === undefined && !code.includes('\n')) {
               return <code className="markdown-inline">{children}</code>
+            }
+            // A review's findings (M70); a block that does not parse (still
+            // streaming, or not the review's shape) stays a code block.
+            const findings =
+              language === REVIEW_FINDINGS_LANGUAGE ? parseReviewFindings(code) : undefined
+            if (findings !== undefined) {
+              return <ReviewFindings findings={findings} onOpenFile={onOpenFile} />
             }
             return (
               <CodeBlock

@@ -15,6 +15,7 @@ import {
   MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
@@ -428,7 +429,7 @@ export class McpServerPool implements McpToolSource {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
-      throw new McpError(`${functionName} ${MODEL_TEXT.mcpToolUnavailable}`)
+      throw new McpError(`${functionName} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
     }
     let args: unknown
     try {
