@@ -108,12 +108,12 @@ type CopyState =
   | { readonly kind: 'ours'; readonly tag: string }
   | { readonly kind: 'notOurs' }
 
-// VENDOR.json: the release's tag and the copied paths (`skills/<id>/SKILL.md`
-// among them), relative, with forward slashes; its other fields are the sync
-// script's.
+// VENDOR.json: the release's tag and path/hash records (`skills/<id>/SKILL.md`
+// among them), relative, with forward slashes; hashes are checked by the vendor
+// suite. The installer needs only the paths to discover the bundled skill ids.
 const vendorSchema = z.object({
   tag: z.string().check(z.minLength(1)),
-  files: z.array(z.string()),
+  files: z.array(z.object({ path: z.string() })),
 })
 const markerSchema = z.object({ tag: z.string().check(z.minLength(1)), installedAt: z.string() })
 const VENDOR_PATH_SEPARATOR = '/'
@@ -146,7 +146,7 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (!parsed.success) {
     throw new Error(`${file} is not a vendor record: ${z.prettifyError(parsed.error)}`)
   }
-  const skillIds = parsed.data.files.flatMap((relative) => {
+  const skillIds = parsed.data.files.flatMap(({ path: relative }) => {
     const parts = relative.split(VENDOR_PATH_SEPARATOR)
     const [dir, id, file] = parts
     return id !== undefined &&

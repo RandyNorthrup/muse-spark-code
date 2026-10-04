@@ -2858,7 +2858,9 @@ contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh
 the pin, run `node scripts/sync-bundled-skills.mjs --tag v0.7.0` (substitute
 the reviewed release tag), then `npm run notices`. The sync checks the
 release's SHA-256 before replacing the package, rejects unsafe archive paths
-and links, and records its file inventory in `VENDOR.json`. Vendored bytes
+and links, rejects case and trailing-dot/space filename collisions, and
+records each file's path and SHA-256 in `VENDOR.json`. The vendor tests
+check every recorded file hash. Vendored bytes
 are excluded from formatting and linting; builds use them offline.
 The delivery helpers require Python 3.12 or newer. See the
 [vendor lane record](docs/certification/m89-vendor.md) for packaging checks.

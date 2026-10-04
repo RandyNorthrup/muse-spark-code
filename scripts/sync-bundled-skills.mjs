@@ -55,6 +55,8 @@ function selected(name) {
   )
 }
 
+export { selected as isSelected }
+
 function field(header, start, end) {
   return header.toString('utf8', start, end).split('\0', 1)[0]
 }
@@ -69,9 +71,10 @@ function octal(header, start, end) {
 
 // The tagged git archive uses ustar entries plus a global PAX comment containing
 // the source commit. Ignore only that metadata; path/size overrides are unsupported.
-function archiveFiles(bytes, topFolder) {
+export function archiveFiles(bytes, topFolder) {
   const tar = gunzipSync(bytes)
   const files = new Map()
+  const archiveNames = new Set()
   for (let at = 0; at < tar.length;) {
     if (at + BLOCK_BYTES > tar.length) throw new Error('Truncated tar header')
     const header = tar.subarray(at, at + BLOCK_BYTES)
@@ -107,8 +110,15 @@ function archiveFiles(bytes, topFolder) {
     if (!name.startsWith(`${topFolder}/`)) throw new Error(`Unexpected archive root: ${name}`)
     if (type === '5') continue
     const relative = name.slice(topFolder.length + 1)
+    // Windows trims dots/spaces in each path segment; case also folds on macOS.
+    // Check before selection so an excluded alias cannot overwrite an allowed file.
+    const normalized = relative
+      .split('/')
+      .map((segment) => segment.replace(/[. ]+$/, '').toLowerCase())
+      .join('/')
+    if (archiveNames.has(normalized)) throw new Error(`Duplicate archive file: ${relative}`)
+    archiveNames.add(normalized)
     if (!selected(relative)) continue
-    if (files.has(relative)) throw new Error(`Duplicate archive file: ${relative}`)
     files.set(relative, { body, mode: octal(header, 100, 108) & 0o777 })
   }
   for (const required of ['LICENSE', ...SKILLS.map((id) => `skills/${id}/SKILL.md`)]) {
@@ -151,10 +161,12 @@ async function sync(tag) {
     source: SOURCE,
     tag,
     archiveSha256,
-    files: files
-      .keys()
-      .toArray()
-      .toSorted((a, b) => a.localeCompare(b, 'en')),
+    files: [...files]
+      .map(([relative, { body }]) => ({
+        path: relative,
+        sha256: createHash('sha256').update(body).digest('hex'),
+      }))
+      .toSorted((a, b) => a.path.localeCompare(b.path, 'en')),
   }
   writeFileSync(path.join(DESTINATION, 'VENDOR.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   console.log(`${PACKAGE} ${tag}: ${files.size} files copied (${archiveSha256})`)

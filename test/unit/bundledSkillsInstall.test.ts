@@ -6,6 +6,7 @@
 // scripts/build.mjs builds it, the panel's one-time offer, and what the two
 // commands say.
 
+import { createHash } from 'node:crypto'
 import {
   existsSync,
   lstatSync,
@@ -85,7 +86,12 @@ function vendor(root: string, tag: string, ids: readonly string[] = IDS): string
       source: 'https://example.test/pkg',
       tag,
       archiveSha256: 'ab'.repeat(32),
-      files,
+      files: files.map((file) => ({
+        path: file,
+        sha256: createHash('sha256')
+          .update(readFileSync(path.join(vendorRoot, file)))
+          .digest('hex'),
+      })),
     }),
   )
   return vendorRoot
@@ -324,7 +330,10 @@ describe('installBundledSkills', () => {
     expect(result.failure?.reason).toMatchObject({ kind: 'error' })
     expect(existsSync(f.sourcesRoot)).toBe(false)
     await expect(bundledSkillsStatus(f)).rejects.toThrow('is not a vendor record')
-    writeFileSync(path.join(f.vendorRoot, 'VENDOR.json'), '{"tag": "v1", "files": ["README.md"]}')
+    writeFileSync(
+      path.join(f.vendorRoot, 'VENDOR.json'),
+      JSON.stringify({ tag: 'v1', files: [{ path: 'README.md', sha256: 'ab'.repeat(32) }] }),
+    )
     await expect(bundledSkillsStatus(f)).rejects.toThrow('lists no skills')
   })
 

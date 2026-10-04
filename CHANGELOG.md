@@ -194,6 +194,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Bundled workflow vendor guards (M89).** Test the sync reader and copy
+  allow-list with minimal ustar archives; reject case and trailing-dot/space
+  filename collisions. Pin each vendored file's SHA-256 in `VENDOR.json` and
+  check every hash without changing the v0.7.0 workflow bytes. The Muse Code
+  installer reads the updated path/hash inventory.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 
 ## [0.11.0] - 2026-10-03

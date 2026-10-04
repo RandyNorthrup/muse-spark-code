@@ -3976,7 +3976,7 @@ on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
   the files of one tagged release (v0.7.0 first), copied by
   `scripts/sync-bundled-skills.mjs` from the release archive after its SHA-256
   matches the release's `SHA256SUMS.txt`. `VENDOR.json` records the tag, the
-  archive's SHA-256 and the copied paths. Builds stay offline and
+  archive's SHA-256 and each copied path's SHA-256, pinning the vendored bytes. Builds stay offline and
   reproducible; nothing is downloaded at run time. A newer tag is taken by
   rerunning the script in a PR, with its CHANGELOG entry. Only what the
   workflows read ships: `skills/`, `scripts/` (not `build-release.ps1`),
@@ -12707,6 +12707,15 @@ usage window gives has never been captured (§3).
 - **Tests.** Unit tests for each lane (fakes, temp folders, no network), with
   a red drill for every guard recorded in `docs/certification/m89.md`; the
   install on all three rigs.
+- **Vendor review follow-up (M89VT, 2026-10-03).** Extend the existing vendor
+  test with minimal ustar fixtures for the copy allow-list, required files,
+  entry types, traversal, duplicates and archive roots; reject case and
+  trailing-dot/space collisions before selection. Record per-file hashes in
+  `VENDOR.json` and test every vendored file's bytes. Adapt the existing Muse
+  Code installer's manifest reader and fixtures to the path/hash records so
+  the format change preserves installation. Five guard-family drills
+  and scoped gates are recorded in `docs/certification/m89-vendor.md`; the
+  lead retains full quality and release certification under the lane brief.
 - **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
 - **Security.** Vendored files are fixed at build time and checksum-verified;
   nothing downloads at run time; the install writes only under the user's
@@ -13034,6 +13043,17 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+### M89VT vendor follow-up (2026-10-03)
+
+The brief's focused gates passed, including 141 tests across the vendor and
+installer files, all five project typechecks and the five restored guard
+drills. ESLint, dead code, duplication, localization and host API checks passed.
+See `docs/certification/m89-vendor.md` for the exact receipts.
+
+| Deferred gate   | Reason                                                                                                                                                                                                                                                                                        | Owner and next action                                                                                           |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `npm run build` | All size caps passed, but the split gate reports five missing dependency paths because this worktree's `node_modules` is a junction to the shared install. Automatic approval review rejected unlinking that junction (`blocked by policy`); no dependency or gate configuration was changed. | Lead: replace only the worktree junction with a local `npm ci` install, then rerun build and aggregate quality. |
 
 **MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
 build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,

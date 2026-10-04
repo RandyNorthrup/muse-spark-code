@@ -160,3 +160,128 @@ step is to integrate this commit with the source/install/wiring lanes,
 complete the M89 user-facing documentation and milestone record, and run
 the full quality and universal VSIX gates. No push, release, live model
 call or paid operation was performed by this lane.
+
+## 2026-10-03 — M89VT vendor review follow-up
+
+### Readiness and implementation
+
+The M89VT brief, common lane rules and `rv-m89v.report.md` were read against
+the clean `feature/m89-bundled-skills` tree at
+`94467c6b17f3174e73178c987e0e3fb8f312da25`. The named integration branch is
+absent locally; `git merge --no-edit origin/main` reported "Already up to
+date" (`origin/main` was `bbe43eaa`). This bounded follow-up extends the
+existing D68/M89 plan, sync script and tests without adding dependencies or
+a second tracker. The feature-delivery JSON ledger migration remains outside
+this brief, as in the original vendor readiness review.
+
+- P2-1: export the existing predicate as `isSelected` and the `archiveFiles` implementation and
+  their checked declarations. Minimal gzip/ustar fixtures exercise actual
+  extraction, byte/mode preservation, directory handling, selection,
+  required-file checks, rejected PAX/GNU/link entry types, traversal,
+  duplicate names and the top-folder guard. The copy predicate has a
+  separate inclusion/exclusion table.
+- P3-2: compare every regular entry's name before selection, lowercasing and
+  trimming trailing dots/spaces in each path segment. Fixtures cover both
+  archive orders, root filenames and parent-directory aliases.
+- P3-1: `VENDOR.json.files` now contains sorted `{ path, sha256 }` records;
+  every one of the 46 file digests is checked by a test. The brief's explicit
+  v0.7.0 re-sync succeeded on Windows with Node 24.20.0 and npm 11.19.0,
+  retaining archive digest
+  `04699ee40c94257ebc29f25df2222966d074abe3e8be9767ce932dfc8d7e0604`.
+  `git diff --stat vendor/` showed exactly one changed file: `VENDOR.json`.
+- The installer was an affected manifest consumer: its string-array schema
+  rejected the new records. Updated realistic fixtures first reproduced
+  17 failing tests (14 passed, exit 1), including the actual built bundle,
+  with `is not a vendor record` / `Invalid input` diagnostics. Reading each
+  record's validated `path` restored all 31 installer tests (exit 0).
+  Digests remain enforced by the vendor suite; install permissions and
+  filesystem behavior are unchanged.
+
+The vendor suite grew from 22 to 110 tests: 46 per-file digests, 22 copy
+allow-list cases and 20 archive-reader cases. Both scoped test files ran
+on this Windows host. Installer regression logs are
+`temp/m89vt-installer-before.log` and `temp/m89vt-installer-after.log`.
+
+### Five guard-family drills
+
+Each drill ran the entire vendor test file through the installed Vitest
+CLI (`node node_modules/vitest/vitest.mjs run
+test/unit/bundledSkillsVendor.test.ts`), using the normal configuration.
+The baseline passed 110 tests (exit 0). The ignored harness
+`temp/m89vt-drills.mjs` applies one uniquely matched mutation, captures the
+actual failing output, restores the original bytes in `finally`, compares
+SHA-256 and reruns the same command. No test was skipped or filtered.
+
+| Family              | Deliberate break                           | Observed assertion                                                                                              | Red result       | Restored result    |
+| ------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------ |
+| Copy allow-list     | Accept `tests/` in `selected`              | `selects tests/guard.test.ts: false`; extracted inventory also includes the excluded test                       | 2 failed, exit 1 | 110 passed, exit 0 |
+| Required files      | Remove the missing-file rejection          | `refuses a release missing LICENSE` and each of the three `SKILL.md` cases no longer throw                      | 4 failed, exit 1 | 110 passed, exit 0 |
+| Entry types         | Remove unsupported-type rejection          | PAX `x`, GNU `K` and GNU `L` assertions no longer throw                                                         | 3 failed, exit 1 | 110 passed, exit 0 |
+| Filename collisions | Remove normalized-name duplicate rejection | `refuses filesystem alias license in either archive order`; exact duplicate and all alias cases no longer throw | 8 failed, exit 1 | 110 passed, exit 0 |
+| File byte pins      | Flip one byte in the vendored `README.md`  | `pins the SHA-256 of README.md` reports a digest mismatch                                                       | 1 failed, exit 1 | 110 passed, exit 0 |
+
+All mutated failures were `AssertionError` diagnostics, not startup,
+syntax, timeout or unrelated errors. Exact before/after restoration hashes:
+
+- Sync script (all four code drills):
+  `e9f1e7ceee4857748922550ccca7e8aad1270d22f573d572c7cfe066cda16b8f`.
+- Vendored README:
+  `ab43e68d7407b9bd3a4bed5abaa7b0edc2dae97fe99187d874a8927b62eda40f`.
+
+Per-mutation hashes, exits and assertion names are in
+`temp/m89vt-drills.json`; complete output is in
+`temp/m89vt-<family>-red.log` and `temp/m89vt-<family>-restored.log`.
+The final vendor diff again contained only `VENDOR.json`.
+
+ESLint's first run rejected the declaration's boolean function name and
+the fixture's spread of `Map.keys()`. The existing internal predicate keeps
+its name; its exported alias is `isSelected`. All five drills above were
+refreshed after that correction. `Iterator.toArray()` then exposed that the
+unit project's library profile does not declare that method; the fixture
+now projects paths from the Map's entries using supported array operations.
+No suppression or gate configuration change was needed.
+
+### Final local checks and build deferral
+
+All checks ran on this Windows host, with the final common checks serialized.
+
+| Check                                                                                         | Observed result                                                                                                                        |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx tsc -p test/unit --noEmit`                                                               | Exit 0; the final `npm run typecheck` also passed host, webview, unit, e2e and integration projects after the last fixture correction. |
+| ESLint `--max-warnings=0` on both scripts, the installer and both tests                       | Exit 0, zero warnings; no suppressions.                                                                                                |
+| `npm run deadcode`                                                                            | Exit 0; the existing vendor-ignore configuration hint remains.                                                                         |
+| `npx jscpd`                                                                                   | Exit 0; 755 files, zero clones.                                                                                                        |
+| `npm run check:l10n`                                                                          | Exit 0; 14 tables, 119 manifest strings, 387 source files, zero problems.                                                              |
+| `npm run check:host-api`                                                                      | Exit 0; 271 APIs, 18 importing files, 23 built-ins, 59 theme variables, zero problems.                                                 |
+| `npx vitest run test/unit/bundledSkillsVendor.test.ts test/unit/bundledSkillsInstall.test.ts` | Exit 0; 141 passed (110 vendor, 31 installer), two files.                                                                              |
+| `git diff --stat vendor/`                                                                     | Only `vendor/high-quality-projects-skill/VENDOR.json` changed; workflow files remain byte-exact.                                       |
+| `npm run build`                                                                               | Exit 1 at the split gate; all bundle size caps passed. Deferred in PLAN.md §7.                                                         |
+
+Build sizes were extension 581.6/600 KiB, Model API 421.1/475,
+bundled skills 22.6/50, checkpoint store 139.7/225, importer 119.6/125,
+plan reader 139.0/150, English text 96.1/100, webview 831.7/900 and
+ACP 753.5/850. The split failure repeats the original environment issue
+above: this worktree's `node_modules` is a junction to the shared install,
+so five worker/import dependency paths do not have the required prefix.
+Automatic approval review rejected removing only the local junction with
+`blocked by policy`. The command was not executed, the junction remains,
+and neither the shared target nor the lockfile changed. Running `npm ci`
+through that junction would risk the shared install, so it was not run.
+
+Actual outputs are `temp/m89vt-gate-*.log`, `temp/m89vt-gates.json` and
+`temp/m89vt-final-tests.log`. The lead must replace only this worktree's
+dependency junction with a local locked install and rerun build; aggregate
+quality and cross-platform certification remain open. No build gate,
+budget or dependency pin was changed.
+
+### Scope remaining with the lead
+
+The final scoped Prettier `--check` passed on all changed code and documents
+(exit 0); the generated vendor manifest retains the existing vendor formatting
+exclusion. The final whitespace audit also passed.
+
+The lane does not run the full quality or full test suite, push, publish,
+make a model call or certify other platforms. P3-3's non-atomic sync
+replacement remains outside M89VT: a write failure exits nonzero, and the
+maintainer must rerun the sync to restore the package. No gate threshold,
+ignore, rule level or timeout was changed.

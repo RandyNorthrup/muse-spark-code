@@ -3,51 +3,189 @@
   "tag": "v0.7.0",
   "archiveSha256": "04699ee40c94257ebc29f25df2222966d074abe3e8be9767ce932dfc8d7e0604",
   "files": [
-    "AGENTS.md",
-    "docs/CODE-QUALITY.md",
-    "docs/DELIVERY.md",
-    "docs/INSTALLATION.md",
-    "docs/PHILOSOPHY.md",
-    "docs/QUALITY-REVIEW.md",
-    "docs/RED-DRILLS.md",
-    "docs/REPO-META.md",
-    "LICENSE",
-    "README.md",
-    "scripts/delivery/__init__.py",
-    "scripts/delivery/checks.py",
-    "scripts/delivery/cli.py",
-    "scripts/delivery/graph.py",
-    "scripts/delivery/model.py",
-    "scripts/delivery/reader.py",
-    "scripts/delivery/snapshot.py",
-    "scripts/delivery/writer.py",
-    "scripts/detect-stack.ps1",
-    "scripts/detect-stack.sh",
-    "scripts/skill-root.ps1",
-    "scripts/skill-root.sh",
-    "scripts/update-delivery.py",
-    "scripts/verify-delivery.py",
-    "scripts/verify-format-safe.py",
-    "skills/feature_delivery/SKILL.md",
-    "skills/project_setup/assets/PROJECT_BRIEF.md",
-    "skills/project_setup/references/grill-me.md",
-    "skills/project_setup/SKILL.md",
-    "skills/quality_retrofit/SKILL.md",
-    "templates/.pre-commit-config.yaml",
-    "templates/cpp/.clang-tidy",
-    "templates/cpp/sanitizers.md",
-    "templates/csharp/.editorconfig",
-    "templates/csharp/Directory.Build.props",
-    "templates/powershell/PSScriptAnalyzerSettings.psd1",
-    "templates/python/mypy.ini",
-    "templates/python/ruff.toml",
-    "templates/README.md",
-    "templates/rust/clippy-strict.toml",
-    "templates/rust/deny.toml",
-    "templates/typescript/eslint.config.mjs",
-    "templates/typescript/tsconfig.strict.json",
-    "templates/web/.stylelintrc.json",
-    "templates/web/knip.jsonc",
-    "templates/workflow/PLAN.md"
+    {
+      "path": "AGENTS.md",
+      "sha256": "34f5497d7dfbfe02ad0e1ef836b0408381b0d7ba551a7ba706f08cf22ab708ff"
+    },
+    {
+      "path": "docs/CODE-QUALITY.md",
+      "sha256": "315e45f0cb600ef4583626f7a904523944d8d2fe0743ee8dfc8e8badfbb16f34"
+    },
+    {
+      "path": "docs/DELIVERY.md",
+      "sha256": "221dea78672892e585afa283c042dca9bc9671ccb97e587688991db3ef6e1a6d"
+    },
+    {
+      "path": "docs/INSTALLATION.md",
+      "sha256": "362ec4cf016045cddc42a67c75ba43b392622d23c334db7086e65f3d925b0217"
+    },
+    {
+      "path": "docs/PHILOSOPHY.md",
+      "sha256": "de1a2e097c9dffe90a80a8a95366d9f255a26e354119ef7c416a445d42b2ce25"
+    },
+    {
+      "path": "docs/QUALITY-REVIEW.md",
+      "sha256": "fcbd26cc7360bc4b991684aae37b14e305ddfcdc7ef699836412226a980fec6f"
+    },
+    {
+      "path": "docs/RED-DRILLS.md",
+      "sha256": "d8d9fa789f7588adba9a8c8e38d32b5911daff383af8feb0ceb02298ad12bfd9"
+    },
+    {
+      "path": "docs/REPO-META.md",
+      "sha256": "ad4819b6f20e10dbf5bab6a42ac6d7850a3d37b43abf8ee691aeda2e2be0d90a"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "33c1de52600aa788c54cc819e905e20a62b37d4ea4b33fffb71d389e5198d752"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ab43e68d7407b9bd3a4bed5abaa7b0edc2dae97fe99187d874a8927b62eda40f"
+    },
+    {
+      "path": "scripts/delivery/__init__.py",
+      "sha256": "109a84847f1bc07b1992b8fb1b07377b1ebad7dedd98a349e756e39fbd555df2"
+    },
+    {
+      "path": "scripts/delivery/checks.py",
+      "sha256": "39b4df1f4c60b4598d58d6db8d21a2f7db05337afaabfd84da52a87771352629"
+    },
+    {
+      "path": "scripts/delivery/cli.py",
+      "sha256": "88fac0acb92c09d4d1e6530e92bade0d36c000bf22ef7e5383e5e9ef1c9ed8b2"
+    },
+    {
+      "path": "scripts/delivery/graph.py",
+      "sha256": "244e0edd926019ce0667c5d6dd49bbfca35c0f56c1887bce73ccf992e9161a73"
+    },
+    {
+      "path": "scripts/delivery/model.py",
+      "sha256": "2c3cf86d9ef3e9a9ea6f9266db94837b39cc3fcfc9a67254477902ca856b9cbd"
+    },
+    {
+      "path": "scripts/delivery/reader.py",
+      "sha256": "aa7e7579924a2e4724f4560844f1787d88c80eef9d67fbadd0911503a46b9d47"
+    },
+    {
+      "path": "scripts/delivery/snapshot.py",
+      "sha256": "dbf1517bd347123ca350670f18749acd71c3b1d03e2d813b7b242e26e4a2ffef"
+    },
+    {
+      "path": "scripts/delivery/writer.py",
+      "sha256": "c0f032cb6af433ee0b23db221f37986b77a0ee457a4a50487c1ce3ff8fc767cf"
+    },
+    {
+      "path": "scripts/detect-stack.ps1",
+      "sha256": "cb520382b68628573eafe03e52f968eb749f2784939da7134d2483a7ffba5274"
+    },
+    {
+      "path": "scripts/detect-stack.sh",
+      "sha256": "13703c5cfc7b4b8ac1b8d844dc925ea210b6c4062604ecf55193da7ffb97685a"
+    },
+    {
+      "path": "scripts/skill-root.ps1",
+      "sha256": "7f84c63f45d418a5a6559fd4014f65fb2308dbb17d88a2e0a4e4988c79ef8e96"
+    },
+    {
+      "path": "scripts/skill-root.sh",
+      "sha256": "8dcc5ef7e73d63ca081bf2c4302a59d55ba53d38982bee4dbbdcc699b4a52254"
+    },
+    {
+      "path": "scripts/update-delivery.py",
+      "sha256": "75f7bc7999c23a7051a5813e969509e5051272642d7a37b40778cc5b3bf75011"
+    },
+    {
+      "path": "scripts/verify-delivery.py",
+      "sha256": "003490fbab92edb317734130795bdde6f03889f5c88994121b0c209c1b83505f"
+    },
+    {
+      "path": "scripts/verify-format-safe.py",
+      "sha256": "84be82619571b1444d4a6a82069b25c002f1ae3b524a7bb229606eeb8be2ee32"
+    },
+    {
+      "path": "skills/feature_delivery/SKILL.md",
+      "sha256": "163a70f19ca950b1d6ae80e08fb461f7f2e8c4040495be31d9e32767f67f1bfd"
+    },
+    {
+      "path": "skills/project_setup/assets/PROJECT_BRIEF.md",
+      "sha256": "2701e7594f171082d2d07fa1020a19dab6aad5ae227ea13715ac3f5a68689690"
+    },
+    {
+      "path": "skills/project_setup/references/grill-me.md",
+      "sha256": "7acd98ffa348076975cdbf546359db86a3743ba56ea0ad8cf36b7fa6f89e0d96"
+    },
+    {
+      "path": "skills/project_setup/SKILL.md",
+      "sha256": "0ded6f8328a1448401c7947cda785cdac7edcad7ed3e5293dae82f732e940020"
+    },
+    {
+      "path": "skills/quality_retrofit/SKILL.md",
+      "sha256": "8251e96872943b07be33c7544e27b38761946e9d7958dcd0bd1286dfc8d4dee6"
+    },
+    {
+      "path": "templates/.pre-commit-config.yaml",
+      "sha256": "ebd32be8c42286067950561aa8cfd0edad83e68c74d0edc7f1a403492d3a7cec"
+    },
+    {
+      "path": "templates/cpp/.clang-tidy",
+      "sha256": "68059538894e66a9c95a54bebec5fa52e465fbc1bf44957054b7d5482a980db2"
+    },
+    {
+      "path": "templates/cpp/sanitizers.md",
+      "sha256": "f432e4b377a46b2a3a0853118c34f05e148af59aa0cc9e9c5a9af59976cd0888"
+    },
+    {
+      "path": "templates/csharp/.editorconfig",
+      "sha256": "db6d34d173052ffd911d6f6753f38bda745645bbe9e6158818b00ad971eddaf0"
+    },
+    {
+      "path": "templates/csharp/Directory.Build.props",
+      "sha256": "38cf6ed084054564c5ba1dbfdfc0fb55339c95fa30784a8130042a05f8f452bb"
+    },
+    {
+      "path": "templates/powershell/PSScriptAnalyzerSettings.psd1",
+      "sha256": "71ef078cdbb9b9b2ce130d9db0fbe6354f7585c72a0060fe66add8519ecdbf81"
+    },
+    {
+      "path": "templates/python/mypy.ini",
+      "sha256": "a03a3c0331fd28d7222739f75b4b7d7fe100fd52f7a62a23bfc2072cc4da10a2"
+    },
+    {
+      "path": "templates/python/ruff.toml",
+      "sha256": "c953198597ba8747673243d514d792b169b40aea94c1c20f662650d9f7d3bc99"
+    },
+    {
+      "path": "templates/README.md",
+      "sha256": "ebdfb2146475d3e43814fdbde4066675d5bc3dc313f238c8cdf6fbeb543d9610"
+    },
+    {
+      "path": "templates/rust/clippy-strict.toml",
+      "sha256": "7d1d5352c37c29b3334a44e44b588be1c33e265d1025d9df3aaa7b513d751911"
+    },
+    {
+      "path": "templates/rust/deny.toml",
+      "sha256": "ab41bf754c2c566916f4889414a0a8d531d826b3441017ace6f8ca343f2489d5"
+    },
+    {
+      "path": "templates/typescript/eslint.config.mjs",
+      "sha256": "2bee99c8114d4079f8b84363f8aa431a54899058d6ba035fd5709f2e8d691d03"
+    },
+    {
+      "path": "templates/typescript/tsconfig.strict.json",
+      "sha256": "bb340f42247af1dbc7e230806c0360f65efebdb964ebca79e42b75b4d3b27d54"
+    },
+    {
+      "path": "templates/web/.stylelintrc.json",
+      "sha256": "887ee7ee8969f761fb7cf5860216284310b3903b10da18b57ff0e2062369a0c8"
+    },
+    {
+      "path": "templates/web/knip.jsonc",
+      "sha256": "39c006a6d9d2be11f79e1341a5f8ba26d852272a1e5f86944b78da445de0e6f3"
+    },
+    {
+      "path": "templates/workflow/PLAN.md",
+      "sha256": "685c63ea987ce5bc7416245ad438f25acb7f02ef59748184b823163111140c9e"
+    }
   ]
 }
