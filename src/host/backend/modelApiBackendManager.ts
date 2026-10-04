@@ -64,6 +64,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** The rules, skills and memory loaders' file access (PLAN.md D27). */
   readonly contextIo: ContextIo
   readonly fetch: typeof fetch
+  readonly streamIdleMs?: number
   readonly newId: () => string
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
@@ -244,6 +245,7 @@ export class ModelApiBackendManager {
       uiLocale: uiLocale(),
       client: {
         fetch: this.deps.fetch,
+        ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
         apiKey: this.deps.getApiKey,
         sleep: this.deps.sleep,

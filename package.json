@@ -923,7 +923,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "run-s lint:js lint:css lint:ps",
-    "lint:js": "eslint . --max-warnings=0",
+    "lint:js": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js . --max-warnings=0",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings=0",
     "lint:ps": "node scripts/lint-ps.mjs",
     "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration",
@@ -949,10 +949,11 @@
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
     "package": "vsce package --no-dependencies",
-    "package:acp": "node scripts/build.mjs --production && node scripts/package-acp.mjs",
+    "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
-    "security:sast": "node scripts/sast.mjs"
+    "security:sast": "node scripts/sast.mjs",
+    "schema:exec": "node scripts/exec-schema.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

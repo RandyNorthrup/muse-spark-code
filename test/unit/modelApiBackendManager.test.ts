@@ -62,6 +62,27 @@ function manager(workspaceRoot: string | undefined) {
 }
 
 describe('ModelApiBackendManager', () => {
+  it('M80 forwards only an explicitly provided stream idle interval to real client construction', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    try {
+      const api = fakeModelApi()
+      const log = new FakeLogOutputChannel()
+      const manager = new ModelApiBackendManager(
+        fakeManagerDeps(api, log, {
+          workspaceRoot: '/ws',
+          store: undefined,
+          streamIdleMs: 37,
+          bundlePath: 'src/host/backend/modelApiEntry.ts',
+          loadBundle: () => modelApiEntry,
+        }),
+      )
+      await manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].client.streamIdleMs).toBe(37)
+      await manager.dispose()
+    } finally {
+      create.mockRestore()
+    }
+  })
   it('keeps host-origin writes pending before the lazy host and newly live ledger exist', async () => {
     const m = manager('/ws')
     const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }

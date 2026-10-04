@@ -21,6 +21,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -48,6 +49,7 @@ const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
 const README = path.join('docs', 'acp.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
+const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
@@ -68,9 +70,21 @@ function requireBundles() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+for (const schema of SCHEMAS) {
+  const source = path.join('docs', 'schemas', schema)
+  if (!statSync(source).isFile()) {
+    throw new Error(`${source} is not a regular file: run "npm run schema:exec" first`)
+  }
+  // A missing or malformed contract must stop packaging, never ship silently.
+  JSON.parse(readFileSync(source, 'utf8'))
+}
 
 rmSync(STAGE, { recursive: true, force: true })
 mkdirSync(path.join(STAGE, 'dist'), { recursive: true })
+mkdirSync(path.join(STAGE, 'schemas'), { recursive: true })
+for (const schema of SCHEMAS) {
+  copyFileSync(path.join('docs', 'schemas', schema), path.join(STAGE, 'schemas', schema))
+}
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
@@ -94,14 +108,14 @@ const agentManifest = {
   name: PACKAGE_NAME,
   version: manifest.version,
   description:
-    'Muse Spark Code (Unofficial) for editors that speak the Agent Client Protocol: Zed, JetBrains IDEs, Xcode, Neovim, Emacs and more. Not endorsed by Meta.',
+    'Muse Spark Code (Unofficial) for ACP editors and headless runs. Not endorsed by Meta.',
   license: manifest.license,
   homepage: `${manifest.repository.url.replace(/\.git$/, '')}/blob/main/docs/acp.md`,
   repository: manifest.repository,
   bugs: manifest.bugs,
   keywords: ['muse spark', 'muse code', 'agent client protocol', 'acp', 'coding agent'],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'README.md', 'LICENSE', NOTICES],
+  files: ['dist', 'native', 'l10n', 'schemas', 'README.md', 'LICENSE', NOTICES],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }

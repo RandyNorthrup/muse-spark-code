@@ -1,0 +1,351 @@
+# M80 W (SPEC §7.5, PLAN.md D65): the GitHub Action under review, run for real
+# on the three hosted runners against the fake-only test package. No model
+# key exists here: the Action gets a fabricated key, the test package's
+# launcher answers Meta's origin with a scripted fake, and nothing is spent.
+# W-review, W-text and W-image run the composite Action three times per OS
+# against the pull request under review; the low-budget job proves a refusal
+# before any billable call; the suites job runs the trusted gate against
+# captured events and a stub API, apply against a local bare origin, and the
+# local W rehearsal. A fork's or a bot's run cannot certify anything, so W
+# only runs for a same-repository pull request whose author the gate allows,
+# or a dispatch naming one. Every checkout persists no credentials.
+name: Action check
+
+on:
+  pull_request:
+    paths:
+      - 'action/**'
+      - 'src/runtime/**'
+      - 'src/acp/**'
+      - 'src/core/redact.ts'
+      - 'src/shared/constants.ts'
+      - 'src/host/backend/modelApiBackendManager.ts'
+      - 'docs/schemas/**'
+      - 'scripts/package-acp.mjs'
+      - 'scripts/package-acp-test.mjs'
+      - 'scripts/exec-schema.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'test/action/**'
+      - 'test/unit/action*.test.ts'
+      - 'test/unit/helpers/action*.ts'
+      - 'test/e2e/execTestLauncher.e2e.test.ts'
+      - '.github/workflows/action-check.yml'
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: An open same-repository pull request for the Action to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-check-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: fake-only test package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:acp
+      - run: node scripts/package-acp-test.mjs
+      - name: the test package is distinct from the product
+        run: |
+          product="$(ls dist/muse-spark-code-acp-[0-9]*.tgz)"
+          candidate="$(ls dist/muse-spark-code-acp-test-*.tgz)"
+          product_sha="$(sha256sum "$product" | cut -d' ' -f1)"
+          candidate_sha="$(sha256sum "$candidate" | cut -d' ' -f1)"
+          test "$product_sha" != "$candidate_sha"
+          {
+            echo "### Fake-only test package"
+            echo ""
+            echo "- checkout: $(git rev-parse HEAD)"
+            echo "- product: $(basename "$product") $product_sha"
+            echo "- UNSIGNED TEST ONLY candidate: $(basename "$candidate") $candidate_sha"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-acp-test
+          path: dist/muse-spark-code-acp-test-*.tgz
+          if-no-files-found: error
+
+  w:
+    name: W (${{ matrix.os }})
+    needs: package
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.type != 'Bot' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    # Joined here, not spelled out: W reviews this repository's own pull
+    # request, and a literal in any tracked file would ride in its diff.
+    env:
+      W_KEY: ${{ format('LLM|1|m80-w-{0}', 'fabricated') }}
+      W_SENTINEL: ${{ format('M80W-SENTINEL-{0}', 'fabricated-token') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: action-src
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp-test
+          path: ${{ runner.temp }}/candidate
+      - name: locate the candidate and plant startup traps
+        id: setup
+        shell: bash
+        run: |
+          candidate="$(ls "$RUNNER_TEMP"/candidate/muse-spark-code-acp-test-*.tgz)"
+          sha="$(node -e 'process.stdout.write(require("node:crypto").createHash("sha256").update(require("node:fs").readFileSync(process.argv[1])).digest("hex"))' "$candidate")"
+          traps="$RUNNER_TEMP/w-traps"
+          mkdir -p "$traps"
+          printf ': > "%s/fired-bash-env"\n' "$traps" > "$traps/bash-env.sh"
+          printf ': > "%s/fired-env"\n' "$traps" > "$traps/env.sh"
+          printf 'require("node:fs").writeFileSync(require("node:path").join(%s, "fired-node-options-" + process.pid), "")\n' "$(node -p 'JSON.stringify(process.argv[1])' "$traps")" > "$traps/trap.cjs"
+          {
+            echo "candidate=$candidate"
+            echo "sha256=$sha"
+            echo "traps=$traps"
+          } >> "$GITHUB_OUTPUT"
+          echo "- checkout: $(git -C action-src rev-parse HEAD); candidate $sha (UNSIGNED TEST ONLY)" >> "$GITHUB_STEP_SUMMARY"
+      - name: W-review
+        id: review
+        uses: ./action-src/action
+        env:
+          BASH_ENV: ${{ steps.setup.outputs.traps }}/bash-env.sh
+          ENV: ${{ steps.setup.outputs.traps }}/env.sh
+          NODE_OPTIONS: --require ${{ steps.setup.outputs.traps }}/trap.cjs
+          GITHUB_TOKEN: ${{ env.W_SENTINEL }}
+          GH_TOKEN: ${{ env.W_SENTINEL }}
+        with:
+          model-api-key: ${{ env.W_KEY }}
+          max-budget-usd: '1.00'
+          mode: review
+          model: muse-spark-1.3-contributor
+          allow-contributor-models: 'true'
+          timeout-minutes: '10'
+          pr-number: ${{ inputs.pr-number }}
+          path: pr-review
+          post-comment: 'false'
+          agent-package: ${{ steps.setup.outputs.candidate }}
+          agent-package-sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: check W-review
+        shell: bash
+        env:
+          W_SCENARIO: review
+          W_OUT_DIR: ${{ steps.review.outputs.out-dir }}
+          W_STATUS: ${{ steps.review.outputs.status }}
+          W_EXIT_CODE: ${{ steps.review.outputs.exit-code }}
+          W_PATCH_PATH: ${{ steps.review.outputs.patch-path }}
+          W_PATCH_WITHHELD: ${{ steps.review.outputs.patch-withheld }}
+          W_REQUESTS: ${{ steps.review.outputs.requests }}
+          W_COST: ${{ steps.review.outputs.cost-usd }}
+          W_IMAGES: ${{ steps.review.outputs.images }}
+          W_IMAGE_ATTEMPTS: ${{ steps.review.outputs.image-attempts }}
+          W_CHECKOUT: ${{ github.workspace }}/pr-review
+          W_TRAP_DIR: ${{ steps.setup.outputs.traps }}
+        run: node action-src/test/action/w-check.mjs
+      - name: W-text
+        id: text
+        uses: ./action-src/action
+        env:
+          BASH_ENV: ${{ steps.setup.outputs.traps }}/bash-env.sh
+          ENV: ${{ steps.setup.outputs.traps }}/env.sh
+          NODE_OPTIONS: --require ${{ steps.setup.outputs.traps }}/trap.cjs
+          GITHUB_TOKEN: ${{ env.W_SENTINEL }}
+          GH_TOKEN: ${{ env.W_SENTINEL }}
+        with:
+          model-api-key: ${{ env.W_KEY }}
+          max-budget-usd: '1.00'
+          mode: fix
+          model: muse-spark-1.3-contributor
+          allow-contributor-models: 'true'
+          timeout-minutes: '10'
+          pr-number: ${{ inputs.pr-number }}
+          path: pr-text
+          post-comment: 'false'
+          agent-package: ${{ steps.setup.outputs.candidate }}
+          agent-package-sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: check W-text
+        shell: bash
+        env:
+          W_SCENARIO: text
+          W_OUT_DIR: ${{ steps.text.outputs.out-dir }}
+          W_STATUS: ${{ steps.text.outputs.status }}
+          W_EXIT_CODE: ${{ steps.text.outputs.exit-code }}
+          W_PATCH_PATH: ${{ steps.text.outputs.patch-path }}
+          W_PATCH_WITHHELD: ${{ steps.text.outputs.patch-withheld }}
+          W_REQUESTS: ${{ steps.text.outputs.requests }}
+          W_COST: ${{ steps.text.outputs.cost-usd }}
+          W_IMAGES: ${{ steps.text.outputs.images }}
+          W_IMAGE_ATTEMPTS: ${{ steps.text.outputs.image-attempts }}
+          W_CHECKOUT: ${{ github.workspace }}/pr-text
+          W_TRAP_DIR: ${{ steps.setup.outputs.traps }}
+        run: node action-src/test/action/w-check.mjs
+      - name: W-image
+        id: image
+        uses: ./action-src/action
+        env:
+          BASH_ENV: ${{ steps.setup.outputs.traps }}/bash-env.sh
+          ENV: ${{ steps.setup.outputs.traps }}/env.sh
+          NODE_OPTIONS: --require ${{ steps.setup.outputs.traps }}/trap.cjs
+          GITHUB_TOKEN: ${{ env.W_SENTINEL }}
+          GH_TOKEN: ${{ env.W_SENTINEL }}
+        with:
+          model-api-key: ${{ env.W_KEY }}
+          max-budget-usd: '1.00'
+          mode: fix
+          image-generation: 'true'
+          model: muse-spark-1.3-contributor
+          allow-contributor-models: 'true'
+          timeout-minutes: '10'
+          pr-number: ${{ inputs.pr-number }}
+          path: pr-image
+          post-comment: 'false'
+          agent-package: ${{ steps.setup.outputs.candidate }}
+          agent-package-sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: check W-image (whole binary patch withheld, prepare and push never run)
+        shell: bash
+        env:
+          W_SCENARIO: image
+          W_OUT_DIR: ${{ steps.image.outputs.out-dir }}
+          W_STATUS: ${{ steps.image.outputs.status }}
+          W_EXIT_CODE: ${{ steps.image.outputs.exit-code }}
+          W_PATCH_PATH: ${{ steps.image.outputs.patch-path }}
+          W_PATCH_WITHHELD: ${{ steps.image.outputs.patch-withheld }}
+          W_REQUESTS: ${{ steps.image.outputs.requests }}
+          W_COST: ${{ steps.image.outputs.cost-usd }}
+          W_IMAGES: ${{ steps.image.outputs.images }}
+          W_IMAGE_ATTEMPTS: ${{ steps.image.outputs.image-attempts }}
+          W_CHECKOUT: ${{ github.workspace }}/pr-image
+          W_TRAP_DIR: ${{ steps.setup.outputs.traps }}
+        run: node action-src/test/action/w-check.mjs
+      - name: each invocation has its own out directory and artifact
+        shell: bash
+        env:
+          REVIEW_OUT: ${{ steps.review.outputs.out-dir }}
+          TEXT_OUT: ${{ steps.text.outputs.out-dir }}
+          IMAGE_OUT: ${{ steps.image.outputs.out-dir }}
+          REVIEW_ARTIFACT: ${{ steps.review.outputs.artifact-name }}
+          TEXT_ARTIFACT: ${{ steps.text.outputs.artifact-name }}
+          IMAGE_ARTIFACT: ${{ steps.image.outputs.artifact-name }}
+        run: |
+          test "$(printf '%s\n' "$REVIEW_OUT" "$TEXT_OUT" "$IMAGE_OUT" | sort -u | wc -l)" -eq 3
+          test "$(printf '%s\n' "$REVIEW_ARTIFACT" "$TEXT_ARTIFACT" "$IMAGE_ARTIFACT" | sort -u | wc -l)" -eq 3
+          test -n "$REVIEW_ARTIFACT" && test -n "$TEXT_ARTIFACT" && test -n "$IMAGE_ARTIFACT"
+
+  low-budget:
+    name: low budget refuses before any billable call
+    needs: package
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.sender.type != 'Bot' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: action-src
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp-test
+          path: ${{ runner.temp }}/candidate
+      - name: locate the candidate
+        id: setup
+        run: |
+          candidate="$(ls "$RUNNER_TEMP"/candidate/muse-spark-code-acp-test-*.tgz)"
+          {
+            echo "candidate=$candidate"
+            echo "sha256=$(sha256sum "$candidate" | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
+      # exec refuses with exit 5 (budget_exceeded), so the step fails by design.
+      - name: W-low-budget
+        id: low
+        continue-on-error: true
+        uses: ./action-src/action
+        with:
+          model-api-key: ${{ format('LLM|1|m80-w-{0}', 'fabricated') }}
+          max-budget-usd: '0.10'
+          mode: review
+          model: muse-spark-1.3-contributor
+          allow-contributor-models: 'true'
+          timeout-minutes: '10'
+          pr-number: ${{ inputs.pr-number }}
+          path: pr-low
+          post-comment: 'false'
+          agent-package: ${{ steps.setup.outputs.candidate }}
+          agent-package-sha256: ${{ steps.setup.outputs.sha256 }}
+      - name: check W-low-budget (named minimum, zero billable calls, no counting request)
+        env:
+          W_SCENARIO: low-budget
+          W_OUT_DIR: ${{ steps.low.outputs.out-dir }}
+          W_STATUS: ${{ steps.low.outputs.status }}
+          W_EXIT_CODE: ${{ steps.low.outputs.exit-code }}
+          W_PATCH_PATH: ${{ steps.low.outputs.patch-path }}
+          W_PATCH_WITHHELD: ${{ steps.low.outputs.patch-withheld }}
+          W_REQUESTS: ${{ steps.low.outputs.requests }}
+          W_COST: ${{ steps.low.outputs.cost-usd }}
+          W_IMAGES: ${{ steps.low.outputs.images }}
+          W_IMAGE_ATTEMPTS: ${{ steps.low.outputs.image-attempts }}
+          W_CHECKOUT: ${{ github.workspace }}/pr-low
+        run: node action-src/test/action/w-check.mjs
+
+  suites:
+    name: gate drill, apply and W rehearsal (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The trusted gate against captured event fixtures and a stub API
+      # (fork, association, public self-hosted, bot, changed head); the
+      # captures' source is test/action/captures.json.
+      - name: gate drill
+        run: npx vitest run test/unit/actionGate.test.ts
+      - name: apply against a local bare origin (prepare, push, lease, refusals)
+        run: npx vitest run test/unit/actionApply.test.ts test/unit/actionGit.test.ts
+      - name: the packed test launcher and a local W rehearsal
+        run: npx vitest run test/e2e/execTestLauncher.e2e.test.ts
