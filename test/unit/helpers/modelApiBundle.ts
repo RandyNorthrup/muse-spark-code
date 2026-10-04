@@ -27,6 +27,7 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     entryPoints: {
       [path.parse(MODEL_API_BUNDLE_FILE).name]: path.resolve('src/host/backend/modelApiEntry.ts'),
       [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
+      reviewerEntry: path.resolve('src/core/backends/modelapi/reviewerEntry.ts'),
       uiText: path.resolve('src/shared/l10n/en.ts'),
     },
     outdir: folder,
@@ -37,6 +38,7 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     target: 'node20.18',
     plugins: [sharedUiText],
     logLevel: 'silent',
+    external: ['./reviewerEntry.js'],
   })
   return file
 }

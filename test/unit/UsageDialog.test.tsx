@@ -17,6 +17,20 @@ const subscription = {
   weekly: { usedPercent: 130, resetsAtMs: NOW + 3 * DAY },
 }
 
+/** The Model API cost case: 1M tokens in with 200K cached, 100K out. */
+function modelApiCostCase(): Partial<UsageDialogProps> {
+  return {
+    report: {
+      backend: 'modelApi',
+      subscription: undefined,
+      account: { signInMethod: 'apiKey' },
+      insights: undefined,
+    },
+    usage: { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 },
+    modelId: 'muse-spark-1.3',
+  }
+}
+
 function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   const props: UsageDialogProps = {
     report: {
@@ -293,19 +307,21 @@ describe('UsageDialog', () => {
   })
 
   it('estimates the dollar cost on the Model API from the published prices (M14)', () => {
-    renderDialog({
-      report: {
-        backend: 'modelApi',
-        subscription: undefined,
-        account: { signInMethod: 'apiKey' },
-        insights: undefined,
-      },
-      usage: { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 },
-      modelId: 'muse-spark-1.3',
-    })
+    renderDialog(modelApiCostCase())
     // 800K fresh input at $1.25, 200K cached at $0.15, 100K output at $4.25.
     expect(screen.getByRole('dialog')).toHaveTextContent('Estimated cost$1.46')
     expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-26')
+  })
+
+  it('shows what the prompt cache saved on the Model API, and never on Muse Code (M82)', () => {
+    renderDialog(modelApiCostCase())
+    // Uncached: 1M at $1.25 plus 100K output at $4.25 ($1.675); priced $1.455;
+    // saved $0.22 (four decimals, like every sub-dollar amount), 13% of why.
+    expect(screen.getByRole('dialog')).toHaveTextContent('Cache savings$0.2200 (13%)')
+    renderDialog()
+    const dialogs = screen.getAllByRole('dialog')
+    expect(dialogs).toHaveLength(2)
+    expect(dialogs[1]).not.toHaveTextContent('Cache savings')
   })
 
   it('focuses the close button, closes on it and on Escape', () => {
@@ -493,6 +509,31 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
       'Scheduled prompts (on)2 scheduled runs · token cost included above',
     )
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0000')
+  })
+
+  it('counts the Auto reviewer’s reviews and adds their cost to the extra total (M78)', () => {
+    renderDialog({
+      report: modelApiReport,
+      paid: {
+        features: ['autoReviewer'],
+        tally: {
+          webSearches: 0,
+          images: 0,
+          voiceSeconds: 0,
+          scheduledRuns: 0,
+          autoReviews: 3,
+          autoReviewTokens: 3000,
+          autoReviewCostUsd: 0.0042,
+        },
+        isKeyStored: true,
+        alwaysAllowed: ['autoReviewer'],
+      },
+    })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(
+      'Auto reviewer (on, allowed always in this workspace)3 reviews · Reported token estimate: $0.0042 · 3,000 tokens',
+    )
+    expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0042')
   })
 
   it('has no paid section on the Muse Code backend without a stored key', () => {

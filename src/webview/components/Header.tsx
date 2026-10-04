@@ -4,7 +4,7 @@
 import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
-import { HistoryIcon, NewConversationIcon } from './icons'
+import { BoardIcon, HistoryIcon, NewConversationIcon } from './icons'
 
 export interface HeaderProps {
   readonly title: string
@@ -13,6 +13,8 @@ export interface HeaderProps {
   readonly onNewConversation: () => void
   /** Undefined while the shell is connecting (the buttons are inert then). */
   readonly onOpenHistory?: (() => void) | undefined
+  /** The session board (M77); undefined while the shell is connecting. */
+  readonly onOpenBoard?: (() => void) | undefined
   /** Present once a session exists: the title becomes editable. */
   readonly onRename?: ((name: string) => void) | undefined
   /** The agents pill (M14): shown once a subagent exists in this conversation. */
@@ -96,6 +98,7 @@ export function Header({
   isSideChat = false,
   onNewConversation,
   onOpenHistory,
+  onOpenBoard,
   onRename,
   agentCount = 0,
   runningAgentCount = 0,
@@ -151,6 +154,19 @@ export function Header({
           onClick={onOpenHistory}
         >
           <HistoryIcon />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          title={UI_TEXT.boardTitle}
+          aria-label={UI_TEXT.boardTitle}
+          disabled={onOpenBoard === undefined}
+          onMouseDown={(event) => {
+            event.preventDefault()
+          }}
+          onClick={onOpenBoard}
+        >
+          <BoardIcon />
         </button>
         <button
           type="button"
