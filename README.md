@@ -7,7 +7,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
-  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm: the ACP agent" src="https://badgen.net/npm/v/muse-spark-code-acp?label=npm%20(ACP%20agent)&color=3b6cf6"></a>
+  <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="ACP agent: GitHub Release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?label=ACP%20agent%20(GitHub)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
@@ -29,7 +29,7 @@ two.
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and "Muse
 > Code" are Meta trademarks. You bring your own credentials.
 
-**Contents:** [What's new](#whats-new-in-0110) ·
+**Contents:** [What's new](#whats-new-in-0120) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
 [Permission modes](#permission-modes) ·
@@ -43,7 +43,107 @@ two.
 [Requirements](#requirements) · [Privacy](#privacy-and-security) ·
 [Troubleshooting](#troubleshooting) · [Development](#development)
 
-## What's new in 0.11.0
+## What's new in 0.12.0
+
+- **Review** (both backends; see [Review](#review)). `/review` reviews the
+  uncommitted changes, `/review branch [base]` the branch against its base,
+  `/review commit [revision]` one commit, and `/review <what to look at>`
+  anything you describe. Put `security` first
+  (`/review security branch main`) to look for injection, secrets,
+  authentication and unsafe APIs; `/security-review` does that for the
+  uncommitted changes. On the Model API the built-in **Reviewer** runs it as
+  your own turn (billed like any message, with no paid popup) with tools
+  that only read. On Muse Code the review turn runs in Plan mode, where Muse
+  Code's own allow rules still apply, and your mode comes back after.
+  Findings end the reply with severity, file and line, and each location
+  opens its file there.
+- **The review pane** (`/changes`, both backends): every edit this
+  conversation's tools made, change by change, with **Accept** (marks it
+  kept), **Revert** (takes that one change out of the file as it is now;
+  refused if its lines changed since or the file has unsaved edits) and
+  **Comment on a line**, which sends your comment with the diff lines around
+  it into the running turn or as your next message.
+- **A reviewer for Auto on Muse Code** (on by default; see
+  [The Auto reviewer on Muse Code](#the-auto-reviewer-on-muse-code)). In
+  Auto, an approval for the running turn that no rule settles goes first to
+  a reviewer: one short turn of a hidden Plan-mode Muse Code session in an
+  empty folder, on your Muse subscription (the live check counted four model
+  attempts per review). If it allows, the approval is answered _Allow once_
+  and the tool row says "Decided: approved (Auto reviewer)" with its reason.
+  If it declines, fails, is busy, has paused after repeated declines or has
+  no answer within 45 seconds of starting, the card asks you as before. It
+  never reviews a protected write, a paid call, a child task, a question, a
+  conversation open in two panels, or anything in another mode. Turn it off
+  with `museSpark.museCodeAutoReviewer`. The Modes menu no longer says Auto
+  on Muse Code runs a safety check.
+- **Bundled skills** (see [Bundled skills](#bundled-skills)):
+  `project_setup`, `feature_delivery` and `quality_retrofit` from the
+  high-quality-projects package ship with the extension. On the Model API
+  backend they come after the project's skills and your own (a project or
+  personal skill with the same name wins). For Muse Code, **Muse Spark:
+  Install Bundled Skills for Muse Code** links them into Muse Code's
+  personal skills folder, a Muse Code conversation offers it (Not now is
+  remembered), and **Muse Spark: Remove Bundled Skills from Muse Code**
+  takes them out. On by default (`museSpark.bundledSkills`): off stops the
+  offer and the Model API's bundled source, but an installed copy stays
+  until you remove it (the Model API backend reads that folder too). The
+  delivery helpers need Python 3.12 or newer.
+- **Headless runs and a GitHub Action** (see
+  [Headless and CI](#headless-and-ci-m80)): `muse-spark-code-acp exec` runs
+  one turn on a workspace without an editor, in Plan or Accept edits, and
+  denies every approval it is asked. On Muse Code (the default) it uses your
+  existing sign-in, with no dollar or request cap, only its timeout. On the
+  Model API it needs `--max-budget-usd` (up to $20) and reserves each
+  request's worst-case cost before sending it, so a run needs at least
+  $1.41 on the standard model. The `action/` GitHub Action reviews, or
+  proposes a fix for, a same-repository pull request on the Model API with
+  your key, under a required `max-budget-usd`. Acceptance on hosted runners
+  and with a real key is still pending. The Action installs the agent from
+  npm with its provenance checked (0.12.0 is the first npm release that has
+  it), or a candidate tarball you pin.
+- **Session board and best-of-N** (see
+  [Session board and best-of-N](#session-board-and-best-of-n)): the
+  header's board button lists the window's open conversations on either
+  backend and this backend's saved ones, with state, branch, changed files
+  in its worktree and waiting approvals. Best-of-N (Model API, paid, off by
+  default: `museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
+  2 to 5 worktrees, asks once per run with the prices unless you allow it
+  always in the workspace, and applies and stages the attempt you take onto
+  your unchanged checkout, without committing.
+- **Spending and notices.** `museSpark.modelApiSessionBudgetUsd` (no cap by
+  default) caps what each Model API conversation may spend: a request that
+  cannot fit what is left is not sent. Child tasks can still go past it,
+  and web search and paid Muse Voice are off while a cap is set.
+  `museSpark.modelApiReplyUsage` (off by default) prints each Model API
+  reply's tokens and estimated cost, and Account & usage shows what the
+  prompt cache saved. While the window is unfocused, a notification says
+  when a turn of a minute or more ends or a turn waits for you, on either
+  backend (on by default: `museSpark.notifyOnBackgroundTurn`).
+- **Auto rules and permission profiles** (Model API backend; see
+  [Auto rules and permission profiles](#auto-rules-and-permission-profiles-model-api)):
+  command rules that allow, ask or forbid, checked against your examples;
+  repository rules that can only tighten them; permission profiles that hide
+  files from the file tools (while one is on, commands and MCP calls ask,
+  outside Bypass); and an optional paid Auto reviewer (off by default:
+  `museSpark.modelApiAutoReviewer`) that never allows a forbidden command,
+  an ask rule, a protected write or a paid call. After a change to them,
+  what a call already running brings back is judged again before it reaches
+  the model.
+- **Fixes you'll notice:**
+  - Edit rows no longer hold up approvals during long Muse Code turns: on
+    either backend, a row's full diff loads when the turn ends, or at once
+    if you collapse and reopen the row.
+  - Two windows starting turn checkpoints (Model API) in one conversation
+    no longer fail when one briefly holds the other's lock.
+  - Windows commands the extension runs itself (on the Model API backend
+    and in exec) retry the job helper after a failed build or self-test,
+    instead of using the fallback for the rest of the session.
+  - **Rewind code to here** (and the pane's **Revert**) refuses a file with
+    unsaved editor changes, or one saved during the revert, instead of
+    writing over it.
+  - The `/` and `@` lists keep the highlighted row in view.
+
+### Earlier in 0.11.0
 
 - **Recovers when Muse Code stops answering.** If Muse Code goes silent,
   the panel says so once and stops waiting out each action's deadline.
@@ -89,9 +189,11 @@ two.
 - **A slow Muse Code start is waited for.** On a busy machine Muse Code
   gets up to two minutes to start while its process runs, and a failed
   start shows one message instead of one per waiting action.
-- **The ACP agent publishes to npm.** The release now publishes
-  `muse-spark-code-acp` to npm as well as to the GitHub Release; 0.10.0's
-  did not reach npm.
+- **The ACP agent and npm.** The release workflow's npm step no longer
+  fails on 0.10.0's path bug. 0.10.1's and 0.11.0's npm steps still failed
+  on the token (npm asked for a one-time password); 0.11.0 reached npm on
+  2026-10-04, and from 0.12.0 the agent publishes by npm trusted
+  publishing, with no token.
 - **Faster Windows hooks and a sturdier log.** Hooks and commands on
   Windows no longer wait on PowerShell's module scan, and a crafted long
   line no longer stalls the log.
@@ -256,7 +358,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.11.0.vsix
+   code --install-extension muse-spark-code-0.12.0.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -350,15 +452,14 @@ from Open VSX or a `.vsix`.
 
 Get it from the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
-[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
 [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
 (both the `.vsix` and the agent's `.tgz`).
 
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.11.0.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.12.0.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -367,7 +468,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.11.0/muse-spark-code-acp-0.11.0.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.0/muse-spark-code-acp-0.12.0.tgz
 muse-spark-code-acp --version
 ```
 
@@ -431,15 +532,15 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                     |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands      |
-| **Edit automatically** | Approves plain file edits, asks before commands                                                     | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                 |
-| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                         |
-| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                            |
+| Mode                   | Model API backend                                                                                                                                                                | Muse Code backend                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command                                                                                                                                         | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands      |
+| **Edit automatically** | Approves plain file edits, asks before commands                                                                                                                                  | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                 |
+| **Plan**               | Refuses edits and commands                                                                                                                                                       | The CLI plans without editing                                                                                         |
+| **Auto**               | Runs edits, asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode                                                                              | The same, except paid uses                                                                                            |
 
-Until 0.11.0 the Modes menu said Auto on Muse Code approves "actions that
+Through 0.11.0 the Modes menu said Auto on Muse Code approves "actions that
 pass a safety check". It did not: `muse serve` has no approval judge (the
 CLI's LLM judge runs only in its interactive and `exec` commands), so Auto
 skipped only the commands the CLI classifies as simple, and every script
@@ -477,9 +578,10 @@ input tokens, most of them Muse Code's own instructions. Turn it off with
 `museSpark.museCodeAutoReviewer`.
 
 Plan mode does not disable Muse Code's native tools: the SDK's
-`SessionConfig` only configures `mcpServers`. Any item other than an agent
-message or reasoning cancels the review turn, shows the card with the
-generic failure reason, and recreates the side session. A command covered
+`SessionConfig` only configures `mcpServers`. Any item other than the
+prompt's echo, Muse Code's reminder agents, reasoning or the reply cancels
+the review turn, shows the card with the generic failure reason, and
+recreates the side session. A command covered
 by your always-allow rule could run in the empty folder before the cancel
 lands. The verdict text itself is never executed. A changed subject or an
 accepted new message or steer invalidates the old verdict. The side session
@@ -693,8 +795,8 @@ and never downloaded while it runs):
 
 They lean on the package's shared `scripts/`, `templates/` and `docs/`, so
 each workflow is the whole package, never a lone `SKILL.md`. The delivery
-helpers need **Python 3** on your `PATH`; without it the script says so
-itself. The scripts run only through the shell tool, under the
+helpers need **Python 3.12 or newer** on your `PATH`; without it the script
+says so itself. The scripts run only through the shell tool, under the
 conversation's permission mode, like any other command.
 
 - **Model API backend:** they are a third skill source, after the project's
@@ -722,7 +824,9 @@ conversation's permission mode, like any other command.
 
 `museSpark.bundledSkills` (on by default, a user setting) turns them off: the
 Model API backend stops listing them at once, and no install is offered. It
-does not remove an install; the Remove command does.
+does not remove an install; the Remove command does. Until then the Model
+API backend, which reads the same personal skills folder, lists an installed
+copy as your own skills.
 
 ### Memory
 
@@ -2999,8 +3103,9 @@ The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
 same-repository GitHub review and fix Action, with an `action/apply`
 sub-action. Their fake-only tests pass on Linux, macOS and Windows; acceptance
 on hosted runners and with a real key is still pending, so this is **not
-certified yet**, and the Action's npm-registry install is supported only from
-a release published with provenance.
+certified yet**. The Action installs the agent from npm and checks its
+provenance (0.12.0 is the first npm release with `exec`), or a candidate
+tarball you pin (`agent-package` with `agent-package-sha256`).
 [The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
 
 ```text
@@ -3269,9 +3374,11 @@ manifest and is on `main`, runs the same build, creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same
 VSIX goes to the Marketplace (publisher `RandyNorthrup`) and Open VSX; the same
-ACP tarball goes to npm with provenance. Each registry uses its token from the
-tag-only `marketplace` environment (`VSCE_PAT`, `OVSX_PAT`, `NPM_TOKEN`);
-missing tokens are reported as skips. Network errors get bounded retries;
+ACP tarball goes to npm with provenance by npm trusted publishing: npm
+trusts `release.yml` in the tag-only `marketplace` environment, so no npm
+token is stored. Marketplace and Open VSX use their tokens from that
+environment (`VSCE_PAT`, `OVSX_PAT`); a missing token is reported as a
+skip. Network errors get bounded retries;
 already-published versions require matching artifact hashes/integrity. A final
 summary reports every channel and fails if any channel failed. A `.vsix` packed
 locally has no macOS helper, so only CI's universal artifact is published.
