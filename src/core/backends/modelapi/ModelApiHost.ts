@@ -17,11 +17,13 @@ import {
   AGENT_SOURCE_LABELS,
   AUTH_REQUIRED_ERROR_KIND,
   BACKGROUND_INITIATOR_USER,
+  BASE64_DATA_URL_OVERHEAD_CHARS,
   CHECK_FIX_MAX_ROUNDS,
   type CheckCommandSetting,
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
-  BASE64_DATA_URL_OVERHEAD_CHARS,
+  CODE_INTEL_TOOLS,
+  type CodeIntelTool,
   CONTEXT_PRESSURE_HIGH,
   CONTEXT_PRESSURE_MEDIUM,
   CONTRIBUTOR_MODEL_SUFFIX,
@@ -30,41 +32,40 @@ import {
   GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
-  type SubagentAction,
-  HTTP_UNAUTHORIZED,
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_NOTIFICATION_DELAY_MS,
   HOOK_SESSION_END_TIMEOUT_MS,
+  HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
-  MODEL_API_CONTEXT_WINDOW,
-  MODEL_API_EFFORT_OFF,
   ISO_DATE_LENGTH,
-  MODEL_API_MAX_OUTPUT_TOKENS,
-  CODE_INTEL_TOOLS,
-  type CodeIntelTool,
-  MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
   MAX_ENCODED_MEDIA_CHARS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MEMORY_INDEX_FILE,
-  MODEL_API_MEDIA_PER_REQUEST,
-  MODEL_API_PDF_PAGE_IMAGES,
+  MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_EFFORT_OFF,
   MODEL_API_HOOK_PROVIDER,
-  MODEL_API_RETRYABLE_STREAM_CODES,
+  MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_MAX_RETRIES,
+  MODEL_API_MAX_TOOL_ROUNDS,
+  MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
-  MODEL_API_SERVER_NAME,
+  MODEL_API_PDF_PAGE_IMAGES,
+  MODEL_API_RETRYABLE_STREAM_CODES,
   MODEL_API_SCHEDULED_TOOL,
+  MODEL_API_SERVER_NAME,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  WEB_FETCH_SUBJECT_KIND,
   MODEL_API_VERSION,
   MODEL_API_WEB_SEARCH_TOOL,
-  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
-  REPO_MAP_PROMPT_TRIES,
   OUTPUT_REF_PREFIX,
+  type PaidFeature,
+  type PromptCacheRetention,
+  QUESTION_OUTCOME_CLARIFIED,
+  REPO_MAP_PROMPT_TRIES,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
   SCHEDULE_MAX_JOBS_PER_SESSION,
@@ -72,19 +73,17 @@ import {
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
   SHELL_DEFAULT_TIMEOUT_MS,
-  type PaidFeature,
-  QUESTION_OUTCOME_CLARIFIED,
-  type PromptCacheRetention,
   STORED_SESSION_VERSION,
   SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
   SUBAGENT_MAX_PER_CONVERSATION,
   SUBAGENT_RESULT_READY,
-  SUBAGENT_WAIT_DEFAULT_MS,
-  SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
+  SUBAGENT_SUMMARY_MAX_CHARS,
   SUBAGENT_TASK_MAX_REQUESTS,
+  SUBAGENT_WAIT_DEFAULT_MS,
+  type SubagentAction,
   THINKING_OFF_EFFORT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -96,6 +95,7 @@ import {
   VERIFY_NOTE_MAX_CHARS,
   VERIFY_SHOWN_FILES_MAX,
   VERIFY_TOOLS,
+  WEB_FETCH_SUBJECT_KIND,
 } from '../../../shared/constants'
 import { fill, plural } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
@@ -1036,7 +1036,7 @@ function childTaskMessages(kind: ChildTaskRefusal): {
     }
     case 'contributorBlocked': {
       return {
-        model: MODEL_TEXT.subagentContributorBlocked,
+        model: MODEL_API_MODEL_TEXT.subagentContributorBlocked,
         visible: UI_TEXT.subagentContributorBlocked,
       }
     }
@@ -3653,7 +3653,7 @@ export class ModelApiSession implements AgentSession {
     // Agent files load only in a trusted workspace; a session that began
     // trusted and lost it offers none either (Restricted Mode, D13).
     if (!this.deps.isWorkspaceTrusted()) {
-      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
+      return { refusal: subagentFailure(MODEL_API_MODEL_TEXT.agentRestrictedMode) }
     }
     const resolved = this.context.agent(agentId)
     if (resolved.kind === 'found') {
@@ -3665,7 +3665,10 @@ export class ModelApiSession implements AgentSession {
     const { hole } = resolved
     return {
       refusal: subagentFailure(
-        fill(MODEL_TEXT.agentUnloaded, { id: agentId, source: AGENT_SOURCE_LABELS[hole.source] }),
+        fill(MODEL_API_MODEL_TEXT.agentUnloaded, {
+          id: agentId,
+          source: AGENT_SOURCE_LABELS[hole.source],
+        }),
         fill(UI_TEXT.agentUnloaded, { id: agentId, path: hole.path }),
       ),
     }
@@ -3899,7 +3902,7 @@ export class ModelApiSession implements AgentSession {
       }
     }
     if (agent !== undefined && !this.deps.isWorkspaceTrusted()) {
-      return { refusal: subagentFailure(MODEL_TEXT.agentRestrictedMode) }
+      return { refusal: subagentFailure(MODEL_API_MODEL_TEXT.agentRestrictedMode) }
     }
     const refusal = this.childGrantRefusal(grant, keyDigest, grant.modelId)
     if (refusal !== undefined) {
@@ -4671,7 +4674,7 @@ export class ModelApiSession implements AgentSession {
     // A narrowed custom agent holds neither the shell nor run_checks: what it
     // was never offered is not run for it (M76), before any hook sees it.
     if (!this.canRunVerifyCommands()) {
-      return { kind: 'skipped', skip: 'refused', detail: MODEL_TEXT.agentToolNotOffered }
+      return { kind: 'skipped', skip: 'refused', detail: MODEL_API_MODEL_TEXT.agentToolNotOffered }
     }
     const commandAdmission = this.verificationAdmission(signal)
     const isCurrent = () => isAllowed() && commandAdmission()
@@ -5402,7 +5405,7 @@ export class ModelApiSession implements AgentSession {
     // path: definitions alone cannot stop a model calling a tool by name.
     if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
       return {
-        outcome: toolFailure(MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
+        outcome: toolFailure(MODEL_API_MODEL_TEXT.agentToolNotOffered, UI_TEXT.agentToolNotOffered),
         isRejected: false,
       }
     }
@@ -5672,7 +5675,7 @@ export class ModelApiSession implements AgentSession {
         : {
             kind: 'skipped',
             skip: 'refused',
-            detail: MODEL_TEXT.agentToolNotOffered,
+            detail: MODEL_API_MODEL_TEXT.agentToolNotOffered,
             visibleDetail: UI_TEXT.agentToolNotOffered,
           }
     } catch (error: unknown) {
@@ -6254,7 +6257,7 @@ export class ModelApiSession implements AgentSession {
     const refusedChecks = canRunChecks
       ? []
       : selectedChecks.map((check) =>
-          skippedCheck(check, 'refused', MODEL_TEXT.agentToolNotOffered),
+          skippedCheck(check, 'refused', MODEL_API_MODEL_TEXT.agentToolNotOffered),
         )
     if (!isDiagnosticsOn && selectedChecks.length === 0) {
       if (this.ledger.judgeRound()) {

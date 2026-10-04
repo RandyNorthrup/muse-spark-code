@@ -42,8 +42,10 @@ them, the milestone plan, and the certification checklist.
      technical.
    - **Text the model or Meta reads** is `MODEL_TEXT` in constants.ts and
      stays English. A feature that only a lazily loaded bundle reads has a
-     block of its own beside it (`REVIEW_MODEL_TEXT`), so the activation
-     bundle does not carry it.
+     block of its own beside it (`REVIEW_MODEL_TEXT`, `MODEL_API_MODEL_TEXT`,
+     `CODE_INTEL_MODEL_TEXT`…), so the activation bundle does not carry it:
+     one object is carried whole, and `npm run build` fails a `MODEL_TEXT`
+     key that no file of `dist/extension.js` reads (PLAN.md D6, 2026-10-03).
    - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Browser and integration-test bundles keep
@@ -140,7 +142,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       (dist/planMarkdown.js, loaded on the first plan action),
                       the review's (dist/review.js: git's material, the turn
                       text, the Plan-mode hold and edit review, loaded the
-                      first time one is used),
+                      first time one is used), the `ide` server's code
+                      intelligence answers' (dist/codeIntel.js, loaded on
+                      the first call),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,

@@ -2650,7 +2650,8 @@ that backend first starts, the plan reader (the panel's Markdown
 parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
 action, and the review (git's material for `/review`, its turn text, the
 Plan-mode hold and edit review, `dist/review.js`) as a fourth that loads the
-first time one is used; Node bundles require the shared English fallback
+first time one is used, and the `ide` server's code intelligence answers
+(`dist/codeIntel.js`) loading on Muse Code's first such call; Node bundles require the shared English fallback
 (`dist/uiText.js`) and each keeps its own installed-language state; the webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.

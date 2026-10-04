@@ -45,6 +45,7 @@ import { pathModule } from '../../core/workspaceRoot'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   CHECKPOINT_FILE_MAX_BYTES,
+  CHECKPOINT_MODEL_TEXT,
   CHECKPOINT_UNIT_BLOB_BYTES_MAX,
   CHECKPOINT_UNIT_INTENTS_MAX,
   GIT_MODE_EXECUTABLE,
@@ -194,7 +195,7 @@ async function settled(promise: Promise<unknown>): Promise<void> {
 }
 
 function notRecorded(target: Target, cause: unknown): Error {
-  return new Error(`${target.path} ${MODEL_TEXT.writeNotRecorded}`, { cause })
+  return new Error(`${target.path} ${CHECKPOINT_MODEL_TEXT.writeNotRecorded}`, { cause })
 }
 
 /** The copy's blob, and the bytes about to be published. */
@@ -241,7 +242,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
 
   const assertOpen = (name: string): void => {
     if (isDrained) {
-      throw new Error(`${name} ${MODEL_TEXT.turnWritesEnded}`)
+      throw new Error(`${name} ${CHECKPOINT_MODEL_TEXT.turnWritesEnded}`)
     }
   }
 
@@ -281,7 +282,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
   const assertWritable = async (target: Target): Promise<BigIntStats | undefined> => {
     const stats = await lstatOrMissing(target.absolute)
     if (stats !== undefined && !stats.isFile()) {
-      throw new Error(`${target.path} ${MODEL_TEXT.fileNotRegular}`)
+      throw new Error(`${target.path} ${CHECKPOINT_MODEL_TEXT.fileNotRegular}`)
     }
     return stats
   }
@@ -579,7 +580,7 @@ export function createOwnerIo(io: ToolIo, deps: OwnerIoDeps): OwnerIo {
           { unsavedAt: [], ...(assertCanWrite !== undefined && { assertCanWrite }) },
         )
         if (result === 'changed') {
-          throw new Error(`${target.path} ${MODEL_TEXT.fileChangedWhileWriting}`)
+          throw new Error(`${target.path} ${CHECKPOINT_MODEL_TEXT.fileChangedWhileWriting}`)
         }
       })
     },

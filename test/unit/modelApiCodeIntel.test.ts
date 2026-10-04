@@ -12,7 +12,12 @@ import type { EditedFile } from '../../src/core/verify/diagnosticsReport'
 import { WorkspaceEdits } from '../../src/core/verify/workspaceEdits'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { type HookDefinition, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
-import { MODEL_API_MODEL_TEXT, MODEL_TEXT, type PaidFeature } from '../../src/shared/constants'
+import {
+  FILE_REFUSAL_MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
+  MODEL_TEXT,
+  type PaidFeature,
+} from '../../src/shared/constants'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import {
   type FakeServiceOptions,
@@ -277,12 +282,12 @@ describe('code intelligence on the Model API backend', () => {
     const body = t.api.responseBodies()[0] ?? {}
     const names = (body['tools'] as { name?: string }[]).map((tool) => tool.name)
     expect(names).toEqual(expect.arrayContaining(TOOLS))
-    expect(String(body['instructions'])).toContain(MODEL_TEXT.codeIntelInstructions)
+    expect(String(body['instructions'])).toContain(MODEL_API_MODEL_TEXT.codeIntelInstructions)
     const without = await start({ service: null })
     await without.turn([])
     const plain = without.api.responseBodies()[0] ?? {}
     expect((plain['tools'] as { name?: string }[]).map((tool) => tool.name)).not.toContain('hover')
-    expect(String(plain['instructions'])).not.toContain(MODEL_TEXT.codeIntelInstructions)
+    expect(String(plain['instructions'])).not.toContain(MODEL_API_MODEL_TEXT.codeIntelInstructions)
   })
 
   it('reads without a card in Plan and in Restricted Mode, and says when no service answers', async () => {
@@ -430,7 +435,7 @@ describe('code intelligence on the Model API backend', () => {
       (t: Started) => {
         t.io.unsaved.add(B)
       },
-      `src/b.ts ${MODEL_TEXT.fileHasUnsavedChanges}`,
+      `src/b.ts ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`,
     ],
     [
       'became a link elsewhere',
@@ -458,7 +463,9 @@ describe('code intelligence on the Model API backend', () => {
     const card = await cardFor(t.events)
     t.io.unsaved.add('/link/ws/src/b.ts')
     await allowAndFinish(t, card)
-    expect(outputs(t.api)[0]).toBe(`Error: src/b.ts ${MODEL_TEXT.fileHasUnsavedChanges}`)
+    expect(outputs(t.api)[0]).toBe(
+      `Error: src/b.ts ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`,
+    )
     expect(t.io.files.get(A)).toBe(FILES['src/a.ts'])
     expect(t.io.files.get(B)).toBe(FILES['src/b.ts'])
   })

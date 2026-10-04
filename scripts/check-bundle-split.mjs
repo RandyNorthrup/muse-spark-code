@@ -24,6 +24,15 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - the `ide` server's code intelligence answers (M67: the queries, the repo
+//   map, the rename's plan) are in dist/extension.js or dist/acp.js, or
+//   missing from dist/codeIntel.js (PLAN.md D6, 2026-10-03).
+// - a model text block that only lazily loaded bundles read
+//   (MODEL_API_MODEL_TEXT, CODE_INTEL_MODEL_TEXT, CHECKPOINT_MODEL_TEXT,
+//   AGENT_IMPORT_MODEL_TEXT) is in a bundle that must not carry it, or no
+//   longer in the bundle that reads it; or a key of MODEL_TEXT, which every
+//   bundle reading any key of it carries whole, is read by no source file
+//   of dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
 //
@@ -129,14 +138,6 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
-// The session's model text is its own object (M70 budget repair). esbuild
-// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
-// the activation and ACP loaders must discard with the unused export.
-for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
-  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
-    problems.push(`${bundle.output} carries the Model API session's model text`)
-  }
-}
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
 const loaders = [
   [BUNDLES.activation.output, activation],
@@ -238,6 +239,7 @@ const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+const CODE_INTEL = { output: 'dist/codeIntel.js', metafile: 'dist/meta/codeIntel.json' }
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -249,6 +251,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   REVIEW,
   AGENT_IMPORT,
+  CODE_INTEL,
 ]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
@@ -335,6 +338,134 @@ for (const prefix of IMPORT_ONLY) {
   }
 }
 
+// The `ide` server's code intelligence answers (M67) load on Muse Code's
+// first code intelligence call; activation keeps the tool list and the
+// loader (codeIntelBundle.ts). dist/modelApi.js carries its own copy for the
+// Model API's native tools.
+const CODE_INTEL_ONLY = [
+  'src/host/ide/codeIntelEntry.ts',
+  'src/core/codeIntel/codeIntelQuery.ts',
+  'src/core/codeIntel/codeIntelTools.ts',
+  'src/core/codeIntel/codeText.ts',
+  'src/core/codeIntel/rename.ts',
+  'src/core/codeIntel/repoMap.ts',
+]
+const codeIntel = inputsOf(CODE_INTEL)
+for (const file of CODE_INTEL_ONLY) {
+  for (const [output, inputs] of loaders) {
+    if (inputs.has(file)) {
+      problems.push(
+        `${output} carries ${file}, which loads only on the first code intelligence call`,
+      )
+    }
+  }
+  if (!codeIntel.has(file)) {
+    problems.push(`${CODE_INTEL.output} no longer carries ${file}`)
+  }
+}
+
+// Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
+// bundle that reads any key of it: esbuild does not tree-shake by key. So
+// text that only lazily loaded bundles read is a block of its own in
+// src/shared/constants.ts, and esbuild keeps property names, so a block's
+// sentinel key in a bundle's output means that bundle carries the block.
+// Each sentinel must also still be in the bundles that read the block, so a
+// renamed key cannot quietly turn the check off.
+const CONSTANTS = 'src/shared/constants.ts'
+const TEXT_BLOCKS = [
+  {
+    block: 'MODEL_API_MODEL_TEXT',
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
+    readers: [BUNDLES.modelApi],
+    others: [BUNDLES.activation, BUNDLES.acp],
+  },
+  {
+    block: 'CODE_INTEL_MODEL_TEXT',
+    sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
+    readers: [CODE_INTEL, BUNDLES.modelApi],
+    others: [BUNDLES.activation, BUNDLES.acp],
+  },
+  {
+    block: 'CHECKPOINT_MODEL_TEXT',
+    sentinels: ['writeNotRecorded'],
+    readers: [CHECKPOINT_STORE],
+    others: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+  },
+  {
+    block: 'AGENT_IMPORT_MODEL_TEXT',
+    sentinels: ['importedRulesHeading'],
+    readers: [AGENT_IMPORT],
+    others: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+  },
+]
+const constantsSource = readFileSync(CONSTANTS, 'utf8')
+/** The keys of one `export const NAME = { … } as const` block of constants.ts. */
+function blockKeys(name) {
+  const start = constantsSource.indexOf(`export const ${name} = {`)
+  const end = constantsSource.indexOf('} as const', start)
+  if (start === -1 || end === -1) {
+    problems.push(`${CONSTANTS} no longer declares ${name}`)
+    return []
+  }
+  return constantsSource
+    .slice(start, end)
+    .matchAll(/^ {2}(\w+):/gm)
+    .map((match) => match[1])
+    .toArray()
+}
+const outputText = new Map()
+function textOf(output) {
+  if (!outputText.has(output)) {
+    outputText.set(output, readFileSync(output, 'utf8'))
+  }
+  return outputText.get(output)
+}
+for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
+  const keys = new Set(blockKeys(block))
+  for (const sentinel of sentinels) {
+    if (!keys.has(sentinel)) {
+      problems.push(`${block} has no key ${sentinel}: pick another sentinel for it`)
+    }
+    const declared = new RegExp(`[{,]${sentinel}:`)
+    for (const { output } of others) {
+      if (declared.test(textOf(output))) {
+        problems.push(
+          `${output} carries ${block} (its key ${sentinel}), which only lazily loaded bundles read`,
+        )
+      }
+    }
+    for (const { output } of readers) {
+      if (!declared.test(textOf(output))) {
+        problems.push(`${output} no longer carries ${block} (its key ${sentinel})`)
+      }
+    }
+  }
+}
+// What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
+// file of the activation bundle reads makes every bundle carry it for
+// nothing, and belongs in the block of the bundle that does read it.
+const activationReads = new Set()
+for (const input of activation.keys()) {
+  if (input === CONSTANTS || !input.startsWith('src/')) {
+    continue
+  }
+  const source = readFileSync(input, 'utf8')
+  if (/\bMODEL_TEXT\[/.test(source)) {
+    problems.push(`${input} reads MODEL_TEXT by a computed key, which this check cannot follow`)
+  }
+  for (const match of source.matchAll(/\bMODEL_TEXT\.(\w+)/g)) {
+    activationReads.add(match[1])
+  }
+}
+const modelTextKeys = blockKeys('MODEL_TEXT')
+for (const key of modelTextKeys) {
+  if (!activationReads.has(key)) {
+    problems.push(
+      `MODEL_TEXT.${key} is read by no source file of ${BUNDLES.activation.output}: move it to the block of the bundle that reads it`,
+    )
+  }
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -380,5 +511,11 @@ console.log(
 )
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
+)
+console.log(
+  `ok   ${CODE_INTEL.output}: carries the ide server's code intelligence answers; ${BUNDLES.activation.output} keeps the tool list and the loader`,
+)
+console.log(
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} only where read; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)

@@ -7,11 +7,11 @@
 import * as z from 'zod/mini'
 import {
   CODE_INTEL_MAX_NAME_MATCHES,
+  CODE_INTEL_MODEL_TEXT,
   CODE_INTEL_NAME_MAX_CHARS,
   CODE_INTEL_PREVIEW_MAX_CHARS,
   CODE_INTEL_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
-  MODEL_TEXT,
   SYMBOL_KIND_NAMES,
   UI_TEXT,
 } from '../../shared/constants'
@@ -108,7 +108,7 @@ export async function ask<T>(work: Promise<T>): Promise<T> {
     return await withDeadline(
       work,
       CODE_INTEL_TIMEOUT_MS,
-      fill(MODEL_TEXT.codeIntelTimedOut, { seconds: String(TIMEOUT_SECONDS) }),
+      fill(CODE_INTEL_MODEL_TEXT.codeIntelTimedOut, { seconds: String(TIMEOUT_SECONDS) }),
     )
   } catch (error: unknown) {
     if (error instanceof Error && error.name === 'DeadlineError') {
@@ -134,7 +134,10 @@ export function parseArgs<T>(schema: z.ZodMiniType<T>, raw: unknown): T {
 export function checkName(field: string, value: string): string {
   if (value === '' || value.length > CODE_INTEL_NAME_MAX_CHARS || LINE_BREAK.test(value)) {
     throw new CodeIntelRefusal(
-      fill(MODEL_TEXT.codeIntelBadName, { field, max: String(CODE_INTEL_NAME_MAX_CHARS) }),
+      fill(CODE_INTEL_MODEL_TEXT.codeIntelBadName, {
+        field,
+        max: String(CODE_INTEL_NAME_MAX_CHARS),
+      }),
     )
   }
   return value
@@ -327,16 +330,16 @@ export class CodeIntelQuery {
   ): Target {
     const { line, column } = args
     if (line !== undefined && !isWholeNumberFromOne(line)) {
-      throw new CodeIntelRefusal(MODEL_TEXT.codeIntelBadPosition)
+      throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.codeIntelBadPosition)
     }
     if (column !== undefined) {
       if (line === undefined || !isWholeNumberFromOne(column)) {
-        throw new CodeIntelRefusal(MODEL_TEXT.codeIntelBadPosition)
+        throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.codeIntelBadPosition)
       }
       return { file, document, at: { line: line - 1, character: column - 1 }, lead: undefined }
     }
     if (symbol === undefined) {
-      throw new CodeIntelRefusal(MODEL_TEXT.codeIntelNoTarget)
+      throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.codeIntelNoTarget)
     }
     const text = withoutBom(document.text)
     const at =
@@ -345,13 +348,18 @@ export class CodeIntelQuery {
         : findName(text, symbol, { line: line - 1, character: 0 }, line - 1)
     const where = line === undefined ? file.relative : `${file.relative}:${String(line)}`
     if (at === undefined) {
-      throw new CodeIntelRefusal(fill(MODEL_TEXT.codeIntelNotInFile, { symbol, place: where }))
+      throw new CodeIntelRefusal(
+        fill(CODE_INTEL_MODEL_TEXT.codeIntelNotInFile, { symbol, place: where }),
+      )
     }
     return {
       file,
       document,
       at,
-      lead: fill(MODEL_TEXT.codeIntelUsing, { symbol, place: placeText(file.relative, at) }),
+      lead: fill(CODE_INTEL_MODEL_TEXT.codeIntelUsing, {
+        symbol,
+        place: placeText(file.relative, at),
+      }),
     }
   }
 
@@ -378,7 +386,7 @@ export class CodeIntelQuery {
   private async byWorkspaceSymbol(symbol: string): Promise<Target> {
     const [first, ...others] = await this.symbolsNamed(symbol)
     if (first === undefined) {
-      throw new CodeIntelRefusal(fill(MODEL_TEXT.codeIntelNoSymbolNamed, { symbol }))
+      throw new CodeIntelRefusal(fill(CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed, { symbol }))
     }
     const { file, document } = await this.openAsEdited(first.file)
     this.noteDocument(file, document)
@@ -397,10 +405,16 @@ export class CodeIntelQuery {
       document,
       at,
       lead: joinLines([
-        fill(MODEL_TEXT.codeIntelUsing, { symbol, place: placeText(first.relative, at) }),
+        fill(CODE_INTEL_MODEL_TEXT.codeIntelUsing, {
+          symbol,
+          place: placeText(first.relative, at),
+        }),
         places.length === 0
           ? undefined
-          : fill(MODEL_TEXT.codeIntelOtherMatches, { symbol, places: places.join(', ') }),
+          : fill(CODE_INTEL_MODEL_TEXT.codeIntelOtherMatches, {
+              symbol,
+              places: places.join(', '),
+            }),
       ]),
     }
   }
@@ -504,7 +518,7 @@ export class CodeIntelQuery {
     return this.unsaved.size === 0
       ? []
       : [
-          fill(MODEL_TEXT.codeIntelUnsavedNote, {
+          fill(CODE_INTEL_MODEL_TEXT.codeIntelUnsavedNote, {
             paths: [...this.unsaved].toSorted((a, b) => compareText(a, b)).join(', '),
           }),
         ]
@@ -524,7 +538,10 @@ export class CodeIntelQuery {
   /** The refusal for a file no language service answers for (M67: never an empty answer). */
   public noService(file: PlacedFile, document: OpenedDocument): CodeIntelRefusal {
     return new CodeIntelRefusal(
-      fill(MODEL_TEXT.codeIntelNoService, { path: file.relative, language: document.languageId }),
+      fill(CODE_INTEL_MODEL_TEXT.codeIntelNoService, {
+        path: file.relative,
+        language: document.languageId,
+      }),
       fill(UI_TEXT.codeIntelNoService, { path: file.relative }),
     )
   }
@@ -541,7 +558,7 @@ export class CodeIntelQuery {
     }
     return joinLines([
       target.lead,
-      fill(MODEL_TEXT.codeIntelNothingAt, {
+      fill(CODE_INTEL_MODEL_TEXT.codeIntelNothingAt, {
         what,
         place: placeText(target.file.relative, target.at),
       }),
@@ -557,7 +574,7 @@ export class CodeIntelQuery {
       // service reads the editor's text, and the two differ here.
       if (document.isDirty && args.line !== undefined) {
         throw new CodeIntelRefusal(
-          fill(MODEL_TEXT.codeIntelUnsavedPosition, { path: file.relative }),
+          fill(CODE_INTEL_MODEL_TEXT.codeIntelUnsavedPosition, { path: file.relative }),
         )
       }
       this.noteDocument(file, document)
@@ -566,7 +583,7 @@ export class CodeIntelQuery {
     if (symbol !== undefined) {
       return await this.byWorkspaceSymbol(symbol)
     }
-    throw new CodeIntelRefusal(MODEL_TEXT.codeIntelNoTarget)
+    throw new CodeIntelRefusal(CODE_INTEL_MODEL_TEXT.codeIntelNoTarget)
   }
 }
 

@@ -22,6 +22,10 @@
 // its turn text and the Plan-mode hold, required the first time a review
 // starts. Its factory installs the activation bundle's display language before use.
 //
+// The `ide` server's code intelligence answers (M67) are dist/codeIntel.js,
+// required on Muse Code's first code intelligence call (PLAN.md D6,
+// 2026-10-03). Like the Model API's, nothing it bundles may import `vscode`.
+//
 // A production build also writes each shipped bundle's esbuild metafile to
 // dist/meta/ (M26, PLAN.md D29): the list of every source file that went in,
 // from which scripts/third-party-notices.mjs derives the packages whose
@@ -59,6 +63,8 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
+const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -132,6 +138,17 @@ const reviewOptions = {
   plugins: [sharedUiText],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const codeIntelOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [CODE_INTEL_ENTRY],
+  outfile: CODE_INTEL_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -253,6 +270,7 @@ if (isWatch) {
     esbuild.context(hostOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
+    esbuild.context(codeIntelOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
@@ -268,6 +286,7 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
+    codeIntel: esbuild.build(codeIntelOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
@@ -296,6 +315,7 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
+  reportSize(CODE_INTEL_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)

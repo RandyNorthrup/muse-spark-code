@@ -38,7 +38,12 @@ import {
   TurnRecorder,
   WriteLanes,
 } from '../../src/host/checkpoints/writeRecorder'
-import { CHECKPOINT_BLOBS_DIR, CHECKPOINT_WRITES_DIR, MODEL_TEXT } from '../../src/shared/constants'
+import {
+  CHECKPOINT_BLOBS_DIR,
+  CHECKPOINT_MODEL_TEXT,
+  CHECKPOINT_WRITES_DIR,
+  MODEL_TEXT,
+} from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { nativeToolIo } from './helpers/fakeToolIo'
 import { halfWhenFull, journalFsWith } from './helpers/journalFs'
@@ -405,11 +410,11 @@ describe(
       await io.writeFile(t.file('first.txt'), 'first\n', t.file('first.txt'))
       isFull = true
       await expect(io.writeFile(t.file('kept.txt'), 'lost\n', t.file('kept.txt'))).rejects.toThrow(
-        `kept.txt ${MODEL_TEXT.writeNotRecorded}`,
+        `kept.txt ${CHECKPOINT_MODEL_TEXT.writeNotRecorded}`,
       )
       await expect(
         io.writeFile(t.file('new/deep/file.txt'), 'lost\n', t.file('new/deep/file.txt')),
-      ).rejects.toThrow(MODEL_TEXT.writeNotRecorded)
+      ).rejects.toThrow(CHECKPOINT_MODEL_TEXT.writeNotRecorded)
       expect(await readFile(t.file('kept.txt'), 'utf8')).toBe('kept\n')
       // Neither the file nor the folders made for it are left.
       expect(await isMissing(t.file('new'))).toBe(true)
@@ -434,7 +439,7 @@ describe(
         },
       })
       await expect(early.writeFile(t.file('a.txt'), 'tool\n', t.file('a.txt'))).rejects.toThrow(
-        `a.txt ${MODEL_TEXT.fileChangedWhileWriting}`,
+        `a.txt ${CHECKPOINT_MODEL_TEXT.fileChangedWhileWriting}`,
       )
       expect(await t.entries()).toEqual([])
       // Changed after the intent, before the rename: the write is aborted, and nothing restorable.
@@ -445,7 +450,7 @@ describe(
         }),
       )
       await expect(late.writeFile(t.file('a.txt'), 'tool\n', t.file('a.txt'))).rejects.toThrow(
-        MODEL_TEXT.fileChangedWhileWriting,
+        CHECKPOINT_MODEL_TEXT.fileChangedWhileWriting,
       )
       // (`w1` was the early write's id: it never reached its intent.)
       expect(kindsOf(await t.entries())).toEqual(['intent w2', 'aborted w2'])
@@ -598,11 +603,11 @@ describe(
       await mkdir(t.file('folder'))
       const io = t.ownerIo()
       await expect(io.writeFile(t.file('folder'), 'x', t.file('folder'))).rejects.toThrow(
-        `folder ${MODEL_TEXT.fileNotRegular}`,
+        `folder ${CHECKPOINT_MODEL_TEXT.fileNotRegular}`,
       )
       await expect(
         io.recordNew(t.file('folder'), 'x', undefined, () => Promise.reject(new Error('not run'))),
-      ).rejects.toThrow(MODEL_TEXT.fileNotRegular)
+      ).rejects.toThrow(CHECKPOINT_MODEL_TEXT.fileNotRegular)
       expect(await isDirectoryOf(t.file('folder'))).toBe(true)
       expect(await t.entries()).toEqual([])
     })
@@ -624,7 +629,7 @@ describe(
           file === t.file('linked') ? file : await canonicalPath(file),
       })
       await expect(io.writeFile(t.file('linked'), 'x', t.file('linked'))).rejects.toThrow(
-        `linked ${MODEL_TEXT.fileNotRegular}`,
+        `linked ${CHECKPOINT_MODEL_TEXT.fileNotRegular}`,
       )
       expect(await isSymbolicLinkOf(t.file('linked'))).toBe(true)
       expect(await readFile(path.join(elsewhere, 'a.txt'), 'utf8')).toBe('outside\n')
@@ -637,7 +642,7 @@ describe(
         const t = await setup()
         execFileSync('mkfifo', [t.file('pipe')])
         await expect(t.ownerIo().writeFile(t.file('pipe'), 'x', t.file('pipe'))).rejects.toThrow(
-          `pipe ${MODEL_TEXT.fileNotRegular}`,
+          `pipe ${CHECKPOINT_MODEL_TEXT.fileNotRegular}`,
         )
         expect(await isFIFOOf(t.file('pipe'))).toBe(true)
         expect(await t.entries()).toEqual([])
@@ -785,7 +790,7 @@ describe(
       // Ended: a write of the turn after its end is refused, and nothing recorded.
       await expect(
         first.io.writeFile(t.file('mine.txt'), 'late\n', t.file('mine.txt')),
-      ).rejects.toThrow(MODEL_TEXT.turnWritesEnded)
+      ).rejects.toThrow(CHECKPOINT_MODEL_TEXT.turnWritesEnded)
       expect(intents(await t.entries())).toHaveLength(6)
     })
 
@@ -853,7 +858,7 @@ describe(
         isDrained = true
       })()
       await expect(io.writeFile(t.file('b.txt'), 'b\n', t.file('b.txt'))).rejects.toThrow(
-        `${t.file('b.txt')} ${MODEL_TEXT.turnWritesEnded}`,
+        `${t.file('b.txt')} ${CHECKPOINT_MODEL_TEXT.turnWritesEnded}`,
       )
       expect(isDrained).toBe(false)
       held.resolve(undefined)
@@ -958,7 +963,7 @@ describe(
       )
       expect(outcome).toEqual({
         ok: false,
-        reason: `.agents/memory/deploy.md ${MODEL_TEXT.writeNotRecorded}`,
+        reason: `.agents/memory/deploy.md ${CHECKPOINT_MODEL_TEXT.writeNotRecorded}`,
       })
       expect(await isMissing(t.file('.agents/memory/deploy.md'))).toBe(true)
     })

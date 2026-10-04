@@ -8,22 +8,22 @@ import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
   CLARIFICATION_MAX_CHARS,
+  GOAL_OBJECTIVE_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
+  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
-  GOAL_OBJECTIVE_MAX_CHARS,
-  MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_TEXT,
-  REVIEW_MODEL_TEXT,
-  SCHEDULE_LIFETIME_MS,
-  SUBAGENT_MAX_PER_CONVERSATION,
   type PaidFeature,
   type PermissionMode,
   type PromptCacheRetention,
+  REVIEW_MODEL_TEXT,
+  SCHEDULE_LIFETIME_MS,
+  SUBAGENT_MAX_PER_CONVERSATION,
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/agentBackend'
@@ -2801,7 +2801,7 @@ describe('ModelApiSession: turns', () => {
           role: 'user',
           content: [
             { type: 'input_text', text: 'First image' },
-            { type: 'input_text', text: MODEL_TEXT.imageLeftOut },
+            { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
           ],
         },
         expect.anything(),
@@ -2826,7 +2826,7 @@ describe('ModelApiSession: turns', () => {
     expect(session.sentImages(firstCard.turnId, firstCard.itemId)).toEqual([])
     const saved = session.snapshot()
     expect(JSON.stringify(saved.replay)).not.toContain(imageUrl)
-    expect(JSON.stringify(saved.replay)).toContain(MODEL_TEXT.imageLeftOut)
+    expect(JSON.stringify(saved.replay)).toContain(MODEL_API_MODEL_TEXT.imageLeftOut)
     await t.host.close()
     const restored = setup({ mediaBudgetMaxEncodedChars: imageUrl.length, store })
     await restored.host.load()
@@ -7258,7 +7258,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         failureReason: translated,
       })
       expect(outputFor(childBodies(t).at(-1), 'refused_de_write')).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
       })
       expect(t.files.has(`${ROOT}/refused-de.txt`)).toBe(false)
     } finally {
@@ -7306,7 +7306,7 @@ describe('ModelApiSession custom agents (M76)', () => {
           'Dieses Werkzeug steht nicht auf der Zulassungsliste dieses Agenten. Verwenden Sie nur die in seinen Anweisungen angebotenen Werkzeuge.',
       })
       expect(outputFor(childBodies(t).at(-1), 'child_de_then_run')).toMatchObject({
-        output: expect.stringContaining(MODEL_TEXT.agentToolNotOffered),
+        output: expect.stringContaining(MODEL_API_MODEL_TEXT.agentToolNotOffered),
       })
     } finally {
       restoreEnglish()
@@ -7496,7 +7496,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(t.io.shellCalls).toHaveLength(testCase.commands)
     if (testCase.name === 'write-only') {
       expect(JSON.stringify(childBodies(t).at(-1)?.['input'])).toContain(
-        MODEL_TEXT.agentToolNotOffered,
+        MODEL_API_MODEL_TEXT.agentToolNotOffered,
       )
     }
   })
@@ -7538,11 +7538,11 @@ describe('ModelApiSession custom agents (M76)', () => {
     const last = childBodies(t).at(-1)
     expect(JSON.stringify(last?.['tools']).includes('then_run')).toBe(testCase.hasShell)
     const instructions = String(last?.['instructions'])
-    expect(instructions.includes(MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
+    expect(instructions.includes(MODEL_API_MODEL_TEXT.agentNoShell)).toBe(!testCase.hasShell)
     expect(instructions.includes('Restricted Mode')).toBe(false)
     expect(instructions.includes('take then_run')).toBe(testCase.hasShell)
     if (!testCase.hasShell) {
-      expect(JSON.stringify(last?.['input'])).toContain(MODEL_TEXT.agentToolNotOffered)
+      expect(JSON.stringify(last?.['input'])).toContain(MODEL_API_MODEL_TEXT.agentToolNotOffered)
     }
   })
 
@@ -7710,7 +7710,7 @@ describe('ModelApiSession custom agents (M76)', () => {
         .items.find((item) => item.kind === 'toolCall' && item.tool === 'subagent_spawn'),
     ).toMatchObject({ visibleOutput: UI_TEXT.subagentContributorBlocked })
     expect(outputFor(t.api.responseBodies()[1], 'spawn_big')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.subagentContributorBlocked}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.subagentContributorBlocked}`,
     })
   })
 
@@ -7796,7 +7796,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     await waitForChildSummary(session, 'Sneaked.')
     const children = childBodies(t)
     expect(outputFor(children.at(-1), 'child_sneak')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
     expect(t.files.has(`${ROOT}/sneaky.txt`)).toBe(false)
   })
@@ -7829,7 +7829,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       await session.messageSubagent('subagent-1', 'Try the memory tool', true)
       await waitForChildSummary(session, 'Memory call refused.')
       expect(outputFor(childBodies(t).at(-1), call.callId)).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
       })
       expect(t.files).toEqual(before)
     },
@@ -7998,7 +7998,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(bodies.length).toBeGreaterThan(0)
     expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
     expect(outputFor(bodies.at(-1), 'resumed_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -8030,7 +8030,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(bodies.length).toBeGreaterThan(0)
     expect(String(bodies[0]?.['instructions'])).toContain('Prompt of reviewer')
     expect(outputFor(bodies.at(-1), 'forked_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -8069,7 +8069,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     const bodies = t.api.responseBodies()
     expect(String(bodies[1]?.['instructions'])).not.toContain('# Agents')
     expect(outputFor(bodies[2], 'spawn_untrusted')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentRestrictedMode}`,
     })
     expect(session.history().items.some((item) => item.kind === 'subagent')).toBe(false)
     expect(t.paidRequests).toEqual([])
@@ -8097,7 +8097,7 @@ describe('ModelApiSession custom agents (M76)', () => {
       expect(t.paidRequests).toHaveLength(1)
       expect(childBodies(t)).toEqual([])
       expect(outputFor(t.api.responseBodies()[1], 'spawn_trust_withdrawn')).toMatchObject({
-        output: `Error: ${MODEL_TEXT.agentRestrictedMode}`,
+        output: `Error: ${MODEL_API_MODEL_TEXT.agentRestrictedMode}`,
       })
     },
   )
@@ -8116,7 +8116,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     expect(String(bodies[0]?.['instructions'])).not.toContain('Prompt of reviewer')
     expect(String(bodies[0]?.['instructions'])).not.toContain('# Agent role')
     expect(outputFor(bodies.at(-1), 'untrusted_search')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
   })
 
@@ -8173,7 +8173,7 @@ describe('ModelApiSession custom agents (M76)', () => {
     await session.messageSubagent('subagent-1', 'Write it', true)
     await waitForChildSummary(session, 'Consult done.')
     expect(outputFor(childBodies(t).at(-1), 'consult_write')).toMatchObject({
-      output: `Error: ${MODEL_TEXT.agentToolNotOffered}`,
+      output: `Error: ${MODEL_API_MODEL_TEXT.agentToolNotOffered}`,
     })
     expect(t.files.has(`${ROOT}/consult.txt`)).toBe(false)
     expect(countLogged(t.log, 'loading the user agents failed: EACCES: permission denied')).toBe(1)
@@ -8207,7 +8207,7 @@ describe('ModelApiSession custom agents (M76)', () => {
           'Der Agent „explore“ wurde nicht gestartet: .agents/agents konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.',
       })
       expect(outputFor(t.api.responseBodies().at(-1), 'spawn_unloaded')).toMatchObject({
-        output: `Error: ${fill(MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
+        output: `Error: ${fill(MODEL_API_MODEL_TEXT.agentUnloaded, { id: 'explore', source: 'project' })}`,
       })
     } finally {
       restoreEnglish()
@@ -8250,11 +8250,15 @@ describe('ModelApiSession custom agents (M76)', () => {
   // RV70x finding 4: what the contributor wait changed is rechecked before
   // the paid-use popup, which is never shown for a spawn already refused.
   it.each([
-    { name: 'trust withdrawn', revokesTrust: true, output: MODEL_TEXT.agentRestrictedMode },
+    {
+      name: 'trust withdrawn',
+      revokesTrust: true,
+      output: MODEL_API_MODEL_TEXT.agentRestrictedMode,
+    },
     {
       name: 'confidential workspace',
       revokesTrust: false,
-      output: MODEL_TEXT.subagentContributorBlocked,
+      output: MODEL_API_MODEL_TEXT.subagentContributorBlocked,
     },
   ])(
     'asks no paid-use popup once the contributor wait made a spawn invalid: $name (RV70x)',

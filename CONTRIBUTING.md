@@ -117,8 +117,10 @@ never a literal in the code:
   `package.json` with its English in `package.nls.json`.
 - **Text the model reads** is `MODEL_TEXT` in constants.ts and stays
   English; a feature only a lazily loaded bundle reads keeps a block of its
-  own beside it (`REVIEW_MODEL_TEXT`), so the activation bundle does not
-  carry it. The Model API and review bundles carry no English table at all
+  own beside it (`REVIEW_MODEL_TEXT`, `MODEL_API_MODEL_TEXT`,
+  `CODE_INTEL_MODEL_TEXT`…), so the activation bundle does not carry it: one
+  object is carried whole, and `npm run build` fails a `MODEL_TEXT` key that
+  no file of `dist/extension.js` reads. The Model API and review bundles carry no English table at all
   (they install the activation bundle's before they run, and `npm run build`
   fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
   must do the same in its factory.

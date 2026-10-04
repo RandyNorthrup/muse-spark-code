@@ -23,8 +23,8 @@ import {
   EVAL_TURN_COMPLETED,
   EVAL_TURN_TIMED_OUT,
   EVAL_TURN_TIMEOUT_MS,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
   SETTING_DEFAULTS,
 } from '../../shared/constants'
 
@@ -187,7 +187,7 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
         case 'questionRequested': {
           counts.questions += 1
           void session
-            .clarifyQuestions(event.userInputId, MODEL_TEXT.evalClarification)
+            .clarifyQuestions(event.userInputId, MODEL_API_MODEL_TEXT.evalClarification)
             .catch((error: unknown) => {
               problems.push(`question: ${describe(error)}`)
             })

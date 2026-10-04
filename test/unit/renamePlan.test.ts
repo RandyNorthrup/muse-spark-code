@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
 import type { FileEdits, RenameEdits } from '../../src/core/codeIntel/languageService'
 import { planRename, renameDiff } from '../../src/core/codeIntel/rename'
-import { MODEL_TEXT, RENAME_MAX_FILES } from '../../src/shared/constants'
+import { FILE_REFUSAL_MODEL_TEXT, RENAME_MAX_FILES } from '../../src/shared/constants'
 import {
   type FakeServiceOptions,
   fakeLanguageService,
@@ -227,7 +227,7 @@ describe('planRename', () => {
     })
     expect(result).toMatchObject({
       ok: false,
-      reason: `src/b.ts ${MODEL_TEXT.fileHasUnsavedChanges}`,
+      reason: `src/b.ts ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`,
     })
   })
 })

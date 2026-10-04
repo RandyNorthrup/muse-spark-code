@@ -221,6 +221,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **The extension loads less at startup**: `dist/extension.js` is
+  544.7 KiB, down from 577.5 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03). Model text that only the Model API backend,
+  the checkpoint store or the import reads is no longer carried at
+  activation (same words), and the code intelligence answers Muse Code
+  asks the `ide` server for load with their own bundle,
+  `dist/codeIntel.js` (budget 75 KiB), on the first such call; if it cannot
+  load, that call fails with the reason and the next one tries again.
+  `npm run build` now fails when activation carries that text or code
+  again.
 - **Approval cards are docked above the message box** while they wait,
   as in Claude Code's panel, so scrolling never loses one.
   - The tool's row in the conversation keeps a short "Waiting for your

@@ -9,7 +9,13 @@
 // what was written, so Edit Review and rewind cover the rename as they cover
 // `edit_file`, a rename stopped partway included.
 
-import { MODEL_TEXT, RENAME_CARD_FILES_SHOWN, UI_TEXT } from '../../../shared/constants'
+import {
+  FILE_REFUSAL_MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
+  MODEL_TEXT,
+  RENAME_CARD_FILES_SHOWN,
+  UI_TEXT,
+} from '../../../shared/constants'
 import { fill, plural } from '../../../shared/l10n/text'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
 import { type CodeIntelDeps, unsavedDocumentPath } from '../../codeIntel/codeIntelQuery'
@@ -132,7 +138,10 @@ async function recheck(file: RenameFile, context: RenameWriteContext): Promise<R
   }
   // By the real path: an editor may hold the file under a link's path.
   if ((await unsavedDocumentPath(io, file, context.platform)) !== undefined) {
-    return { ok: false, outcome: failed(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`) }
+    return {
+      ok: false,
+      outcome: failed(`${file.relative} ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`),
+    }
   }
   context.beforeAccess?.(file)
   const current = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
@@ -141,7 +150,7 @@ async function recheck(file: RenameFile, context: RenameWriteContext): Promise<R
     ? { ok: true, key: resolved.absolute }
     : {
         ok: false,
-        outcome: failed(fill(MODEL_TEXT.renameChanged, { path: file.relative })),
+        outcome: failed(fill(MODEL_API_MODEL_TEXT.renameChanged, { path: file.relative })),
         changedPath: file.relative,
       }
 }
@@ -208,7 +217,7 @@ export async function applyRename(
       return written.length === 0
         ? result.outcome
         : partial(
-            MODEL_TEXT.renameChangedPartway,
+            MODEL_API_MODEL_TEXT.renameChangedPartway,
             { path: result.changedPath ?? file.relative },
             plan,
             written,
@@ -227,13 +236,18 @@ export async function applyRename(
       })
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error)
-      return partial(MODEL_TEXT.renamePartial, { path: file.relative, reason }, plan, written)
+      return partial(
+        MODEL_API_MODEL_TEXT.renamePartial,
+        { path: file.relative, reason },
+        plan,
+        written,
+      )
     }
     written.push(file)
     context.seen.set(result.key, fingerprint(file.after))
     context.onWritten?.(file)
   }
-  const output = fill(MODEL_TEXT.renameDone, {
+  const output = fill(MODEL_API_MODEL_TEXT.renameDone, {
     from: plan.from,
     to: plan.to,
     edits: String(plan.edits),

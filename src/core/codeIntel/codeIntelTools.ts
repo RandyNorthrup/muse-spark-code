@@ -11,9 +11,9 @@ import {
   CODE_INTEL_MAX_CALLS,
   CODE_INTEL_MAX_LOCATIONS,
   CODE_INTEL_MAX_SYMBOLS,
+  CODE_INTEL_MODEL_TEXT,
   CODE_INTEL_SYMBOL_DEPTH,
   type CodeIntelTool,
-  MODEL_TEXT,
   REPO_MAP_DEFAULT_TOKENS,
   REPO_MAP_MAX_TOKENS,
   REPO_MAP_TIME_BUDGET_MS,
@@ -59,8 +59,10 @@ interface PlacedResult {
 /** The notes under a listing: what was not shown, and what was outside. */
 function listingNotes(hidden: number, outside: number): readonly string[] {
   return [
-    ...(hidden > 0 ? [fill(MODEL_TEXT.codeIntelMore, { count: String(hidden) })] : []),
-    ...(outside > 0 ? [fill(MODEL_TEXT.codeIntelOutside, { count: String(outside) })] : []),
+    ...(hidden > 0 ? [fill(CODE_INTEL_MODEL_TEXT.codeIntelMore, { count: String(hidden) })] : []),
+    ...(outside > 0
+      ? [fill(CODE_INTEL_MODEL_TEXT.codeIntelOutside, { count: String(outside) })]
+      : []),
   ]
 }
 
@@ -159,7 +161,7 @@ async function hover(query: CodeIntelQuery, raw: unknown): Promise<string> {
   return joinLines([
     target.lead,
     isHeldBack
-      ? fill(MODEL_TEXT.codeIntelHoverHeldBack, { count: String(definitions.length) })
+      ? fill(CODE_INTEL_MODEL_TEXT.codeIntelHoverHeldBack, { count: String(definitions.length) })
       : clipText(text, CODE_INTEL_HOVER_MAX_CHARS),
   ])
 }
@@ -244,7 +246,7 @@ async function workspaceSymbols(query: CodeIntelQuery, raw: unknown): Promise<st
   )
   if (inside.length === 0) {
     return joinLines([
-      fill(MODEL_TEXT.codeIntelNoSymbolsMatch, { query: text }),
+      fill(CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolsMatch, { query: text }),
       ...listingNotes(0, outside),
     ])
   }
@@ -295,19 +297,21 @@ async function callHierarchy(query: CodeIntelQuery, raw: unknown): Promise<strin
     throw symbols.length === 0
       ? query.noService(target.file, target.document)
       : new CodeIntelRefusal(
-          fill(MODEL_TEXT.codeIntelNoCallHierarchy, {
+          fill(CODE_INTEL_MODEL_TEXT.codeIntelNoCallHierarchy, {
             place: placeText(target.file.relative, target.at),
           }),
         )
   }
   const itemFile = await query.place(answer.item.location.path)
   const header = fill(
-    direction === 'incoming' ? MODEL_TEXT.codeIntelCallsTo : MODEL_TEXT.codeIntelCallsFrom,
+    direction === 'incoming'
+      ? CODE_INTEL_MODEL_TEXT.codeIntelCallsTo
+      : CODE_INTEL_MODEL_TEXT.codeIntelCallsFrom,
     {
       symbol: `${kindName(answer.item.kind)} ${answer.item.name}`,
       place:
         itemFile === undefined
-          ? MODEL_TEXT.codeIntelOutsideWorkspace
+          ? CODE_INTEL_MODEL_TEXT.codeIntelOutsideWorkspace
           : placeText(itemFile.relative, answer.item.selection.start),
     },
   )
@@ -322,23 +326,25 @@ async function callHierarchy(query: CodeIntelQuery, raw: unknown): Promise<strin
   // are in the file of the function asked about, named with each site.
   const sitesOf = (ranges: readonly CodeRange[]): string => {
     if (direction === 'incoming') {
-      return fill(MODEL_TEXT.codeIntelCallSites, { sites: callSites(ranges) })
+      return fill(CODE_INTEL_MODEL_TEXT.codeIntelCallSites, { sites: callSites(ranges) })
     }
     return itemFile === undefined
-      ? fill(MODEL_TEXT.codeIntelCalledOutside, { sites: callSites(ranges) })
-      : fill(MODEL_TEXT.codeIntelCalledAt, { sites: callSites(ranges, itemFile.relative) })
+      ? fill(CODE_INTEL_MODEL_TEXT.codeIntelCalledOutside, { sites: callSites(ranges) })
+      : fill(CODE_INTEL_MODEL_TEXT.codeIntelCalledAt, {
+          sites: callSites(ranges, itemFile.relative),
+        })
   }
   return joinLines([
     target.lead,
     header,
-    ...(outside === 0 && inside.length === 0 ? [MODEL_TEXT.codeIntelNoCalls] : []),
+    ...(outside === 0 && inside.length === 0 ? [CODE_INTEL_MODEL_TEXT.codeIntelNoCalls] : []),
     ...shown.map(
       (entry) =>
         `${placeText(entry.relative, entry.at)}: ${kindName(entry.item.symbol.kind)} ${entry.item.symbol.name} (${sitesOf(entry.item.ranges)})`,
     ),
     ...listingNotes(inside.length - shown.length, outside),
     ...(answer.otherItems > 0
-      ? [fill(MODEL_TEXT.codeIntelOtherCallItems, { count: String(answer.otherItems) })]
+      ? [fill(CODE_INTEL_MODEL_TEXT.codeIntelOtherCallItems, { count: String(answer.otherItems) })]
       : []),
   ])
 }

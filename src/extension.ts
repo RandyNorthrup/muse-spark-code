@@ -86,6 +86,7 @@ import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { createWebFetcher } from './host/web/webFetcher'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
+import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
@@ -153,6 +154,7 @@ import {
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
   CHECKPOINT_STORE_BUNDLE_FILE,
+  CODE_INTEL_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -1162,7 +1164,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const askWebFetch = oneQuestionPerUrl(isWebFetchAllowed)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
   // native tools on the Model API backend, `ide` tools for Muse Code. Only
-  // with a folder open, since every path is the workspace's.
+  // with a folder open, since every path is the workspace's. The `ide`
+  // tools' answers come from their own bundle, loaded on the first call
+  // (PLAN.md D6, 2026-10-03).
+  const codeIntelAnswers = codeIntelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CODE_INTEL_BUNDLE_FILE).fsPath,
+    log,
+  })
   const languageServices = vscodeLanguageServices()
   const codeIntel =
     workspaceRoot === undefined
@@ -1177,7 +1185,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const ideServer = new IdeMcpServer(
     () => [
       diagnostics,
-      ...ideCodeIntelTools(codeIntel),
+      ...ideCodeIntelTools(codeIntel, codeIntelAnswers),
       // The server is attached in Restricted Mode too, and has no session
       // identity: the tool is listed only in a trusted workspace whose
       // sandbox network setting allows the network, and every call asks.

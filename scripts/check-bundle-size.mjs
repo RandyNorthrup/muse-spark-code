@@ -29,6 +29,10 @@ const BUDGETS = [
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // The ide server's code intelligence answers (M67), loaded on Muse Code's
+  // first code intelligence call: 52.2 KiB when split out (PLAN.md D6,
+  // 2026-10-03). Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/codeIntel.js', budgetKiB: 75 },
   // Shared English fallback; existing host budgets stay unchanged.
   { path: 'dist/uiText.js', budgetKiB: 100 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },

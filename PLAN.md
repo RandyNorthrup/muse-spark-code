@@ -231,6 +231,7 @@ quality`) and as a CI job.
 | `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
 | `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
 | `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
+| `dist/codeIntel.js`       | ≤ 75 KiB (the `ide` server's code intelligence answers, loaded on the first call; 52.2 KiB when split, plus 15%, rounded up to 25 KiB)                        |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -307,6 +308,80 @@ instead.
   list of 20) or the entry is in `dist/extension.js`, when `dist/modelApi.js`
   stops carrying one of them, or when a file of the folder is on neither the
   lazy list nor the allowed list above.
+
+**Amendment (2026-10-03, the third strike): activation stops carrying what
+only lazily loaded bundles use.** Three PRs in a row (#89, #78, #87) each
+had to split code out because `dist/extension.js` crossed its 600 KiB, and
+the open PRs together add about 36 KiB to main's 573 KiB. Under the owner's
+three-tries rule this is fixed once, structurally, on
+`perf/activation-diet` (cut from `feature/m70-review` at `807effc2`). The
+budget stays 600 KiB; text and code move. Proof, drills and the full table
+are in
+[`docs/certification/activation-diet.md`](docs/certification/activation-diet.md).
+
+- **Measured** (production build, KiB, before → after): `dist/extension.js`
+  577.5 → 544.7 (−32.8); `dist/modelApi.js` 378.6 → 376.5;
+  `dist/checkpointStore.js` 132.8 → 120.7; `dist/agentImport.js`
+  112.8 → 100.5; `dist/acp.js` 733.7 → 721.3; `dist/codeIntel.js` new,
+  52.2 of 75; the review, plan reader, English table, workers and webview
+  unchanged.
+- **Model text by reader.** `MODEL_TEXT` is one object, and esbuild cannot
+  tree-shake an object by key: every bundle that read any key carried all
+  of its 230 keys. It now holds the 105 keys a source file of
+  `dist/extension.js` reads. The rest moved, word for word (a scripted
+  comparison of all 285 keys and values before and after), to blocks
+  beside it that only their readers import: 61 more keys to
+  `MODEL_API_MODEL_TEXT` (the Model API backend's goal tools, file and
+  media tools, custom agents, MCP results, code intelligence prompt line
+  and rename write, observation packing, verify loop report, and the paired
+  evaluation's answer); 43 to `CODE_INTEL_MODEL_TEXT`
+  (the code intelligence answers and refusals, read in `dist/codeIntel.js`
+  and `dist/modelApi.js`); 4 to `CHECKPOINT_MODEL_TEXT` (a recorded write
+  that did not happen, said only by the checkpoint store's recorder); 3 to
+  `AGENT_IMPORT_MODEL_TEXT` (the imported rules section); and
+  `fileHasUnsavedChanges` to `FILE_REFUSAL_MODEL_TEXT`, so that
+  `dist/codeIntel.js`, which reads only that of the shared text, carries no
+  `MODEL_TEXT`. Fourteen duplicates the main merge had put back
+  (`pack*`, `verifyLead`, `runChecksLead`, already in
+  `MODEL_API_MODEL_TEXT`) are gone. One key is new: `codeIntelUnavailable`.
+  The text moves alone took `dist/extension.js` to 569.6 KiB.
+- **The `ide` server's code intelligence answers are a bundle of their
+  own.** `src/host/ide/codeIntelEntry.ts` builds to `dist/codeIntel.js`
+  (the queries, the repo map, the rename's plan and their text, 52.2 KiB)
+  with the activation bundle's format, platform and target, and no
+  `vscode`. Muse Code's tool list (names, descriptions, schemas) is still
+  built at activation; `codeIntelLoader` (`codeIntelBundle.ts`, through
+  `lazyBundle.ts`) requires the bundle on the first call and installs the
+  activation bundle's table before it answers. A bundle that cannot load
+  answers that call as a failed one with `codeIntelUnavailable`, the log has
+  the cause, and the next call tries again. The Model API backend keeps its
+  own copy in `dist/modelApi.js`. No existing lazy bundle could take it:
+  `dist/modelApi.js` already carries the code, but a Muse Code user would
+  then load the whole backend on the first lookup (376 KiB: about 185 ms to
+  require once the activation bundle has loaded, against about 35 ms for
+  `dist/codeIntel.js`, on the owner's machine), contrary to "a Muse Code
+  user never loads the backend" below; `dist/review.js` (43.2 of 50 KiB)
+  and `dist/agentImport.js` (100.5 of 125 KiB) have no room for it; and
+  `dist/checkpointStore.js` is required at activation, so moving it there
+  would move bytes, not work. Its budget is
+  the measured size plus 15 %, rounded up to 25 KiB: 75 KiB. The build, the
+  size and host-globals gates, the notices, the VSIX allowlist, CI's VSIX
+  member list, knip's entries and the cycle check include it.
+- **The guard** (`scripts/check-bundle-split.mjs`, in `npm run build`)
+  fails when `dist/extension.js` or `dist/acp.js` carries a code
+  intelligence file or `dist/codeIntel.js` stops carrying one; when a lazy
+  text block's sentinel keys (`compactionPrompt`, `goalUnfinishedExists`
+  and `verifyUncheckedCodeLoading` for the Model API's;
+  `codeIntelNoSymbolNamed` and `repoMapBudgetTooSmall`; `writeNotRecorded`;
+  `importedRulesHeading`) appear in a bundle that must not carry the block,
+  or no longer appear in a bundle that reads it, so a renamed sentinel
+  cannot turn the check off; and when a key of `MODEL_TEXT` is read by no
+  source file of `dist/extension.js`, which keeps lazy text from growing
+  back into the shared block. Four drills (a static import of
+  `MODEL_API_MODEL_TEXT` from activation code, the code intelligence
+  answers imported back into the `ide` tools, a Model-API-only key put back
+  in `MODEL_TEXT`, a renamed sentinel) each failed the build and were
+  reverted.
 
 **Amendment (M79, 2026-09-28): the plan reader is a bundle of its own.**
 Reading a plan with the panel's own Markdown grammar (PR #53 review) takes
@@ -12981,6 +13056,7 @@ before a repaired one loads (2026-09-30).
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
 | `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                   | 2026-09-30 |
+| `src/host/ide/codeIntelBundle.ts`               | `value is CodeIntelBundle` (`isCodeIntelBundle`, a type predicate)     | D6 2026-10-03: `require` of `dist/codeIntel.js` returns `unknown`; the guard checks that `createCodeIntelAnswers` is a function, not its signature, which is trusted because entry, loader and package come from one source tree and one build. `codeIntelBundle.test.ts` builds the actual entry with the shared English table, requires it, answers a real call through it with the installed table, and refuses missing and malformed modules.  | 2026-10-03 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
