@@ -1,0 +1,15 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "PostToolUse",
+  "model": "unknown",
+  "permission_mode": "default",
+  "session_id": "01a1085a-8452-7db3-801c-077ea7144958",
+  "tool_input": {
+    "command": "echo m91"
+  },
+  "tool_name": "shell",
+  "tool_response": "m91\n",
+  "tool_use_id": "user_shell_01a1085a-8498-7000-9e01-c4d010d05c70",
+  "transcript_path": null,
+  "turn_id": "01a1085a-8498-7000-9e01-c4d010d05c70"
+}
