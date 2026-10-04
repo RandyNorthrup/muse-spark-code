@@ -233,6 +233,10 @@ happened, not what was planned; superseded entries are kept.
   log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
+- The working line's bullet is now a small looping circle-pattern mark (after
+  Inclushe's "circle pattern animation lighten", CodePen OPWreWR, MIT, written
+  fresh with no pointer tracking); the verb, its timer and the heartbeat trace
+  are unchanged.
 
 ### Fixed
 

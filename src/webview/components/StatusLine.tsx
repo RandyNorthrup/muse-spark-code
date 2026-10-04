@@ -1,12 +1,13 @@
-// The working line under the last row while a turn runs: a bullet, trace and a
-// verb that changes every few seconds, as the Claude Code panel shows. It is
-// not a live region (M25): a polite region here read a new verb out every
+// The working line under the last row while a turn runs: a mark, a trace and
+// a verb that changes every few seconds, as the Claude Code panel shows. It
+// is not a live region (M25): a polite region here read a new verb out every
 // few seconds for as long as the turn ran. The app's one live region says
 // when the turn ends.
 
 import { useEffect, useState } from 'react'
 import { STATUS_VERB_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
 import { HeartbeatTrace } from './HeartbeatTrace'
+import { StatusMark } from './StatusMark'
 
 export function StatusLine() {
   const verbs = Object.values(UI_TEXT.statusVerbs)
@@ -23,7 +24,7 @@ export function StatusLine() {
   return (
     <li className="status-line">
       <span className="status-verb">
-        <span className="tool-dot tool-dot-running" aria-hidden="true" />
+        <StatusMark />
         <span>{verbs[index]}</span>
       </span>
       <HeartbeatTrace />
