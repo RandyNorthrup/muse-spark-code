@@ -2686,6 +2686,49 @@
             })
           })
         },
+        // --- M87 lane E: the real tally component, before lane W's App wiring ---
+        'diff-tally': () => {
+          steps.goal()
+          whenFound('.goal', (goal) => {
+            import('./diff-tally.js')
+              .then(({ DiffTally, diffTally, installEmbeddedTable, createElement, createRoot }) => {
+                const tableError = installEmbeddedTable(document)
+                if (tableError !== undefined) {
+                  throw tableError
+                }
+                const mount = document.createElement('div')
+                goal.before(mount)
+                const counts = diffTally([
+                  {
+                    kind: 'tool',
+                    id: 'tally-edit',
+                    tool: 'apply_patch',
+                    args: '{}',
+                    status: 'completed',
+                    output: '',
+                    isBackground: false,
+                    patchSummary: { files: 8, added: 313, removed: 96 },
+                  },
+                ])
+                createRoot(mount).render(
+                  createElement(DiffTally, {
+                    counts,
+                    onReview: () => {
+                      window.harnessReviewed = true
+                    },
+                  }),
+                )
+                whenFound('.diff-tally', (row) => {
+                  if (row.querySelector('.diff-tally-review') === null) {
+                    throw new Error('The diff tally did not render Review')
+                  }
+                })
+              })
+              .catch((error) => {
+                harnessErrors.push(String(error))
+              })
+          })
+        },
         // --- M45: a paused goal with its objective open for a change ---
         'goal-edit': () => {
           window.harnessGoal = {

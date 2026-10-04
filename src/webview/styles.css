@@ -1490,6 +1490,42 @@ body {
   text-align: center;
 }
 
+/* --- conversation diff tally (M87), above the goal and task panes --- */
+
+.diff-tally {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
+  border-top: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+}
+
+.diff-tally-files {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-lines {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-added {
+  color: var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-foreground));
+}
+
+.diff-tally-removed {
+  color: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-foreground));
+}
+
+.diff-tally-review {
+  min-height: var(--ms-control-size);
+  margin-inline-start: auto;
+}
+
 /* --- goal strip (M45): the session goal above the task list --- */
 
 .goal {
