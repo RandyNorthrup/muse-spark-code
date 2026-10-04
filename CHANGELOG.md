@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The localization gate now requires `{count}` in a language's `one` form
+  when it also covers an integer other than 1 in 0–200. Seven step-summary
+  forms each in Russian, French and Brazilian Portuguese now show the
+  actual count; German forms may still omit it when English does.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 
 ## [0.11.0] - 2026-10-03

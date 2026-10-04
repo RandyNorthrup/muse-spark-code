@@ -11177,6 +11177,21 @@ of the lanes.
 
 ### M87 — Panel polish (D66)
 
+**L10NGATE follow-up (2026-10-03).** Strengthen the existing shared table
+checker used by `scripts/check-l10n.mjs`: sample integer counts 0 through
+200 with each locale's `Intl.PluralRules`, and require `{count}` in `one`
+when it also represents a count other than 1. Preserve existing slot,
+category, markup and untranslated checks. Correct every flagged translation;
+prove Russian rejection/acceptance, German omission and the rule-reversion
+drill on Kubuntu. Record evidence in `docs/certification/m87-l10ngate.md`.
+The canonical plan has no skill `quality-ledger`; its structural validator
+is deferred rather than adding a competing tracker for this bounded lane.
+The rule and all 21 flagged entries are implemented. Kubuntu's complete
+localization file passes 19 tests, including Russian and Ukrainian recurring
+`one`, French and Portuguese zero, and German omission. The rule-reversion
+drill failed all four recurring-category cases, restored identical bytes,
+and returned green. Full M87 certification remains the lead's work.
+
 - **Goal.** The panel can be read at a glance: how full the context is,
   what the agent did (one line per run of steps), what changed, and that it
   is working. The boxes are smaller, and the user controls queued messages
@@ -12594,6 +12609,16 @@ publishes a fix (then update or override), or when npm stops reporting the
 advisory.
 
 Aggregates: `quality:gates` = format:check, lint, typecheck, check:l10n, check:host-api, deadcode, cycles, duplication, test:unit, build, security:audit; `quality` = quality:gates + test:a11y + security:secrets + security:sast; `quality:ci` = quality:gates + test:a11y + test:integration (secrets and SAST are separate CI jobs). Integration tests run only in CI or via `npm run test:integration`.
+
+**L10NGATE local build deferral (2026-10-03).** All bundle sizes passed,
+but the split gate reported five missing packages. This worktree's
+`node_modules` is a pre-existing junction to `mx-cli-live/node_modules`;
+generated metafiles contain those packages under `../mx-cli-live/node_modules/`,
+while the unchanged gate requires prefixes starting `node_modules/`.
+The packages contribute bytes to the intended bundles. Preserve the gate
+and shared dependency target; the lead must rerun the build with dependencies
+local to the worktree. This is not a passing full build or M87 certification.
+Evidence and the scoped localization checks: `docs/certification/m87-l10ngate.md`.
 
 The pre-commit hook runs `lint-staged` tasks serially, keeping the same lint
 and format checks with fewer simultaneous children. On 2026-09-25 Windows

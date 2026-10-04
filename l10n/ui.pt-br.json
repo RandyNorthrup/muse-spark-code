@@ -588,37 +588,37 @@
   "tasksTabEnded": "A conversa à qual esta lista pertence foi fechada.",
   "stepSummary": {
     "edited": {
-      "one": "editou um arquivo",
+      "one": "editou {count} arquivo",
       "many": "editou {count} arquivos",
       "other": "editou {count} arquivos"
     },
     "read": {
-      "one": "leu um arquivo",
+      "one": "leu {count} arquivo",
       "many": "leu {count} arquivos",
       "other": "leu {count} arquivos"
     },
     "searched": {
-      "one": "pesquisou em uma pasta",
+      "one": "pesquisou em {count} pasta",
       "many": "pesquisou em {count} pastas",
       "other": "pesquisou em {count} pastas"
     },
     "ran": {
-      "one": "executou um comando",
+      "one": "executou {count} comando",
       "many": "executou {count} comandos",
       "other": "executou {count} comandos"
     },
     "fetched": {
-      "one": "buscou uma página",
+      "one": "buscou {count} página",
       "many": "buscou {count} páginas",
       "other": "buscou {count} páginas"
     },
     "searchedWeb": {
-      "one": "pesquisou na web",
+      "one": "pesquisou na web {count} vez",
       "many": "pesquisou na web {count} vezes",
       "other": "pesquisou na web {count} vezes"
     },
     "used": {
-      "one": "usou uma ferramenta",
+      "one": "usou {count} ferramenta",
       "many": "usou {count} ferramentas",
       "other": "usou {count} ferramentas"
     },

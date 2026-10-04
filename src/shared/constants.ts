@@ -3297,6 +3297,8 @@ export const EVAL_COST_DECIMALS = 4
 
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
+// Inclusive integer range used to check whether a locale's `one` needs a count.
+export const L10N_PLURAL_SAMPLE_MAX = 200
 // The JSON script element the host writes into each webview's HTML with
 // `{ locale, table }`, read before the first render (D33).
 export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
