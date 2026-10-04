@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Transcript row actions share a radial menu opened by right-click,
+  Shift+F10, the Menu key or one **More actions** (⋯) button. User-message
+  rewind choices open a second burst; queued Edit, response Copy and Reply,
+  restore Redo, and tool output/edit review keep their existing handlers and
+  availability checks. Selected text keeps its quote menu.
+
 - Task lists can collapse to progress and the task in progress. **Open Tasks
   in a Tab** mirrors the active conversation's list in a read-only editor tab,
   rebuilds it after the webview reloads, and marks a closed conversation.

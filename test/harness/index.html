@@ -1274,7 +1274,10 @@
           })
         },
         'chat-menu': () => {
-          steps['quote-menu']()
+          steps.rewind()
+          later(450, () =>
+            document.querySelector('[aria-haspopup="menu"][role="menuitem"]').click(),
+          )
         },
         'chat-menu-narrow': () => {
           if (window.innerWidth !== 320) {
@@ -1283,6 +1286,22 @@
           document.documentElement.style.width = '100%'
           document.body.style.width = '100%'
           steps['chat-menu']()
+        },
+        'chat-tool-menu': () => {
+          transcriptFixture({ isDone: true })
+          later(300, () => {
+            document.querySelector('.steps-toggle').click()
+            later(100, () =>
+              document.querySelector('[data-entry-id="ed1"] .row-actions-button').click(),
+            )
+          })
+        },
+        'chat-tool-menu-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('chat-tool-menu-narrow requires a 320 px viewport')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['chat-tool-menu']()
         },
         shifttab: () => {
           textarea().focus()
@@ -1637,7 +1656,7 @@
             attachments: [],
           })
           send({ type: 'turnAccepted', localId: 'steer-1', turnId: 't1', disposition: 'steered' })
-          whenFound('.queued-button', (button) => button.click())
+          whenFound('[data-role="user"] .row-actions-button', (button) => button.click())
         },
         'add-context': () => {
           click('Attach')
@@ -1691,7 +1710,7 @@
             sessionId: 's1',
           })
           transcriptFixture({ isDone: true })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         // --- M72: a turn with a checkpoint: Restore files, Both, and a
         // restore's notice with its Redo ---
@@ -1721,7 +1740,7 @@
             level: 'warning',
             text: 'Not restorable, changed by a command with no earlier copy: server.log',
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         // --- M72: Restricted Mode, and Muse Code on Windows: the menu says
         // why rows are missing ---
@@ -1741,7 +1760,7 @@
             sessionId: 's1',
             turnIds: [],
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         'checkpoint-read-only': () => {
           send({
@@ -1766,7 +1785,7 @@
             text: 'Saved restore remains readable.',
             redoRestoreId: 'old-redo',
           })
-          later(300, () => document.querySelector('.rewind-button').click())
+          later(300, () => document.querySelector('[data-role="user"] .row-actions-button').click())
         },
         'checkpoint-read-only-narrow': () => {
           document.documentElement.style.width = '100%'
@@ -2380,14 +2399,18 @@
         // --- M17: a reply's actions menu, and the reference chip it sets ---
         'reply-menu': () => {
           transcriptFixture({ isDone: true })
-          later(300, () => document.querySelector('.response-menu-button').click())
+          later(300, () =>
+            document.querySelector('[data-role="assistant"] .row-actions-button').click(),
+          )
         },
         'reply-chip': () => {
           transcriptFixture({ isDone: true })
           later(300, () => {
-            document.querySelector('.response-menu-button').click()
+            document.querySelector('[data-role="assistant"] .row-actions-button').click()
             later(100, () => {
-              document.querySelector('.response-actions .rewind-menu-item').click()
+              document
+                .querySelector('[data-role="assistant"] .gooey-menu-bubble:nth-child(2)')
+                .click()
               setDraft('Why two files and not three?')
             })
           })

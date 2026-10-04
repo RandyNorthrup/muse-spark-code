@@ -11887,8 +11887,17 @@ of the lanes.
 **Lane F1 (item 17).** The reusable edge-aware radial layout, grouped menu
 and highlighted-text adapter are implemented in `m87/f`. The bounded lane's
 readiness, tests, drills and theme captures are recorded in
-`docs/certification/m87-f.md`. Transcript row wiring and replacing hover
-actions remain F2, after lane C; full M87 certification belongs to the lead.
+`docs/certification/m87-f.md`. F2 row wiring and verification are recorded below; full M87 certification
+belongs to the lead.
+
+**Lane F2 (2026-10-04, item 17).** Row presentation reuses the F1 menu and
+current callbacks: one opener on user, queued, finished reply, restore and
+actionable tool rows, with a grouped Rewind burst. Verification is in
+`docs/certification/m87-f.md` under F2. The merged tree offers Reply to this
+output, not reply Retry; edit Revert remains in the review editor. No new
+host action is guessed. Lane W owns those missing direct-action contracts
+and full M87 certification. Structural skill validation remains deferred
+under the existing canonical-plan exception below.
 
 **L10NGATE follow-up (2026-10-03).** Strengthen the existing shared table
 checker used by `scripts/check-l10n.mjs`: sample integer counts 0 through
@@ -13420,6 +13429,16 @@ The packages contribute bytes to the intended bundles. Preserve the gate
 and shared dependency target; the lead must rerun the build with dependencies
 local to the worktree. This is not a passing full build or M87 certification.
 Evidence and the scoped localization checks: `docs/certification/m87-l10ngate.md`.
+
+**M87 F2 label-drill deferral (2026-10-04).** The row migration passes its
+focused checks and thirty deliberate defects (28 rig guards/payloads, the
+inert-control guard and non-hover visibility). Two label-offset mutations
+survived the browser observation attempts; adding corner events did not
+establish settled placement. Per the common brief's two-attempt rule, this
+path stopped, all bytes restored, and the drill remains open. Lane W must
+wait for changed-origin placement before asserting bounds, then prove the
+label defect fails and restore green. No rule, threshold or test was weakened.
+Details and build-junction limitation: `docs/certification/m87-f.md` F2.
 
 **M87 D local gate limits (2026-10-03).** Lane D inherits the same dependency
 junction and bundle-split failure above; every bundle size still passes.

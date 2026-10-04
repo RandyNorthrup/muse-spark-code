@@ -10,6 +10,7 @@ import {
   mountTranscript,
   renderSteps,
   renderTranscript,
+  selectPassage,
   tool,
   transcriptProps,
 } from './helpers/transcriptFixtures'
@@ -460,11 +461,16 @@ describe('Transcript rows (M15, M16)', () => {
       { kind: 'assistant', id: 'a1', text: 'first **bold**', isStreaming: false },
       { kind: 'assistant', id: 'a2', text: 'partial', isStreaming: true },
     ])
-    const copy = screen.getByRole('button', { name: 'Copy response' })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    const copy = screen.getByRole('menuitem', { name: 'Copy response' })
     expect(copy).toHaveAttribute('title', 'Copy response')
     fireEvent.click(copy)
     expect(props.onCopy).toHaveBeenCalledWith('first **bold**')
-    expect(copy).toHaveAttribute('title', 'Copied')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    expect(screen.getByRole('menuitem', { name: 'Copy response' })).toHaveAttribute(
+      'title',
+      'Copied',
+    )
   })
 
   it('opens a shell or read output in an editor on click or Enter, with the stored ref when there is one', () => {
@@ -552,7 +558,7 @@ describe('Transcript chat references (M17)', () => {
     renderTranscript([{ kind: 'assistant', id: 'a1', text: 'done', isStreaming: false }], {
       onReply,
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Reply to this output' }))
     expect(onReply).toHaveBeenCalledWith('a1')
     expect(screen.queryByRole('menuitem')).toBeNull()
@@ -962,15 +968,17 @@ describe('Transcript replies (M25)', () => {
       ],
       { onFork: vi.fn(), onRewind: vi.fn(), onReply: vi.fn() },
     )
-    fireEvent.click(screen.getByLabelText('Fork or rewind'))
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })[0]!)
     expect(screen.getByRole('menu')).toBeInTheDocument()
     fireEvent.pointerDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Message actions' }))
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions }).at(-1)!)
     const item = screen.getByRole('menuitem', { name: 'Reply to this output' })
     fireEvent.pointerDown(item)
     expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.blur(item, { relatedTarget: screen.getByLabelText('Fork or rewind') })
+    fireEvent.blur(item, {
+      relatedTarget: screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })[0]!,
+    })
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
@@ -980,8 +988,9 @@ describe('Transcript replies (M25)', () => {
       [{ kind: 'user', seq: 1, id: 'u', text: 'hello', status: 'sent', attachments: [] }],
       { onRewind },
     )
-    fireEvent.click(screen.getByLabelText('Fork or rewind'))
-    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+    fireEvent.click(screen.getAllByRole('button', { name: UI_TEXT.rowMoreActions })[0]!)
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.rowRewindGroup }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.getAttribute('aria-label'))).toEqual([
       'Rewind code to here',
     ])
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rewind code to here' }))
@@ -1260,7 +1269,7 @@ describe('Transcript: message times (M87, PLAN.md D66)', () => {
 
 /** A queued card's "…" button. */
 function menuButton(): HTMLElement {
-  return screen.getByRole('button', { name: UI_TEXT.queuedMenuLabel })
+  return screen.getByRole('button', { name: UI_TEXT.rowMoreActions })
 }
 
 describe('Transcript: Edit on a queued message (M87, PLAN.md D66)', () => {
@@ -1298,16 +1307,12 @@ describe('Transcript: Edit on a queued message (M87, PLAN.md D66)', () => {
   it('leaves a right-click on selected text to the quote menu', () => {
     renderTranscript([userCard()], { onEditQueued: vi.fn() })
     const text = screen.getByText('queued text')
-    const range = document.createRange()
-    range.selectNodeContents(text)
-    const selection = globalThis.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(range)
+    const clearSelection = selectPassage(text)
     try {
       expect(fireEvent.contextMenu(text)).toBe(true)
       expect(screen.queryByRole('menu')).toBeNull()
     } finally {
-      selection?.removeAllRanges()
+      clearSelection()
     }
   })
 
@@ -1328,11 +1333,11 @@ describe('Transcript: Edit on a queued message (M87, PLAN.md D66)', () => {
 
   it('offers no menu where nothing can take a message back, nor on a sent card', () => {
     renderTranscript([userCard()])
-    expect(screen.queryByRole('button', { name: UI_TEXT.queuedMenuLabel })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.rowMoreActions })).toBeNull()
     expect(fireEvent.contextMenu(screen.getByText('queued text'))).toBe(true)
     renderTranscript([userCard({ id: 's', status: 'sent', text: 'sent text' })], {
       onEditQueued: vi.fn(),
     })
-    expect(screen.queryByRole('button', { name: UI_TEXT.queuedMenuLabel })).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.rowMoreActions })).toBeNull()
   })
 })

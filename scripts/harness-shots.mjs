@@ -40,7 +40,7 @@ const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
-  if (scenario === 'share-narrow' || scenario === 'chat-menu-narrow') {
+  if (['share-narrow', 'chat-menu-narrow', 'chat-tool-menu-narrow'].includes(scenario)) {
     await withNarrowPage(chrome, profileDir, url, async (page) => {
       await page.getByRole(scenario === 'share-narrow' ? 'dialog' : 'menu').waitFor()
       await page.screenshot({ path: file, animations: 'disabled' })

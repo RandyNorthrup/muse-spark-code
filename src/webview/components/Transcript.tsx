@@ -9,16 +9,7 @@
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import {
-  memo,
-  type ReactNode,
-  useDeferredValue,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { memo, type ReactNode, useDeferredValue, useId, useMemo, useRef, useState } from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import {
@@ -41,7 +32,6 @@ import {
 } from '../state/uiState'
 import type { NoticeAction } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
-import { useDismiss } from '../useDismiss'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
@@ -52,7 +42,6 @@ import {
   ExpandChevron,
   FileIcon,
   ImageIcon,
-  MoreIcon,
   ReplyIcon,
   RewindIcon,
 } from './icons'
@@ -64,6 +53,8 @@ import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
+import { type GooeyItem, useRowMenu } from './GooeyMenu'
+import type { MenuPoint } from '../gooeyLayout'
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -133,6 +124,7 @@ export interface TranscriptProps {
   readonly onImplementPlan?: ((entryId: string) => void) | undefined
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
+  readonly quoteMenuOrigin?: MenuPoint | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
@@ -286,72 +278,6 @@ function MessageTime({
   )
 }
 
-/** Whether a text selection lies inside `area`: then the quote menu (M17) owns the right-click. */
-function hasSelectionIn(area: HTMLElement | null): boolean {
-  const selection = globalThis.getSelection()
-  return (
-    area !== null &&
-    selection !== null &&
-    !selection.isCollapsed &&
-    selection.toString().trim() !== '' &&
-    area.contains(selection.anchorNode)
-  )
-}
-
-/**
- * A queued card's menu (M87): Edit while the model does not have the
- * message, or the note that a steered message was delivered already. It
- * opens from the card's "…", a right-click, Shift+F10 or the context-menu
- * key, and takes the focus to its first row.
- */
-function QueuedMenu({
-  isDelivered,
-  onEdit,
-}: {
-  readonly isDelivered: boolean
-  readonly onEdit: () => void
-}) {
-  const menu = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
-  }, [])
-  return (
-    <div ref={menu} className="rewind-menu" role="menu" aria-label={UI_TEXT.queuedMenuLabel}>
-      {isDelivered ? (
-        <div
-          role="menuitem"
-          aria-disabled="true"
-          tabIndex={-1}
-          className="rewind-menu-item rewind-menu-note"
-        >
-          {UI_TEXT.queuedDelivered}
-        </div>
-      ) : (
-        <button
-          type="button"
-          role="menuitem"
-          className="rewind-menu-item"
-          title={UI_TEXT.queuedEditTitle}
-          onClick={onEdit}
-        >
-          {UI_TEXT.queuedEdit}
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Escape inside an open menu closes it and stays inside the row. */
-function closeOnEscape(isOpen: boolean, close: () => void) {
-  return (event: React.KeyboardEvent<HTMLElement>) => {
-    if (!isOpen || event.key !== 'Escape') {
-      return
-    }
-    event.stopPropagation()
-    close()
-  }
-}
-
 const UserCard = memo(function UserCard({
   entry,
   onFork,
@@ -383,14 +309,6 @@ const UserCard = memo(function UserCard({
     entry.attachments.length > 0 ||
     entry.contextLabel !== undefined ||
     entry.referenceLabel !== undefined
-  const [isMenuOpen, setMenuOpen] = useState(false)
-  const menuArea = useRef<HTMLDivElement>(null)
-  const menuButton = useRef<HTMLButtonElement>(null)
-  const card = useRef<HTMLLIElement>(null)
-  const closeMenu = () => {
-    setMenuOpen(false)
-  }
-  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
   const hasMenu = onRewind !== undefined && entry.status === 'sent'
   // A queued card's menu (M87): Edit, or the note that a steer was delivered.
@@ -398,22 +316,8 @@ const UserCard = memo(function UserCard({
   const isQueued = entry.status === 'queued' && turnId !== undefined
   const isDelivered = isQueued && entry.disposition === STEERED_DISPOSITION && !canEditSteered
   const hasQueuedMenu = isQueued && (isDelivered || onEditQueued !== undefined)
-  const openQueuedMenu = (event: React.SyntheticEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
-    setMenuOpen(true)
-  }
-  const onQueuedKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
-      openQueuedMenu(event)
-    } else if (isMenuOpen && event.key === 'Escape') {
-      event.stopPropagation()
-      closeMenu()
-      menuButton.current?.focus()
-    }
-  }
   const editQueued = () => {
-    setMenuOpen(false)
+    menu.close()
     if (turnId !== undefined) {
       onEditQueued?.({ localId: entry.id, turnId, userMessageId: entry.replayItemId })
     }
@@ -429,7 +333,7 @@ const UserCard = memo(function UserCard({
   const menuRows = rewindMenu().filter((row) => offered[row.id])
   const notes = [restoreNote, conversationNote].filter((note) => note !== undefined)
   const choose = (choice: RewindChoice) => {
-    setMenuOpen(false)
+    menu.close()
     switch (choice) {
       case 'conversation': {
         onRewindConversation?.(entry.id)
@@ -457,23 +361,70 @@ const UserCard = memo(function UserCard({
       }
     }
   }
+  const rewindItems = menuRows
+    .filter((row) => row.id !== 'fork' && row.id !== 'forkRewind')
+    .map((row) => ({
+      id: row.id,
+      label: row.label,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        choose(row.id)
+      },
+    }))
+  let items: GooeyItem[] = []
+  if (hasMenu) {
+    items = [
+      ...menuRows
+        .filter((row) => row.id === 'fork' || row.id === 'forkRewind')
+        .map((row) => ({
+          id: row.id,
+          label: row.label,
+          icon: <ReplyIcon />,
+          onSelect: () => {
+            choose(row.id)
+          },
+        })),
+      {
+        id: 'rewindGroup',
+        label: UI_TEXT.rowRewindGroup,
+        icon: <RewindIcon />,
+        children: [
+          ...rewindItems,
+          ...notes.map((note) => ({
+            id: note,
+            label: note,
+            icon: <RewindIcon />,
+            disabled: true,
+            onSelect: () => {
+              menu.close()
+            },
+          })),
+        ],
+      },
+    ]
+  } else if (hasQueuedMenu) {
+    items = [
+      {
+        id: 'queued',
+        label: isDelivered ? UI_TEXT.queuedDelivered : UI_TEXT.queuedEdit,
+        title: isDelivered ? undefined : UI_TEXT.queuedEditTitle,
+        icon: <ReplyIcon />,
+        disabled: isDelivered,
+        onSelect: editQueued,
+      },
+    ]
+  }
+  const menu = useRowMenu(
+    items,
+    hasQueuedMenu ? UI_TEXT.queuedMenuLabel : UI_TEXT.rewindMenuLabel,
+    quoteMenu,
+  )
   return (
     <li
-      ref={card}
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
-      onKeyDown={hasQueuedMenu ? onQueuedKeyDown : closeOnEscape(isMenuOpen, closeMenu)}
-      onContextMenu={
-        hasQueuedMenu
-          ? (event) => {
-              // Selected text keeps the quote menu (M17).
-              if (!hasSelectionIn(card.current)) {
-                openQueuedMenu(event)
-              }
-            }
-          : undefined
-      }
+      {...menu.rowProps}
     >
       {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
@@ -520,69 +471,7 @@ const UserCard = memo(function UserCard({
           isFocusable={!hasMenu && !hasQueuedMenu}
         />
       )}
-      {hasQueuedMenu ? (
-        <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
-          <button
-            ref={menuButton}
-            type="button"
-            className="rewind-button queued-button"
-            title={UI_TEXT.queuedMenuLabel}
-            aria-label={UI_TEXT.queuedMenuLabel}
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            onClick={() => {
-              setMenuOpen((isOpen) => !isOpen)
-            }}
-          >
-            <MoreIcon />
-          </button>
-          {isMenuOpen ? <QueuedMenu isDelivered={isDelivered} onEdit={editQueued} /> : null}
-        </div>
-      ) : null}
-      {hasMenu ? (
-        <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
-          <button
-            type="button"
-            className="rewind-button"
-            title={UI_TEXT.rewindMenuLabel}
-            aria-label={UI_TEXT.rewindMenuLabel}
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            onClick={() => {
-              setMenuOpen((isOpen) => !isOpen)
-            }}
-          >
-            <RewindIcon />
-          </button>
-          {isMenuOpen ? (
-            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.rewindMenuLabel}>
-              {menuRows.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="menuitem"
-                  className="rewind-menu-item"
-                  onClick={() => {
-                    choose(row.id)
-                  }}
-                >
-                  {row.label}
-                </button>
-              ))}
-              {notes.map((note) => (
-                <div
-                  key={note}
-                  role="menuitem"
-                  aria-disabled="true"
-                  className="rewind-menu-item rewind-menu-note"
-                >
-                  {note}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {menu.menu}
       {quoteMenu}
     </li>
   )
@@ -707,22 +596,45 @@ const AssistantRow = memo(function AssistantRow({
     : { closed: tail, open: undefined }
   const actions = { onOpenLink, onOpenFile, onRefuseLink, onCopy, onInsert, onApply }
   const [isCopied, markCopied] = useCopiedFlag()
-  const [isMenuOpen, setMenuOpen] = useState(false)
-  const menuArea = useRef<HTMLDivElement>(null)
-  const closeMenu = () => {
-    setMenuOpen(false)
-  }
-  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
+  const items: GooeyItem[] = entry.isStreaming
+    ? []
+    : [
+        {
+          id: 'copy',
+          label: UI_TEXT.copyResponse,
+          title: isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse,
+          icon: isCopied ? <CheckIcon /> : <CopyIcon />,
+          onSelect: () => {
+            onCopy(entry.text)
+            markCopied()
+            menu.close()
+          },
+        },
+        ...(onReply === undefined
+          ? []
+          : [
+              {
+                id: 'reply',
+                label: UI_TEXT.replyToOutput,
+                icon: <ReplyIcon />,
+                onSelect: () => {
+                  onReply(entry.id)
+                  menu.close()
+                },
+              },
+            ]),
+      ]
+  const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   return (
     <li
       className="message message-assistant"
       aria-busy={entry.isStreaming}
       data-entry-id={entry.id}
       data-role="assistant"
-      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
+      {...menu.rowProps}
     >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
-      <div className="message-body">
+      <div className="message-body" inert={menu.isOpen}>
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
         {closed === '' ? null : (
           // The reply a plan action would save is shown as its brief would read (M79).
@@ -773,52 +685,7 @@ const AssistantRow = memo(function AssistantRow({
           isFocusable={entry.isStreaming}
         />
       )}
-      {entry.isStreaming ? null : (
-        <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>
-          <button
-            type="button"
-            className="rewind-button response-copy"
-            aria-label={UI_TEXT.copyResponse}
-            title={isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse}
-            onClick={() => {
-              onCopy(entry.text)
-              markCopied()
-            }}
-          >
-            {isCopied ? <CheckIcon /> : <CopyIcon />}
-          </button>
-          {onReply === undefined ? null : (
-            <button
-              type="button"
-              className="rewind-button response-menu-button"
-              aria-label={UI_TEXT.messageActions}
-              title={UI_TEXT.messageActions}
-              aria-haspopup="menu"
-              aria-expanded={isMenuOpen}
-              onClick={() => {
-                setMenuOpen((isOpen) => !isOpen)
-              }}
-            >
-              <MoreIcon />
-            </button>
-          )}
-          {isMenuOpen ? (
-            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.messageActions}>
-              <button
-                type="button"
-                role="menuitem"
-                className="rewind-menu-item"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onReply?.(entry.id)
-                }}
-              >
-                {UI_TEXT.replyToOutput}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      )}
+      {menu.menu}
       {quoteMenu}
     </li>
   )
@@ -971,23 +838,28 @@ const RestoreNotice = memo(function RestoreNotice({
   readonly restoreId: string
   readonly onRedo: (entryId: string, restoreId: string) => void
 }) {
+  const menu = useRowMenu(
+    entry.isRedoUsed === true
+      ? []
+      : [
+          {
+            id: 'redo',
+            label: UI_TEXT.redoAction,
+            title: UI_TEXT.redoLabel,
+            icon: <RewindIcon />,
+            disabled: entry.isRedoPending === true,
+            onSelect: () => {
+              menu.close()
+              onRedo(entry.id, restoreId)
+            },
+          },
+        ],
+    UI_TEXT.messageActions,
+  )
   return (
-    <li className={`notice notice-${entry.level}`}>
+    <li className={`notice notice-${entry.level} row-with-actions`} {...menu.rowProps}>
       {entry.text}
-      {entry.isRedoUsed === true ? null : (
-        <button
-          type="button"
-          className="notice-action"
-          title={UI_TEXT.redoLabel}
-          aria-label={UI_TEXT.redoLabel}
-          disabled={entry.isRedoPending === true}
-          onClick={() => {
-            onRedo(entry.id, restoreId)
-          }}
-        >
-          {UI_TEXT.redoAction}
-        </button>
-      )}
+      {menu.menu}
     </li>
   )
 })
@@ -1077,6 +949,7 @@ function TranscriptList(props: TranscriptProps) {
     onSavePlan,
     onImplementPlan,
     quoteMenuEntryId,
+    quoteMenuOrigin,
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
@@ -1089,7 +962,12 @@ function TranscriptList(props: TranscriptProps) {
     onQuote !== undefined &&
     onCopyQuote !== undefined &&
     onCloseQuoteMenu !== undefined ? (
-      <QuoteMenu onChoose={onQuote} onCopy={onCopyQuote} onClose={onCloseQuoteMenu} />
+      <QuoteMenu
+        onChoose={onQuote}
+        onCopy={onCopyQuote}
+        onClose={onCloseQuoteMenu}
+        origin={quoteMenuOrigin}
+      />
     ) : null
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (

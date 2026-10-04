@@ -297,9 +297,7 @@ body {
   border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
 }
 
-/* A queued card (M87, PLAN.md D66): its badge, and its "…" in the corner
-   (the rewind button's place and look), always shown so Edit is found by the
-   pointer and reached by Tab. Its menu opens beneath, as the rewind menu does. */
+/* A queued card (M87, PLAN.md D66): its badge and space for the shared opener. */
 .message-queued {
   padding-right: 32px;
 }
@@ -307,10 +305,6 @@ body {
 .message-queued-badge {
   margin-top: 4px;
   font-size: 0.85em;
-}
-
-.rewind-button.queued-button {
-  visibility: visible;
 }
 
 /* A message's time (M87): at the card's corner beside its buttons, shown on
@@ -2147,86 +2141,13 @@ body {
   visibility: hidden;
 }
 
-/* The rewind button sits in the user card's top-right corner (the card is
-   positioned, see .message-user) and shows on hover or focus, as Claude Code's
-   user-message menu does; its menu opens beneath. */
-.rewind {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-.rewind-button,
-.response-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 50%;
-  color: var(--vscode-descriptionForeground);
-  background: var(--vscode-editor-background);
-  cursor: pointer;
-  visibility: hidden;
-}
-
-.rewind-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-.rewind-menu {
-  position: absolute;
-  top: 26px;
-  right: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  min-width: min(220px, calc(100vw - 32px));
-  max-width: min(32rem, calc(100vw - 32px));
-  padding: 4px;
-  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  background: var(--vscode-menu-background, var(--vscode-editor-background));
-  color: var(--vscode-menu-foreground, var(--vscode-foreground));
-  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
-}
-
-.rewind-menu-item {
-  padding: 6px 10px;
-  border: 0;
-  border-radius: var(--ms-radius);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* Why a row is missing (M72): read, never chosen. */
-.rewind-menu-note {
-  overflow-wrap: anywhere;
-  color: var(--vscode-descriptionForeground);
-  cursor: default;
-}
-
-.rewind-menu-item:hover,
-.rewind-menu-item:focus-visible {
-  color: var(--vscode-menu-selectionForeground, inherit);
-  background: var(--vscode-menu-selectionBackground, var(--vscode-toolbar-hoverBackground));
-  outline: none;
-}
-
-.header-title-button:hover,
-.rewind-button:hover {
+.header-title-button:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
 .header-title-button:focus-visible,
 .header-title-input:focus-visible,
-.history-archive:focus-visible,
-.rewind-button:focus-visible {
+.history-archive:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
@@ -2234,30 +2155,6 @@ body {
 .history-row:hover .history-archive,
 .history-row.palette-item-active .history-archive {
   visibility: visible;
-}
-
-.message-user:hover .rewind-button,
-.message-user:focus-within .rewind-button,
-.message-assistant:hover .response-copy,
-.message-assistant:focus-within .response-copy,
-.message-assistant:hover .response-menu-button,
-.message-assistant:focus-within .response-menu-button,
-.response-menu-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-/* Copy and the actions menu sit at the foot of a reply (M15, M17); the
-   menu opens beneath the button like the user card's. */
-.response-actions {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  display: flex;
-  gap: 2px;
-}
-
-.response-actions .rewind-menu {
-  top: 24px;
 }
 
 /* A reply's tokens and dollar estimate under it (M82, Model API only). */
@@ -2331,6 +2228,63 @@ body {
 }
 
 /* M87 F: the highlighted-text anchor stays at its row's top-right. */
+
+/* One opener per row. Opacity keeps it reachable before focus reveals it. */
+.row-with-actions {
+  position: relative;
+  padding-right: 32px;
+}
+
+.row-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.message-assistant > .row-actions {
+  top: auto;
+  bottom: 2px;
+}
+
+.tool:has(> .row-actions) .tool-header {
+  padding-right: 32px;
+}
+
+.row-actions-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0%;
+}
+
+.row-actions-button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.row-actions-button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+li:hover > .row-actions .row-actions-button,
+li:focus-within > .row-actions .row-actions-button,
+.row-actions-button[aria-expanded='true'] {
+  opacity: 100%;
+}
+
+@media (hover: none) {
+  .row-actions-button {
+    opacity: 100%;
+  }
+}
+
 .quote-menu {
   position: absolute;
   top: 4px;
@@ -2387,6 +2341,8 @@ body {
 
 .gooey-menu-label {
   position: absolute;
+  box-sizing: border-box;
+  width: max-content;
   max-width: min(180px, calc(50vw - 40px));
   padding: 4px 8px;
   margin-left: 28px;
@@ -2395,12 +2351,10 @@ body {
   background: var(--vscode-button-background);
   border: 1px solid var(--vscode-focusBorder);
   border-radius: 4px;
-  translate: 0 -50%;
 }
 
 .gooey-menu-label-left {
   margin-left: -28px;
-  translate: -100% -50%;
 }
 
 @keyframes gooey-burst {

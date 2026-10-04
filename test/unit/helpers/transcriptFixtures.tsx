@@ -122,3 +122,16 @@ export function mountTranscript(
     },
   }
 }
+
+/** Select a real DOM passage; return cleanup so tests cannot leak a selection. */
+export function selectPassage(element: HTMLElement): () => void {
+  const selection = globalThis.getSelection()
+  if (selection === null) throw new Error('DOM selection unavailable')
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  selection.removeAllRanges()
+  selection.addRange(range)
+  return () => {
+    selection.removeAllRanges()
+  }
+}
