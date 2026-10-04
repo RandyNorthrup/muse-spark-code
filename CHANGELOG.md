@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- `npm run readme:shots` refreshes the README's screenshots from the UI
+  harness: `scripts/readme-shots.json` declares each image's scenario,
+  theme, size and language (`languages.png` renders `usage` in German),
+  with `--list` printing the mapping and its gaps, `--only <name,...>`
+  retaking some images and `--out <dir>` previewing elsewhere. The banner
+  stays rendered by `scripts/render-images.mjs`.
+
 - Transcript row actions share a radial menu opened by right-click,
   Shift+F10, the Menu key or one **More actions** (⋯) button. User-message
   rewind choices open a second burst; queued Edit, response Copy and Reply,

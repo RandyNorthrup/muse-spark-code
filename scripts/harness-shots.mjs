@@ -12,14 +12,13 @@
 //   node scripts/harness-shots.mjs --lang=pseudo   in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
 
-import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
-import { promisify } from 'node:util'
 import { findChrome } from './lib/chrome.mjs'
+import { screenshotUrl } from './lib/harnessCapture.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
@@ -31,9 +30,8 @@ import {
 
 const OUT_DIR = 'harness-shots'
 const BUNDLE_PATH = 'dist/webview/main.js'
-const WINDOW_SIZE = '690,760'
-const VIRTUAL_TIME_BUDGET_MS = 6000
-const execFileAsync = promisify(execFile)
+const SHOT_WIDTH = 690
+const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
 const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
 
@@ -47,17 +45,11 @@ async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
     })
     return file
   }
-  await execFileAsync(chrome, [
-    '--headless=new',
-    '--disable-gpu',
-    '--hide-scrollbars',
-    '--no-first-run',
-    `--user-data-dir=${profileDir}`,
-    `--window-size=${WINDOW_SIZE}`,
-    `--virtual-time-budget=${String(VIRTUAL_TIME_BUDGET_MS)}`,
-    `--screenshot=${file}`,
-    url,
-  ])
+  await screenshotUrl(chrome, url, file, {
+    width: SHOT_WIDTH,
+    height: SHOT_HEIGHT,
+    profileDir,
+  })
   return file
 }
 

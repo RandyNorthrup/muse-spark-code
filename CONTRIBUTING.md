@@ -85,6 +85,13 @@ Use this order for a candidate branch:
 - M87 task visuals use `todo-collapsed`, `tasks-tab`, `tasks-tab-ended` and
   `tasks-tab-plain` in the harness. Capture them with `harness:shots` and
   check them with `node scripts/a11y.mjs` followed by the scenario names.
+- Refresh the README's screenshots with `npm run readme:shots`, which
+  renders each image in `scripts/readme-shots.json` from its harness
+  scenario at its declared theme, size and language. `readme:shots --list`
+  prints the mapping with any gap (a README image with no entry, or an
+  entry the README never shows); `--only <name,...>` retakes some images
+  and `--out <dir>` writes them elsewhere, so preview in `temp/` before
+  overwriting the committed `media/readme/`.
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
