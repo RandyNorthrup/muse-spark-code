@@ -25,6 +25,20 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+- **The extension loads less at startup**: `dist/extension.js` is
+  552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
+  (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
+  loaded bundle or the ACP agent reads is no longer carried at activation
+  (same words, in blocks by reader), and the window's web fetch loads with
+  its own bundle, `dist/webFetch.js` (budget 75 KiB), on the first fetch; if
+  it cannot load, that fetch fails with the reason ("Web fetch could not be
+  loaded", in all 14 languages) and the next one tries again. The lazily
+  loaded bundles shrink too (the Model API backend, the checkpoint store,
+  the import, code intelligence and both reviewers by 4 to 27 KiB each).
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
 
 ## [0.12.1] - 2026-10-04
 

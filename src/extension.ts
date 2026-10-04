@@ -91,7 +91,7 @@ import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
 import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
-import { createWebFetcher } from './host/web/webFetcher'
+import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
@@ -176,6 +176,7 @@ import {
   BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
+  WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -1221,8 +1222,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const ideTools = [diagnostics]
   // Web fetch (M69, PLAN.md D49): resolved, checked and pinned here, for the
   // Model API backend's `web_fetch` and Muse Code's `mcp__ide__webFetch`.
-  // HTML is converted on a worker of its own bundle, started for each page.
-  const webFetch = createWebFetcher(
+  // The fetch is dist/webFetch.js (D6), required on the first use; HTML is
+  // converted on a worker of its own bundle, started for each page.
+  const webFetchBundle = webFetchLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WEB_FETCH_BUNDLE_FILE).fsPath,
+    log,
+  })
+  const webFetch = lazyWebFetcher(
+    webFetchBundle,
     log,
     pageConverter(vscode.Uri.joinPath(context.extensionUri, 'dist', PAGE_WORKER_FILE).fsPath, log),
   )
@@ -1256,6 +1263,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ...ideWebFetchTools({
         isOffered: () =>
           isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork),
+        checkUrl: lazyPageUrlCheck(webFetchBundle),
         fetchPage: webFetch,
         confirm: askWebFetch,
         log,

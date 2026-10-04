@@ -11,7 +11,7 @@
 // caller commits the report, once the model has it. Pure.
 
 import {
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   type UncheckedReason,
   VERIFY_DIAGNOSTICS_MAX_ENTRIES,
@@ -111,25 +111,27 @@ export function clipText(text: string, max: number): string {
 function uncheckedReason(reason: UncheckedReason, codeFile: string | undefined): string {
   switch (reason) {
     case 'noReport': {
-      return MODEL_TEXT.verifyUncheckedNoReport
+      return MODEL_API_MODEL_TEXT.verifyUncheckedNoReport
     }
     case 'notShown': {
-      return MODEL_TEXT.verifyUncheckedNotShown
+      return MODEL_API_MODEL_TEXT.verifyUncheckedNotShown
     }
     case 'unsaved': {
-      return MODEL_TEXT.verifyUncheckedUnsaved
+      return MODEL_API_MODEL_TEXT.verifyUncheckedUnsaved
     }
     case 'codeLoading': {
-      return fill(MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile ?? '' })
+      return fill(MODEL_API_MODEL_TEXT.verifyUncheckedCodeLoading, { file: codeFile ?? '' })
     }
     case 'tooMany': {
-      return fill(MODEL_TEXT.verifyUncheckedTooMany, { count: String(VERIFY_SHOWN_FILES_MAX) })
+      return fill(MODEL_API_MODEL_TEXT.verifyUncheckedTooMany, {
+        count: String(VERIFY_SHOWN_FILES_MAX),
+      })
     }
     case 'stopped': {
-      return MODEL_TEXT.verifyUncheckedStopped
+      return MODEL_API_MODEL_TEXT.verifyUncheckedStopped
     }
     case 'changed': {
-      return MODEL_TEXT.verifyUncheckedChanged
+      return MODEL_API_MODEL_TEXT.verifyUncheckedChanged
     }
   }
 }
@@ -146,7 +148,7 @@ export class DiagnosticsHistory {
   private readonly previous = new Map<string, readonly string[]>()
 
   public report(files: readonly FileDiagnostics[], options: ReportOptions): PendingReport {
-    const lines: string[] = [MODEL_TEXT.verifyDiagnosticsHeading]
+    const lines: string[] = [MODEL_API_MODEL_TEXT.verifyDiagnosticsHeading]
     const listed: WorkspaceDiagnostic[] = []
     const reads = new Map<string, readonly string[]>()
     let errors = 0
@@ -156,7 +158,7 @@ export class DiagnosticsHistory {
       if (reason !== undefined) {
         unchecked += 1
         lines.push(
-          fill(MODEL_TEXT.verifyFileUnchecked, {
+          fill(MODEL_API_MODEL_TEXT.verifyFileUnchecked, {
             path: file.relative,
             reason: uncheckedReason(reason, options.codeFile),
           }),
@@ -172,8 +174,8 @@ export class DiagnosticsHistory {
       reads.set(file.relative, keys)
       const summary =
         reported.length === 0
-          ? fill(MODEL_TEXT.verifyFileClean, { path: file.relative })
-          : fill(MODEL_TEXT.verifyFileCounts, {
+          ? fill(MODEL_API_MODEL_TEXT.verifyFileClean, { path: file.relative })
+          : fill(MODEL_API_MODEL_TEXT.verifyFileCounts, {
               path: file.relative,
               errors: String(fileErrors),
               warnings: String(reported.length - fileErrors),
@@ -182,7 +184,7 @@ export class DiagnosticsHistory {
       lines.push(
         delta === undefined || (delta.added === 0 && delta.fixed === 0)
           ? summary
-          : `${summary} ${fill(MODEL_TEXT.verifyFileChanges, {
+          : `${summary} ${fill(MODEL_API_MODEL_TEXT.verifyFileChanges, {
               added: String(delta.added),
               fixed: String(delta.fixed),
             })}`,
