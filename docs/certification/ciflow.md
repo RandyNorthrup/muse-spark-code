@@ -40,8 +40,10 @@ filesystem and helper behavior still receives its platform tests.
 
 ## Event layout and expected timing
 
-- `pull_request`: Ubuntu static/build/audit gates and all unit/process-e2e
-  tests without coverage, plus gitleaks and semgrep. Expected ≤12 minutes.
+- `pull_request` with the repository variable `CI_MERGE_QUEUE` set to `on`:
+  Ubuntu static/build/audit gates and all unit/process-e2e tests without
+  coverage, plus gitleaks and semgrep. Expected ≤12 minutes. Without the
+  variable a PR runs the full tier, as before CIFLOW (lead review, below).
 - `merge_group`: static/build/audit on Ubuntu, Windows and macOS; four
   coverage shards per OS; one merged coverage gate per OS at unchanged
   90/85/90/90 thresholds; full Ubuntu a11y; Linux/Windows integration; macOS
@@ -90,12 +92,27 @@ The lead must edit **main ruleset 23896617 only**, after this change lands:
    build concurrency to **1**, and check response timeout to **30 minutes**.
    One PR per group makes the checked merge commit the commit that lands.
 4. Keep existing deletion, non-fast-forward and review/thread-resolution
-   protections and release-tag rules unchanged. Use **Merge when ready**
-   after PR checks; inspect the first full queue run on its exact SHA.
+   protections and release-tag rules unchanged.
+5. Only after the queue rule is accepted, run
+   `gh variable set CI_MERGE_QUEUE --body on`, which switches PRs to the fast
+   tier; `gh variable delete CI_MERGE_QUEUE` switches them back. Use
+   **Merge when ready** after PR checks; inspect the first fast PR run and
+   the first queue run on its exact SHA.
 
-No required-check rename or addition is needed. Queue configuration and first
-hosted PR/merge-group proof are lead-owned blockers; timing estimates are not
-claims of achieved hosted performance.
+No required-check rename or addition is needed. The PUT body for steps 1–4
+(built from the live ruleset; it differs only in `strict` and the added
+`merge_queue` rule) was handed to the lead outside the repository.
+
+**Blocker: queue availability.** GitHub's documentation
+(`data/reusables/gated-features/merge-queue.md` in github/docs, read
+2026-10-04) says merge queues are available "in any public repository owned
+by an organization, or in private repositories owned by organizations using
+GitHub Enterprise Cloud". `gh api repos/RandyNorthrup/muse-spark-code` reports
+`owner.type: "User"`. Expect the ruleset PUT to be refused (not tried; no
+setting was changed). With the variable unset, nothing is weaker than before
+CIFLOW: PRs keep the full tier and the queue path stays ready. Moving the
+repository to an organization is the owner's decision. Timing estimates are
+not claims of achieved hosted performance.
 
 ## Local verification
 

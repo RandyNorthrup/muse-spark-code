@@ -13603,39 +13603,36 @@ joined with M57, M58 and PR #49's sign-in
 ## 7. Gates
 
 **CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
-approved a fast pull-request tier and one full check on the merge group's exact
-commit, instead of repeatedly updating PR branches and rerunning all platforms.
-Reuse `ci.yml` and `build.yml`, the existing gate commands, pinned actions and
-unchanged release artifacts; `release.yml` belongs to the RELFAST lane.
-Acceptance: both events produce the seven existing required check names;
-aggregates reject failed/cancelled/missing dependencies; all three OSes keep
-static gates and every unit/e2e file, four Vitest coverage shards per OS merge
-before enforcing the unchanged 90/85/90/90 thresholds; Ubuntu runs every a11y
-scenario/theme once; Linux/Windows integration and the macOS helper remain.
-Pin the event/tier/dependency/shard contract in workflow tests and deliberately
-remove a shard to prove failure, then restore exact bytes. Update contribution,
-artifact-source and changelog documentation. No push, dispatch or ruleset write.
+said it took "like 4 40 minute checks just to get a release cut": the full
+three-OS gate ran on each PR push, again after each refresh from `main`, and
+again in the release. He approved a GitHub merge queue plus tiered CI. PRs
+run a fast Ubuntu tier: the static gates, the production build, every
+unit/e2e test, gitleaks and semgrep, in about 12 minutes or less. The merge
+group runs the full tier once, on the commit that becomes `main`, in an
+estimated 10–15 minutes; Windows quality alone took 38m23s in run 37211362498. The full tier runs:
 
-Measured CI run `37211362498`, Windows job `111463131027`: 38m23s total;
-static gates before tests 3m25s, unit/coverage 24m13s, a11y 8m11s, integration
-1m15s, remaining setup/build/audit/cache overhead 1m19s. Ubuntu's identical
-web harness takes 4m54s; its full quality job takes 13m38s. Four serial Windows
-test shards are expected to take roughly 6–10 minutes each, with full queue
-wall time roughly 10–15 minutes and PR checks at most about 12 minutes. These
-are estimates pending hosted proof, not measured results of the new layout.
-The full matrix remains mandatory in the merge queue. Lead must enable the
-queue and disable strict branch-up-to-date checks; required names stay intact.
-See `docs/certification/ciflow.md` for verification and exact ruleset handoff.
-Local CIFLOW verification passes changed-file ESLint, 35 workflow tests and
-the missing-shard red/restored-green drill with exact SHA-256 restoration.
-Host/webview/unit compiler projects pass. At the hard time limit the e2e
-compiler and remaining common static/build gates are deferred to the lead;
-no full quality, new build sizes or hosted performance is claimed. The
-optional exhaustive shell simulator was stopped after failed fixes as the
-brief requires; workflow parser guards remain. See the certification record.
-The skill's structural ledger validator cannot validate this existing prose
-plan (`expected exactly one quality-ledger fence`); defer that unrelated plan
-migration rather than replace the project's canonical milestone format.
+- the static gates on all three OSes;
+- four coverage shards per OS, merged before the unchanged 90/85/90/90
+  thresholds apply;
+- the a11y harness once, on Ubuntu;
+- integration on Linux and Windows;
+- the macOS helper and the universal packages.
+
+An aggregate job produces the seven required names on both tiers. Lead
+review found and fixed two defects:
+
+- **gitleaks on `merge_group`.** The gitleaks action exits 1 on that event,
+  so every queue entry would have failed. The queue now runs the pinned,
+  checksum-checked CLI over the history that lands.
+- **No interlock.** Nothing stopped PRs taking the fast tier with no queue
+  behind it, so they would have merged with no full gate. PRs now get the
+  fast tier only after the maintainer sets `CI_MERGE_QUEUE=on`, once the
+  ruleset has the queue.
+
+Blocker for the owner: GitHub's documentation offers merge queues only in
+organization-owned repositories, and this one is user-owned. Until that is
+settled, PRs keep the full tier and no check is weaker than before. Record:
+`docs/certification/ciflow.md`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
