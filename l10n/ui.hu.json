@@ -901,7 +901,7 @@
     "auto": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat, a többi előtt pedig rákérdez",
     "bypassPermissions": "A Muse kérdezés nélkül szerkeszt fájlokat és futtat parancsokat"
   },
-  "museCodeReviewedAutoDetail": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat; a többit egy ellenőrző vizsgálja meg, és ha bizonytalan, Önt kérdezi",
+  "museCodeReviewedAutoDetail": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat; egy ellenőrző néhány továbbit egyszer engedélyezhet, a többiről Önt kérdezi",
   "modelApiPermissionModeDetails": {
     "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
     "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",

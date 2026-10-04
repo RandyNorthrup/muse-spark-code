@@ -28,6 +28,7 @@ import { type FakeHostHandle, fakeMspHost, refusalOf } from './helpers/fakeMsp'
 import {
   CAPTURED_REPLY,
   reminderChildFrame,
+  reviewLeadFrames,
   reviewReplyFrames,
   reviewTurnCompleted,
   reviewTurnStarted,
@@ -193,16 +194,23 @@ async function reviewTurn(handle: FakeHostHandle, index: number) {
   return { sessionId: String(params['sessionId']), turnId: `rt-${String(index)}`, text }
 }
 
-/** The captured reply and turn end; reminder activity is tested as a failure below. */
+/**
+ * The captured review turn in its captured order: the prompt's echo, a
+ * reminder child starting, the reply, the reminder child finishing, the end.
+ */
 function answer(
   handle: FakeHostHandle,
-  turn: { readonly sessionId: string; readonly turnId: string },
+  turn: { readonly sessionId: string; readonly turnId: string; readonly text?: string },
   text: string,
   options: { readonly isEnded?: boolean } = {},
 ): void {
-  for (const frame of reviewReplyFrames(turn.sessionId, turn.turnId, text)) {
+  for (const frame of [
+    ...reviewLeadFrames(turn.sessionId, turn.turnId, turn.text ?? ''),
+    ...reviewReplyFrames(turn.sessionId, turn.turnId, text),
+  ]) {
     handle.server.notify(frame.method, frame.params)
   }
+  handle.server.notify('item/completed', reminderChildFrame(turn.sessionId, turn.turnId))
   if (options.isEnded !== false) {
     handle.server.notify('turn/completed', reviewTurnCompleted(turn.sessionId, turn.turnId))
   }
@@ -241,7 +249,7 @@ async function expectPaused(t: Rig): Promise<void> {
 }
 
 describe('the Auto reviewer on Muse Code (M90)', () => {
-  it.each(['kind', 'command', 'path', 'host', 'toolName'] as const)(
+  it.each(['kind', 'command', 'path', 'access', 'host', 'target', 'toolName'] as const)(
     'drops held and allowed verdicts when subject %s changes',
     async (field) => {
       const held = setup()
@@ -415,12 +423,31 @@ describe('the Auto reviewer on Muse Code (M90)', () => {
     },
   )
 
-  it('cancels captured reminder activity and recreates the side session', async () => {
+  it('allows once through the whole captured turn: echo, reminder child, reply', async () => {
+    const t = setup()
+    await allowOnce(t)
+    expect(t.handle.server.requestsFor('turn/cancel')).toHaveLength(0)
+    expect(t.cards).toEqual([])
+  })
+
+  it('cancels any other item in the review turn and recreates the side session', async () => {
     const t = setup()
     t.hold()
     const turn = await reviewTurn(t.handle, 1)
     answer(t.handle, turn, CAPTURED_REPLY, { isEnded: false })
-    t.handle.server.notify('item/completed', reminderChildFrame(turn.sessionId, turn.turnId))
+    // Any kind outside the captured review turn's, here a command the side
+    // session would run; only `kind` is read.
+    t.handle.server.notify('item/started', {
+      sessionId: turn.sessionId,
+      viewCursor: `v:${turn.sessionId}:11`,
+      item: {
+        itemId: `${turn.turnId}-act`,
+        kind: 'commandExecution',
+        turnId: turn.turnId,
+        revision: 1,
+        status: 'inProgress',
+      },
+    })
     await vi.waitFor(() => {
       expect(t.cards).toEqual([[expect.anything(), UI_TEXT.autoReviewerFailed]])
     })

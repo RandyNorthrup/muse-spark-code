@@ -878,7 +878,7 @@
     "auto": "Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します",
     "bypassPermissions": "Muse は確認なしでファイルを編集し、コマンドを実行します"
   },
-  "museCodeReviewedAutoDetail": "Muse Code は単純と判断したコマンドを確認なしで実行します。それ以外はレビュー担当が確認し、判断に迷うときはあなたに確認します",
+  "museCodeReviewedAutoDetail": "Muse Code は単純と判断したコマンドを確認なしで実行します。ほかの一部はレビュー担当が一度だけ許可することがあり、残りはあなたに確認します",
   "modelApiPermissionModeDetails": {
     "manual": "Muse は編集とコマンドのたびに承認を求めます",
     "acceptEdits": "Muse は確認なしでファイルを編集し、コマンドを実行する前に確認します",

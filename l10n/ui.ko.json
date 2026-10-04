@@ -878,7 +878,7 @@
     "auto": "Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다",
     "bypassPermissions": "Muse가 묻지 않고 파일을 편집하고 명령을 실행합니다"
   },
-  "museCodeReviewedAutoDetail": "Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행합니다. 나머지는 검토자가 확인하고, 확신이 없으면 사용자에게 묻습니다",
+  "museCodeReviewedAutoDetail": "Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행합니다. 검토자가 일부 다른 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다",
   "modelApiPermissionModeDetails": {
     "manual": "Muse가 편집과 명령마다 승인을 요청합니다",
     "acceptEdits": "Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다",

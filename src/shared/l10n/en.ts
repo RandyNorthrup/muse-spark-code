@@ -1281,7 +1281,7 @@ export const EN = {
     bypassPermissions: 'Muse will edit files and run commands without asking',
   },
   museCodeReviewedAutoDetail:
-    'Muse Code runs the commands it judges simple without asking; a reviewer checks the rest and asks you when unsure',
+    'Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
   modelApiPermissionModeDetails: {
     manual: 'Muse will ask for approval before each edit and each command',
     acceptEdits: 'Muse will edit files without asking and ask before running commands',

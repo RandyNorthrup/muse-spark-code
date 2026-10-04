@@ -947,7 +947,7 @@
     "auto": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní a před ostatními se zeptá",
     "bypassPermissions": "Muse bude upravovat soubory a spouštět příkazy bez ptaní"
   },
-  "museCodeReviewedAutoDetail": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní; ostatní posoudí kontrolor, a když si není jistý, zeptá se vás",
+  "museCodeReviewedAutoDetail": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní; kontrolor může některé další jednou povolit a na zbytek se zeptá vás",
   "modelApiPermissionModeDetails": {
     "manual": "Muse požádá o schválení před každou úpravou a každým příkazem",
     "acceptEdits": "Muse bude upravovat soubory bez ptaní a před spuštěním příkazů se zeptá",

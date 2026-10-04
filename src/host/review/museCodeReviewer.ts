@@ -108,8 +108,17 @@ interface SideSession {
 }
 
 const AGENT_MESSAGE = 'agentMessage'
-const REASONING = 'reasoning'
 const COMPLETED = 'completed'
+// What a review turn carries without the reviewer acting (the 2026-10-03
+// capture): the review prompt's own echo, Muse Code's reminder agents (they
+// run in child sessions of their own after every turn), thinking, and the
+// reply. Any other item is the side session doing something, and fails closed.
+const REVIEW_TURN_ITEM_KINDS: ReadonlySet<string> = new Set([
+  'userMessage',
+  'reminderChild',
+  'reasoning',
+  AGENT_MESSAGE,
+])
 const STARTED_DISPOSITION = 'started'
 const PLAN_MODE = 'plan'
 
@@ -408,8 +417,7 @@ export class MuseCodeReviewer {
     if (
       ['itemStarted', 'itemUpdated', 'itemCompleted'].includes(event.type) &&
       'item' in event &&
-      event.item.kind !== AGENT_MESSAGE &&
-      event.item.kind !== REASONING
+      !REVIEW_TURN_ITEM_KINDS.has(event.item.kind)
     ) {
       this.drop(side, 'its review used a tool', true)
       side.isGone = true

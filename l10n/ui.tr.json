@@ -901,7 +901,7 @@
     "auto": "Muse Code basit saydığı komutları sormadan çalıştırır, diğerlerinden önce sorar",
     "bypassPermissions": "Muse sormadan dosya düzenler ve komut çalıştırır"
   },
-  "museCodeReviewedAutoDetail": "Muse Code basit saydığı komutları sormadan çalıştırır; diğerlerini bir inceleyici denetler ve emin olmadığında size sorar",
+  "museCodeReviewedAutoDetail": "Muse Code basit saydığı komutları sormadan çalıştırır; bir inceleyici bazı diğerlerine bir kez izin verebilir, geri kalanlar size sorulur",
   "modelApiPermissionModeDetails": {
     "manual": "Muse her düzenlemeden ve her komuttan önce onay ister",
     "acceptEdits": "Muse dosyaları sormadan düzenler ve komut çalıştırmadan önce sorar",

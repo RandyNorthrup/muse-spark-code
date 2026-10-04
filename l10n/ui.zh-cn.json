@@ -878,7 +878,7 @@
     "auto": "Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问",
     "bypassPermissions": "Muse 会直接编辑文件和运行命令而不询问"
   },
-  "museCodeReviewedAutoDetail": "Muse Code 会直接运行它判断为简单的命令而不询问；其余命令由审查器检查，不确定时会询问您",
+  "museCodeReviewedAutoDetail": "Muse Code 会直接运行它判断为简单的命令而不询问；审查器可能会允许其他部分命令运行一次，其余命令会询问您",
   "modelApiPermissionModeDetails": {
     "manual": "Muse 会在每次编辑和每条命令前请求批准",
     "acceptEdits": "Muse 会直接编辑文件而不询问，并在运行命令前询问",

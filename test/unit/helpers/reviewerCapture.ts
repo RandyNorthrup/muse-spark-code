@@ -87,18 +87,69 @@ export function reviewReplyFrames(
   ]
 }
 
-/** A reminder child (`skill-reminder`), which finishes after the reply. */
-export function reminderChildFrame(sessionId: string, turnId: string): Record<string, unknown> {
+/**
+ * What comes before the reply: the review prompt's echo (completed, then
+ * updated with its display text) and a reminder child starting.
+ */
+export function reviewLeadFrames(
+  sessionId: string,
+  turnId: string,
+  prompt: string,
+): readonly { readonly method: string; readonly params: Record<string, unknown> }[] {
+  const echo = {
+    itemId: `${turnId}-prompt`,
+    kind: 'userMessage',
+    turnId,
+    status: 'completed',
+    text: prompt,
+    commandId: turnId,
+  }
+  return [
+    {
+      method: 'item/completed',
+      params: {
+        sessionId,
+        viewCursor: `v:${sessionId}:4`,
+        item: { ...echo, revision: 1, recordedAt: '2026-10-04T02:42:06.671387Z' },
+      },
+    },
+    {
+      method: 'item/updated',
+      params: {
+        sessionId,
+        viewCursor: `v:${sessionId}:5`,
+        item: {
+          ...echo,
+          revision: 2,
+          recordedAt: '2026-10-04T02:42:06.709889Z',
+          displayText: 'Auto review',
+        },
+      },
+    },
+    {
+      method: 'item/started',
+      params: reminderChildFrame(sessionId, turnId, 'inProgress'),
+    },
+  ]
+}
+
+/** A reminder child (`skill-reminder`): it starts before the reply and finishes after it. */
+export function reminderChildFrame(
+  sessionId: string,
+  turnId: string,
+  status = 'completed',
+): Record<string, unknown> {
   return {
     sessionId,
-    viewCursor: `v:${sessionId}:10`,
+    viewCursor: `v:${sessionId}:${status === 'completed' ? '10' : '6'}`,
     item: {
       itemId: `${turnId}-reminder`,
       kind: 'reminderChild',
       turnId,
-      revision: 2,
-      status: 'completed',
-      recordedAt: '2026-10-04T02:42:12.958931Z',
+      revision: status === 'completed' ? 2 : 1,
+      status,
+      recordedAt:
+        status === 'completed' ? '2026-10-04T02:42:12.958931Z' : '2026-10-04T02:42:08.835082Z',
       fallbackText: 'Reminder child session',
       childSessionId: 'c71a0801-90e6-49c1-8bfa-c0b91ab14fda',
       reminderAgentId: 'skill-reminder',

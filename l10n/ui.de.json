@@ -901,7 +901,7 @@
     "auto": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus und fragt vor allen anderen",
     "bypassPermissions": "Muse bearbeitet Dateien und führt Befehle ohne Nachfrage aus"
   },
-  "museCodeReviewedAutoDetail": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus; ein Prüfer beurteilt die übrigen und fragt Sie, wenn er unsicher ist",
+  "museCodeReviewedAutoDetail": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus; ein Prüfer kann manche anderen einmal erlauben, zu den übrigen werden Sie gefragt",
   "modelApiPermissionModeDetails": {
     "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
     "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",

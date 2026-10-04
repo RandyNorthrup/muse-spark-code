@@ -1173,6 +1173,17 @@ function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false):
   }
 }
 
+/** Resolutions that arrived before their rows, applied to rows a history read made. */
+function withPendingResolutions(state: UiState, at: number): UiState {
+  let next = state
+  for (const resolution of state.pendingApprovalResolutions) {
+    if (findEntry(next.transcript, resolution.itemId) !== undefined) {
+      next = applyAgentEvent(next, resolution, at)
+    }
+  }
+  return next
+}
+
 /**
  * Rebuild the transcript from a session's stored items (`historyLoaded`):
  * user messages become cards (the live path hides them, its own echo being
@@ -1187,9 +1198,14 @@ function replayHistory(
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
   const knownWorkflows = new Map<string, WorkflowEntry>()
+  // History carries no approval outcomes: a row read again keeps the one the
+  // panel saw (who allowed it, and why).
+  const knownOutcomes = new Map<string, ToolEntry['approvalOutcome']>()
   for (const entry of previous) {
     if (entry.kind === WORKFLOW_KIND) {
       knownWorkflows.set(entry.id, entry)
+    } else if (entry.kind === 'tool' && entry.approvalOutcome !== undefined) {
+      knownOutcomes.set(entry.id, entry.approvalOutcome)
     }
   }
   let next = sequence
@@ -1207,7 +1223,12 @@ function replayHistory(
         (before.workflowRunId === undefined ||
           item.workflowRunId === undefined ||
           before.workflowRunId === item.workflowRunId)
-      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const built = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const outcome = knownOutcomes.get(item.itemId)
+      const entry =
+        outcome !== undefined && built.kind === 'tool'
+          ? { ...built, approvalOutcome: outcome }
+          : built
       entries.push(stampCompletion(entry, next))
     }
   }
@@ -2254,34 +2275,39 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
               goalEditRevision: state.goalEditRevision,
             }
       return announce(
-        {
-          ...state,
-          attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
-          attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
-          isSideChat: message.sideChat ?? state.isSideChat,
-          isImported: message.imported === true,
-          sessionId: message.sessionId,
-          restoredSessionId: undefined,
-          title: message.name,
-          transcript: replayed.entries,
-          sequence: replayed.sequence,
-          todos: message.todos,
-          goal,
-          ...editor,
-          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
-          pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
-          schedules: isSameSession ? state.schedules : [],
-          activeTurnId: message.activeTurnId,
-          lastCompletedTurnId: undefined,
-          pendingReplayTurns: {},
-          usage: isSameSession ? state.usage : undefined,
-          context: isSameSession ? state.context : undefined,
-          outputPages: {},
-          toolImages: {},
-          childTranscripts: {},
-          childOwners: {},
-          strayItems: {},
-        },
+        withPendingResolutions(
+          {
+            ...state,
+            attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
+            attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
+            isSideChat: message.sideChat ?? state.isSideChat,
+            isImported: message.imported === true,
+            sessionId: message.sessionId,
+            restoredSessionId: undefined,
+            title: message.name,
+            transcript: replayed.entries,
+            sequence: replayed.sequence,
+            todos: message.todos,
+            goal,
+            ...editor,
+            pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+            pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            schedules: isSameSession ? state.schedules : [],
+            activeTurnId: message.activeTurnId,
+            lastCompletedTurnId: undefined,
+            pendingReplayTurns: {},
+            usage: isSameSession ? state.usage : undefined,
+            context: isSameSession ? state.context : undefined,
+            outputPages: {},
+            toolImages: {},
+            childTranscripts: {},
+            childOwners: {},
+            strayItems: {},
+            // Another session's early resolutions never meet this one's rows.
+            pendingApprovalResolutions: isSameSession ? state.pendingApprovalResolutions : [],
+          },
+          at,
+        ),
         UI_TEXT.announceResumed,
       )
     }

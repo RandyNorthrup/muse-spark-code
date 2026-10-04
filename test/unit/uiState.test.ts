@@ -804,6 +804,38 @@ describe('uiReducer: agent events', () => {
     expect(cleared.pendingApprovalResolutions).toEqual([])
   })
 
+  it('applies an early resolution to a row a same-session history read makes, never to another session’s (M90)', () => {
+    const resolution = {
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      itemId: 'c1',
+      decision: 'approved',
+      resolvedBy: 'Auto reviewer',
+      reason: 'Allowed: lists files',
+    } as const
+    const items = [{ itemId: 'c1', kind: 'toolCall', status: 'completed', tool: 'powershell' }]
+    const read = (sessionId: string): UiAction =>
+      host({ type: 'historyLoaded', sessionId, items, todos: [] })
+    const waiting = reduceAll([
+      host({ type: 'historyLoaded', sessionId: 's', items: [], todos: [] }),
+      agent(resolution),
+    ])
+    const recovered = reduceAll([read('s')], waiting)
+    expect(recovered.transcript[0]).toMatchObject({
+      approvalOutcome: { resolvedBy: resolution.resolvedBy, reason: resolution.reason },
+    })
+    expect(recovered.pendingApprovalResolutions).toEqual([])
+    // Read again, the row keeps the outcome the panel saw.
+    expect(reduceAll([read('s')], recovered).transcript[0]).toMatchObject({
+      approvalOutcome: { reason: resolution.reason },
+    })
+    const other = reduceAll([read('other')], waiting)
+    expect(other.transcript[0]).toEqual(
+      expect.not.objectContaining({ approvalOutcome: expect.anything() }),
+    )
+    expect(other.pendingApprovalResolutions).toEqual([])
+  })
+
   it('keeps the Auto reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
     const reason = 'Allowed: reads workspace file to fulfill line-count request'
     const resolved = reduceAll(

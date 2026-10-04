@@ -67,13 +67,18 @@ interface Allowance {
 
 const APPROVED_DECISION = 'approved'
 
-/** A verdict covers this action, not a replacement subject or tool. */
+/**
+ * A verdict covers this action, not a replacement: every field that says what
+ * the action is must match (`stages` only tracks progress through it).
+ */
 function isSameSubject(left: ApprovalSubject, right: ApprovalSubject): boolean {
   return (
     left.kind === right.kind &&
     left.command === right.command &&
     left.path === right.path &&
+    left.access === right.access &&
     left.host === right.host &&
+    left.target === right.target &&
     left.toolName === right.toolName
   )
 }

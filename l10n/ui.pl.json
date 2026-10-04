@@ -947,7 +947,7 @@
     "auto": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste, a przed pozostałymi pyta",
     "bypassPermissions": "Muse będzie edytować pliki i uruchamiać polecenia bez pytania"
   },
-  "museCodeReviewedAutoDetail": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste; pozostałe sprawdza oceniający, który pyta Ciebie, gdy nie jest pewien",
+  "museCodeReviewedAutoDetail": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste; oceniający może jednorazowo zezwolić na niektóre inne, o resztę pyta Ciebie",
   "modelApiPermissionModeDetails": {
     "manual": "Muse poprosi o zatwierdzenie przed każdą edycją i każdym poleceniem",
     "acceptEdits": "Muse będzie edytować pliki bez pytania i pytać przed uruchomieniem poleceń",

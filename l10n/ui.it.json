@@ -924,7 +924,7 @@
     "auto": "Muse Code esegue senza chiedere i comandi che ritiene semplici e chiede prima degli altri",
     "bypassPermissions": "Muse modificherà i file ed eseguirà comandi senza chiedere"
   },
-  "museCodeReviewedAutoDetail": "Muse Code esegue senza chiedere i comandi che ritiene semplici; un revisore controlla gli altri e ti chiede quando ha dubbi",
+  "museCodeReviewedAutoDetail": "Muse Code esegue senza chiedere i comandi che ritiene semplici; un revisore può consentirne altri una volta, e per il resto viene chiesto a te",
   "modelApiPermissionModeDetails": {
     "manual": "Muse chiederà l’approvazione prima di ogni modifica e di ogni comando",
     "acceptEdits": "Muse modificherà i file senza chiedere e chiederà prima di eseguire comandi",
