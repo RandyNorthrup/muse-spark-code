@@ -19,8 +19,10 @@ happened, not what was planned; superseded entries are kept.
   loaded", in all 14 languages) and the next one tries again. The lazily
   loaded bundles shrink too (the Model API backend, the checkpoint store,
   the import, code intelligence and both reviewers by 4 to 27 KiB each).
-  `npm run build` now fails when any shipped bundle carries model text it
-  does not read.
+  `npm run build` now fails when a shipped bundle carries a model-text
+  block it does not read, or when `MODEL_TEXT` holds a key no source file
+  of `dist/extension.js` reads; the code intelligence and web fetch
+  bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
 
 ## [0.12.0] - 2026-10-04
 
