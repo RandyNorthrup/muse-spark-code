@@ -7,6 +7,27 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Bundled skills** (M89, PLAN.md D68): the high-quality-projects
+  workflows `project_setup`, `feature_delivery` and `quality_retrofit` ship
+  with the extension. On the Model API backend they are a third skill
+  source after the project's and your own (a skill of yours with the same id
+  wins), and the model reads each after one line naming its package root,
+  the skill's `SKILL_ROOT`. For Muse Code, **Muse Spark: Install Bundled
+  Skills for Muse Code** copies the package to
+  `<config home>/muse/skill-sources/high-quality-projects-skill/`, marks the
+  copy, and links each skill into `<config home>/muse/skills/` (junctions on
+  Windows, directory symlinks elsewhere); a skill of yours with the same
+  name is left alone and named. The first Muse Code conversation offers it
+  once (Install / Not now, remembered), a newer vendored release offers
+  Update once, and **Remove Bundled Skills from Muse Code** removes only the
+  marked copy and the links into it. `museSpark.bundledSkills` (on by
+  default, machine-scoped) turns them off. The installer is its own lazily
+  loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
+  PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (573.1 to 577.9 KiB).
+  Strings in all 14 languages.
+
 ## [0.11.0] - 2026-10-03
 
 ### Added

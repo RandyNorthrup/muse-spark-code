@@ -20,15 +20,16 @@ export const sharedUiText: Plugin = {
   },
 }
 
-/** Builds the backend and its page worker into `folder`; returns the backend's path. */
-export async function buildModelApiBundle(folder: string): Promise<string> {
-  const file = path.join(folder, MODEL_API_BUNDLE_FILE)
+/**
+ * Host bundles (`{ name: entry }`) built into `folder` as scripts/build.mjs
+ * builds them, beside the shared English table they load (`uiText.js`).
+ */
+export async function buildHostBundles(
+  folder: string,
+  entries: Readonly<Record<string, string>>,
+): Promise<void> {
   await build({
-    entryPoints: {
-      [path.parse(MODEL_API_BUNDLE_FILE).name]: path.resolve('src/host/backend/modelApiEntry.ts'),
-      [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
-      uiText: path.resolve('src/shared/l10n/en.ts'),
-    },
+    entryPoints: { ...entries, uiText: path.resolve('src/shared/l10n/en.ts') },
     outdir: folder,
     bundle: true,
     platform: 'node',
@@ -37,6 +38,15 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     target: 'node20.18',
     plugins: [sharedUiText],
     logLevel: 'silent',
+  })
+}
+
+/** Builds the backend and its page worker into `folder`; returns the backend's path. */
+export async function buildModelApiBundle(folder: string): Promise<string> {
+  const file = path.join(folder, MODEL_API_BUNDLE_FILE)
+  await buildHostBundles(folder, {
+    [path.parse(MODEL_API_BUNDLE_FILE).name]: path.resolve('src/host/backend/modelApiEntry.ts'),
+    [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
   })
   return file
 }

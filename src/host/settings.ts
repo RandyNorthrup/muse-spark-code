@@ -56,6 +56,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiObservationPacking: boolean
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
+  /** The skills that ship with the extension (M89, PLAN.md D68). */
+  readonly bundledSkills: boolean
 }
 
 /**
@@ -93,6 +95,7 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   turnCheckpoints: z.boolean(),
+  bundledSkills: z.boolean(),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -166,6 +169,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
+    bundledSkills: readSetting(config, 'bundledSkills', log),
   }
 }
 

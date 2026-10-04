@@ -97,3 +97,4 @@ The PNGs beside the records are that day's harness renders.
 - [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
 - [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
 - [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
+- [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)

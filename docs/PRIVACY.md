@@ -144,6 +144,14 @@ security notes for contributors are in `PLAN.md` §9.
   Model API backend reads none of this while VS Code has the folder in
   Restricted Mode; Muse Code's documentation says it still reads a
   repository's committed project memory then.
+- **The bundled skills** (M89, PLAN.md D68: `project_setup`,
+  `feature_delivery` and `quality_retrofit`, shipped inside the extension).
+  On the Model API backend, while `museSpark.bundledSkills` is on (the
+  default), their ids and descriptions join the skill catalogue sent with
+  every request, and a skill's full text, preceded by one line naming the
+  folder the extension is installed in, goes to Meta when the model loads
+  it or you invoke it. Their scripts run only as shell commands under the
+  conversation's permission mode, on your machine.
 - **The Memory view** (M49) reads and writes only those notes on your
   machine; it sends nothing anywhere. A note it deletes goes to your trash.
 - **Saved plans** (M79). **Save plan** writes a Plan-mode reply to
@@ -376,6 +384,19 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **The bundled skills for Muse Code** (M89) are installed only when you
+  click Install or Update on the panel's offer or run **Muse Spark: Install
+  Bundled Skills for Muse Code**. The install writes only under Muse Code's
+  config folder (`~/.config/muse`, or `$XDG_CONFIG_HOME/muse`): a copy of
+  the package in `skill-sources/high-quality-projects-skill/`, with a mark
+  file (`.muse-spark-bundled.json`: the release tag and when it was
+  installed), and one link per skill in `skills/`. Nothing is downloaded:
+  the files are the release vendored into the extension when it was built.
+  **Remove Bundled Skills from Muse Code** deletes only the links that lead
+  into the marked copy and the copy itself; a folder without the mark, a
+  skill of yours, or a link that leads anywhere else is never touched.
+  Whether you answered Not now to the offer is kept in VS Code's extension
+  state.
 - **Import from other agents** (M83, D64) reads other tools' files only
   when requested, locally, without a model call or sending their contents
   anywhere. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.

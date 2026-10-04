@@ -157,15 +157,26 @@ export const HOST_ACTIONS = [
   'removeWorktree',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
+  /** The bundled skills' offer for Muse Code (M89, PLAN.md D68): Install, Update, Not now. */
+  'installBundledSkills',
+  'updateBundledSkills',
+  'declineBundledSkills',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
 export const NOTICE_LEVELS = ['info', 'warning', 'error'] as const
 /**
- * The way on a notice offers (D26): the panel's own New conversation, or
- * the `restartMuseCode` host action.
+ * The way on a notice offers (D26): the panel's own New conversation, or a
+ * host action: `restartMuseCode`, or the bundled skills' Install, Update
+ * and Not now (M89).
  */
-export const NOTICE_ACTIONS = ['restartMuseCode', 'newConversation'] as const
+export const NOTICE_ACTIONS = [
+  'restartMuseCode',
+  'newConversation',
+  'installBundledSkills',
+  'updateBundledSkills',
+  'declineBundledSkills',
+] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 
 const modelOptionSchema = z.object({

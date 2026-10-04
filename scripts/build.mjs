@@ -3,7 +3,9 @@
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
 // import from other agents (M83: the scan, the converters, the file access and
-// smol-toml, loaded on the first import), the webview, and (in dev mode) the integration tests with esbuild.
+// smol-toml, loaded on the first import), the bundled skills installer (M89:
+// the copy and links for Muse Code, loaded on the first install, removal or
+// offer), the webview, and (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -51,6 +53,8 @@ const PLAN_MARKDOWN_ENTRY = 'src/host/planMarkdownEntry.ts'
 const PLAN_MARKDOWN_OUTFILE = 'dist/planMarkdown.js'
 const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
+const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
+const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
@@ -139,6 +143,17 @@ const agentImportOptions = {
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
   external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const bundledSkillsOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [BUNDLED_SKILLS_ENTRY],
+  outfile: BUNDLED_SKILLS_OUTFILE,
+  platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
 }
@@ -238,6 +253,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(agentImportOptions),
+    esbuild.context(bundledSkillsOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -252,6 +268,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     agentImport: esbuild.build(agentImportOptions),
+    bundledSkills: esbuild.build(bundledSkillsOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -279,6 +296,7 @@ if (isWatch) {
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
+  reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

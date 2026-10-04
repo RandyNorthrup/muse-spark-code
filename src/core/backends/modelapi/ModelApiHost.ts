@@ -153,7 +153,11 @@ import {
   resolveAgentEffort,
   resolveAgentModel,
 } from '../../context/customAgents'
-import { type SkillDefinition } from '../../context/skills'
+import {
+  type BundledSkillsSource,
+  type SkillDefinition,
+  skillBodyForModel,
+} from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
@@ -351,6 +355,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly log: CoreLogger
   /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
   readonly personalSkillsRoot: string | undefined
+  /** The skills that ship with the extension (M89, PLAN.md D68); undefined where none ship. */
+  readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76); undefined without a home. */
   readonly personalAgentsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
@@ -1093,7 +1099,7 @@ function typedInvocation(selector: string, args: string | undefined): string {
  * body with the arguments, as Muse Code does for a `skill` input part.
  */
 function skillInvocationText(skill: SkillDefinition, args: string | undefined): string {
-  return `${MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_TEXT.skillArguments} ${args ?? MODEL_TEXT.skillNoArguments}\n\n${skill.body}`
+  return `${MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_TEXT.skillArguments} ${args ?? MODEL_TEXT.skillNoArguments}\n\n${skillBodyForModel(skill)}`
 }
 
 /** An image or a PDF as Meta reads it: inline, as a data URL (M54 for the PDF). */
@@ -1557,6 +1563,7 @@ export class ModelApiSession implements AgentSession {
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
+      bundledSkills: deps.bundledSkills,
       personalAgentsRoot: deps.personalAgentsRoot,
       // A child cannot spawn, so it reads no agents (M76).
       hasAgents: !isSubagent,
@@ -3254,7 +3261,7 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(`${MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
     return {
-      output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
+      output: `Skill ${skill.id}: ${skill.description}\n\n${skillBodyForModel(skill)}`,
       visibleOutput: `Loaded skill ${skill.id} (${skill.source})`,
     }
   }
