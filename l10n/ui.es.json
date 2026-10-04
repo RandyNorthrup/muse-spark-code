@@ -1104,6 +1104,31 @@
     "many": "Fallaron {count}: {skills}",
     "other": "Fallaron {count}: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark incluye las aptitudes {skills}. ¿Instalarlas para Muse Code? Se copian en su carpeta de configuración de Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark incluye una versión más reciente de sus aptitudes incluidas ({tag}). ¿Actualizar la copia que usa Muse Code?",
+  "bundledSkillsInstall": "Instalar",
+  "bundledSkillsUpdate": "Actualizar",
+  "bundledSkillsNotNow": "Ahora no",
+  "bundledSkillsInstalled": {
+    "one": "Se instaló {count} aptitud incluida ({tag}) para Muse Code: {skills}",
+    "many": "Se instalaron {count} aptitudes incluidas ({tag}) para Muse Code: {skills}",
+    "other": "Se instalaron {count} aptitudes incluidas ({tag}) para Muse Code: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Se omitió {count} aptitud porque una aptitud suya tiene ese nombre: {skills}",
+    "many": "Se omitieron {count} aptitudes porque aptitudes suyas tienen esos nombres: {skills}",
+    "other": "Se omitieron {count} aptitudes porque aptitudes suyas tienen esos nombres: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Se quitó {count} aptitud incluida de Muse Code: {skills}",
+    "many": "Se quitaron {count} aptitudes incluidas de Muse Code: {skills}",
+    "other": "Se quitaron {count} aptitudes incluidas de Muse Code: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "No hay aptitudes incluidas instaladas para Muse Code, así que no se quitó nada.",
+  "bundledSkillsInstallFailed": "No se pudieron instalar las aptitudes incluidas en {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "No se pudieron quitar las aptitudes incluidas de {folder}: {reason}",
+  "bundledSkillsNotOurs": "existe una carpeta con ese nombre que Muse Spark no instaló, así que se dejó como estaba",
+  "bundledSkillsUnavailable": "No se pudo cargar el instalador de las aptitudes incluidas; reinstale la extensión y vuelva a cargar la ventana. El registro tiene los detalles.",
   "notSignedInReason": "Inicie sesión antes de enviar un mensaje.",
   "noWorkspaceReason": "Abra primero una carpeta; Muse trabaja dentro de un área de trabajo.",
   "nothingToSendReason": "Escriba un mensaje o adjunte primero una imagen.",

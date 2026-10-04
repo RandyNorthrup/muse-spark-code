@@ -1048,6 +1048,25 @@
   "importFailedSummary": {
     "other": "{count} 個が失敗しました: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark にはスキル {skills} が付属しています。Muse Code 用にインストールしますか? Muse の構成フォルダーにコピーされます。",
+  "bundledSkillsUpdateOffer": "Muse Spark には付属スキルの新しいリリース ({tag}) が含まれています。Muse Code が使用するコピーを更新しますか?",
+  "bundledSkillsInstall": "インストール",
+  "bundledSkillsUpdate": "更新",
+  "bundledSkillsNotNow": "今はしない",
+  "bundledSkillsInstalled": {
+    "other": "Muse Code 用に付属スキルを {count} 個インストールしました ({tag}): {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "other": "同じ名前の独自のスキルがあるため、{count} 個のスキルを除外しました: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "other": "Muse Code から付属スキルを {count} 個削除しました: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code 用の付属スキルはインストールされていないため、何も削除しませんでした。",
+  "bundledSkillsInstallFailed": "付属スキルを {folder} にインストールできませんでした: {reason}",
+  "bundledSkillsRemoveFailed": "付属スキルを {folder} から削除できませんでした: {reason}",
+  "bundledSkillsNotOurs": "同じ名前のフォルダーが既にあり、Muse Spark がインストールしたものではないため、そのままにしました",
+  "bundledSkillsUnavailable": "付属スキルのインストーラーを読み込めませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "notSignedInReason": "メッセージを送信する前にサインインしてください。",
   "noWorkspaceReason": "まずフォルダーを開いてください。Muse はワークスペース内で動作します。",
   "nothingToSendReason": "まずメッセージを入力するか、画像を添付してください。",

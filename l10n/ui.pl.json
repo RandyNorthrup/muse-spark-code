@@ -1132,6 +1132,34 @@
     "many": "Błąd importu {count} umiejętności: {skills}",
     "other": "Błąd importu {count} umiejętności: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark zawiera umiejętności {skills}. Zainstalować je dla Muse Code? Zostaną skopiowane do Twojego folderu konfiguracji Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark zawiera nowszą wersję dołączonych umiejętności ({tag}). Zaktualizować kopię używaną przez Muse Code?",
+  "bundledSkillsInstall": "Zainstaluj",
+  "bundledSkillsUpdate": "Zaktualizuj",
+  "bundledSkillsNotNow": "Nie teraz",
+  "bundledSkillsInstalled": {
+    "one": "Zainstalowano {count} dołączoną umiejętność ({tag}) dla Muse Code: {skills}",
+    "few": "Zainstalowano {count} dołączone umiejętności ({tag}) dla Muse Code: {skills}",
+    "many": "Zainstalowano {count} dołączonych umiejętności ({tag}) dla Muse Code: {skills}",
+    "other": "Zainstalowano {count} dołączonej umiejętności ({tag}) dla Muse Code: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Pominięto {count} umiejętność, ponieważ jedna z Twoich umiejętności ma tę nazwę: {skills}",
+    "few": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
+    "many": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}",
+    "other": "Pominięto {count} umiejętności, ponieważ Twoje umiejętności mają te nazwy: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Usunięto {count} dołączoną umiejętność z Muse Code: {skills}",
+    "few": "Usunięto {count} dołączone umiejętności z Muse Code: {skills}",
+    "many": "Usunięto {count} dołączonych umiejętności z Muse Code: {skills}",
+    "other": "Usunięto {count} dołączonej umiejętności z Muse Code: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Dla Muse Code nie zainstalowano żadnych dołączonych umiejętności, więc nic nie usunięto.",
+  "bundledSkillsInstallFailed": "Nie udało się zainstalować dołączonych umiejętności w {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "Nie udało się usunąć dołączonych umiejętności z {folder}: {reason}",
+  "bundledSkillsNotOurs": "istnieje już folder o tej nazwie, którego nie zainstalował Muse Spark, więc pozostawiono go bez zmian",
+  "bundledSkillsUnavailable": "Nie udało się wczytać instalatora dołączonych umiejętności; zainstaluj ponownie rozszerzenie i przeładuj okno. Szczegóły są w dzienniku.",
   "notSignedInReason": "Zaloguj się przed wysłaniem wiadomości.",
   "noWorkspaceReason": "Najpierw otwórz folder; Muse działa wewnątrz obszaru roboczego.",
   "nothingToSendReason": "Najpierw wpisz wiadomość lub dołącz obraz.",

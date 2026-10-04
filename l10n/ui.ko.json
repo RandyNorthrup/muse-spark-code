@@ -1048,6 +1048,25 @@
   "importFailedSummary": {
     "other": "{count}개 실패: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark에는 {skills} 스킬이 포함되어 있습니다. Muse Code용으로 설치하시겠습니까? Muse 구성 폴더에 복사됩니다.",
+  "bundledSkillsUpdateOffer": "Muse Spark에 번들 스킬의 새 릴리스({tag})가 포함되어 있습니다. Muse Code가 사용하는 사본을 업데이트하시겠습니까?",
+  "bundledSkillsInstall": "설치",
+  "bundledSkillsUpdate": "업데이트",
+  "bundledSkillsNotNow": "지금 안 함",
+  "bundledSkillsInstalled": {
+    "other": "Muse Code용 번들 스킬 {count}개({tag})를 설치했습니다: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "other": "같은 이름의 사용자 스킬이 있어 스킬 {count}개를 제외했습니다: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "other": "Muse Code에서 번들 스킬 {count}개를 제거했습니다: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code용으로 설치된 번들 스킬이 없어 아무것도 제거하지 않았습니다.",
+  "bundledSkillsInstallFailed": "{folder}에 번들 스킬을 설치할 수 없습니다: {reason}",
+  "bundledSkillsRemoveFailed": "{folder}에서 번들 스킬을 제거할 수 없습니다: {reason}",
+  "bundledSkillsNotOurs": "같은 이름의 폴더가 있지만 Muse Spark가 설치한 것이 아니어서 그대로 두었습니다",
+  "bundledSkillsUnavailable": "번들 스킬 설치 관리자를 불러오지 못했습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
   "notSignedInReason": "메시지를 보내기 전에 로그인하세요.",
   "noWorkspaceReason": "먼저 폴더를 여세요. Muse는 작업 영역 안에서 작동합니다.",
   "nothingToSendReason": "먼저 메시지를 입력하거나 이미지를 첨부하세요.",

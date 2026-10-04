@@ -1104,6 +1104,31 @@
     "many": "{count} com falha: {skills}",
     "other": "{count} com falha: {skills}"
   },
+  "bundledSkillsOffer": "O Muse Spark vem com as habilidades {skills}. Instalá-las para o Muse Code? Elas são copiadas para a sua pasta de configuração do Muse.",
+  "bundledSkillsUpdateOffer": "O Muse Spark vem com uma versão mais recente das habilidades incluídas ({tag}). Atualizar a cópia que o Muse Code usa?",
+  "bundledSkillsInstall": "Instalar",
+  "bundledSkillsUpdate": "Atualizar",
+  "bundledSkillsNotNow": "Agora não",
+  "bundledSkillsInstalled": {
+    "one": "{count} habilidade incluída ({tag}) instalada para o Muse Code: {skills}",
+    "many": "{count} habilidades incluídas ({tag}) instaladas para o Muse Code: {skills}",
+    "other": "{count} habilidades incluídas ({tag}) instaladas para o Muse Code: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} habilidade deixada de fora porque uma habilidade sua tem esse nome: {skills}",
+    "many": "{count} habilidades deixadas de fora porque habilidades suas têm esses nomes: {skills}",
+    "other": "{count} habilidades deixadas de fora porque habilidades suas têm esses nomes: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} habilidade incluída removida do Muse Code: {skills}",
+    "many": "{count} habilidades incluídas removidas do Muse Code: {skills}",
+    "other": "{count} habilidades incluídas removidas do Muse Code: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Nenhuma habilidade incluída está instalada para o Muse Code, então nada foi removido.",
+  "bundledSkillsInstallFailed": "Não foi possível instalar as habilidades incluídas em {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "Não foi possível remover as habilidades incluídas de {folder}: {reason}",
+  "bundledSkillsNotOurs": "existe uma pasta com esse nome que o Muse Spark não instalou, então ela foi deixada como estava",
+  "bundledSkillsUnavailable": "Não foi possível carregar o instalador das habilidades incluídas; reinstale a extensão e recarregue a janela. O log tem os detalhes.",
   "notSignedInReason": "Entre antes de enviar uma mensagem.",
   "noWorkspaceReason": "Abra uma pasta primeiro; o Muse trabalha dentro de um espaço de trabalho.",
   "nothingToSendReason": "Digite uma mensagem ou anexe uma imagem primeiro.",

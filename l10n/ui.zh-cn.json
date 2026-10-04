@@ -1048,6 +1048,25 @@
   "importFailedSummary": {
     "other": "{count} 个失败：{skills}"
   },
+  "bundledSkillsOffer": "Muse Spark 附带技能 {skills}。要为 Muse Code 安装吗？它们会被复制到你的 Muse 配置文件夹。",
+  "bundledSkillsUpdateOffer": "Muse Spark 带来了其附带技能的新版本（{tag}）。要更新 Muse Code 使用的副本吗？",
+  "bundledSkillsInstall": "安装",
+  "bundledSkillsUpdate": "更新",
+  "bundledSkillsNotNow": "以后再说",
+  "bundledSkillsInstalled": {
+    "other": "已为 Muse Code 安装 {count} 个附带技能（{tag}）：{skills}"
+  },
+  "bundledSkillsSkipped": {
+    "other": "已跳过 {count} 个技能，因为你已有同名技能：{skills}"
+  },
+  "bundledSkillsRemoved": {
+    "other": "已从 Muse Code 删除 {count} 个附带技能：{skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code 未安装任何附带技能，因此没有删除任何内容。",
+  "bundledSkillsInstallFailed": "无法在 {folder} 安装附带技能：{reason}",
+  "bundledSkillsRemoveFailed": "无法在 {folder} 删除附带技能：{reason}",
+  "bundledSkillsNotOurs": "已存在同名文件夹，但它不是由 Muse Spark 安装的，因此未作改动",
+  "bundledSkillsUnavailable": "无法加载附带技能安装程序；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "notSignedInReason": "请先登录再发送消息。",
   "noWorkspaceReason": "请先打开文件夹；Muse 在工作区中工作。",
   "nothingToSendReason": "请先输入消息或附加图片。",
