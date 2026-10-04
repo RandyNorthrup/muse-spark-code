@@ -14,8 +14,14 @@
 // - M72 records, read only (and deleted by cleanup): `refs/muse-spark/record/<id>`.
 
 import { createHash } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import { type BlobRef, parseCatFileEntries } from '../../core/checkpoints/gitListings'
-import { CHECKPOINT_RECORD_READ_BATCH, GIT_SHA1_HEX_LENGTH } from '../../shared/constants'
+import {
+  CHECKPOINT_RECORD_READ_BATCH,
+  CHECKPOINT_REF_LOCK_ATTEMPTS,
+  CHECKPOINT_REF_LOCK_RETRY_MS,
+  GIT_SHA1_HEX_LENGTH,
+} from '../../shared/constants'
 import { isGitExitError } from '../git'
 import { parseRecord, parseUnit, type StoredRecord, type StoredUnit } from './checkpointRecords'
 import type { ShadowGit } from './shadowGit'
@@ -92,13 +98,16 @@ export async function didWriteRef(
   previous: string | undefined,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  try {
-    await shadow.run(['update-ref', ref, next, previous ?? ABSENT], {
-      ...(signal !== undefined && { signal }),
-    })
-    return true
-  } catch (error: unknown) {
-    if (isGitExitError(error)) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await shadow.run(['update-ref', ref, next, previous ?? ABSENT], {
+        ...(signal !== undefined && { signal }),
+      })
+      return true
+    } catch (error: unknown) {
+      if (!isGitExitError(error)) {
+        throw error
+      }
       const current = await refValue(shadow, ref, signal)
       if (current === next) {
         return true
@@ -106,8 +115,13 @@ export async function didWriteRef(
       if (current !== previous) {
         return false
       }
+      if (attempt >= CHECKPOINT_REF_LOCK_ATTEMPTS || signal?.aborted === true) {
+        throw error
+      }
+      await delay(CHECKPOINT_REF_LOCK_RETRY_MS * attempt, undefined, {
+        ...(signal !== undefined && { signal }),
+      })
     }
-    throw error
   }
 }
 

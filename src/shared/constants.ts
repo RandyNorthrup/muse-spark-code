@@ -736,6 +736,10 @@ export const CHECKPOINT_SEQUENCE_ATTEMPTS = 64
 // A unit record changed by another window between its read and its write is
 // read and folded again, at most this many times.
 export const CHECKPOINT_FOLD_ATTEMPTS = 8
+// Total CAS attempts when a rival's ref lock leaves the previous value unchanged.
+export const CHECKPOINT_REF_LOCK_ATTEMPTS = 3
+// Wait between unchanged-ref failures, multiplied by the failed attempt number.
+export const CHECKPOINT_REF_LOCK_RETRY_MS = 25
 // Unreferenced copies are pruned at most this often, at once when a
 // conversation's checkpoints are dropped, and when the window opens.
 export const CHECKPOINT_PRUNE_INTERVAL_MS = 10 * 60 * 1000

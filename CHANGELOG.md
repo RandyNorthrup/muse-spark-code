@@ -164,6 +164,10 @@ happened, not what was planned; superseded entries are kept.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
 
+### Fixed
+
+- Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+
 ## [0.11.0] - 2026-10-03
 
 ### Added
