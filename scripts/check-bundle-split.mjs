@@ -29,12 +29,15 @@
 //   dist/bundledSkills.js, or that bundle carries its own English table.
 // - code intelligence's `ide` answers (M67: the queries, the read tools, the
 //   repo map and the rename), voice's drivers (M9, M35: the dictation
-//   driver, Muse Voice's stream, the processes and the socket) or the Auto
-//   reviewer on Muse Code (M90: its side session, with M78's reviewer core)
-//   are in dist/extension.js, or missing from dist/codeIntel.js,
-//   dist/voice.js or dist/museCodeReviewer.js.
+//   driver, Muse Voice's stream, the processes and the socket), the window's
+//   web fetch (M69: each hop's checks and pins, the transport, the decoders,
+//   the failures) or the Auto reviewer on Muse Code (M90: its side session,
+//   with M78's reviewer core) are in dist/extension.js, or missing from
+//   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
+//   dist/museCodeReviewer.js.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
-//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, EXEC_, AUTO_REVIEWER_MODEL_TEXT) is
+//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
+//   AUTO_REVIEWER_MODEL_TEXT) is
 //   in any shipped bundle but the ones declared to read it, or no longer in
 //   one of those; a block is declared that this check does not guard;
 //   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
@@ -320,6 +323,24 @@ const ON_FIRST_USE = [
       'src/core/voice/recorderHelper.ts',
     ],
   },
+  // The window's web fetch (M69), split out on 2026-10-04: the Model API
+  // backend keeps its own URL checks, the ACP agent its own fetch.
+  {
+    output: 'dist/webFetch.js',
+    metafile: 'dist/meta/webFetch.json',
+    use: 'the first web fetch',
+    files: [
+      'src/host/web/webFetchEntry.ts',
+      'src/host/web/webFetcher.ts',
+      'src/host/web/pinnedRequest.ts',
+      'src/core/web/webFetch.ts',
+      'src/core/web/fetchFailure.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/publicAddress.ts',
+      'src/core/web/mimeType.ts',
+      'src/core/web/textDecoding.ts',
+    ],
+  },
   {
     output: 'dist/museCodeReviewer.js',
     metafile: 'dist/meta/museCodeReviewer.json',
@@ -524,6 +545,13 @@ const TEXT_BLOCKS = [
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+  },
+  // Web fetch's own words (M69): the window's fetch, the Model API
+  // backend's URL checks and the ACP agent's fetch.
+  {
+    block: 'WEB_FETCH_MODEL_TEXT',
+    sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {

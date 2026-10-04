@@ -1862,6 +1862,10 @@ export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
 // Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
 // the helper process and the socket, loaded on the first recording.
 export const VOICE_BUNDLE_FILE = 'voice.js'
+// The window's web fetch (M69, D6 2026-10-04): resolving, checking and
+// pinning each hop, the pinned transport and the failures' words, loaded on
+// the first fetch or the first URL Muse Code's `webFetch` checks.
+export const WEB_FETCH_BUNDLE_FILE = 'webFetch.js'
 // The Auto reviewer on Muse Code (M90, PLAN.md D69, D6): its side session and
 // queue, loaded on the first review.
 export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
@@ -3245,6 +3249,21 @@ export const MODEL_TEXT = {
     'After you edit files, call mcp__ide__getDiagnostics on each file you changed, and fix the errors your edit caused before you finish.',
   verifyGuidanceChecks:
     "The user's check commands are: {checks}. Before you finish, run the ones your change affects.",
+  webFetchDeclined: 'the user declined to fetch this page; nothing was fetched',
+  webFetchCancelled: 'cancelled: the call was stopped before the page was fetched',
+  webFetchNotOffered:
+    'web fetch is no longer offered here (the workspace lost its trust, or museSpark.sandboxNetwork is restricted); nothing was fetched',
+  // The window's web fetch is dist/webFetch.js (D6): a damaged install.
+  webFetchUnavailable:
+    'web fetch could not be loaded in the extension (its log says why); nothing was fetched',
+} as const
+
+// M69 (PLAN.md D49): web fetch's own words, the page's header and frame and
+// every reason a fetch was refused or failed. Read where the fetch runs:
+// the window's fetch (dist/webFetch.js, loaded on the first fetch), the
+// Model API backend's URL checks (dist/modelApi.js) and the ACP agent's
+// fetch (dist/acp.js); never at activation (PLAN.md D6).
+export const WEB_FETCH_MODEL_TEXT = {
   webFetchInvalidUrl: 'not an absolute URL',
   webFetchNotHttps: 'only https:// URLs are fetched',
   webFetchCredentials: 'a URL with a user name or password is refused',
@@ -3291,10 +3310,6 @@ export const MODEL_TEXT = {
     'a proxy, or another machine between this computer and {host}, answered HTTP {status} instead of a TLS connection to {address}; nothing was read. A proxy that refuses tunnels to addresses cannot carry web fetch',
   webFetchUnreachable: '{host} could not be reached at {address} ({detail})',
   webFetchNetwork: 'the request failed: {detail}',
-  webFetchDeclined: 'the user declined to fetch this page; nothing was fetched',
-  webFetchCancelled: 'cancelled: the call was stopped before the page was fetched',
-  webFetchNotOffered:
-    'web fetch is no longer offered here (the workspace lost its trust, or museSpark.sandboxNetwork is restricted); nothing was fetched',
   webFetchHeader: 'Fetched {url} (HTTP {status}, {type}, {bytes} bytes).',
   webFetchRedirected: 'Redirected on the same host to: {url}',
   webFetchConverted: 'The HTML was converted to Markdown.',
