@@ -7,8 +7,11 @@ import { refusedShellEntry } from '../../../src/core/shellResult'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
 import { createToolIo } from '../../../src/host/backend/toolIo'
 
-/** The real tool io over the real file system: no shell environment, no editor open. */
-export function nativeToolIo(): ToolIo {
+/**
+ * The real tool io over the real file system: no shell environment, and an
+ * editor with unsaved changes at `unsavedFiles` only (none by default).
+ */
+export function nativeToolIo(unsavedFiles: () => readonly string[] = () => []): ToolIo {
   return createToolIo({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -16,7 +19,7 @@ export function nativeToolIo(): ToolIo {
     listFiles: () => Promise.resolve([]),
     searchWorkerPath: 'unused',
     log: () => undefined,
-    unsavedFiles: () => [],
+    unsavedFiles,
   })
 }
 

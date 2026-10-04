@@ -5,6 +5,7 @@
 !dist/reviewer.js
 !dist/planMarkdown.js
 !dist/checkpointStore.js
+!dist/review.js
 !dist/agentImport.js
 !dist/bundledSkills.js
 !dist/codeIntel.js

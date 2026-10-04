@@ -16,6 +16,10 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // The review (M70): git's material, the review turn's text, the Plan-mode
+  // hold and edit review, loaded the first time one is used: 40.6 KiB when
+  // split out, plus room (PLAN.md D6).
+  { path: 'dist/review.js', budgetKiB: 50 },
   // M78b: first board/best-of-N action, 61.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
@@ -45,7 +49,7 @@ const BUDGETS = [
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // Shared English fallback; existing host budgets stay unchanged. Measured
-  // 100.2 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
+  // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:

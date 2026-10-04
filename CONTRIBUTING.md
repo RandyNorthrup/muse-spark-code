@@ -116,7 +116,12 @@ never a literal in the code:
 - **Manifest text** (commands, settings, the walkthrough) is a `%key%` in
   `package.json` with its English in `package.nls.json`.
 - **Text the model reads** is `MODEL_TEXT` in constants.ts and stays
-  English.
+  English; a feature only a lazily loaded bundle reads keeps a block of its
+  own beside it (`REVIEW_MODEL_TEXT`), so the activation bundle does not
+  carry it. The Model API and review bundles carry no English table at all
+  (they install the activation bundle's before they run, and `npm run build`
+  fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
+  must do the same in its factory.
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a

@@ -260,6 +260,43 @@ happened, not what was planned; superseded entries are kept.
   (the newest 50 unseen item ids). It loads on the first review from
   `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
   remains within 600 KiB.
+- **Review** (M70, PLAN.md D49), on both backends:
+  - `/review` reviews the uncommitted changes; `/review branch [base]` the
+    branch against its base, `/review commit [revision]` one commit (a
+    picker asks when you leave either out), `/review <what to look at>`
+    anything you describe, with no git. `security` first, or **Security
+    review** (`/security-review`), looks for injection, secrets,
+    authentication and unsafe APIs. The palette's new **Review** group has
+    each preset.
+  - Git's changes go with the review marked as untrusted data, files that
+    may hold secrets left out and only named; in Restricted Mode the git
+    presets say why they cannot run.
+  - On the Model API the review runs as the built-in **Reviewer**: its own
+    prompt and tools that only read, in every permission mode, and no
+    extra charge (it is your own turn). The model can start it as a paid
+    subagent with the role `reviewer` (a custom agent it names instead runs
+    as that agent). On Muse Code the review turn runs in
+    Plan mode and your permission mode comes back when it ends; Muse Code's
+    own allow rules still apply in Plan mode, so that review is not claimed
+    strictly read-only.
+  - Findings end the reply as a list with severity, file and line; each
+    location opens its file there.
+  - **The review pane** (`/changes`): every change this conversation made,
+    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
+    file is now) and **Comment on a line**, which sends your comment with
+    the lines around it into the running turn or as your next message.
+  - A review is a turn: it is marked running and takes its turn checkpoint
+    like a message, and a message you send while a review is starting waits
+    for it and then goes into the review turn. Clearing the conversation
+    while a review is still starting lets the new conversation's review or
+    message start at once.
+  - 70 new strings in the 14 tables (the word for review in Simplified
+    Chinese is the table's existing 审阅).
+  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
+    review turn's text, the Plan-mode hold and edit review (Open diff and
+    Revert) are the new `dist/review.js` (43.1 KiB, budget 50), required the
+    first time one is used; a module that cannot be loaded refuses the review
+    with `reviewUnavailable` and the log has the cause.
 
 ### Changed
 
@@ -281,6 +318,7 @@ happened, not what was planned; superseded entries are kept.
   log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
+- The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
 
@@ -295,6 +333,28 @@ happened, not what was planned; superseded entries are kept.
   each backend: on Muse Code, Edit automatically is Manual, and Auto is
   Muse Code's own skip of simple commands plus the new reviewer while it is
   on (README "Permission modes", PLAN.md D7's correction).
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
+- A handoff brief that arrives while the review pane is open waits until
+  the pane closes, preserving one modal and one focus trap at a time.
+- The Reviewer retains whole tool observations when observation packing is
+  enabled, because its read-only tools cannot recall packed output. The
+  next ordinary request still uses the same packed placeholder.
+- **The `/` and `@` lists keep the highlighted row in view.** The arrow
+  keys move through a list taller than its menu, and the list now scrolls
+  to the row they reach instead of highlighting one out of sight.
 
 ## [0.11.0] - 2026-10-03
 

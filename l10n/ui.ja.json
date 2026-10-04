@@ -527,6 +527,7 @@
   "noEditorForApply": "コードを適用するテキスト エディターを開いてください。",
   "diffTitleSuffix": "Muse による編集",
   "editNotRebuildable": "{path} を再構築できません: この編集以降にファイルが変更されています。",
+  "editUnsavedChanges": "{path} を元に戻せません。エディターの未保存の変更を保存または破棄してから、もう一度お試しください。",
   "editPathRefused": "{path} は拒否されました: 編集されたパスがワークスペースの外にあります。",
   "editNoPatch": "この編集にはパッチ ドキュメントが残っていません。",
   "historyLabel": "履歴",
@@ -1492,6 +1493,95 @@
   "checkpointsModelApiOnly": "ファイルの復元とやり直しには、接続済みの Model API セッションが必要です。 モデル自身のファイルツールによる編集だけを元に戻します。各ファイルがモデルの残した内容と完全に一致している場合に限ります。コマンド、フック、MCP ツールによる変更、自分で行った編集、他のウィンドウからの書き込みは元に戻しません。",
   "checkpointsNativeUnsafe": "Muse Code のセッション、または編集を記録しないウィンドウがまだファイルを変更する可能性があるため、ファイルの復元とやり直しは利用できません。そのウィンドウを閉じるか再読み込みしてから、もう一度お試しください。",
   "checkpointsLegacyReadOnly": "このメッセージは以前のバージョンの Muse Spark で記録されました。そのファイルは復元できません。",
+  "groupReview": "レビュー",
+  "reviewItem": "/review",
+  "reviewItemDetail": "コミットされていない変更、ブランチ、コミット、または指定した内容をレビューします",
+  "reviewUncommittedItem": "コミットされていない変更をレビュー",
+  "reviewUncommittedDetail": "最後のコミットと比較した、ステージ済みおよび未ステージの変更",
+  "reviewBranchItem": "このブランチをレビュー…",
+  "reviewBranchDetail": "選択したベース ブランチから分岐して以降のすべての変更",
+  "reviewCommitItem": "コミットをレビュー…",
+  "reviewCommitDetail": "最近のコミットの中から 1 つを選択します",
+  "reviewSecurityItem": "セキュリティ レビュー",
+  "reviewSecurityDetail": "コミットされていない変更を対象に、インジェクション、シークレット、認証、安全でない API を確認します",
+  "reviewChangesItem": "この会話の変更をレビュー",
+  "reviewChangesDetail": "変更ごとに承諾するか元に戻し、行にコメントできます",
+  "reviewPickBase": "このブランチと比較するブランチ",
+  "reviewPickCommit": "レビューするコミット",
+  "reviewDefaultBase": "既定のベース",
+  "reviewBusy": "レビューは現在のターンが終了してから開始されます。",
+  "reviewRestricted": "git の変更をレビューするには git が必要ですが、git は制限モードでは実行されません。このワークスペースを信頼するか、レビューする内容を指定してください: /review <確認する内容>。",
+  "reviewNotRepository": "このフォルダーは git リポジトリ内にないため、レビューする git の変更はありません。代わりにレビューする内容を指定してください: /review <確認する内容>。",
+  "reviewNoChanges": "レビューする変更はありません。",
+  "reviewOnlyPrivate": "変更されたのはシークレットを含む可能性のあるファイル (環境ファイル、キー、資格情報) のみで、これらはレビューに送信されません。",
+  "reviewNoBase": "比較するベース ブランチが見つかりませんでした。ブランチを指定してください: /review branch <ベース>。",
+  "reviewUnknownRevision": "git は {revision} をブランチまたはコミットとして認識していません。",
+  "reviewNoCommits": "このリポジトリには、レビューできるコミットがまだありません。",
+  "reviewGitFailed": "git はレビューする変更を読み取れませんでした。",
+  "reviewCancelled": "レビューをキャンセルしました。",
+  "reviewUnavailable": "レビューを読み込めなかったため、レビューを開始できません。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
+  "reviewInstructionsTooLong": "レビューする内容の指定が 1 回のレビューには長すぎます。もっと簡潔に指定してください。",
+  "reviewTruncatedNotice": "差分が長いため、レビューには最初の部分だけを渡しました。変更されたファイルの残りの部分は、レビュー担当が自分で読み取ります。",
+  "reviewPrivateLeftOut": {
+    "other": "シークレットを含む可能性のある変更済みファイル {count} 個は、名前だけを示し、レビューには送信していません。"
+  },
+  "reviewPlanModeNotice": "このレビューはプランモードで実行され、終了すると元の権限モードに戻ります。Muse Code はプランモードでも独自の許可ルールを適用するため、プランモードでのレビューは厳密には読み取り専用ではありません。",
+  "reviewModeRestored": "レビューが終了しました: 権限モードは {mode} に戻りました。",
+  "reviewModeNotRestored": "レビュー後に権限モードを元に戻せなかったため、会話はプランモードのままです",
+  "reviewAlreadyReverted": "この変更は既に元に戻されています。",
+  "reviewPaneTitle": "この会話での変更",
+  "reviewPaneLoading": "変更を読み取っています…",
+  "reviewPaneEmpty": "この会話ではファイルが変更されていません。",
+  "reviewPaneFiles": {
+    "other": "{count} 個のファイル"
+  },
+  "reviewPaneHunks": {
+    "other": "{count} 件の変更"
+  },
+  "reviewPaneAccepted": {
+    "other": "承諾済み {count} 件"
+  },
+  "reviewPaneReverted": {
+    "other": "元に戻し済み {count} 件"
+  },
+  "reviewPaneOmitted": {
+    "other": "{count} 件の編集はここに表示されていません (表示しきれないか、変更を読み取れなかったため)。トランスクリプトの該当項目からは引き続き開けます。"
+  },
+  "reviewHunkLines": "変更 {index}、{start}–{end} 行目",
+  "reviewHunkLine": "変更 {index}、{start} 行目",
+  "reviewHunkName": "{path} の変更 {index}",
+  "reviewAccept": "承諾",
+  "reviewAccepted": "承諾済み",
+  "reviewRevert": "元に戻す",
+  "reviewReverting": "元に戻しています…",
+  "reviewReverted": "元に戻し済み",
+  "reviewNotReverted": "元に戻せませんでした",
+  "reviewComment": "行にコメント…",
+  "reviewCommentLine": "行",
+  "reviewCommentLabel": "コメント",
+  "reviewCommentPlaceholder": "ここでエージェントが知っておくべきこと、変更すべきことは?",
+  "reviewSendSteer": "実行中のターンに送信",
+  "reviewSendNext": "次のメッセージとして送信",
+  "reviewCommentCancel": "キャンセル",
+  "reviewLineOption": "{line} 行目: {text}",
+  "reviewRemovedLineOption": "削除された {line} 行目: {text}",
+  "reviewOpenFile": "ファイルを開く",
+  "reviewCommentSent": "コメントをエージェントに送信しました",
+  "reviewAnnounceReverted": "{name} を元に戻しました",
+  "reviewAnnounceNotReverted": "{name} を元に戻せませんでした: {reason}",
+  "reviewFindingsLabel": "レビューの指摘事項",
+  "reviewFindingsHeading": {
+    "other": "{count} 件の指摘事項"
+  },
+  "reviewNoFindings": "レビューで報告すべき点は見つかりませんでした。",
+  "reviewSeverities": {
+    "critical": "重大",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "info": "情報"
+  },
+  "reviewOpenFinding": "{location} を開く",
   "verifyErrors": {
     "other": "エラー {count} 件"
   },

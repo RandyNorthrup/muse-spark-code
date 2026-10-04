@@ -46,8 +46,6 @@ import {
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
   PDF_MEDIA_TYPE,
-  PRIVATE_ATTACHMENT_EXTENSIONS,
-  PRIVATE_ATTACHMENT_NAMES,
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_ATTACHMENT_MEDIA_TYPE,
   type PermissionMode,
@@ -61,12 +59,13 @@ import {
 } from '../../shared/mentions'
 import { fill } from '../../shared/l10n/text'
 import { hasPdfHeader } from '../../shared/pdfHeader'
+import { isPrivateFileName } from '../../shared/privateFiles'
 import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
-import { wrapIndex } from '../listNavigation'
+import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
 import {
@@ -79,10 +78,10 @@ import {
   SlashIcon,
   StopIcon,
 } from './icons'
-import { MentionMenu, mentionOptionId } from './MentionMenu'
+import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 import { PALETTE_LISTBOX_ID, type PaletteKeys } from './Palette'
-import { SLASH_LISTBOX_ID, SlashMenu, slashOptionId } from './SlashMenu'
+import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
 export interface ImageData {
   readonly name: string
@@ -236,16 +235,6 @@ function keepMenuFocus(event: MouseEvent<HTMLButtonElement>): void {
 function fileExtension(name: string): string {
   const dot = name.lastIndexOf('.')
   return dot === -1 ? '' : name.slice(dot).toLowerCase()
-}
-
-function isPrivateAttachmentName(name: string): boolean {
-  const lower = name.toLowerCase()
-  return (
-    lower === '.env' ||
-    lower.startsWith('.env.') ||
-    PRIVATE_ATTACHMENT_NAMES.has(lower) ||
-    PRIVATE_ATTACHMENT_EXTENSIONS.has(fileExtension(lower))
-  )
 }
 
 function attachableFiles(list: FileList | undefined, shouldIncludeText = false): readonly File[] {
@@ -479,6 +468,25 @@ export function Composer(props: ComposerProps) {
     slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
   const isSlashMenuOpen = slashMenu !== undefined
+  // The textarea keeps the focus and points at the active row with
+  // aria-activedescendant, so nothing scrolls a list that grew past its
+  // height: the active row is brought into view here, as in the palette
+  // (WCAG 2.1.1). Keyed by the rows' names, so a re-render with the same
+  // rows leaves a list the user scrolled where it is.
+  const slashKeys = slashItems.map((item) => item.name).join('\n')
+  const hasSlashRows = slashItems.length > 0
+  const mentionKeys = mentionItems.map((item) => item.path).join('\n')
+  const hasMentionRows = mentionItems.length > 0
+  useEffect(() => {
+    if (hasSlashRows) {
+      scrollRowIntoView(SLASH_OPTION_ID_PREFIX, String(activeSlash))
+    }
+  }, [hasSlashRows, slashKeys, activeSlash])
+  useEffect(() => {
+    if (hasMentionRows) {
+      scrollRowIntoView(MENTION_OPTION_ID_PREFIX, String(mentionIndex))
+    }
+  }, [hasMentionRows, mentionKeys, mentionIndex])
   // Escape in the palette's own list (a Tab stop) brings the focus back to
   // the box, where it always is otherwise.
   useEffect(() => {
@@ -847,7 +855,7 @@ export function Composer(props: ComposerProps) {
     }
     for (const file of files) {
       const name = file.name === '' ? PASTED_IMAGE_NAME : file.name
-      if (isPrivateAttachmentName(name)) {
+      if (isPrivateFileName(name)) {
         onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }

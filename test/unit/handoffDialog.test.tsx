@@ -79,7 +79,7 @@ function modalRoots() {
   return [...document.querySelectorAll('[aria-modal="true"]')]
 }
 
-/** Opens `/usage` or `/agents` through the palette, as a user does. */
+/** Opens a modal through the palette, as a user does. */
 function openFromPalette(command: string) {
   fireEvent.click(screen.getByLabelText('Commands'))
   const filter = screen.getByRole('combobox')
@@ -216,6 +216,7 @@ describe('/handoff (M74)', () => {
   it.each([
     { command: '/usage', title: UI_TEXT.usageLabel },
     { command: '/agents', title: UI_TEXT.agentMapTitle },
+    { command: UI_TEXT.reviewChangesItem, title: UI_TEXT.reviewPaneTitle },
   ])(
     'keeps a brief that arrives while $command is open waiting until it closes, one modal at a time',
     ({ command, title }) => {

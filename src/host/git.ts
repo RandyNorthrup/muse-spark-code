@@ -50,7 +50,7 @@ const filterKeys = z
   .check(z.maxLength(GIT_FILTER_NAMES_MAX))
 
 /** Names only become scoped overrides; configured command values are never read. */
-function gitFilterOptions(output: string): readonly string[] {
+export function gitFilterOptions(output: string): readonly string[] {
   const names = output === '' ? [] : output.split(FILTER_SEPARATOR)
   if (names.at(-1) === '') {
     names.pop()

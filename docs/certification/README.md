@@ -83,6 +83,8 @@ The PNGs beside the records are that day's harness renders.
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
 - [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
+- [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
+- [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.
 - [M73](m73.md): observation packing on the Model API, `recall_output`, the savings ledger and the M75 packing arm; built and held, its live M75 run not run (PLAN.md D49)
 - [M79](m79.md): plans as files: Save plan and Implement in a fresh conversation, Muse Code's `.agents/plans` convention, the plan's steps as the todo list (PLAN.md D49, D13)
 - [M74](m74.md): long tasks, `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts; automatic compaction, the hidden follow-up and the memory flush not built (blocked on M75 and Q-M74), so M74 is not complete (PLAN.md D49)

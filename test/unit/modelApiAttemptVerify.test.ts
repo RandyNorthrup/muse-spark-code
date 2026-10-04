@@ -10,7 +10,7 @@ import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import type { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import type { FileDiagnostics } from '../../src/core/verify/diagnosticsReport'
-import { MODEL_TEXT } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT, MODEL_TEXT } from '../../src/shared/constants'
 import { shellToolFor } from '../../src/core/backends/modelapi/tools'
 import { fileContextIo } from '../../src/host/backend/contextIo'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
@@ -528,7 +528,7 @@ describe('production trial verification uses its own root (M77/M68)', () => {
           (event) => event.type === 'itemCompleted' && event.item.tool === 'verify_edits',
         )
         if (row?.type !== 'itemCompleted') throw new Error('Expected actual automatic verify row')
-        expect(row.item.visibleOutput).toContain(MODEL_TEXT.verifyAccessRefused)
+        expect(row.item.visibleOutput).toContain(MODEL_API_MODEL_TEXT.verifyAccessRefused)
         expect(row.item.verifySummary).toMatchObject({ unchecked: 1 })
         expect(row.item.verifySummary?.errors).toBeUndefined()
         expect(row.item.verifySummary?.warnings).toBeUndefined()

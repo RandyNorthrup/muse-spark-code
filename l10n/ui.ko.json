@@ -527,6 +527,7 @@
   "noEditorForApply": "코드를 적용할 텍스트 편집기를 여세요.",
   "diffTitleSuffix": "Muse 편집",
   "editNotRebuildable": "{path}을(를) 다시 빌드할 수 없습니다. 이 편집 이후 파일이 변경되었습니다.",
+  "editUnsavedChanges": "{path}을(를) 되돌릴 수 없습니다. 편집기의 저장되지 않은 변경 사항을 저장하거나 취소한 뒤 다시 시도하세요.",
   "editPathRefused": "{path} 거부됨: 편집된 경로가 작업 영역 외부에 있습니다.",
   "editNoPatch": "이 편집에는 패치 문서가 남아 있지 않습니다.",
   "historyLabel": "기록",
@@ -1492,6 +1493,95 @@
   "checkpointsModelApiOnly": "파일 복원과 다시 실행에는 연결된 Model API 세션이 필요합니다. 모델 자체 파일 도구의 편집만 되돌리며, 각 파일이 모델이 남긴 내용과 정확히 일치할 때만 가능합니다. 명령, 훅, MCP 도구의 변경, 직접 한 편집, 다른 창의 쓰기는 절대 되돌리지 않습니다.",
   "checkpointsNativeUnsafe": "Muse Code 세션 또는 편집을 기록하지 않는 창이 아직 파일을 변경할 수 있으므로 파일 복원과 다시 실행을 사용할 수 없습니다. 해당 창을 닫거나 다시 로드한 뒤 다시 시도하세요.",
   "checkpointsLegacyReadOnly": "이 메시지는 이전 버전의 Muse Spark에서 기록되었습니다. 해당 파일은 복원할 수 없습니다.",
+  "groupReview": "검토",
+  "reviewItem": "/review",
+  "reviewItemDetail": "커밋되지 않은 변경 내용, 분기, 커밋 또는 설명한 내용 검토",
+  "reviewUncommittedItem": "커밋되지 않은 변경 내용 검토",
+  "reviewUncommittedDetail": "마지막 커밋과 비교한 스테이징된 변경 내용 및 스테이징되지 않은 변경 내용",
+  "reviewBranchItem": "이 분기 검토…",
+  "reviewBranchDetail": "선택한 기준 분기에서 갈라진 이후의 모든 변경 내용",
+  "reviewCommitItem": "커밋 검토…",
+  "reviewCommitDetail": "최근 커밋 중에서 하나 선택",
+  "reviewSecurityItem": "보안 검토",
+  "reviewSecurityDetail": "커밋되지 않은 변경 내용에서 인젝션, 비밀 정보, 인증, 안전하지 않은 API 점검",
+  "reviewChangesItem": "이 대화의 변경 내용 검토",
+  "reviewChangesDetail": "변경 내용마다 수락하거나 되돌리고 줄에 의견 남기기",
+  "reviewPickBase": "이 분기와 비교할 분기",
+  "reviewPickCommit": "검토할 커밋",
+  "reviewDefaultBase": "기본 기준 분기",
+  "reviewBusy": "현재 턴이 끝나면 검토가 시작됩니다.",
+  "reviewRestricted": "git 변경 내용을 검토하려면 git이 필요하지만 git은 제한 모드에서 실행되지 않습니다. 이 작업 영역을 신뢰하거나 검토할 내용을 입력하세요: /review <살펴볼 내용>.",
+  "reviewNotRepository": "이 폴더는 git 리포지토리에 있지 않으므로 검토할 git 변경 내용이 없습니다. 대신 검토할 내용을 입력하세요: /review <살펴볼 내용>.",
+  "reviewNoChanges": "검토할 변경 내용이 없습니다.",
+  "reviewOnlyPrivate": "비밀 정보가 포함될 수 있는 파일(환경 파일, 키, 자격 증명)만 변경되었으며, 이러한 파일은 검토용으로 전송되지 않습니다.",
+  "reviewNoBase": "비교할 기준 분기를 찾을 수 없습니다. 분기를 지정하세요: /review branch <기준>.",
+  "reviewUnknownRevision": "git에서 {revision}을(를) 분기 또는 커밋으로 인식하지 못합니다.",
+  "reviewNoCommits": "이 리포지토리에는 아직 검토할 커밋이 없습니다.",
+  "reviewGitFailed": "git에서 검토할 변경 내용을 읽지 못했습니다.",
+  "reviewCancelled": "검토가 취소되었습니다.",
+  "reviewUnavailable": "검토를 불러오지 못해 검토를 시작할 수 없습니다. 확장을 다시 설치하고 창을 다시 로드하세요. 자세한 내용은 로그에 있습니다.",
+  "reviewInstructionsTooLong": "검토할 내용이 한 번의 검토에 넣기에는 너무 깁니다. 더 짧게 입력하세요.",
+  "reviewTruncatedNotice": "diff가 길어서 앞부분만 검토에 함께 보냈습니다. 변경된 파일의 나머지 부분은 검토자가 직접 읽습니다.",
+  "reviewPrivateLeftOut": {
+    "other": "비밀 정보가 포함될 수 있는 변경된 파일 {count}개는 이름만 알리고 검토용으로 전송하지 않았습니다."
+  },
+  "reviewPlanModeNotice": "이 검토는 계획 모드에서 실행되며, 끝나면 원래 권한 모드로 돌아갑니다. Muse Code는 계획 모드에서도 자체 허용 규칙을 적용하므로 계획 모드의 검토가 완전히 읽기 전용은 아닙니다.",
+  "reviewModeRestored": "검토가 끝났습니다. 권한 모드가 다시 {mode}(으)로 설정되었습니다.",
+  "reviewModeNotRestored": "검토 후 권한 모드를 되돌릴 수 없어 대화가 계획 모드로 유지됩니다",
+  "reviewAlreadyReverted": "이 변경 내용은 이미 되돌렸습니다.",
+  "reviewPaneTitle": "이 대화의 변경 내용",
+  "reviewPaneLoading": "변경 내용을 읽는 중…",
+  "reviewPaneEmpty": "이 대화에서 변경한 파일이 없습니다.",
+  "reviewPaneFiles": {
+    "other": "파일 {count}개"
+  },
+  "reviewPaneHunks": {
+    "other": "변경 {count}개"
+  },
+  "reviewPaneAccepted": {
+    "other": "{count}개 수락됨"
+  },
+  "reviewPaneReverted": {
+    "other": "{count}개 되돌림"
+  },
+  "reviewPaneOmitted": {
+    "other": "편집 {count}개는 여기에 표시되지 않습니다(너무 많아 표시할 수 없거나 변경 내용을 읽을 수 없음). 대화 내용의 해당 항목에서는 계속 열 수 있습니다."
+  },
+  "reviewHunkLines": "변경 {index}, 줄 {start}–{end}",
+  "reviewHunkLine": "변경 {index}, 줄 {start}",
+  "reviewHunkName": "{path}의 변경 {index}",
+  "reviewAccept": "수락",
+  "reviewAccepted": "수락됨",
+  "reviewRevert": "되돌리기",
+  "reviewReverting": "되돌리는 중…",
+  "reviewReverted": "되돌림",
+  "reviewNotReverted": "되돌리지 못함",
+  "reviewComment": "줄에 의견 남기기…",
+  "reviewCommentLine": "줄",
+  "reviewCommentLabel": "의견",
+  "reviewCommentPlaceholder": "에이전트가 여기서 알아야 하거나 변경해야 할 내용은 무엇인가요?",
+  "reviewSendSteer": "실행 중인 턴에 보내기",
+  "reviewSendNext": "다음 메시지로 보내기",
+  "reviewCommentCancel": "취소",
+  "reviewLineOption": "줄 {line}: {text}",
+  "reviewRemovedLineOption": "제거된 줄 {line}: {text}",
+  "reviewOpenFile": "파일 열기",
+  "reviewCommentSent": "의견을 에이전트에 보냈습니다",
+  "reviewAnnounceReverted": "{name} 되돌림",
+  "reviewAnnounceNotReverted": "{name} 되돌리지 못함: {reason}",
+  "reviewFindingsLabel": "검토 결과",
+  "reviewFindingsHeading": {
+    "other": "발견 사항 {count}개"
+  },
+  "reviewNoFindings": "검토에서 보고할 문제를 찾지 못했습니다.",
+  "reviewSeverities": {
+    "critical": "심각",
+    "high": "높음",
+    "medium": "보통",
+    "low": "낮음",
+    "info": "정보"
+  },
+  "reviewOpenFinding": "{location} 열기",
   "verifyErrors": {
     "other": "오류 {count}개"
   },

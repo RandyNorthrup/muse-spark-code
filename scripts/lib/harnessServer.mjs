@@ -121,6 +121,10 @@ export const SCENARIOS = [
   'plan-narrow',
   'handoff',
   'code-intel',
+  'review-findings',
+  'review-pane',
+  'review-pane-narrow',
+  'review-comment',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',

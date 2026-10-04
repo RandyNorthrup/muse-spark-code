@@ -22,6 +22,19 @@ security notes for contributors are in `PLAN.md` §9.
   its session log. So does what a command moved to the background printed
   when it ends. A command the Model API backend refused at its start (your
   Stop, lost trust, a closing window) did not run and is not sent.
+- **A review (`/review`, M70).** A review of git's changes runs git on
+  your machine and sends what it printed with the review turn, as your
+  message would travel on the backend in use: the diff, the changed and
+  untracked files' names, the branch name and, for one commit, its
+  message. Environment files, keys and credentials (`.env*`, `*.pem`,
+  `*.key`, `id_rsa`, `credentials.json` and the like) are left out of
+  the diff and only named. Git metadata is omitted from Reviewer system
+  instructions and remains in the review turn's untrusted material block.
+  `/review <what to look at>` sends only your
+  words. The review pane, its Accept and Revert, stay on your machine; a
+  comment on a line is a message, with the changed lines around it. The
+  `/review` you request is part of your own Model API turn (PLAN.md D49);
+  a Reviewer child task remains a paid use under D48.
 - **Checks after the agent's edits (Model API backend).** After a round of
   edits, the edited files' errors and warnings from VS Code's language
   servers (`museSpark.diagnosticsAfterEdits`, on by default), and the

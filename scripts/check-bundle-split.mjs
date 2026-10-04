@@ -17,6 +17,10 @@
 // - web fetch's page converter (M69: parse5, the HTML converter and what
 //   they use) is in dist/extension.js or dist/modelApi.js, or missing from
 //   its worker, dist/pageWorker.js, started for each page.
+// - the review (M70: git's material, the review turn's text, the Plan-mode
+//   hold and edit review) is in dist/extension.js, dist/modelApi.js or
+//   dist/acp.js, or missing from dist/review.js, which dist/extension.js
+//   requires the first time one is used.
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
@@ -100,6 +104,8 @@ const LAZY_ONLY = [
   'observationPack.ts',
   'permissions.ts',
   'promptCache.ts',
+  // The built-in Reviewer's prompt and tool list (M70).
+  'reviewer.ts',
   'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
@@ -162,6 +168,14 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+// The session's model text is its own object (M70 budget repair). esbuild
+// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
+// the activation and ACP loaders must discard with the unused export.
+for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
+  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
+    problems.push(`${bundle.output} carries the Model API session's model text`)
+  }
+}
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {
@@ -269,6 +283,7 @@ const CHECKPOINT_ONLY = [
   'src/host/checkpoints/writeRecorder.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
+const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 // The English fallback is shared; installed-language state stays in each bundle.
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
@@ -325,6 +340,7 @@ for (const bundle of [
   BUNDLES.modelApi,
   BUNDLES.acp,
   CHECKPOINT_STORE,
+  REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
   BUNDLED_SKILLS,
@@ -349,6 +365,28 @@ for (const file of CHECKPOINT_ONLY) {
   }
   if (!checkpointStore.has(file)) {
     problems.push(`${CHECKPOINT_STORE.output} no longer carries ${file}`)
+  }
+}
+// M70: git's material, the review turn's text, the Plan-mode hold and edit
+// review live in a bundle the activation bundle requires on first use. Only
+// types and the loader (reviewBundle.ts) stay at activation.
+const REVIEW_ONLY = [
+  'src/host/review/reviewEntry.ts',
+  'src/host/review/reviewCollector.ts',
+  'src/core/review/reviewMaterial.ts',
+  'src/core/review/reviewPrompt.ts',
+  'src/core/review/planModeHold.ts',
+  'src/host/editor/editReview.ts',
+]
+const review = inputsOf(REVIEW)
+for (const file of REVIEW_ONLY) {
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file)) {
+      problems.push(`${output} carries ${file}, which belongs to the review bundle`)
+    }
+  }
+  if (!review.has(file)) {
+    problems.push(`${REVIEW.output} no longer carries ${file}`)
   }
 }
 // M83: the import from other agents loads on the first import.
@@ -464,6 +502,9 @@ console.log(
 )
 console.log(
   `ok   ${CHECKPOINT_STORE.output}: carries the checkpoint implementation; activation keeps the port and synchronous loader`,
+)
+console.log(
+  `ok   ${REVIEW.output}: carries the review and edit review; ${BUNDLES.activation.output} keeps the loader`,
 )
 console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,

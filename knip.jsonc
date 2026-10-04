@@ -23,6 +23,8 @@
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    // The review's own bundle (M70), required by path on the first review.
+    "src/host/review/reviewEntry.ts",
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
