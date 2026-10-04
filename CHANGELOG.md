@@ -15,6 +15,32 @@ happened, not what was planned; superseded entries are kept.
 - Manual release recovery uses the same verified staging path while preserving
   the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
 
+### Fixed
+
+- A blocked M80 `v0` tag update now reports that an administrator must move it,
+  while preserving the four release channels' outcomes. Updates require a
+  fast-forward; the release guide documents the administrator's recovery command.
+
+## [0.12.1] - 2026-10-04
+
+### Changed
+
+- **The ACP agent's npm page has a proper README**: a banner, badges, a
+  short pitch, install, a quick start for Zed, JetBrains, Neovim, Emacs and
+  JupyterLab, headless `exec` and the GitHub Action, backends and cost,
+  privacy, and links, all with absolute links. The detailed guide stays at
+  `docs/acp.md`. The package also gets a clearer description, editor
+  keywords, the repository homepage and the donate link.
+
+### Fixed
+
+- **A release can no longer lose its CHANGELOG section.** 0.12.0's first
+  release run passed every check and then stopped, because the CHANGELOG at
+  its tag had no `[0.12.0]` section (a merge dropped the heading). A test
+  now fails any change whose `package.json` version has no
+  `## [x.y.z]` section, so a release PR catches it in minutes; a release
+  run can also publish an earlier run's tested packages without rebuilding.
+
 ## [0.12.0] - 2026-10-04
 
 ### Added

@@ -358,7 +358,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.12.0.vsix
+   code --install-extension muse-spark-code-0.12.1.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -459,7 +459,7 @@ Get it from the
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.12.0.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.12.1.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -468,7 +468,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.0/muse-spark-code-acp-0.12.0.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.1/muse-spark-code-acp-0.12.1.tgz
 muse-spark-code-acp --version
 ```
 
@@ -3382,6 +3382,10 @@ by their recorded checkout tree. Manual recovery on a version tag keeps
 bytes pass through the same verification/staging job. Invalid recovery stops;
 cancelled runs cannot publish. Older builds without a receipt retain inventory,
 manifest and download-integrity checks; see the recovery guide for that limit.
+An M80 `v0` tag update blocked by the release-tags ruleset is reported separately
+as **admin move required**, preserving the release channels' outcomes. The
+[release guide](docs/RELEASING.md#signing-and-the-prepared-m80-hooks) documents
+the administrator's fast-forward recovery; the ruleset stays in place.
 The workflow creates a GitHub Release with
 that `.vsix`, the ACP tarball, both inventories and `SHA256SUMS`, with the
 CHANGELOG section as its notes and package provenance attestations. The same

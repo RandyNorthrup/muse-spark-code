@@ -89,6 +89,12 @@ reports missing secrets; a failed, blocked, cancelled, or missing-output job is
 a failure. Any failed channel fails the aggregate job. A successful workflow
 with skipped secrets is not proof that every channel published.
 
+The M80 `v0` update is reported separately after the four channels. Its failed
+step remains visible and appends **admin move required** with a warning; it does
+not turn successfully published channels into failures. A failed channel still
+fails the aggregate, and a missing-secret skip still holds the tag. An update
+uses `force=false`, with ancestry checks before dispatch.
+
 Registry publication retries network failures such as `ECONNRESET`,
 `ETIMEDOUT`, and HTTP 502/503/504: at most three publish attempts, waiting
 20 seconds and then 60 seconds. Auth, OTP, validation, version-conflict and
@@ -198,7 +204,7 @@ tags remain unsigned: the workflow verifies version and `main` ancestry and
 records package provenance, but these checks are not signed-tag verification.
 Decisions are recorded in `PLAN.md` §8.
 
-M80 is not implemented here. If `docs/schemas/*.json` exists at the release
+The workflow carries M80 hooks. If `docs/schemas/*.json` exists at the release
 commit, its schemas are uploaded as additional GitHub Release assets with the
 same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
 packages. If `action/action.yml` exists, the final summary job
@@ -206,9 +212,28 @@ moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
 cannot move it backwards to an ancestor. Divergent history requires review.
 
+The owner's 0.12.1 observation (Release run `37225339230`) found HTTP 422 on
+updating `v0`: the `release tags` ruleset (`23893754`) covers `refs/tags/v*`,
+with deletion, non-fast-forward and update rules and administrator bypass only.
+The workflow token can create the tag but cannot update it. Keep the ruleset;
+an administrator must make the move. After confirming all four channels
+published, inspect the current target and confirm it is an ancestor of the
+release commit (or already at that commit/a newer descendant). If a move is
+needed, run this with the administrator's GitHub CLI account:
+
+```console
+gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sha=<release commit> -F force=false
+```
+
+Replace `<release commit>` with the full commit SHA. Verify the resulting
+`v0` target independently afterward. If history is divergent, stop for owner
+review; do not force the move or change the ruleset. No rebuild or republish is
+needed solely to repair this major tag.
+
 The Action will be consumed as
 `RandyNorthrup/muse-spark-code/action@v0`. There is no Actions Marketplace
-listing: the Action lives in a subfolder. Until M80 lands, both hooks are inert.
+listing: the Action lives in a subfolder. Hooks run only when their source files
+exist at the release commit.
 
 ## First hosted release observation
 

@@ -5716,6 +5716,21 @@ drills and drill these new recovery/merge-queue/cancellation guards byte-exact.
 Lane checks follow RELFAST2 and common.md; full quality and hosted receipts
 remain lead-owned. No push, tag or workflow run.
 
+**RELFAST3 completion (2026-10-04).** Preserve the staged RELFAST2 work with
+enabled commit hooks and merge `origin/main` at `1e93c67c`, keeping every released
+CHANGELOG section. The owner reports that release run `37225339230` could create
+`v0` but its update failed with HTTP 422 under the release-tags ruleset
+`23893754` (admin bypass only). Keep that ruleset unchanged. A failed major-tag
+step retains its failure outcome and reports an admin move without failing the
+already-published channels' summary. Keep all-channel admission, cancellation,
+ancestor and divergent-history guards; request only a fast-forward update.
+Document the owner's admin PATCH command in `docs/RELEASING.md`. Acceptance:
+execute the actual workflow shell with synthetic Git/API responses, prove
+failure reporting and successful/no-op/divergent paths, drill each new guard
+with byte-exact restoration, and run the owning workflow tests and lane checks.
+Hosted reuse/fallback, CIFLOW integration and the actual admin tag move remain
+lead-owned; no network publication or ruleset mutation is authorized here.
+
 **Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
 Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
 CycloneDX ingredient lists from the shipped bundle inputs and the ACP native
@@ -13634,6 +13649,20 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**RELFAST3 bounded-lane result (2026-10-04).** Fresh Windows compilers,
+dead-code, duplication, localization, host API, production build, actionlint
+and scoped formatting pass; the fixture's two ESLint style findings are fixed
+without suppression and its generated workflow shell is byte-identical.
+Kubuntu passes all 128 owning tests and six added byte-exact guard drills;
+RELFAST2's 36 controls remain historical receipts. A contended Windows Bash
+fixture timed out at the unchanged five-second limit and is not green proof.
+The live Model API size gate is 475 KiB, not common.md's 400 KiB figure: the
+430.1 KiB bundle passes the existing gate without a cap change, but 400 KiB
+compliance is not claimed. Full quality/hosted/CIFLOW/admin-tag verification
+and the skill's unsupported ledger-format validator remain deferred to the
+lead; no required gate was weakened. See `docs/certification/relfast.md`,
+`relfast3-drills.json` and `relfast3-shell-equivalence.json` beside it.
 
 **RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
 requires scoped eslint/Prettier, owning release tests, available actionlint and

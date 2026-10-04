@@ -147,3 +147,90 @@ gates and enabled commit hooks. Fresh common.md aggregate compiler/dead-code/
 duplication/localization/host-API/build checks are deferred to the lead under
 the hard 60-minute box; unchanged production bundles are not recertified here.
 The project-wide quality run and hosted releases remain explicitly unproved.
+
+## RELFAST3 readiness (2026-10-04)
+
+Read the named RELFAST3/common briefs, the staged RELFAST2 handoff, AGENTS,
+PLAN's M26 record, both owning test files and the existing workflow/guide.
+Observed staged work only, no unstaged edits. The read-only stash inventory did
+not contain the named interrupted backup; unrelated automatic backups were
+left untouched. RELFAST2 was committed with lint-staged and gitleaks enabled as
+`1d6d6e04`; the complete Windows baseline passed all 119 owning tests.
+
+Merge `origin/main` at `1e93c67c` (0.12.1). Only CHANGELOG conflicted; the named
+`changelog-rebase.py` preserved main's released sections and added both branch
+bullets under Unreleased. `ci.yml` remains CIFLOW-owned. Review maps the new
+HTTP 422 finding to the existing major-tag step and a separate outcome report,
+with no new product module/dependency, hosted call, ruleset or publishing change.
+Acceptance retains all-channel admission, cancellation and ancestry safety;
+the tag's true failure must remain visible while channel reporting stays useful.
+
+The feature skill inventory succeeded. Its current snapshot validator returned
+`plan: expected exactly one quality-ledger fence`; structured readiness/closure
+remain deferred because this lane preserves the project's canonical PLAN format.
+Manual readiness review is not a passing structured or hosted gate.
+
+Before implementation, the new complete Windows suite discovered nine tests:
+five passed and four failed on the absent outcome step and `force=true` request.
+Its shell tests execute the exact workflow body under Bash; only external Git
+and GitHub API calls are synthetic functions. No real tag or GitHub request is
+made. The owner's run/ruleset finding is brief-supplied, not a live observation
+by this lane. Fresh final checks and deliberate restoration proofs follow below.
+
+## RELFAST3 behavior and drills
+
+The restored merged source passes all 128 owning tests on Kubuntu (93 release,
+26 manifest, nine major-tag tests), with no test filters or skipped cases.
+All six new controls pass: nonblocking tag failure, fast-forward-only API
+request, honest admin warning, cancelled-report hold, no backward move, and
+divergent-history refusal. Each runs the complete nine-test file green, sees
+its intended assertion fail after a source mutation, restores the exact
+workflow bytes, and runs green again. Before/mutated/after SHA-256 values,
+actual commands, diagnostics and raw-log digests are in
+[relfast3-drills.json](relfast3-drills.json). Logs remain in
+`dist/relfast3-drills/`; complete final suite output is in
+`dist/relfast3-checks/owning-suites-kubuntu.log`. The prior 36 RELFAST2 controls
+remain historical receipts, not rerun claims for this checkpoint.
+
+A Windows post-fix run passed 127 tests but one Bash fixture exceeded the
+unchanged five-second timeout under shared-host contention. That run is not
+green evidence; per common.md the shell suite and drills moved to Kubuntu,
+matching the actual Ubuntu summary-job shell. No timeout was raised and no
+assertion weakened. Hosted/cross-platform aggregate proof remains lead-owned.
+
+All released CHANGELOG sections from 0.12.1 onward match main's Git text:
+SHA-256 `7df0e205f3ad3fbcdc310cb5b302930c2712a8358b81322a7f7d9c0ff34e0f05`.
+Observed local tools: Node 24.20.0, TypeScript 6.0.3, ESLint 10.11.0,
+Prettier 3.9.9 and Vitest 5.0.2. No production/UI module, dependency, budget,
+credential, ruleset or live release changed.
+
+## RELFAST3 local static/build results
+
+Windows `npm run typecheck` passed all five projects. Dead-code, duplication
+(zero clones), localization (14 tables, zero problems), host API, production
+build, actionlint for build/release, and scoped Prettier all exited zero. Knip
+retains its existing `vendor/**` configuration hint. Raw outputs and exact argv
+are in `dist/relfast3-checks/`, with the first batch in `results.json`.
+
+The four-file ESLint batch correctly rejected two new fixture-style violations:
+`unicorn/prefer-string-raw` and `unicorn/prefer-string-replace-all`. The other
+three files had no findings. Fixed only the fixture using `String.raw` and the
+global-regex `replaceAll`, without changing assertions. Independent evaluation
+of the old and new generator proves both actual workflow Bash strings are
+byte-identical: [relfast3-shell-equivalence.json](relfast3-shell-equivalence.json).
+The drill record retains its original pre-cleanup test hash; it is not silently
+rebound. The subsequent fixture lint and complete suite outputs are recorded
+separately in `postlint.json` and their named logs.
+
+Fresh build measurements: extension 590.6 KiB, Model API 430.1 KiB, checkpoint
+store 135.7 KiB, ACP 800.9 KiB and webview 860.5 KiB. All configured size,
+split/global and notice gates pass. The actual existing Model API cap is
+475 KiB (`scripts/check-bundle-size.mjs`), not common.md's stale 400 KiB figure;
+no cap was changed and this does not prove 400 KiB compliance. No universal
+VSIX or release certification is claimed from this local bundle build.
+
+Full quality, hosted exact-tree reuse/recovery/fallback, CIFLOW integration,
+and the actual administrator's `v0` move remain lead-owned. The guide supplies
+the requested `force=false` PATCH; no GitHub/ruleset/tag mutation was performed
+by this lane. Final commits use enabled hooks; no stash was manipulated
+manually and no hook/gate was bypassed.
