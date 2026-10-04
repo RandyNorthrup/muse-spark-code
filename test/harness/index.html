@@ -415,6 +415,24 @@
           outbox.push(message)
           document.title = `harness: ${message.type}`
           switch (message.type) {
+            case 'tasksReady': {
+              send({
+                type: 'tasksState',
+                conversation: 'Panel polish',
+                items: [
+                  { text: 'Read the capture', status: 'completed' },
+                  {
+                    text: 'Render tool rows',
+                    status: 'inProgress',
+                    activeForm: 'Rendering tool rows',
+                  },
+                  { text: 'Write the certification', status: 'pending' },
+                ],
+                ended: scenarioName === 'tasks-tab-ended',
+                canMoveToWindow: scenarioName !== 'tasks-tab-plain',
+              })
+              break
+            }
             case 'ready': {
               // The host sends these from its own table, the same one as the page's.
               send({
@@ -886,6 +904,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if (new URLSearchParams(location.search).get('scenario')?.startsWith('tasks-tab')) {
+        document.body.dataset.surface = 'tasks'
+        document.documentElement.style.width = '100%'
+        document.body.style.width = '100%'
+      }
+    </script>
     <script src="../../dist/webview/main.js"></script>
     <script>
       // Scripting errors and dropped host messages are written into the page
@@ -1488,6 +1513,13 @@
             ],
           })
         },
+        'todo-collapsed': () => {
+          steps.todo()
+          whenFound('.todo-title', (button) => button.click())
+        },
+        'tasks-tab': () => {},
+        'tasks-tab-ended': () => {},
+        'tasks-tab-plain': () => {},
         // A 10k-token reply streamed in 100-character deltas: the visual check
         // that a long markdown answer renders; render cost is measured in Node
         // (scripts/measure-markdown.mjs), not here, because headless Chrome's
@@ -3215,7 +3247,9 @@
       // 400 ms it always waited. A fixed delay alone raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       if (scenario !== null && scenario in steps) {
-        later(100, () => whenFound('textarea, .gate, [role="alert"]', () => steps[scenario]()))
+        later(100, () =>
+          whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
+        )
       }
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of

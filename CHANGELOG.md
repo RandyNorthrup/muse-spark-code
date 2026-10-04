@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Task lists can collapse to progress and the task in progress. **Open Tasks
+  in a Tab** mirrors the active conversation's list in a read-only editor tab,
+  rebuilds it after the webview reloads, and marks a closed conversation.
+  Hosts offering **Move into New Window** expose that action in the tab.
+
 ### Fixed
 
 - The localization gate now requires `{count}` in a language's `one` form

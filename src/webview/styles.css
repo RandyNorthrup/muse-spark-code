@@ -1464,9 +1464,86 @@ body {
 }
 
 .todo-title {
-  margin-bottom: 2px;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--ms-control-size);
+  padding: 0;
+  border: 0;
+  color: var(--vscode-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.todo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-gap);
+}
+
+.todo-progress {
+  overflow: hidden;
   color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-open {
+  flex-shrink: 0;
+}
+
+.todo-open,
+.todo-window {
+  min-height: var(--ms-control-size);
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-secondaryForeground);
+  font: inherit;
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+}
+
+.todo-title:focus-visible,
+.todo-open:focus-visible,
+.todo-window:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.todo-open:hover:enabled,
+.todo-window:hover:enabled {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.todo-current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-surface {
+  overflow: auto;
+  padding: var(--ms-gap);
+}
+
+.todo-tab-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  margin-bottom: var(--ms-gap);
+}
+
+.todo-tab-header h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1em;
 }
 
 .todo-list {

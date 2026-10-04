@@ -183,6 +183,42 @@ describe('ApprovalCard', () => {
 })
 
 describe('TodoPanel', () => {
+  it('collapses to progress and current task, expands back, and reopens expanded on mount', () => {
+    const items = [
+      { text: 'Plan', status: 'completed' },
+      { text: 'Test', status: 'inProgress', activeForm: 'Testing' },
+      { text: 'Ship', status: 'pending' },
+    ]
+    const { unmount } = render(<TodoPanel items={items} />)
+    const toggle = screen.getByRole('button', { name: 'Tasks 1 of 3 done' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const controlled = document.querySelector(
+      `[id="${CSS.escape(toggle.getAttribute('aria-controls') ?? '')}"]`,
+    )
+    expect(controlled).toBe(screen.getByRole('list'))
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.getByTitle('Testing')).toBeVisible()
+    fireEvent.click(toggle)
+    expect(screen.getByRole('list')).toBeVisible()
+    fireEvent.click(toggle)
+    unmount()
+    render(<TodoPanel items={items} />)
+    expect(screen.getByRole('list')).toBeVisible()
+  })
+
+  it('offers tab opening only when provided, and preserves the inert modal guard', () => {
+    const onOpenInTab = vi.fn()
+    const items = [{ text: 'Test', status: 'pending' }]
+    const { rerender } = render(<TodoPanel items={items} />)
+    expect(screen.queryByRole('button', { name: 'Open in a tab' })).toBeNull()
+    rerender(<TodoPanel items={items} isInert onOpenInTab={onOpenInTab} />)
+    expect(screen.getByRole('region')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByRole('button', { name: 'Open in a tab' }))
+    expect(onOpenInTab).toHaveBeenCalledOnce()
+  })
+
   it('lists tasks with their status marks and the active form, and hides when empty', () => {
     const { rerender } = render(
       <TodoPanel

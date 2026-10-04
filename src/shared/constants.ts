@@ -13,12 +13,15 @@ export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
 // Contribution point ids (package.json `contributes`).
 export const CHAT_VIEW_ID = 'museSpark.chatView'
 export const CHAT_PANEL_VIEW_TYPE = 'museSpark.chatPanel'
+export const TASKS_PANEL_VIEW_TYPE = 'museSpark.tasksPanel'
+export const TASKS_MOVE_TO_WINDOW_COMMAND = 'workbench.action.moveEditorToNewWindow'
 // `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
 export const WALKTHROUGH_QUALIFIED_ID = `${EXTENSION_QUALIFIED_ID}#${WALKTHROUGH_ID}`
 export const COMMAND_IDS = {
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
+  openTasks: 'museSpark.openTasks',
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',

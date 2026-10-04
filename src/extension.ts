@@ -121,6 +121,7 @@ import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspa
 import { readSettings, toSettingsSnapshot } from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
+import { TasksPanel } from './host/views/tasksPanel'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
@@ -1689,8 +1690,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const tasksTab = new TasksPanel(hostContext, () => {
+        if (registry.has(surface)) {
+          surface.reveal()
+        }
+      })
+      context.subscriptions.push(tasksTab)
       controller = new ConversationController({
         surface,
+        tasksTab,
         auth,
         ensureHost: ensureSelectedHost,
         workspaceRoot,
@@ -2076,6 +2084,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.openTasks,
+      forActiveConversation(async (controller) => {
+        await controller.handle({ type: 'hostAction', action: 'openTasksTab' })
+      }),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active
       if (surface === undefined) {

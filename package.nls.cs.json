@@ -8,6 +8,7 @@
   "command.category": "Muse Spark",
   "command.openInSidebar.title": "Otevřít na bočním panelu",
   "command.openInNewTab.title": "Otevřít na nové kartě",
+  "command.openTasks.title": "Otevřít úkoly na kartě",
   "command.focusInput.title": "Přepnout fokus",
   "command.insertMentionReference.title": "Vložit @-zmínku o výběru",
   "command.toggleFocusView.title": "Přepnout zaměřené zobrazení",

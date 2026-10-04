@@ -1055,6 +1055,22 @@ work out of the box.
   Muse Code's instructions are its own, so there the model asks for
   `repoMap` when it wants one.
 
+## Tasks
+
+The task list above the prompt can collapse to its progress and the task in
+progress. Its chevron expands the list again; reloading starts expanded.
+**Muse Spark: Open Tasks in a Tab** opens a read-only editor tab for the
+conversation in view. It follows that conversation's task list and title,
+rebuilds the list whenever its webview reloads, and says when the conversation
+closes. It has no prompt box.
+
+When the editor provides it, **Move into new window** focuses the tasks tab
+and runs the editor's window-move action. This is a VS Code window: it follows
+the editor's theme and closes with the editor. Hosts without that action still
+get the tasks tab. The tab is not restored after a full window reload, since
+its conversation may no longer exist. Chat tabs opened with **Open in New
+Tab** can also be moved using the editor tab's context menu.
+
 ## Session goals
 
 Give a conversation a goal and Muse keeps working toward it across turns, on
