@@ -1178,6 +1178,35 @@
         palette: () => {
           click('Commands')
         },
+        // M87 lane A: the real meter, mounted independently until lane W joins App.
+        'context-meter': async () => {
+          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
+          renderContextMeter({ usedTokens: 42, windowTokens: 100, pressure: 'normal' })
+        },
+        'context-meter-warning': async () => {
+          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
+          renderContextMeter({ usedTokens: 70, windowTokens: 100, pressure: 'normal' })
+        },
+        'context-meter-full': async () => {
+          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
+          renderContextMeter({ usedTokens: 104, windowTokens: 100, pressure: 'normal' })
+          whenFound('.context-meter', (meter) => meter.focus())
+        },
+        'palette-tips': () => {
+          click('Commands')
+          whenFound('.palette-filter', (filter) => {
+            setValue(filter, HTMLInputElement.prototype, 'compact')
+            filter.focus()
+          })
+        },
+        'slash-tips': () => {
+          textarea().focus()
+          setDraft('/co')
+        },
+        'stop-running': () => {
+          event({ type: 'turnStarted', turnId: 'm87a-stop' })
+          whenFound('.send-button-stop', (stop) => stop.focus())
+        },
         // A "/" typed on an empty prompt (M38): the palette above the box,
         // which keeps the focus and the text.
         'slash-palette': () => {

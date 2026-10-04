@@ -69,6 +69,7 @@ import { type DictationPress, pressAction, releaseAction } from '../dictationGes
 import { wrapIndex } from '../listNavigation'
 import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
 import { AttachmentChips } from './AttachmentChips'
+import { ContextMeter, type ContextMeterProps } from './ContextMeter'
 import {
   CloseIcon,
   FileIcon,
@@ -106,7 +107,9 @@ export interface ComposerProps {
   readonly isRunning: boolean
   readonly modelLabel: string
   readonly permissionMode: PermissionMode
-  /** "12% context" once known; undefined hides the indicator. */
+  /** Reported usage for the ring; lane W supplies this when the lanes join. */
+  readonly context?: ContextMeterProps['context']
+  /** Legacy strings remain until lane W replaces App's context helpers. */
   readonly contextLabel: string | undefined
   readonly contextTitle: string | undefined
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
@@ -1075,7 +1078,8 @@ export function Composer(props: ComposerProps) {
               {paidBadge.label}
             </button>
           )}
-          {contextLabel === undefined ? null : (
+          <ContextMeter context={props.context} onCompact={onCompact} />
+          {contextLabel !== undefined && props.context === undefined ? (
             <button
               type="button"
               className="context-label context-label-button"
@@ -1084,7 +1088,7 @@ export function Composer(props: ComposerProps) {
             >
               {contextLabel}
             </button>
-          )}
+          ) : null}
           <button
             type="button"
             className="mode-button"
@@ -1121,7 +1125,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button"
+              className="send-button send-button-stop"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}

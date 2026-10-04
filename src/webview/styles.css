@@ -524,6 +524,20 @@ body {
   background: var(--vscode-button-hoverBackground);
 }
 
+.send-button-stop:hover:enabled,
+.send-button-stop:focus-visible:enabled {
+  background: var(--vscode-charts-red, var(--vscode-errorForeground));
+}
+
+.vscode-high-contrast .send-button-stop:hover:enabled,
+.vscode-high-contrast .send-button-stop:focus-visible:enabled,
+.vscode-high-contrast-light .send-button-stop:hover:enabled,
+.vscode-high-contrast-light .send-button-stop:focus-visible:enabled {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+  background: transparent;
+}
+
 .button-secondary:hover:enabled {
   background: var(--vscode-button-secondaryHoverBackground);
 }
@@ -1582,6 +1596,69 @@ body {
 }
 
 /* --- context indicator --- */
+
+.context-meter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--ms-control-size);
+  height: var(--ms-control-size);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  color: var(--vscode-progressBar-background);
+  background: transparent;
+  cursor: pointer;
+}
+
+.context-meter-ring {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+  border-radius: 50%;
+  background: var(--vscode-editor-background, var(--vscode-sideBar-background));
+}
+
+.context-meter-ring circle {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.5px;
+}
+
+.context-meter-track {
+  opacity: 25%;
+}
+
+.context-meter-ring text {
+  fill: var(--vscode-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.context-meter-ring .context-meter-number-full {
+  font-size: 9px;
+}
+
+.context-meter-medium {
+  color: var(--vscode-list-warningForeground, var(--vscode-progressBar-background));
+}
+
+.context-meter-high {
+  color: var(--vscode-errorForeground);
+}
+
+.context-meter:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-meter:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
 
 .context-label {
   color: var(--vscode-descriptionForeground);

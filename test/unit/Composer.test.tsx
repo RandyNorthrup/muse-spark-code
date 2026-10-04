@@ -776,6 +776,7 @@ describe('Composer chrome', () => {
     const { props, textarea } = renderComposer({ isRunning: true })
     expect(screen.queryByLabelText('Send')).toBeNull()
     expect(textarea).toHaveAttribute('placeholder', 'Queue another message…')
+    expect(screen.getByLabelText('Stop')).toHaveClass('send-button-stop')
     fireEvent.click(screen.getByLabelText('Stop'))
     expect(props.onStop).toHaveBeenCalledOnce()
   })
@@ -787,6 +788,35 @@ describe('Composer chrome', () => {
       <Composer {...props} contextLabel="12% context" contextTitle="120K of 1M tokens (normal)" />,
     )
     expect(screen.getByTitle('120K of 1M tokens (normal)')).toHaveTextContent('12% context')
+  })
+
+  it('uses the reported context ring and keeps compact available (M87)', () => {
+    const { props } = renderComposer({
+      context: { usedTokens: 42, windowTokens: 100, pressure: 'normal' },
+    })
+    const meter = screen.getByRole('button', { name: /Context 42% used/ })
+    expect(meter).toHaveTextContent('42')
+    fireEvent.click(meter)
+    expect(props.onCompact).toHaveBeenCalledOnce()
+  })
+
+  it('gives slash rows the same pointer and accessible tip (M87)', () => {
+    const { view, props, textarea } = renderComposer({
+      slashCommands: [
+        {
+          name: 'compact',
+          detail: 'Compact context',
+          tip: 'Free context now.',
+          action: { type: 'compact' },
+        },
+      ],
+    })
+    textarea.focus()
+    type(view, props, '/co')
+    const row = screen.getByRole('option', { name: /compact/ })
+    expect(row).toHaveAttribute('title', 'Free context now.')
+    expect(row).toHaveAttribute('aria-describedby', 'slash-option-0-tip')
+    expect(row).toHaveAccessibleDescription('Free context now.')
   })
 
   it('grows with the draft', () => {
