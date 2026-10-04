@@ -1,7 +1,7 @@
 // Release-only CI lookup and byte verification; never builds or publishes.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { appendFileSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
@@ -70,7 +70,11 @@ export async function findBuild(repository, tree, request) {
         run.path !== '.github/workflows/ci.yml' ||
         run.status !== 'completed' ||
         run.conclusion !== 'success' ||
-        !(run.event === 'pull_request' || (run.event === 'push' && run.head_branch === 'main'))
+        !(
+          run.event === 'pull_request' ||
+          run.event === 'merge_group' ||
+          (run.event === 'push' && run.head_branch === 'main')
+        )
       )
         continue
       const { artifacts } = ARTIFACTS.parse(
@@ -86,13 +90,72 @@ export async function findBuild(repository, tree, request) {
   return
 }
 
-/** Check all assets before any are admitted to the publishing jobs. */
-export function verifyBuild(directory, tree, version, run = execute) {
-  const receipt = RECEIPT.parse(
-    JSON.parse(readFileSync(path.join(directory, 'release-build.json'), 'utf8')),
+/** Recovery preserves the earlier same-tag build, even after a workflow-only fix. */
+export async function findRecovery(repository, tag, runId, request) {
+  z.string()
+    .regex(/^[1-9]\d*$/)
+    .parse(runId)
+  const source = RUNS.shape.workflow_runs.element
+    .extend({ head_sha: SHA })
+    .parse(await request(`/repos/${repository}/actions/runs/${runId}`))
+  if (
+    String(source.id) !== runId ||
+    source.repository.full_name !== repository ||
+    source.head_repository?.full_name !== repository ||
+    source.path !== '.github/workflows/release.yml' ||
+    source.status !== 'completed' ||
+    !(source.event === 'push' || source.event === 'workflow_dispatch') ||
+    source.head_branch !== tag
+  ) {
+    throw new Error('ineligible recovery run')
+  }
+  const jobs = z
+    .object({
+      total_count: z.number().int().nonnegative().max(100),
+      jobs: z.array(z.object({ name: z.string(), conclusion: z.string().nullable() })),
+    })
+    .parse(
+      await request(`/repos/${repository}/actions/runs/${runId}/jobs?filter=latest&per_page=100`),
+    )
+  const successful = new Set(
+    jobs.jobs.filter((job) => job.conclusion === 'success').map((job) => job.name),
   )
-  if (receipt.tree !== tree) throw new Error('source tree mismatch')
+  for (const name of [
+    'quality (ubuntu-latest)',
+    'quality (windows-latest)',
+    'quality (macos-latest)',
+    'dictation helper (macos)',
+    'package (.vsix)',
+    'gitleaks',
+    'semgrep',
+  ]) {
+    if (!successful.has(`build / ${name}`)) throw new Error('recovery build did not pass')
+  }
+  const { artifacts } = ARTIFACTS.parse(
+    await request(`/repos/${repository}/actions/runs/${runId}/artifacts?per_page=100`),
+  )
+  if (
+    ARTIFACT_NAMES.some((name) => artifacts.every((file) => file.name !== name || file.expired))
+  ) {
+    throw new Error('recovery artifacts unavailable')
+  }
+  return { commit: source.head_sha, artifacts }
+}
+
+/** Check all assets before any are admitted to the publishing jobs. */
+export function verifyBuild(directory, tree, version, run = execute, isLegacyRecovery = false) {
   const names = assetNames(version)
+  // Pre-receipt recovery has archive integrity and manifests, not historical CI hashes.
+  const receipt =
+    isLegacyRecovery && !existsSync(path.join(directory, 'release-build.json'))
+      ? {
+          tree,
+          sha256: Object.fromEntries(
+            names.map((name) => [name, sha256(path.join(directory, name))]),
+          ),
+        }
+      : RECEIPT.parse(JSON.parse(readFileSync(path.join(directory, 'release-build.json'), 'utf8')))
+  if (receipt.tree !== tree) throw new Error('source tree mismatch')
   if (
     JSON.stringify(Object.keys(receipt.sha256).toSorted((a, b) => a.localeCompare(b))) !==
       JSON.stringify(names) ||
@@ -141,10 +204,11 @@ if (
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
   const [mode, directory] = process.argv.slice(2)
-  const tree = SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
+  let tree
   const { version } = MANIFEST.parse(JSON.parse(readFileSync('package.json', 'utf8')))
   switch (mode) {
     case 'record': {
+      tree = SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
       const files = assetNames(version).map((name) => [
         name,
         name.endsWith('.vsix')
@@ -160,9 +224,11 @@ if (
     }
     case 'find': {
       let runId
+      let isLegacyRecovery = false
+      const recovery = process.env.RECOVERY_RUN_ID ?? ''
       let reason = 'no eligible exact-tree CI build'
       try {
-        if (process.env.FORCE_REBUILD === 'true') {
+        if (recovery === '' && process.env.FORCE_REBUILD === 'true') {
           reason = 'RELEASE_FORCE_REBUILD requested'
         } else {
           const repository = z
@@ -170,7 +236,7 @@ if (
             .regex(/^[\w.-]+\/[\w.-]+$/)
             .parse(process.env.GITHUB_REPOSITORY)
           const signal = globalThis.AbortSignal.timeout(LOOKUP_TIMEOUT_MS)
-          runId = await findBuild(repository, tree, async (endpoint) => {
+          const request = async (endpoint) => {
             const reply = await fetch(`https://api.github.com${endpoint}`, {
               signal,
               headers: {
@@ -180,27 +246,68 @@ if (
             })
             if (!reply.ok) throw new Error('CI lookup unavailable')
             return await reply.json()
-          })
+          }
+          if (recovery === '') {
+            tree = SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
+            runId = await findBuild(repository, tree, request)
+          } else {
+            const source = await findRecovery(
+              repository,
+              process.env.GITHUB_REF_NAME,
+              recovery,
+              request,
+            )
+            tree = SHA.parse(
+              execute('git', ['show', '--format=%T', '--no-patch', source.commit]).trim(),
+            )
+            const receipts = source.artifacts.filter((file) => file.name.startsWith('source-tree-'))
+            isLegacyRecovery = receipts.length === 0
+            if (
+              !isLegacyRecovery &&
+              receipts.every((file) => file.name !== `source-tree-${tree}` || file.expired)
+            ) {
+              throw new Error('recovery receipt unavailable')
+            }
+            runId = recovery
+          }
         }
       } catch {
+        if (recovery !== '')
+          throw new Error('Recovery source unavailable or invalid; preserve the original bytes.')
         reason = 'CI lookup unavailable or malformed'
       }
-      appendFileSync(process.env.GITHUB_OUTPUT, `run-id=${runId ?? ''}\ntree=${tree}\n`)
+      appendFileSync(
+        process.env.GITHUB_OUTPUT,
+        `run-id=${runId ?? ''}\ntree=${tree ?? ''}\nlegacy-recovery=${String(isLegacyRecovery)}\n`,
+      )
       appendFileSync(
         process.env.GITHUB_STEP_SUMMARY,
         runId === undefined
           ? `Full rebuild: ${reason}.\n`
-          : `Checking CI run ${runId} for source tree ${tree}.\n`,
+          : `Checking ${recovery === '' ? 'CI' : 'Release recovery'} run ${runId} for source tree ${tree}.\n`,
       )
       break
     }
     case 'verify': {
       let isReused = false
+      const recovery = process.env.RECOVERY_RUN_ID ?? ''
       try {
         if (process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error('tag version mismatch')
-        verifyBuild(directory, tree, version)
+        tree =
+          recovery === ''
+            ? SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
+            : SHA.parse(process.env.SOURCE_TREE)
+        verifyBuild(
+          directory,
+          tree,
+          version,
+          execute,
+          recovery !== '' && process.env.LEGACY_RECOVERY === 'true',
+        )
         isReused = true
       } catch {
+        if (recovery !== '')
+          throw new Error('Recovery verification failed; preserve the original bytes.')
         appendFileSync(
           process.env.GITHUB_STEP_SUMMARY,
           'Full rebuild: CI artifacts failed tree, inventory, SHA-256 or package-version verification.\n',
@@ -210,7 +317,9 @@ if (
       if (isReused)
         appendFileSync(
           process.env.GITHUB_STEP_SUMMARY,
-          'Reusing verified CI artifacts; shared build and quality gates skipped.\n',
+          recovery === ''
+            ? 'Reusing verified CI artifacts; shared build and quality gates skipped.\n'
+            : 'Reusing original Release artifacts; no recovery rebuild. Legacy sources have no historical per-asset hash receipt.\n',
         )
       break
     }

@@ -5685,7 +5685,7 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
 
 **Release-build reuse request (RELFAST, 2026-10-04).** The owner asked why a
 release repeats roughly 50 minutes of gates after its release PR already passed.
-Reuse only this repository's successful PR/main-push CI run whose package job
+Reuse only this repository's successful PR/merge-group/main-push CI run whose package job
 recorded the exact tag tree, including the PR merge checkout. Record CI asset
 SHA-256 hashes, retain packages/SBOMs/receipt for 30 days, verify tree and package
 versions before staging unchanged bytes for the existing publishers. Any lookup,
@@ -5697,6 +5697,24 @@ refusal and rebuild wiring proved by tests and byte-exact guard drills. No new
 dependencies, publication or gate relaxation. Lane checks follow RELFAST/common;
 aggregate quality and hosted reuse/fallback remain the lead's gates. Evidence:
 `docs/certification/relfast.md`. Design is in `docs/RELEASING.md` before code.
+
+**RELFAST2 completion (2026-10-04).** Merge PR #107's manual
+`artifacts_run_id` recovery into the same lookup/download/verification/staging
+path. Automatic reuse requires the tag's exact recorded checkout tree; merge
+queue commits qualify by that tree, never by their temporary branch or head SHA.
+Manual recovery pins an earlier own-repository Release run on the same version
+tag with all seven build jobs successful. Its original source commit/tree may
+precede a recovery-only workflow/changelog fix: preserve those original package
+bytes. Validate the source run, nonexpired artifact inventory and both manifests;
+use its recorded hashes when present. Pre-receipt Release runs remain recoverable
+with the pinned download action's artifact integrity check and manifest/inventory
+verification, without claiming an older CI hash receipt. Recovery failures stop;
+they never rebuild an already-published version. Publishers download only the
+verified bytes staged in the current run. Every release job condition respects
+cancellation, including skipped-build handling. Finish the 19 pending guard
+drills and drill these new recovery/merge-queue/cancellation guards byte-exact.
+Lane checks follow RELFAST2 and common.md; full quality and hosted receipts
+remain lead-owned. No push, tag or workflow run.
 
 **Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
 Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
@@ -13616,6 +13634,16 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**RELFAST2 bounded-lane deferral (2026-10-04).** The hard 60-minute brief
+requires scoped eslint/Prettier, owning release tests, available actionlint and
+hook-on commit. All 19 carried controls plus 17 new controls are proved locally.
+Fresh common.md aggregate typecheck, dead-code, duplication, localization,
+host-API and production-build runs are deferred to the lead: this change touches
+release tooling/workflows and owning tests, with no production bundle changes.
+This is a deferral, not current aggregate-green evidence; full quality, hosted
+reuse/recovery/fallback and CIFLOW integration remain required. Evidence:
+`docs/certification/relfast.md` and `docs/certification/relfast2-drills.json`.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all

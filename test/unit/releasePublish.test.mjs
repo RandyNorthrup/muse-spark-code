@@ -12,7 +12,7 @@ import {
   verifyPublished,
 } from '../../scripts/publish-registry.mjs'
 import { releaseSummary } from '../../scripts/release-summary.mjs'
-import { findBuild, verifyBuild } from '../../scripts/release-reuse.mjs'
+import { findBuild, findRecovery, verifyBuild } from '../../scripts/release-reuse.mjs'
 
 const manifest = { publisher: 'RandyNorthrup', name: 'muse-spark-code', version: '0.10.1' }
 const bytes = Buffer.from('release artifact bytes')
@@ -427,6 +427,129 @@ describe('exact-tree CI release reuse', () => {
       await findBuild(repository, tree, request([{ ...run, event: 'push', head_branch: 'main' }])),
     ).toBe(run.id)
   })
+  const recoveryRun = {
+    ...run,
+    path: '.github/workflows/release.yml',
+    event: 'push',
+    head_branch: 'v0.10.1',
+    conclusion: 'failure',
+    head_sha: 'c'.repeat(40),
+  }
+  const buildJobs = [
+    'quality (ubuntu-latest)',
+    'quality (windows-latest)',
+    'quality (macos-latest)',
+    'dictation helper (macos)',
+    'package (.vsix)',
+    'gitleaks',
+    'semgrep',
+  ].map((name) => ({ name: `build / ${name}`, conclusion: 'success' }))
+  function recoveryRequest(source = recoveryRun, jobs = buildJobs, files = artifacts) {
+    return vi.fn(async (endpoint) => {
+      if (endpoint.includes('/jobs?')) return { total_count: jobs.length, jobs }
+      return endpoint.includes('/artifacts?') ? { artifacts: files } : source
+    })
+  }
+  it('pins earlier same-tag Release bytes despite later publication failure or recovery fixes', async () => {
+    expect(await findRecovery(repository, 'v0.10.1', '42', recoveryRequest())).toEqual({
+      commit: recoveryRun.head_sha,
+      artifacts,
+    })
+    const legacy = artifacts.filter((file) => !file.name.startsWith('source-tree-'))
+    expect(
+      await findRecovery(
+        repository,
+        'v0.10.1',
+        '42',
+        recoveryRequest(recoveryRun, buildJobs, legacy),
+      ),
+    ).toEqual({ commit: recoveryRun.head_sha, artifacts: legacy })
+  })
+  it.each([
+    { id: 43 },
+    { repository: { full_name: 'fork/repo' } },
+    { head_repository: { full_name: 'fork/repo' } },
+    { head_repository: null },
+    { path: '.github/workflows/ci.yml' },
+    { status: 'in_progress' },
+    { event: 'pull_request' },
+    { head_branch: 'v0.10.0' },
+  ])('refuses an ineligible recovery source %j before reading jobs', async (change) => {
+    const fetch = recoveryRequest({ ...recoveryRun, ...change })
+    await expect(findRecovery(repository, 'v0.10.1', '42', fetch)).rejects.toThrow(
+      'ineligible recovery run',
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('requires every successful build job and every nonexpired package artifact for recovery', async () => {
+    for (const job of buildJobs) {
+      await expect(
+        findRecovery(
+          repository,
+          'v0.10.1',
+          '42',
+          recoveryRequest(
+            recoveryRun,
+            buildJobs.filter((entry) => entry !== job),
+          ),
+        ),
+      ).rejects.toThrow('recovery build did not pass')
+      await expect(
+        findRecovery(
+          repository,
+          'v0.10.1',
+          '42',
+          recoveryRequest(
+            recoveryRun,
+            buildJobs.map((entry) => (entry === job ? { ...entry, conclusion: 'failure' } : entry)),
+          ),
+        ),
+      ).rejects.toThrow('recovery build did not pass')
+    }
+    for (const file of artifacts) {
+      if (file.name.startsWith('source-tree-')) continue
+      for (const files of [
+        artifacts.filter((entry) => entry !== file),
+        artifacts.map((entry) => (entry === file ? { ...entry, expired: true } : entry)),
+      ]) {
+        await expect(
+          findRecovery(repository, 'v0.10.1', '42', recoveryRequest(recoveryRun, buildJobs, files)),
+        ).rejects.toThrow('recovery artifacts unavailable')
+      }
+    }
+  })
+  it('validates recovery ids and all three API boundaries', async () => {
+    for (const id of ['', '0', '42/path', '1e3']) {
+      const fetch = recoveryRequest()
+      await expect(findRecovery(repository, 'v0.10.1', id, fetch)).rejects.toHaveProperty(
+        'name',
+        'ZodError',
+      )
+      expect(fetch).not.toHaveBeenCalled()
+    }
+    for (const fetch of [
+      recoveryRequest({}),
+      recoveryRequest(recoveryRun, [{}]),
+      recoveryRequest(recoveryRun, buildJobs, [{}]),
+    ]) {
+      await expect(findRecovery(repository, 'v0.10.1', '42', fetch)).rejects.toHaveProperty(
+        'name',
+        'ZodError',
+      )
+    }
+  })
+  it('accepts a successful own-repository merge queue run by its recorded checkout tree', async () => {
+    const queued = { ...run, event: 'merge_group', head_branch: 'gh-readonly-queue/main/pr-107' }
+    expect(await findBuild(repository, tree, request([queued]))).toBe(run.id)
+    expect(await findBuild(repository, 'd'.repeat(40), request([queued]))).toBeUndefined()
+    expect(
+      await findBuild(
+        repository,
+        tree,
+        request([{ ...queued, head_repository: { full_name: 'fork/muse-spark-code' } }]),
+      ),
+    ).toBeUndefined()
+  })
   it('falls back when no run exists, the tree differs, or any artifact expired/missing', async () => {
     expect(await findBuild(repository, tree, request([]))).toBeUndefined()
     expect(await findBuild(repository, 'd'.repeat(40), request())).toBeUndefined()
@@ -478,6 +601,20 @@ describe('exact-tree CI release reuse', () => {
     expect(execute.mock.calls.map(([command]) => command)).toEqual(['unzip', 'tar'])
     expect(execute.mock.calls[0][1].at(-1)).toBe('extension/package.json')
     expect(execute.mock.calls[1][1].at(-1)).toBe('package/package.json')
+  })
+  it('admits pre-receipt recovery only explicitly and keeps inventory and manifest checks', () => {
+    receipt()
+    rmSync(path.join(fixture.directory, 'release-build.json'))
+    expect(() => verifyBuild(fixture.directory, tree, manifest.version, packageManifest)).toThrow()
+    verifyBuild(fixture.directory, tree, manifest.version, packageManifest, true)
+    writeFileSync(path.join(fixture.directory, 'extra.vsix'), bytes)
+    expect(() =>
+      verifyBuild(fixture.directory, tree, manifest.version, packageManifest, true),
+    ).toThrow('asset inventory mismatch')
+    rmSync(path.join(fixture.directory, 'extra.vsix'))
+    expect(() =>
+      verifyBuild(fixture.directory, tree, manifest.version, () => '{}', true),
+    ).toThrowError(expect.objectContaining({ name: 'ZodError' }))
   })
   it('refuses a different receipt tree', () => {
     receipt()
@@ -539,6 +676,8 @@ describe('exact-tree CI release reuse', () => {
           env: {
             ...process.env,
             FORCE_REBUILD: 'true',
+            RECOVERY_RUN_ID: '',
+            PATH: '',
             GITHUB_REPOSITORY: 'invalid repository',
             GH_TOKEN: '',
             GITHUB_STEP_SUMMARY: summary,
@@ -559,5 +698,35 @@ describe('exact-tree CI release reuse', () => {
       rmSync(summary, { force: true })
       rmSync(output, { force: true })
     }
+  })
+  it.each(['find', 'verify'])('the recovery %s CLI fails closed instead of rebuilding', (mode) => {
+    const output = path.join(fixture.directory, 'output.txt')
+    const summary = path.join(fixture.directory, 'summary.md')
+    writeFileSync(output, '')
+    writeFileSync(summary, '')
+    const child = spawnSync(
+      process.execPath,
+      ['scripts/release-reuse.mjs', mode, fixture.directory],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          FORCE_REBUILD: 'true',
+          RECOVERY_RUN_ID: '42',
+          PATH: '',
+          GITHUB_REPOSITORY: 'invalid repository',
+          GITHUB_REF_NAME: 'v0.0.0',
+          GH_TOKEN: '',
+          GITHUB_OUTPUT: output,
+          GITHUB_STEP_SUMMARY: summary,
+        },
+      },
+    )
+    expect(child.status, child.stderr).not.toBe(0)
+    expect(child.stderr).toContain(
+      mode === 'find' ? 'Recovery source unavailable or invalid' : 'Recovery verification failed',
+    )
+    expect(readFileSync(output, 'utf8')).toBe('')
+    expect(readFileSync(summary, 'utf8')).not.toContain('Full rebuild')
   })
 })

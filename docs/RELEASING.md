@@ -10,10 +10,10 @@ lanes do not push, tag, release, or call paid services.
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers
 only successful, completed runs of this repository's `ci.yml`, triggered by
-an own-repository pull request or a push to `main`. Forks and manual runs are
+an own-repository pull request, `merge_group`, or a push to `main`. Forks and manual CI runs are
 excluded. It searches the latest 300 successful runs; a miss is safe to rebuild.
 Branch names and the PR head SHA do not establish source identity: the package
-job records its actual checked-out `HEAD^{tree}` (the merge tree for PR CI) in
+job records its actual checked-out `HEAD^{tree}` (the merge tree for PR/queue CI) in
 the `source-tree-<tree SHA>` artifact and `release-build.json`.
 
 The release downloads that run's universal VSIX, ACP tarball, SBOMs and receipt
@@ -32,6 +32,12 @@ To force that path, the owner sets repository Actions variable
 `RELEASE_FORCE_REBUILD` to `true` before running/rerunning the tag workflow,
 then removes it afterward. Do not rebuild once any channel has published:
 follow the recovery instructions below to preserve the original bytes.
+
+The merge queue's temporary branch and head commit are not matching keys.
+Its successful `ci.yml` run qualifies only when `source-tree-<tree SHA>` names
+the tag's tree; the downloaded receipt and all four hashes must also match.
+The CIFLOW lane owns enabling `merge_group` and moving the full gates there.
+This lane admits those successful runs without changing `ci.yml`.
 
 ## Artifacts and channels
 
@@ -103,6 +109,25 @@ Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
 
 ## Recovering a half-published release
+
+The `workflow_dispatch` input `artifacts_run_id` remains available on a version
+tag. It selects an earlier own-repository `release.yml` run on that same tag
+whose three quality jobs, native helper, package, secret scan and SAST succeeded.
+The earlier run may have failed during publication. Its source tree may precede
+a recovery-only workflow/changelog fix; recovery preserves its original bytes.
+The shared reuse job validates that source run and nonexpired artifacts, downloads
+them once, verifies inventory and package identities/versions, then stages those
+bytes in the current run for every publisher. If the source includes a tree/hash
+receipt, recovery verifies it against the earlier source commit's tree.
+
+Pre-receipt Release builds, including the source of the 0.12.0 recovery, remain
+eligible. Their pinned artifact download provides archive integrity checking;
+the same asset inventory and manifest checks still run, but no historical
+per-asset CI hash receipt is claimed. Existing channel byte/integrity comparisons
+still refuse a conflicting published version. Invalid source, missing/expired
+artifact, failed download or verification stops recovery: it never rebuilds.
+`RELEASE_FORCE_REBUILD` applies only to automatic tag-push reuse. All release
+job conditions respect cancellation, including when the build was skipped.
 
 This recovery logic applies to tags that contain the REL workflow changes.
 Rerunning an older tag uses its original workflow definition, not today's

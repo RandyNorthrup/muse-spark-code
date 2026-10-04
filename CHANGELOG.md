@@ -10,8 +10,12 @@ happened, not what was planned; superseded entries are kept.
 ### Changed
 
 - Releases reuse verified universal CI packages when the successful own-repository
-  CI build has exactly the tag's source tree, with recorded SHA-256/version checks
-  and 30-day artifact retention; every miss falls back to the full build and gates.
+  PR, merge-queue or main CI build has exactly the tag's source tree, with recorded
+  SHA-256/version checks and 30-day retention; tag-push misses run the full gates.
+- Manual release recovery uses the same verified staging path while preserving
+  the earlier run's original bytes; invalid recovery and cancelled runs cannot publish.
+
+## [0.12.0] - 2026-10-04
 
 ### Added
 

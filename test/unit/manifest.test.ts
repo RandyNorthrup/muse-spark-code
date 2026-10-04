@@ -353,7 +353,7 @@ describe('packaging (M26)', () => {
     const publish = release.split('\n  release:\n', 2)[1]!.split('\n  publish:\n', 1)[0]!
     expect(reuse).toContain('needs: verify')
     expect(reuse).toContain('actions: read')
-    expect(count(release, /^ {6}actions: read$/gm)).toBe(1)
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
     expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
     expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
@@ -366,16 +366,45 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
     expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(3)
     expect(build).toContain('needs: [verify, reuse]')
-    expect(build).toContain("if: needs.reuse.outputs.reused != 'true'")
+    expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')
-    expect(publish).toContain('needs: [reuse, build]')
+    expect(publish).toContain('needs: [verify, reuse, build]')
     expect(publish).toContain(
-      "if: always() && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success')",
+      "if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}",
     )
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
     expect(count(ci, /retention-days: 30/g)).toBe(4)
+  })
+  it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    const reuse = release.split('\n  reuse:\n', 2)[1]!.split('\n  build:\n', 1)[0]!
+    const publishers = release.split('\n  release:\n', 2)[1]!
+    expect(release).toContain('workflow_dispatch:\n    inputs:\n      artifacts_run_id:')
+    expect(release).toContain("if: github.event_name == 'workflow_dispatch'")
+    expect(release).toContain('if [ "${GITHUB_REF_TYPE}" != tag ]')
+    expect(reuse).toContain('RECOVERY_RUN_ID: ${{ inputs.artifacts_run_id }}')
+    expect(reuse).toContain("steps.lookup.outputs.legacy-recovery != 'true'")
+    expect(reuse).toContain(
+      "steps.receipt.outcome == 'success' || steps.lookup.outputs.legacy-recovery == 'true'",
+    )
+    expect(reuse).toContain('SOURCE_TREE: ${{ steps.lookup.outputs.tree }}')
+    expect(reuse).toContain('LEGACY_RECOVERY: ${{ steps.lookup.outputs.legacy-recovery }}')
+    expect(reuse).toContain(
+      "echo '::error::Recovery download failed; preserve the original bytes.' >&2\n              exit 1",
+    )
+    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(6)
+    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    expect(publishers).not.toContain('inputs.artifacts_run_id')
+  })
+  it('blocks every release publisher and tag mover after cancellation (RELFAST2)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    expect(release).not.toContain('always()')
+    for (const job of ['build', 'release', 'publish', 'openvsx', 'npm', 'summary']) {
+      const body = release.split(`\n  ${job}:\n`, 2)[1]!.split(/\n {2}[a-z]+:\n/, 1)[0]!
+      expect(body, job).toContain('if: ${{ !cancelled()')
+    }
   })
 })
 
