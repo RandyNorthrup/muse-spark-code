@@ -345,6 +345,38 @@ describe('packaging (M26)', () => {
     expect(build).toContain('plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"')
     expect(build).toContain('launchctl plist __TEXT,__info_plist "$OUTPUT"')
   })
+
+  it('keeps exact-tree reuse behind tag checks and preserves full-build fallback (RELFAST)', () => {
+    const release = read('.github', 'workflows', 'release.yml')
+    const reuse = release.split('\n  reuse:\n', 2)[1]!.split('\n  build:\n', 1)[0]!
+    const build = release.split('\n  build:\n', 2)[1]!.split('\n  release:\n', 1)[0]!
+    const publish = release.split('\n  release:\n', 2)[1]!.split('\n  publish:\n', 1)[0]!
+    expect(reuse).toContain('needs: verify')
+    expect(reuse).toContain('actions: read')
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(1)
+    expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
+    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
+    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
+    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(4)
+    for (const id of ['receipt', 'vsix', 'acp', 'sboms']) {
+      expect(reuse).toContain(`steps.${id}.outcome == 'success'`)
+    }
+    expect(reuse).toContain('node scripts/release-reuse.mjs verify reused')
+    expect(reuse).toContain("echo 'reused=false'")
+    expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
+    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(3)
+    expect(build).toContain('needs: [verify, reuse]')
+    expect(build).toContain("if: needs.reuse.outputs.reused != 'true'")
+    expect(build).toContain('uses: ./.github/workflows/build.yml')
+    expect(publish).toContain('needs: [reuse, build]')
+    expect(publish).toContain(
+      "if: always() && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success')",
+    )
+    const ci = read('.github', 'workflows', 'build.yml')
+    expect(ci).toContain('run: node scripts/release-reuse.mjs record')
+    expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
+    expect(count(ci, /retention-days: 30/g)).toBe(4)
+  })
 })
 
 describe('toolchain pins (AGENTS.md)', () => {

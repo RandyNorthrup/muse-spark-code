@@ -12,9 +12,16 @@ import {
   verifyPublished,
 } from '../../scripts/publish-registry.mjs'
 import { releaseSummary } from '../../scripts/release-summary.mjs'
+import { findBuild, verifyBuild } from '../../scripts/release-reuse.mjs'
 
 const manifest = { publisher: 'RandyNorthrup', name: 'muse-spark-code', version: '0.10.1' }
 const bytes = Buffer.from('release artifact bytes')
+function packageManifest(command) {
+  return JSON.stringify({
+    name: command === 'unzip' ? 'muse-spark-code' : 'muse-spark-code-acp',
+    version: manifest.version,
+  })
+}
 const fixture = { directory: '', artifact: '' }
 beforeEach(() => {
   mkdirSync('dist', { recursive: true })
@@ -348,4 +355,209 @@ describe('partial release summary dry exercise', () => {
       ).toBe(true)
     },
   )
+})
+
+describe('exact-tree CI release reuse', () => {
+  const tree = 'a'.repeat(40)
+  const repository = 'RandyNorthrup/muse-spark-code'
+  const run = {
+    id: 42,
+    path: '.github/workflows/ci.yml',
+    event: 'pull_request',
+    status: 'completed',
+    conclusion: 'success',
+    head_branch: 'release-prep',
+    head_sha: 'b'.repeat(40),
+    repository: { full_name: repository },
+    head_repository: { full_name: repository },
+  }
+  const artifacts = [
+    'muse-spark-code-vsix',
+    'muse-spark-code-acp',
+    'muse-spark-code-sboms',
+    `source-tree-${tree}`,
+  ].map((name) => ({ name, expired: false }))
+  function request(runs = [run], files = artifacts) {
+    return vi
+      .fn()
+      .mockImplementation((endpoint) =>
+        Promise.resolve(
+          endpoint.includes('/artifacts?') ? { artifacts: files } : { workflow_runs: runs },
+        ),
+      )
+  }
+  function receipt() {
+    const names = [
+      'muse-spark-code-0.10.1.vsix',
+      'muse-spark-code-acp-0.10.1.tgz',
+      'muse-spark-code.cdx.json',
+      'muse-spark-code-acp.cdx.json',
+    ]
+    const hashes = Object.fromEntries(
+      names.map((name) => {
+        writeFileSync(path.join(fixture.directory, name), bytes)
+        return [name, createHash('sha256').update(bytes).digest('hex')]
+      }),
+    )
+    rmSync(fixture.artifact)
+    const record = { tree, commit: 'c'.repeat(40), sha256: hashes }
+    writeFileSync(path.join(fixture.directory, 'release-build.json'), JSON.stringify(record))
+    return record
+  }
+  it('matches the recorded merge tree even when the PR head SHA is different', async () => {
+    expect(await findBuild(repository, tree, request())).toBe(run.id)
+  })
+  it.each([
+    { head_repository: { full_name: 'fork/muse-spark-code' } },
+    { head_repository: null },
+    { repository: { full_name: 'fork/muse-spark-code' } },
+    { event: 'workflow_dispatch' },
+    { event: 'pull_request_target' },
+    { event: 'push', head_branch: 'feature' },
+    { path: '.github/workflows/release.yml' },
+    { conclusion: 'failure' },
+    { status: 'in_progress' },
+  ])('refuses an ineligible run %j before reading its artifacts', async (change) => {
+    const fetch = request([{ ...run, ...change }])
+    expect(await findBuild(repository, tree, fetch)).toBeUndefined()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('accepts own-repository pushes to main', async () => {
+    expect(
+      await findBuild(repository, tree, request([{ ...run, event: 'push', head_branch: 'main' }])),
+    ).toBe(run.id)
+  })
+  it('falls back when no run exists, the tree differs, or any artifact expired/missing', async () => {
+    expect(await findBuild(repository, tree, request([]))).toBeUndefined()
+    expect(await findBuild(repository, 'd'.repeat(40), request())).toBeUndefined()
+    for (const artifact of artifacts) {
+      expect(
+        await findBuild(
+          repository,
+          tree,
+          request(
+            [run],
+            artifacts.filter((entry) => entry !== artifact),
+          ),
+        ),
+      ).toBeUndefined()
+      expect(
+        await findBuild(
+          repository,
+          tree,
+          request(
+            [run],
+            artifacts.map((entry) => (entry === artifact ? { ...entry, expired: true } : entry)),
+          ),
+        ),
+      ).toBeUndefined()
+    }
+  })
+  it('continues to the next page and rejects malformed API data', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        workflow_runs: Array.from({ length: 100 }, () => ({ ...run, event: 'workflow_dispatch' })),
+      })
+      .mockResolvedValueOnce({ workflow_runs: [run] })
+      .mockResolvedValueOnce({ artifacts })
+    expect(await findBuild(repository, tree, fetch)).toBe(run.id)
+    expect(fetch.mock.calls[1][0]).toContain('page=2')
+    await expect(
+      findBuild(repository, tree, vi.fn().mockResolvedValue({ workflow_runs: [{}] })),
+    ).rejects.toHaveProperty('name', 'ZodError')
+    await expect(findBuild(repository, tree, request([run], [{}]))).rejects.toHaveProperty(
+      'name',
+      'ZodError',
+    )
+  })
+  it('checks both actual package manifests after all recorded hashes', () => {
+    receipt()
+    const execute = vi.fn(packageManifest)
+    verifyBuild(fixture.directory, tree, manifest.version, execute)
+    expect(execute.mock.calls.map(([command]) => command)).toEqual(['unzip', 'tar'])
+    expect(execute.mock.calls[0][1].at(-1)).toBe('extension/package.json')
+    expect(execute.mock.calls[1][1].at(-1)).toBe('package/package.json')
+  })
+  it('refuses a different receipt tree', () => {
+    receipt()
+    expect(() =>
+      verifyBuild(fixture.directory, 'd'.repeat(40), manifest.version, packageManifest),
+    ).toThrow('source tree mismatch')
+  })
+  it.each(['unzip', 'tar'])('refuses the wrong version or identity in %s', (changed) => {
+    receipt()
+    for (const change of [{ version: '0.10.0' }, { name: 'other-package' }]) {
+      expect(() =>
+        verifyBuild(fixture.directory, tree, manifest.version, (command) =>
+          JSON.stringify({
+            ...JSON.parse(packageManifest(command)),
+            ...(command === changed && change),
+          }),
+        ),
+      ).toThrow('package version or identity mismatch')
+    }
+  })
+  it('refuses changed bytes in each of the four assets', () => {
+    const record = receipt()
+    for (const name of Object.keys(record.sha256)) {
+      writeFileSync(path.join(fixture.directory, name), 'corrupt')
+      expect(() => verifyBuild(fixture.directory, tree, manifest.version, packageManifest)).toThrow(
+        'asset SHA-256 mismatch',
+      )
+      writeFileSync(path.join(fixture.directory, name), bytes)
+    }
+  })
+  it('refuses extra assets, omitted hashes and malformed receipts', () => {
+    const record = receipt()
+    writeFileSync(path.join(fixture.directory, 'extra.vsix'), bytes)
+    expect(() => verifyBuild(fixture.directory, tree, manifest.version, packageManifest)).toThrow(
+      'asset inventory mismatch',
+    )
+    rmSync(path.join(fixture.directory, 'extra.vsix'))
+    delete record.sha256['muse-spark-code.cdx.json']
+    writeFileSync(path.join(fixture.directory, 'release-build.json'), JSON.stringify(record))
+    expect(() => verifyBuild(fixture.directory, tree, manifest.version, packageManifest)).toThrow(
+      'asset inventory mismatch',
+    )
+    writeFileSync(path.join(fixture.directory, 'release-build.json'), '{}')
+    expect(() =>
+      verifyBuild(fixture.directory, tree, manifest.version, packageManifest),
+    ).toThrowError(expect.objectContaining({ name: 'ZodError' }))
+  })
+  it.each(['find', 'verify'])('the %s CLI reports fallback without failing its job', (mode) => {
+    const summary = path.join('dist', `relfast-${mode}-summary.md`)
+    const output = path.join('dist', `relfast-${mode}-output.txt`)
+    try {
+      writeFileSync(summary, '')
+      writeFileSync(output, '')
+      const child = spawnSync(
+        process.execPath,
+        ['scripts/release-reuse.mjs', mode, fixture.directory],
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            FORCE_REBUILD: 'true',
+            GITHUB_REPOSITORY: 'invalid repository',
+            GH_TOKEN: '',
+            GITHUB_STEP_SUMMARY: summary,
+            GITHUB_OUTPUT: output,
+          },
+        },
+      )
+      expect(child.status, child.stderr).toBe(0)
+      expect(readFileSync(summary, 'utf8')).toContain(
+        mode === 'find'
+          ? 'Full rebuild: RELEASE_FORCE_REBUILD requested.'
+          : 'Full rebuild: CI artifacts failed',
+      )
+      expect(readFileSync(output, 'utf8')).toContain(
+        mode === 'find' ? 'run-id=\n' : 'reused=false\n',
+      )
+    } finally {
+      rmSync(summary, { force: true })
+      rmSync(output, { force: true })
+    }
+  })
 })

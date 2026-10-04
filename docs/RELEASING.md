@@ -1,9 +1,37 @@
 # Releasing Muse Spark Code (Unofficial)
 
 A `vX.Y.Z` tag must match `package.json` and identify a commit on `main`.
-The release workflow runs the reusable build and its platform gates before
-creating a GitHub Release. The owner/lead performs publication; implementation
+The release workflow first tries to reuse a successful CI build of exactly the
+tag's source tree; otherwise it runs the reusable build and its platform gates.
+The owner/lead performs publication; implementation
 lanes do not push, tag, release, or call paid services.
+
+## Choosing the release build
+
+Tag/manifest and `main` ancestry checks still run first. The lookup considers
+only successful, completed runs of this repository's `ci.yml`, triggered by
+an own-repository pull request or a push to `main`. Forks and manual runs are
+excluded. It searches the latest 300 successful runs; a miss is safe to rebuild.
+Branch names and the PR head SHA do not establish source identity: the package
+job records its actual checked-out `HEAD^{tree}` (the merge tree for PR CI) in
+the `source-tree-<tree SHA>` artifact and `release-build.json`.
+
+The release downloads that run's universal VSIX, ACP tarball, SBOMs and receipt
+with a pinned cross-run download action. It requires the recorded tree to equal
+the tag's `HEAD^{tree}`, checks all four asset SHA-256 hashes recorded by CI,
+and checks the VSIX and ACP manifests against the tag version. Only then are
+the verified bytes uploaded into the release run under the existing artifact
+names. Publication, attestations, release checksums and channel reporting use
+those same bytes. All four artifacts have explicit 30-day retention (previously
+the repository default); this also covers the SBOM/receipt dependency.
+
+No eligible run, expired/missing artifacts, API/download failure, a malformed
+receipt, or a tree/hash/version mismatch produces a named fallback in the job
+summary and runs today's full three-platform build and gates before publication.
+To force that path, the owner sets repository Actions variable
+`RELEASE_FORCE_REBUILD` to `true` before running/rerunning the tag workflow,
+then removes it afterward. Do not rebuild once any channel has published:
+follow the recovery instructions below to preserve the original bytes.
 
 ## Artifacts and channels
 

@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Releases reuse verified universal CI packages when the successful own-repository
+  CI build has exactly the tag's source tree, with recorded SHA-256/version checks
+  and 30-day artifact retention; every miss falls back to the full build and gates.
+
 ### Added
 
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**

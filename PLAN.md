@@ -5683,6 +5683,21 @@ merged through pull request #8 from `hardening/m25-webview`, shipped in
 
 ### M26 — The audit: packaging, CI, platform and voice (D29)
 
+**Release-build reuse request (RELFAST, 2026-10-04).** The owner asked why a
+release repeats roughly 50 minutes of gates after its release PR already passed.
+Reuse only this repository's successful PR/main-push CI run whose package job
+recorded the exact tag tree, including the PR merge checkout. Record CI asset
+SHA-256 hashes, retain packages/SBOMs/receipt for 30 days, verify tree and package
+versions before staging unchanged bytes for the existing publishers. Any lookup,
+download or verification miss falls back to the full shared build, with a job
+summary; `RELEASE_FORCE_REBUILD=true` forces that path. Scope: build/release
+workflows, one release-only lookup/receipt script, owning release tests and docs.
+Acceptance: exact-tree success, fork/event/workflow/status refusal, version/hash
+refusal and rebuild wiring proved by tests and byte-exact guard drills. No new
+dependencies, publication or gate relaxation. Lane checks follow RELFAST/common;
+aggregate quality and hosted reuse/fallback remain the lead's gates. Evidence:
+`docs/certification/relfast.md`. Design is in `docs/RELEASING.md` before code.
+
 **Release-artifact follow-up (REL, 2026-10-02; implemented and lane-verified).**
 Scope: checksums and pinned provenance for the VSIX and ACP package; accurate
 CycloneDX ingredient lists from the shipped bundle inputs and the ACP native
