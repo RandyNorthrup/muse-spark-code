@@ -1,5 +1,7 @@
 # Muse Spark in other editors (ACP)
 
+> The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
+
 `muse-spark-code-acp` runs Muse Spark as an agent in any editor that speaks
 the [Agent Client Protocol](https://agentclientprotocol.com): Zed, the
 JetBrains IDEs through AI Assistant, Xcode 27, Qt Creator, Neovim, Emacs,
@@ -405,5 +407,5 @@ and `schemas/exec-event-v1.schema.json`; canonical
 [result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
 [event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
-use absolute links because this guide ships as npm README. Registry Action
+use absolute links because npm does not resolve relative links. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.

@@ -319,6 +319,7 @@ happened, not what was planned; superseded entries are kept.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
 - The host API compatibility record is regenerated from the combined source.
+- The npm page has a proper README: `scripts/package-acp.mjs` now packs the new `docs/npm-readme.md` landing page (banner, badges, pitch, install, per-editor quick start, headless/CI, backends, privacy, links — all absolute) instead of the detailed `docs/acp.md` guide, with an improved manifest (clearer description, editor keywords, repository homepage, donate funding).
 
 ### Fixed
 
