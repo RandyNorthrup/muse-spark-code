@@ -33,12 +33,14 @@
 //   reviewer on Muse Code (M90: its side session, with M78's reviewer core)
 //   are in dist/extension.js, or missing from dist/codeIntel.js,
 //   dist/voice.js or dist/museCodeReviewer.js.
-// - a model text block that only lazily loaded bundles read
-//   (MODEL_API_MODEL_TEXT, CODE_INTEL_MODEL_TEXT, CHECKPOINT_MODEL_TEXT,
-//   AGENT_IMPORT_MODEL_TEXT) is in a bundle that must not carry it, or no
-//   longer in the bundle that reads it; or a key of MODEL_TEXT, which every
-//   bundle reading any key of it carries whole, is read by no source file
-//   of dist/extension.js (it belongs in the block of the bundle that reads it).
+// - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
+//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, EXEC_, AUTO_REVIEWER_MODEL_TEXT) is
+//   in any shipped bundle but the ones declared to read it, or no longer in
+//   one of those; a block is declared that this check does not guard;
+//   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
+//   keys than its pinned ones; or a key of MODEL_TEXT, which every bundle
+//   reading any key of it carries whole, is read by no source file of
+//   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
 //
@@ -467,35 +469,90 @@ for (const bundle of ON_FIRST_USE) {
 // src/shared/constants.ts, and esbuild keeps property names, so a block's
 // sentinel key in a bundle's output means that bundle carries the block.
 // Each sentinel must also still be in the bundles that read the block, so a
-// renamed key cannot quietly turn the check off.
+// renamed key cannot quietly turn the check off. A block's readers are
+// declared; every other shipped bundle, lazily loaded ones included, must
+// not carry it (the review of the diet, P2-2: a lazy bundle that read one key
+// of another lazy bundle's block would carry the whole block).
 const CONSTANTS = 'src/shared/constants.ts'
-const CODE_INTEL = ON_FIRST_USE.find(({ output }) => output === 'dist/codeIntel.js')
+/** Every JavaScript bundle the production build ships, from its metafiles. */
+function shippedBundles() {
+  return ['dist/meta', 'dist/meta-acp'].flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.json'))
+      .flatMap((name) => {
+        const metafile = `${dir}/${name}`
+        const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
+        return Object.keys(outputs)
+          .filter((output) => output.endsWith('.js'))
+          .map((output) => ({ output, metafile }))
+      }),
+  )
+}
+const SHIPPED = shippedBundles()
+/** The shipped bundle that `output` names; a missing one is a problem. */
+function shipped(output) {
+  const bundle = SHIPPED.find((entry) => entry.output === output)
+  if (bundle === undefined) {
+    problems.push(`${output} is not among the shipped bundles' metafiles`)
+  }
+  return bundle ?? { output, metafile: '' }
+}
 const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi],
-    others: [BUNDLES.activation, BUNDLES.acp],
+    readers: [BUNDLES.modelApi.output],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
-    readers: [CODE_INTEL, BUNDLES.modelApi],
-    others: [BUNDLES.activation, BUNDLES.acp],
+    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',
     sentinels: ['writeNotRecorded'],
-    readers: [CHECKPOINT_STORE],
-    others: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    readers: [CHECKPOINT_STORE.output],
   },
   {
     block: 'AGENT_IMPORT_MODEL_TEXT',
     sentinels: ['importedRulesHeading'],
-    readers: [AGENT_IMPORT],
-    others: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    readers: [AGENT_IMPORT.output],
   },
-]
+  // The review turn's text (M70): the review's bundle, the Model API's
+  // built-in Reviewer, and the review pane's removed-line note.
+  {
+    block: 'REVIEW_MODEL_TEXT',
+    sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+  },
+  // A headless run's attached files (M80): the ACP agent's runtime only.
+  {
+    block: 'EXEC_MODEL_TEXT',
+    sentinels: ['execUntrustedLead'],
+    readers: [BUNDLES.acp.output],
+  },
+  // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
+  // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy
+  // but none of the calls that read this text.
+  {
+    block: 'AUTO_REVIEWER_MODEL_TEXT',
+    sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
+    readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+].map((entry) => ({
+  ...entry,
+  readers: entry.readers.map((output) => shipped(output)),
+  others: SHIPPED.filter(({ output }) => !entry.readers.includes(output)),
+}))
+// The refusals a file tool gives are read at activation (memoryStore,
+// toolIo, fsAtomic) and by lazily loaded bundles alike, so every bundle
+// that reads one carries the block by design and it takes no `others`. Its
+// keys are pinned instead: a key added here rides into dist/extension.js
+// and dist/acp.js, so it must be one that activation reads anyway.
+const FILE_REFUSAL = {
+  block: 'FILE_REFUSAL_MODEL_TEXT',
+  keys: ['fileHasUnsavedChanges', 'pathChangedAfterApproval'],
+}
 const constantsSource = readFileSync(CONSTANTS, 'utf8')
 /** The keys of one `export const NAME = { … } as const` block of constants.ts. */
 function blockKeys(name) {
@@ -528,7 +585,7 @@ for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
     for (const { output } of others) {
       if (declared.test(textOf(output))) {
         problems.push(
-          `${output} carries ${block} (its key ${sentinel}), which only lazily loaded bundles read`,
+          `${output} carries ${block} (its key ${sentinel}), which only ${readers.map((reader) => reader.output).join(', ')} read`,
         )
       }
     }
@@ -538,6 +595,22 @@ for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
       }
     }
   }
+}
+// Every model text block beside MODEL_TEXT is guarded: a new one needs an
+// entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
+const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
+  if (!guarded.has(block)) {
+    problems.push(
+      `${CONSTANTS} declares ${block}, which scripts/check-bundle-split.mjs does not guard`,
+    )
+  }
+}
+const fileRefusalKeys = blockKeys(FILE_REFUSAL.block)
+if (fileRefusalKeys.join(', ') !== FILE_REFUSAL.keys.join(', ')) {
+  problems.push(
+    `${FILE_REFUSAL.block} holds ${fileRefusalKeys.join(', ')}, not ${FILE_REFUSAL.keys.join(', ')}: every bundle that reads a key of it, dist/extension.js among them, carries all of it`,
+  )
 }
 // What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
 // file of the activation bundle reads makes every bundle carry it for
@@ -611,7 +684,7 @@ console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(
-  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} only where read; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)

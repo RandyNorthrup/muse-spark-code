@@ -17,6 +17,7 @@ import * as codeIntelEntry from '../../src/host/ide/codeIntelEntry'
 import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
 import {
   CODE_INTEL_BUNDLE_FILE,
+  CODE_INTEL_MODEL_TEXT,
   IDE_MCP_SERVER_INFO,
   MODEL_TEXT,
   UI_TEXT,
@@ -28,6 +29,8 @@ import { builtForTests, lazyLoaderCases } from './helpers/lazyBundles'
 import { logLines } from './helpers/logText'
 
 const built = builtForTests('src/host/ide/codeIntelEntry.ts', CODE_INTEL_BUNDLE_FILE)
+// A shorter run of plain text could occur in the bundle by chance.
+const MIN_PLAIN_RUN = 12
 
 const ROOT = '/repo'
 const MAIN = `${ROOT}/main.ts`
@@ -73,11 +76,42 @@ describe('codeIntelLoader', () => {
   lazyLoaderCases(codeIntelLoader, built, () => MODEL_TEXT.codeIntelUnavailable)
 })
 
+/**
+ * The longest run of `value` that a bundle writes as it stands: no quote,
+ * backslash, `$`, line break or non-ASCII character, which esbuild may
+ * escape or wrap differently.
+ */
+function plainRun(value: string): string {
+  let longest = ''
+  for (const run of value.split(/[^ -~]|["'`\\$]/u)) {
+    if (run.length > longest.length) {
+      longest = run
+    }
+  }
+  return longest
+}
+
 describe('the shipped code intelligence bundle', () => {
   it('loads the shared English fallback without copying it', () => {
     const text = readFileSync(built.file, 'utf8')
     expect(text).toContain('require("./uiText.js")')
     expect(text).not.toContain(UI_TEXT.crashTitle)
+  })
+
+  // One object is carried whole (PLAN.md D6): a read of any MODEL_TEXT key,
+  // even one activation reads too, would bring all of it. The bundle reads
+  // CODE_INTEL_MODEL_TEXT and FILE_REFUSAL_MODEL_TEXT only.
+  it('carries no key and none of the words of MODEL_TEXT', () => {
+    const text = readFileSync(built.file, 'utf8')
+    // What it does read is found the same way.
+    expect(text).toContain(plainRun(CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed))
+    for (const [key, value] of Object.entries(MODEL_TEXT)) {
+      expect(text, key).not.toMatch(new RegExp(String.raw`(?:^|[\s{,])${key}:`, 'mu'))
+      const run = plainRun(value)
+      if (run.length >= MIN_PLAIN_RUN) {
+        expect(text, key).not.toContain(run)
+      }
+    }
   })
 
   it.each(['findDefinition', 'renameSymbol'])(
