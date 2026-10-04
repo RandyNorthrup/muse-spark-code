@@ -359,7 +359,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
 | `node:fs`              | 24    |
-| `node:fs/promises`     | 33    |
+| `node:fs/promises`     | 34    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |

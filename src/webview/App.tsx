@@ -19,6 +19,7 @@ import {
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
+  SETTING_DEFAULTS,
   type SubagentAction,
   UI_TEXT,
 } from '../shared/constants'
@@ -330,6 +331,9 @@ export function App({
   const [isInstallConfirmOpen, setIsInstallConfirmOpen] = useState(false)
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined)
   const canBypass = state.settings?.allowDangerouslySkipPermissions ?? false
+  // The Auto reviewer on Muse Code (M90), as its setting says.
+  const hasMuseCodeReviewer =
+    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
 
   // The transcript follows new entries while the reader is at its end; once
   // they scroll up it holds still and offers a jump to the newest (M15).
@@ -1592,11 +1596,11 @@ export function App({
       availablePermissionModes(canBypass).map((mode) => ({
         id: mode,
         label: UI_TEXT.permissionModes[mode],
-        detail: permissionModeDetail(mode, state.auth.backend),
+        detail: permissionModeDetail(mode, state.auth.backend, hasMuseCodeReviewer),
         icon: modeIcon(mode),
         isChecked: mode === state.permissionMode,
       })),
-    [canBypass, state.permissionMode, state.auth.backend],
+    [canBypass, state.permissionMode, state.auth.backend, hasMuseCodeReviewer],
   )
   const agents = agentsOf(state)
   // The approvals waiting, docked above the composer (D26).

@@ -920,13 +920,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse preguntará antes de ejecutar comandos; Muse Code edita los archivos del área de trabajo sin preguntar",
-    "acceptEdits": "Muse editará archivos sin preguntar y preguntará antes de ejecutar comandos",
+    "acceptEdits": "En Muse Code, lo mismo que Manual: Muse Code edita los archivos del área de trabajo sin preguntar y pregunta antes de ejecutar comandos",
     "plan": "Muse explorará el código y presentará un plan antes de editar",
-    "auto": "Muse aprobará las acciones que superen una comprobación de seguridad y se detendrá ante cualquier cosa arriesgada",
+    "auto": "Muse Code ejecuta sin preguntar los comandos que considera simples y pregunta antes de los demás",
     "bypassPermissions": "Muse editará archivos y ejecutará comandos sin preguntar"
   },
+  "museCodeReviewedAutoDetail": "Muse Code ejecuta sin preguntar los comandos que considera simples; un revisor puede permitir otros una vez, y se te pregunta por el resto",
   "modelApiPermissionModeDetails": {
     "manual": "Muse pedirá aprobación antes de cada edición y de cada comando",
+    "acceptEdits": "Muse editará archivos sin preguntar y preguntará antes de ejecutar comandos",
     "auto": "Muse editará archivos sin preguntar, salvo los archivos protegidos, y preguntará antes de los comandos"
   },
   "effortLevels": {
@@ -1820,6 +1822,7 @@
   "autoReviewerUnreadable": "No se pudo leer la respuesta del revisor automático, así que decides tú.",
   "autoReviewerPaused": "Tras rechazos o fallos repetidos, el revisor automático está en pausa hasta tu próximo mensaje, así que decides tú.",
   "autoReviewerTripped": "El revisor automático se detuvo tras rechazos o fallos repetidos. Hasta que envíes tu próximo mensaje, cada acción arriesgada te pedirá confirmación.",
+  "museCodeReviewerNotice": "Activado de forma predeterminada. En Automático con Muse Code, solo se pueden revisar las aprobaciones del turno en curso que ninguna regla resuelve: un turno breve de Muse Code con tu suscripción en una sesión oculta de Planificar. Nunca se revisan escrituras protegidas, llamadas de pago, tareas secundarias, preguntas, solicitudes reenviadas o escaladas, asuntos desconocidos, solicitudes sin permiso de una sola vez ni sesiones compartidas por paneles. Una revisión correcta puede permitir una vez; los rechazos, fallos, sesiones ocupadas, tiempos de espera agotados o un interruptor activado muestran la tarjeta de aprobación. Al salir el proceso anfitrión, se vuelve a crear la sesión auxiliar. Desactívalo con museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Revisor automático",
   "paidConfirmAutoReviewer": "En el modo Automático del backend Model API, una llamada de modelo aparte evalúa cada acción arriesgada que ninguna regla resuelve, y la ejecuta sin preguntar si parece segura. Nunca permite un comando prohibido, un comando para el que tus reglas piden confirmación, una escritura protegida ni una llamada de pago; si rechaza o falla, decides tú. Cada revisión se factura a tu clave de Model API según las tarifas por token del modelo de la conversación:\n{price}\nCada revisión pide confirmación primero, salvo que permitas siempre las revisiones en esta área de trabajo.",
   "paidUseAutoReviewerTitle": "¿Dejar que el revisor automático evalúe esta llamada a {tool}?",

@@ -104,6 +104,8 @@ const schemas = {
     availableChoices: z.array(approvalChoiceSchema),
     judgeEscalated: z.boolean(),
     protectedWrite: z.boolean(),
+    // The asking turn, on every captured frame (2026-10-02, stageRaceCapture).
+    turnId: z.optional(z.string()),
   }),
   'approval/updated': z.object({
     ...sessionScoped,
@@ -300,6 +302,7 @@ export function mapNotification(notification: WireNotification): MapOutcome {
           availableChoices: p.availableChoices,
           isJudgeEscalated: p.judgeEscalated,
           isProtectedWrite: p.protectedWrite,
+          ...(p.turnId !== undefined && { turnId: p.turnId }),
         },
       }
     }

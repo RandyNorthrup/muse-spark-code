@@ -44,7 +44,12 @@ const BUDGETS = [
   // 25 KiB (PLAN.md D6).
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
-  // Shared English fallback; existing host budgets stay unchanged. Measured 102.6 KiB (2026-10-03); plus 15%, rounded up to 25 KiB.
+  // The Auto reviewer on Muse Code (M90), loaded on the first review: its
+  // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
+  // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // Shared English fallback; existing host budgets stay unchanged. Measured
+  // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:

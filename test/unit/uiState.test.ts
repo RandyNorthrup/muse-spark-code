@@ -739,6 +739,126 @@ describe('uiReducer: agent events', () => {
     },
   )
 
+  it('keeps reviewer attribution when resolution arrives before the tool row (M90)', () => {
+    const resolution: Extract<AgentEvent, { type: 'approvalResolved' }> = {
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      itemId: 'c1',
+      decision: 'approved',
+      resolvedBy: 'Auto reviewer',
+      reason: 'Allowed: reads workspace file',
+    }
+    const held = reduceAll([agent(resolution)])
+    expect(held.transcript).toEqual([])
+    const arrived = reduceAll(
+      [
+        agent({
+          type: 'itemStarted',
+          item: {
+            itemId: 'c1',
+            kind: 'toolCall',
+            status: 'inProgress',
+            tool: 'powershell',
+          },
+        }),
+        agent({
+          type: 'itemCompleted',
+          item: {
+            itemId: 'c1',
+            kind: 'toolCall',
+            status: 'completed',
+            tool: 'powershell',
+          },
+        }),
+      ],
+      held,
+    )
+    expect(arrived.transcript[0]).toMatchObject({
+      approvalOutcome: {
+        decision: 'approved',
+        resolvedBy: resolution.resolvedBy,
+        reason: resolution.reason,
+      },
+    })
+    expect(arrived.pendingApprovalResolutions).toEqual([])
+    expect(restoredUiState(webviewStateOf(arrived, true)).transcript[0]).toMatchObject({
+      approvalOutcome: { resolvedBy: resolution.resolvedBy, reason: resolution.reason },
+    })
+  })
+
+  it('bounds unseen resolutions to the newest 50 and clears them with the conversation', () => {
+    const resolutions = Array.from({ length: 51 }, (_, index) =>
+      agent({
+        type: 'approvalResolved',
+        approvalId: `a${String(index)}`,
+        itemId: `c${String(index)}`,
+        decision: 'approved',
+        resolvedBy: 'Auto reviewer',
+      }),
+    )
+    const state = reduceAll(resolutions)
+    expect(state.pendingApprovalResolutions).toHaveLength(50)
+    expect(state.pendingApprovalResolutions[0]?.itemId).toBe('c1')
+    expect(state.pendingApprovalResolutions.at(-1)?.itemId).toBe('c50')
+    const cleared = uiReducer(state, host({ type: 'conversationCleared' }))
+    expect(cleared.pendingApprovalResolutions).toEqual([])
+  })
+
+  it('applies an early resolution to a row a same-session history read makes, never to another session’s (M90)', () => {
+    const resolution = {
+      type: 'approvalResolved',
+      approvalId: 'a1',
+      itemId: 'c1',
+      decision: 'approved',
+      resolvedBy: 'Auto reviewer',
+      reason: 'Allowed: lists files',
+    } as const
+    const items = [{ itemId: 'c1', kind: 'toolCall', status: 'completed', tool: 'powershell' }]
+    const read = (sessionId: string): UiAction =>
+      host({ type: 'historyLoaded', sessionId, items, todos: [] })
+    const waiting = reduceAll([
+      host({ type: 'historyLoaded', sessionId: 's', items: [], todos: [] }),
+      agent(resolution),
+    ])
+    const recovered = reduceAll([read('s')], waiting)
+    expect(recovered.transcript[0]).toMatchObject({
+      approvalOutcome: { resolvedBy: resolution.resolvedBy, reason: resolution.reason },
+    })
+    expect(recovered.pendingApprovalResolutions).toEqual([])
+    // Read again, the row keeps the outcome the panel saw.
+    expect(reduceAll([read('s')], recovered).transcript[0]).toMatchObject({
+      approvalOutcome: { reason: resolution.reason },
+    })
+    const other = reduceAll([read('other')], waiting)
+    expect(other.transcript[0]).toEqual(
+      expect.not.objectContaining({ approvalOutcome: expect.anything() }),
+    )
+    expect(other.pendingApprovalResolutions).toEqual([])
+  })
+
+  it('keeps the Auto reviewer’s reason on an approval it allowed, through restoration (M90)', () => {
+    const reason = 'Allowed: reads workspace file to fulfill line-count request'
+    const resolved = reduceAll(
+      [
+        agent(SHELL_APPROVAL),
+        agent({
+          type: 'approvalResolved',
+          approvalId: SHELL_APPROVAL.approvalId,
+          itemId: SHELL_APPROVAL.itemId,
+          decision: 'approved',
+          resolvedBy: 'Auto reviewer',
+          reason,
+        }),
+      ],
+      { ...initialUiState, sessionId: 'reviewed-session' },
+    )
+    const outcome = { decision: 'approved', resolvedBy: 'Auto reviewer', reason }
+    expect(resolved.transcript[0]).toMatchObject({ approvalOutcome: outcome })
+    expect(restoredUiState(webviewStateOf(resolved, true)).transcript[0]).toMatchObject({
+      approvalOutcome: outcome,
+    })
+  })
+
   it('lists the approvals waiting for the dock, oldest first, until each resolves (D26)', () => {
     const second = { ...SHELL_APPROVAL, approvalId: 'a2', itemId: 'c2', toolName: 'write_file' }
     const both = reduceAll([agent(SHELL_APPROVAL), agent(second)])

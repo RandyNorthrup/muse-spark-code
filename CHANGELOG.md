@@ -224,6 +224,42 @@ happened, not what was planned; superseded entries are kept.
   loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
   PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
   Strings in all 14 languages.
+- **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
+  Muse Code backend, an eligible approval Muse Code raises for the running
+  turn that no rule settles goes
+  to a reviewer before it reaches you: the Model API backend's Auto
+  reviewer (its instructions, its input marked as data, its strict
+  ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
+  session in the same `muse serve`, on your Muse subscription. The side
+  session runs in Plan mode with thinking off, on the conversation's model,
+  in an empty folder under the extension's global storage, so it reads none
+  of your workspace files, rules or skills in the captured setup (CLI-global
+  context is not excluded) and History never lists it; it is started again
+  after Muse Code exits, restarts or closes it, after a timeout, busy fallback
+  or tool activity, for another model, and every ten reviews. Native tools
+  cannot be disabled through the SDK: any item other than an agent message
+  or reasoning cancels the review and shows the generic failure card. A
+  command covered by an always-allow rule could run in the empty folder
+  before cancellation lands. On
+  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
+  reviewer)" with its reason; on ASK, an unreadable answer, no answer
+  within 45 seconds, an error, a busy side session or a tripped breaker,
+  the card asks you as before, with the reason on it when there is one. It
+  never answers a protected write, a paid call, a child task, a question,
+  a replayed or escalated request, an unknown subject, a request without
+  allow-once, a session shared by panels, or anything in another mode;
+  one review runs at a time
+  in a window. On by default with the machine-scoped
+  `museSpark.museCodeAutoReviewer`; the window's first review says what it
+  does and costs (one short Muse Code turn: four model attempts in the live
+  check). Changed subjects, accepted messages and steering invalidate old
+  verdicts; queued jobs recheck the breaker, setup shares the 45-second
+  deadline and cancellation, and only a completed reply in a completed
+  turn may allow. Attribution survives resolution before the tool row
+  (the newest 50 unseen item ids). It loads on the first review from
+  `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
+  remains within 600 KiB.
 - **Review** (M70, PLAN.md D49), on both backends:
   - `/review` reviews the uncommitted changes; `/review branch [base]` the
     branch against its base, `/review commit [revision]` one commit (a
@@ -264,6 +300,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
+  from 100 KiB: new strings bring `dist/uiText.js` to 100.2 KiB; the new
+  budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so
+  activation is unchanged.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
@@ -278,7 +318,6 @@ happened, not what was planned; superseded entries are kept.
   log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
-- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up from 100 KiB: new strings bring `dist/uiText.js` to 102.6 KiB; the new budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so activation is unchanged.
 - The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
@@ -286,6 +325,14 @@ happened, not what was planned; superseded entries are kept.
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 - Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
+- **The Modes menu no longer promises a safety check Muse Code does not run
+  (0.11.0, PLAN.md D69).** Auto on Muse Code read "Muse will approve actions
+  that pass a safety check and pause for anything risky", but `muse serve`
+  has no approval judge: Auto skipped only the commands the CLI classifies
+  as simple, and every script asked. Each mode now says what it does on
+  each backend: on Muse Code, Edit automatically is Manual, and Auto is
+  Muse Code's own skip of simple commands plus the new reviewer while it is
+  on (README "Permission modes", PLAN.md D7's correction).
 - **Revert on an edit no longer overwrites your saved or unsaved changes**.
   Edit review's Revert and the pane's hunk Revert are one step under the
   turn checkpoints' file-edit lease: they read the saved file, rebuild the

@@ -431,13 +431,61 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                |
-| ---------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands |
-| **Edit automatically** | Approves plain file edits, asks before commands                                                     | As Manual, plus the file approvals the CLI does raise are approved for you                                       |
-| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                    |
-| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs its own safety check and asks for anything risky                                                    |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                       |
+| Mode                   | Model API backend                                                                                   | Muse Code backend                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command                                                            | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands      |
+| **Edit automatically** | Approves plain file edits, asks before commands                                                     | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                 |
+| **Plan**               | Refuses edits and commands                                                                          | The CLI plans without editing                                                                                         |
+| **Auto**               | Runs edits, asks before commands (no safety-check model on this backend)                            | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses, which ask in every mode | The same, except paid uses                                                                                            |
+
+Until 0.11.0 the Modes menu said Auto on Muse Code approves "actions that
+pass a safety check". It did not: `muse serve` has no approval judge (the
+CLI's LLM judge runs only in its interactive and `exec` commands), so Auto
+skipped only the commands the CLI classifies as simple, and every script
+asked (PLAN.md D69). The menu now says what each mode does on each backend.
+
+### The Auto reviewer on Muse Code
+
+In Auto on the Muse Code backend, an approval Muse Code raises for the
+running turn that no rule settles may go to a reviewer before it reaches you. The reviewer is the
+Model API backend's Auto reviewer (its instructions, its input and its
+strict answer), run as one short turn of a hidden side session in the same
+`muse serve`, on your Muse subscription: Plan mode, thinking off, the
+conversation's model, in an empty folder of the extension's own, so it reads
+none of your workspace files, rules or skills in the captured setup and is never listed in History. CLI-global context is not excluded. It answers ALLOW or ASK
+with a reason:
+
+- **ALLOW**: the approval is answered _Allow once_ (never an "always"
+  choice), for each stage while its subject and user request stay the same. The tool row says
+  "Decided: approved (Auto reviewer)" with the reviewer's reason.
+- **ASK**, an answer it cannot read, no answer within 45 seconds, an error,
+  or a side session still busy: the card asks you as before, with the
+  reviewer's reason on it when there is one.
+
+After three declines or failures in a row, or ten of the last fifty, it
+stops until your next message. It is never asked about anything the
+extension's own rules answer, a protected write, a paid call, a child
+task, a question, an escalated or unknown subject, an approval without
+an allow-once choice, or a request in Manual, Edit automatically, Plan or
+Bypass, or one replayed to a second panel. Two panels sharing the session
+also go straight to cards. One review runs at a time in a
+window. The first review in a window says so in a notice. Each review is
+one short Muse Code turn: the live check counted four model attempts
+(the reply and three of Muse Code's own reminder agents) and about 33,000
+input tokens, most of them Muse Code's own instructions. Turn it off with
+`museSpark.museCodeAutoReviewer`.
+
+Plan mode does not disable Muse Code's native tools: the SDK's
+`SessionConfig` only configures `mcpServers`. Any item other than an agent
+message or reasoning cancels the review turn, shows the card with the
+generic failure reason, and recreates the side session. A command covered
+by your always-allow rule could run in the empty folder before the cancel
+lands. The verdict text itself is never executed. A changed subject or an
+accepted new message or steer invalidates the old verdict. The side session
+is also recreated after host exit/restart, closure, timeout or busy fallback,
+a model change, and ten reviews. Only a completed reply in a successfully
+completed turn can allow an action; the 45-second deadline includes setup.
 
 A Manual approval still needs your answer if you open the conversation
 in another panel set to Edit automatically. Joining a conversation never
@@ -2574,6 +2622,7 @@ Bypass at once.
 | `modelApiPermissionProfile`       | `""`        | Machine-scoped selected profile; unknown or malformed selections deny file access.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `modelApiRepositoryRules`         | `{}`        | Repository rules may add ask/forbid commands and file denials, never standing allows or extra roots.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `modelApiAutoReviewer`            | `false`     | Machine-scoped paid Auto reviewer; price acceptance and per-use consent required.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `museCodeAutoReviewer`            | `true`      | Machine-scoped. In Auto on the Muse Code backend, approvals Muse Code raises go to [the reviewer](#the-auto-reviewer-on-muse-code) first: one short Muse Code turn per review on your subscription; it allows once or leaves the card to you.                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `modelApiReplyUsage`              | `false`     | Show the input and output tokens and the dollar estimate under each Model API reply, counting every request since the previous line in that turn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified. Input estimates and published prices may differ from actual billing. Machine-scoped |
@@ -2663,7 +2712,11 @@ stopped and the next message resumes the same session.
   (file paths and definition names, no file contents). By
   default each message also carries the open file's path and any selected
   text (`attachOpenFile`); on the CLI backend each turn carries a short
-  hidden note asking the model to offer choices through the question card. The extension has no telemetry
+  hidden note asking the model to offer choices through the question card.
+  In Auto on Muse Code, [the reviewer](#the-auto-reviewer-on-muse-code)
+  sends your latest message, the turn's earlier calls and the request it
+  judges to Meta as one more Muse Code turn on your subscription
+  (`museSpark.museCodeAutoReviewer`). The extension has no telemetry
   and no hosted server of its own. Details: [PRIVACY.md](docs/PRIVACY.md).
 - A pasted Model API key lives only in VS Code's SecretStorage, is sent only
   to `api.meta.ai`, is never passed to any child process, and never reaches
@@ -3082,7 +3135,10 @@ cap; the activation and Model API caps stay 600/400 KiB. Code intelligence's
 answers for Muse Code's `ide` tools load on the first call from
 `dist/codeIntel.js` (100 KiB cap), and both voice engines' drivers on the
 first recording from `dist/voice.js` (50 KiB cap); the tool list and the
-microphone's availability stay at activation. The M78b candidate
+microphone's availability stay at activation. The Auto reviewer on Muse
+Code (its side session, what follows a review, and the Model API reviewer's
+core it reuses) loads on the first review from `dist/museCodeReviewer.js`
+(75 KiB cap). The M78b candidate
 still exceeds the Model API cap; its measurements and remaining decision
 are recorded in [the M78 certification](docs/certification/m78.md).
 

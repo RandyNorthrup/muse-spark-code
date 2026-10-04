@@ -943,13 +943,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse zapyta przed uruchomieniem poleceń; Muse Code edytuje pliki obszaru roboczego bez pytania",
-    "acceptEdits": "Muse będzie edytować pliki bez pytania i pytać przed uruchomieniem poleceń",
+    "acceptEdits": "W Muse Code to samo co Ręczny: Muse Code edytuje pliki obszaru roboczego bez pytania i pyta przed uruchomieniem poleceń",
     "plan": "Muse przeanalizuje kod i przedstawi plan przed wprowadzeniem zmian",
-    "auto": "Muse zatwierdzi akcje, które przejdą kontrolę bezpieczeństwa, i wstrzyma się przy wszystkim, co ryzykowne",
+    "auto": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste, a przed pozostałymi pyta",
     "bypassPermissions": "Muse będzie edytować pliki i uruchamiać polecenia bez pytania"
   },
+  "museCodeReviewedAutoDetail": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste; oceniający może jednorazowo zezwolić na niektóre inne, o resztę pyta Ciebie",
   "modelApiPermissionModeDetails": {
     "manual": "Muse poprosi o zatwierdzenie przed każdą edycją i każdym poleceniem",
+    "acceptEdits": "Muse będzie edytować pliki bez pytania i pytać przed uruchomieniem poleceń",
     "auto": "Muse będzie edytować pliki bez pytania, z wyjątkiem plików chronionych, i pytać przed poleceniami"
   },
   "effortLevels": {
@@ -1885,6 +1887,7 @@
   "autoReviewerUnreadable": "Nie udało się odczytać odpowiedzi automatycznego oceniającego, więc decyzja należy do Ciebie.",
   "autoReviewerPaused": "Po powtarzających się odmowach lub błędach automatyczny oceniający jest wstrzymany do Twojej następnej wiadomości, więc decyzja należy do Ciebie.",
   "autoReviewerTripped": "Automatyczny oceniający zatrzymał się po powtarzających się odmowach lub błędach. Dopóki nie wyślesz następnej wiadomości, każda ryzykowna akcja będzie pytać Ciebie.",
+  "museCodeReviewerNotice": "Domyślnie włączone. W trybie automatycznym Muse Code kwalifikują się tylko zatwierdzenia bieżącej tury, których nie rozstrzyga żadna reguła: jedna krótka tura Muse Code z Twojej subskrypcji w ukrytej sesji Planowanie. Chronione zapisy, płatne wywołania, zadania podrzędne, pytania, ponowione lub eskalowane żądania, nieznane przedmioty, żądania bez jednorazowego zezwolenia i sesje współdzielone przez panele nigdy nie są oceniane. Pomyślna ocena może zezwolić raz; odmowy, błędy, zajęte sesje, przekroczenie czasu lub uruchomiony bezpiecznik pokazują kartę zatwierdzenia. Po zakończeniu procesu hosta sesja pomocnicza jest tworzona ponownie. Wyłącz za pomocą museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Automatyczny oceniający",
   "paidConfirmAutoReviewer": "W trybie automatycznym na zapleczu Model API osobne wywołanie modelu ocenia każdą ryzykowną akcję, której nie rozstrzyga żadna reguła, i uruchamia ją bez pytania, jeśli wygląda na bezpieczną. Nigdy nie zezwala na zabronione polecenie, polecenie, o które pytają Twoje reguły, chroniony zapis ani płatne wywołanie; gdy odmówi lub zawiedzie, decydujesz Ty. Każda ocena jest rozliczana przez Twój klucz Model API według stawek za tokeny modelu rozmowy:\n{price}\nKażda ocena najpierw pyta, chyba że zawsze zezwolisz na oceny w tym obszarze roboczym.",
   "paidUseAutoReviewerTitle": "Czy automatyczny oceniający ma ocenić to wywołanie {tool}?",

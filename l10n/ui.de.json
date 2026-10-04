@@ -897,13 +897,15 @@
   },
   "permissionModeDetails": {
     "manual": "Muse fragt vor dem Ausführen von Befehlen; Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage",
-    "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
+    "acceptEdits": "In Muse Code dasselbe wie Manuell: Muse Code bearbeitet Dateien im Arbeitsbereich ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
     "plan": "Muse erkundet den Code und legt vor dem Bearbeiten einen Plan vor",
-    "auto": "Muse genehmigt Aktionen, die eine Sicherheitsprüfung bestehen, und hält bei allem Riskanten an",
+    "auto": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus und fragt vor allen anderen",
     "bypassPermissions": "Muse bearbeitet Dateien und führt Befehle ohne Nachfrage aus"
   },
+  "museCodeReviewedAutoDetail": "Muse Code führt Befehle, die es für einfach hält, ohne Nachfrage aus; ein Prüfer kann manche anderen einmal erlauben, zu den übrigen werden Sie gefragt",
   "modelApiPermissionModeDetails": {
     "manual": "Muse fragt vor jeder Bearbeitung und jedem Befehl nach einer Genehmigung",
+    "acceptEdits": "Muse bearbeitet Dateien ohne Nachfrage und fragt vor dem Ausführen von Befehlen",
     "auto": "Muse bearbeitet Dateien ohne Nachfrage, außer geschützten Dateien, und fragt vor Befehlen"
   },
   "effortLevels": {
@@ -1755,6 +1757,7 @@
   "autoReviewerUnreadable": "Die Antwort des Auto-Prüfers war nicht lesbar, daher entscheiden Sie.",
   "autoReviewerPaused": "Der Auto-Prüfer pausiert nach wiederholten Ablehnungen oder Fehlern bis zu Ihrer nächsten Nachricht, daher entscheiden Sie.",
   "autoReviewerTripped": "Der Auto-Prüfer hat nach wiederholten Ablehnungen oder Fehlern angehalten. Bis Sie Ihre nächste Nachricht senden, fragt jede riskante Aktion Sie.",
+  "museCodeReviewerNotice": "Standardmäßig an. In Auto auf Muse Code kommen nur Genehmigungen für den laufenden Durchgang infrage, die keine Regel entscheidet: ein kurzer Muse-Code-Durchgang über Ihr Abonnement in einer verborgenen Plan-Sitzung. Geschützte Schreibvorgänge, kostenpflichtige Aufrufe, untergeordnete Aufgaben, Fragen, erneut zugestellte oder eskalierte Anfragen, unbekannte Gegenstände, Anfragen ohne einmalige Erlaubnis und von mehreren Panels geteilte Sitzungen werden nie geprüft. Eine erfolgreiche Prüfung kann einmal erlauben; Ablehnungen, Fehler, belegte Sitzungen, Zeitüberschreitungen oder eine ausgelöste Abschaltung zeigen die Genehmigungskarte. Nach Ende des Hosts wird die Nebensitzung neu erstellt. Ausschalten mit museSpark.museCodeAutoReviewer.",
   "paidAutoReviewerName": "Auto-Prüfer",
   "paidConfirmAutoReviewer": "Im Modus „Auto“ auf dem Model-API-Backend beurteilt ein separater Modellaufruf jede riskante Aktion, die keine Regel klärt, und führt sie ohne Nachfrage aus, wenn sie sicher wirkt. Er lässt niemals einen verbotenen Befehl, einen Befehl, bei dem Ihre Regeln nachfragen, einen geschützten Schreibvorgang oder einen kostenpflichtigen Aufruf zu; lehnt er ab oder scheitert er, entscheiden Sie. Jede Prüfung wird Ihrem Model-API-Schlüssel zu den Tokenpreisen des Unterhaltungsmodells berechnet:\n{price}\nJede Prüfung fragt zuerst nach, es sei denn, Sie lassen Prüfungen in diesem Arbeitsbereich immer zu.",
   "paidUseAutoReviewerTitle": "Den Auto-Prüfer diesen {tool}-Aufruf beurteilen lassen?",

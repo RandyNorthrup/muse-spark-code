@@ -28,9 +28,11 @@
 //   in dist/extension.js, dist/modelApi.js or dist/acp.js, or missing from
 //   dist/bundledSkills.js, or that bundle carries its own English table.
 // - code intelligence's `ide` answers (M67: the queries, the read tools, the
-//   repo map and the rename) or voice's drivers (M9, M35: the dictation
-//   driver, Muse Voice's stream, the processes and the socket) are in
-//   dist/extension.js, or missing from dist/codeIntel.js or dist/voice.js.
+//   repo map and the rename), voice's drivers (M9, M35: the dictation
+//   driver, Muse Voice's stream, the processes and the socket) or the Auto
+//   reviewer on Muse Code (M90: its side session, with M78's reviewer core)
+//   are in dist/extension.js, or missing from dist/codeIntel.js,
+//   dist/voice.js or dist/museCodeReviewer.js.
 //
 // Exits 1 on any problem.
 //
@@ -316,6 +318,16 @@ const ON_FIRST_USE = [
       'src/core/voice/dictation.ts',
       'src/core/voice/museVoice.ts',
       'src/core/voice/recorderHelper.ts',
+    ],
+  },
+  {
+    output: 'dist/museCodeReviewer.js',
+    metafile: 'dist/meta/museCodeReviewer.json',
+    use: 'the first review',
+    files: [
+      'src/host/review/museCodeReviewerEntry.ts',
+      'src/host/review/museCodeReviewer.ts',
+      'src/core/backends/modelapi/autoReviewer.ts',
     ],
   },
 ]
