@@ -40,14 +40,20 @@ happened, not what was planned; superseded entries are kept.
     closes; where VS Code has the command, **Move into new window** moves
     it into a window of its own.
   - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
-    the Menu key, or use its one ⋯, for round themed bubbles: fork and the
-    Rewind group's second burst on a message, queued Edit, Copy response
-    and Reply to this output on a reply, Redo on a restore, Open output on
-    a tool, and Review and **Revert** on a landed edit (Revert asks first
-    and is not offered while a turn runs). Selected text keeps its Copy,
-    Ask about this and Comment on this menu, in the same style. Arrow keys,
-    Home/End, Enter/Space and Escape work as in any menu; reduced motion
-    drops the burst and the goo, and forced colours draws bordered buttons.
+    the Menu key, or use its one ⋯: each action is one blue pill, its icon
+    then its name (the owner's request of 2026-10-04), the pills stacked in
+    a fanned column beside the pointer or ⋯, apart and inside panels as
+    narrow as 320 px, merging in the goo only as they burst out. A message
+    has fork and the Rewind group's second burst, queued Edit; a reply Copy
+    response and Reply to this output; a restore Redo; a tool Open output;
+    a landed edit Review and **Revert** (Revert asks first and is not
+    offered while a turn runs). A label too long for the panel ends in an
+    ellipsis with the whole label in its tooltip; an unavailable note is
+    the same pill, opaque, with a dimmed icon. Selected text keeps its
+    Copy, Ask about this and Comment on this menu, in the same pills. Arrow
+    keys, Home/End, Enter/Space and Escape work as in any menu; reduced
+    motion drops the burst and the goo, and forced colours draws bordered
+    pills.
   - **Tips** on every row of the palette and the `/` list: a skill's own
     description, or "Run the _name_ skill." for one without.
   - **Rows and the status line.** A shell row's IN and OUT are one bordered

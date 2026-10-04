@@ -1644,30 +1644,30 @@ the text as it is.
 - Each actionable message, reply, tool output or restore notice has one **More
   actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
-  to open the same radial menu: its round bubbles burst from the pointer or
-  the ⋯ and open away from the panel's edges, with the focused or hovered
-  action's label beside it. Arrow keys move, Home/End go to the first and
-  last, Enter or Space picks. A message's menu has **Fork conversation from
-  here** and a **Rewind** bubble that opens a second burst of the rewind and
-  restore choices; Escape returns from that burst first, then closes the
-  menu and returns focus to ⋯. An edit row's menu has **Open output**,
-  **Review** (the diff editor) and **Revert**: it asks first, then puts back
-  that one edit's lines, leaving (and naming) a file whose lines changed
-  since; it is not offered while a turn runs. A reply has no Retry (a resent
-  prompt would run its tools a second time): **Rewind conversation to here**
-  on the prompt's card puts the prompt back to send again. With text
-  selected in a row, right-clicking that row opens the highlighted-text
-  menu instead.
+  to open the same radial menu: each action is one blue pill, its icon then
+  its name, the pills stacked in a fanned column beside the pointer or the ⋯
+  and inside the panel. Arrow keys move, Home/End go to the first and last,
+  Enter or Space picks. A message's menu has **Fork conversation from here**
+  and a **Rewind** pill that opens a second burst of the rewind and restore
+  choices; Escape returns from that burst first, then closes the menu and
+  returns focus to ⋯. An edit row's menu has **Open output**, **Review** (the
+  diff editor) and **Revert**: it asks first, then puts back that one edit's
+  lines, leaving (and naming) a file whose lines changed since; it is not
+  offered while a turn runs. A reply has no Retry (a resent prompt would run
+  its tools a second time): **Rewind conversation to here** on the prompt's
+  card puts the prompt back to send again. With text selected in a row,
+  right-clicking that row opens the highlighted-text menu instead.
 - A reply's ⋯ menu has **Reply to this output**: the next message carries
   that output to the agent as context. Highlight any text in the chat and
   right-click it for **Copy**, **Ask about this** or **Comment on this**; the
   passage, its author and your intent travel with the message. The composer
   shows a chip for either; × drops it.
-  The highlighted-text menu fans into round icon buttons, fitting panels as
-  narrow as 320 px. Hover or focus shows the action's label. Arrow keys move
+  The highlighted-text menu fans into the same labelled pills, fitting panels
+  as narrow as 320 px; a label too long for the panel ends in an ellipsis,
+  with the whole label in its tooltip. Arrow keys move
   between actions, Home/End select the first/last, Enter/Space choose, and
-  Escape closes and returns focus. Reduced motion shows stationary buttons
-  without the goo filter; forced colors uses bordered buttons.
+  Escape closes and returns focus. Reduced motion shows stationary pills
+  without the goo filter; forced colors uses bordered pills.
 - Approval cards carry the CLI's own choices (Allow once, Always allow in
   this workspace or Allow for this session, Reject, with optional feedback);
   multi-step shell lines are approved one step at a time.

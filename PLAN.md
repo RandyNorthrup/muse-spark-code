@@ -3828,6 +3828,47 @@ choices:
   - **Reduced motion and forced colours:** under `prefers-reduced-motion` the
     bubbles appear in place without the burst or the goo; under
     `forced-colors` the filter is off and the bubbles are bordered buttons.
+  - **Pills with labels (amended 2026-10-04, the owner: "The gooey menu
+    should have labels with the icons so the shape of the items will gain
+    more of a pill shape than a circle with icon only").** This replaces the
+    round bubbles and the label beside the focused or hovered one above. The
+    owner's clarification the same day: "the icon and label should be in
+    the same blue pill no separate".
+    - **The pill.** Every item, a second burst's too, is one button: its
+      icon, then its label, as high as the old bubble (40 px), with half-circle
+      ends (`border-radius` 20 px). No label is drawn outside it. The
+      accessible name is still the label; `role`, keys, focus return,
+      disabled items and their notes behave as before. Colours as before:
+      button background and foreground, the hover background and the focus
+      border.
+    - **Notes.** A disabled item (a Rewind note such as "File checkpoints
+      need git on PATH") is the same blue pill, opaque, with its icon dimmed
+      and no hover. The bubbles' 50 % opacity let the chat show through a
+      pill's text; opaque, a note reads at the button pair's contrast.
+      Forced colours draw it in `GrayText`.
+    - **A column, not a ring.** A pill is several times as wide as it is
+      high, so on the 76 px arc neighbours would overlap unless the radius
+      grew past what a 320 px panel holds. The pills stack in one column,
+      20 px apart, on the side of the origin with more room (away from the
+      nearer side edge), centred on its height and moved whole to stay in the
+      panel. Their near ends follow half an ellipse around the origin, from
+      16 px out at the ends (clear of a 26 px control centred there) to 48 px
+      at the middle, so the column still fans. Rows cannot overlap whatever
+      the labels' widths; each pill's drawn width is measured before the
+      first paint and only keeps it inside the panel. A second burst centres
+      on its group's pill and scales in from it. A panel too short for 20 px
+      gaps shares its height out evenly.
+    - **Long labels.** A pill is at most the panel's width less 8 px a side
+      (304 px at 320 px). One too wide for its side of the origin slides back
+      over it first; only a label longer than the panel allows ends in an
+      ellipsis, and then its tooltip gives it whole.
+    - **The goo.** The filter is unchanged (blur 10, alpha 18a − 7). Two flat
+      pill edges 20 px apart blur to 2Φ(−1) ≈ 0.32 alpha at the middle, under
+      the 7/18 cut, so resting pills stay apart and merge only while they
+      scale in from the origin, overlapping. Reduced motion: no burst, no
+      goo. Forced colours: no filter, `ButtonFace` pills bordered in
+      `ButtonText`. Record: `docs/certification/m87-f.md`, "Pills with
+      labels".
 
 ### D67 — Saved prompts, bookmarks and timed sends (M88)
 

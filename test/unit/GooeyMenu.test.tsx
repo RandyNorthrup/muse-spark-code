@@ -1,7 +1,21 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GooeyMenu, type GooeyItem } from '../../src/webview/components/GooeyMenu'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/** jsdom draws nothing: give each pill, or each pill's label, a drawn size. */
+function drawn(
+  property: 'offsetWidth' | 'scrollWidth' | 'clientWidth',
+  size: (node: HTMLElement) => number,
+) {
+  vi.spyOn(HTMLElement.prototype, property, 'get').mockImplementation(function (this: HTMLElement) {
+    return size(this)
+  })
+}
 
 function setup() {
   const onSelect = vi.fn()
@@ -31,12 +45,27 @@ function setup() {
 }
 
 describe('GooeyMenu', () => {
-  it('names menu and bubbles, focuses first enabled action, shows its label', () => {
+  it('names menu and pills, focuses first enabled action, labels every pill', () => {
     const { menu } = setup()
     expect(menu).toHaveAccessibleName('Actions')
     expect(screen.getAllByRole('menuitem')).toHaveLength(4)
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Copy' }))
-    expect(screen.getByText('Copy')).toBeVisible()
+    // The owner, 2026-10-04: each pill is its icon, then its label, always shown.
+    for (const [name, icon] of [
+      ['Copy', 'C'],
+      ['Disabled', 'D'],
+      ['Rewind', 'R'],
+      ['Retry', 'T'],
+    ] as const) {
+      const pill = screen.getByRole('menuitem', { name })
+      expect(pill).toHaveClass('gooey-menu-pill')
+      expect([...pill.children].map((part) => part.textContent)).toEqual([icon, name])
+      expect(pill.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+      expect(within(pill).getByText(name)).toBeVisible()
+      expect(screen.getAllByText(name)).toHaveLength(1)
+      // A label shown whole needs no tooltip.
+      expect(pill).not.toHaveAttribute('title')
+    }
     expect(screen.getByRole('menuitem', { name: 'Disabled' })).toHaveAttribute(
       'aria-disabled',
       'true',
@@ -115,17 +144,58 @@ describe('GooeyMenu', () => {
     expect(freshSelect).toHaveBeenCalledOnce()
   })
 
-  it('selects by pointer, displays hover label, refuses disabled selection', () => {
+  it('selects by pointer, refuses disabled selection, keeps labels without hover', () => {
     const { onSelect } = setup()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Disabled' }))
     expect(onSelect).not.toHaveBeenCalled()
     const retry = screen.getByRole('menuitem', { name: 'Retry' })
+    expect(within(retry).getByText('Retry')).toBeVisible()
     fireEvent.mouseEnter(retry)
-    expect(screen.getByText('Retry')).toBeVisible()
     fireEvent.mouseLeave(retry)
-    expect(screen.queryByText('Retry')).toBeNull()
+    expect(within(retry).getByText('Retry')).toBeVisible()
     fireEvent.click(retry)
     expect(onSelect).toHaveBeenCalledOnce()
+  })
+
+  it('places pills by their drawn widths, capped at the panel', () => {
+    drawn('offsetWidth', (node) => (node.getAttribute('role') === 'menuitem' ? 200 : 0))
+    render(
+      <GooeyMenu
+        items={[
+          { id: 'a', label: 'Alpha', icon: 'A', onSelect: vi.fn() },
+          { id: 'b', label: 'Beta', icon: 'B', onSelect: vi.fn() },
+        ]}
+        label="Measured"
+        origin={{ x: 1000, y: 380 }}
+        onClose={vi.fn()}
+      />,
+    )
+    for (const pill of screen.getAllByRole('menuitem')) {
+      // jsdom's window is 1024 px wide: the pills reach left, ending 16 px or
+      // more short of the origin, and are never drawn wider than 1024 - 16.
+      expect(Number(pill.style.left.replace('px', '')) + 200).toBeLessThanOrEqual(1000 - 16)
+      expect(pill.style.maxWidth).toBe('1008px')
+    }
+  })
+
+  it('puts a clipped label whole in the tooltip, after an item’s own title', () => {
+    drawn('scrollWidth', (node) => (node.classList.contains('gooey-menu-pill-label') ? 300 : 0))
+    drawn('clientWidth', (node) => (node.classList.contains('gooey-menu-pill-label') ? 120 : 0))
+    render(
+      <GooeyMenu
+        items={[
+          { id: 'long', label: 'A label too long for the panel', icon: 'L', onSelect: vi.fn() },
+          { id: 'tip', label: 'Edit', title: 'Its own tip', icon: 'E', onSelect: vi.fn() },
+        ]}
+        label="Clipped"
+        origin={{ x: 160, y: 380 }}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('menuitem', { name: 'A label too long for the panel' }),
+    ).toHaveAttribute('title', 'A label too long for the panel')
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toHaveAttribute('title', 'Its own tip')
   })
 
   it('opens second burst, skips disabled child, Escape restores group before closing', () => {
@@ -184,7 +254,12 @@ describe('GooeyMenu', () => {
       />,
     )
     expect(screen.getByRole('menu')).toHaveClass('gooey-menu-motion-safe', 'gooey-menu-colors-safe')
-    expect(screen.getByRole('menuitem').style.left).not.toBe('0px')
+    // The anchor's centre is (280, 50): the lone pill sits 48 px to its right,
+    // level with it, and bursts from that centre.
+    const pill = screen.getByRole('menuitem')
+    expect(pill.style.left).toBe('328px')
+    expect(pill.style.top).toBe('30px')
+    expect(pill.style.transformOrigin).toBe('-48px 20px')
     expect(container.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '10')
     expect(container.querySelector('feColorMatrix')).toHaveAttribute(
       'values',

@@ -2466,7 +2466,7 @@
             document.querySelector('[data-role="assistant"] .row-actions-button').click()
             later(100, () => {
               document
-                .querySelector('[data-role="assistant"] .gooey-menu-bubble:nth-child(2)')
+                .querySelector('[data-role="assistant"] .gooey-menu-pill:nth-child(2)')
                 .click()
               setDraft('Why two files and not three?')
             })
@@ -2505,7 +2505,7 @@
         'quote-chip': () => {
           steps['quote-menu']()
           later(600, () => {
-            document.querySelector('.quote-menu .gooey-menu-bubble').click()
+            document.querySelector('.quote-menu .gooey-menu-pill').click()
             setDraft('Are you sure about the count?')
           })
         },

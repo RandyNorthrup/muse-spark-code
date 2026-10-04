@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { QuoteMenu } from '../../src/webview/components/QuoteMenu'
 
@@ -14,7 +14,16 @@ describe('QuoteMenu', () => {
     const onClose = vi.fn()
     render(<QuoteMenu onChoose={onChoose} onCopy={onCopy} onClose={onClose} />)
     expect(screen.getByRole('menu')).toHaveAccessibleName('Highlighted text')
-    fireEvent.click(screen.getByRole('menuitem', { name: label }))
+    // Pills with labels (2026-10-04): every action's name is on its pill.
+    expect(screen.getAllByRole('menuitem').map((pill) => pill.textContent)).toEqual([
+      'Copy',
+      'Ask about this',
+      'Comment on this',
+    ])
+    const pill = screen.getByRole('menuitem', { name: label })
+    expect(within(pill).getByText(label)).toBeVisible()
+    expect(pill.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(pill)
     if (intent === undefined) {
       expect(onCopy).toHaveBeenCalledOnce()
       expect(onChoose).not.toHaveBeenCalled()

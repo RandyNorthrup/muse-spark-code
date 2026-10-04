@@ -2408,52 +2408,65 @@ li:focus-within > .row-actions .row-actions-button,
   position: absolute;
 }
 
-.gooey-menu-bubbles {
+.gooey-menu-pills {
   position: absolute;
   inset: 0;
   filter: var(--ms-goo-filter);
 }
 
-.gooey-menu-bubble {
+/* Each item is a pill, its icon and then its label (the owner, 2026-10-04):
+   the old bubble's height, half-circle ends. The layout measures the drawn
+   width and caps it at the panel's (inline max-width); the ellipsis is the
+   last resort. */
+.gooey-menu-pill {
   position: absolute;
-  display: grid;
-  width: 40px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-sizing: border-box;
+  width: max-content;
   height: 40px;
-  padding: 0;
-  place-items: center;
+  padding: 0 16px 0 12px;
+  font: inherit;
   color: var(--vscode-button-foreground);
+  white-space: nowrap;
   cursor: pointer;
   background: var(--vscode-button-background);
   border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: 50%;
-  translate: -50% -50%;
+  border-radius: 20px;
   pointer-events: auto;
   animation: gooey-burst 180ms ease-out;
 }
 
-.gooey-menu-bubble:hover,
-.gooey-menu-bubble:focus-visible {
+/* A disabled item is a note ("File checkpoints need git on PATH"): the same
+   blue pill (the owner: icon and label in one blue pill), opaque so its text
+   reads and the chat never shows through it. Only its icon is dimmed, and
+   it takes no hover. */
+.gooey-menu-pill[aria-disabled='true'] {
+  cursor: default;
+}
+
+.gooey-menu-pill:not([aria-disabled='true']):hover,
+.gooey-menu-pill:not([aria-disabled='true']):focus-visible {
   background: var(--vscode-button-hoverBackground);
   outline: 2px solid var(--vscode-focusBorder);
   outline-offset: 2px;
 }
 
-.gooey-menu-bubble[aria-disabled='true'] {
-  cursor: default;
+.gooey-menu-pill-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.gooey-menu-pill[aria-disabled='true'] .gooey-menu-pill-icon {
   opacity: 50%;
 }
 
-.gooey-menu-label {
-  position: absolute;
-  box-sizing: border-box;
-  width: max-content;
-  max-width: min(180px, calc(50vw - 40px));
-  padding: 4px 8px;
-  overflow-wrap: anywhere;
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
-  border: 1px solid var(--vscode-focusBorder);
-  border-radius: 4px;
+.gooey-menu-pill-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @keyframes gooey-burst {
@@ -2466,23 +2479,27 @@ li:focus-within > .row-actions .row-actions-button,
   }
 }
 
-/* The bubbles' burst stops in the closing reduced-motion block. */
+/* The pills' burst stops in the closing reduced-motion block. */
 @media (prefers-reduced-motion: reduce) {
-  .gooey-menu-motion-safe .gooey-menu-bubbles {
+  .gooey-menu-motion-safe .gooey-menu-pills {
     filter: none;
   }
 }
 
 @media (forced-colors: active) {
-  .gooey-menu-colors-safe .gooey-menu-bubbles {
+  .gooey-menu-colors-safe .gooey-menu-pills {
     filter: none;
   }
 
-  .gooey-menu-colors-safe .gooey-menu-bubble,
-  .gooey-menu-colors-safe .gooey-menu-label {
+  .gooey-menu-colors-safe .gooey-menu-pill {
     color: ButtonText;
     background: ButtonFace;
     border-color: ButtonText;
+  }
+
+  .gooey-menu-colors-safe .gooey-menu-pill[aria-disabled='true'] {
+    color: GrayText;
+    border-color: GrayText;
   }
 }
 
@@ -3356,7 +3373,7 @@ li:focus-within > .row-actions .row-actions-button,
   .mic-button.mic-listening,
   .agent-dot-running,
   .status-mark-circle,
-  .gooey-menu-bubble {
+  .gooey-menu-pill {
     animation: none;
   }
 
