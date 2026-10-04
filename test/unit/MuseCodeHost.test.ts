@@ -8,7 +8,13 @@ import {
   MuseCodeHost,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MSP_FRAME_LIMIT_BYTES, MSP_UNRESPONSIVE_MISSES, UI_TEXT } from '../../src/shared/constants'
+import {
+  MSP_COMMAND_TIMEOUT_MS,
+  MSP_FRAME_LIMIT_BYTES,
+  MSP_LONG_COMMAND_TIMEOUT_MS,
+  MSP_UNRESPONSIVE_MISSES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { countLogged } from './helpers/logText'
@@ -537,6 +543,69 @@ describe('MuseCodeHost', () => {
     await expect(host.listModels()).rejects.toThrow(
       'Muse Code did not answer model/list within 0 s',
     )
+  })
+
+  it('keeps an output read pending past the normal deadline and uses its late reply (READS)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('item/readOutput')
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const answered = vi.fn()
+      const failed = vi.fn()
+      const read = session.readOutput({
+        itemId: 'ed',
+        outputRef: 'p',
+        offsetBytes: 0,
+        lengthBytes: 100,
+      })
+      void read.then(answered).catch(failed)
+      await vi.advanceTimersByTimeAsync(MSP_COMMAND_TIMEOUT_MS)
+      expect(answered).not.toHaveBeenCalled()
+      expect(failed).not.toHaveBeenCalled()
+      const request = server.requestsFor('item/readOutput')[0]
+      expect(request).toBeDefined()
+      server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request?.id,
+          result: {
+            content: '{"files":[]}',
+            encoding: 'utf8',
+            mediaType: 'application/json',
+            offsetBytes: 0,
+            byteLen: 12,
+            eof: true,
+          },
+        })}\n`,
+      )
+      await expect(read).resolves.toMatchObject({ content: '{"files":[]}', eof: true })
+    } finally {
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
+  it('bounds an unanswered output read at the long deadline (READS)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('item/readOutput')
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const read = session.readOutput({
+        itemId: 'ed',
+        outputRef: 'p',
+        offsetBytes: 0,
+        lengthBytes: 100,
+      })
+      const failure = expect(read).rejects.toThrow(
+        'Muse Code did not answer item/readOutput within 180 s',
+      )
+      await Promise.all([failure, vi.advanceTimersByTimeAsync(MSP_LONG_COMMAND_TIMEOUT_MS)])
+    } finally {
+      vi.useRealTimers()
+      await host.close()
+    }
   })
 
   it('turns sessionNotLoaded into SessionNotLoadedError (D25)', async () => {

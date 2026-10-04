@@ -1441,6 +1441,9 @@ the text as it is.
   read rows open on click, and a chevron marks the rows that open. Previews
   show 12 lines or 2,000 characters, with **Show more**. A backgrounded call
   carries a "background" badge.
+  During a turn, edit rows keep their visible diff or written content;
+  their stored patch loads when you reopen the row or the turn ends.
+  Turn end also retries an open row whose patch read failed.
 - The path of an edit or read row opens the file with the changed lines
   selected. Click a tool's output to open it in a read-only editor tab (a
   stored output in full, up to 16 MiB); **Click to expand** on an edit diff
@@ -2518,10 +2521,12 @@ stopped and the next message resumes the same session.
   conversation. **New conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
 - **"Could not load the output: Muse Code did not answer item/readOutput
-  within 60 s"** — a busy Muse Code answers stored-output reads one after
+  within 180 s"** — a busy Muse Code answers stored-output reads one after
   another. The panel says it once per conversation; the row keeps the diff it
-  already has, and collapsing and expanding the row asks again. At most four
-  reads go to Muse Code at a time.
+  already has, and collapsing and expanding the row asks again. An open row
+  without a page also retries once when the turn ends. Automatic edit-row
+  reads wait until then. At most four reads go to Muse Code at a time, using
+  the longer 180 s deadline so late replies can still supply the patch.
 - **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
   Spark: Restart Muse Code**. It stops `muse serve` and starts it again
   without reloading the window; a running turn is stopped, and each
