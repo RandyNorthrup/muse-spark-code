@@ -1014,3 +1014,203 @@ export.
 - **`vscode.lm`.** Usage reporting and the consent prompt for Copilot's
   models are M95's to capture; D75 assumes none is reported, so counts
   there are estimated.
+
+## 8. Scheduler and traffic: the lead's fleet practice, and the facts it rests on
+
+This section backs D75's "Scheduler and traffic" part and M96c (added
+2026-10-04 for the owner's "we need to make sure that the orchestration and
+traffic and workflows are dialed for multi agent and multi workspace/branch
+work to avoid collisions and maximize the available lanes for the agents
+including queueing agents and reassigning agents and minimizing conflict but
+maximizing productivity").
+
+Most of it is prior experience, not a published source: how the lead
+(Claude Code) runs this repository's own fleet of Claude, Codex and Muse
+agents by hand. Each entry is dated from the lead's working notes (its
+session memory and state records). None is a capture.
+
+### 8.1 How the fleet runs today
+
+- **Lanes.** One worktree and branch per lane, which the lead creates
+  before the agent starts. Shared files (constants, the stylesheet, the
+  harness, the l10n tables) are region-owned under M87's lane rules (PLAN.md,
+  M87, 2026-10-03): a lane edits only its region, beside the related block,
+  never at the file's end.
+- **Roles on different models.** Muse implements, Codex reviews read-only,
+  and the lead integrates with the final say (owner, 2026-10-04 and
+  2026-09-30).
+- **Caps per engine.**
+  - Codex: at most 5 (owner, 2026-09-30).
+  - Muse: at most 4, started a few seconds apart. The owner allowed 6, but
+    six at once overloaded Muse's backend, which answered 503 (2026-10-01).
+  - Claude: 4 or more on the Max 20x account (owner, 2026-10-04: "2 for
+    claude is not full").
+- **Watchers.** Background watchers poll each lane's log and each CI run.
+  They pick up finished work, and the lead refills the free slot (state
+  records, 2026-10-01 to 2026-10-04).
+- **Reassignment.** A Muse lane that ran out of steps was finished by
+  Codex (the lead's note, 2026-10-04).
+- **Short leashes.** Codex lanes are time-boxed at 60 minutes and checked
+  every 15 minutes with real diffs. The reason is the owner's (2026-10-03):
+  "codex will over engineer and code forever without stopping".
+- **Claims checked.** Muse drafts claimed checks that never ran, so the
+  lead re-runs every drill and gate itself (2026-09-30).
+- **Review in one pass.** Before a push, parallel reviewers each take one
+  class: concurrency and stale state; wire evidence; failure paths, cleanup,
+  secrets and docs. Every finding is fixed in one commit (owner,
+  2026-09-27).
+- **The third round.** When a third review round still finds problems,
+  patching stops and the module is redesigned (owner, 2026-09-28).
+- **A serial merge queue.**
+  - Pull requests merge one at a time, in a deliberate order by dependency
+    and blast radius, and each re-merges main first.
+  - `changelog-rebase.py` resolves the CHANGELOG: it starts from main's
+    file and re-applies only the branch's own bullet changes since the merge
+    base.
+  - `json-merge3.py` resolves the 14 l10n tables by key, because every
+    branch adds keys at the same spots and they conflicted on every main
+    merge.
+  - `changelog-kept.py` then checks that every sentence of main's CHANGELOG
+    is still there, and `changelog-fix-released.py` moves a branch's entry
+    out of a section that was released after its base (all 2026-10-03).
+  - The earlier union script was retired after three strikes of dropped or
+    lost notes (#70, #84, #96, 2026-10-03).
+- **Test once.** Small changes are batched, and the gate runs once at the
+  end (owner, 2026-09-22). GitHub's merge queue needs an
+  organisation-owned repository, so the serial order stays the lead's job
+  (owner, 2026-10-04).
+- **Rigs for heavy tests.** Every vitest run and build goes to a rig over
+  SSH (`rig-test.sh`; owner, 2026-10-01, made strict 2026-10-04). A run:
+  - builds a snapshot commit through a temporary index (uncommitted and
+    untracked files, the real index untouched);
+  - pushes it to the rig's bare repository and checks it out in a slot
+    folder;
+  - gives it `node_modules` from a per-lockfile cache, made once per
+    distinct lockfile under a creation lock.
+
+  Codex goes to the Mac mini first, Claude to Kubuntu, and Windows-only
+  tests to the Windows VM. Rig scripts are replaced by writing a new file and
+  renaming it, never edited while lanes run them.
+
+### 8.2 Incidents the design answers
+
+- **Duplicate MCP servers took a singleton tool** (2026-10-04). Each
+  `muse exec` lane loaded Chrome Control from the owner's Muse settings. The
+  browser extension takes one connection, so the lanes' copies took it from
+  the lead ("extension not attached"). The entry was removed from Muse's
+  settings for the lanes.
+- **A lane given the primary checkout** (2026-10-04). Two Codex planning
+  lanes were handed the primary checkout. They committed on new branches
+  there and left it on another branch. Since then the lead creates every
+  lane's worktree before launch.
+- **Host CPU saturation** (2026-10-01, about 22:50).
+  - About fifteen agents, five Codex runs and six Muse runs gated locally,
+    one of them running the full quality gate. They pinned 20 cores at 100%.
+  - The owner's installed extension took 211 seconds to activate, and
+    `muse serve` missed its 30-second start.
+  - Since then every agent process runs at below-normal priority, which its
+    children inherit; heavy suites run on rigs; and the host runs about two
+    vitest runs at once at most.
+- **A process storm** (2026-09-28). Chrome relaunching Chrome Control's
+  native host left about 1,200 `cmd.exe` wrappers holding 13.6 GB. Since
+  then one full gate runs at a time across worktrees.
+- **Deleting through a junction** (2026-10-02). A forced worktree removal
+  followed a `node_modules` junction and emptied another checkout's
+  `node_modules`. Agent worktrees also failed to delete with "Filename too
+  long". Since then reparse points are removed with `rmdir` before a
+  worktree is removed.
+- **Background merges outlive their stop** (2026-10-02). Stopping a
+  background merge script on Windows did not stop its children, and one
+  merged a pull request anyway.
+- **PowerShell over Windows OpenSSH** (2026-09-22). On the Windows VM,
+  `powershell -Command …` over sshd blocked forever reading the open
+  standard-input pipe, and even `ssh -n` with `-InputFormat None` and input
+  from `nul` did not cure it there. Plain `cmd` commands worked. The VM
+  now runs tests through a scheduled task in the user's session.
+
+### 8.3 Technical facts
+
+All read on 2026-10-04.
+
+- **`git merge-file`**
+  ([git-scm.com/docs/git-merge-file](https://git-scm.com/docs/git-merge-file)):
+  - "The exit value of this program is negative on error, and the number of
+    conflicts otherwise (truncated to 127 if there are more than that many
+    conflicts). If the merge was clean, the exit value is 0."
+  - `-p`: "Send results to standard output instead of overwriting
+    <current>."
+  - So a trial merge in memory predicts the real merge's outcome exactly.
+- **`git patch-id`**
+  ([git-scm.com/docs/git-patch-id](https://git-scm.com/docs/git-patch-id)):
+  - "A 'patch ID' is nothing but a sum of SHA-1 of the file diffs associated
+    with a patch, with line numbers ignored."
+  - With `--stable`, "Reordering file diffs that make up a patch does not
+    affect the ID", and "All whitespace within the patch is ignored".
+  - So a branch refreshed onto a moved base keeps its patch ID when its own
+    change is unchanged.
+- **Copy-on-write copies in Node**
+  ([nodejs/node doc/api/fs.md](https://raw.githubusercontent.com/nodejs/node/main/doc/api/fs.md)):
+  - `fs.constants.COPYFILE_FICLONE`: "The copy operation will attempt to
+    create a copy-on-write reflink. If the platform does not support
+    copy-on-write, then a fallback copy mechanism is used."
+  - `COPYFILE_FICLONE_FORCE` fails instead.
+- **Process priority and load in Node**
+  ([nodejs.org/api/os.html](https://nodejs.org/api/os.html)):
+  - `os.setPriority([pid, ]priority)` maps the value to "one of six priority
+    constants in `os.constants.priority`".
+  - `PRIORITY_BELOW_NORMAL` "corresponds to `BELOW_NORMAL_PRIORITY_CLASS` on
+    Windows, and a nice value of `10` on all other platforms".
+  - `os.loadavg()`: "On Windows, the return value is always `[0, 0, 0]`".
+    So the load guard samples `os.cpus()` times instead.
+  - `os.availableParallelism()` "Returns an estimate of the default amount
+    of parallelism a program should use."
+- **OpenSSH client options**
+  ([man.openbsd.org/ssh_config](https://man.openbsd.org/ssh_config)):
+  - `BatchMode`: "If set to `yes`, user interaction such as password prompts
+    and host key confirmation requests will be disabled."
+  - `StrictHostKeyChecking yes`: "ssh will never automatically add host keys
+    to the ~/.ssh/known_hosts file."
+  - `ForwardAgent`: "Specifies whether the connection to the authentication
+    agent (if any) will be forwarded to the remote machine."
+  - `ConnectTimeout`: "the timeout (in seconds) used when connecting to the
+    SSH server".
+- **Changelog fragments**
+  ([towncrier tutorial](https://towncrier.readthedocs.io/en/stable/tutorial.html)):
+  - "the filename consists of the issue/ticket ID (or some other unique
+    identifier) as well as the 'type'".
+  - `towncrier build` combines the fragments into the news file. The
+    changesets tool keeps the same one-file-per-change shape in
+    `.changeset/`.
+- **VS Code's global storage.** `ExtensionContext.globalStorageUri` is "a
+  directory in which the extension can store global state" (`@types/vscode`
+  1.125.0, `index.d.ts`). It lives in each editor's own user-data folder, so
+  Stable, Insiders, VSCodium and Cursor each have their own. The ACP agent
+  outside VS Code has none.
+
+### 8.4 What D75 takes from §8
+
+- **The lead's lanes become the scheduler.** It brings the board of
+  dependent tasks, the lanes kept full by an event-driven watcher, caps per
+  engine, staggered starts, reassignment of a stalled lane with a handoff,
+  divergence stopped and handed back, review by class in one pass, and the
+  third-round redesign.
+- **The lead's region ownership becomes write-set leases.** Tasks lease
+  files and regions. Overlaps are predicted with real trial merges. The
+  structured merges cover the regions, the l10n tables (by key) and the
+  CHANGELOG (changelog-rebase, the kept check and the released-section
+  guard; never a union).
+- **The lead's serial queue becomes the merge queue.** It is ordered by
+  dependency, priority, conflicts and blast radius. It tests the merged
+  result, batches small changes, bisects to the culprit and retries a
+  flaky check once.
+- **The lead's rigs become runners.** Snapshots go through a temporary
+  index, dependency caches are keyed by lockfile, routing follows labels
+  and affinity, and helpers are replaced by rename. Windows runners get a
+  self-test for the standard-input hang.
+- **The incidents become machine-wide rules.**
+  - One coordinator for every window, with leases on singleton servers and
+    a single running instance of each.
+  - The working copy checked never to be the user's checkout.
+  - Below-normal priority, heavy-command slots and a load guard.
+  - Cleanup that never follows a link.
+  - Process trees ended on cancel.
