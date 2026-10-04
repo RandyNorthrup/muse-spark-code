@@ -14,7 +14,11 @@ import { isProtectedPath } from './core/protectedPaths'
 import type { EditedFile } from './core/verify/diagnosticsReport'
 import { readBackendChoice } from './core/backendSelection'
 import { personalAgentsRoot } from './core/context/customAgents'
-import { personalSkillsRoot } from './core/context/skills'
+import {
+  bundledSkillSourcesRoot,
+  bundledSkillsPackageRoot,
+  personalSkillsRoot,
+} from './core/context/skills'
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
@@ -94,6 +98,13 @@ import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
+import {
+  bundledSkillsLoader,
+  createBundledSkillsOffer,
+  runBundledSkillsInstall,
+  runBundledSkillsRemove,
+  type BundledSkillsCommandDeps,
+} from './host/skills/bundledSkills'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -122,6 +133,7 @@ import {
   readProxySettings,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
+import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
@@ -158,6 +170,8 @@ import {
   MODEL_API_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
+  BUNDLED_SKILLS_BUNDLE_FILE,
+  BUNDLED_SKILLS_SETTING,
   CHECKPOINT_STORE_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
@@ -1349,6 +1363,50 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The managed personal agent root (M76, PLAN.md D13): the extension's own
   // folder, since the CLI names none.
   const agentsHome = personalAgentsRoot(museConfig())
+  // The bundled skills (M89, PLAN.md D68): the package vendored inside this
+  // extension, a skill source on the Model API backend while its setting is
+  // on, and installed for Muse Code only by the commands or the panel's
+  // one-time offer, through the installer's own bundle.
+  const bundledPackageRoot = bundledSkillsPackageRoot(context.extensionPath, process.platform)
+  const bundledSkillsBundle = bundledSkillsLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', BUNDLED_SKILLS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
+  const bundledSkillsPaths = () => ({
+    vendorRoot: bundledPackageRoot,
+    skillsRoot: personalSkillsRoot(museConfig()),
+    sourcesRoot: bundledSkillSourcesRoot(museConfig()),
+  })
+  const bundledSkillsOffer = createBundledSkillsOffer({
+    isEnabled: () => currentSettings().bundledSkills,
+    state: context.globalState,
+    keys: {
+      installDeclined: GLOBAL_STATE_KEYS.bundledSkillsInstallDeclined,
+      updateDeclined: GLOBAL_STATE_KEYS.bundledSkillsUpdateDeclined,
+    },
+    status: () => bundledSkillsBundle().bundledSkillsStatus(bundledSkillsPaths()),
+  })
+  const bundledSkillsCommand = (): BundledSkillsCommandDeps => ({
+    bundle: bundledSkillsBundle,
+    paths: bundledSkillsPaths,
+    platform: process.platform,
+    now: () => Date.now(),
+    newId: () => crypto.randomUUID(),
+    showInformation: (message) => {
+      void vscode.window.showInformationMessage(message)
+    },
+    showError: loggedPopups(log).showError,
+    isMuseCodeRunning: () => backend.isRunning,
+    confirmRestart: async () =>
+      (await vscode.window.showInformationMessage(
+        UI_TEXT.skillsRestartPrompt,
+        UI_TEXT.restartNow,
+        UI_TEXT.restartLater,
+      )) === UI_TEXT.restartNow,
+    restart: () => restartMuseCode('the bundled skills changed'),
+    log,
+  })
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
   // home `muse serve` sees (`museSpark.environmentVariables` included). The
@@ -1475,6 +1533,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }),
     random: () => Math.random(),
     personalSkillsRoot: skillsHome,
+    bundledSkills: {
+      packageRoot: bundledPackageRoot,
+      isEnabled: () => currentSettings().bundledSkills,
+    },
     personalAgentsRoot: agentsHome,
     isWorkspaceTrusted: () => vscode.workspace.isTrusted,
     isConfidentialWorkspace: () => currentSettings().confidentialWorkspace,
@@ -1800,6 +1862,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         await restartMuseCode('asked for from a notice in the panel')
         break
       }
+      // The bundled skills' offer (M89): Install and Update are the same steps.
+      case 'installBundledSkills':
+      case 'updateBundledSkills': {
+        await runBundledSkillsInstall(bundledSkillsCommand())
+        break
+      }
+      case 'declineBundledSkills': {
+        await bundledSkillsOffer.decline()
+        break
+      }
     }
   }
 
@@ -2011,6 +2083,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             vscode.workspace.isTrusted ? settings.checkCommands : [],
           )
         },
+        bundledSkillsOffer: () => bundledSkillsOffer.next(),
         // The session board's pending prompts, shared by every surface (M77).
         pendingPrompts: boardPrompts,
         boardSessions: () => {
@@ -2229,6 +2302,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // A paid feature turned on anywhere asks for its price once (D30).
       if (paid.affects(event)) {
         void paid.gate.review().catch(logRejection(log, 'paid feature review'))
+      }
+      // The bundled skills on or off: the Model API catalogue follows (M89).
+      if (event.affectsConfiguration(BUNDLED_SKILLS_SETTING)) {
+        onSkillFilesChanged()
       }
       // Turning the Bypass setting off ends Bypass everywhere now (D24).
       if (
@@ -2481,6 +2558,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Said in VS Code: the palette may run it with no panel open.
       void vscode.window.showInformationMessage(UI_TEXT.museCodeRestarted)
     }),
+    // M89 (PLAN.md D68): the bundled skills into Muse Code's folders, and out.
+    registerLoggedCommand(log, COMMAND_IDS.installBundledSkills, () =>
+      runBundledSkillsInstall(bundledSkillsCommand()),
+    ),
+    registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, () =>
+      runBundledSkillsRemove(bundledSkillsCommand()),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importFromAgents, () => cliFeatures.importFromAgents()),

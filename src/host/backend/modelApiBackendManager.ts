@@ -26,6 +26,7 @@ import type { ScheduleStore } from '../../shared/schedule'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../core/backends/modelapi/verifyLoop'
 import type { ContextIo } from '../../core/context/contextFiles'
+import type { BundledSkillsSource } from '../../core/context/skills'
 import type { LanguageServiceHost } from '../../core/codeIntel/languageService'
 import type { McpTool } from '../../core/mcp'
 import type { MemoryStore } from '../../core/memory/memoryStore'
@@ -63,12 +64,15 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** The rules, skills and memory loaders' file access (PLAN.md D27). */
   readonly contextIo: ContextIo
   readonly fetch: typeof fetch
+  readonly streamIdleMs?: number
   readonly newId: () => string
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly random: () => number
   /** Muse Code's personal skill root (PLAN.md D13). */
   readonly personalSkillsRoot: string | undefined
+  /** The skills that ship with the extension and their setting (M89, PLAN.md D68). */
+  readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76). */
   readonly personalAgentsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
@@ -241,6 +245,7 @@ export class ModelApiBackendManager {
       uiLocale: uiLocale(),
       client: {
         fetch: this.deps.fetch,
+        ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
         apiKey: this.deps.getApiKey,
         sleep: this.deps.sleep,
@@ -258,6 +263,7 @@ export class ModelApiBackendManager {
         now: this.deps.now,
         log: this.deps.log,
         personalSkillsRoot: this.deps.personalSkillsRoot,
+        bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,

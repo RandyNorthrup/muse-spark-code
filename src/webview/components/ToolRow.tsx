@@ -52,6 +52,7 @@ type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 export interface ToolRowProps {
   readonly entry: ToolEntry
+  readonly isRunning: boolean
   readonly patchPage: OutputPage | undefined
   readonly onReadOutput: (itemId: string, outputRef: string, offsetBytes: number) => void
   /** The whole output as an editor tab (M15): the stored output when there is a ref. */
@@ -262,6 +263,9 @@ function TaskAction({
  * OUTPUT_PAGE_BYTES used to stop at a partial document and fall back to the
  * unnumbered diff), within the host's own page budget.
  *
+ * Automatic reads wait for the conversation's turn to end, keeping Muse
+ * Code's command queue clear for approvals. Reopening a row reads on demand;
+ * a missing page gets one more attempt when the turn ends.
  * Only once the edit has finished: Muse Code 1.4.2 names the patch while the
  * edit is still in progress, and a read then can answer "item or attached
  * output ref was not found" (captured 2026-10-02). A page asked for and not
@@ -271,11 +275,15 @@ function TaskAction({
 function usePatchPages(
   entry: ToolEntry,
   isOpen: boolean,
+  isRunning: boolean,
   patchPage: OutputPage | undefined,
   onReadOutput: ToolRowProps['onReadOutput'],
 ): void {
   const requested = useRef(new Set<number>())
   const hadPage = useRef(false)
+  const openState = useRef(isOpen)
+  const runningState = useRef(isRunning)
+  const openedByUser = useRef(false)
   const patchRefId = entry.patchRef?.id
   const isFinished = entry.status !== TOOL_STATUS_IN_PROGRESS
   const hasPage = patchPage !== undefined
@@ -283,11 +291,23 @@ function usePatchPages(
   const isWhole = patchPage?.isEof === true
   useEffect(() => {
     const pages = requested.current
+    const didTurnEnd = runningState.current && !isRunning
+    if (isRunning && !runningState.current) {
+      openedByUser.current = false
+    }
+    if (openState.current !== isOpen) {
+      openedByUser.current = isOpen
+    }
+    openState.current = isOpen
+    runningState.current = isRunning
     // Pages the reducer dropped (a resumed or forked history) are fetched again.
     if (!hasPage && hadPage.current) {
       pages.clear()
     }
     hadPage.current = hasPage
+    if (didTurnEnd && !hasPage) {
+      pages.delete(nextOffset)
+    }
     if (!isOpen) {
       pages.delete(nextOffset)
       return
@@ -297,13 +317,24 @@ function usePatchPages(
       isWhole ||
       patchRefId === undefined ||
       pages.has(nextOffset) ||
-      pages.size >= PATCH_DOCUMENT_MAX_PAGES
+      pages.size >= PATCH_DOCUMENT_MAX_PAGES ||
+      (isRunning && !openedByUser.current)
     ) {
       return
     }
     pages.add(nextOffset)
     onReadOutput(entry.id, patchRefId, nextOffset)
-  }, [isOpen, isFinished, isWhole, hasPage, nextOffset, patchRefId, entry.id, onReadOutput])
+  }, [
+    isOpen,
+    isRunning,
+    isFinished,
+    isWhole,
+    hasPage,
+    nextOffset,
+    patchRefId,
+    entry.id,
+    onReadOutput,
+  ])
 }
 
 /** The pictures the row shows: the one its path names, then any the tool reported (M43). */
@@ -314,6 +345,7 @@ function imagePathsOf(entry: ToolEntry, imagePath: string | undefined): readonly
 
 function ToolRowView({
   entry,
+  isRunning,
   patchPage,
   onReadOutput,
   onOpenOutput,
@@ -350,7 +382,7 @@ function ToolRowView({
   // partway, M67) can be reviewed and reverted in the editor.
   const reviewRef =
     presentation.body === 'edit' && hasLandedEdits(entry) ? entry.patchRef : undefined
-  usePatchPages(entry, isOpen, patchPage, onReadOutput)
+  usePatchPages(entry, isOpen, isRunning, patchPage, onReadOutput)
   // Parsed once per page, not per render (M25); a partial document parses to nothing.
   const patchContent = patchPage?.isEof === true ? patchPage.content : undefined
   const files = useMemo(

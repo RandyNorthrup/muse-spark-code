@@ -253,6 +253,8 @@ function setup(
     platform?: NodeJS.Platform
     files?: Record<string, string>
     personalSkillsRoot?: string
+    /** The skills that ship with the extension (M89). */
+    bundledSkills?: ModelApiHostDeps['bundledSkills']
     personalAgentsRoot?: string
     isTrusted?: boolean | (() => boolean)
     isConfidentialWorkspace?: boolean | (() => boolean)
@@ -378,6 +380,7 @@ function setup(
     },
     log,
     personalSkillsRoot: options.personalSkillsRoot,
+    bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
@@ -6343,6 +6346,75 @@ describe('ModelApiSession: workspace context (M10)', () => {
         : [],
     )
     expect(failures).toEqual(['unknown skill nope', 'invalid arguments: id is required'])
+  })
+
+  it('gives a bundled skill to the model after one line naming its package root, by read_skill and by /id (M89)', async () => {
+    const packageRoot = `${ROOT}/.ext/vendor/high-quality-projects-skill`
+    const t = setup({
+      files: {
+        '.ext/vendor/high-quality-projects-skill/skills/feature_delivery/SKILL.md': skillFile(
+          'feature_delivery',
+          'Deliver a feature',
+          `Read \${SKILL_ROOT}/docs/DELIVERY.md.`,
+        ),
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+      },
+      bundledSkills: { packageRoot, isEnabled: () => true },
+    })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_skill', arguments: '{"id":"feature_delivery"}', callId: 'c1' },
+          { name: 'read_skill', arguments: '{"id":"shout"}', callId: 'c2' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'skill', selector: 'feature_delivery', arguments: 'x' }])
+    await turnDone()
+    const rootLine = `This skill ships with the Muse Spark extension; its package root, SKILL_ROOT, is ${packageRoot}`
+    const bodies = t.api.responseBodies()
+    expect(bodies[0]?.['instructions']).toContain('- feature_delivery: Deliver a feature')
+    expect((bodies[0]?.['input'] as Record<string, unknown>[])[0]).toEqual({
+      type: 'message',
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: `The user invoked the skill "feature_delivery". Arguments: x\n\n${rootLine}\n\nRead \${SKILL_ROOT}/docs/DELIVERY.md.`,
+        },
+      ],
+    })
+    const outputs = (bodies[1]?.['input'] as Record<string, unknown>[]).filter(
+      (item) => item['type'] === 'function_call_output',
+    )
+    expect(outputs.map((item) => item['output'])).toEqual([
+      `Skill feature_delivery: Deliver a feature\n\n${rootLine}\n\nRead \${SKILL_ROOT}/docs/DELIVERY.md.`,
+      // A project skill has no package root, so no line.
+      'Skill shout: Repeat in caps\n\nUPPER CASE.',
+    ])
+    expect(
+      events.flatMap((event) =>
+        event.type === 'itemCompleted' && event.item.kind === 'toolCall'
+          ? [event.item.visibleOutput]
+          : [],
+      ),
+    ).toEqual(['Loaded skill feature_delivery (bundled)', 'Loaded skill shout (project)'])
+    await expect(session.listSkills()).resolves.toEqual([
+      {
+        selector: 'shout',
+        displayName: 'shout',
+        description: 'Repeat in caps',
+        argumentHint: undefined,
+      },
+      {
+        selector: 'feature_delivery',
+        displayName: 'feature_delivery',
+        description: 'Deliver a feature',
+        argumentHint: undefined,
+      },
+    ])
   })
 
   it('offers no shell, refuses one, and loads no context in Restricted Mode', async () => {

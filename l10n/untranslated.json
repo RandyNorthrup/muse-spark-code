@@ -42,7 +42,9 @@
       "namedFilesMore",
       "noticeRepeatBadge",
       "agentImportSourceCursor",
-      "exportThenRunSkipped"
+      "exportThenRunSkipped",
+      "execUsage",
+      "execScanUsage"
     ],
     "cs": [
       "groupModel",

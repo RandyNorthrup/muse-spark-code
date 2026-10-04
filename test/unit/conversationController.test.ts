@@ -293,6 +293,8 @@ function setup(
     isAutosaveEnabled?: boolean
     /** The verify loop's note to Muse Code (M68). */
     verifyGuidance?: (hasIdeServer: boolean) => string | undefined
+    /** The bundled skills' offer for Muse Code (M89). */
+    bundledSkillsOffer?: ConversationDeps['bundledSkillsOffer']
     /** Files the fake mention index lists (for the selection-text rule). */
     indexed?: readonly string[]
     ideMcpEndpoint?: SessionMcpHttpServer
@@ -671,6 +673,9 @@ function setup(
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     ...(options.verifyGuidance !== undefined && { verifyGuidance: options.verifyGuidance }),
+    ...(options.bundledSkillsOffer !== undefined && {
+      bundledSkillsOffer: options.bundledSkillsOffer,
+    }),
     saveAll,
     unsavedFiles: () => unsaved.files,
     applyCode: (text: string) => {
@@ -2680,6 +2685,49 @@ describe('ConversationController: transcript actions (M4)', () => {
     await posix.send('l1', 'hi')
     for (const t of [outside, posix]) {
       expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    }
+  })
+})
+
+describe('ConversationController: the bundled skills offer (M89)', () => {
+  const OFFER = {
+    text: 'Muse Spark comes with the skills a, b.',
+    actions: ['installBundledSkills', 'declineBundledSkills'] as const,
+  }
+
+  it('posts the offer with its buttons when a Muse Code conversation starts', async () => {
+    const offer = vi.fn(() => Promise.resolve(OFFER))
+    const t = setup({ bundledSkillsOffer: offer })
+    await t.send('l1', 'hi')
+    await vi.waitFor(() => {
+      expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+        { type: 'notice', level: 'info', text: OFFER.text, actions: [...OFFER.actions] },
+      ])
+    })
+    expect(offer).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks nothing on the Model API backend', async () => {
+    const offer = vi.fn(() => Promise.resolve(OFFER))
+    const t = setup({ bundledSkillsOffer: offer, backendKind: 'modelApi' })
+    await t.send('l1', 'hi')
+    expect(offer).not.toHaveBeenCalled()
+  })
+
+  it('shows nothing when there is nothing to offer, or the offer fails, and logs the failure', async () => {
+    const none = setup({ bundledSkillsOffer: () => Promise.resolve(undefined) })
+    await none.send('l1', 'hi')
+    const failing = setup({
+      bundledSkillsOffer: () => Promise.reject(new Error('VENDOR.json is missing')),
+    })
+    await failing.send('l1', 'hi')
+    await vi.waitFor(() => {
+      expect(failing.log.warn).toHaveBeenCalledWith(
+        'The bundled skills could not be offered: VENDOR.json is missing',
+      )
+    })
+    for (const t of [none, failing]) {
+      expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([])
     }
   })
 })

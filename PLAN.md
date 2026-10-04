@@ -228,10 +228,11 @@ quality`) and as a CI job.
 | `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
 | `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`           | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                                                     |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 100.2 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
 | `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
 | `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
 | `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
 | `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
@@ -1282,6 +1283,18 @@ Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
   patch only once the item is finished. A read in flight is joined. A
   failed read is said once per conversation, at warning level, with how to
   retry (collapse and expand the row, which asks again).
+  - **READS correction (2026-10-03, 0.11.0).** Automatic patch reads wait
+    until the conversation's turn ends; the existing diff or written
+    content stays visible meanwhile. Reopening a row requests its patch
+    during a turn. At turn end, an open row without a page clears its
+    request marker and asks once, including after a failed read. A loaded
+    page is kept. `item/readOutput` uses the existing 180 s long-command
+    deadline so the four-read limiter retains its slots longer and accepts
+    replies past 60 s. No new protocol or notice text. Acceptance: deferred
+    reads, explicit reopening, one turn-end retry, loaded-page preservation,
+    the long deadline, and deliberate guard failures. Scoped lane gates
+    replace full quality here; lead owns the full machine matrix.
+    Evidence: `docs/certification/output-reads.md`.
 - **Startup (no change).** 0.10.1's slow-start wait already covers the
   owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
   The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s
@@ -2842,6 +2855,10 @@ the price accepted once, then only the row, the badge and the tally).
   Model API backend with a pay-as-you-go key is that consent (D1, D37); the
   popup covers what costs extra beyond it.
 
+**M80 headless amendment (D65):** interactive consent above is unchanged.
+Headless images use the explicit flag, `acceptEdits`, hard cap and per-use
+admission/tally; no remembered grant is accessed. Hosted search is refused.
+
 ### D49 — Coding quality first: what to build next (2026-09-27)
 
 The owner (2026-09-27):
@@ -3257,14 +3274,11 @@ add-generic-password -w` takes it as an argument, visible to `ps`. A
   of its own environment at start (`src/runtime/credentialVariables.ts`)
   and hands them back to Muse Code's processes only, so a shell command,
   a hook, git or a helper never sees one.
-- **AGENTS.md rule 8 (amended 2026-09-28)** names this store as
-  SecretStorage's stand-in outside VS Code (it is the store SecretStorage
-  itself rests on), filled only through `auth set`'s standard input and
-  never passed to a child process. Its one named exception is M80's CI
-  bootstrap: GitHub hands a secret to a step only through its environment
-  or script, so the Action's step shell is the one environment the key is
-  ever in; it pipes the key to `auth set` and unsets it before `exec`
-  starts.
+- **AGENTS.md rule 8 (amended 2026-10-02, D65)** retains local OS-store
+  authentication and names CI's memory-only stdin exception: the trusted
+  launcher feeds only `exec --key-stdin` and the trusted
+  `scan-secrets --key-stdin` child. CI does not use `auth set`, a throwaway
+  keyring or an environment-key fallback inside the agent.
 - **Later**: offering, in VS Code, to copy the key into the OS store for
   the other editors needs the native module in the `.vsix`, so
   per-platform packages (with M64).
@@ -3387,6 +3401,10 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
     lapses in every folder when the agent starts without that feature's
     flag, so turning the flag on again asks again (the panel's grant
     generation, D48, in the agent's terms).
+- **Headless M80 (D65):** `exec` replaces editor questions with denials.
+  Only explicitly flagged, affordable, ordinary image uses in `acceptEdits`
+  may proceed; protected/asking uses are denied. No grant store is touched.
+  Local OS-store auth remains; CI feeds exec and scanner by private stdin.
 - **Networks (Q66, 2026-09-27): loud, not re-routed.** VS Code's proxy and
   certificate settings do not reach the agent, and Node's `fetch` uses the
   environment's proxy only with `NODE_USE_ENV_PROXY=1` (Node 22.21+, 24+).
@@ -3472,6 +3490,40 @@ detector, heuristic, option or plan-format migration. The delivery ledger
 validator remains deferred because this canonical plan has no ledger;
 focused behavioral evidence and SHA-256-restored red drills go in
 `docs/certification/m83e.md`. Full quality and native UI remain lead-owned.
+
+### D65 — Headless execution and CI key readers (M80, 2026-10-02)
+
+Numbered D64 while it was built; M83 merged its own D64 first, so this
+decision became D65 at integration (2026-10-02).
+
+**The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
+
+Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
+nor a throwaway keyring nor an environment-key fallback inside the agent.
+One bounded launcher owns diff generation, exec, extraction, patch Git,
+the trusted scanner and publication. Cancellation closes publication, stops
+later children and clears key references in finally; it cannot guarantee
+physical memory zeroization or graceful Windows signal delivery.
+
+Headless paid images require an explicit flag, `acceptEdits`, a hard USD cap
+and per-use ledger admission/settlement. Protected paths and `requiresAsking`
+are denied. No remembered grants, ordinary approval grants or translated-title
+policy decisions apply. Hosted search, voice, subagents and schedules stay off;
+the subscription pays none of these Model API calls. D48/D62's interactive
+popup policy remains in force for interactive sessions.
+
+Admission reserves the documented context-window liability for each attempt,
+including retries, using integer micro-USD and upward rounding (F1).
+Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
+$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
+reservation. The conditional billing theorem and provider assumptions are in
+[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+
+Proposals, secret-free tests and reviewer-approved push run in separate jobs.
+Text patches publish only after exact staged-byte scanning. Any binary/image
+change withholds the entire patch. Registry installs require npm 11.19.0's
+verified provenance bundle, subject/digest and release-workflow certificate
+identity; unsigned candidate digests provide a different claim.
 
 ### D66 — Panel polish from the owner's requests of 2026-10-03 (M87)
 
@@ -3971,6 +4023,55 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     window's reset) gets no timer: a timed send could only go before it
     lifts. The row says when it lifts instead.
 
+### D68 — Bundled skills: high-quality-projects in the box (M89, 2026-10-03)
+
+The owner asked to bundle his skill package
+([high-quality-projects-skill](https://github.com/RandyNorthrup/high-quality-projects-skill),
+MIT, © Randy Northrup) so every user of the extension has it. It holds three
+workflows (`project_setup`, `feature_delivery`, `quality_retrofit`) that depend
+on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
+`templates/` and references, so a skill is never shipped as a lone `SKILL.md`.
+
+- **The owner's answers (2026-10-03).** Both backends, Muse Code by opt-in;
+  on by default.
+- **A pinned, vendored release.** `vendor/high-quality-projects-skill/` holds
+  the files of one tagged release (v0.7.0 first), copied by
+  `scripts/sync-bundled-skills.mjs` from the release archive after its SHA-256
+  matches the release's `SHA256SUMS.txt`. `VENDOR.json` records the tag, the
+  archive's SHA-256 and each copied path's SHA-256, pinning the vendored bytes. Builds stay offline and
+  reproducible; nothing is downloaded at run time. A newer tag is taken by
+  rerunning the script in a PR, with its CHANGELOG entry. Only what the
+  workflows read ships: `skills/`, `scripts/` (not `build-release.ps1`),
+  `templates/`, `AGENTS.md`, `LICENSE`, `README.md` and the `docs/` pages the
+  skills cite; never `tests/`, `docs/assets/`, `docs/evaluations/` or the
+  package's own CI files. The licence is listed in `THIRD_PARTY_NOTICES.txt`.
+- **Model API backend: a third skill source.** `SKILL_SOURCES` gains
+  `bundled`, the lowest precedence: a project or personal skill with the same
+  id shadows it, so a user's own copy always wins. Its root is the vendored
+  `skills/` folder inside the installed extension, read through the same
+  bounded loader as the others. `museSpark.bundledSkills` (machine-scoped
+  boolean, default `true`) turns the source off. When the model reads a
+  bundled skill (`read_skill` or a typed `/id`), the body is preceded by one
+  line naming the package root, so the skill's `SKILL_ROOT` resolves to the
+  vendored package; its scripts still run only through the shell tool, under
+  the session's permission mode, like any other command.
+- **Muse Code backend: an explicit install.** Muse Code reads only its own
+  skill folders, so **Muse Spark: Install Bundled Skills for Muse Code** copies
+  the vendored package to `<config home>/muse/skill-sources/high-quality-projects-skill/`
+  and links each workflow into Muse Code's personal skills folder
+  (`<config home>/muse/skills/<id>`): a junction on Windows, a directory symlink
+  elsewhere, as the package's own install guide prescribes. An id that already
+  exists there is left alone and named in the result. A marker file in the
+  copied package records the installed tag, and only folders carrying it are
+  ever replaced or removed. The install is offered once (a panel notice with
+  **Install** and **Not now**, the first time a Muse Code conversation starts
+  with the setting on). When the extension ships a newer vendored tag than an
+  installed one, the panel offers **Update** once. **Muse Spark: Remove Bundled
+  Skills from Muse Code** removes exactly what the install made. Nothing is
+  written to the user's config folder without one of these actions.
+- **Requirements stay the package's.** The delivery helpers need Python 3;
+  the README says so, and a missing Python is the script's own error.
+
 ### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
 
 The owner reported clicking as many approvals in Auto as in Manual on the
@@ -4008,19 +4109,21 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   protect, a paid call, a child task or a question that is not an approval.
   One review at a time per window.
 - **Tool boundary.** Muse Code's SDK `SessionConfig` only configures
-  `mcpServers`; it cannot disable native tools. Any side-turn item other
-  than an agent message or reasoning cancels the turn, shows the normal
-  card with the generic failure reason, and recreates the side session.
+  `mcpServers`; it cannot disable native tools. Any review-turn item other
+  than the captured ones (the prompt's echo, Muse Code's reminder agents,
+  reasoning and the reply) cancels the turn, shows the normal card with the
+  generic failure reason, and recreates the side session.
   Residual: a command covered by the user's always-allow rule could run in
   the empty folder before cancellation lands. The captured setup supplied
   no workspace files, rules or skills; CLI-global context is not excluded.
-- **Verdict boundary (review fixes, 2026-10-03).** Changed kind, command,
-  path, host or tool name invalidates both a held review and a later-stage
+- **Verdict boundary (review fixes, 2026-10-03 and -04).** Changed kind,
+  command, path, access, host, target or tool name invalidates both a held review and a later-stage
   allowance. Accepted messages and steering release held reviews and clear
   allowances. Queue admission rechecks the breaker; reasoning setup shares
   the deadline and cancellation. Only a completed reply in a completed
   turn carries a verdict. Unseen tool resolutions retain attribution for
-  the newest 50 item ids until their rows arrive.
+  the newest 50 item ids until their rows arrive, live or from a same-session
+  history read, which also keeps the outcomes the panel saw.
 - **Shown, not hidden.** An approval the reviewer allowed shows in the
   transcript as allowed by the reviewer, with its reason; an ASK shows the
   reason on the card the user answers.
@@ -4037,6 +4140,13 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   the fallback.
 
 ## 3. Open questions (need the owner)
+
+- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
+  flag/hard cap, required real Action receipt, and hosted-search refusal are
+  settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
+  metadata on failure. D-M6 correction: fake W spends $0 actual money;
+  text/review simulates $0.000004, one returned image makes $0.010004, about
+  one cent, under $1.00. No claim of a sub-cent successful image.
 
 - **CLI recovery, the steer refusal's reason:** which `commandRejected`
   reason does Muse Code send for a `turn/steer` whose `expectedTurnId` is no
@@ -5557,6 +5667,24 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   signing credentials created.
 
 ### M27 — The tree kill's orphans (D25)
+
+**JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
+PRs #96 and #89 hid the helper's preparation error and kept its failed
+promise for the session. Keep compilation and success caching unchanged;
+clear only an unavailable result so the next caller tries preparation
+again, sharing each in-flight attempt. Collect the real helper log in
+`toolIo.test.ts`'s missing-helper assertion. Prove compile and self-test
+recovery with fake runners, deliberately restore the old cache to see the
+regressions fail, then restore exact bytes. Run the two owned suites on
+Win11 and the lane's scoped gates; full quality remains the lead's gate
+under `common.md`. Record the paths to unavailability and actual receipts
+in `docs/certification/jobflake.md`. The first hosted failure's specific
+trigger remains unknown until the improved assertion captures it.
+Final Win11 proof: 53 passed, 2 existing platform skips. All five type
+projects, scoped lint/format, host API, duplication, dead code,
+localization and production build passed. Both recovery controls failed
+with the old cache and passed after exact-byte restoration. Aggregate
+quality and the unchanged pins' npm audit triage remain with the lead.
 
 **Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
 merged through pull request #12 from `hardening/m27-orphans`, shipped in
@@ -10703,72 +10831,114 @@ independent review and the full candidate gates remain required.**
   for a stronger plan location (`specs/…/plan.md`, `docs/plans/`), which is
   the model's judgement, not a fixed name (D13).
 
-### M80 — Headless and CI (D49)
+### M80 — Headless and CI (D49, D65)
 
-- **Goal.** The agent runs where the editor does not.
-- **Scope.**
-  - An `exec` mode in the ACP agent's package:
-    - a prompt in, JSONL events or a final JSON out;
-    - a schema for the output;
-    - a budget, kept by reservation as in M82, and an attempt cap.
-  - M80 builds on M63 and D61 (PR #32), and on PR #32's amendment of
-    AGENTS.md rule 8, which names the OS credential store as the store
-    outside VS Code (the one SecretStorage itself rests on) and this
-    bootstrap as its one exception.
-  - A GitHub Action for PR review and "fix this" comments, on the user's
-    own runners and key.
-    - It runs only for triggers from the repository's owners, members and
-      collaborators, on branches of the same repository. The key is never
-      present on a job that checks out a fork's code
-      (`pull_request_target` included), and the Action refuses a
-      self-hosted runner on a public repository.
-    - `exec` denies every approval question, has no shell or check tools
-      on PR content, and never uses `--trust-workspace`. A tool process
-      it starts gets no `DBUS_SESSION_BUS_ADDRESS` or other route to the
-      keyring session.
-    - The OS credential store does not protect the key from processes of
-      the same user, which is why nothing from the PR runs beside it.
-  - **The key follows D61 and AGENTS.md rule 8.**
-    - It lives in the operating system's credential store, the one the
-      ACP agent already uses (`@napi-rs/keyring`, filled by
-      `muse-spark-code-acp auth set` from standard input).
-    - Its one way in is `auth set`'s standard input: from the user's
-      terminal locally, from the Action's step shell in CI.
-    - Inside the agent it is never passed as an environment variable, an
-      argument or a file, and never to a process the agent starts (a
-      tool, a check, `exec`'s commands).
-    - A local headless run reads that entry, like the ACP agent.
-    - In CI the Action sets, runs and clears inside one shell: on Linux,
-      one `dbus-run-session` that starts and unlocks a throwaway keyring,
-      pipes the repository secret into `auth set` through standard
-      input, runs `exec`, and clears the entry on exit; on macOS and
-      Windows, the runner's own store, cleared in an always-run step. The
-      entry's account name is unique to the run, so concurrent jobs and a
-      developer's own key on a self-hosted runner never collide.
-    - GitHub hands a secret to a step only through the step's
-      environment or its script, so in CI the Action's own step shell is
-      the one environment the key is ever in. That shell writes it to
-      `auth set`'s standard input and unsets it before `exec` starts; the
-      shell and `auth set` are the only processes that hold it outside
-      the store. PR #32's amendment to AGENTS.md rule 8 names this
-      bootstrap as the exception, and nothing else.
-    - `exec` cannot show D48's popup or M71's push confirmation, so it
-      refuses paid features and never pushes. A "fix this" result leaves
-      as a patch, or a commit pushed by a separate step the repository's
-      owner wrote.
-    - If no store is available, the run stops with that reason; there is
-      no fallback.
-- **Backends.** The Model API with the key from the store. Muse Code only
-  where the CLI is already signed in on that machine; a device sign-in
-  needs a person, so it is not offered in CI.
-- **Acceptance.** A fork's PR or an outside commenter starts nothing;
-  outside the Action's step shell, the key is in no environment, and it is
-  in no argument, file or log; no process `exec` starts gets it or a route
-  to the keyring; `exec` answers every approval question with a denial.
-- **Tests.** `exec` against the fake Model API; the Action's steps in a
-  workflow test on the owner's repository, with a drill for the trigger
-  check.
-- **Size.** M.
+**Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
+2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
+`exec` and counts-only `scan-secrets` to the existing ACP package/bin,
+using the existing in-process ACP engine. No new backend entry or UI.
+
+**Integration, 2026-10-02 (lead-directed, `feature/m80-headless`):** lanes C
+and D merged into B, and the pieces no lane owned were written: the W workflow
+`.github/workflows/action-check.yml`, the fake-only test package's launcher
+`test/action/exec-test-launcher.ts` with its scripted transport and checker,
+and the launcher/rehearsal test. Lane D's twelve built-process rows now run
+unconditionally and found three defects, all fixed: `--help` omitted
+scan-secrets, a legacy key's tail survived a pattern-only network error
+description, and the fd writer closed stdout on EAGAIN. One cross-lane fix
+pass closed RVM80A (Muse, lane A) and RVM80CD (Codex, lanes C and D),
+including the P1: safeGit now refuses any effective Git configuration name a
+fresh `git init` does not write. Every fix has a regression and a red drill
+(`docs/certification/m80.md`). The hosted action-check/build/hosts matrices and
+L/LA/LR remain open; M80 is not certified.
+
+**M80Bw follow-up, platform verified 2026-10-02:** the lead authorizes a
+new Windows termination path after the existing bounded cleanup/flush grace.
+Use self-SIGKILL rather than waiting for `process.exit()` to join a blocked
+native pipe writer. Windows forced termination reports process exit 1 and may
+lose buffered output; any delivered result retains its first-stop status/code.
+Normal drained exits and POSIX behavior retain the existing exit table. Keep
+D29's two-second parent bound unchanged. Three consecutive complete A+B runs
+passed on both Win11 and Kubuntu (439/439 each). Win11 self-kill and scanner
+flush red drills fired and restored byte-exact. Self-kill holds; no worker-thread
+change is needed. Kubuntu static/build gates passed at `128d9aac`; the
+certification record binds the source/test bytes and receipts.
+Full quality and C/D/L/LA/LR remain lead-owned.
+
+**Lane B baseline, Windows certification initially blocked, 2026-10-02:** deliver only frozen v4 §5.2/§5.3/§9:
+the existing ACP engine's one-turn client/tap, integer micro-USD ledger,
+streaming transport, lifecycle, bounded untrusted inputs, headless paid policy,
+runtime/CLI/scanner wiring and D1–D30/P1–P10/L1–L12 tests. Reuse lane A at
+`e39ac9d3`; keep Model API core unchanged. F2 carries observed metadata on
+transport loss without granting completion or credit. Tests, typechecks and
+builds run only on the rigs; full quality and C/D/live acceptance remain lead
+work. Readiness review: supplied v4 contract plus lead F1/F2 rulings resolve
+the two minor ambiguities; no new scope or dependencies are needed. Existing
+roadmap format is retained as instructed by the lane brief; the skill's
+structured-ledger validator is deferred rather than migrating the roadmap.
+Evidence moves with implementation in `docs/certification/m80.md`.
+
+**Lane A, 2026-10-02:** implement the frozen scratchpad `m80/SPEC.md` v4
+§5.1/§9 and the M80A brief only. Pure argument/result/event/output/fd/key/scanner
+modules, literal-first redaction, constants, all 14 translations and deterministic
+schemas compile independently; `cliArgs` and `main` remain unchanged. F1 parses
+ASCII decimal budget strings directly into safe integer micro-USD (at most six
+fractional digits); accounting identities use that integer domain, and B rounds
+sub-micro reservations/charges upward. F2's observed terminal/reason/usage payload
+on transport settlement is B's task. Evidence and guard drills live in
+[the lane A record](docs/certification/m80.md). This does not close M80, full
+quality, engine/Action/packaging/host acceptance or L/LA/LR. D still owns replacing
+the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
+
+| Lane / receipt | Scope                                                                                    | Current state                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| A              | Pure arguments/protocol/egress/fd/key/scanner, translations, schemas                     | Delivered in `e39ac9d3`; focused rig gates and deliberate breaks recorded                                                        |
+| B              | CLI/scanner lifecycle, real engine, tap, ledger, streaming transport                     | Integrated; M80Bw Windows forced exit; 76 guard drills; integration fixed EAGAIN on full pipes and the legacy-key residue leak   |
+| C              | Gate/install/launcher/sanitized Git/proposal/apply                                       | Integrated; 83 guard drills; integration closed Git configuration by shape (RVM80CD P1) and the P2 lifecycle/validation findings |
+| D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Integrated; the 12 built-process rows run and pass; actionlint 1.7.12 clean                                                      |
+| W              | action-check.yml: W-review/text/image, low-budget, gate drill, apply, local rehearsal    | Written at integration; local rehearsal passes on the rigs; hosted matrix pending                                                |
+| L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                |
+| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                               |
+| LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                          |
+
+- **Exec:** exactly one bounded UTF-8 prompt; `plan` by default or
+  `acceptEdits`; never trust or bypass. Ordinary approval requests and questions
+  are denied. Model API exec starts no tool/shell/check/hook/MCP/Git/web-fetch
+  process. Local Muse Code exec uses the already-signed-in CLI; no login.
+- **Accounting:** every admitted billable HTTP attempt, retry, compaction and
+  image consumes request/cap headroom. Context-window reservations use exact
+  tariff arithmetic, round upward to integer micro-USD, and retain uncertain
+  liability permanently. No counting endpoint, byte heuristic or M82 budget.
+  F2 retains observed terminal/reason/usage on transport loss, which still
+  withholds prose and settles the full reservation. Latest valid response
+  completion plus ACP end_turn authorizes success; missing accounting exits 9.
+- **Keys:** D65 names both trusted stdin readers, exec and the scanner. Local
+  OS-store auth is unchanged. CI never fills a keyring; no other child gets
+  the key or keyring/credential routes. Initial launcher environment inspection
+  and same-user memory inspection remain residual risks.
+- **Images:** off by default; explicit flag + `acceptEdits` + hard budget,
+  per-use admission and returned/refunded/uncertain tally. No remembered grants,
+  hosted search, voice, subagents or schedules; no subscription billing.
+- **Action:** same-repo OWNER/MEMBER/COLLABORATOR triggers only; refuse forks,
+  bots, `pull_request_target`, public self-hosted runners and changed API head.
+  Install trusted package before checkout, use one sanitized Git runner and
+  bounded launcher across all proposal phases. Candidate is unsigned and
+  digest pinned; registry path verifies npm 11.19.0 bundles and signer identity.
+- **Publication:** metadata-only tool events; whole incomplete messages
+  withheld; all output leaves redact exact literals before patterns.
+  Completed/0 alone permits comments and exact scanned text patches. Any binary
+  change (including an unignored generated PNG) withholds the entire patch.
+  Prepare/tests have read permission and no secrets; push uses `muse-apply`
+  maintainer review and exact digest/head/lease checks in its own job.
+- **Acceptance:** A1–A17/A19–A22, D1–D30, P1–P10, L1–L12, G1–G25,
+  E1–E7, H1–H4, W-review/text/image/low-budget/gate/apply, R1–R39,
+  unchanged integrated quality/build/host matrices, L and LA before candidate
+  certification; LR after release before registry-path support.
+  [m80.md](docs/certification/m80.md) carries observed and pending evidence.
+- **Windows limits:** standalone POSIX signal tests are explicitly skipped;
+  argv and injected child-env hashes do not prove full environment-block audit.
+- **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
+  sizes and package/workflow hashes belong to the lead's closing receipt.
 
 ### M81 — Browser check (D49)
 
@@ -12693,11 +12863,73 @@ usage window gives has never been captured (§3).
       them.
 - [ ] Hosted CI green on the milestone PR's exact head.
 
+### M89 — Bundled skills (D68)
+
+- **Goal.** The high-quality-projects workflows work out of the box on the
+  Model API backend and, after one click, on Muse Code.
+- **Scope.** D68: the vendored release and its sync script; the `bundled` skill
+  source and its setting; the Muse Code install, update offer and removal;
+  strings in all 14 tables; README, PRIVACY (the files the install writes),
+  CHANGELOG, this plan and `docs/certification/m89.md`.
+- **Lanes and file ownership.** One integration branch
+  (`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
+  then W. Region-owned files follow M87's lane rules (constants, styles,
+  harness).
+
+| Lane      | Owns                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Strings | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (setting and command titles)                                                                                                                                                           |
+| V Vendor  | `scripts/sync-bundled-skills.mjs`, `vendor/high-quality-projects-skill/**`, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`, `scripts/check-vsix-size.mjs` only if the budget needs it; tests `bundledSkillsVendor.test.ts` |
+| S Source  | `src/core/context/skills.ts`, `src/core/context/catalogFiles.ts` (if needed), the `bundled` constants region, the Model API `read_skill`/`/id` path; tests `skills.test.ts`                                                                                  |
+| I Install | the new `src/host/skills/bundledSkillsInstall.ts`, its command registration region in `src/extension.ts`, the controller's one-time offer; tests `bundledSkillsInstall.test.ts`                                                                              |
+| W Wiring  | `package.json` (setting, commands), README, PRIVACY, CHANGELOG, PLAN, `docs/certification/m89.md`, the full gate                                                                                                                                             |
+
+- **Acceptance.**
+  1. A fresh install on the Model API backend lists `project_setup`,
+     `feature_delivery` and `quality_retrofit` in the slash menu and the
+     model's catalogue; turning `museSpark.bundledSkills` off removes them.
+  2. A project or personal skill with one of those ids shadows the bundled one.
+  3. A bundled skill's body names the package root, and its `SKILL_ROOT`
+     resolves inside the installed extension.
+  4. The VSIX carries exactly the vendored paths in `VENDOR.json`, and the
+     sync script refuses an archive whose SHA-256 differs from `SHA256SUMS.txt`.
+  5. Install for Muse Code creates the package copy, the marker and the three
+     links; an existing same-id folder is left alone and reported; Remove
+     deletes only marked folders and links; both work on Windows (junctions),
+     macOS and Linux (symlinks).
+  6. The offer appears once; Not now is remembered; a newer vendored tag
+     offers Update once.
+  7. The VSIX stays within its D6 budget.
+- **Tests.** Unit tests for each lane (fakes, temp folders, no network), with
+  a red drill for every guard recorded in `docs/certification/m89.md`; the
+  install on all three rigs.
+- **Vendor review follow-up (2026-10-03).** Minimal ustar fixtures test the
+  copy allow-list, required files, entry types, traversal, duplicates and the
+  archive root; names that collide by case or trailing dots and spaces are
+  refused before selection, so an excluded alias cannot replace an allowed
+  file. `VENDOR.json` records each file's SHA-256 and the test checks every
+  vendored file against it; the Muse Code installer reads the new records.
+  Drills in `docs/certification/m89-vendor.md`.
+- **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
+- **Security.** Vendored files are fixed at build time and checksum-verified;
+  nothing downloads at run time; the install writes only under the user's
+  Muse config home, only on a click, and only removes what it marked; links
+  never point outside the copied package.
+- **Certification checklist.**
+  - [x] Lane 0's keys in all 14 tables (2026-10-03, `check-l10n` 0 problems).
+  - [ ] Every acceptance item above, with its test and drill (1, 2, 3, 5 and 6
+        done by lanes S and I, `docs/certification/m89.md`; 4 and 7 are lane
+        V's).
+  - [ ] VSIX size within budget, measured.
+  - [x] Install and remove proven on Windows, macOS and Linux (the three
+        rigs, 56 tests each, real junctions and symlinks).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated (lanes 0, S, I
+        and W done; lane V's rows to add).
+
 ### M90 — Auto on Muse Code: the reviewer (D69)
 
-**Status 2026-10-03: built on `feature/m90-muse-code-reviewer` (main + the
-PLAN commit + PR #89's branch); record in `docs/certification/m90.md`. Not
-pushed.** The reviewer is `src/host/review/` (`museCodeReviewer.ts`: the
+**Status 2026-10-04: PR #104, after two independent review rounds and a
+live recheck; record in `docs/certification/m90.md`.** The reviewer is `src/host/review/` (`museCodeReviewer.ts`: the
 side session and the window's queue; `reviewedApprovals.ts`: what follows a
 review; `museCodeReviewerBundle.ts`: the window's port), built into
 `dist/museCodeReviewer.js` and required on the first review; the
@@ -13056,6 +13288,29 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M80Bw Windows force-exit resolution (2026-10-02).** The lead's new
+self-termination path passes D29 and three consecutive complete A+B runs on
+both Win11 and Kubuntu (439/439 each). Windows forced process exit is 1;
+buffered output may be lost, while any delivered result preserves first-stop
+status and its logical exit code. Drained exits retain their original codes.
+The two-second test bound, all gates and existing synchronous key cleanup
+remain intact. Two Win11 guard drills failed as intended and restored exact
+SHA-256 bytes. See `docs/certification/m80.md`; full quality/C/D/L/LA/LR remain
+open for the lead.
+
+**M80B Windows force-exit blocker (historical, superseded by M80Bw).** The implementation and
+76 guard drills are present; Kubuntu A+B passed 437/437. Win11 passed
+436/437, failing D29's unread-stderr force-exit fixture. Test-owned timestamps
+show SIGINT at 624 ms, SIGTERM at 639 ms and exit 130 requested at 945 ms;
+Node then waits on its blocked asynchronous filesystem pipe worker. Closing
+fd 2 returned at 966 ms but did not unblock exit; using the native pipe stream
+blocked signal timers instead. Both probes were reverted. common.md's explicit
+two-failed-fixes rule stops this path. Keep the failing test, original limits,
+and Windows gate open. The lead must resolve the Windows native I/O/termination
+contract or obtain an explicit scope ruling before B/M80 can be certified.
+The remaining hosted/full-quality/C/D/L/LA/LR gates are also lead-owned, not
+closed by this lane. No gate or hook was changed.
+
 **MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
 build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,
 board and reviewer, under the existing 600/475/75/75 KiB caps. The M78m
@@ -13143,6 +13398,32 @@ defect older than this PR: Node 20.18's `TextDecoder` reads windows-1252 as
 ISO-8859-1 (the euro sign and curly quotes come out as controls), so
 `textDecoding.ts` decodes that table itself on every Node. Receipts, red
 drills and sizes are in `docs/certification/pr60-sniffer7.md`.
+
+**M80 lane D gate boundary (2026-10-02).** The M80D brief overrides the
+full-suite instruction for implementing lanes: rigs only, serial focused tests,
+no `npm run quality`, no live/model calls and no push. The lead owns unchanged
+full quality and build/hosts/action-check matrices on the exact integrated tree.
+No threshold, timeout, ignore, hook or rule is weakened.
+
+B's real exec/scanner CLI and C's test launcher/Action are absent from this frozen
+lane-A-based worktree. E1–E7/H1–H4 built/installed acceptance, actual fake test
+package, recipe operational paths, reviewed immutable Action SHA and L/LA/LR
+remain pending those integrations and lead receipts. The e2e file runs package
+and host-harness guards now; explicit B skips are not success. Supplying an
+installed package activates all built rows, so hosted jobs cannot silently
+certify an old package. Standalone POSIX signal rows still skip on Windows.
+
+Kubuntu has shellcheck at /usr/bin/shellcheck; actionlint remains absent from
+PATH and searched installed locations. The supplied common.md bans network calls
+except npm ci; scoped actionlint install permission was requested asynchronously.
+Until an approved tool is available, actionlint remains open, never substituted
+by Windows-only lint or syntax checks. Lane D's certification records each actual rig result and drill.
+
+The generic feature-delivery validator expects a `quality-ledger` fence and
+reported `input-error` against this established PLAN. Its structural gate is
+deferred; the lane brief's canonical section/ID plan is preserved rather than
+adding a competing ledger or rewriting the roadmap. Inventory succeeded and
+manual readiness review covered v4/F1/F2, ownership, dependencies and claim limits.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,
@@ -13344,6 +13625,15 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
+| M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
+| ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
+
+| M80 lane B location                                          | Escape hatch                                         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Date       |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
+| `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
+
 **REL signing decisions (2026-10-02).** The extension relies on the VS Code
 Marketplace's signing of published extensions and does not self-sign the VSIX:
 no new signing credentials or alternate package bytes. GitHub/Open VSX assets
@@ -13363,13 +13653,14 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                 | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                 | 2026-10-02 |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
-| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                       | 2026-10-02 |
-| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                          | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                              | 2026-09-30 |
-| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
+| File                                            | Construct                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                     | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                           | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                    | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
+| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
 
 | File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -14061,3 +14352,24 @@ merge queue's child process kept running. The tag therefore names the
 release commit, based on main `44b76f24` before M84 merged, rather than
 main's tip; the release workflow's ancestor check allows this. The release
 commit is an ancestor of main through PR #75 (merge `2a03a79b`).
+
+**0.11.0 released (2026-10-03, tag `v0.11.0` on main's release merge `11d06066`, PR #97, release run 37161958638).**
+The release contains the Muse Code recovery and merged repeat notices
+(#96), approval decisions docked and serialized (#90), turn checkpoints
+rebuilt on the model's own writes (M86, #95), custom agents (M76, #70),
+handoff (M74, #71, #84), import from other agents (M83, #77), session export,
+import and share (M84, #80), observation packing (M73, #76, #81), Muse Code
+1.4.2 (#85) and the release artifacts' checksums, SBOMs and attestations
+(#86). A read-only check of the README's What's new against the code
+corrected two overstatements and five missing scopes before the release PR
+merged. Published: the GitHub Release (`muse-spark-code-0.11.0.vsix`,
+1,749,424 bytes, SHA-256
+`1dcc420fca9bc8b55d34def666d048d53f75676675faccf88a9cdeb508c8923f`;
+`muse-spark-code-acp-0.11.0.tgz`, 865,556 bytes, `0363cc1d…aaf1`), Open VSX and
+the VS Code Marketplace, all serving byte-identical VSIX files (each
+downloaded and hashed). npm (`muse-spark-code-acp`) failed with `EOTP` again
+and awaits the owner's token. Install smoke: the released VSIX, checked
+against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
+Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
+(1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
+`muse-spark-code-acp --version` prints 0.11.0.

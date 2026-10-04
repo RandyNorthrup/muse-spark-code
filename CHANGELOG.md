@@ -9,42 +9,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
-  Muse Code backend, an eligible approval Muse Code raises for the running
-  turn that no rule settles goes
-  to a reviewer before it reaches you: the Model API backend's Auto
-  reviewer (its instructions, its input marked as data, its strict
-  ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
-  session in the same `muse serve`, on your Muse subscription. The side
-  session runs in Plan mode with thinking off, on the conversation's model,
-  in an empty folder under the extension's global storage, so it reads none
-  of your workspace files, rules or skills in the captured setup (CLI-global
-  context is not excluded) and History never lists it; it is started again
-  after Muse Code exits, restarts or closes it, after a timeout, busy fallback
-  or tool activity, for another model, and every ten reviews. Native tools
-  cannot be disabled through the SDK: any item other than an agent message
-  or reasoning cancels the review and shows the generic failure card. A
-  command covered by an always-allow rule could run in the empty folder
-  before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
-  each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
-  reviewer)" with its reason; on ASK, an unreadable answer, no answer
-  within 45 seconds, an error, a busy side session or a tripped breaker,
-  the card asks you as before, with the reason on it when there is one. It
-  never answers a protected write, a paid call, a child task, a question,
-  a replayed or escalated request, an unknown subject, a request without
-  allow-once, a session shared by panels, or anything in another mode;
-  one review runs at a time
-  in a window. On by default with the machine-scoped
-  `museSpark.museCodeAutoReviewer`; the window's first review says what it
-  does and costs (one short Muse Code turn: four model attempts in the live
-  check). Changed subjects, accepted messages and steering invalidate old
-  verdicts; queued jobs recheck the breaker, setup shares the 45-second
-  deadline and cancellation, and only a completed reply in a completed
-  turn may allow. Attribution survives resolution before the tool row
-  (the newest 50 unseen item ids). It loads on the first review from
-  `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
-  remains within 600 KiB.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -185,9 +149,124 @@ happened, not what was planned; superseded entries are kept.
   Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
   The activation cap stays 600 KiB. The Model API cap is revisited, as M57
   planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
+- **Headless runs and a GitHub Action** (M80, PLAN.md D65):
+  `muse-spark-code-acp exec` runs one turn on a workspace without an editor.
+  The prompt comes as an argument, from `--prompt-file` or from stdin, with
+  up to eight `--untrusted-file` inputs marked as untrusted data. Plan is the
+  default and Accept edits the only other mode; workspace trust, bypass and
+  hosted web search are refused, every approval request is denied and every
+  question declined, and a Model API run starts no shell, check, hook, MCP,
+  Git or web-fetch process. Output is plain text, one JSON result or JSONL
+  events; the exit code names the outcome (0 completed, 2 usage, 3 sign-in,
+  4 failed, 5 budget or request cap, 6 timeout, 7 denied, 8 incomplete,
+  9 accounting unverified, 130/143 interrupted). Tool output text never
+  leaves exec, and a reply cut short is withheld whole. On Windows a forced
+  stop exits 1 and may lose buffered output.
+  - **Budgets and refusals:** the Model API needs `--max-budget-usd` (up to
+    $20, six decimals) and caps billable requests with `--max-requests`
+    (every attempt, retries included). Each request reserves the most its
+    context window could cost before it is sent: at least $0.108135 on the
+    contributor model and $1.409024 on standard, one cent more with images.
+    A request whose cost is lost or uncertain keeps its whole reservation,
+    and a budget below the minimum is refused before any billable call.
+    Images need `--image-generation` with Accept edits and are tallied per use.
+  - **Keys:** a local run uses the key in your OS credential store;
+    `--key-stdin` reads one line from a pipe and keeps it in memory only.
+    No environment variable is read. Every output removes the run's exact key
+    first, also in its percent-encoded form, then known token shapes.
+  - **Results and schemas:** the result and events are versioned (v1) and
+    validated, and their JSON Schemas ship in the package's `schemas/`;
+    `npm run schema:exec` regenerates them. `muse-spark-code-acp
+    scan-secrets <file>` counts likely secrets in one file and prints only
+    the number.
+  - **The Action:** `action/` reviews, or proposes a fix for, a
+    same-repository pull request on GitHub-hosted runners under the same hard
+    budget. Forks, bots, `pull_request_target` and commenters outside the
+    repository's members are refused before anything is installed; the agent
+    is installed before checkout and verified against its npm provenance (a
+    candidate tarball is pinned by digest and labelled unsigned); the key
+    reaches only exec and the secret scanner, over stdin. It posts one sticky
+    review comment within GitHub's size limit and uploads the validated
+    result; a fix is published as a patch only after a clean secret scan of
+    its exact bytes, and any binary change (a generated image included) or
+    detected secret withholds the whole patch. A stopped or failed run
+    publishes nothing. `action/apply` applies the patch for your own
+    secret-free tests, then pushes it after maintainer approval with a lease
+    on the exact reviewed head, refusing an unexpected or oversized artifact.
+    Every Git step runs with no hooks, filters, fsmonitor, signer or
+    credential helper, and refuses any repository configuration a fresh
+    clone does not carry. npm releases now carry provenance.
+  - Acceptance on hosted runners and with a real key is still pending.
+- **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
+  high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
+  top-level documentation under their MIT licence. A checksum-verified sync
+  script records the pinned archive and each file's SHA-256 (the tests check
+  every vendored file against it), and refuses archives whose names collide
+  by case or by trailing dots and spaces; packaging includes
+  the assets and third-party notices. Formatting, linting and pre-commit
+  checks preserve vendored bytes. Backend discovery and installation are
+  covered by the other M89 lanes.
+- **Bundled skills** (M89, PLAN.md D68): the high-quality-projects
+  workflows `project_setup`, `feature_delivery` and `quality_retrofit` ship
+  with the extension. On the Model API backend they are a third skill
+  source after the project's and your own (a skill of yours with the same id
+  wins), and the model reads each after one line naming its package root,
+  the skill's `SKILL_ROOT`. For Muse Code, **Muse Spark: Install Bundled
+  Skills for Muse Code** copies the package to
+  `<config home>/muse/skill-sources/high-quality-projects-skill/`, marks the
+  copy, and links each skill into `<config home>/muse/skills/` (junctions on
+  Windows, directory symlinks elsewhere); a skill of yours with the same
+  name is left alone and named. The first Muse Code conversation offers it
+  once (Install / Not now, remembered), a newer vendored release offers
+  Update once, and **Remove Bundled Skills from Muse Code** removes only the
+  marked copy and the links into it. `museSpark.bundledSkills` (on by
+  default, machine-scoped) turns them off. The installer is its own lazily
+  loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
+  PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
+  Strings in all 14 languages.
+- **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
+  Muse Code backend, an eligible approval Muse Code raises for the running
+  turn that no rule settles goes
+  to a reviewer before it reaches you: the Model API backend's Auto
+  reviewer (its instructions, its input marked as data, its strict
+  ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
+  session in the same `muse serve`, on your Muse subscription. The side
+  session runs in Plan mode with thinking off, on the conversation's model,
+  in an empty folder under the extension's global storage, so it reads none
+  of your workspace files, rules or skills in the captured setup (CLI-global
+  context is not excluded) and History never lists it; it is started again
+  after Muse Code exits, restarts or closes it, after a timeout, busy fallback
+  or tool activity, for another model, and every ten reviews. Native tools
+  cannot be disabled through the SDK: any item other than an agent message
+  or reasoning cancels the review and shows the generic failure card. A
+  command covered by an always-allow rule could run in the empty folder
+  before cancellation lands. On
+  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
+  reviewer)" with its reason; on ASK, an unreadable answer, no answer
+  within 45 seconds, an error, a busy side session or a tripped breaker,
+  the card asks you as before, with the reason on it when there is one. It
+  never answers a protected write, a paid call, a child task, a question,
+  a replayed or escalated request, an unknown subject, a request without
+  allow-once, a session shared by panels, or anything in another mode;
+  one review runs at a time
+  in a window. On by default with the machine-scoped
+  `museSpark.museCodeAutoReviewer`; the window's first review says what it
+  does and costs (one short Muse Code turn: four model attempts in the live
+  check). Changed subjects, accepted messages and steering invalidate old
+  verdicts; queued jobs recheck the breaker, setup shares the 45-second
+  deadline and cancellation, and only a completed reply in a completed
+  turn may allow. Attribution survives resolution before the tool row
+  (the newest 50 unseen item ids). It loads on the first review from
+  `dist/museCodeReviewer.js`, within its unchanged 75 KiB budget; activation
+  remains within 600 KiB.
 
 ### Changed
 
+- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
+  from 100 KiB: new strings bring `dist/uiText.js` to 100.2 KiB; the new
+  budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so
+  activation is unchanged.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
@@ -205,7 +284,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
 - **The Modes menu no longer promises a safety check Muse Code does not run
   (0.11.0, PLAN.md D69).** Auto on Muse Code read "Muse will approve actions
   that pass a safety check and pause for anything risky", but `muse serve`

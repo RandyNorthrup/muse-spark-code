@@ -142,7 +142,9 @@ export function commandsBashRuns(
   }
   const emptyPath = mkdtempSync(path.join(tmpdir(), 'muse-bash-path-'))
   // The records go to a file: through stdout, a pipe would carry the left
-  // side's records into the right side's stdin.
+  // side's records into the right side's stdin. Both sides of a pipeline run
+  // at once, so each record is one append (built with `printf -v` first);
+  // two appends per record let the sides' words interleave.
   const recordFile = path.join(emptyPath, 'records').replaceAll('\\', '/')
   const seen = new Set<string>()
   for (const status of [0, 1]) {
@@ -150,7 +152,7 @@ export function commandsBashRuns(
     const functions = unique
       .map((name) => `${name}() { __record ${name} "$@"; return ${String(status)}; }`)
       .join('\n')
-    const script = `__record() { builtin printf '%s\\037' "$@" >> '${recordFile}'; builtin printf '\\036' >> '${recordFile}'; }\n${functions}\n${line}\n`
+    const script = `__record() { builtin printf -v __words '%s\\037' "$@"; builtin printf '%s\\036' "$__words" >> '${recordFile}'; }\n${functions}\n${line}\n`
     // Windows spells PATH `Path`: every spelling goes, as do bash's startup files.
     const env: NodeJS.ProcessEnv = Object.fromEntries(
       Object.entries(process.env).filter(

@@ -185,6 +185,14 @@ security notes for contributors are in `PLAN.md` §9.
   Model API backend reads none of this while VS Code has the folder in
   Restricted Mode; Muse Code's documentation says it still reads a
   repository's committed project memory then.
+- **The bundled skills** (M89, PLAN.md D68: `project_setup`,
+  `feature_delivery` and `quality_retrofit`, shipped inside the extension).
+  On the Model API backend, while `museSpark.bundledSkills` is on (the
+  default), their ids and descriptions join the skill catalogue sent with
+  every request, and a skill's full text, preceded by one line naming the
+  folder the extension is installed in, goes to Meta when the model loads
+  it or you invoke it. Their scripts run only as shell commands under the
+  conversation's permission mode, on your machine.
 - **The Memory view** (M49) reads and writes only those notes on your
   machine; it sends nothing anywhere. A note it deletes goes to your trash.
 - **Saved plans** (M79). **Save plan** writes a Plan-mode reply to
@@ -423,6 +431,19 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **The bundled skills for Muse Code** (M89) are installed only when you
+  click Install or Update on the panel's offer or run **Muse Spark: Install
+  Bundled Skills for Muse Code**. The install writes only under Muse Code's
+  config folder (`~/.config/muse`, or `$XDG_CONFIG_HOME/muse`): a copy of
+  the package in `skill-sources/high-quality-projects-skill/`, with a mark
+  file (`.muse-spark-bundled.json`: the release tag and when it was
+  installed), and one link per skill in `skills/`. Nothing is downloaded:
+  the files are the release vendored into the extension when it was built.
+  **Remove Bundled Skills from Muse Code** deletes only the links that lead
+  into the marked copy and the copy itself; a folder without the mark, a
+  skill of yours, or a link that leads anywhere else is never touched.
+  Whether you answered Not now to the offer is kept in VS Code's extension
+  state.
 - **Import from other agents** (M83, D64) reads other tools' files only
   when requested, locally, without a model call or sending their contents
   anywhere. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
@@ -530,3 +551,29 @@ hands it, the same way the extension does, and nothing else:
 Questions and reports: <https://github.com/RandyNorthrup/muse-spark-code/issues>.
 This project is not affiliated with Meta. "Muse Spark" and "Muse Code" are
 Meta trademarks.
+
+## Headless runs and CI (M80 integration pending)
+
+Headless prompt, untrusted resources, PR title/body/diff and ordinary workspace
+files the agent reads can reach Meta. Use a secret-free checkout. Contributor
+models require explicit opt-in; their content is eligible for Meta training.
+The authentication key goes only in the provider auth header, never model
+content. Local runs keep existing OS-store auth. CI launcher receives key in its
+initial environment, removes variable before children, then sends private stdin
+to only trusted exec and scanner commands; both keep it in memory and clear
+references in finally. Initial same-user environment/memory inspection remains
+possible; removal cannot guarantee zeroization.
+
+Scanner is local-only and sends no file or key to a model. It reports only count.
+Exec suppresses all tool output text and withholds incomplete prose whole;
+released output uses exact-literal-first redaction plus known token patterns.
+This does not catch unknown secrets or prevent readable workspace contents
+from entering provider context. GitHub receives only redacted result/events/
+eligible comment outputs, plus exact scanned clean text patch and binding
+manifest. A binary/image change or detected secret withholds the entire patch;
+private staging is not uploaded. Model-generated images are still paid provider
+requests; tally records returned/uncertain liability under explicit flag/cap.
+
+B/C integration and actual L/LA/LR remain open. Read
+[CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
+retention/cleanup bounds, platform limits and support claims.

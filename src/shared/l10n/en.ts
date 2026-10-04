@@ -1555,6 +1555,37 @@ export const EN = {
     one: '{count} failed: {skills}',
     other: '{count} failed: {skills}',
   }),
+  // The bundled skills for Muse Code (M89, PLAN.md D68): the panel's one-time
+  // offer and its buttons, then what Install, Update and Remove did. {skills}
+  // lists skill ids, {tag} is the package's release (v0.7.0), {folder} a path.
+  bundledSkillsOffer:
+    'Muse Spark comes with the skills {skills}. Install them for Muse Code? They are copied into your Muse config folder.',
+  bundledSkillsUpdateOffer:
+    'Muse Spark comes with a newer release of its bundled skills ({tag}). Update the copy Muse Code uses?',
+  bundledSkillsInstall: 'Install',
+  bundledSkillsUpdate: 'Update',
+  bundledSkillsNotNow: 'Not now',
+  bundledSkillsInstalled: forms({
+    one: 'Installed {count} bundled skill ({tag}) for Muse Code: {skills}',
+    other: 'Installed {count} bundled skills ({tag}) for Muse Code: {skills}',
+  }),
+  bundledSkillsSkipped: forms({
+    one: 'Left {count} skill out because a skill of yours has that name: {skills}',
+    other: 'Left {count} skills out because skills of yours have those names: {skills}',
+  }),
+  bundledSkillsRemoved: forms({
+    one: 'Removed {count} bundled skill from Muse Code: {skills}',
+    other: 'Removed {count} bundled skills from Muse Code: {skills}',
+  }),
+  bundledSkillsNothingToRemove:
+    'No bundled skills are installed for Muse Code, so nothing was removed.',
+  bundledSkillsInstallFailed: 'The bundled skills could not be installed at {folder}: {reason}',
+  bundledSkillsRemoveFailed: 'The bundled skills could not be removed at {folder}: {reason}',
+  // The reason when the folder is there but holds no mark of the extension's install.
+  bundledSkillsNotOurs:
+    'a folder of that name exists that Muse Spark did not install, so it was left alone',
+  bundledSkillsUnavailable:
+    'The bundled skills installer could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',
@@ -1630,6 +1661,8 @@ export const EN = {
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
+    '  {command} exec [options] <prompt>  Run one headless turn',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     'Options:',
     '  --backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
     '  --trust-workspace                Load the folder’s rules, skills and memory',
@@ -1642,6 +1675,71 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
   ].join('\n'),
+  // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
+  execBudgetRequired: 'Model API requires --max-budget-usd.',
+  execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
+  execModeRefused: 'Headless runs permit only plan or acceptEdits.',
+  execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
+  execPaidNeedsEdits: 'Image generation requires acceptEdits.',
+  execModelApiOnly: 'These options require the Model API backend.',
+  execMuseCodeOnly: 'These options require the Muse Code backend.',
+  execModelUnpriced: 'This model has no known tariff.',
+  execPromptMissing: 'Provide one nonempty prompt.',
+  execPromptTwice: 'Choose exactly one prompt source.',
+  execStdinTwice: 'Prompt and key cannot both use stdin.',
+  execKeyStdinTerminal: 'Read the key from a pipe, not a terminal.',
+  execKeyMissing: 'No valid Model API key was provided.',
+  execKeyTooLong: 'The key exceeds the byte limit.',
+  execFileUnreadable: 'The input file cannot be read.',
+  execFileTooLarge: 'The input exceeds the byte limit.',
+  execTooManyChunks: 'The input exceeds the chunk limit.',
+  execUnknownModel: 'This model is not available for this run.',
+  execEffortUnavailable: 'This effort is not available for this model.',
+  execTimedOut: 'The run reached its deadline.',
+  execBudgetRefused: 'The next request exceeds the remaining budget.',
+  execBudgetMinimum: 'This run requires at least {minimum}.',
+  execBudgetBreach: 'Observed accounting exceeded its reservation.',
+  execIncomplete: 'The response did not complete.',
+  execDeniedStop: 'An approval denial stopped this run.',
+  execInterrupted: 'The run was interrupted.',
+  execOutputStalled: 'Output closed or stalled.',
+  execRequestShape: 'The request shape is not permitted.',
+  execAccountingInvalid: 'Response accounting is invalid.',
+  execAccountingUnverified: 'Response accounting could not be verified.',
+  execMessageWithheld: 'message withheld: the response did not complete',
+  execStatus: {
+    completed: 'Completed',
+    incomplete: 'Incomplete',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    timeout: 'Timed out',
+    budget_exceeded: 'Budget exceeded',
+    request_cap: 'Request cap reached',
+    denied: 'Denied',
+    auth_required: 'Authentication required',
+    backend_unavailable: 'Backend unavailable',
+    internal: 'Internal error',
+    accounting_unverified: 'Accounting unverified',
+  },
+  execTooManyFiles: forms({
+    one: 'At most {count} input file is allowed.',
+    other: 'At most {count} input files are allowed.',
+  }),
+  execRequestCapReached: forms({
+    one: 'The request cap of {count} attempt was reached.',
+    other: 'The request cap of {count} attempts was reached.',
+  }),
+  execScanMatches: forms({
+    one: '{count} secret match',
+    other: '{count} secret matches',
+  }),
+  execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
+  execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  execSummary:
+    '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
+  execSummaryUpperBound:
+    '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}; Cost is an upper bound.',
   // The exported Markdown's own words (M30); what was said and run is copied as it was.
   exportSessionLine: 'Session: `{id}`',
   exportBackendLine: 'Backend: {backend}',

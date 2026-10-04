@@ -3,3 +3,5 @@
 *.pdf binary
 *.ico binary
 *.vsix binary
+# Pinned upstream bytes: never normalize vendored line endings.
+vendor/** -text whitespace=cr-at-eol
