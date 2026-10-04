@@ -182,6 +182,36 @@ function failed(reason: string): { readonly ok: false; readonly reason: string }
   return { ok: false, reason }
 }
 
+/**
+ * What `add` throws when its owner's assertion stopped a new note's index
+ * line (M78, the RV78g review): the note is published already, `written` is
+ * the tool's answer for it, and `stopped` is what the owner threw, for the
+ * owner to tell its Stop from a refusal of the line alone.
+ */
+export class IndexLineStoppedError extends Error {
+  public readonly stopped: Error
+
+  public constructor(
+    public readonly written: string,
+    stopped: unknown,
+  ) {
+    super(`the ${MEMORY_INDEX_FILE} line was stopped`)
+    this.name = 'IndexLineStoppedError'
+    this.stopped = stopped instanceof Error ? stopped : new Error(describe(stopped))
+  }
+}
+
+/**
+ * After a write failed: the caller's assertion asked once more (M78, the
+ * RV78f and RV78g reviews). It keeps throwing once it has thrown (a Stop, a
+ * refusal, a revoked guard), so a failure it caused is thrown on as the
+ * caller's, never reported as a file error; the I/O is handed the very
+ * assertion it was given.
+ */
+function rethrowOwner(assertCurrent: (() => void) | undefined): void {
+  assertCurrent?.()
+}
+
 function isUnavailable(reason: string): boolean {
   return reason === MODEL_TEXT.memoryNoWorkspace || reason === MODEL_TEXT.memoryNoHome
 }
@@ -305,19 +335,24 @@ export class MemoryStore {
     }
   }
 
-  /** The note's text (undefined when there is none), or why it cannot be read. */
+  /**
+   * The note's text (undefined when there is none), or why it cannot be read.
+   * The caller's assertion throws on: a Stop is never a file error (the
+   * RV78f review).
+   */
   private async readNote(
     place: MemoryNotePlace,
     assertCurrent?: () => void,
   ): Promise<Located<string | undefined>> {
+    assertCurrent?.()
+    let value: string | undefined
     try {
-      assertCurrent?.()
-      const value = await this.deps.io.readFile(place.absolute)
-      assertCurrent?.()
-      return { ok: true, value }
+      value = await this.deps.io.readFile(place.absolute)
     } catch (error: unknown) {
       return failed(describe(error))
     }
+    assertCurrent?.()
+    return { ok: true, value }
   }
 
   /** The scope's index place; throws with the reason when the scope has none. */
@@ -338,7 +373,12 @@ export class MemoryStore {
       : undefined
   }
 
-  /** A new note's line in its scope's `MEMORY.md`, unless one already links to it (D41). */
+  /**
+   * A new note's line in its scope's `MEMORY.md`, unless one already links to
+   * it (D41). A line that cannot be written is logged and the note stays; what
+   * the owner's assertion threw (its Stop, its refusal) is thrown on after the
+   * log, as the note's own writes throw it (M78, the RV78g review).
+   */
   private async addIndexLine(
     place: MemoryNotePlace,
     hook: string,
@@ -373,6 +413,7 @@ export class MemoryStore {
       this.deps.warn(
         `${place.display} was written, but its ${MEMORY_INDEX_FILE} line was not: ${describe(error)}`,
       )
+      rethrowOwner(assertCurrent)
     }
   }
 
@@ -572,8 +613,8 @@ export class MemoryStore {
         return refused
       }
     }
+    assertCurrent?.()
     try {
-      assertCurrent?.()
       if (existing === undefined) {
         await writes.createFile(place.absolute, newNoteText(note), place.checked, assertCurrent)
       } else {
@@ -585,17 +626,24 @@ export class MemoryStore {
         )
       }
     } catch (error: unknown) {
+      rethrowOwner(assertCurrent)
       return failed(isTaken(error) ? MODEL_TEXT.memoryNoteExists : describe(error))
     }
+    const result = written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten)
     if (existing === undefined) {
-      await this.addIndexLine(
-        place,
-        note.description ?? noteSummary(note.content),
-        assertCurrent,
-        writes,
-      )
+      try {
+        await this.addIndexLine(
+          place,
+          note.description ?? noteSummary(note.content),
+          assertCurrent,
+          writes,
+        )
+      } catch (error: unknown) {
+        // Only the owner's throw reaches here: the note is published already.
+        throw new IndexLineStoppedError(result, error)
+      }
     }
-    return { ok: true, value: written(place, OPERATION_ADD, MODEL_TEXT.memoryNoteWritten) }
+    return { ok: true, value: result }
   }
 
   /** `edit_memory`: one exact string replaced, refused unless it occurs exactly once. */
@@ -627,8 +675,8 @@ export class MemoryStore {
     if (count > 1) {
       return failed(`${MODEL_TEXT.memoryOldStrAmbiguous} ${quoted(change.old_str)}`)
     }
+    assertCurrent?.()
     try {
-      assertCurrent?.()
       await writes.writeFile(
         place.absolute,
         text.replace(change.old_str, () => change.new_str),
@@ -636,6 +684,7 @@ export class MemoryStore {
         assertCurrent,
       )
     } catch (error: unknown) {
+      rethrowOwner(assertCurrent)
       return failed(describe(error))
     }
     return { ok: true, value: written(place, OPERATION_EDIT, MODEL_TEXT.memoryNoteEdited) }
@@ -694,7 +743,11 @@ export class MemoryStore {
         cause: error,
       })
     }
-    await this.addIndexLine(place.value, hook, assertCurrent, this.deps.io)
+    try {
+      await this.addIndexLine(place.value, hook, assertCurrent, this.deps.io)
+    } catch {
+      // The view keeps a note its guard left published; its line was logged as not written.
+    }
     return place.value
   }
 

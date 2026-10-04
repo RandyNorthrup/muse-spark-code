@@ -203,3 +203,47 @@ only VS Code can show (the proxy asked for the pinned address) is in
 
 By contributing you agree that your contribution is licensed under the MIT
 licence of this repository.
+
+## M80 implementation lanes and fake-only verification
+
+M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
+docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
+the lead runs unchanged `npm run quality` on the exact integrated tree before
+proposing merge, then build.yml, hosts.yml and action-check.yml OS matrices.
+No lane's focused pass certifies integrated behavior or the release.
+
+Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
+Its package guards and the built-process rows E1–E7 always run. With an
+installed package, set `MUSE_ACP_PACKAGE_DIR` to its absolute root. Host checks:
+`sh test/hosts/exec.sh <installed-package-root>`; add `--store` only in isolated,
+unlocked OS store. Host refuses existing credential and unavailable store before
+fake auth mutation, and traps cleanup. Windows standalone POSIX signals remain
+explicit skips, not green acceptance.
+
+After production package, `node scripts/package-acp-test.mjs` builds C's
+`test/action/exec-test-launcher.ts` into private fake-only variant. It preserves
+production stage/tarball bytes and emits `dist/muse-spark-code-acp-test-<version>.tgz`.
+Installed identity stays muse-spark-code-acp for the ordinary candidate path;
+manifest bin points to test launcher and private=true prevents npm publication.
+Separate name/digest; never release it. Test fetch/keyring loaders live only in
+test code, never production flags. C's focused action tests and action-check.yml
+exercise W-review/text/image, low-budget, trusted gate and exact bare-repo apply.
+Locally, `npx vitest run test/e2e/execTestLauncher.e2e.test.ts` (on a rig) packs
+the real launcher in its own tree and rehearses all four W scenarios through
+the real run-exec entry, judged by `test/action/w-check.mjs` as the workflow
+does.
+
+Every new guard needs green → deliberate wrong behavior → intended failure →
+byte-exact SHA-256 restoration → restored green. Record mutated/restored hashes,
+command/rig/OS/exit/diagnostic in docs/certification/m80.md, including survivors
+and deferrals. No bypasses, narrowed discovery, threshold changes or fake logs.
+L/LA/LR are distinct live receipts, not implied by fakes; this lane never runs
+them. Guide commands and operational recipes stay pending until observed.
+
+The D shell-harness tests require Bash and core utilities. Windows uses an
+installed Git Bash next to Git or on the absolute PATH. A rig with MinGit may
+stage trusted offline MSYS tools under `node_modules/.bin/msys/usr/bin` with a
+portable root `tmp/`; this is test tooling only, never an npm/product dependency
+or global install. Windows Node tar checks use native System32 bsdtar so drive
+letters are not interpreted as GNU tar remote hosts. A shell startup failure or
+failure to reach the fixture is a failed check, never a proved refusal.

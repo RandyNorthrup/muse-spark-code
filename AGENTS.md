@@ -66,11 +66,7 @@ them, the milestone plan, and the certification checklist.
      The agent takes every credential variable (`*_API_KEY` and the named
      ones hooks never get) out of its own environment at start, so no
      shell command, hook, git or helper it starts sees one.
-   - **The one exception: M80's CI bootstrap** (PLAN.md M80, planned).
-     GitHub hands a secret to a step only through its environment or its
-     script, so the Action's own step shell is the one environment the key
-     is ever in: that shell pipes it to `auth set`'s standard input and
-     unsets it before `exec` starts. Nothing else is excepted.
+   - **The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
    - **The CLI's credential file.** The extension reads only its structure
      (`src/core/backends/musecode/credentialFile.ts`): the schema version,
      which providers are named (only `meta` speaks for the sign-in), each
@@ -117,6 +113,17 @@ them, the milestone plan, and the certification checklist.
     (PLAN.md D50, M85, experimental): the TypeSafe assist is billed to the
     user's own TypeSafe key instead of the Model API key; every other part
     of this rule applies to it unchanged.
+
+- **Headless exception (M80, D65):** interactive popup policy above stays.
+  Headless images require the explicit `--image-generation` flag,
+  `acceptEdits`, a hard USD budget, and per-use admission/settlement tally;
+  refuse before unaffordable dispatch. Protected paths and
+  `requiresAsking` are denied. No remembered grants, ordinary approval
+  grants or translated-title decisions. CI paid defaults off; hosted search,
+  voice, subagents and schedules stay unavailable. The conditional budget
+  theorem, price, returned/uncertain tally and retained liability are visible;
+  the subscription pays none of it.
+
 13. **Wire shapes come from a live capture.** A row, parser or schema for
     something Muse Code or the Model API sends is written from a captured
     frame (the certification record names the capture, its workspace and its
@@ -132,6 +139,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the Model API bundle's entry (dist/modelApi.js, loaded
                       when that backend first starts), the plan reader's
                       (dist/planMarkdown.js, loaded on the first plan action),
+                      code intelligence's `ide` answers (dist/codeIntel.js,
+                      loaded on the first call) and voice's drivers
+                      (dist/voice.js, loaded on the first recording),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,
@@ -155,6 +165,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
+src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
+                      bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth` and `login`
 src/shared/**         constants + zod protocol shared by host and webview
@@ -195,27 +207,41 @@ docs/ide-compatibility.md, docs/ide-compatibility/
                       the plan for editors beyond VS Code (D60), the
                       generated record of what the extension asks of its host,
                       and hosts.md, what each editor was tested at
+action/**             composite proposal Action, bounded trusted launcher,
+                      sanitized Git and exact verified package installation
+                      action/apply/ holds prepare and reviewer-approved push
+                      in separate jobs; test/action/ contains fake-only fixtures
+docs/ci.md            headless/CI contract, security and accounting assumptions
+docs/schemas/**       generated versioned event/result schemas, shipped in npm
 docs/acp.md           the ACP agent's guide, shipped as its package's README
 media/                icons, banner, social preview, README screenshots
 ```
 
 ## Commands
 
-| Task                           | Command                                  |
-| ------------------------------ | ---------------------------------------- |
-| All gates (local)              | `npm run quality`                        |
-| The gates CI runs everywhere   | `npm run quality:gates`                  |
-| Accessibility gate             | `npm run test:a11y`                      |
-| Localization gate              | `npm run check:l10n`                     |
-| Host API record (D60)          | `npm run check:host-api` (`-- --write`)  |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo` |
-| Unit tests with coverage       | `npm run test:unit`                      |
-| Integration tests              | `npm run test:integration`               |
-| Dev build / watch              | `npm run build:dev` / `npm run watch`    |
-| Production build + size budget | `npm run build`                          |
-| Package `.vsix`                | `npm run package`                        |
-| Package the ACP agent (D62)    | `npm run package:acp`                    |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`            |
+| Task                           | Command                                   |
+| ------------------------------ | ----------------------------------------- |
+| All gates (local)              | `npm run quality`                         |
+| The gates CI runs everywhere   | `npm run quality:gates`                   |
+| Accessibility gate             | `npm run test:a11y`                       |
+| Localization gate              | `npm run check:l10n`                      |
+| Host API record (D60)          | `npm run check:host-api` (`-- --write`)   |
+| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`  |
+| Unit tests with coverage       | `npm run test:unit`                       |
+| Integration tests              | `npm run test:integration`                |
+| Dev build / watch              | `npm run build:dev` / `npm run watch`     |
+| Production build + size budget | `npm run build`                           |
+| Package `.vsix`                | `npm run package`                         |
+| Package the ACP agent (D62)    | `npm run package:acp`                     |
+| Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)      |
+| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`       |
+| Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>` |
+| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`             |
+
+M80's lanes are integrated and their fake-only suites pass on the rigs; do not
+call exec, the scanner or the Action supported until the hosted action-check
+matrix and the live receipts (L, LA; LR after release) pass. The test tarball
+is private, unsigned and never published as product.
 
 ## Toolchain pins that matter
 
