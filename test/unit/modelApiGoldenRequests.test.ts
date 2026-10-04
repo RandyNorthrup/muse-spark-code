@@ -1,7 +1,8 @@
 // Lane M91-G: golden "hooks off" requests (PLAN.md M91 acceptance 14g,
 // SoL-Pi rule 7). Every request body the fake Model API receives with hooks
 // OFF is recorded as a fixture under `test/fixtures/golden-requests/`, and
-// this test asserts the live bytes equal those fixtures byte for byte. Every
+// this test compares raw fetch body strings, preserving key order and all
+// formatting, except for the documented generated-id tokens below. Every
 // later M91 lane compares against these fixtures, so they were captured on
 // the lane-0 tree before any lane changed request building.
 //
@@ -14,7 +15,10 @@
 // - Wire item ids (`fc_N`, `rs_N`, `msg_N`, `ws_N`): the fake Model API
 //   numbers every streamed item from a module-global counter, and the host
 //   replays those ids in later request inputs. The ids name nothing the
-//   test chose, so each becomes `<item-id>/<reasoning-id>/…` by item kind.
+//   test chose. Only those types' direct `input[*].id` fields with the fake's
+//   matching numeric prefix are replaced. One map spans every request in a
+//   scenario: distinct ids get distinct aliases (`fc_A`, `msg_B`, …), and
+//   repeated references retain their alias. No keys are sorted or reserialized.
 // - Scripted call ids (`c1`, `spawn1`, …) stay: the test chose them, and a
 //   lane that renamed or dropped a call must fail loudly.
 // - Dates: the instructions carry `today` from the host's `now()` dep, and
@@ -57,6 +61,7 @@ function isRegenerate(): boolean {
 
 interface Harness {
   readonly api: FakeModelApi
+  readonly rawBodies: string[]
   readonly host: ModelApiHost
   readonly io: MemoryToolIo
   readonly session: ModelApiSession
@@ -68,9 +73,22 @@ async function setup(
   options: { readonly paidSubagents?: boolean } = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
+  const rawBodies: string[] = []
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo(files, ROOT)
-  const client = new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
+  const client = new ModelApiClient({
+    ...fakeModelApiClientSettings(log),
+    fetch: (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      if (url.pathname === '/v1/responses' && init?.method === 'POST') {
+        if (typeof init.body !== 'string') {
+          throw new TypeError('expected a raw Model API request body string')
+        }
+        rawBodies.push(init.body)
+      }
+      return api.fetch(input, init)
+    },
+  })
   const base = fakeModelApiHostDeps({ client, workspaceRoot: ROOT, io, log })
   const deps: ModelApiHostDeps = {
     ...base,
@@ -93,7 +111,7 @@ async function setup(
   if (!(session instanceof ModelApiSession)) {
     throw new TypeError('expected the Model API session')
   }
-  return { api, host, io, session, ...watchSessionTurns(session) }
+  return { api, rawBodies, host, io, session, ...watchSessionTurns(session) }
 }
 
 /** One user text turn, driven to completion. */
@@ -103,60 +121,100 @@ async function runTurn(harness: Harness, text: string): Promise<void> {
   await harness.turnDone()
 }
 
-/** The `id` the fake numbers on each streamed item, by input-item kind. */
-function placeholderIdFor(item: Record<string, unknown>): string {
-  switch (item['type']) {
+/** Only the generated wire-item ids documented by the shared fake are eligible. */
+function wireIdPrefix(type: unknown): string | undefined {
+  switch (type) {
     case 'function_call': {
-      return '<item-id>'
+      return 'fc'
     }
     case 'reasoning': {
-      return '<reasoning-id>'
+      return 'rs'
     }
     case 'message': {
-      return '<message-id>'
+      return 'msg'
     }
     case 'web_search_call': {
-      return '<search-id>'
+      return 'ws'
     }
     default: {
-      return '<item-id>'
+      return undefined
     }
   }
 }
 
-/** Code-unit order, the same on every runtime: byte stability must not depend on ICU. */
-function compareKeys(left: string, right: string): number {
-  return left < right ? -1 : 1
+// Consume whole string tokens, including escaped quotes, so text/arguments
+// containing JSON-looking ids or braces cannot be treated as wire fields.
+const JSON_TOKENS = /"(?:\\.|[^"\\])*"|[{}[\]:,]/g
+
+function normalizeItem(raw: string, ids: Map<string, string>): string {
+  const item: unknown = JSON.parse(raw)
+  if (typeof item !== 'object' || item === null || !('type' in item) || !('id' in item)) {
+    return raw
+  }
+  const prefix = wireIdPrefix(item.type)
+  if (
+    prefix === undefined ||
+    typeof item.id !== 'string' ||
+    !new RegExp(`^${prefix}_[0-9]+$`).test(item.id)
+  ) {
+    return raw
+  }
+  const alias =
+    ids.get(item.id) ?? `${prefix}_${String.fromCodePoint('A'.codePointAt(0)! + ids.size)}`
+  ids.set(item.id, alias)
+  let depth = 0
+  let previous = ''
+  let beforePrevious = ''
+  return raw.replaceAll(JSON_TOKENS, (token: string) => {
+    const isId = depth === 1 && previous === ':' && beforePrevious === '"id"'
+    if (token === '{' || token === '[') depth += 1
+    else if (token === '}' || token === ']') depth -= 1
+    beforePrevious = previous
+    previous = token
+    return isId ? JSON.stringify(alias) : token
+  })
 }
 
-function normalizeValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((entry) => normalizeValue(entry))
-  }
-  if (typeof value === 'object' && value !== null) {
-    const record = value as Record<string, unknown>
-    const out: Record<string, unknown> = {}
-    const keys = Object.keys(record).toSorted(compareKeys)
-    for (const key of keys) {
-      if (key === 'id' && typeof record[key] === 'string') {
-        out[key] = placeholderIdFor(record)
-        continue
+/** Replace only direct input-item id tokens; every other raw byte is retained. */
+function normalizeBodies(bodies: readonly string[]): string[] {
+  const ids = new Map<string, string>()
+  return bodies.map((body) => {
+    let depth = 0
+    let isInput = false
+    let itemStart: number | undefined
+    let keptUntil = 0
+    let previous = ''
+    let beforePrevious = ''
+    const parts: string[] = []
+    for (const match of body.matchAll(JSON_TOKENS)) {
+      const token = match[0]
+      if (token === '[' && depth === 1 && previous === ':' && beforePrevious === '"input"') {
+        isInput = true
       }
-      out[key] = normalizeValue(record[key])
+      if (token === '{' && isInput && depth === 2) itemStart = match.index
+      if (token === '}' && isInput && depth === 3 && itemStart !== undefined) {
+        const end = match.index + 1
+        parts.push(body.slice(keptUntil, itemStart), normalizeItem(body.slice(itemStart, end), ids))
+        keptUntil = end
+        itemStart = undefined
+      }
+      if (token === ']' && isInput && depth === 2) isInput = false
+      if (token === '{' || token === '[') depth += 1
+      else if (token === '}' || token === ']') depth -= 1
+      beforePrevious = previous
+      previous = token
     }
-    return out
-  }
-  return value
+    parts.push(body.slice(keptUntil))
+    return parts.join('')
+  })
 }
 
-/** Stable JSON: sorted keys at every level, two-space indent. */
-function stableJson(value: unknown): string {
-  return JSON.stringify(normalizeValue(value), undefined, 2)
-}
-
-function checkGolden(scenario: string, api: FakeModelApi): void {
-  const doc = { scenario, requests: api.responseBodies() }
-  const text = `${stableJson(doc)}\n`
+function checkGolden(scenario: string, harness: Harness): void {
+  expect(harness.rawBodies).toHaveLength(harness.api.responseBodies().length)
+  // The fixture envelope is formatted JSON; each entry is the raw request
+  // string, not a parsed/reserialized body. Its whitespace and order survive.
+  const doc = { scenario, requests: normalizeBodies(harness.rawBodies) }
+  const text = `${JSON.stringify(doc, undefined, 2)}\n`
   const file = path.join(FIXTURE_DIR, `${scenario}.json`)
   if (isRegenerate()) {
     mkdirSync(FIXTURE_DIR, { recursive: true })
@@ -175,13 +233,66 @@ const BIG = Array.from(
 const skillFile = (name: string, description: string, body: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`
 
+describe('golden request normalization boundaries', () => {
+  it('preserves raw formatting and key order', () => {
+    const bodies = [
+      '{ "input" : [ { "id" : "fc_91", "type" : "function_call" } ], "model" : "muse-spark-1.3" }\n',
+      '{"model":"muse-spark-1.3","input":[{"type":"function_call","id":"fc_91"}]}',
+    ]
+    expect(normalizeBodies(bodies)).toEqual(bodies.map((body) => body.replace('fc_91', 'fc_A')))
+    expect(normalizeBodies(bodies)[0]).not.toBe(normalizeBodies(bodies)[1])
+  })
+
+  it('keeps distinct ids and repeated references across the whole scenario', () => {
+    const bodies = [
+      '{"input":[{"type":"function_call","id":"fc_91"},{"type":"function_call","id":"fc_92"}]}',
+      '{"input":[{"type":"function_call","id":"fc_92"},{"type":"function_call","id":"fc_91"}]}',
+    ]
+    const expected = bodies.map((body) =>
+      body.replaceAll('fc_91', 'fc_A').replaceAll('fc_92', 'fc_B'),
+    )
+    expect(normalizeBodies(bodies)).toEqual(expected)
+    expect(normalizeBodies([bodies[0]!, bodies[1]!.replace('fc_91', 'fc_93')])).not.toEqual(
+      expected,
+    )
+  })
+
+  it('normalizes only matching direct wire-item ids, leaving other fields and text intact', () => {
+    // Synthetic scope probes, not additional claimed provider wire shapes.
+    const body = JSON.stringify({
+      id: 'fc_91',
+      tools: [{ type: 'function_call', id: 'fc_91' }],
+      input: [
+        { type: 'function_call', id: 'fc_91', call_id: 'fc_91', arguments: '{"id":"fc_91"}' },
+        { type: 'reasoning', id: 'rs_92' },
+        {
+          type: 'message',
+          id: 'msg_93',
+          content: [{ type: 'output_text', text: '{"id":"msg_93"}' }],
+        },
+        { type: 'web_search_call', id: 'ws_94' },
+        { type: 'function_call_output', id: 'fc_95', output: 'fc_95' },
+        { type: 'message', id: 'scripted-message' },
+        { type: 'message', id: 'fc_96' },
+      ],
+    })
+    expect(normalizeBodies([body])).toEqual([
+      body
+        .replace('"id":"fc_91","call_id"', '"id":"fc_A","call_id"')
+        .replace('"id":"rs_92"', '"id":"rs_B"')
+        .replace('"id":"msg_93"', '"id":"msg_C"')
+        .replace('"id":"ws_94"', '"id":"ws_D"'),
+    ])
+  })
+})
+
 describe('M91-G golden requests with hooks off', () => {
   it('records a plain one-turn reply', async () => {
     const harness = await setup({})
     harness.api.script({ text: 'Hello back.' })
     await runTurn(harness, 'Hello.')
     expect(harness.api.responseBodies()).toHaveLength(1)
-    checkGolden('01-plain-turn', harness.api)
+    checkGolden('01-plain-turn', harness)
     await harness.host.close()
   })
 
@@ -193,7 +304,7 @@ describe('M91-G golden requests with hooks off', () => {
     )
     await runTurn(harness, 'What is in a.txt?')
     expect(harness.api.responseBodies()).toHaveLength(2)
-    checkGolden('02-tool-call', harness.api)
+    checkGolden('02-tool-call', harness)
     await harness.host.close()
   })
 
@@ -218,7 +329,7 @@ describe('M91-G golden requests with hooks off', () => {
     )
     await runTurn(harness, 'Rename one to two, then run echo then.')
     expect(harness.api.responseBodies()).toHaveLength(2)
-    checkGolden('03-edit-then-run', harness.api)
+    checkGolden('03-edit-then-run', harness)
     await harness.host.close()
   })
 
@@ -236,7 +347,7 @@ describe('M91-G golden requests with hooks off', () => {
     harness.api.script({ text: 'Once more.' })
     await runTurn(harness, 'And?')
     expect(harness.api.responseBodies()).toHaveLength(4)
-    checkGolden('04-packed-output', harness.api)
+    checkGolden('04-packed-output', harness)
     await harness.host.close()
   })
 
@@ -253,7 +364,7 @@ describe('M91-G golden requests with hooks off', () => {
     harness.api.script({ text: 'Later.' })
     await runTurn(harness, 'Next.')
     expect(harness.api.responseBodies()).toHaveLength(3)
-    checkGolden('05-manual-compaction', harness.api)
+    checkGolden('05-manual-compaction', harness)
     await harness.host.close()
   })
 
@@ -277,7 +388,7 @@ describe('M91-G golden requests with hooks off', () => {
       expect(harness.api.responseBodies()).toHaveLength(3)
       expect(harness.session.status).toBe('idle')
     })
-    checkGolden('06-subagent-child', harness.api)
+    checkGolden('06-subagent-child', harness)
     await harness.host.close()
   })
 
@@ -289,7 +400,7 @@ describe('M91-G golden requests with hooks off', () => {
     harness.api.script({ text: 'Done.' })
     await runTurn(harness, 'Go.')
     expect(harness.api.responseBodies()).toHaveLength(1)
-    checkGolden('07-skills-and-rules', harness.api)
+    checkGolden('07-skills-and-rules', harness)
     await harness.host.close()
   })
 })
