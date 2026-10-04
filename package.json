@@ -907,7 +907,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "run-s lint:js lint:css lint:ps",
-    "lint:js": "eslint . --max-warnings=0",
+    "lint:js": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js . --max-warnings=0",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings=0",
     "lint:ps": "node scripts/lint-ps.mjs",
     "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration",
