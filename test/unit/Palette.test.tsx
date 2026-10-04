@@ -245,9 +245,9 @@ describe('M87 palette descriptions', () => {
     for (const row of rows) {
       expect(row.title.trim()).not.toBe('')
       expect(row).toHaveAttribute('aria-describedby')
-      expect(document.getElementById(row.getAttribute('aria-describedby') ?? '')).toHaveTextContent(
-        row.title,
-      )
+      expect(
+        document.querySelector(`[id="${CSS.escape(row.getAttribute('aria-describedby') ?? '')}"]`),
+      ).toHaveTextContent(row.title)
       expect(row).toHaveAccessibleDescription(row.title)
     }
   })
