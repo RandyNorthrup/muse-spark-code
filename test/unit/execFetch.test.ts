@@ -36,8 +36,8 @@ function folder() {
   return f
 }
 const dist = folder()
-beforeAll(() => {
-  buildModelApiBundle(dist)
+beforeAll(async () => {
+  await buildModelApiBundle(dist)
 })
 afterAll(async () => {
   await Promise.all(folders.map((created) => removeFolder(created)))

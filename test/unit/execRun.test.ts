@@ -106,8 +106,8 @@ function folder() {
 }
 const dist = folder()
 const builtMain = path.join(folder(), 'dist', 'acp.js')
-beforeAll(() => {
-  buildModelApiBundle(dist)
+beforeAll(async () => {
+  await buildModelApiBundle(dist)
   mkdirSync(path.dirname(builtMain), { recursive: true })
   buildSync({
     entryPoints: ['src/runtime/main.ts'],

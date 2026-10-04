@@ -78,7 +78,7 @@ const sharedUiText: Plugin = {
 async function packageTree(): Promise<void> {
   const dist = path.join(STAGE, 'dist')
   mkdirSync(dist, { recursive: true })
-  buildModelApiBundle(dist)
+  await buildModelApiBundle(dist)
   await build({
     entryPoints: [UI_TEXT_ENTRY],
     outfile: path.join(dist, 'uiText.js'),
