@@ -139,6 +139,7 @@
         confidentialWorkspace: false,
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
+        modelApiReplyUsage: false,
       }
       const models = [
         {
@@ -945,6 +946,7 @@
         Model: ['modelPillLabel'],
         'Record voice': ['dictationLabel'],
         'Session history': ['historyTitle'],
+        'Session board': ['boardTitle'],
         // The permission-mode button reads "<title>: <mode>".
         'Permission mode: Manual': ['permissionModeTitle', 'permissionModes.manual'],
       }
@@ -1718,7 +1720,46 @@
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
-        // --- M14: the usage modal on the Model API backend (a cost estimate) ---
+        // --- M82: a Model API reply with its tokens and cost under it, and
+        // the session budget's notices after it ---
+        'reply-usage': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'settingsChanged', settings: { ...settings, modelApiReplyUsage: true } })
+          window.harnessSilent = true
+          setDraft('Which files set the session budget?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'm1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The cap is read in `src/host/settings.ts` and kept in `sessionBudget.ts`.',
+              usage: {
+                inputTokens: 23_410,
+                outputTokens: 912,
+                cachedTokens: 18_000,
+                reasoningTokens: 240,
+              },
+              costUsd: 0.0133,
+            },
+          })
+          // The controller posts a backend's notices as its own (D26).
+          send({
+            type: 'notice',
+            level: 'warning',
+            text: 'The response reached the output limit the session budget left it (max_output_tokens 912) and may be cut short.',
+          })
+          send({
+            type: 'notice',
+            level: 'info',
+            text: 'This turn cost $0.0133 ($0.4870 of $0.5000 used).',
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        // --- M14: the usage modal on the Model API backend (a cost estimate;
+        // since M82 also what the prompt cache saved) ---
         'usage-api': () => {
           window.harnessBackend = 'modelApi'
           send({
@@ -1850,6 +1891,122 @@
             type: 'itemUpdated',
             item: { itemId: 'sa2', kind: 'subagent', status: 'completed', paid: 'subagents' },
           })
+        },
+        // --- M78: the Auto reviewer's paid row, and the card it leaves when it asks ---
+        'auto-review': () => {
+          window.harnessBackend = 'modelApi'
+          window.harnessPaid = {
+            features: ['autoReviewer'],
+            tally: {
+              webSearches: 0,
+              images: 0,
+              voiceSeconds: 0,
+              scheduledRuns: 0,
+              autoReviews: 1,
+              autoReviewTokens: 1180,
+              autoReviewCostUsd: 0.0016,
+            },
+            isKeyStored: true,
+            alwaysAllowed: [],
+          }
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          send({ type: 'paidState', state: window.harnessPaid })
+          window.harnessSilent = true
+          setDraft('Clean the build output and run the tests')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'rv-shell',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'bash',
+              args: '{"command":"rm -r dist","description":"Remove the build output"}',
+            },
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'rv-row',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'auto_review',
+              args: '{"tool":"bash","action":"rm -r dist"}',
+              paid: 'autoReviewer',
+              visibleOutput: 'Asks you: deletes the build output, which the request did not name',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'rv1',
+            itemId: 'rv-shell',
+            toolName: 'bash',
+            rawArgs: '{"command":"rm -r dist","description":"Remove the build output"}',
+            requirementId: { approvalId: 'rv1', sourceIndex: 0 },
+            subject: { kind: 'shell', command: 'rm -r dist' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'allow_session',
+                label: 'Always allow in this session: rm -r dist',
+                decision: 'approvedPolicyAmendment',
+                scope: 'session',
+              },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: true,
+            isProtectedWrite: false,
+            note: 'Asks you: deletes the build output, which the request did not name',
+          })
+        },
+        'auto-review-rule': () => {
+          window.harnessBackend = 'modelApi'
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          window.harnessSilent = true
+          setDraft('Push the branch')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemStarted',
+            item: {
+              itemId: 'rule-shell',
+              kind: 'toolCall',
+              status: 'inProgress',
+              tool: 'bash',
+              args: '{"command":"git push origin main"}',
+            },
+          })
+          event({
+            type: 'approvalRequested',
+            approvalId: 'rule1',
+            itemId: 'rule-shell',
+            toolName: 'bash',
+            rawArgs: '{"command":"git push origin main"}',
+            requirementId: { approvalId: 'rule1', sourceIndex: 0 },
+            subject: { kind: 'shell', command: 'git push origin main' },
+            availableChoices: [
+              { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+              {
+                choiceId: 'abort',
+                label: 'Reject',
+                decision: 'abort',
+                scope: 'once',
+                acceptsFeedback: true,
+              },
+            ],
+            isJudgeEscalated: false,
+            isProtectedWrite: false,
+            note: 'Your command rule asks about this command every time: pushes are reviewed',
+          })
+        },
+        'auto-review-usage': () => {
+          steps['auto-review']()
+          whenFound('.paid-badge', (badge) => badge.click())
         },
         // --- M34, M58: an image's row while the paid-use popup asks first ---
         'paid-image': () => {
@@ -3182,6 +3339,104 @@
           whenFound('.palette-filter', (filter) => {
             setValue(filter, HTMLInputElement.prototype, '/usage')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+          })
+        },
+        // --- M77: the session board: every conversation's state, branch, changes ---
+        board: () => {
+          click('Session board')
+          send({
+            type: 'sessionBoard',
+            rows: [
+              {
+                sessionId: 's1',
+                title: 'Swap the precedence rows',
+                backend: 'modelApi',
+                status: 'running',
+                branch: 'bestofn/swap-precedence-a',
+                changedFiles: 3,
+                awaitingApproval: true,
+              },
+              {
+                sessionId: 's2',
+                title: 'Edit notes.md, then list the folder',
+                backend: 'museCode',
+                status: 'idle',
+                branch: 'main',
+                worktreePath: '/tmp/demo-notes',
+                changedFiles: 1,
+                awaitingApproval: false,
+              },
+              {
+                sessionId: 's3',
+                title: 'Review the workspace changes',
+                backend: 'modelApi',
+                status: 'idle',
+                awaitingApproval: false,
+              },
+            ],
+          })
+        },
+        // --- M77: best-of-N: parallel attempts, their diffs side by side, "take this one" ---
+        bestofn: () => {
+          // The run lands first: the dialog shows the run view only for a run
+          // it already knows when it opens.
+          send({
+            type: 'bestOfNUpdate',
+            run: {
+              runId: 'run1',
+              prompt: 'Swap the precedence rows',
+              modelId: 'muse-spark-1',
+              baseRef: 'abc123',
+              attempts: 3,
+              requestCeilingPerAttempt: 8,
+              status: 'running',
+              runAttempts: [
+                {
+                  attemptId: 'a1',
+                  branch: 'bestofn/swap-precedence-a',
+                  worktreePath: '/tmp/bestofn-a',
+                  hasWorktree: true,
+                  status: 'completed',
+                  requestsMade: 4,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [{ path: 'src/parser.ts', insertions: 2, deletions: 2 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n+    ['??', 4],",
+                  isDiffClipped: false,
+                },
+                {
+                  attemptId: 'a2',
+                  branch: 'bestofn/swap-precedence-b',
+                  worktreePath: '/tmp/bestofn-b',
+                  hasWorktree: true,
+                  status: 'completed',
+                  requestsMade: 8,
+                  ceilingReached: true,
+                  approvalsDenied: 1,
+                  files: [{ path: 'src/parser.ts', insertions: 3, deletions: 1 }],
+                  changedLines: 4,
+                  diff: "--- a/src/parser.ts\n+++ b/src/parser.ts\n@@\n-    ['||', 4],\n-    ['??', 5],\n+    ['??', 4],\n+    ['||', 5],",
+                  isDiffClipped: true,
+                },
+                {
+                  attemptId: 'a3',
+                  branch: 'bestofn/swap-precedence-c',
+                  worktreePath: '/tmp/bestofn-c',
+                  hasWorktree: true,
+                  status: 'running',
+                  requestsMade: 2,
+                  ceilingReached: false,
+                  approvalsDenied: 0,
+                  files: [],
+                  changedLines: 0,
+                },
+              ],
+            },
+          })
+          steps.board()
+          whenFound('#board-listbox', () => {
+            document.querySelector('.palette-header .button-secondary').click()
           })
         },
       }

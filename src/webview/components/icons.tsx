@@ -140,6 +140,17 @@ export function HistoryIcon(props: IconProps) {
   )
 }
 
+export function BoardIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+    </Svg>
+  )
+}
+
 export function NewConversationIcon(props: IconProps) {
   return (
     <Svg {...props}>

@@ -5,13 +5,14 @@
 
 import { describe, expect, it } from 'vitest'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
-import type { FileEdits, RenameEdits } from '../../src/core/codeIntel/languageService'
+import type { RenameEdits } from '../../src/core/codeIntel/languageService'
 import { planRename, renameDiff } from '../../src/core/codeIntel/rename'
 import { MODEL_TEXT, RENAME_MAX_FILES } from '../../src/shared/constants'
 import {
   type FakeServiceOptions,
   fakeLanguageService,
   KIND,
+  renamed,
   sym,
 } from './helpers/fakeLanguageService'
 import { memoryToolIo, realPathThrough } from './helpers/fakeToolIo'
@@ -26,20 +27,8 @@ const FILES = {
 }
 const ARGS = { path: 'src/a.ts', line: 1, column: 17, new_name: 'welcome' }
 
-function renameIn(path: string | undefined, line: number, character: number): FileEdits {
-  return {
-    path,
-    edits: [
-      {
-        range: { start: { line, character }, end: { line, character: character + 5 } },
-        newText: 'welcome',
-      },
-    ],
-  }
-}
-
 const EDITS: RenameEdits = {
-  files: [renameIn(B, 0, 9), renameIn(A, 0, 16), { path: B, edits: [renameIn(B, 1, 0).edits[0]!] }],
+  files: [renamed(B, 0, 9), renamed(A, 0, 16), { path: B, edits: [renamed(B, 1, 0).edits[0]!] }],
   fileOperations: 'none' as const,
 }
 
@@ -100,7 +89,7 @@ describe('planRename', () => {
       rename: () =>
         Promise.resolve({
           ...EDITS,
-          files: [...EDITS.files, renameIn('/lib/x.d.ts', 0, 0), renameIn(undefined, 0, 0)],
+          files: [...EDITS.files, renamed('/lib/x.d.ts', 0, 0), renamed(undefined, 0, 0)],
         }),
     })
     const moves = setup({
@@ -113,7 +102,7 @@ describe('planRename', () => {
       rename: () =>
         Promise.resolve({
           files: Array.from({ length: RENAME_MAX_FILES + 1 }, (_, index) =>
-            renameIn(`${ROOT}/f${String(index)}.ts`, 0, 0),
+            renamed(`${ROOT}/f${String(index)}.ts`, 0, 0),
           ),
           fileOperations: 'none' as const,
         }),
@@ -125,7 +114,7 @@ describe('planRename', () => {
     const broken = setup({
       rename: () =>
         Promise.resolve({
-          files: [renameIn(A, 0, 16), renameIn(B, 9, 0)],
+          files: [renamed(A, 0, 16), renamed(B, 9, 0)],
           fileOperations: 'none' as const,
         }),
     })
@@ -162,7 +151,7 @@ describe('planRename', () => {
     const same = setup({
       rename: () =>
         Promise.resolve({
-          files: [{ path: A, edits: [{ ...renameIn(A, 0, 16).edits[0]!, newText: 'greet' }] }],
+          files: [{ path: A, edits: [{ ...renamed(A, 0, 16).edits[0]!, newText: 'greet' }] }],
           fileOperations: 'none' as const,
         }),
     })
@@ -193,8 +182,7 @@ describe('planRename', () => {
     )
     // An edit that does not cover the position asked about has no old name.
     const elsewhere = setup({
-      rename: () =>
-        Promise.resolve({ files: [renameIn(B, 1, 0)], fileOperations: 'none' as const }),
+      rename: () => Promise.resolve({ files: [renamed(B, 1, 0)], fileOperations: 'none' as const }),
     })
     expect(await reasonOf(elsewhere.plan(ARGS))).toContain('does not match src/a.ts')
   })
