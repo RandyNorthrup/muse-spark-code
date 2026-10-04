@@ -732,15 +732,15 @@
     "security:sast": "node scripts/sast.mjs"
   },
   "lint-staged": {
-    "*.{ts,tsx,mjs}": [
+    "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
       "eslint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.css": [
+    "{*.css,!(vendor)/**/*.css}": [
       "stylelint --max-warnings=0 --fix",
       "prettier --write"
     ],
-    "*.{json,jsonc,md,yml,yaml}": "prettier --write"
+    "{*.{json,jsonc,md,yml,yaml},!(vendor)/**/*.{json,jsonc,md,yml,yaml}}": "prettier --write"
   },
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.5.0",
