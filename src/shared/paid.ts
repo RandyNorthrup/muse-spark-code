@@ -150,6 +150,13 @@ export type PaidUseRequest =
       readonly attempts: number
       readonly requestCeilingPerAttempt: number
     }
+  | {
+      // Inline completions (M94, PLAN.md D73; lane L): the request's model
+      // (its per-token rates are quoted) and today's budget cap the popup.
+      readonly feature: 'tab'
+      readonly modelId: string
+      readonly budgetUsd: number
+    }
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the

@@ -364,6 +364,75 @@ describe('PaidUsage: the Auto reviewer (M78)', () => {
   })
 })
 
+describe('PaidUsage: Tab counting (M94 lane L, PLAN.md D73)', () => {
+  it('counts sent requests at once and prices them when their usage arrives', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.add('tab', 2)
+    expect(usage.current).toMatchObject({ tabRequests: 2 })
+    usage.addTabRequest()
+    usage.addTabRequest()
+    expect(usage.current).toMatchObject({ tabRequests: 4, tabUnknownRequests: 2 })
+    // No reported usage means no invented cost; unknowns stay unknown.
+    expect(paidCostUsd('tab', usage.current)).toBe(0)
+    expect(paidTotalUsd(usage.current)).toBe(0)
+    usage.addTabUsage('muse-spark-1.3', {
+      inputTokens: 1_000_000,
+      cachedTokens: 200_000,
+      outputTokens: 100_000,
+    })
+    expect(usage.current).toMatchObject({
+      tabRequests: 4,
+      tabUnknownRequests: 1,
+      tabTokens: 1_100_000,
+      tabCachedTokens: 200_000,
+    })
+    expect(paidCostUsd('tab', usage.current)).toBeCloseTo(1.455)
+    expect(paidTotalUsd(usage.current)).toBeCloseTo(1.455)
+    expect(listedPaidFeatures([], usage.current)).toEqual(['tab'])
+  })
+
+  it('keeps an unreported request unknown, and tells its listeners', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    const listener = vi.fn()
+    const stop = usage.onDidChange(listener)
+    usage.add('tab', 1)
+    usage.addTabRequest()
+    // Reported with no unknown outstanding settles nothing.
+    const fresh = new PaidUsage(new FakeLogOutputChannel())
+    fresh.addTabUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 0, outputTokens: 0 })
+    expect(fresh.current.tabCostUsd).toBeUndefined()
+    usage.addTabUsage('muse-spark-1.3', { inputTokens: 10, cachedTokens: 2, outputTokens: 5 })
+    expect(usage.current).toMatchObject({
+      tabRequests: 2,
+      tabUnknownRequests: 0,
+      tabTokens: 15,
+      tabCachedTokens: 2,
+    })
+    expect(listener).toHaveBeenCalledTimes(3)
+    stop()
+  })
+
+  it('refuses usage it cannot price', () => {
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    usage.addTabRequest()
+    expect(() => {
+      usage.addTabUsage('muse-spark-future', { inputTokens: 1, outputTokens: 1, cachedTokens: 0 })
+    }).toThrow('unpriced model')
+    expect(() => {
+      usage.addTabUsage('muse-spark-1.3', { inputTokens: 1, cachedTokens: 2, outputTokens: 0 })
+    }).toThrow('valid nonnegative token counts')
+    expect(() => {
+      usage.addTabUsage('muse-spark-1.3', {
+        inputTokens: -1,
+        outputTokens: 1,
+        cachedTokens: 0,
+      })
+    }).toThrow('nonnegative')
+    expect(usage.current.tabUnknownRequests).toBe(1)
+    expect(usage.current.tabCostUsd).toBeUndefined()
+  })
+})
+
 describe('PaidUsage: Tab completions (M94 lane 0, PLAN.md D73)', () => {
   it('names Tab, prices it by token tiers, and lists it once it has requests', () => {
     expect(paidFeatureName('tab')).toBe(UI_TEXT.paidTabName)

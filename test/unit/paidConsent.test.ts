@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { PaidUseConsent, type PaidUseAnswer } from '../../src/core/paid/paidConsent'
-import type { PaidFeature } from '../../src/shared/constants'
+import {
+  PaidUseConsent,
+  paidUseQuestion,
+  type PaidUseAnswer,
+} from '../../src/core/paid/paidConsent'
+import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { FakeLogOutputChannel } from './helpers/fakes'
 
@@ -126,5 +130,144 @@ describe('PaidUseConsent (M58)', () => {
     await t.consent.forget()
     expect(t.writes).toEqual([[]])
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+})
+
+const TAB_REQUEST: PaidUseRequest = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 }
+
+/** A consent over in-memory settings and grants, with a scripted popup. */
+function tabConsentWith(
+  options: {
+    on?: readonly PaidFeature[]
+    grants?: readonly PaidFeature[]
+    answers?: readonly PaidUseAnswer[]
+    canRemember?: boolean
+    windowOnce?: readonly PaidFeature[]
+  } = {},
+) {
+  const on = new Set<PaidFeature>(options.on ?? ['tab'])
+  let grants = new Set<PaidFeature>(options.grants ?? [])
+  const answers = [...(options.answers ?? [])]
+  const asked: PaidUseRequest[] = []
+  const consent = new PaidUseConsent({
+    isOn: (feature) => on.has(feature),
+    ...(options.windowOnce !== undefined && {
+      windowOnceFeatures: new Set(options.windowOnce),
+    }),
+    canRemember: () => options.canRemember ?? false,
+    readGrants: () => grants,
+    writeGrants: (next) => {
+      grants = new Set(next)
+      return Promise.resolve()
+    },
+    ask: (request) => {
+      asked.push(request)
+      return Promise.resolve(answers.shift() ?? 'deny')
+    },
+    log: new FakeLogOutputChannel(),
+  })
+  const changes = vi.fn()
+  consent.onDidChange(changes)
+  return { consent, on, grants: () => grants, asked, changes }
+}
+
+describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
+  it('names Tab, the model, its rates and today’s budget', () => {
+    const question = paidUseQuestion(TAB_REQUEST)
+    expect(question.title).toBe(UI_TEXT.paidUseTabTitle)
+    expect(question.detail).toContain('muse-spark-1.3')
+    expect(question.detail).toContain('$1.250/1M input')
+    expect(question.detail).toContain('$1.00')
+    expect(question.detail).toContain('Allow once covers this window until it closes')
+  })
+
+  it('adds the training note for the contributor model only', () => {
+    const contributor = paidUseQuestion({
+      feature: 'tab',
+      modelId: 'muse-spark-1.3-contributor',
+      budgetUsd: 1,
+    })
+    expect(contributor.detail).toContain('muse-spark-1.3-contributor')
+    expect(contributor.detail).toContain('$0.100/1M input')
+    expect(contributor.detail).toContain(UI_TEXT.tabTrainingContributor)
+    expect(paidUseQuestion(TAB_REQUEST).detail).not.toContain('trains on')
+  })
+
+  it('has no rate to quote for an unpriced model', () => {
+    expect(() =>
+      paidUseQuestion({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }),
+    ).toThrow(UI_TEXT.subagentTariffUnknown)
+  })
+})
+
+describe('window-scoped Allow once (M94 Q-M94a)', () => {
+  it('covers the window after one answer, and asks other features every time', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(tab.asked).toHaveLength(1)
+    expect(tab.grants().size).toBe(0)
+    // "Allow once" for a feature without window scope still asks every time.
+    const voice = tabConsentWith({ on: ['voice'], answers: ['once', 'once'] })
+    await expect(voice.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    await expect(voice.consent.allows({ feature: 'voice' })).resolves.toBe(true)
+    expect(voice.asked).toHaveLength(2)
+  })
+
+  it('asks again when the use demands a question', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once', 'deny'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    await expect(tab.consent.allows(TAB_REQUEST, true)).resolves.toBe(false)
+    expect(tab.asked).toHaveLength(2)
+  })
+
+  it('denies, and refuses a feature turned off while the popup was open', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['deny'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(false)
+    const off = tabConsentWith({ windowOnce: ['tab'], answers: ['once'] })
+    off.on.delete('tab')
+    await expect(off.consent.allows(TAB_REQUEST)).resolves.toBe(false)
+  })
+
+  it('does not persist past the window: a new instance asks again', async () => {
+    const first = tabConsentWith({ windowOnce: ['tab'], answers: ['once'] })
+    await expect(first.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(first.grants().size).toBe(0)
+    const second = tabConsentWith({ windowOnce: ['tab'], answers: ['deny'] })
+    await expect(second.consent.allows(TAB_REQUEST)).resolves.toBe(false)
+    expect(second.asked).toHaveLength(1)
+  })
+
+  it('asks again after the price acceptance changes', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once', 'deny'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    tab.consent.revokeWindowOnce('tab')
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(false)
+    expect(tab.asked).toHaveLength(2)
+  })
+
+  it('asks again after "Ask again"', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], answers: ['once', 'once'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    await tab.consent.forget()
+    expect(tab.changes).toHaveBeenCalled()
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(tab.asked).toHaveLength(2)
+  })
+
+  it('keeps "Allow always" workspace-scoped for a window-once feature', async () => {
+    const tab = tabConsentWith({ windowOnce: ['tab'], canRemember: true, answers: ['always'] })
+    await expect(tab.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(tab.grants().has('tab')).toBe(true)
+    // The grant is kept per workspace: the same store asks nothing.
+    const same = tabConsentWith({
+      windowOnce: ['tab'],
+      canRemember: true,
+      grants: [...tab.grants()],
+      answers: ['deny'],
+    })
+    await expect(same.consent.allows(TAB_REQUEST)).resolves.toBe(true)
+    expect(same.asked).toHaveLength(0)
+    expect(same.consent.isRemembered('tab')).toBe(true)
   })
 })

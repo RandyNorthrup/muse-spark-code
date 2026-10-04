@@ -224,6 +224,10 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'tab': {
+        this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
+        break
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -276,6 +280,43 @@ export class PaidUsage {
       ...this.tally,
       bestOfNRequests: (this.tally.bestOfNRequests ?? 0) + 1,
       bestOfNUnknownRequests: (this.tally.bestOfNUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /** A Tab suggestion request was sent (M94, PLAN.md D73): counted at once, priced on report. */
+  public addTabRequest(): void {
+    this.tally = {
+      ...this.tally,
+      tabRequests: (this.tally.tabRequests ?? 0) + 1,
+      tabUnknownRequests: (this.tally.tabUnknownRequests ?? 0) + 1,
+    }
+    for (const listener of this.listeners) listener()
+  }
+
+  /**
+   * One Tab request's reported tokens (M94, PLAN.md D73): its cost at the
+   * request model's rates, apart from every conversation. A request that
+   * never reports keeps its unknown count, never a zero cost.
+   */
+  public addTabUsage(modelId: string, usage: SubagentUsage): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate Tab use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error('Tab usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.tabUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      tabUnknownRequests: unknown - 1,
+      tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
+      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
     }
     for (const listener of this.listeners) listener()
   }
