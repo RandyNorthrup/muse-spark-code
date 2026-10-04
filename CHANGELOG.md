@@ -9,6 +9,29 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **A reviewer for Auto on Muse Code (M90, PLAN.md D69).** In Auto on the
+  Muse Code backend, an approval Muse Code raises for the running turn goes
+  to a reviewer before it reaches you: the Model API backend's Auto
+  reviewer (its instructions, its input marked as data, its strict
+  ALLOW/ASK answer and its breaker), run as one short turn of a hidden side
+  session in the same `muse serve`, on your Muse subscription. The side
+  session runs in Plan mode with thinking off, on the conversation's model,
+  in an empty folder under the extension's global storage, so it reads none
+  of your files and History never lists it; it is started again after Muse
+  Code restarts or closes it, for another model, and every ten reviews. On
+  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  each command of the line, and the tool row says "Decided: approved (Auto
+  reviewer)" with its reason; on ASK, an unreadable answer, no answer
+  within 45 seconds, an error, a busy side session or a tripped breaker,
+  the card asks you as before, with the reason on it when there is one. It
+  never answers a protected write, a paid call, a child task, a question,
+  a replayed card, or anything in another mode; one review runs at a time
+  in a window. On by default with the machine-scoped
+  `museSpark.museCodeAutoReviewer`; the window's first review says what it
+  does and costs (one short Muse Code turn: four model attempts in the live
+  check). It loads on the first review from `dist/museCodeReviewer.js`
+  (45.4 KiB, budget 75 KiB); `dist/extension.js` grows 3.6 KiB to
+  580.4 KiB.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -170,6 +193,14 @@ happened, not what was planned; superseded entries are kept.
 ### Fixed
 
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- **The Modes menu no longer promises a safety check Muse Code does not run
+  (0.11.0, PLAN.md D69).** Auto on Muse Code read "Muse will approve actions
+  that pass a safety check and pause for anything risky", but `muse serve`
+  has no approval judge: Auto skipped only the commands the CLI classifies
+  as simple, and every script asked. Each mode now says what it does on
+  each backend: on Muse Code, Edit automatically is Manual, and Auto is
+  Muse Code's own skip of simple commands plus the new reviewer while it is
+  on (README "Permission modes", PLAN.md D7's correction).
 
 ## [0.11.0] - 2026-10-03
 

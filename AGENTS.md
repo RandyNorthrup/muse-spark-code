@@ -135,6 +135,8 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       code intelligence's `ide` answers (dist/codeIntel.js,
                       loaded on the first call) and voice's drivers
                       (dist/voice.js, loaded on the first recording),
+                      the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
+                      loaded on the first review),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,

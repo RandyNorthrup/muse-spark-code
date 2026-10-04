@@ -85,6 +85,23 @@ security notes for contributors are in `PLAN.md` §9.
   earlier-call text are clipped and marked as data. The reviewer has no tools, uses `store: false`,
   and cannot override a forbid, explicit ask rule or file policy. It is billed
   to your Model API key and recorded separately in Account & usage.
+- **Auto reviewer (Muse Code, on by default in Auto).** With
+  `museSpark.museCodeAutoReviewer` on and the panel in Auto on the Muse Code
+  backend, each approval Muse Code raises for the running turn is first
+  judged by the same reviewer, run as one turn of a hidden side session in
+  your own `muse serve`. That turn is sent to Meta through Muse Code, on your
+  Muse subscription (no Model API key is used), and holds: your latest
+  message as you typed it, up to eight of the turn's earlier tool names and
+  arguments, the proposed command or arguments, the workspace path and the
+  platform, each clipped and marked as data, with the reviewer's
+  instructions. The side session runs in Plan mode, with thinking off, in an
+  empty folder under the extension's global storage, so it is given none of
+  your files, rules or skills; Muse Code adds its own system prompt and, as
+  for any turn, its reminder agents (four model attempts and about 33,000
+  input tokens in the live check). Muse Code keeps the side session in its
+  own session store like any other session; the extension never lists it in
+  History. The reviewer's answer is read, never run: it can only answer an
+  approval _Allow once_ or leave it to you.
 - **Best-of-N (Model API, off by default).** After its paid-use popup names
   N and the request ceiling, the same prompt runs in separate local Git
   worktrees. Each attempt sends its conversation and tool outputs to Meta
