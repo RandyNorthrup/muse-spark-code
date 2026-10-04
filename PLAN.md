@@ -1271,6 +1271,18 @@ Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
   patch only once the item is finished. A read in flight is joined. A
   failed read is said once per conversation, at warning level, with how to
   retry (collapse and expand the row, which asks again).
+  - **READS correction (2026-10-03, 0.11.0).** Automatic patch reads wait
+    until the conversation's turn ends; the existing diff or written
+    content stays visible meanwhile. Reopening a row requests its patch
+    during a turn. At turn end, an open row without a page clears its
+    request marker and asks once, including after a failed read. A loaded
+    page is kept. `item/readOutput` uses the existing 180 s long-command
+    deadline so the four-read limiter retains its slots longer and accepts
+    replies past 60 s. No new protocol or notice text. Acceptance: deferred
+    reads, explicit reopening, one turn-end retry, loaded-page preservation,
+    the long deadline, and deliberate guard failures. Scoped lane gates
+    replace full quality here; lead owns the full machine matrix.
+    Evidence: `docs/certification/output-reads.md`.
 - **Startup (no change).** 0.10.1's slow-start wait already covers the
   owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
   The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s

@@ -217,6 +217,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 
 ## [0.11.0] - 2026-10-03
