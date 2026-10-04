@@ -65,6 +65,19 @@ describe('GooeyMenu', () => {
     expect(fireEvent.keyDown(menu, { key: 'x' })).toBe(true)
   })
 
+  it('keeps focus where it is when the parent re-renders with new item objects', () => {
+    const { menu, rerender, onClose } = setup()
+    fireEvent.keyDown(menu, { key: 'End' })
+    const fresh: readonly GooeyItem[] = [
+      { id: 'copy', label: 'Copy', icon: 'C', onSelect: vi.fn() },
+      { id: 'retry', label: 'Retry', icon: 'T', onSelect: vi.fn() },
+    ]
+    rerender(
+      <GooeyMenu items={fresh} label="Actions" origin={{ x: 160, y: 380 }} onClose={onClose} />,
+    )
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Retry' }))
+  })
+
   it.each(['Enter', ' '])('activates once and prevents native duplicate click with %s', (key) => {
     const { menu, onSelect } = setup()
     expect(fireEvent.keyDown(menu, { key })).toBe(false)

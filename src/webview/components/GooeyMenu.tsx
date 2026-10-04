@@ -86,6 +86,13 @@ export function GooeyMenu({ items, label, origin, onClose }: GooeyMenuProps) {
   }, [origin, items.length])
 
   useLayoutEffect(() => {
+    // A parent's re-render passes new item objects; focus stays put unless the
+    // level changed (its bubbles unmounted) or Escape asked for the group.
+    const focused = document.activeElement
+    const isKeeps = visibleItems.some((item) => buttons.current.get(item.id) === focused)
+    if (isKeeps && parentFocus.current === undefined) {
+      return
+    }
     const first =
       visibleItems.find((item) => item.id === parentFocus.current) ??
       visibleItems.find((item) => item.disabled !== true)
