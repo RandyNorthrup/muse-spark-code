@@ -7,7 +7,7 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi } from './helpers/fakeModelApi'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -120,6 +120,27 @@ describe('ModelApiBackendManager', () => {
     await m.manager.dispose()
   })
 
+  it('M80 forwards only an explicitly provided stream idle interval to real client construction', async () => {
+    const create = vi.spyOn(modelApiEntry, 'createModelApiHost')
+    try {
+      const api = fakeModelApi()
+      const log = new FakeLogOutputChannel()
+      const manager = new ModelApiBackendManager(
+        fakeManagerDeps(api, log, {
+          workspaceRoot: '/ws',
+          store: undefined,
+          streamIdleMs: 37,
+          bundlePath: 'src/host/backend/modelApiEntry.ts',
+          loadBundle: () => modelApiEntry,
+        }),
+      )
+      await manager.ensureHost()
+      expect(create.mock.calls.at(-1)?.[0].client.streamIdleMs).toBe(37)
+      await manager.dispose()
+    } finally {
+      create.mockRestore()
+    }
+  })
   it('keeps host-origin writes pending before the lazy host and newly live ledger exist', async () => {
     const m = manager('/ws')
     const file = { relative: '.agents/plans/held.md', absolute: '/ws/.agents/plans/held.md' }
@@ -197,6 +218,23 @@ describe('ModelApiBackendManager', () => {
       await m.manager.dispose()
     },
   )
+
+  it('reads hash-only account identity without a folder, bundle load or model request', async () => {
+    const api = fakeModelApi()
+    const loadBundle = vi.fn(() => modelApiEntry)
+    const m = new ModelApiBackendManager(
+      fakeManagerDeps(api, new FakeLogOutputChannel(), {
+        workspaceRoot: undefined,
+        bundlePath: 'src/host/backend/modelApiEntry.ts',
+        loadBundle,
+      }),
+    )
+    expect(await m.accountId()).toBe(FAKE_MODEL_API_ACCOUNT_ID)
+    expect(m.isRunning).toBe(false)
+    expect(loadBundle).not.toHaveBeenCalled()
+    expect(api.requests).toEqual([])
+    await m.dispose()
+  })
 
   it('loads no hook command until the machine opt-in is on', async () => {
     const files = new Map([

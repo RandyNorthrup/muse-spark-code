@@ -42,7 +42,7 @@ import {
   CHECKPOINT_BLOBS_DIR,
   CHECKPOINT_MODEL_TEXT,
   CHECKPOINT_WRITES_DIR,
-  MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { nativeToolIo } from './helpers/fakeToolIo'
@@ -712,7 +712,7 @@ describe('createOwnerIo: the copy is confined (M86 O)', { timeout: REAL_FS_TIMEO
       },
     })
     await expect(io.writeFile(t.file('sub/a.txt'), 'tool\n', t.file('sub/a.txt'))).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     expect(lookups).toBe(3)
     expect(await t.blobs()).toEqual([])

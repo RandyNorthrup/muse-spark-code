@@ -168,10 +168,10 @@ export interface ConfirmedModelRequest {
   readonly onRequestStarted: () => void
 }
 
-/** A child task's synchronous final admission, after reading the actual key. */
+/** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
   (keyDigest: string | undefined): void
-  /** Owned local metadata, committed only at the final synchronous send boundary. */
+  /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
 }
 

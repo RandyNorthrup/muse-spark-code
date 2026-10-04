@@ -27,7 +27,6 @@ import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
   PDF_EXTENSION,
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
@@ -58,7 +57,9 @@ import { isPdf, pdfPageCount } from '../../pdf'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
 import { confineWorkspacePath } from '../../workspacePath'
-import { compileGlob } from './glob'
+import { compileGlob, GLOB_LIMITS } from './globLimits'
+import type { GlobLimits } from './glob'
+import type { FileRules } from './permissionPolicy'
 import {
   EDIT_IMAGE_DESCRIPTION,
   EDIT_IMAGE_PARAMETERS,
@@ -111,6 +112,13 @@ export interface SearchJob {
   /** The canonical limits travel with the job so the worker stays small. */
   readonly maxFileBytes: number
   readonly maxHits: number
+  /**
+   * The deny-read globs of the permission settings (M78), lower case: a
+   * file whose canonical path one covers is skipped, as a link to it is.
+   */
+  readonly denyRead: readonly string[]
+  /** The glob limits, so the worker's bundle carries no constants table. */
+  readonly globLimits: GlobLimits
 }
 
 export interface SearchHit {
@@ -174,6 +182,7 @@ export interface ToolIo {
       readonly expectedCanonicalPath: string
       /** Refused when an editor holds unsaved text at any of them, checked just before the rename. */
       readonly unsavedAt: readonly string[]
+      /** The caller's live admission, checked synchronously beside final native publication. */
       readonly assertCanWrite?: () => void
       /**
        * Runs once the content is staged beside the file, before the file is
@@ -313,6 +322,14 @@ export interface ToolContext {
   }
   /** The turn's: aborting it stops a running command (PLAN.md D25). */
   readonly signal?: AbortSignal
+  /**
+   * The permission settings' file rules (M78): paths the tools refuse, and
+   * folders outside the workspace `read_file` may read. None when absent.
+   * They are the policy the call was let in under, which an await may have
+   * outlived: each outcome names what it touched (`touched`), and the host's
+   * dispatcher judges those names again under the policy as it stands.
+   */
+  readonly files?: FileRules
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
@@ -341,6 +358,7 @@ export interface FormatTarget {
 
 /** Format on edit (M68): the formatter over a written file, and where its failures go. */
 export interface EditFormatter {
+  /** Captured turn ownership and live file policy, rechecked at conditional publication. */
   readonly assertCanWrite?: (target: FormatTarget) => void
   /** The text the file's formatter makes of what the edit wrote, or undefined for none. */
   readonly format: (target: FormatTarget, text: string) => Promise<string | undefined>
@@ -356,6 +374,31 @@ export interface VisibleFile {
   /** Workspace-relative, as the model named it. */
   readonly path: string
   readonly part: ImagePart | DocumentPart
+}
+
+/**
+ * The workspace files a call touched (M78), for the dispatcher's live policy
+ * fence: the policy as it stands when the outcome is built must still allow
+ * every one of them, or nothing from the call reaches the model. An outcome
+ * that names no files, or may carry text from files it cannot name (a
+ * command's output, a server's, a child's), is incomplete: it fails closed,
+ * refused if the file policy changed at all since the call was let in.
+ */
+export interface TouchedFiles {
+  /** Each file as named and after links are resolved, workspace-relative (or absolute under an extra root). */
+  readonly names: readonly string[]
+  /** True only when the outcome provably carries nothing from any file but `names`. */
+  readonly complete: boolean
+  /** The permission profile's extra root a file was read under. */
+  readonly extraRoot?: string
+  /** A read recorded as seen (D27), by absolute path: forgotten when its outcome is refused. */
+  readonly seen?: string
+  /**
+   * The file-policy revisions under which earlier work this outcome carries
+   * was done (a child's, since its spawn): each must still stand, or the
+   * outcome is refused. Undefined is a revision nobody recorded.
+   */
+  readonly revisions?: readonly (string | undefined)[]
 }
 
 export interface ToolOutcome {
@@ -374,6 +417,8 @@ export interface ToolOutcome {
   readonly verifySummary?: VerifySummary
   /** An edit's `then_run` (M68): the command's result beside the edit's. */
   readonly thenRun?: ThenRunResult
+  /** The workspace files the call read or wrote (M78); none for a call that touches no file. */
+  readonly touched?: TouchedFiles
 }
 
 const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
@@ -425,6 +470,11 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
 
 export function classifyTool(name: string): ToolClass | undefined {
   return TOOL_CLASSES[name]
+}
+
+/** Every tool the dispatcher knows by name (M78): what a fence must cover, external tools aside. */
+export function classifiedToolNames(): readonly string[] {
+  return Object.keys(TOOL_CLASSES)
 }
 
 /** The shell tool for the platform: PowerShell on Windows, bash elsewhere. */
@@ -1023,26 +1073,68 @@ async function readVisual(
   return kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
 }
 
+/** Whether the permission settings deny the tools this confined path (M78). */
+function isDenied(
+  resolved: { readonly relative: string; readonly canonical: string },
+  context: ToolContext,
+): boolean {
+  return context.files?.isDenied([resolved.relative, resolved.canonical]) === true
+}
+
+/**
+ * The path `read_file` reads: in the workspace, or given absolute under an
+ * extra root of the permission profile (M78), confined to that root as the
+ * workspace confines its own (links resolved). Such a file is named by its
+ * absolute path, forward slashes, and carries the root it was confined to.
+ */
+async function readablePath(
+  given: string,
+  context: ToolContext,
+): Promise<Awaited<ReturnType<typeof confineWorkspacePath>> & { readonly extraRoot?: string }> {
+  const inWorkspace = await confineWorkspacePath(
+    context.workspaceRoot,
+    given,
+    context.platform,
+    context.io,
+  )
+  const p = context.platform === 'win32' ? path.win32 : path.posix
+  if (inWorkspace.ok || !p.isAbsolute(given)) {
+    return inWorkspace
+  }
+  const roots = context.files?.extraRoots ?? []
+  for (const root of roots) {
+    const underRoot = await confineWorkspacePath(root, given, context.platform, context.io)
+    if (underRoot.ok) {
+      return { ...underRoot, relative: underRoot.absolute.replaceAll(p.sep, '/'), extraRoot: root }
+    }
+  }
+  return inWorkspace
+}
+
 async function readFile(
   args: z.infer<typeof readFileArgs>,
   context: ToolContext,
 ): Promise<ToolOutcome> {
-  const resolved = await confineWorkspacePath(
-    context.workspaceRoot,
-    args.path,
-    context.platform,
-    context.io,
-  )
+  const resolved = await readablePath(args.path, context)
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
+  if (isDenied(resolved, context)) {
+    return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
+  }
+  // Every outcome from here on, a failure included, comes from the file.
+  const touched: TouchedFiles = {
+    names: [resolved.relative, resolved.canonical],
+    complete: true,
+    ...(resolved.extraRoot !== undefined && { extraRoot: resolved.extraRoot }),
+  }
   const visual = visualKindOf(resolved.relative)
   if (visual !== undefined) {
-    return await readVisual(resolved, visual, context)
+    return { ...(await readVisual(resolved, visual, context)), touched }
   }
   const raw = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
   if (raw === undefined) {
-    return failure(`file not found: ${resolved.relative}`)
+    return { ...failure(`file not found: ${resolved.relative}`), touched }
   }
   context.seen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
@@ -1057,7 +1149,12 @@ async function readFile(
   const remaining = lines.length - (start + shown.length)
   const tail = remaining > 0 ? `\n[${String(remaining)} more lines]` : ''
   const body = `Read text file \`${resolved.relative}\`.\n${shown.join('\n')}${tail}`
-  return { output: clip(body), visibleOutput: clip(body) }
+  // A refused read leaves no trace: the host forgets `seen` with the outcome.
+  return {
+    output: clip(body),
+    visibleOutput: clip(body),
+    touched: { ...touched, seen: resolved.absolute },
+  }
 }
 
 /** The confined path and the file's current text (undefined when absent), or the refusal. */
@@ -1084,12 +1181,18 @@ async function located(
   if (!resolved.ok) {
     return { ok: false, outcome: failure(resolved.reason) }
   }
+  if (isDenied(resolved, context)) {
+    return {
+      ok: false,
+      outcome: failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`),
+    }
+  }
   if (
     context.approvedTarget !== undefined &&
     (resolved.absolute !== context.approvedTarget.absolute ||
       resolved.checkedAbsolute !== context.approvedTarget.checkedAbsolute)
   ) {
-    return { ok: false, outcome: failure(MODEL_TEXT.pathChangedAfterApproval) }
+    return { ok: false, outcome: failure(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval) }
   }
   const before = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
   return {
@@ -1100,6 +1203,11 @@ async function located(
     checkedAbsolute: resolved.checkedAbsolute,
     before,
   }
+}
+
+/** A file an edit wrote, as the dispatcher's fence judges it (M78). */
+function touchedBy(file: { readonly relative: string; readonly canonical: string }): TouchedFiles {
+  return { names: [file.relative, file.canonical], complete: true }
 }
 
 /** Why an edit must not touch this file now, or undefined (D27). */
@@ -1155,18 +1263,22 @@ async function writeFile(
     return refusal
   }
   const { before, relative, absolute } = file
+  const touched = touchedBy(file)
   if (before === undefined) {
     const created = await publishText(file, args.content, context)
-    return patchOutcome(
-      relative,
-      undefined,
-      created,
-      `created ${relative}`,
-      editedLine(
-        `created ${relative} (${String(args.content.length)} characters)`,
-        created !== args.content,
+    return {
+      ...patchOutcome(
+        relative,
+        undefined,
+        created,
+        `created ${relative}`,
+        editedLine(
+          `created ${relative} (${String(args.content.length)} characters)`,
+          created !== args.content,
+        ),
       ),
-    )
+      touched,
+    }
   }
   // Claude Code's rule: a file is replaced only as the model last saw it (D27).
   if (context.seen.get(absolute) !== fingerprint(before)) {
@@ -1181,13 +1293,16 @@ async function writeFile(
       : normalized
   const after = fileText(text, shape)
   const final = await publishText(file, after, context)
-  return patchOutcome(
-    relative,
-    modelText(before, shape),
-    final === after ? text : modelText(final, shapeOf(final)),
-    `wrote ${relative}`,
-    editedLine(`wrote ${relative} (${String(args.content.length)} characters)`, final !== after),
-  )
+  return {
+    ...patchOutcome(
+      relative,
+      modelText(before, shape),
+      final === after ? text : modelText(final, shapeOf(final)),
+      `wrote ${relative}`,
+      editedLine(`wrote ${relative} (${String(args.content.length)} characters)`, final !== after),
+    ),
+    touched,
+  }
 }
 
 async function editFile(
@@ -1225,26 +1340,29 @@ async function editFile(
   const updated = `${current.slice(0, first)}${replace}${current.slice(first + find.length)}`
   const after = fileText(updated, shape)
   const final = await publishText(file, after, context)
-  return patchOutcome(
-    relative,
-    current,
-    final === after ? updated : modelText(final, shapeOf(final)),
-    'edited',
-    editedLine(`edited ${relative}`, final !== after),
-  )
+  return {
+    ...patchOutcome(
+      relative,
+      current,
+      final === after ? updated : modelText(final, shapeOf(final)),
+      'edited',
+      editedLine(`edited ${relative}`, final !== after),
+    ),
+    touched: touchedBy(file),
+  }
 }
 
 async function listMatching(
   context: ToolContext,
   glob: string | undefined,
 ): Promise<readonly string[]> {
-  if (glob === undefined) {
-    return await context.io.listFiles()
-  }
   // Compiled before the listing, so a refused glob costs no file walk.
-  const matches = compileGlob(glob)
+  const matches = glob === undefined ? undefined : compileGlob(glob)
   const files = await context.io.listFiles()
-  return files.filter((file) => matches(file))
+  // What the permission settings deny is neither listed nor searched (M78).
+  return files.filter(
+    (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
+  )
 }
 
 /** The lines a search reports for its mode, capped at `limit`. */
@@ -1289,13 +1407,17 @@ async function search(
     root: context.workspaceRoot,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    denyRead: context.files?.denyGlobs ?? [],
+    globLimits: GLOB_LIMITS,
     files: searched.map((relative) => ({
       relative,
       absolute: p.join(context.workspaceRoot, ...relative.split('/')),
     })),
   })
+  // Every candidate, searched or not: its name may be in a hit or a count.
+  const touched: TouchedFiles = { names: candidates, complete: true }
   if (!outcome.ok) {
-    return failure(outcome.reason)
+    return { ...failure(outcome.reason), touched }
   }
   const results = searchLines(outcome.hits, mode, limit)
   const notes = [
@@ -1312,7 +1434,7 @@ async function search(
   ]
   const found = results.length === 0 ? 'No matches.' : results.join('\n')
   const body = [found, ...notes].join('\n')
-  return { output: clip(body), visibleOutput: clip(body) }
+  return { output: clip(body), visibleOutput: clip(body), touched }
 }
 
 async function listFiles(
@@ -1330,7 +1452,12 @@ async function listFiles(
   const tail =
     files.length > shown.length ? `\n[${String(files.length - shown.length)} more files]` : ''
   const body = shown.length === 0 ? 'No files.' : `${shown.join('\n')}${tail}`
-  return { output: clip(body), visibleOutput: clip(body) }
+  // Every file listed, shown or counted.
+  return {
+    output: clip(body),
+    visibleOutput: clip(body),
+    touched: { names: files, complete: true },
+  }
 }
 
 async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Promise<ToolOutcome> {

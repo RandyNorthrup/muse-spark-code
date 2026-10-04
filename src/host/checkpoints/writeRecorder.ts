@@ -48,9 +48,9 @@ import {
   CHECKPOINT_MODEL_TEXT,
   CHECKPOINT_UNIT_BLOB_BYTES_MAX,
   CHECKPOINT_UNIT_INTENTS_MAX,
+  FILE_REFUSAL_MODEL_TEXT,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
-  MODEL_TEXT,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
@@ -210,7 +210,7 @@ function blobsOf(copy: Copy, published: Uint8Array): readonly KeptBytes[] {
 }
 
 function changedPath(): Error {
-  return new Error(MODEL_TEXT.pathChangedAfterApproval)
+  return new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
 }
 
 /** The last `count` folders on the way to the file, its own included, outermost first. */

@@ -23,7 +23,11 @@ import { VerifyLedger } from '../../src/core/backends/modelapi/verifyLedger'
 import { isSamePath } from '../../src/core/paths'
 import * as atomicWrites from '../../src/host/fsAtomic'
 import { parseCommandLine, type ServeOptions } from '../../src/runtime/cliArgs'
-import { takeCredentials, withoutCredentials } from '../../src/runtime/credentialVariables'
+import {
+  takeCredentials,
+  withoutCredentials,
+  withoutKeyringRoutes,
+} from '../../src/runtime/credentialVariables'
 import {
   agentDataFolder,
   paidGrantsFile,
@@ -40,11 +44,71 @@ import { displayLanguage } from '../../src/runtime/locale'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { webReadable } from '../../src/runtime/webStreams'
-import { MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { FILE_REFUSAL_MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
+
+describe('M80 command and process boundaries', () => {
+  it('A10 preserves serve usage/1 and parses exec/scanner separately', () => {
+    expect(parseCommandLine(['--output', 'json'])).toMatchObject({ command: 'invalid' })
+    expect(parseCommandLine(['--output', 'json'])).not.toHaveProperty('exitCode')
+    expect(parseCommandLine(['exec', 'hi'])).toMatchObject({
+      command: 'exec',
+      options: { mode: 'plan', output: 'text' },
+    })
+    expect(parseCommandLine(['exec', '--trust-workspace', 'hi'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+    expect(parseCommandLine(['exec', '--web-search', 'hi'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+    expect(parseCommandLine(['exec', '--bad', 'hi'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+    expect(parseCommandLine(['scan-secrets', 'patch.txt', '--key-stdin'])).toEqual({
+      command: 'scan-secrets',
+      file: 'patch.txt',
+      keyFromStdin: true,
+    })
+    expect(parseCommandLine(['scan-secrets'])).toMatchObject({ command: 'invalid', exitCode: 2 })
+    expect(parseCommandLine(['scan-secrets', 'a', 'b'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+  })
+  it('D18 strips all named routes case-insensitively after credential variables', () => {
+    const names = [
+      'DBUS_SESSION_BUS_ADDRESS',
+      'XDG_RUNTIME_DIR',
+      'GNOME_KEYRING_CONTROL',
+      'GNOME_KEYRING_PID',
+      'SSH_AUTH_SOCK',
+      'GITHUB_TOKEN',
+      'GH_TOKEN',
+      'ACTIONS_RUNTIME_TOKEN',
+      'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+      'ACTIONS_ID_TOKEN_REQUEST_URL',
+    ]
+    const source = {
+      PATH: '/safe/bin',
+      META_API_KEY: 'fake',
+      custom_API_KEY: 'fake',
+      ...Object.fromEntries(
+        names.flatMap((name) => [
+          [name, 'route'],
+          [name.toLowerCase(), 'route'],
+        ]),
+      ),
+    }
+    expect(withoutKeyringRoutes(withoutCredentials(source))).toEqual({ PATH: '/safe/bin' })
+    expect(Object.keys(source).length).toBeGreaterThan(20)
+  })
+})
 
 // M63 (PLAN.md D61, D62): the agent's process, sign-in commands and key store.
 
@@ -688,7 +752,7 @@ describe('createRuntimeBackend', () => {
         expect(readFileSync(path.join(b, 'note.txt'), 'utf8')).toBe('before B')
         expect(peer.hasCurrentRun('lint', 'project')).toBe(true)
         const after = api.responseBodies().at(-1)?.['input']
-        expect(JSON.stringify(after)).toContain(MODEL_TEXT.pathChangedAfterApproval)
+        expect(JSON.stringify(after)).toContain(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       } finally {
         held.resolve(undefined)
         writing.mockRestore()

@@ -155,6 +155,7 @@ export function memoryToolIo(
       if (isUnsaved || !isExpected) {
         return 'changed'
       }
+      options.assertCanWrite?.()
       files.set(key, content)
       return 'written'
     },

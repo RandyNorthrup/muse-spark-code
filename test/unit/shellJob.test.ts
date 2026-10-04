@@ -7,7 +7,7 @@
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   joinStatement,
   newShellJob,
@@ -164,6 +164,105 @@ describe('shellJobAssembly (M27)', () => {
     expect(assembly).toBeUndefined()
     expect(logged[0]).toContain('csc.exe exited with code 1')
     expect(await readdir(path.join(storageDir, SHELL_JOB_FOLDER))).toEqual([])
+  })
+
+  it('shares each attempt and retries a failed compile on the next call, then caches success', async () => {
+    const storageDir = await storage('compile-recovery')
+    const powershell = fakePowerShell()
+    const run = vi
+      .fn<RunProgram>(powershell.run)
+      .mockRejectedValueOnce(new Error('csc.exe temporarily unavailable'))
+    const logged: string[] = []
+    const ready = shellJobAssembly({
+      readJobSource,
+      storageDir,
+      systemRoot: String.raw`C:\Windows`,
+      log: (message) => {
+        logged.push(message)
+      },
+      run,
+    })
+    const failed = ready()
+    expect(ready()).toBe(failed)
+    await expect(failed).resolves.toBeUndefined()
+    expect(await readdir(path.join(storageDir, SHELL_JOB_FOLDER))).toEqual([])
+    expect(logged).toHaveLength(1)
+    expect(logged[0]).toContain('csc.exe temporarily unavailable')
+
+    const recovered = ready()
+    expect(ready()).toBe(recovered)
+    const assembly = path.join(
+      storageDir,
+      SHELL_JOB_FOLDER,
+      shellJobAssemblyName(await readJobSource('shellJob')),
+    )
+    await expect(recovered).resolves.toBe(assembly)
+    expect(ready()).toBe(recovered)
+    await expect(ready()).resolves.toBe(assembly)
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(powershell.scripts).toHaveLength(2)
+    expect(logged).toHaveLength(1)
+  })
+
+  it('gives undefined, not a rejection, when preparation throws, and retries on the next call', async () => {
+    const storageDir = await storage('throwing-log')
+    const powershell = fakePowerShell()
+    const run = vi
+      .fn<RunProgram>(powershell.run)
+      .mockRejectedValueOnce(new Error('csc.exe temporarily unavailable'))
+    let isLogBroken = true
+    const ready = shellJobAssembly({
+      readJobSource,
+      storageDir,
+      systemRoot: String.raw`C:\Windows`,
+      log: () => {
+        if (isLogBroken) {
+          throw new Error('the log is closed')
+        }
+      },
+      run,
+    })
+    await expect(ready()).resolves.toBeUndefined()
+    isLogBroken = false
+    const assembly = path.join(
+      storageDir,
+      SHELL_JOB_FOLDER,
+      shellJobAssemblyName(await readJobSource('shellJob')),
+    )
+    await expect(ready()).resolves.toBe(assembly)
+  })
+
+  it('retries a failed self-test without compiling an already published assembly again', async () => {
+    const storageDir = await storage('self-test-recovery')
+    const powershell = fakePowerShell()
+    const run = vi
+      .fn<RunProgram>(powershell.run)
+      .mockImplementationOnce(powershell.run)
+      .mockRejectedValueOnce(new Error('self-test temporarily unavailable'))
+    const logged: string[] = []
+    const ready = shellJobAssembly({
+      readJobSource,
+      storageDir,
+      systemRoot: String.raw`C:\Windows`,
+      log: (message) => {
+        logged.push(message)
+      },
+      run,
+    })
+    await expect(ready()).resolves.toBeUndefined()
+    const assembly = path.join(
+      storageDir,
+      SHELL_JOB_FOLDER,
+      shellJobAssemblyName(await readJobSource('shellJob')),
+    )
+    await expect(ready()).resolves.toBe(assembly)
+    await expect(ready()).resolves.toBe(assembly)
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(powershell.scripts).toHaveLength(2)
+    expect(powershell.scripts[0]).toContain('-OutputAssembly')
+    expect(powershell.scripts[1]).toContain('::Join(')
+    expect(logged).toHaveLength(1)
+    expect(logged[0]).toContain('self-test temporarily unavailable')
   })
 })
 

@@ -96,6 +96,7 @@ const HELD_DEPS = [
   'isPaidUseRemembered',
   'notePaidUse',
   'noteSubagentUsage',
+  'noteReviewerUsage',
 ] as const satisfies readonly (keyof ModelApiHostDeps)[]
 
 /** The mechanism's harness; one that moves a held dependency does not run. */
@@ -152,6 +153,10 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     confirmContributorModel: () => Promise.resolve(true),
     describeEnvironment: () => Promise.resolve({ git: undefined }),
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // M82's cap and reply line as a fresh panel has them: no cap, no line.
+    // The evaluation's own wire counts its spend and refuses past its budget.
+    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     getAccountId: () => Promise.resolve(deps.accountId),
     isPaidFeatureOn: () => false,
     notePaidUse: (_feature, units) => {
@@ -165,6 +170,11 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     // A child task that ran is a paid use (D48) the run should have refused;
     // its requests went through the same client, so the trace counts them.
     noteSubagentUsage: () => {
+      counts.paidUses += 1
+    },
+    // So is an Auto review (M78): no paid feature is on, so one that
+    // reported usage ran anyway.
+    noteReviewerUsage: () => {
       counts.paidUses += 1
     },
   }

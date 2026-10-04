@@ -34,7 +34,7 @@ import {
   type TurnPart,
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
-import { editAutomaticallyChoice } from '../../core/agent/approvalRules'
+import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   hasUnshownCharacters,
@@ -53,6 +53,10 @@ import {
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
+import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
+import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
+import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
@@ -63,10 +67,17 @@ import { FifoLimiter } from '../../core/fifoLimiter'
 import { textFileDisplay } from '../../shared/textFileDisplay'
 import { type EditorContext, editorContextText } from '../../core/editorContext'
 import type { ToolImageResult } from '../../core/toolImages'
-import type { DictationHandle, DictationSetup, DictationStatus } from '../../core/voice/dictation'
+import type {
+  DictationHandle,
+  DictationSetup,
+  DictationStatus,
+  VoiceConsentFence,
+} from '../../core/voice/dictation'
+import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import {
   ALLOWED_LINK_SCHEMES,
   AUTH_REQUIRED_ERROR_KIND,
+  AUTO_REVIEWER_RECENT_CALLS,
   CONTRIBUTOR_MODEL_SUFFIX,
   DAMAGED_SESSIONS_KEPT,
   DEFAULT_EFFORT,
@@ -124,6 +135,8 @@ import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
+import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
   ChatReference,
   EditRef,
@@ -154,6 +167,13 @@ import {
   exportConversation,
   type ExportOutcome,
 } from './exportConversation'
+import type { BestOfNManager } from '../bestOfN/bestOfNManager'
+import type * as SessionBoardBundle from '../sessionBoardEntry'
+import { uiLocale } from '../../shared/l10n/text'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { SubagentUsage } from '../../shared/paid'
+import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import { type AttentionNotice, attentionNotice } from './turnNotifications'
 import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
 import {
   type PickedTransferFile,
@@ -343,6 +363,12 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
+  readonly modelApiSessionBudgetUsd: () => number
+  /** Digest only; available before a conversation or workspace exists. */
+  readonly voiceAccountId: () => Promise<string | undefined>
+  readonly ownedVoiceBudgetScope: (
+    sessionId: string,
+  ) => Promise<OwnedSessionBudgetScope | undefined>
   /** "Export conversation…" (M30): the save dialog, the write, Muse Code's own log. */
   readonly exports: ConversationExports
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
@@ -374,6 +400,45 @@ export interface ConversationDeps {
   readonly confirmFileAction: (title: string, detail: string, action: string) => Promise<boolean>
   /** Account & usage's "Ask again": every paid feature asks again in this workspace (M58). */
   readonly forgetPaidUse: () => Promise<void>
+  /** Approvals and questions waiting on the user, shared by every surface (M77). */
+  readonly pendingPrompts: PendingPrompts
+  readonly boardSessions?: () => readonly BoardSession[]
+  readonly focusBoardSession?: (sessionId: string, backend: BackendKind) => boolean
+  readonly bestOfNCoordinator: BestOfNCoordinator
+  /** Capture the originating session before Take awaits path and account checks. */
+  readonly bestOfNWorkspaceEdits?: (
+    session: AgentSession | undefined,
+  ) => Parameters<BestOfNManager['take']>[2]
+  readonly modelApiAccountId: () => Promise<string | undefined>
+  readonly openBestOfNWorktree: (absolutePath: string) => Promise<void>
+  readonly noteBestOfNRequest: () => void
+  readonly noteBestOfNUsage: (modelId: string, usage: SubagentUsage) => void
+  readonly bestOfNBudgetScope?: (
+    sessionId: string | undefined,
+  ) => Promise<OwnedSessionBudgetScope | undefined>
+  /** git in `cwd`: its stdout, or a rejection with git's own words (M77). */
+  readonly runGit: (
+    args: readonly string[],
+    cwd: string,
+    timeoutMs?: number,
+    input?: string,
+    beforeRun?: BestOfNGitGuard,
+  ) => Promise<string>
+  /** Production supplies the automatic Best-of-N policy; injected test Git may use runGit. */
+  readonly runBestOfNGit?: ConversationDeps['runGit']
+  /** Whether a paid feature's setting is on and its price accepted (M77). */
+  readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
+  /** Counts a paid use in the window's tally (M77). */
+  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  /** A Model API host rooted in a best-of-N worktree (M77). */
+  readonly buildAttemptHost: (
+    worktreeRoot: string,
+    admitRequest: ResponseAttemptGuard,
+    noteUsage: (modelId: string, usage: SubagentUsage) => void,
+    budgetScope: OwnedSessionBudgetScope | undefined,
+  ) => Promise<AgentHost>
+  /** The file system's canonical read, for the worktree confinement (M77). */
+  readonly realPath: (absolutePath: string) => Promise<string>
   /**
    * The verify loop's note to Muse Code (M68, PLAN.md D49), read for each
    * message: check the diagnostics of what it edits (only when the session
@@ -381,6 +446,25 @@ export interface ConversationDeps {
    * nothing to say.
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
+  /**
+   * The bundled skills' offer (M89, PLAN.md D68), asked when a Muse Code
+   * conversation starts: a notice with Install (or Update) and Not now, at
+   * most once per window; undefined when there is nothing to offer.
+   */
+  readonly bundledSkillsOffer?: () => Promise<
+    { readonly text: string; readonly actions: readonly NoticeAction[] } | undefined
+  >
+  /**
+   * A turn of this surface's session needs the user (M82): the controller
+   * names what, the window's `BackgroundNotifier` decides whether it shows.
+   */
+  readonly notifyAttention: (notice: AttentionNotice) => void
+  /**
+   * The Auto reviewer on Muse Code (M90, PLAN.md D69), one per window: in
+   * Auto, an approval Muse Code raised goes to it before the user. Absent
+   * where there is none.
+   */
+  readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
 }
@@ -398,6 +482,7 @@ const CANCELLED_STATUS = 'cancelled'
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
 const BYPASS_MODE: PermissionMode = 'bypassPermissions'
+const AUTO_MODE: PermissionMode = 'auto'
 const FALLBACK_MODE: PermissionMode = 'manual'
 /** Auto approval is safe only while one controller holds the shared session. */
 const sessionSurfaces = new WeakMap<AgentSession, Set<ConversationController>>()
@@ -445,6 +530,12 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'scheduleRun',
   'listSkills',
   'listSessions',
+  'requestSessionBoard',
+  'activateBoardSession',
+  'startBestOfN',
+  'takeBestOfNAttempt',
+  'openBestOfNAttempt',
+  'cancelBestOfN',
   'readChildSession',
   'subagentControl',
   'subagentMessage',
@@ -896,8 +987,21 @@ export class ConversationController {
    * paid-use popup, and a stop pressed meanwhile cancels it.
    */
   private dictationPresses = 0
+  /** Read synchronously by the paid driver's start; each stream keeps that immutable scope. */
+  private startingVoiceBudgetScope: OwnedSessionBudgetScope | undefined
+  private startingVoiceConsentFence: VoiceConsentFence | undefined
+  /** Context changes stay changed for consent, including a model/mode round trip. */
+  private voiceContextRevision = 0
   /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
+  /**
+   * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
+   * approvals in its hands (and its breaker), made on the first review.
+   */
+  private reviews: ReviewedApprovals | undefined
+  /** What the reviewer is shown (M78's input): the user's latest message, the turn's calls so far. */
+  private reviewUserText: string | undefined
+  private reviewCalls: readonly { readonly tool: string; readonly args: string }[] = []
   /** The remote-window Bypass confirmation, given once per conversation (D24). */
   private hasConfirmedRemoteBypass = false
   /** Said once the surface is ready: why the conversation did not start as configured. */
@@ -931,6 +1035,10 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /** Best-of-N runs (M77): one manager per surface, posting to it. */
+  private bestOfNManager: BestOfNManager | undefined
+  /** The latest run this surface heard of, for the take's branch names. */
+  private lastBestOfNRun: BestOfNRun | undefined
   /** Stops listening for the host closing this session. */
   private closedWatch: (() => void) | undefined
   /** The session the next message resumes after a restart or a crash (PLAN.md D25). */
@@ -1257,6 +1365,10 @@ export class ConversationController {
     }
     const sessions: ReturnType<typeof toSessionRow>[] = []
     for (const record of this.sessionRecords.values()) {
+      if (this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true) {
+        // The Auto reviewer's side session (M90): never a conversation of the user's.
+        continue
+      }
       if (!this.deps.surface.isSideChat || this.sideSessionIds.has(record.sessionId)) {
         sessions.push(toSessionRow(record))
       }
@@ -1362,6 +1474,7 @@ export class ConversationController {
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
+    this.forgetReviews(isOwnedRecovery)
     this.childSessionIds.clear()
     this.finishedTurns.clear()
     this.forgetForegroundShells()
@@ -1456,13 +1569,116 @@ export class ConversationController {
     }
   }
 
+  /**
+   * Whether the Auto reviewer judges an approval before the user (M90,
+   * PLAN.md D69): Auto on Muse Code with its setting on, one panel holding
+   * the session (as for Edit automatically), and an approval that
+   * `isReviewableApproval` admits.
+   */
+  private isReviewerApproval(event: Extract<AgentEvent, { type: 'approvalRequested' }>): boolean {
+    const port = this.deps.museCodeReviewer
+    return (
+      port !== undefined &&
+      this.deps.hasApprovalUi &&
+      this.sessionKind === 'museCode' &&
+      this.session !== undefined &&
+      sessionSurfaces.get(this.session)?.size === 1 &&
+      port.isOn() &&
+      isReviewableApproval(event, this.permissionMode, this.activeTurnId)
+    )
+  }
+
+  /**
+   * One approval to the Auto reviewer (M90): held from the panel, its card
+   * shown only if the review leaves it to the user (reviewedApprovals.ts).
+   */
+  private holdForReview(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
+    const { session } = this
+    const port = this.deps.museCodeReviewer
+    if (session === undefined || port === undefined) {
+      return
+    }
+    try {
+      this.reviews ??= port.reviewer().conversation({
+        showCard: (held, note) => {
+          const card = note === undefined ? held : { ...held, note }
+          this.forward(card)
+          this.track(card)
+        },
+        notice: (level, text) => {
+          this.notice(level, text)
+        },
+        // Still Auto, still on, still this turn of the panel's one session.
+        mayAllow: (held) => this.isReviewerApproval(held),
+        log: this.deps.log,
+        describeFailure: failureForLog,
+      })
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `The Auto reviewer could not be loaded; the user decides: ${describe(error)}`,
+      )
+      const card = { ...event, note: UI_TEXT.autoReviewerFailed }
+      this.forward(card)
+      this.track(card)
+      return
+    }
+    this.reviews.hold(event, {
+      session,
+      host: () => this.deps.ensureHost(),
+      modelId: this.modelId,
+      request: {
+        userRequest: this.reviewUserText,
+        recentCalls: this.reviewCalls,
+        tool: event.toolName,
+        action: event.subject.command ?? event.rawArgs,
+        workspaceRoot: this.deps.workspaceRoot ?? '',
+        platform: this.deps.platform,
+      },
+    })
+  }
+
+  /** The user's message reached the host: the reviewer is shown it, and may answer again. */
+  private noteReviewMessage(text: string): void {
+    this.reviewUserText = text
+    this.reviews?.reset()
+  }
+
+  /** A call the running turn finished: the reviewer is shown the turn's latest ones. */
+  private noteReviewCall(item: ItemSnapshot): void {
+    if (
+      item.kind !== TOOL_CALL_KIND ||
+      item.turnId === undefined ||
+      item.turnId !== this.activeTurnId
+    ) {
+      return
+    }
+    this.reviewCalls = [
+      ...this.reviewCalls,
+      { tool: item.tool ?? '', args: item.args ?? '' },
+    ].slice(-AUTO_REVIEWER_RECENT_CALLS)
+  }
+
+  /** The session left this panel: its reviews stop; a new conversation forgets what they were shown. */
+  private forgetReviews(isOwnedRecovery: boolean): void {
+    this.reviews?.forget()
+    if (isOwnedRecovery) {
+      return
+    }
+    this.reviews = undefined
+    this.reviewUserText = undefined
+    this.reviewCalls = []
+  }
+
   /** An event as the webview sees it, plus the unread mark. */
   private forward(event: AgentEvent): void {
     if (event.type === 'textDelta') {
       this.queueDelta(event)
       return
     }
-    if (event.type === 'approvalRequested' && event.isReplayed !== undefined) {
+    if (
+      (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
+      event.isReplayed !== undefined
+    ) {
       const shown = { ...event }
       delete shown.isReplayed
       this.post({ type: 'agentEvent', event: shown })
@@ -1471,6 +1687,11 @@ export class ConversationController {
     }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
+    }
+    const sessionId = this.session?.sessionId
+    const notice = sessionId === undefined ? undefined : attentionNotice(sessionId, event)
+    if (notice !== undefined) {
+      this.deps.notifyAttention(notice)
     }
   }
 
@@ -1536,8 +1757,10 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
-    // The controller's own events (D26): never forwarded to the webview.
-    if (event.type === 'viewGap') {
+    if (event.type === 'modelChanged') {
+      this.voiceContextRevision += 1
+    } else if (event.type === 'viewGap') {
+      // The controller's own events (D26): never forwarded to the webview.
       this.onViewGap()
       return
     }
@@ -1547,22 +1770,64 @@ export class ConversationController {
       this.notice(event.level, event.text)
       return
     }
-    if (event.type === 'approvalRequested') {
-      if (SHELL_TOOLS.has(event.toolName)) {
-        this.noteShellApprovalRequested(event.itemId)
+    switch (event.type) {
+      case 'approvalRequested': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.track(this.session.sessionId, event.approvalId)
+        }
+        if (SHELL_TOOLS.has(event.toolName)) {
+          this.noteShellApprovalRequested(event.itemId)
+        }
+        // The tool, never its input (M39).
+        this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
+        const choice = this.autoApprovalChoice(event)
+        if (choice !== undefined) {
+          void this.autoApprove(event, choice)
+          return
+        }
+        if (this.isReviewerApproval(event)) {
+          this.holdForReview(event)
+          return
+        }
+        break
       }
-      // The tool, never its input (M39).
-      this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
-      const choice = this.autoApprovalChoice(event)
-      if (choice !== undefined) {
-        void this.autoApprove(event, choice)
-        return
+      case 'approvalUpdated': {
+        if (this.reviews?.updated(event) === true) {
+          return
+        }
+        break
       }
-    } else if (event.type === 'approvalResolved') {
-      this.noteShellApprovalResolved(event)
-      if (this.autoApproved.delete(event.approvalId)) {
-        this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
-        return
+      case 'approvalResolved': {
+        this.noteShellApprovalResolved(event)
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
+        }
+        if (this.autoApproved.delete(event.approvalId)) {
+          this.forward({ ...event, resolvedBy: UI_TEXT.editAutomaticallyResolver })
+          return
+        }
+        // The Auto reviewer allowed it: the transcript names it and its reason (M90).
+        const reason = this.reviews?.resolved(event)
+        if (reason !== undefined) {
+          this.forward({ ...event, resolvedBy: UI_TEXT.autoReviewerResolver, reason })
+          return
+        }
+        break
+      }
+      case 'questionRequested': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.track(this.session.sessionId, event.userInputId)
+        }
+        break
+      }
+      case 'questionSettled': {
+        if (this.session !== undefined) {
+          this.deps.pendingPrompts.resolve(this.session.sessionId, event.userInputId)
+        }
+        break
+      }
+      default: {
+        break
       }
     }
     this.forward(event)
@@ -1599,6 +1864,7 @@ export class ConversationController {
           break
         }
         this.activeTurnId = event.turnId
+        this.reviewCalls = []
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
         if (this.session !== undefined && !this.isSideChat) {
           this.checkpoints.turnStarted(this.session.sessionId, event.turnId)
@@ -1711,6 +1977,9 @@ export class ConversationController {
         if (event.type === 'itemCompleted' || event.item.status !== IN_PROGRESS_STATUS) {
           this.pendingShellApprovals.delete(event.item.itemId)
           this.pausedForegroundShells.delete(event.item.itemId)
+        }
+        if (event.type === 'itemCompleted') {
+          this.noteReviewCall(event.item)
         }
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
@@ -2667,8 +2936,28 @@ export class ConversationController {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
       this.noteShellSandbox(workspaceRoot)
+      void this.offerBundledSkills()
     }
     return session
+  }
+
+  /** The bundled skills' one-time offer for Muse Code (M89), in this panel. */
+  private async offerBundledSkills(): Promise<void> {
+    const { bundledSkillsOffer } = this.deps
+    if (bundledSkillsOffer === undefined) {
+      return
+    }
+    try {
+      const offer = await bundledSkillsOffer()
+      if (offer === undefined || this.isDisposed) {
+        return
+      }
+      this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
+      this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
+    } catch (error: unknown) {
+      // Nothing to offer is better than a wrong offer; the log says why.
+      this.deps.log.warn(`The bundled skills could not be offered: ${describe(error)}`)
+    }
   }
 
   /**
@@ -2881,7 +3170,10 @@ export class ConversationController {
       return
     }
     if (event.type === 'changed') {
-      if (event.record.workspaceRoot !== this.deps.workspaceRoot) {
+      if (
+        event.record.workspaceRoot !== this.deps.workspaceRoot ||
+        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true
+      ) {
         return
       }
       this.sessionRecords.set(event.record.sessionId, event.record)
@@ -2890,6 +3182,8 @@ export class ConversationController {
       if (record === undefined) {
         return
       }
+      // An unloaded session waits on nothing: its card died with its turn.
+      this.deps.pendingPrompts.drop(event.sessionId)
       this.sessionRecords.set(event.sessionId, { ...record, status: NOT_LOADED_STATUS })
     }
     this.postSessionList()
@@ -2930,6 +3224,237 @@ export class ConversationController {
       if (generation === this.sendInvalidationEpoch) {
         this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`)
       }
+    }
+  }
+
+  // --- Session board and best-of-N (M77) ---
+
+  private async sessionBoard(): Promise<typeof SessionBoardBundle> {
+    try {
+      const bundle = await import('../sessionBoardEntry')
+      if (
+        typeof bundle.readSessionBoard !== 'function' ||
+        typeof bundle.createBestOfNManager !== 'function'
+      ) {
+        throw new TypeError(
+          'The session board bundle does not export its reader and manager factory',
+        )
+      }
+      return bundle
+    } catch (error: unknown) {
+      this.deps.log.error(`The session board bundle could not be loaded: ${describe(error)}`)
+      throw new Error(UI_TEXT.boardUnavailable, { cause: error })
+    }
+  }
+
+  private async bestOfN(): Promise<BestOfNManager> {
+    const generation = this.sendInvalidationEpoch
+    const { createBestOfNManager } = await this.sessionBoard()
+    if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+      throw new Error(UI_TEXT.bestOfNContextChanged)
+    }
+    this.bestOfNManager ??= createBestOfNManager(
+      {
+        coordinator: this.deps.bestOfNCoordinator,
+        getAccountId: this.deps.modelApiAccountId,
+        getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
+        openWorktree: this.deps.openBestOfNWorktree,
+        noteAttemptRequest: this.deps.noteBestOfNRequest,
+        noteAttemptUsage: this.deps.noteBestOfNUsage,
+        hasDirtyEditors: () => this.deps.unsavedFiles().length > 0,
+        contextId: () =>
+          `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
+        isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
+        allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+        notePaidUse: (attempts) => {
+          this.deps.notePaidUse('bestOfN', attempts)
+        },
+        runGit: (args, cwd, timeoutMs, input, beforeRun) =>
+          (this.deps.runBestOfNGit ?? this.deps.runGit)(args, cwd, timeoutMs, input, beforeRun),
+        repositoryRoot: () => this.deps.workspaceRoot,
+        platform: this.deps.platform,
+        buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
+          this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
+        modelId: () => this.modelId,
+        wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+        isTrusted: () => this.deps.isWorkspaceTrusted(),
+        realPath: (absolutePath) => this.deps.realPath(absolutePath),
+        onUpdate: (run) => {
+          this.lastBestOfNRun = run
+          this.post({ type: 'bestOfNUpdate', run })
+        },
+        log: this.deps.log,
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    return this.bestOfNManager
+  }
+
+  /** A settled best-of-N call's failure as a notice; the callers share it. */
+  private noticeBestOfNFailure(error: unknown, attemptId?: string): void {
+    if (isBestOfNError(error)) {
+      this.notice('warning', this.bestOfNErrorText(error, attemptId))
+    } else {
+      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`)
+    }
+  }
+
+  /** Why a best-of-N command was refused, in the user's words. */
+  private bestOfNErrorText(error: BestOfNError, attemptId?: string): string {
+    const detail = error.detail ?? ''
+    switch (error.refusal) {
+      case 'noWorkspace': {
+        return UI_TEXT.bestOfNNoWorkspace
+      }
+      case 'untrusted': {
+        return UI_TEXT.bestOfNNeedsTrust
+      }
+      case 'wrongBackend': {
+        return UI_TEXT.bestOfNModelApiOnly
+      }
+      case 'paidOff': {
+        return UI_TEXT.bestOfNPaidOff
+      }
+      case 'invalid': {
+        return UI_TEXT.bestOfNInvalidRequest
+      }
+      case 'unknownModel': {
+        return UI_TEXT.bestOfNTariffUnknown
+      }
+      case 'consentDeclined': {
+        return UI_TEXT.bestOfNConsentDeclined
+      }
+      case 'worktreeFailed': {
+        // A take names the branch it could not merge; a start names git's words.
+        const branch =
+          attemptId === undefined
+            ? undefined
+            : this.lastBestOfNRun?.runAttempts.find((attempt) => attempt.attemptId === attemptId)
+                ?.branch
+        return branch === undefined
+          ? fill(UI_TEXT.bestOfNWorktreeFailed, { reason: detail })
+          : fill(UI_TEXT.bestOfNTakeFailed, { branch, reason: detail })
+      }
+      case 'alreadyRunning': {
+        return UI_TEXT.bestOfNAlreadyRunning
+      }
+      case 'noRun': {
+        return UI_TEXT.bestOfNNoRun
+      }
+      case 'unknownAttempt': {
+        return UI_TEXT.bestOfNUnknownAttempt
+      }
+      case 'attemptNotDone': {
+        return UI_TEXT.bestOfNAttemptNotDone
+      }
+      case 'alreadyTaken': {
+        return fill(UI_TEXT.bestOfNAlreadyTaken, { branch: detail })
+      }
+      case 'contextChanged': {
+        return UI_TEXT.bestOfNContextChanged
+      }
+      case 'targetChanged': {
+        return UI_TEXT.bestOfNTargetChanged
+      }
+      case 'budgetUnavailable': {
+        return UI_TEXT.bestOfNBudgetUnavailable
+      }
+    }
+  }
+
+  private async requestSessionBoard(): Promise<void> {
+    if (this.deps.workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    const isCurrent = () => generation === this.sendInvalidationEpoch && !this.isDisposed
+    try {
+      const { readSessionBoard } = await this.sessionBoard()
+      if (!isCurrent()) return
+      const rows = await readSessionBoard(
+        {
+          ensureHost: () => this.deps.ensureHost(),
+          backendOf: (host) => host.info.kind,
+          workspaceRoot: this.deps.workspaceRoot,
+          isWorkspaceTrusted: () => this.deps.isWorkspaceTrusted(),
+          runGit: (args, cwd, timeoutMs) => this.deps.runGit(args, cwd, timeoutMs),
+          platform: this.deps.platform,
+          currentSessionId: this.session?.sessionId,
+          currentTurnId: this.activeTurnId,
+          pendingPrompts: this.deps.pendingPrompts,
+          attemptRuns: this.deps.bestOfNCoordinator.snapshots(),
+          liveSessions: this.deps.boardSessions?.(),
+          log: this.deps.log,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      if (!isCurrent()) {
+        return
+      }
+      this.post({ type: 'sessionBoard', rows: [...rows] })
+    } catch (error: unknown) {
+      if (generation === this.sendInvalidationEpoch) {
+        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`)
+      }
+    }
+  }
+
+  private async startBestOfN(
+    prompt: string,
+    attempts: number,
+    requestCeilingPerAttempt: number,
+  ): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const host = await this.deps.ensureHost()
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      const manager = await this.bestOfN()
+      await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.noticeBestOfNFailure(error)
+    }
+  }
+
+  private async takeBestOfNAttempt(attemptId: string, runId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const beginWorkspaceEdits = this.deps.bestOfNWorkspaceEdits?.(
+        this.sessionKind === 'modelApi' ? this.session : undefined,
+      )
+      const manager = await this.bestOfN()
+      const run = await manager.take(attemptId, runId, beginWorkspaceEdits)
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      if (run.takenBranch !== undefined) {
+        this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
+      }
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.noticeBestOfNFailure(error, attemptId)
+    }
+  }
+
+  private async cancelBestOfN(runId: string): Promise<void> {
+    const generation = this.sendInvalidationEpoch
+    try {
+      const manager = await this.bestOfN()
+      await manager.cancel(runId)
+    } catch (error: unknown) {
+      if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
+        return
+      }
+      this.noticeBestOfNFailure(error)
     }
   }
 
@@ -4788,6 +5313,8 @@ export class ConversationController {
         submission.disposition !== QUEUED_DISPOSITION &&
           submission.disposition !== STEERED_DISPOSITION,
       )
+      // acceptSubmission below records the card; the Auto reviewer sees the message now (M90).
+      this.noteReviewMessage(shownText)
       if (typed.some((part) => part.type === 'file' || part.type === 'textFile')) {
         this.fileMessageIds.add(submission.userMessageId ?? localId)
       }
@@ -5104,6 +5631,9 @@ export class ConversationController {
       },
     })
     this.planHold = { hold, previousMode, bypassEpoch }
+    this.voiceContextRevision += 1
+    // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
+    this.reviews?.release()
     this.permissionMode = 'plan'
     this.postComposerState()
     try {
@@ -5714,6 +6244,9 @@ export class ConversationController {
       return
     }
     const previous = this.modelId
+    if (previous !== modelId) {
+      this.voiceContextRevision += 1
+    }
     this.modelId = modelId
     if (this.session !== undefined) {
       try {
@@ -5833,12 +6366,18 @@ export class ConversationController {
       return
     }
     const previous = this.permissionMode
+    if (previous !== mode) {
+      this.voiceContextRevision += 1
+    }
     this.permissionMode = mode
     // A turn running or queued when Plan mode is left may act, so its reply
     // is no plan (M79): dropped now, before the backend can apply the mode.
     const leftPlanTurns = mode === PLAN_MODE ? [] : [...this.pendingPlanTurnIds]
     if (mode !== PLAN_MODE) {
       this.pendingPlanTurnIds.clear()
+    }
+    if (mode !== AUTO_MODE) {
+      this.reviews?.release()
     }
     const target = approvalModeFor(mode, this.deps.hasApprovalUi)
     if (
@@ -6556,9 +7095,74 @@ export class ConversationController {
   /** The engine the microphone uses now, and its setup (M35). */
   private dictationChoice(): { readonly engine: DictationEngine; readonly setup: DictationSetup } {
     const museVoice = this.deps.museVoice()
+    if (
+      museVoice !== undefined &&
+      this.voiceIsModelApi() &&
+      this.deps.modelApiSessionBudgetUsd() > 0
+    ) {
+      return {
+        engine: 'museVoice',
+        setup: { isAvailable: false, reason: UI_TEXT.sessionBudgetVoiceUnavailable },
+      }
+    }
     return museVoice === undefined
       ? { engine: 'system', setup: this.deps.dictation }
       : { engine: 'museVoice', setup: museVoice }
+  }
+
+  private voiceIsModelApi(): boolean {
+    return (this.sessionKind ?? this.deps.auth.current.backend) === 'modelApi'
+  }
+
+  private isVoiceSessionCurrent(session: AgentSession): boolean {
+    return !this.isDisposed && this.session === session && this.sessionKind === 'modelApi'
+  }
+
+  private async ownedVoiceBudgetScope(): Promise<OwnedSessionBudgetScope | undefined> {
+    if (!this.voiceIsModelApi()) {
+      return undefined
+    }
+    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+      throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+    }
+    const workspaceRoot = this.deps.workspaceRoot
+    if (workspaceRoot === undefined) {
+      return undefined
+    }
+    const generation = this.attachmentGeneration
+    const sendEpoch = this.sendInvalidationEpoch
+    const authGeneration = this.deps.auth.admissionGeneration
+    const session = await this.ensureSession(workspaceRoot)
+    this.requireCurrentOpening(generation)
+    if (!this.isVoiceSessionCurrent(session)) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    const scope = await this.deps.ownedVoiceBudgetScope(session.sessionId)
+    this.requireCurrentOpening(generation)
+    if (!this.isVoiceSessionCurrent(session)) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    return scope === undefined
+      ? undefined
+      : Object.freeze({
+          ...scope,
+          isStillAllowed: (keyDigest: string | undefined) => {
+            const choice = this.dictationChoice()
+            return (
+              !this.isDisposed &&
+              this.isAuthAdmitted() &&
+              this.deps.auth.backend === 'modelApi' &&
+              authGeneration === this.deps.auth.admissionGeneration &&
+              generation === this.attachmentGeneration &&
+              sendEpoch === this.sendInvalidationEpoch &&
+              this.session === session &&
+              this.sessionKind === 'modelApi' &&
+              choice.engine === 'museVoice' &&
+              choice.setup.isAvailable &&
+              scope.isStillAllowed(keyDigest)
+            )
+          },
+        })
   }
 
   private postDictationState(): void {
@@ -6602,6 +7206,8 @@ export class ConversationController {
     }
     this.dictationEngine = engine
     this.dictation ??= setup.create({
+      ownedBudgetScope: () => Promise.resolve(this.startingVoiceBudgetScope),
+      voiceConsentFence: () => this.startingVoiceConsentFence,
       onStatus: (status) => {
         this.dictationStatus = status
         this.postDictationState()
@@ -6620,26 +7226,85 @@ export class ConversationController {
 
   private async handleDictation(action: DictationAction): Promise<void> {
     this.dictationPresses += 1
-    const press = this.dictationPresses
-    const choice = this.dictationChoice()
-    if (action === 'start' && choice.engine === 'museVoice' && choice.setup.isAvailable) {
-      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
-      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
-      if (!isAllowed || press !== this.dictationPresses) {
-        this.postDictationState()
-        return
-      }
-    }
-    const driver = this.dictationDriver()
-    if (driver === undefined) {
-      // The button is disabled with the reason; a stray press re-sends it.
+    if (action === 'stop') {
+      // Availability gates new recordings; Stop must still reach the owned
+      // driver after the cap, account or paid setting changes.
+      this.dictation?.stop()
       this.postDictationState()
       return
     }
-    if (action === 'start') {
+    const press = this.dictationPresses
+    const choice = this.dictationChoice()
+    let scope: OwnedSessionBudgetScope | undefined
+    let consentFence: VoiceConsentFence | undefined
+    if (choice.engine === 'museVoice' && choice.setup.isAvailable) {
+      const generation = this.attachmentGeneration
+      const sendEpoch = this.sendInvalidationEpoch
+      const authGeneration = this.deps.auth.admissionGeneration
+      const backend = this.deps.auth.backend
+      const modelId = this.modelId
+      const mode = this.permissionMode
+      const contextRevision = this.voiceContextRevision
+      const isModelApi = this.voiceIsModelApi()
+      const isContextCurrent = () =>
+        !this.isDisposed &&
+        this.isAuthAdmitted() &&
+        generation === this.attachmentGeneration &&
+        sendEpoch === this.sendInvalidationEpoch &&
+        authGeneration === this.deps.auth.admissionGeneration &&
+        backend === this.deps.auth.backend &&
+        contextRevision === this.voiceContextRevision &&
+        modelId === this.modelId &&
+        mode === this.permissionMode
+      const isCurrent = () => press === this.dictationPresses && isContextCurrent()
+      const prepared = await Promise.all([this.ownedVoiceBudgetScope(), this.deps.voiceAccountId()])
+      scope = prepared[0]
+      const accountId = prepared[1]
+      if (accountId === undefined) {
+        throw new Error(UI_TEXT.museVoiceNoKey)
+      }
+      consentFence = (actualDigest, isSending) => {
+        if (actualDigest !== accountId) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+        if (!isContextCurrent()) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+        }
+        if (!isSending) return
+        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
+        }
+        const current = this.dictationChoice()
+        if (current.engine !== 'museVoice' || !current.setup.isAvailable) {
+          throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
+        }
+      }
+      if (!isCurrent() || scope?.isStillAllowed(accountId) === false) {
+        this.postDictationState()
+        return
+      }
+      consentFence(accountId, true)
+      // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
+      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
+      if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
+        this.postDictationState()
+        return
+      }
+      consentFence(accountId, true)
+    }
+    this.startingVoiceBudgetScope = scope
+    this.startingVoiceConsentFence = consentFence
+    try {
+      const driver = this.dictationDriver()
+      if (driver === undefined) {
+        // The button is disabled with the reason; a stray press re-sends it.
+        this.postDictationState()
+        return
+      }
       driver.start()
-    } else {
-      driver.stop()
+    } finally {
+      this.startingVoiceBudgetScope = undefined
+      this.startingVoiceConsentFence = undefined
     }
   }
 
@@ -6980,6 +7645,62 @@ export class ConversationController {
         await this.listSessions()
         break
       }
+      case 'requestSessionBoard': {
+        await this.requestSessionBoard()
+        break
+      }
+      case 'activateBoardSession': {
+        const generation = this.sendInvalidationEpoch
+        try {
+          if (
+            this.deps.surface.isSideChat === true &&
+            !this.sideSessionIds.has(message.sessionId)
+          ) {
+            this.notice('warning', UI_TEXT.sideChatSessionOnly)
+            break
+          }
+          if (
+            message.backend === 'modelApi' &&
+            (await this.deps.bestOfNCoordinator.openSession(message.sessionId))
+          )
+            break
+          if (this.deps.focusBoardSession?.(message.sessionId, message.backend) === true) break
+          const host = await this.deps.ensureHost()
+          if (generation !== this.sendInvalidationEpoch || this.isDisposed) break
+          if (host.info.kind !== message.backend) {
+            this.notice('warning', `${UI_TEXT.resumeFailed}: ${message.backend}`)
+            break
+          }
+          this.beginBrowserSessionChange()
+          await this.resumeSession(message.sessionId)
+        } catch (error: unknown) {
+          if (generation === this.sendInvalidationEpoch && !this.isDisposed)
+            this.noticeBestOfNFailure(error)
+        }
+        break
+      }
+      case 'startBestOfN': {
+        await this.startBestOfN(message.prompt, message.attempts, message.requestCeilingPerAttempt)
+        break
+      }
+      case 'takeBestOfNAttempt': {
+        await this.takeBestOfNAttempt(message.attemptId, message.runId)
+        break
+      }
+      case 'openBestOfNAttempt': {
+        try {
+          const manager = await this.bestOfN()
+          await manager.open(message.attemptId, message.runId)
+        } catch (error: unknown) {
+          if (this.isDisposed) break
+          this.noticeBestOfNFailure(error, message.attemptId)
+        }
+        break
+      }
+      case 'cancelBestOfN': {
+        await this.cancelBestOfN(message.runId)
+        break
+      }
       case 'readChildSession': {
         await this.readChildSession(message.sessionId)
         break
@@ -7174,6 +7895,7 @@ export class ConversationController {
     }
     const selection = this.permissionModeSelection
     this.permissionMode = FALLBACK_MODE
+    this.voiceContextRevision += 1
     const session = this.session
     const generation = this.sendInvalidationEpoch
     if (session !== undefined) {
@@ -7214,8 +7936,8 @@ export class ConversationController {
    * idle driver of the other engine goes, and the microphone is told.
    */
   public refreshDictation(): void {
-    const { engine } = this.dictationChoice()
-    if (this.dictationEngine !== engine) {
+    const { engine, setup } = this.dictationChoice()
+    if (this.dictationEngine !== engine || !setup.isAvailable) {
       this.retireDictation()
     }
     this.postDictationState()
@@ -7236,6 +7958,42 @@ export class ConversationController {
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0
+  }
+
+  /** Board state comes from captured turn events, not a guessed native status. */
+  public boardSession(): BoardSession | undefined {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.session === undefined ||
+      this.sessionKind === undefined
+    ) {
+      return undefined
+    }
+    const record = this.sessionRecords?.get(this.session.sessionId)
+    const root = record?.workspaceRoot ?? this.deps.workspaceRoot
+    return {
+      sessionId: this.session.sessionId,
+      backend: this.sessionKind,
+      status: this.activeTurnId === undefined ? 'idle' : 'running',
+      ...(record?.name !== undefined && { name: record.name }),
+      ...(record?.title !== undefined && { title: record.title }),
+      ...(record?.branch !== undefined && { branch: record.branch }),
+      ...(typeof root === 'string' && { workspaceRoot: root }),
+    }
+  }
+
+  public revealBoardSession(sessionId: string, backend: BackendKind): boolean {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.sessionKind !== backend ||
+      this.session?.sessionId !== sessionId
+    ) {
+      return false
+    }
+    this.deps.surface.reveal()
+    return true
   }
 
   /** Whether a turn of this conversation runs on that backend (the watchdog's choice, CLI recovery). */
@@ -7324,12 +8082,17 @@ export class ConversationController {
       if (isConversationEnding) {
         this.accountStopEpoch = this.sendInvalidationEpoch
       }
+      this.bestOfNManager?.dispose()
+      this.bestOfNManager = undefined
+      this.lastBestOfNRun = undefined
       this.gapReload = undefined
       this.unsubscribe?.()
       this.unsubscribe = undefined
       this.closedWatch?.()
       this.closedWatch = undefined
       this.historyWatchEpoch += 1
+      // The hosts are stopping: no tracked card can still wait on them.
+      this.deps.pendingPrompts.clear()
       if (isConversationEnding) {
         this.attachmentGeneration += 1
         this.webviewAttachmentEpoch += 1
@@ -7418,6 +8181,7 @@ export class ConversationController {
 
   public dispose(): void {
     this.isDisposed = true
+    this.bestOfNManager?.dispose()
     this.historyWatchEpoch += 1
     clearTimeout(this.deltaTimer)
     this.deltaTimer = undefined

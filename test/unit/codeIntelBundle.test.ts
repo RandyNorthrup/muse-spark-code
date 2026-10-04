@@ -1,176 +1,107 @@
-// The `ide` server's code intelligence answers as a bundle of their own (M67,
-// PLAN.md D6 2026-10-03): src/host/ide/codeIntelEntry.ts built with esbuild
-// into a temporary folder as scripts/build.mjs builds dist/codeIntel.js (the
-// shared English fallback beside it), then required by `codeIntelLoader`
-// with Node's own `require`, as the `ide` server does on its first call. A
-// bundle that cannot load is refused with the reason until one loads.
+// Code intelligence's own bundle (M67, PLAN.md D6): src/host/ide/codeIntelEntry.ts
+// built as scripts/build.mjs builds it, then required by `codeIntelLoader`
+// with Node's own `require`, as the `ide` server's first code intelligence
+// call requires dist/codeIntel.js. The tool list needs no bundle; a call
+// that cannot load it is answered with the reason as an error result.
 
-import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { build } from 'esbuild'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
-import { requireFile } from '../../src/host/lazyBundle'
+import { describe, expect, it } from 'vitest'
+import { handleMcpMessage } from '../../src/core/mcp'
 import {
+  type CodeIntelBundle,
   codeIntelLoader,
-  type CodeIntelAnswers,
   isCodeIntelBundle,
 } from '../../src/host/ide/codeIntelBundle'
-import { createCodeIntelAnswers } from '../../src/host/ide/codeIntelEntry'
+import * as codeIntelEntry from '../../src/host/ide/codeIntelEntry'
+import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
 import {
   CODE_INTEL_BUNDLE_FILE,
-  CODE_INTEL_MODEL_TEXT,
+  IDE_MCP_SERVER_INFO,
   MODEL_TEXT,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
-import { fakeLanguageService, loc } from './helpers/fakeLanguageService'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { fakeLanguageService, loc } from './helpers/fakeLanguageService'
 import { memoryToolIo } from './helpers/fakeToolIo'
-import { sharedUiText } from './helpers/modelApiBundle'
-import { removeFolder } from './helpers/temporaryFolders'
+import { builtForTests, lazyLoaderCases } from './helpers/lazyBundles'
+import { logLines } from './helpers/logText'
 
-const built = { folder: '', file: '' }
-const ROOT = '/ws'
-const A = `${ROOT}/a.ts`
-const FILES = { 'a.ts': 'export const answer = 42\n', 'b.ts': 'answer\n' }
+const built = builtForTests('src/host/ide/codeIntelEntry.ts', CODE_INTEL_BUNDLE_FILE)
 
-// Built as scripts/build.mjs builds it, with the shared English fallback.
-beforeAll(async () => {
-  built.folder = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-code-intel-bundle-')))
-  built.file = path.join(built.folder, CODE_INTEL_BUNDLE_FILE)
-  // One build of both: the entry's import of the table resolves to the
-  // adjacent ./uiText.js, as the production build's plugin makes it.
-  await build({
-    entryPoints: {
-      [path.parse(CODE_INTEL_BUNDLE_FILE).name]: path.resolve('src/host/ide/codeIntelEntry.ts'),
-      uiText: path.resolve('src/shared/l10n/en.ts'),
-    },
-    outdir: built.folder,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node20.18',
-    plugins: [sharedUiText],
-    logLevel: 'silent',
+const ROOT = '/repo'
+const MAIN = `${ROOT}/main.ts`
+const TOTAL = { start: { line: 0, character: 11 }, end: { line: 0, character: 16 } }
+
+/** A one-file workspace whose service defines `total` on line 1 and renames it there. */
+function intelFor() {
+  const io = memoryToolIo({ 'main.ts': 'export let total = 1\n' }, ROOT)
+  const service = fakeLanguageService({
+    files: io.files,
+    definitions: () => [loc(MAIN, 0, 11)],
+    rename: (_path, _at, newText) =>
+      Promise.resolve({
+        files: [{ path: MAIN, edits: [{ range: TOTAL, newText }] }],
+        fileOperations: 'none' as const,
+      }),
   })
-})
-
-afterEach(() => {
-  setUiText(EN, BASE_LOCALE)
-})
-
-afterAll(() => removeFolder(built.folder))
-
-function intel(): CodeIntelDeps {
-  const io = memoryToolIo(FILES, ROOT)
-  return {
-    service: fakeLanguageService({ files: io.files, definitions: () => [loc(A, 0, 13)] }),
-    workspaceRoot: ROOT,
-    platform: 'linux',
-    io,
-    now: () => 0,
-  }
+  return { service, workspaceRoot: ROOT, platform: 'linux' as const, io, now: () => 0 }
 }
 
-const answers: CodeIntelAnswers = createCodeIntelAnswers({ uiText: EN, uiLocale: BASE_LOCALE })
+/** One `tools/call` as Muse Code sends it, and the server's result. */
+async function callTool(name: string, bundle: () => CodeIntelBundle) {
+  const params = { name, arguments: { path: 'main.ts', symbol: 'total', new_name: 'sum' } }
+  const outcome = await handleMcpMessage(
+    JSON.stringify({ jsonrpc: '2.0', id: 7, method: 'tools/call', params }),
+    ideCodeIntelTools(intelFor(), bundle),
+    IDE_MCP_SERVER_INFO,
+  )
+  return outcome.kind === 'response' ? outcome.body['result'] : undefined
+}
 
 describe('isCodeIntelBundle', () => {
-  it('accepts a module whose factory is a function, and nothing else', () => {
-    expect(isCodeIntelBundle({ createCodeIntelAnswers: () => answers })).toBe(true)
-    expect(isCodeIntelBundle({ createCodeIntelAnswers: 1 })).toBe(false)
+  it('accepts a module that exports the call, and nothing else', () => {
+    expect(isCodeIntelBundle({ callCodeIntel: () => Promise.resolve('') })).toBe(true)
+    expect(isCodeIntelBundle({ callCodeIntel: 'no' })).toBe(false)
     expect(isCodeIntelBundle({})).toBe(false)
     expect(isCodeIntelBundle(null)).toBe(false)
-    expect(isCodeIntelBundle('createCodeIntelAnswers')).toBe(false)
+    expect(isCodeIntelBundle('callCodeIntel')).toBe(false)
   })
 })
 
 describe('codeIntelLoader', () => {
-  it('loads nothing until asked, then loads the bundle once and keeps its answers', () => {
-    const loadBundle = vi.fn(() => ({ createCodeIntelAnswers: () => answers }))
-    const load = codeIntelLoader({
-      bundlePath: '/dist/codeIntel.js',
-      log: new FakeLogOutputChannel(),
-      loadBundle,
-    })
-    expect(loadBundle).not.toHaveBeenCalled()
-    expect(load()).toBe(answers)
-    expect(load()).toBe(answers)
-    expect(loadBundle).toHaveBeenCalledExactlyOnceWith('/dist/codeIntel.js')
-  })
-
-  it('says why a module that cannot be loaded is refused, and tries again on the next call', () => {
-    const log = new FakeLogOutputChannel()
-    let isBroken = true
-    const load = codeIntelLoader({
-      bundlePath: '/dist/codeIntel.js',
-      log,
-      loadBundle: () => {
-        if (isBroken) throw new Error('Cannot find module')
-        return { createCodeIntelAnswers: () => answers }
-      },
-    })
-    expect(() => load()).toThrow(MODEL_TEXT.codeIntelUnavailable)
-    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('could not be loaded'))
-    isBroken = false
-    expect(load()).toBe(answers)
-  })
-
-  it('refuses a module that is not the bundle, and a file that does not exist, with the same reason', () => {
-    const log = new FakeLogOutputChannel()
-    expect(() =>
-      codeIntelLoader({
-        bundlePath: '/dist/codeIntel.js',
-        log,
-        loadBundle: () => ({ somethingElse: true }),
-      })(),
-    ).toThrow(MODEL_TEXT.codeIntelUnavailable)
-    expect(log.error).toHaveBeenCalledWith(
-      expect.stringContaining('does not export the code intelligence bundle'),
-    )
-    expect(() =>
-      codeIntelLoader({
-        bundlePath: path.join(built.folder, 'missing', CODE_INTEL_BUNDLE_FILE),
-        log: new FakeLogOutputChannel(),
-      })(),
-    ).toThrow(MODEL_TEXT.codeIntelUnavailable)
-  })
+  lazyLoaderCases(codeIntelLoader, built, () => MODEL_TEXT.codeIntelUnavailable)
 })
 
 describe('the shipped code intelligence bundle', () => {
-  it('loads the shared English fallback and its own model text, never MODEL_TEXT', () => {
+  it('loads the shared English fallback without copying it', () => {
     const text = readFileSync(built.file, 'utf8')
     expect(text).toContain('require("./uiText.js")')
     expect(text).not.toContain(UI_TEXT.crashTitle)
-    expect(text).toContain(CODE_INTEL_MODEL_TEXT.codeIntelNoSymbolNamed)
-    expect(text).not.toContain(MODEL_TEXT.replyContextLead)
   })
 
-  it('is the module the loader accepts, and answers as the source does', async () => {
-    const loadBundle = vi.fn(requireFile)
-    const load = codeIntelLoader({
-      bundlePath: built.file,
-      log: new FakeLogOutputChannel(),
-      loadBundle,
-    })
-    const args = { path: 'b.ts', symbol: 'answer' }
-    const shipped = await load().answer('findDefinition', args, intel())
-    expect(shipped).toEqual(await answers.answer('findDefinition', args, intel()))
-    expect(shipped).toEqual({
-      ok: true,
-      text: 'Using `answer` at b.ts:1:1.\na.ts:1:14: export const answer = 42',
-    })
-    expect(loadBundle).toHaveBeenCalledOnce()
-  })
+  it.each(['findDefinition', 'renameSymbol'])(
+    'answers %s from the bundle as the source does',
+    async (name) => {
+      const shipped = codeIntelLoader({ bundlePath: built.file, log: new FakeLogOutputChannel() })
+      const answer = await callTool(name, shipped)
+      expect(answer).toEqual(await callTool(name, () => codeIntelEntry))
+      expect(answer).toMatchObject({ content: [{ text: expect.stringContaining('total') }] })
+      expect(answer).not.toHaveProperty('isError')
+    },
+  )
 
-  it('reads the table the activation bundle installed, before it reads a string', async () => {
-    setUiText({ ...EN, codeIntelNoService: 'localized: no service for {path}' }, 'de')
-    const load = codeIntelLoader({ bundlePath: built.file, log: new FakeLogOutputChannel() })
-    expect(await load().answer('documentSymbols', { path: 'a.ts' }, intel())).toMatchObject({
-      ok: false,
-      visibleReason: 'localized: no service for a.ts',
-    })
+  it('answers every call with the reason as an error result while it cannot load, and still lists the tools', async () => {
+    const log = new FakeLogOutputChannel()
+    const missing = path.join(built.folder, 'gone', CODE_INTEL_BUNDLE_FILE)
+    const bundle = codeIntelLoader({ bundlePath: missing, log })
+    expect(ideCodeIntelTools(intelFor(), bundle)).toHaveLength(8)
+    for (const name of ['findDefinition', 'renameSymbol']) {
+      expect(await callTool(name, bundle)).toEqual({
+        content: [{ type: 'text', text: MODEL_TEXT.codeIntelUnavailable }],
+        isError: true,
+      })
+    }
+    expect(logLines(log).filter((line) => line.includes(missing))).toHaveLength(2)
   })
 })

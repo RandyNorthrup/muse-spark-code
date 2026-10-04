@@ -24,10 +24,12 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   MILLISECONDS_PER_DAY,
   SESSION_FILE_STALE_TEMPORARY_MS,
+  UI_TEXT,
 } from '../../shared/constants'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 import { describeStoreError, storeErrorCode } from './storeErrors'
+import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './sessionBudgetJournal'
 
 export interface FileSessionStoreDeps {
   readonly directory: string
@@ -53,6 +55,18 @@ function assertSessionId(sessionId: string): void {
   }
 }
 
+async function hasSessionFile(file: string): Promise<boolean> {
+  try {
+    await stat(file)
+    return true
+  } catch (error: unknown) {
+    if (storeErrorCode(error) === ENOENT) {
+      return false
+    }
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+  }
+}
+
 export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore {
   const fileFor = (sessionId: string) => path.join(deps.directory, `${sessionId}${FILE_EXTENSION}`)
 
@@ -74,6 +88,17 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     }
     return parsed.session
   }
+
+  const journalDeps: SessionBudgetJournalDeps = {
+    directory: deps.directory,
+    loadSession: async (sessionId) => {
+      assertSessionId(sessionId)
+      return await readOne(`${sessionId}${FILE_EXTENSION}`)
+    },
+    sleep: deps.sleep,
+    ...(deps.rename !== undefined && { rename: deps.rename }),
+  }
+  const budget = createSessionBudgetJournal(journalDeps)
 
   /** A temporary file older than any save in flight is a crash's leftover. */
   const removeIfStale = async (name: string): Promise<void> => {
@@ -108,6 +133,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   return {
+    budget,
     async list() {
       let names: string[]
       try {
@@ -137,14 +163,54 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     },
     async load(sessionId) {
       assertSessionId(sessionId)
-      return await readOne(`${sessionId}${FILE_EXTENSION}`)
+      const session = await readOne(`${sessionId}${FILE_EXTENSION}`)
+      if (session === undefined) {
+        return
+      }
+      // Freeze existing account-owned legacy evidence before another
+      // window's whole-session save can replace its transcript or spend.
+      if (session.accountId !== undefined) {
+        await budget.read(sessionId, session.accountId)
+      }
+      return await budget.project(session)
     },
     async save(session) {
       assertSessionId(session.sessionId)
-      await writeFileAtomically(fileFor(session.sessionId), JSON.stringify(session), {
+      const hasFile = await hasSessionFile(fileFor(session.sessionId))
+      const previous = await readOne(`${session.sessionId}${FILE_EXTENSION}`)
+      if (
+        (hasFile && previous === undefined) ||
+        (previous !== undefined && previous.accountId !== session.accountId)
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      }
+      // Seed from the fresh file before a stale DTO can discard historical
+      // paid rows or nested children. The raw loader avoids projection recursion.
+      if (previous?.accountId !== undefined) {
+        await budget.read(previous.sessionId, previous.accountId)
+      }
+      // Before journal activation, keep fresh legacy spend when an older
+      // snapshot arrives. Once active, only the journal supplies this field.
+      const previousSpend = previous?.budgetSpentUsd
+      const incomingSpend = session.budgetSpentUsd
+      const withLegacySpend =
+        previousSpend === undefined && incomingSpend === undefined
+          ? session
+          : { ...session, budgetSpentUsd: Math.max(previousSpend ?? 0, incomingSpend ?? 0) }
+      const projected = await budget.project(withLegacySpend)
+      if (
+        projected.budgetSpentUsd !== undefined &&
+        (!Number.isFinite(projected.budgetSpentUsd) || projected.budgetSpentUsd < 0)
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+      }
+      await writeFileAtomically(fileFor(session.sessionId), JSON.stringify(projected), {
         sleep: deps.sleep,
         ...(deps.rename !== undefined && { rename: deps.rename }),
       })
+      if (previous === undefined && projected.accountId !== undefined) {
+        await budget.read(projected.sessionId, projected.accountId)
+      }
     },
     async remove(sessionId) {
       assertSessionId(sessionId)

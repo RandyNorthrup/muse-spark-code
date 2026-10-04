@@ -1,24 +1,41 @@
-// The `ide` server's code intelligence answers as a bundle of their own (M67,
-// PLAN.md D6 2026-10-03): esbuild builds this file into dist/codeIntel.js,
-// which `codeIntelLoader` requires on the first code intelligence call, so
-// the queries, the repo map, the rename's plan and their model text stay out
-// of the bundle VS Code loads at activation. Like the review's bundle it
-// carries its own copy of every module it shares with dist/extension.js, the
-// display language's table among them, so the factory installs the
-// activation bundle's table before it answers. Nothing it bundles may import
-// `vscode`: the language services come in through `CodeIntelDeps`.
+// Code intelligence's shipped CommonJS bundle (M67, PLAN.md D6): the queries,
+// the read tools' answers, the repo map and the rename's diff behind Muse
+// Code's `ide` tools. esbuild builds this file into dist/codeIntel.js, which
+// `codeIntelLoader` requires on the first call, so none of it is in the
+// bundle VS Code loads at activation; the tool list (names, descriptions,
+// schemas) stays there. The Model API backend keeps its own copy in
+// dist/modelApi.js. Each call receives the installed display table.
 
+import type { CodeIntelDeps } from '../../core/codeIntel/codeIntelQuery'
 import { answerCodeIntel } from '../../core/codeIntel/codeIntelTools'
 import { planRename, renameDiff } from '../../core/codeIntel/rename'
+import type { CodeIntelTool } from '../../shared/constants'
+import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import type { CodeIntelAnswers, CodeIntelBundleDeps } from './codeIntelBundle'
 
-/** The answers over the activation bundle's table and language. */
-export function createCodeIntelAnswers(deps: CodeIntelBundleDeps): CodeIntelAnswers {
-  setUiText(deps.uiText, deps.uiLocale)
-  return {
-    answer: async (tool, args, intel) => await answerCodeIntel(tool, args, intel),
-    planRename,
-    renameDiff,
+/**
+ * One `ide` tool's answer. A refusal rejects with its reason, so the server
+ * answers with an error result the model reads. `renameSymbol` writes
+ * nothing: it returns the edits as a diff.
+ */
+export async function callCodeIntel(
+  tool: CodeIntelTool,
+  args: Readonly<Record<string, unknown>>,
+  intel: CodeIntelDeps,
+  table: UiText,
+  locale: string,
+): Promise<string> {
+  setUiText(table, locale)
+  if (tool === 'renameSymbol') {
+    const planned = await planRename(args, intel)
+    if (!planned.ok) {
+      throw new Error(planned.reason)
+    }
+    return renameDiff(planned.plan)
   }
+  const answer = await answerCodeIntel(tool, args, intel)
+  if (!answer.ok) {
+    throw new Error(answer.reason)
+  }
+  return answer.text
 }

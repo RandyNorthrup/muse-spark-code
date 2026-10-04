@@ -5,8 +5,9 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
-  MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
   HOOK_STDIN_MAX_BYTES,
+  MODEL_TEXT,
   TOOL_FILE_MAX_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
@@ -227,13 +228,16 @@ const SWEEP_DELAY_MS = 1000
 // On Windows the commands run in job objects, as the extension runs them
 // (M27): the helper is compiled once, into a folder of this file's own.
 const jobStorage = mkdtempSync(path.join(tmpdir(), 'muse-toolio-jobs-'))
+const jobLog: string[] = []
 const jobAssembly =
   process.platform === 'win32'
     ? shellJobAssembly({
         readJobSource,
         storageDir: jobStorage,
         systemRoot: String(process.env['SystemRoot']),
-        log: () => undefined,
+        log: (message) => {
+          jobLog.push(message)
+        },
       })
     : undefined
 
@@ -347,7 +351,7 @@ describe('createToolIo (real file system and shell)', () => {
   it('refuses a new checked reservation after its parent becomes a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-reserve', true)
     await expect(io().reserveFile(checkedAbsolute, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile)).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -365,7 +369,7 @@ describe('createToolIo (real file system and shell)', () => {
       await writeFile(outsideFile, 'sentinel-private')
       await swap()
       await expect(reservation.fill(Uint8Array.from([1, 2, 3]))).rejects.toThrow(
-        MODEL_TEXT.pathChangedAfterApproval,
+        FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
       )
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
@@ -382,7 +386,9 @@ describe('createToolIo (real file system and shell)', () => {
       const reservation = await io().reserveFile(checkedAbsolute, checkedAbsolute)
       await writeFile(outsideFile, 'sentinel-private')
       await swap()
-      await expect(reservation.release()).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+      await expect(reservation.release()).rejects.toThrow(
+        FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
+      )
       await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
     },
   )
@@ -390,10 +396,10 @@ describe('createToolIo (real file system and shell)', () => {
   it('refuses a checked read after its parent is replaced by a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-read')
     await expect(io().readFile(checkedAbsolute, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(io().readBytes(checkedAbsolute, 100, checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
@@ -411,14 +417,14 @@ describe('createToolIo (real file system and shell)', () => {
     })
     await expect(
       loadToolImage('allowed/picture.png', workspace, process.platform, previewIo),
-    ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+    ).rejects.toThrow(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
 
   it('refuses an atomic tool write after its checked parent becomes a junction', async () => {
     const { checkedAbsolute, outsideFile } = await retargetedCheckedFile('swapped-write')
     await expect(io().writeFile(checkedAbsolute, 'changed', checkedAbsolute)).rejects.toThrow(
-      MODEL_TEXT.pathChangedAfterApproval,
+      FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
     )
     await expect(readFile(outsideFile, 'utf8')).resolves.toBe('sentinel-private')
   })
@@ -534,7 +540,7 @@ describe('createToolIo (real file system and shell)', () => {
         isSwapped = true
         if (operation === 'fill') {
           await expect(reserved.fill(Uint8Array.from([1, 2]))).rejects.toThrow(
-            MODEL_TEXT.pathChangedAfterApproval,
+            FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval,
           )
         } else if (operation === 'unchecked fill') {
           expect(await reserved.fill(Uint8Array.from([1, 2]))).toBe('changed')
@@ -605,9 +611,11 @@ describe('createToolIo (real file system and shell)', () => {
       // PSModuleAnalysisCachePath, so on GitHub's runner hooks waited 20 s,
       // and over their 60 s test budget on a cold runner, before starting.
       // With auto-loading off, any such cmdlet fails here at once.
+      const logged = jobLog.length
       const assembly = await jobAssembly?.()
       if (assembly === undefined) {
-        throw new Error('job helper missing')
+        // Only this attempt's lines: an earlier attempt's would misname the cause.
+        throw new Error(`job helper missing: ${jobLog.slice(logged).join('\n')}`)
       }
       const report =
         "[Console]::Out.WriteLine(('{0} {1} {2}' -f ($null -ne ('MuseSparkJob' -as [type])), $Error.Count, [Console]::OutputEncoding.WebName))"

@@ -1,0 +1,205 @@
+# Polyglot strict pre-commit gate. Copy to project root, then:
+#
+#     pre-commit install                 # run on every commit
+#     pre-commit run --all-files         # run over the whole repo now
+#     pre-commit autoupdate --freeze     # bump pins to commit SHAs
+#
+# Tags are movable; `--freeze` records each hook repository's commit SHA with
+# the tag as a comment, so a retagged release cannot change what runs.
+#
+# Delete the language blocks a given project does not use — every hook that
+# stays enabled must pass, so an unused block is pure friction.
+
+fail_fast: false
+
+repos:
+  # ── universal hygiene ───────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      # A script with a shebang must be executable and an executable must have
+      # a shebang. A Windows checkout cannot see a missing POSIX executable bit.
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      # .gitattributes owns line endings (for example `* text=auto eol=lf` and
+      # `*.ps1 text eol=crlf`); this hook only rejects files that mix them.
+      # --fix=lf also rewrites uniformly CRLF files, so it fails every commit
+      # that touches a script kept in CRLF by that policy.
+      - id: mixed-line-ending
+        args: [--fix=no]
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-json
+        # TypeScript configuration is JSONC; tsc owns its syntax validation.
+        # Keep strict JSON validation for actual JSON files.
+        exclude: '(^|/)tsconfig(?:\.[^/]+)?\.json$'
+      - id: check-yaml
+      - id: check-toml
+      - id: detect-private-key
+
+  # ── secrets: scans staged changes; run `gitleaks git` separately for history
+  - repo: https://github.com/gitleaks/gitleaks
+    # v8.30.1 is an orphaned tag that `pre-commit autoupdate` cannot follow.
+    # v8.30.0 was verified with a randomized, real-shape GitHub PAT canary.
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+
+  # ── Python ──────────────────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # mypy runs in the local block below, in the project's own environment.
+
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.16
+    hooks:
+      - id: vulture   # dead Python code
+        # The hook passes no filenames: unused-code analysis needs the whole
+        # tree. Name owned source roots here or in [tool.vulture] paths;
+        # without either, vulture exits 2 before checking anything.
+        args: [src, tests]
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+
+  # ── Shell ───────────────────────────────────────────────────────────
+  # shellcheck-py installs the upstream ShellCheck binary from PyPI. The
+  # koalaman/shellcheck-precommit hook is a Docker image and fails on any
+  # machine without a running Docker daemon.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=style, --enable=all]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        args: [-i, '4', -ci, -sr, -d]
+
+  # ── GitHub Actions workflows ────────────────────────────────────────
+  # actionlint checks workflow syntax, expressions, and embedded shell;
+  # zizmor audits security: unpinned actions, persisted checkout credentials,
+  # template injection, and excessive permissions.
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+        args: [--no-progress, --offline]
+
+  # ── C / C++ ─────────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v22.1.8
+    hooks:
+      - id: clang-format
+        types_or: [c, c++, cuda]
+
+  # ── local: tools installed in the target project's environment ──────
+  # `language: system` means pre-commit calls the binary on PATH instead of
+  # building an isolated env. Install these as project-local dev dependencies
+  # or otherwise pin them in the project's toolchain before enabling the hooks.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (project environment)
+        # mirrors-mypy's isolated environment lacks the project's dependencies
+        # and passes --ignore-missing-imports, so their types become Any and go
+        # unchecked. Use the interpreter that has them; on Windows that is
+        # python_runtime.bin from detect-stack.
+        entry: python -m mypy
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: eslint
+        name: eslint (strict, type-checked)
+        entry: eslint --max-warnings=0
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: true
+
+      - id: prettier
+        name: prettier
+        entry: prettier --write
+        language: system
+        types_or: [javascript, jsx, ts, tsx, css, scss, html, json, yaml, markdown]
+
+      - id: stylelint
+        name: stylelint (strict)
+        entry: stylelint --max-warnings=0
+        language: system
+        types_or: [css, scss]
+
+      - id: knip
+        name: knip (unused files/exports/deps)
+        entry: knip --strict
+        language: system
+        pass_filenames: false
+        files: ^(package\.json|src/.*)$
+
+      - id: cargo-fmt
+        name: cargo fmt --check
+        entry: cargo fmt --all -- --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy (deny warnings)
+        # Select supported feature combinations if all-features is incompatible.
+        entry: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-machete
+        name: cargo machete (unused deps)
+        entry: cargo machete
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cppcheck
+        name: cppcheck (all checks)
+        # Mixed C/C++ input must not be forced to a C++ standard. For CI use
+        # the real compile database and whole-project unused-function analysis.
+        entry: cppcheck --enable=all --inline-suppr --error-exitcode=1 --suppress=missingIncludeSystem --suppress=unusedFunction
+        language: system
+        types_or: [c, c++]
+
+      - id: dotnet-format
+        name: dotnet format --verify-no-changes
+        entry: dotnet format --verify-no-changes --severity info
+        language: system
+        files: \.(cs|csproj|sln)$
+        pass_filenames: false
+
+      - id: psscriptanalyzer
+        name: PSScriptAnalyzer (strict)
+        # `pwsh` is the cross-platform host. On a Windows-only project that
+        # supports only Windows PowerShell 5.1, replace it with `powershell`.
+        # -ErrorAction Stop turns an analyzer crash into a failing hook instead
+        # of a silent pass with that rule's findings missing.
+        entry: pwsh -NoProfile -Command "Invoke-ScriptAnalyzer -Path . -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 -EnableExit -ErrorAction Stop"
+        language: system
+        files: \.(ps1|psm1|psd1)$
+        pass_filenames: false

@@ -1,33 +1,23 @@
 // The code intelligence tools on the `ide` server for Muse Code (M67,
 // PLAN.md D49): listed with a folder open, each declaring itself read-only
 // (MCP annotations), answering as the Model API's tools do, and a rename
-// that returns its edits and writes nothing. The answers load with their own
-// bundle on the first call (PLAN.md D6, 2026-10-03): listing never loads it,
-// and a bundle that cannot load answers as a failed call.
+// that returns its edits and writes nothing.
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
 import { diagnosticsTool } from '../../src/core/diagnostics'
 import { handleMcpMessage } from '../../src/core/mcp'
-import { codeIntelLoader, type CodeIntelAnswers } from '../../src/host/ide/codeIntelBundle'
-import { createCodeIntelAnswers } from '../../src/host/ide/codeIntelEntry'
+import * as codeIntelEntry from '../../src/host/ide/codeIntelEntry'
 import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
-import { IDE_MCP_SERVER_INFO, MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
-import { uiLocale } from '../../src/shared/l10n/text'
+import { IDE_MCP_SERVER_INFO } from '../../src/shared/constants'
 import { fakeLanguageService, loc } from './helpers/fakeLanguageService'
-import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
 const A = `${ROOT}/a.ts`
 const FILES = { 'a.ts': 'export const answer = 42\n', 'b.ts': 'answer\n' }
 
-/** The answers as the bundle's factory makes them, from the source modules. */
-function sourceAnswers(): CodeIntelAnswers {
-  return createCodeIntelAnswers({ uiText: UI_TEXT, uiLocale: uiLocale() })
-}
-
-function tools(answers: () => CodeIntelAnswers = sourceAnswers) {
+function tools() {
   const io = memoryToolIo(FILES, ROOT)
   const deps: CodeIntelDeps = {
     service: fakeLanguageService({
@@ -54,7 +44,8 @@ function tools(answers: () => CodeIntelAnswers = sourceAnswers) {
     io,
     now: () => 0,
   }
-  return { io, list: ideCodeIntelTools(deps, answers) }
+  // The source module, as dist/codeIntel.js exports it.
+  return { io, list: ideCodeIntelTools(deps, () => codeIntelEntry) }
 }
 
 /** A call's JSON-RPC result, or undefined when the server did not answer. */
@@ -63,12 +54,8 @@ async function resultOf(name: string, args: Record<string, unknown>) {
   return answered.body?.['result']
 }
 
-async function call(
-  name: string,
-  args: Record<string, unknown>,
-  answers: () => CodeIntelAnswers = sourceAnswers,
-) {
-  const { io, list } = tools(answers)
+async function call(name: string, args: Record<string, unknown>) {
+  const { io, list } = tools()
   const outcome = await handleMcpMessage(
     JSON.stringify({
       jsonrpc: '2.0',
@@ -84,8 +71,7 @@ async function call(
 
 describe('ide code intelligence tools', () => {
   it('lists every tool as read-only, getDiagnostics too, and none without a folder', async () => {
-    const answers = vi.fn(sourceAnswers)
-    expect(ideCodeIntelTools(undefined, answers)).toEqual([])
+    expect(ideCodeIntelTools(undefined, () => codeIntelEntry)).toEqual([])
     const diagnostics = diagnosticsTool({
       getDiagnostics: () => [],
       workspaceRoot: ROOT,
@@ -94,11 +80,9 @@ describe('ide code intelligence tools', () => {
     })
     const outcome = await handleMcpMessage(
       JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-      [diagnostics, ...tools(answers).list],
+      [diagnostics, ...tools().list],
       IDE_MCP_SERVER_INFO,
     )
-    // Listing is activation's: the answers' bundle is not loaded for it.
-    expect(answers).not.toHaveBeenCalled()
     const listed = outcome.kind === 'response' ? outcome.body['result'] : undefined
     expect(listed).toMatchObject({
       tools: [
@@ -153,34 +137,5 @@ describe('ide code intelligence tools', () => {
     expect(
       await resultOf('renameSymbol', { path: 'a.ts', symbol: 'nowhere', new_name: 'x' }),
     ).toMatchObject({ isError: true })
-  })
-
-  it('answers every call as a failed one, with the reason, while its bundle cannot be loaded', async () => {
-    const log = new FakeLogOutputChannel()
-    let isBroken = true
-    const answers = codeIntelLoader({
-      bundlePath: '/dist/codeIntel.js',
-      log,
-      loadBundle: () => {
-        if (isBroken) throw new Error('Cannot find module')
-        return { createCodeIntelAnswers }
-      },
-    })
-    const failed = {
-      content: [{ type: 'text', text: MODEL_TEXT.codeIntelUnavailable }],
-      isError: true,
-    }
-    const find = { path: 'b.ts', symbol: 'answer' }
-    const read = await call('findDefinition', find, answers)
-    expect(read.body).toMatchObject({ result: failed })
-    const rename = await call('renameSymbol', { ...find, path: 'a.ts', new_name: 'r' }, answers)
-    expect(rename.body).toMatchObject({ result: failed })
-    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('could not be loaded'))
-    // The next call tries again.
-    isBroken = false
-    const retried = await call('findDefinition', find, answers)
-    expect(retried.body).toMatchObject({
-      result: { content: [{ text: expect.stringContaining('a.ts:1:14') }] },
-    })
   })
 })

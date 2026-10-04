@@ -90,6 +90,47 @@ security notes for contributors are in `PLAN.md` §9.
   the panel announces this, and local history still keeps the original bytes.
   Media read by a tool in a stopped or failed turn is removed from later
   replay; the next request gets a path-only explanation instead of its bytes.
+- **Auto reviewer (Model API, off by default).** With
+  `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
+  a separate request to Meta judges an eligible tool call. It includes your
+  latest message, earlier tool names and arguments from that turn, the proposed
+  command or arguments, workspace path and platform. The message, action and individual
+  earlier-call text are clipped and marked as data. The reviewer has no tools, uses `store: false`,
+  and cannot override a forbid, explicit ask rule or file policy. It is billed
+  to your Model API key and recorded separately in Account & usage.
+- **Auto reviewer (Muse Code, on by default in Auto).** With
+  `museSpark.museCodeAutoReviewer` on and the panel in Auto on the Muse Code
+  backend, an eligible approval Muse Code raises for the running turn that
+  no rule settles is first
+  judged by the same reviewer, run as one turn of a hidden side session in
+  your own `muse serve`. That turn is sent to Meta through Muse Code, on your
+  Muse subscription (no Model API key is used), and holds: your latest
+  message as you typed it, up to eight of the turn's earlier tool names and
+  arguments, the proposed command or arguments, the workspace path and the
+  platform, each clipped and marked as data, with the reviewer's
+  instructions. The side session runs in Plan mode, with thinking off, in an
+  empty folder under the extension's global storage, so it is given none of
+  your workspace files, rules or skills in the captured setup; CLI-global
+  context is not excluded. Muse Code adds its own system prompt and, as
+  for any turn, its reminder agents (four model attempts and about 33,000
+  input tokens in the live check). Muse Code keeps the side session in its
+  own session store like any other session; the extension never lists it in
+  History. Native tools cannot be disabled through the SDK's
+  `SessionConfig`, which only configures `mcpServers`. Any item other than
+  an agent message or reasoning cancels the review turn, shows the generic
+  failure card, and recreates the side session. A command covered by your
+  always-allow rule could run in the empty folder before cancellation
+  lands. The verdict text is never executed: it can only answer an
+  approval _Allow once_ or leave it to you. Protected writes, paid calls,
+  child tasks, questions, replayed/escalated/unknown requests, requests
+  without allow-once and shared-panel sessions are never reviewed. Busy,
+  timeout and breaker fallbacks leave the card; host exit recreates the
+  side session.
+- **Best-of-N (Model API, off by default).** After its paid-use popup names
+  N and the request ceiling, the same prompt runs in separate local Git
+  worktrees. Each attempt sends its conversation and tool outputs to Meta
+  under the confirmed key. Worktrees and comparison snapshots remain local;
+  choosing a result applies and stages its files without creating a commit.
 - **MCP servers on the Model API backend.** In a trusted workspace, the
   extension starts the servers configured in Muse Code's settings when a
   conversation starts. A local server runs as a child process; a remote
@@ -157,6 +198,14 @@ security notes for contributors are in `PLAN.md` §9.
   Model API backend reads none of this while VS Code has the folder in
   Restricted Mode; Muse Code's documentation says it still reads a
   repository's committed project memory then.
+- **The bundled skills** (M89, PLAN.md D68: `project_setup`,
+  `feature_delivery` and `quality_retrofit`, shipped inside the extension).
+  On the Model API backend, while `museSpark.bundledSkills` is on (the
+  default), their ids and descriptions join the skill catalogue sent with
+  every request, and a skill's full text, preceded by one line naming the
+  folder the extension is installed in, goes to Meta when the model loads
+  it or you invoke it. Their scripts run only as shell commands under the
+  conversation's permission mode, on your machine.
 - **The Memory view** (M49) reads and writes only those notes on your
   machine; it sends nothing anywhere. A note it deletes goes to your trash.
 - **Saved plans** (M79). **Save plan** writes a Plan-mode reply to
@@ -334,7 +383,13 @@ generation fields, never raw configuration or failed-command output.
   the edit patches, the task list, the model and the settings of that
   conversation, including attached image and PDF bytes, and a SHA-256
   digest of the Model API key that owns it (never the key itself), so
-  History opens only that key's conversations. Scheduled prompts are saved
+  History opens only that key's conversations. Shared budget records beside
+  these files keep the account digest, conversation and random request IDs,
+  reserved or settled amounts and whether historical fees are unverified.
+  They contain no prompt, attachment or key value. A request that crashed
+  without verified usage keeps its possible liability. Budget records are
+  retained even when an old conversation file is removed; deleting the
+  extension's workspace storage directory removes them all. Scheduled prompts are saved
   beside them, one JSON file per prompt with the same digest, plus a small
   receipt for each run you confirmed. Archiving a conversation in the
   History dialog hides it; deleting the directory removes them all.
@@ -389,6 +444,19 @@ generation fields, never raw configuration or failed-command output.
   its global storage folder.
 - The "Muse Spark" output channel logs what the extension does, with keys
   and tokens redacted. It is not written to disk by the extension.
+- **The bundled skills for Muse Code** (M89) are installed only when you
+  click Install or Update on the panel's offer or run **Muse Spark: Install
+  Bundled Skills for Muse Code**. The install writes only under Muse Code's
+  config folder (`~/.config/muse`, or `$XDG_CONFIG_HOME/muse`): a copy of
+  the package in `skill-sources/high-quality-projects-skill/`, with a mark
+  file (`.muse-spark-bundled.json`: the release tag and when it was
+  installed), and one link per skill in `skills/`. Nothing is downloaded:
+  the files are the release vendored into the extension when it was built.
+  **Remove Bundled Skills from Muse Code** deletes only the links that lead
+  into the marked copy and the copy itself; a folder without the mark, a
+  skill of yours, or a link that leads anywhere else is never touched.
+  Whether you answered Not now to the offer is kept in VS Code's extension
+  state.
 - **Import from other agents** (M83, D64) reads other tools' files only
   when requested, locally, without a model call or sending their contents
   anywhere. Import copies an item only to a place no more exposed than where it was: personal stays personal, a git-ignored file is never copied into a tracked one. It does not look for credentials in what it copies.
@@ -496,3 +564,29 @@ hands it, the same way the extension does, and nothing else:
 Questions and reports: <https://github.com/RandyNorthrup/muse-spark-code/issues>.
 This project is not affiliated with Meta. "Muse Spark" and "Muse Code" are
 Meta trademarks.
+
+## Headless runs and CI (M80 integration pending)
+
+Headless prompt, untrusted resources, PR title/body/diff and ordinary workspace
+files the agent reads can reach Meta. Use a secret-free checkout. Contributor
+models require explicit opt-in; their content is eligible for Meta training.
+The authentication key goes only in the provider auth header, never model
+content. Local runs keep existing OS-store auth. CI launcher receives key in its
+initial environment, removes variable before children, then sends private stdin
+to only trusted exec and scanner commands; both keep it in memory and clear
+references in finally. Initial same-user environment/memory inspection remains
+possible; removal cannot guarantee zeroization.
+
+Scanner is local-only and sends no file or key to a model. It reports only count.
+Exec suppresses all tool output text and withholds incomplete prose whole;
+released output uses exact-literal-first redaction plus known token patterns.
+This does not catch unknown secrets or prevent readable workspace contents
+from entering provider context. GitHub receives only redacted result/events/
+eligible comment outputs, plus exact scanned clean text patch and binding
+manifest. A binary/image change or detected secret withholds the entire patch;
+private staging is not uploaded. Model-generated images are still paid provider
+requests; tally records returned/uncertain liability under explicit flag/cap.
+
+B/C integration and actual L/LA/LR remain open. Read
+[CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
+retention/cleanup bounds, platform limits and support claims.

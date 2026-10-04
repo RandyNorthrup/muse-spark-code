@@ -37,6 +37,9 @@
 // case23 (M70; case19 in its 2026-09-28 standalone capture): one review turn,
 // 3 requests, about $0.0005. The joined suite reserves case19 for M67.
 
+// case22 budget is the original M82 case19 (2026-09-28, two requests, about $0.0005);
+// cases19/20 are code intelligence/plans, and case21 is reserved for M68 verification.
+
 import { execFile } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -48,6 +51,8 @@ import { crc32, deflateSync } from 'node:zlib'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentSession, TurnPart } from '../../src/core/agent/agentBackend'
+import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
+import { PendingPrompts } from '../../src/core/sessionBoard'
 import { createCheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import type {
   CodeLocation,
@@ -69,6 +74,7 @@ import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { pdfPageCount } from '../../src/core/pdf'
 import { planBody } from '../../src/core/plans/planDocument'
 import { listItems } from '../../src/core/plans/planMarkdown'
+import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { estimateCostUsd } from '../../src/core/usage/insights'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
@@ -85,13 +91,14 @@ import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendMa
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { processGitRunner } from '../../src/host/git'
+import { canonicalPath } from '../../src/host/canonicalPath'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
 import { ConversationController } from '../../src/host/conversation/conversationController'
 import type { AuthSnapshot } from '../../src/host/auth/authService'
 import { createPlanFiles, createPlanIo } from '../../src/host/planFeatures'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
-import { openWebSocket } from '../../src/host/voice/dictationHost'
+import { openWebSocket } from '../../src/host/voice/voiceProcesses'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
@@ -101,6 +108,7 @@ import {
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   MODEL_API_EFFORT_OFF,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_SCHEDULED_TOOL,
   MODEL_API_SCHEDULES_DIR,
   MODEL_API_SESSIONS_DIR,
@@ -200,6 +208,8 @@ interface WireCall {
   /** `reasoning.effort` and `prompt_cache_retention` as sent. */
   readonly effort: string | undefined
   readonly retention: string | undefined
+  /** Captured outgoing output allowance (M82). */
+  readonly maxOutputTokens: number | undefined
   status: number
   inputTokens: number
   cachedTokens: number
@@ -257,6 +267,7 @@ const requestBodySchema = z.object({
   ),
   reasoning: z.optional(z.object({ effort: z.optional(z.string()) })),
   prompt_cache_retention: z.optional(z.string()),
+  max_output_tokens: z.optional(z.number()),
 })
 const contentTypesSchema = z.array(z.object({ type: z.string() }))
 
@@ -272,16 +283,24 @@ function mediaKinds(content: unknown): string {
 /** What a request carried that the summary and the assertions read: never its text. */
 function requestFacts(
   body: RequestInit['body'],
-): Pick<WireCall, 'model' | 'tools' | 'inputKinds' | 'effort' | 'retention'> {
+): Pick<WireCall, 'model' | 'tools' | 'inputKinds' | 'effort' | 'retention' | 'maxOutputTokens'> {
   const parsed = requestBodySchema.safeParse(typeof body === 'string' ? parseJson(body) : undefined)
   if (!parsed.success) {
-    return { model: undefined, tools: [], inputKinds: [], effort: undefined, retention: undefined }
+    return {
+      model: undefined,
+      tools: [],
+      inputKinds: [],
+      effort: undefined,
+      retention: undefined,
+      maxOutputTokens: undefined,
+    }
   }
   const { model, tools = [], input = [] } = parsed.data
   return {
     model,
     effort: parsed.data.reasoning?.effort,
     retention: parsed.data.prompt_cache_retention,
+    maxOutputTokens: parsed.data.max_output_tokens,
     tools: tools.map((tool) => tool.name ?? tool.type),
     inputKinds: input.map(
       (item) =>
@@ -602,6 +621,8 @@ interface RigOptions {
   readonly promptCacheRetention?: PromptCacheRetention
   /** The verify loop (M68): its settings and a stand-in for the language servers. */
   readonly verify?: VerifyHooks
+  /** Finite-cap live drill reads this value at each admission. */
+  readonly sessionBudgetUsd?: () => number
   /** Language services for the code intelligence tools (M67), over the rig's workspace. */
   readonly codeIntel?: (workspace: string) => LanguageServiceHost
 }
@@ -734,6 +755,7 @@ async function openRig(options: RigOptions): Promise<Rig> {
       sleep: (ms) => delay(ms),
       newId: () => randomUUID(),
       io: toolIo,
+      listAttemptFiles: listWorkspaceFiles,
       contextIo: fileContextIo,
       memory,
       personalSkillsRoot: personalSkillsRoot(config),
@@ -765,8 +787,18 @@ async function openRig(options: RigOptions): Promise<Rig> {
           now: Date.now,
           log,
         }),
+      describeAttemptEnvironment: (workspaceRoot) =>
+        describeEnvironment({
+          runGit: processGitRunner(),
+          workspaceRoot,
+          isWorkspaceTrusted: isTrusted,
+          now: Date.now,
+          log,
+        }),
       promptCacheRetention: () =>
         options.promptCacheRetention ?? SETTING_DEFAULTS.modelApiPromptCacheRetention,
+      sessionBudgetUsd: options.sessionBudgetUsd ?? (() => 0),
+      showReplyUsage: () => false,
       isPaidFeatureOn: (feature) => gate.isOn(feature),
       notePaidUse: (feature, units) => {
         usage.add(feature, units)
@@ -776,6 +808,9 @@ async function openRig(options: RigOptions): Promise<Rig> {
       isPaidUseRemembered: () => false,
       noteSubagentUsage: (modelId, childUsage) => {
         usage.addSubagentUsage(modelId, childUsage)
+      },
+      noteReviewerUsage: (modelId, reviewUsage) => {
+        usage.addReviewerUsage(modelId, reviewUsage)
       },
       createMcpServers: (workspaceRoot, newPool) =>
         newPool(
@@ -993,6 +1028,7 @@ function livePanel(rig: Rig): LivePanel {
     auth: {
       current: signedIn,
       backend: 'modelApi',
+      admissionGeneration: 0,
       toMessage: () => ({ type: 'authState', status: 'signedIn' }),
       signIn: unreached,
       installMuseCode: unreached,
@@ -1060,6 +1096,32 @@ function livePanel(rig: Rig): LivePanel {
     isRestorable: false,
     dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
     museVoice: () => undefined,
+    modelApiSessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    voiceAccountId: () => rig.manager.accountId(),
+    ownedVoiceBudgetScope: async (sessionId) => {
+      const host = await rig.manager.ensureHost()
+      return await host.getOwnedBudgetScope(sessionId)
+    },
+    notifyAttention: () => undefined,
+    pendingPrompts: new PendingPrompts(),
+    bestOfNCoordinator: new BestOfNCoordinator(),
+    modelApiAccountId: () => rig.manager.accountId(),
+    openBestOfNWorktree: unreached,
+    noteBestOfNRequest: () => {
+      rig.usage.addBestOfNRequest()
+    },
+    noteBestOfNUsage: (modelId, usage) => {
+      rig.usage.addBestOfNUsage(modelId, usage)
+    },
+    runGit: processGitRunner(),
+    runBestOfNGit: processGitRunner({ isAutomatic: true }),
+    isPaidFeatureOn: (feature) => rig.gate.isOn(feature),
+    notePaidUse: (feature, units) => {
+      rig.usage.add(feature, units)
+    },
+    buildAttemptHost: (root, admit, noteUsage, budgetScope) =>
+      rig.manager.buildAttemptHost(root, admit, noteUsage, budgetScope),
+    realPath: canonicalPath,
     exports: {
       saveMarkdown: unreached,
       saveSessionLog: unreached,
@@ -1902,6 +1964,7 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
                   inputKinds: [],
                   effort: undefined,
                   retention: undefined,
+                  maxOutputTokens: undefined,
                   status: 0,
                   inputTokens: 0,
                   cachedTokens: 0,
@@ -2341,6 +2404,59 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
         )
         rig.notes.push(`rows ${rows.join(' ')}`, `reply ${JSON.stringify(finished.reply)}`)
       })
+    },
+    CASE_MS,
+  )
+  it(
+    'case22 session budget: each request estimated at or above what Meta counts, and one that cannot fit never sent (M82)',
+    async () => {
+      const name = 'case22 budget'
+      // Code, JSON and Japanese: the densest text a byte count must still cover.
+      const codeLine = 'export const 価格 = { 入力: 0.1, 出力: 0.2 } // 日本語のコメント\n'
+      const jsonLine = '{"a":[1,2,3],"b":"é","c":null}\n'
+      const notes = `FIRST-LINE-KIWI\n${codeLine.repeat(30)}${jsonLine.repeat(30)}`
+      // Room for the first turn with its output lowered; later, none at all.
+      const cap = { usd: 0.004 }
+      await runCase(
+        name,
+        { files: { 'notes.txt': notes }, sessionBudgetUsd: () => cap.usd },
+        async (rig) => {
+          const driver = await startSession(rig)
+          const first = await send(
+            driver,
+            'Read notes.txt with read_file, then reply with its first line only.',
+          )
+          expectCompleted(first)
+          expect(first.reply).toContain('FIRST-LINE-KIWI')
+          const requests = callsOf(name).filter((call) => isBilledResponse(call))
+          const reserved = logLines(rig.channel).flatMap((line) => {
+            const match =
+              /Session budget: request reserved for (\d+) input and (\d+) output tokens/.exec(line)
+            return match === null ? [] : [{ input: Number(match[1]), output: Number(match[2]) }]
+          })
+          expect(reserved).toHaveLength(requests.length)
+          expect(requests.length).toBeGreaterThanOrEqual(2)
+          for (const [index, call] of requests.entries()) {
+            // Estimated high: never below what Meta counted.
+            expect(reserved[index]?.input).toBeGreaterThanOrEqual(call.inputTokens)
+            expect(call.maxOutputTokens).toBe(reserved[index]?.output)
+          }
+          // The cap left the first request less than the usual maximum, and Meta took it.
+          expect(requests[0]?.maxOutputTokens).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+          // Now leave less than any request's input: the next one is not sent.
+          cap.usd = tokenUsd(requests) + 1e-6
+          const refused = await send(driver, 'Reply with exactly the word NO and nothing else.')
+          expect(refused.turn.terminal).toBe('failed')
+          expect(refused.turn.reason).toContain('It was not sent.')
+          expect(callsOf(name).filter((call) => isBilledResponse(call))).toHaveLength(
+            requests.length,
+          )
+          rig.notes.push(
+            `estimated/counted input ${requests.map((call, index) => `${String(reserved[index]?.input)}/${String(call.inputTokens)}`).join(' ')}`,
+            `max_output_tokens ${requests.map((call) => String(call.maxOutputTokens)).join(' ')}`,
+          )
+        },
+      )
     },
     CASE_MS,
   )

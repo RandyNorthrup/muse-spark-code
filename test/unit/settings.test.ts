@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readSettings, toSettingsSnapshot } from '../../src/host/settings'
+import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
 
@@ -29,10 +29,28 @@ describe('readSettings', () => {
         sandboxNetwork: 'restricted',
         modelApiPromptCacheRetention: '24h',
         modelApiHooks: true,
+        modelApiCommandRules: [{ pattern: ['ls'], decision: 'allow', match: ['ls'] }],
+        modelApiPermissionProfiles: { locked: { denyRead: ['**/.env'] } },
+        modelApiPermissionProfile: 'locked',
+        modelApiRepositoryRules: { denyRead: ['x'] },
+        modelApiAutoReviewer: true,
         modelApiObservationPacking: true,
+        museCodeAutoReviewer: false,
       }),
       new FakeLogOutputChannel(),
     )
+    // M78: kept whole here; the Model API bundle parses each rule.
+    expect(permissionSettingsOf(settings)).toEqual({
+      commandRules: [{ pattern: ['ls'], decision: 'allow', match: ['ls'] }],
+      profiles: { locked: { denyRead: ['**/.env'] } },
+      profile: 'locked',
+      repositoryRules: { denyRead: ['x'] },
+    })
+    expect(settings.modelApiAutoReviewer).toBe(true)
+    // M90: the Auto reviewer on Muse Code, on by default, off when the user says so.
+    expect(settings.museCodeAutoReviewer).toBe(false)
+    expect(SETTING_DEFAULTS.museCodeAutoReviewer).toBe(true)
+    expect(toSettingsSnapshot(settings).museCodeAutoReviewer).toBe(false)
     // M56 (PLAN.md D43).
     expect(settings.sandboxNetwork).toBe('restricted')
     expect(settings.modelApiPromptCacheRetention).toBe('24h')
@@ -56,6 +74,33 @@ describe('readSettings', () => {
     expect(retentionOf(-1)).toBe(30)
     expect(retentionOf(1.5)).toBe(30)
     expect(retentionOf('7')).toBe(30)
+  })
+
+  it('reads the awareness and budget settings, 0 meaning no cap (M82)', () => {
+    const settings = readSettings(
+      fakeSettingsSource({
+        notifyOnBackgroundTurn: false,
+        modelApiReplyUsage: true,
+        modelApiSessionBudgetUsd: 2.5,
+      }),
+      new FakeLogOutputChannel(),
+    )
+    expect(settings.notifyOnBackgroundTurn).toBe(false)
+    expect(settings.modelApiReplyUsage).toBe(true)
+    expect(settings.modelApiSessionBudgetUsd).toBe(2.5)
+  })
+
+  it('falls back to no cap for a negative or non-numeric budget (M82)', () => {
+    const log = new FakeLogOutputChannel()
+    expect(
+      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: -1 }), log)
+        .modelApiSessionBudgetUsd,
+    ).toBe(0)
+    expect(
+      readSettings(fakeSettingsSource({ modelApiSessionBudgetUsd: '5' }), log)
+        .modelApiSessionBudgetUsd,
+    ).toBe(0)
+    expect(log.warn).toHaveBeenCalledTimes(2)
   })
 
   it('logs and falls back to the default for an invalid value', () => {
@@ -149,6 +194,9 @@ describe('toSettingsSnapshot', () => {
     expect(snapshot).not.toHaveProperty('enableNewConversationShortcut')
     expect(snapshot).not.toHaveProperty('backend')
     expect(snapshot).not.toHaveProperty('modelApiHooks')
+    expect(snapshot).not.toHaveProperty('notifyOnBackgroundTurn')
+    expect(snapshot).not.toHaveProperty('modelApiSessionBudgetUsd')
+    expect(snapshot.modelApiReplyUsage).toBe(false)
     expect(snapshot.preferredLocation).toBe(SETTING_DEFAULTS.preferredLocation)
   })
 })

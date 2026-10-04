@@ -26,6 +26,7 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
   PARTIAL_EDIT_TOOLS,
+  PENDING_APPROVAL_RESOLUTIONS_MAX,
   type PermissionMode,
   type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
@@ -53,6 +54,8 @@ import type {
 } from '../../shared/protocol'
 import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
 import type { ScheduleView } from '../../shared/schedule'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
 import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
@@ -172,6 +175,8 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  /** Newest resolutions whose tool rows have not arrived yet; never saved. */
+  readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
   readonly isSideChat: boolean
   readonly emptyStateHint: string
@@ -187,6 +192,10 @@ export interface UiState {
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** The session board's rows, once the board asked (M77). */
+  readonly board: readonly BoardRow[] | undefined
+  /** The best-of-N run this surface last heard of (M77). */
+  readonly bestOfN: BestOfNRun | undefined
   readonly draft: string
   /** Every local draft edit, including edits that return to the same text. */
   readonly draftRevision: number
@@ -421,6 +430,7 @@ export type UiAction =
   | { readonly type: 'shareClosed' }
 
 export const initialUiState: UiState = {
+  pendingApprovalResolutions: [],
   phase: 'connecting',
   isSideChat: false,
   emptyStateHint: '',
@@ -439,6 +449,8 @@ export const initialUiState: UiState = {
   },
   sessions: undefined,
   archivedIds: [],
+  board: undefined,
+  bestOfN: undefined,
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
@@ -978,6 +990,8 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         text: item.text ?? '',
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
+        usage: item.usage,
+        costUsd: item.costUsd,
       }
     }
     case 'reasoning': {
@@ -1024,6 +1038,8 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         text: item.text ?? entry.text,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
+        usage: item.usage ?? entry.usage,
+        costUsd: item.costUsd ?? entry.costUsd,
       }
     }
     case 'reasoning': {
@@ -1202,6 +1218,17 @@ function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false):
   }
 }
 
+/** Resolutions that arrived before their rows, applied to rows a history read made. */
+function withPendingResolutions(state: UiState, at: number): UiState {
+  let next = state
+  for (const resolution of state.pendingApprovalResolutions) {
+    if (findEntry(next.transcript, resolution.itemId) !== undefined) {
+      next = applyAgentEvent(next, resolution, at)
+    }
+  }
+  return next
+}
+
 /**
  * Rebuild the transcript from a session's stored items (`historyLoaded`):
  * user messages become cards (the live path hides them, its own echo being
@@ -1216,9 +1243,14 @@ function replayHistory(
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
   const knownWorkflows = new Map<string, WorkflowEntry>()
+  // History carries no approval outcomes: a row read again keeps the one the
+  // panel saw (who allowed it, and why).
+  const knownOutcomes = new Map<string, ToolEntry['approvalOutcome']>()
   for (const entry of previous) {
     if (entry.kind === WORKFLOW_KIND) {
       knownWorkflows.set(entry.id, entry)
+    } else if (entry.kind === 'tool' && entry.approvalOutcome !== undefined) {
+      knownOutcomes.set(entry.id, entry.approvalOutcome)
     }
   }
   let next = sequence
@@ -1236,7 +1268,12 @@ function replayHistory(
         (before.workflowRunId === undefined ||
           item.workflowRunId === undefined ||
           before.workflowRunId === item.workflowRunId)
-      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const built = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const outcome = knownOutcomes.get(item.itemId)
+      const entry =
+        outcome !== undefined && built.kind === 'tool'
+          ? { ...built, approvalOutcome: outcome }
+          : built
       entries.push(stampCompletion(entry, next))
     }
   }
@@ -1526,7 +1563,11 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
     case 'itemStarted':
     case 'itemUpdated':
     case 'itemCompleted': {
-      return applyItem(state, event.item, at)
+      const next = applyItem(state, event.item, at)
+      const resolution = state.pendingApprovalResolutions.find(
+        (pending) => pending.itemId === event.item.itemId,
+      )
+      return resolution === undefined ? next : applyAgentEvent(next, resolution, at)
     }
     case 'textDelta': {
       const childId = own(state.childOwners, event.itemId)
@@ -1635,6 +1676,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        note: event.note,
       }
       return announce(
         withToolEntry(
@@ -1689,14 +1731,28 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       }
     }
     case 'approvalResolved': {
+      const pending = state.pendingApprovalResolutions.filter(
+        (resolution) => resolution.itemId !== event.itemId,
+      )
+      if (findEntry(state.transcript, event.itemId) === undefined) {
+        return {
+          ...state,
+          pendingApprovalResolutions: [...pending, event].slice(-PENDING_APPROVAL_RESOLUTIONS_MAX),
+        }
+      }
       return {
         ...state,
+        pendingApprovalResolutions: pending,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>
           entry.kind === 'tool'
             ? {
                 ...entry,
                 approval: undefined,
-                approvalOutcome: { decision: event.decision, resolvedBy: event.resolvedBy },
+                approvalOutcome: {
+                  decision: event.decision,
+                  resolvedBy: event.resolvedBy,
+                  ...(event.reason !== undefined && { reason: event.reason }),
+                },
               }
             : entry,
         ),
@@ -1890,6 +1946,7 @@ export function planReplyIdOf(state: UiState): string | undefined {
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
     pendingGoalCommand: undefined,
@@ -1938,6 +1995,8 @@ function clearedAccountView(state: UiState): UiState {
     checkpoints: initialUiState.checkpoints,
     sessions: [],
     archivedIds: [],
+    board: undefined,
+    bestOfN: undefined,
     model: undefined,
     models: [],
     skills: undefined,
@@ -2215,6 +2274,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'sessionList': {
       return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
     }
+    case 'sessionBoard': {
+      return { ...state, board: message.rows }
+    }
+    case 'bestOfNUpdate': {
+      return { ...state, bestOfN: message.run }
+    }
     case 'childTranscript': {
       const owner = childOwnerOf(state, message.sessionId)
       const live = own(state.childTranscripts, message.sessionId)
@@ -2289,37 +2354,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
               goalEditRevision: state.goalEditRevision,
             }
       return announce(
-        {
-          ...state,
-          attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
-          attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
-          isSideChat: message.sideChat ?? state.isSideChat,
-          isImported: message.imported === true,
-          sessionId: message.sessionId,
-          restoredSessionId: undefined,
-          title: message.name,
-          transcript: replayed.entries,
-          sequence: replayed.sequence,
-          todos: message.todos,
-          goal,
-          ...editor,
-          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
-          pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
-          schedules: isSameSession ? state.schedules : [],
-          activeTurnId: message.activeTurnId,
-          lastCompletedTurnId: undefined,
-          pendingReplayTurns: {},
-          usage: isSameSession ? state.usage : undefined,
-          context: isSameSession ? state.context : undefined,
-          outputPages: {},
-          toolImages: {},
-          // The pane's changes are another conversation's once it is replaced (M70).
-          reviewPane: isSameSession ? state.reviewPane : undefined,
-          reviewHunks: isSameSession ? state.reviewHunks : {},
-          childTranscripts: {},
-          childOwners: {},
-          strayItems: {},
-        },
+        withPendingResolutions(
+          {
+            ...state,
+            attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
+            attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
+            isSideChat: message.sideChat ?? state.isSideChat,
+            isImported: message.imported === true,
+            sessionId: message.sessionId,
+            restoredSessionId: undefined,
+            title: message.name,
+            transcript: replayed.entries,
+            sequence: replayed.sequence,
+            todos: message.todos,
+            goal,
+            ...editor,
+            pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+            pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            schedules: isSameSession ? state.schedules : [],
+            activeTurnId: message.activeTurnId,
+            lastCompletedTurnId: undefined,
+            pendingReplayTurns: {},
+            usage: isSameSession ? state.usage : undefined,
+            context: isSameSession ? state.context : undefined,
+            outputPages: {},
+            toolImages: {},
+            // The pane's changes are another conversation's once it is replaced (M70).
+            reviewPane: isSameSession ? state.reviewPane : undefined,
+            reviewHunks: isSameSession ? state.reviewHunks : {},
+            childTranscripts: {},
+            childOwners: {},
+            strayItems: {},
+            // Another session's early resolutions never meet this one's rows.
+            pendingApprovalResolutions: isSameSession ? state.pendingApprovalResolutions : [],
+          },
+          at,
+        ),
         UI_TEXT.announceResumed,
       )
     }

@@ -1,23 +1,28 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
+import { rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
+  AUTO_REVIEWER_MODEL_TEXT,
   CLARIFICATION_MAX_CHARS,
   GOAL_OBJECTIVE_MAX_CHARS,
   HOOK_MAX_STOP_CONTINUATIONS,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
   MODEL_TEXT,
+  PAID_PRICES_USD,
   type PaidFeature,
   type PermissionMode,
   type PromptCacheRetention,
@@ -30,16 +35,25 @@ import type { AgentSession, DocumentPart, TurnPart } from '../../src/core/agent/
 import { editAutomaticallyChoice } from '../../src/core/agent/approvalRules'
 import type { ContextIo } from '../../src/core/context/contextFiles'
 import { AttachmentStore } from '../../src/core/attachments'
-import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { ModelApiClient, ModelApiError } from '../../src/core/backends/modelapi/client'
 import type { PaidUseRequest } from '../../src/shared/paid'
+import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { EN } from '../../src/shared/l10n/en'
-import { BASE_LOCALE, fill, formatBytes, setUiText } from '../../src/shared/l10n/text'
+import { BASE_LOCALE, fill, formatBytes, formatNumber, setUiText } from '../../src/shared/l10n/text'
+import {
+  estimateInput,
+  requestParts,
+  reserveRequest,
+  SessionBudgetExceededError,
+} from '../../src/core/backends/modelapi/sessionBudget'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
@@ -52,12 +66,14 @@ import { memoryContextIo } from './helpers/fakeContextIo'
 import { memorySessionStore } from './helpers/fakeSessionStore'
 import {
   parseStoredSession,
+  type SessionStore,
   type StoredSession,
 } from '../../src/core/backends/modelapi/sessionStore'
 import { buildSessionExport, type SessionExport } from '../../src/core/export/sessionTransfer'
 import { heldShellToolIo, type MemoryToolIo, memoryToolIo } from './helpers/fakeToolIo'
 import { pdfFixture } from './helpers/pdfFixture'
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
+import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import type {
   ScheduledPrompt,
   ScheduleRunConfirmation,
@@ -92,10 +108,11 @@ import {
 } from './helpers/checkpointHarness'
 import { type FakeMcpSource, fakeMcpSource } from './helpers/fakeMcpSource'
 import type { McpCallOutcome } from '../../src/core/backends/modelapi/mcp/functions'
-import { countLogged } from './helpers/logText'
+import { countLogged, logLines } from './helpers/logText'
 import type { McpTool } from '../../src/core/mcp'
 import type { WebFetcher, WebFetchResult } from '../../src/core/web/webFetch'
 import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
+import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { watchSessionTurns } from './helpers/sessionTurns'
 
@@ -239,11 +256,17 @@ function setup(
     platform?: NodeJS.Platform
     files?: Record<string, string>
     personalSkillsRoot?: string
+    /** The skills that ship with the extension (M89). */
+    bundledSkills?: ModelApiHostDeps['bundledSkills']
     personalAgentsRoot?: string
     isTrusted?: boolean | (() => boolean)
     isConfidentialWorkspace?: boolean | (() => boolean)
     confirmContributorModel?: (modelId: string) => Promise<boolean>
-    store?: ReturnType<typeof memorySessionStore>
+    store?: SessionStore
+    budgetScope?: ModelApiHostDeps['budgetScope']
+    admitResponseAttempt?: ModelApiHostDeps['admitResponseAttempt']
+    /** A capped fixture usually keeps its reservation in memory; this tests an unavailable store. */
+    hasNoStore?: boolean
     describeEnvironment?: ModelApiHostDeps['describeEnvironment']
     /** The paid features that are on (M33–M35); none unless a test says so. */
     paid?: readonly PaidFeature[]
@@ -256,6 +279,10 @@ function setup(
     io?: MemoryToolIo
     /** `museSpark.modelApiPromptCacheRetention` (M56); in memory unless a test says so. */
     retention?: PromptCacheRetention
+    /** `museSpark.modelApiSessionBudgetUsd` (M82); no cap unless a test says so. */
+    sessionBudgetUsd?: number | (() => number)
+    /** `museSpark.modelApiReplyUsage` (M82); off unless a test says so. */
+    showReplyUsage?: boolean
     mediaBudgetMaxEncodedChars?: number
     scheduleStore?: ScheduleStore
     getAccountId?: () => Promise<string | undefined>
@@ -273,6 +300,12 @@ function setup(
     hasMemory?: boolean
     /** Folders the memory fake reports as links to elsewhere (M49). */
     memoryLinks?: Record<string, string>
+    /** Where a memory note's replacement waits before its final assertion (M78's fence). */
+    beforeMemoryWrite?: (path: string) => Promise<void>
+    /** Where a memory note's read waits before the file answers (M78: a Stop meanwhile). */
+    beforeMemoryRead?: (path: string) => Promise<void>
+    /** The command rules and permission profiles (M78), read at each call. */
+    permissionSettings?: () => PermissionSettings
     /** The window's web fetch (M69); none unless a test gives one. */
     webFetch?: ModelApiHostDeps['webFetch']
     beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
@@ -282,6 +315,10 @@ function setup(
     onListDirectory?: (directory: string) => void
   } = {},
 ) {
+  const currentBudgetCap = (): number =>
+    typeof options.sessionBudgetUsd === 'function'
+      ? options.sessionBudgetUsd()
+      : (options.sessionBudgetUsd ?? 0)
   const paidUses: { readonly feature: PaidFeature; readonly units: number }[] = []
   // What the paid-use popup was asked (M58), in order, and whether it had to ask.
   const paidRequests: { readonly request: PaidUseRequest; readonly requiresAsking: boolean }[] = []
@@ -293,6 +330,8 @@ function setup(
     readonly outputTokens: number
     readonly cachedTokens: number
   }[] = []
+  // What each Auto review reported (M78).
+  const reviewerUsage: typeof subagentUsage = []
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = options.io ?? memoryToolIo(options.files ?? {}, ROOT)
@@ -306,6 +345,10 @@ function setup(
       : memoryStoreOver(io.files, {
           platform: options.platform ?? 'linux',
           ...(options.memoryLinks !== undefined && { links: options.memoryLinks }),
+          ...(options.beforeMemoryWrite !== undefined && {
+            beforeWrite: options.beforeMemoryWrite,
+          }),
+          ...(options.beforeMemoryRead !== undefined && { beforeRead: options.beforeMemoryRead }),
         }).store
   let ids = 0
   let clock = 1_000_000
@@ -316,7 +359,7 @@ function setup(
           fetch: api.fetch,
           baseUrl: 'https://api.example.test/v1',
           apiKey: options.apiKey,
-          sleep: () => Promise.resolve(),
+          sleep: () => Promise.resolve(undefined),
           now: () => 0,
           random: () => 0,
           log,
@@ -340,20 +383,39 @@ function setup(
     },
     log,
     personalSkillsRoot: options.personalSkillsRoot,
+    bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
     isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
     confirmContributorModel: options.confirmContributorModel ?? (() => Promise.resolve(false)),
-    store: options.store,
+    store:
+      options.hasNoStore === true
+        ? undefined
+        : (options.store ??
+          (options.sessionBudgetUsd !== undefined && currentBudgetCap() > 0
+            ? memorySessionStore()
+            : undefined)),
     scheduleStore: options.scheduleStore,
-    getAccountId: options.getAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
+    getAccountId:
+      options.getAccountId ??
+      (async () => {
+        if (options.apiKey === undefined) return FAKE_MODEL_API_ACCOUNT_ID
+        const key = await options.apiKey()
+        return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')
+      }),
+    ...(options.budgetScope !== undefined && { budgetScope: options.budgetScope }),
+    ...(options.admitResponseAttempt !== undefined && {
+      admitResponseAttempt: options.admitResponseAttempt,
+    }),
     describeEnvironment: options.describeEnvironment ?? (() => Promise.resolve({ git: undefined })),
     isPaidFeatureOn: (feature) => options.paid?.includes(feature) === true,
     notePaidUse: (feature, units) => {
       paidUses.push({ feature, units })
     },
     promptCacheRetention: () => options.retention ?? 'in_memory',
+    sessionBudgetUsd: currentBudgetCap,
+    showReplyUsage: () => options.showReplyUsage ?? false,
     ...(options.mediaBudgetMaxEncodedChars !== undefined && {
       mediaBudgetMaxEncodedChars: options.mediaBudgetMaxEncodedChars,
     }),
@@ -369,6 +431,12 @@ function setup(
     noteSubagentUsage: (modelId, usage) => {
       subagentUsage.push({ modelId, ...usage })
     },
+    noteReviewerUsage: (modelId, usage) => {
+      reviewerUsage.push({ modelId, ...usage })
+    },
+    ...(options.permissionSettings !== undefined && {
+      permissionSettings: options.permissionSettings,
+    }),
     loadHooks: options.loadHooks ?? (() => Promise.resolve(options.hooks ?? [])),
     isHooksEnabled: options.isHooksEnabled,
     hookNotificationDelayMs: options.hookNotificationDelayMs,
@@ -393,6 +461,7 @@ function setup(
       clock += ms
     },
     subagentUsage,
+    reviewerUsage,
   }
 }
 
@@ -1234,13 +1303,16 @@ describe('Model API turn checkpoint admission (M72, M86)', () => {
       })
       // As activation wires it, with the window's real recorder.
       const recorder = checkpointRecorder(h)
-      const admitted = Promise.withResolvers<undefined>()
+      const prepared = Promise.withResolvers<undefined>()
       const t = setup({
         beforeTurnRuns: async (sessionId, turnId, top) => {
           try {
-            return await prepareCheckpointTurn(port, recorder, sessionId, turnId, h.log, top)
-          } finally {
-            admitted.resolve(undefined)
+            const turn = await prepareCheckpointTurn(port, recorder, sessionId, turnId, h.log, top)
+            prepared.resolve(undefined)
+            return turn
+          } catch (error: unknown) {
+            prepared.reject(error)
+            throw error
           }
         },
         afterTurnRuns: (sessionId, turnId, end) =>
@@ -1284,12 +1356,11 @@ describe('Model API turn checkpoint admission (M72, M86)', () => {
         const pending = await closing.beforeTurn(session.sessionId)
         const started = await session.sendTurn([{ type: 'text', text: 'held turn' }])
         closing.accepted(pending, started.turnId, true)
-        // Admission and the request itself must both settle before inspecting HTTP.
-        // The request follows the turn's checkpoint: real git, about 70 ms on
-        // an idle machine but seconds on a loaded one, past vi.waitFor's 1 s.
-        // Wait for both, or for the turn's end if either fails before a
-        // request can be sent.
-        await Promise.race([Promise.all([admitted.promise, requested.promise]), turnDone()])
+        // Wait for both checkpoint preparation (real git, about 70 ms on an
+        // idle machine but seconds on a loaded one) and the request, or for
+        // the turn's end if the request never comes; a failed preparation
+        // rejects with its own error.
+        await Promise.race([Promise.all([prepared.promise, requested.promise]), turnDone()])
         expect(t.api.responseBodies()).toHaveLength(1)
         await closing.sessionChanged(undefined)
         session.dispose()
@@ -1482,8 +1553,168 @@ describe('Model API turn checkpoint admission (M72, M86)', () => {
   })
 })
 
-const scheduleRoot = mkdtempSync(path.join(tmpdir(), 'muse-model-schedules-'))
+const scheduleRoot = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'muse-model-schedules-')))
 afterAll(() => removeFolder(scheduleRoot))
+
+function budgetStoreIn(
+  directory: string,
+  renameFile?: Parameters<typeof createFileSessionStore>[0]['rename'],
+) {
+  return createFileSessionStore({
+    directory,
+    log: new FakeLogOutputChannel(),
+    retentionDays: () => 0,
+    now: () => 0,
+    // These are native concurrent reads/writes: exercise the production
+    // rename backoff rather than exhausting retries while a read is open.
+    sleep: delay,
+    ...(renameFile !== undefined && { rename: renameFile }),
+  })
+}
+
+/** Real session files with the first reservation's rename held or failed. */
+function heldBudgetStore(name: string, isFailure = false) {
+  const directory = path.join(scheduleRoot, name)
+  const blocked = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  let hasHeld = false
+  const store = budgetStoreIn(directory, async (from, to) => {
+    const saved = parseStoredSession(JSON.parse(readFileSync(from, 'utf8')))
+    if (!hasHeld && saved.ok && (saved.session.budgetSpentUsd ?? 0) > 0) {
+      hasHeld = true
+      if (isFailure) {
+        throw new Error('reservation write refused')
+      }
+      blocked.resolve(undefined)
+      await release.promise
+    }
+    await rename(from, to)
+  })
+  return { directory, store, blocked, release }
+}
+
+/** Independent stores and hosts reopening one real account-owned session file. */
+async function sharedBudgetHosts(name: string, capUsd: number, firstCapUsd = capUsd) {
+  const directory = path.join(scheduleRoot, name)
+  const firstStore = budgetStoreIn(directory)
+  const secondStore = budgetStoreIn(directory)
+  const first = setup({ store: firstStore, sessionBudgetUsd: firstCapUsd })
+  const firstWatched = await startSession(first)
+  await firstWatched.session.rename('shared budget fixture')
+  await first.host.flush()
+  const second = setup({ store: secondStore, sessionBudgetUsd: capUsd })
+  await second.host.load()
+  const resumed = await second.host.resumeSession(firstWatched.session.sessionId, 'muse-spark-1.3')
+  return {
+    directory,
+    firstStore,
+    secondStore,
+    first,
+    second,
+    firstWatched,
+    secondWatched: { session: resumed.session, ...watchSessionTurns(resumed.session) },
+    close: async () => {
+      await first.host.close()
+      await second.host.close()
+    },
+  }
+}
+
+/** Both real claim files publish before either admission; refunds wait for both refusals. */
+function holdBothBudgetClaims(stores: readonly SessionStore[]) {
+  const planned = Promise.withResolvers<undefined>()
+  const published = Promise.withResolvers<undefined>()
+  const refunded = Promise.withResolvers<undefined>()
+  let claims = 0
+  let plans = 0
+  let refunds = 0
+  const failures: string[] = []
+  for (const store of stores) {
+    const journal = store.budget
+    if (journal === undefined) {
+      throw new Error('No shared budget journal')
+    }
+    const reserve = journal.reserve.bind(journal)
+    vi.spyOn(journal, 'reserve').mockImplementation(async (...args) => {
+      plans += 1
+      if (plans === stores.length) {
+        planned.resolve(undefined)
+      }
+      await planned.promise
+      const claim = await (async () => {
+        try {
+          return await reserve(...args)
+        } catch (error: unknown) {
+          failures.push(error instanceof Error ? error.message : String(error))
+          throw error
+        }
+      })()
+      claims += 1
+      if (claims === stores.length) {
+        published.resolve(undefined)
+      }
+      await published.promise
+      return {
+        ...claim,
+        settle: async (costUsd) => {
+          if (costUsd === 0) {
+            refunds += 1
+            if (refunds === stores.length) {
+              refunded.resolve(undefined)
+            }
+            await refunded.promise
+          }
+          return await claim.settle(costUsd)
+        },
+      }
+    })
+  }
+  return { planned, published, refunded, state: () => ({ plans, claims, refunds, failures }) }
+}
+
+/** A disposable host binds one real parent scope without sharing its history store. */
+async function scopedBudgetAttempt(name: string, capUsd = 0.1) {
+  const directory = path.join(scheduleRoot, name)
+  const store = budgetStoreIn(directory)
+  const parentOptions = { store, sessionBudgetUsd: capUsd, isTrusted: true }
+  const parent = setup(parentOptions)
+  const parentWatched = await startSession(parent)
+  const scope = await parent.host.getOwnedBudgetScope(parentWatched.session.sessionId)
+  if (scope === undefined) {
+    throw new Error('No owned parent budget scope')
+  }
+  let trialIds = 0
+  let attemptKey = 'LLM|1|secret'
+  const attemptOptions: NonNullable<Parameters<typeof setup>[0]> = {
+    budgetScope: scope,
+    hasNoStore: true,
+    apiKey: () => Promise.resolve(attemptKey),
+    newId: () => {
+      trialIds += 1
+      return `trial${String(trialIds)}`
+    },
+  }
+  const attempt = setup(attemptOptions)
+  const attemptWatched = await startSession(attempt)
+  return {
+    directory,
+    store,
+    parentOptions,
+    parent,
+    parentWatched,
+    scope,
+    attemptOptions,
+    attempt,
+    attemptWatched,
+    changeKey: (key: string) => {
+      attemptKey = key
+    },
+    close: async () => {
+      await attempt.host.close()
+      await parent.host.close()
+    },
+  }
+}
 
 function confirmedRun(job: ScheduledPrompt, session: AgentSession): ScheduleRunConfirmation {
   return { sessionId: session.sessionId, modelId: session.modelId, prompt: job.prompt }
@@ -2082,6 +2313,1417 @@ describe('ModelApiHost: usage (M8)', () => {
     })
     expect(typeof stop).toBe('function')
     stop()
+  })
+})
+
+/** One answered "hi" turn with priced usage on the fake Model API (M82). */
+async function answerPricedHi(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  t.api.script({ text: 'Hello there', usage: { input: 1000, output: 200, cached: 100 } })
+  await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+  await watched.turnDone()
+  return watched
+}
+
+/** A real request paused before frames, with its own watched session and explicit release. */
+async function holdBudgetReply(t: ReturnType<typeof setup>, reply: Omit<ScriptedReply, 'hold'>) {
+  const watched = await startSession(t)
+  const held = Promise.withResolvers<undefined>()
+  t.api.script({ ...reply, hold: held.promise })
+  const before = t.api.responseBodies().length
+  await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(before + 1)
+  })
+  return {
+    ...watched,
+    release: () => {
+      held.resolve(undefined)
+    },
+  }
+}
+
+async function preparedBudgetCompaction(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  await budgetTurn(t, watched, 'go', { text: 'Start' })
+  t.api.script({ text: 'SUMMARY' })
+  return watched
+}
+
+async function waitForBudgetWrite(
+  t: ReturnType<typeof setup>,
+  session: AgentSession,
+  disk: ReturnType<typeof heldBudgetStore>,
+): Promise<void> {
+  await session.sendTurn([{ type: 'text', text: 'hi' }])
+  await disk.blocked.promise
+  expect(t.api.responseBodies()).toEqual([])
+}
+
+/** One turn on a watched session: its replies scripted, its prompt sent, its end awaited (M82). */
+async function budgetTurn(
+  t: ReturnType<typeof setup>,
+  watched: { readonly session: AgentSession; readonly turnDone: () => Promise<void> },
+  text: string,
+  ...replies: ScriptedReply[]
+): Promise<void> {
+  t.api.script(...replies)
+  await watched.session.sendTurn([{ type: 'text', text }])
+  await watched.turnDone()
+}
+
+/** Why the last turn failed, or '' (M82). */
+function lastReason(events: readonly AgentEvent[]): string {
+  const completed = events.findLast((event) => event.type === 'turnCompleted')
+  return completed?.type === 'turnCompleted' ? (completed.reason ?? '') : ''
+}
+
+const TODO_CALL = {
+  name: 'todo_write',
+  arguments: '{"items":[{"text":"First","status":"completed"}]}',
+}
+// How long a stopped fake command takes to end (M82's close test).
+const STOPPED_COMMAND_EXIT_MS = 20
+const RESERVED_LINE = /Session budget: request reserved for (\d+) input and (\d+) output tokens/
+
+/** Each reservation the log holds, in order: the estimated input and the output allowance. */
+function reservations(t: ReturnType<typeof setup>) {
+  return logLines(t.log).flatMap((line) => {
+    const match = RESERVED_LINE.exec(line)
+    return match === null ? [] : [{ input: Number(match[1]), output: Number(match[2]) }]
+  })
+}
+
+/** The request body as Meta counts its input: the instructions, the tools and the items. */
+function sentParts(body: Readonly<Record<string, unknown>> | undefined) {
+  return requestParts(body as unknown as CreateResponseBody)
+}
+
+function standardCost(inputTokens: number, outputTokens: number, cachedTokens = 0): number {
+  return estimateCostUsd({ inputTokens, outputTokens, cachedTokens }, 'muse-spark-1.3')
+}
+
+function expectFullBudgetEstimate(t: ReturnType<typeof setup>): void {
+  const latestBody = t.api.responseBodies().at(-1)
+  const expected = estimateInput(sentParts(latestBody), undefined).inputTokens
+  expect(reservations(t).at(-1)?.input).toBe(expected)
+}
+
+function expectSavedBudget(
+  store: ReturnType<typeof memorySessionStore>,
+  sessionId: string,
+  costUsd: number,
+): void {
+  expect(store.saved.get(sessionId)?.budgetSpentUsd).toBeCloseTo(costUsd, 12)
+}
+
+async function storedBudget(store: SessionStore, sessionId: string): Promise<number | undefined> {
+  const session = await store.load(sessionId)
+  return session?.budgetSpentUsd
+}
+
+describe('ModelApiSession: per-reply usage (M82)', () => {
+  it('puts a reply’s tokens and cost under it while the setting is on', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ showReplyUsage: true })
+    const { events } = await answerPricedHi(t)
+    const updates = events.filter(
+      (event) =>
+        event.type === 'itemUpdated' &&
+        event.item.kind === 'agentMessage' &&
+        event.item.usage !== undefined,
+    )
+    expect(updates).toEqual([
+      {
+        type: 'itemUpdated',
+        item: expect.objectContaining({
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Hello there',
+          usage: { inputTokens: 1000, outputTokens: 200, cachedTokens: 100, reasoningTokens: 1 },
+          costUsd: standardCost(1000, 200, 100),
+        }),
+      },
+    ])
+  })
+
+  it('counts every request of the turn since the last line, tool steps included', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1000, output: 50 } },
+      { text: 'All done.', usage: { input: 1200, output: 30, cached: 1000 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item] : [],
+    )
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({
+      text: 'All done.',
+      usage: { inputTokens: 2200, outputTokens: 80, cachedTokens: 1000, reasoningTokens: 2 },
+    })
+    expect(lines[0]?.costUsd).toBeCloseTo(standardCost(1000, 50) + standardCost(1200, 30, 1000), 12)
+  })
+
+  it('gives commentary before a tool call its own requests, and the reply the rest', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      {
+        text: 'Planning first.',
+        phase: 'commentary',
+        calls: [TODO_CALL],
+        usage: { input: 100, output: 10 },
+      },
+      { text: 'Done.', usage: { input: 200, output: 20 } },
+    )
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined
+        ? [{ text: event.item.text, input: event.item.usage.inputTokens }]
+        : [],
+    )
+    expect(lines).toEqual([
+      { text: 'Planning first.', input: 100 },
+      { text: 'Done.', input: 200 },
+    ])
+  })
+
+  it('leaves a failed turn’s usage out of the next turn’s line', async () => {
+    const t = setup({ showReplyUsage: true })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'first', {
+      text: 'partial',
+      failed: { code: 'server_error', message: 'failed' },
+      usage: { input: 900, output: 90 },
+    })
+    await budgetTurn(t, watched, 'second', { text: 'Fine.', usage: { input: 100, output: 10 } })
+    const lines = watched.events.flatMap((event) =>
+      event.type === 'itemUpdated' && event.item.usage !== undefined ? [event.item.usage] : [],
+    )
+    expect(lines).toEqual([
+      { inputTokens: 100, outputTokens: 10, cachedTokens: 0, reasoningTokens: 1 },
+    ])
+  })
+
+  it('attaches nothing while the setting is off', async () => {
+    const t = setup()
+    const { events } = await answerPricedHi(t)
+    expect(
+      events.filter(
+        (event) =>
+          (event.type === 'itemUpdated' || event.type === 'itemCompleted') &&
+          (event.item.usage !== undefined || event.item.costUsd !== undefined),
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('ModelApiSession: session budget (M82)', () => {
+  it('estimates the first request from its bytes and fits its output to what is left', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 10 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const [body] = t.api.responseBodies()
+    const estimated = estimateInput(sentParts(body), undefined).inputTokens
+    const expected = reserveRequest({
+      capUsd: 0.1,
+      spentUsd: 0,
+      estimatedInputTokens: estimated,
+      modelId: 'muse-spark-1.3',
+    })
+    // Every byte of the instructions, the tools and the message, at least.
+    expect(estimated).toBeGreaterThanOrEqual(
+      Buffer.byteLength(String(body?.['instructions'])) + Buffer.byteLength('hi'),
+    )
+    expect(expected.maxOutputTokens).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(body?.['max_output_tokens']).toBe(expected.maxOutputTokens)
+  })
+
+  it('sends the usual maximum when no cap is set', async () => {
+    const t = setup()
+    await answerPricedHi(t)
+    expect(t.api.responseBodies()[0]?.['max_output_tokens']).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(reservations(t)).toEqual([])
+  })
+
+  it('estimates a later request from the reported tokens plus only what was added', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ calls: [TODO_CALL], usage: { input: 5, output: 1 } }, { text: 'Done.' })
+    await session.sendTurn([{ type: 'text', text: 'plan it' }])
+    await turnDone()
+    const [first, second] = t.api.responseBodies()
+    const firstParts = estimateInput(sentParts(first), undefined).parts
+    const expected = estimateInput(sentParts(second), { inputTokens: 5, parts: firstParts })
+    expect(reservations(t).map((reservation) => reservation.input)).toEqual([
+      estimateInput(sentParts(first), undefined).inputTokens,
+      expected.inputTokens,
+    ])
+    // The instructions and tools the first request carried were not counted again.
+    const addedItems = (second?.['input'] as unknown[]).slice(1)
+    expect(expected.inputTokens).toBe(
+      5 +
+        addedItems.reduce<number>((sum, item) => sum + Buffer.byteLength(JSON.stringify(item)), 0),
+    )
+  })
+
+  it('never shows the PreLLMCall hooks a request the cap cannot fit', async () => {
+    for (const [capUsd, calls] of [
+      [10, 1],
+      [0.000001, 0],
+    ] as const) {
+      const runHook = vi.fn(() => hookReply())
+      const t = setup({
+        sessionBudgetUsd: capUsd,
+        hooks: hooksFor('PreLLMCall', 'observe'),
+        runHook,
+      })
+      await budgetTurn(t, await startSession(t), 'hi', { text: 'answer' })
+      expect(runHook).toHaveBeenCalledTimes(calls)
+    }
+  })
+
+  it('never sends a request the cap cannot fit, and the turn says why', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.000001 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+    expect(lastReason(watched.events)).toContain('It was not sent.')
+  })
+
+  it('stops a turn at the request that no longer fits, after the ones that did', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const watched = await startSession(t)
+    // The first request reports a million input tokens ($1.25): the next
+    // one carries them again, and $1.25 is all that is left.
+    await budgetTurn(
+      t,
+      watched,
+      'plan it',
+      { calls: [TODO_CALL], usage: { input: 1_000_000, output: 0 } },
+      { text: 'no' },
+    )
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(watched.session.history().items.some((item) => item.tool === 'todo_write')).toBe(true)
+    const reason = lastReason(watched.events)
+    expect(reason).toContain(`${formatUsd(2.5)} (${formatUsd(1.25)} used)`)
+    expect(reason).toContain('It was not sent.')
+    expect(watched.events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(1.25),
+        spent: formatUsd(1.25),
+        cap: formatUsd(2.5),
+      }),
+    })
+  })
+
+  it('refuses a model with no known price rather than guess what fits', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 100 })
+    const watched = await startSession(t)
+    await watched.session.setModel('muse-spark-9')
+    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+    expect(t.api.responseBodies()).toEqual([])
+    expect(lastReason(watched.events)).toBe(
+      fill(UI_TEXT.sessionBudgetUnpriced, { model: 'muse-spark-9' }),
+    )
+  })
+
+  it('keeps an uncapped future model visible but refuses a later cap when that tariff was never verified', async () => {
+    const store = memorySessionStore()
+    const options = { store, sessionBudgetUsd: 0, showReplyUsage: true }
+    const t = setup(options)
+    const watched = await startSession(t)
+    await watched.session.setModel('muse-spark-future-contributor')
+    await budgetTurn(t, watched, 'future model', { text: 'still visible' })
+    expect(t.api.responseBodies()[0]?.['model']).toBe('muse-spark-future-contributor')
+    expect(watched.session.history().items.some((item) => item.text === 'still visible')).toBe(true)
+    const reply = watched.events.findLast(
+      (event) => event.type === 'itemUpdated' && event.item.text === 'still visible',
+    )
+    expect(reply).toMatchObject({
+      type: 'itemUpdated',
+      item: {
+        usage: { inputTokens: 10, outputTokens: 5 },
+        costUsd: estimateCostUsd(
+          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+          'muse-spark-1.3-contributor',
+        ),
+      },
+    })
+    const scope = await watched.session.ownedBudgetScope()
+    if (scope === undefined) {
+      throw new Error('Expected future-model budget scope')
+    }
+    const spending = await scope.journal.read(scope.sessionId, scope.accountId)
+    expect(spending.hasUnknownHistoricalFees).toBe(true)
+    await watched.session.setModel('muse-spark-1.3')
+    options.sessionBudgetUsd = 0.1
+    await budgetTurn(t, watched, 'known model with old unverified spending', { text: 'not sent' })
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    expect(
+      watched.events.some(
+        (event) => event.type === 'backendNotice' && event.text.includes('This turn cost'),
+      ),
+    ).toBe(false)
+  })
+
+  it('counts a response that began and never reported at its whole reservation', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ text: 'partial', streamError: { code: 'boom', message: 'lost' } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    const [reserved] = reservations(t)
+    expect(reserved).toBeDefined()
+    const reservedUsd =
+      standardCost(reserved?.input ?? 0, 0) + standardCost(0, reserved?.output ?? 0)
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(reservedUsd, 12)
+  })
+
+  it('counts a request stopped after it was sent at its whole reservation', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const watched = await holdBudgetReply(t, { text: 'late' })
+    await watched.session.cancel()
+    await watched.turnDone()
+    watched.release()
+    await t.host.close()
+    const [reserved] = reservations(t)
+    expectSavedBudget(
+      store,
+      watched.session.sessionId,
+      standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+    )
+  })
+
+  it('counts nothing for a request Meta refused before its response began', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 1 })
+    const { session, turnDone } = await startSession(t)
+    t.api.script({ httpError: { status: 400, body: { error: { message: 'bad' } } } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await t.host.close()
+    expect(reservations(t)).toHaveLength(1)
+    expect(store.saved.get(session.sessionId)).toBeDefined()
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeUndefined()
+  })
+
+  it('says when a response used every output token the budget left it', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'cut', usage: { input: 10, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const limit = Number(t.api.responseBodies()[0]?.['max_output_tokens'])
+    expect(limit).toBeLessThan(MODEL_API_MAX_OUTPUT_TOKENS)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.sessionBudgetOutputLimited, { tokens: formatNumber(limit) }),
+    })
+  })
+
+  it('stays quiet about output that stayed under the allowance', async () => {
+    const t = setup({ sessionBudgetUsd: 0.1 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'short', usage: { input: 10, output: 3 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    expect(
+      events.some((event) => event.type === 'backendNotice' && event.level === 'warning'),
+    ).toBe(false)
+  })
+
+  it('reserves a compaction, and never sends one the cap cannot fit', async () => {
+    const t = setup({ sessionBudgetUsd: 2.5 })
+    const { session, turnDone } = await startSession(t)
+    // $1.25 spent on a million reported tokens, which the summary call carries again.
+    t.api.script({ text: 'Start', usage: { input: 1_000_000, output: 0 } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    t.api.script({ text: 'SUMMARY' })
+    await expect(session.compact()).rejects.toThrow(SessionBudgetExceededError)
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(session.history().items.some((item) => item.kind === 'compaction')).toBe(false)
+  })
+
+  it('estimates after a compaction from Meta’s count of the new context', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await preparedBudgetCompaction(t)
+    await watched.session.compact()
+    await budgetTurn(t, watched, 'next request', { text: 'Next' })
+    const last = t.api.responseBodies().at(-1)
+    const userMessage = (last?.['input'] as unknown[]).at(-1)
+    // The fake counts 42 tokens for the compacted context; only the new message is added.
+    expect(reservations(t).at(-1)?.input).toBe(
+      t.api.inputTokens + Buffer.byteLength(JSON.stringify(userMessage)),
+    )
+  })
+
+  it('estimates the whole request again after the model changes', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    await watched.session.setModel('muse-spark-1.2')
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it('shows the turn’s cost against the cap afterwards', async () => {
+    setUiText(EN, BASE_LOCALE)
+    const t = setup({ sessionBudgetUsd: 10 })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script({ text: 'ok', usage: { input: 1000, output: 200, cached: 100 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    const turnCost = standardCost(1000, 200, 100)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'info',
+      text: fill(UI_TEXT.budgetTurnCost, {
+        cost: formatUsd(turnCost),
+        spent: formatUsd(turnCost),
+        cap: formatUsd(10),
+      }),
+    })
+  })
+
+  it('keeps the spend across windows, so a resumed session still cannot overspend', async () => {
+    const store = memorySessionStore()
+    const first = setup({ store, sessionBudgetUsd: 10 })
+    const { session, turnDone } = await startSession(first)
+    first.api.script({ text: 'ok', usage: { input: 1_000_000, output: 1_000_000 } })
+    await session.sendTurn([{ type: 'text', text: 'hi' }])
+    await turnDone()
+    await first.host.close()
+    // Standard tier: $1.25 + $4.25.
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(5.5, 10)
+
+    const second = setup({ store, sessionBudgetUsd: 5.5 })
+    await second.host.load()
+    const resumed = await second.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const watched = watchSessionTurns(resumed.session)
+    second.api.script({ text: 'never sent' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await watched.turnDone()
+    expect(second.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+    })
+  })
+
+  it('counts reported child cost once without reserving child requests against the parent cap', async () => {
+    const store = memorySessionStore()
+    if (store.budget === undefined) throw new Error('Expected budget journal')
+    const reservations = vi.spyOn(store.budget, 'reserve')
+    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const { session } = await startApprovedSubagentSession(t)
+    await completePaidChild(t, session, 'spawn_budget')
+    await t.host.close()
+    // Every reply here reports the fake's default usage, the child's included.
+    expect(t.subagentUsage.length).toBeGreaterThan(0)
+    expect(reservations).toHaveBeenCalledTimes(
+      t.api.responseBodies().length - t.subagentUsage.length,
+    )
+    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      t.api.responseBodies().length * standardCost(10, 5),
+      12,
+    )
+  })
+
+  it('prices a child’s held request at its sent model even if the child model changes', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, sessionBudgetUsd: 10 })
+    const watched = await startApprovedSubagentSession(t)
+    const held = Promise.withResolvers<undefined>()
+    const childStarted = Promise.withResolvers<ModelApiSession>()
+    const original = ModelApiSession.prototype.sendTurn
+    const observed = vi.spyOn(ModelApiSession.prototype, 'sendTurn').mockImplementation(function (
+      this: ModelApiSession,
+      ...args: Parameters<ModelApiSession['sendTurn']>
+    ) {
+      if (this.sessionId.includes(':')) {
+        childStarted.resolve(this)
+      }
+      return original.call(this, ...args)
+    })
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: '{"role":"explorer","objective":"First task"}',
+            callId: 'sent_child_model',
+          },
+        ],
+      },
+      { text: 'Done', hold: held.promise, usage: { input: 1_000_000, output: 0 } },
+      { text: 'Parent done', hold: held.promise, usage: { input: 1_000_000, output: 0 } },
+    )
+    try {
+      await watched.session.sendTurn([{ type: 'text', text: 'delegate' }])
+      await vi.waitFor(() => {
+        expect(t.api.responseBodies()).toHaveLength(3)
+      })
+      const liveChild = await childStarted.promise
+      await liveChild.setModel('muse-spark-1.3-contributor')
+      held.resolve(undefined)
+      await watched.turnDone()
+      await t.host.close()
+      expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+        standardCost(10, 5) + standardCost(1_000_000, 0) * 2,
+        12,
+      )
+      expect(t.subagentUsage[0]?.modelId).toBe('muse-spark-1.3')
+    } finally {
+      held.resolve(undefined)
+      await t.host.close()
+      observed.mockRestore()
+    }
+  })
+
+  it('saves what a request spent while its call waits for an approval', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 10 })
+    const { session, events } = await startSession(t)
+    t.api.script(
+      {
+        calls: [{ name: 'bash', arguments: '{"command":"ls","description":"list"}' }],
+        usage: { input: 1_000_000, output: 0 },
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'run' }])
+    await approvalRequest(events, 0)
+    await t.host.flush()
+    const saved = store.saved.get(session.sessionId)
+    // $1.25 spent; the call without its output is not in the file.
+    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+    expect(saved?.usage.inputTokens).toBe(1_000_000)
+    expect(saved?.replay.some((entry) => entry.item.type === 'function_call')).toBe(false)
+    // A reload now cannot send what the real balance does not cover.
+    const reloaded = setup({ store, sessionBudgetUsd: 1.25 })
+    await reloaded.host.load()
+    const resumed = await reloaded.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    const watched = watchSessionTurns(resumed.session)
+    reloaded.api.script({ text: 'never sent' })
+    await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+    await watched.turnDone()
+    expect(reloaded.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('waits at close for a stopped turn to save what it spent', async () => {
+    const store = memorySessionStore()
+    const held = heldShellToolIo({}, ROOT)
+    // The stopped command ends a moment later, as a real process does.
+    const io: MemoryToolIo = {
+      ...held,
+      runShell: (command, cwd, timeoutMs, signal, limit) => {
+        const result = held.runShell(command, cwd, timeoutMs, undefined, limit)
+        signal?.addEventListener(
+          'abort',
+          () => {
+            setTimeout(() => {
+              held.runs.at(-1)?.finish({ exitCode: null, isCancelled: true })
+            }, STOPPED_COMMAND_EXIT_MS)
+          },
+          { once: true },
+        )
+        return result
+      },
+    }
+    const t = setup({ store, io, sessionBudgetUsd: 10 })
+    const { session } = await startSession(t, 'allowAll')
+    t.api.script({
+      calls: [{ name: 'bash', arguments: '{"command":"sleep 60","description":"wait"}' }],
+      usage: { input: 1_000_000, output: 0 },
+    })
+    await session.sendTurn([{ type: 'text', text: 'run' }])
+    await vi.waitFor(() => {
+      expect(held.runs).toHaveLength(1)
+    })
+    await t.host.close()
+    const saved = store.saved.get(session.sessionId)
+    // The stopped turn paired its call and saved it whole before close returned.
+    expect(saved?.replay.some((entry) => entry.item.type === 'function_call_output')).toBe(true)
+    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+  })
+
+  it('prices a request at the model it was sent to, and keeps no base across a switch', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 10 })
+    const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    watched.release()
+    await watched.turnDone()
+    // The standard model's $1.25, not the contributor tier's $0.10.
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    await t.host.close()
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      1.25 +
+        estimateCostUsd(
+          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+          'muse-spark-1.3-contributor',
+        ),
+      10,
+    )
+    // The next request is estimated whole: the old model's count is no base.
+    expectFullBudgetEstimate(t)
+  })
+
+  it('saves an in-flight reservation to disk before the first response frame, so a crash reload cannot overspend', async () => {
+    const directory = path.join(scheduleRoot, 'budget-in-flight')
+    const store = budgetStoreIn(directory)
+    const first = setup({ store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(first)
+    const held = Promise.withResolvers<undefined>()
+    first.api.script({ text: 'waiting', hold: held.promise })
+    try {
+      await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+      await vi.waitFor(() => {
+        expect(first.api.responseBodies()).toHaveLength(1)
+      })
+      await first.host.flush()
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(directory, `${watched.session.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok).toBe(true)
+      const [reserved] = reservations(first)
+      const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(liability, 12)
+      const reloaded = setup({ store, sessionBudgetUsd: liability })
+      try {
+        await reloaded.host.load()
+        const resumed = await reloaded.host.resumeSession(
+          watched.session.sessionId,
+          'muse-spark-1.3',
+        )
+        const next = watchSessionTurns(resumed.session)
+        await resumed.session.sendTurn([{ type: 'text', text: 'again' }])
+        await next.turnDone()
+        expect(reloaded.api.responseBodies()).toEqual([])
+      } finally {
+        await reloaded.host.close()
+      }
+    } finally {
+      await first.host.close()
+      held.resolve(undefined)
+    }
+  })
+
+  it('waits for a durable reservation before starting fetch, then replaces it with actual usage', async () => {
+    const disk = heldBudgetStore('durable-before-fetch')
+    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    try {
+      await waitForBudgetWrite(t, watched.session, disk)
+      expect(await storedBudget(disk.store, watched.session.sessionId)).toBeGreaterThan(0)
+      disk.release.resolve(undefined)
+      await watched.turnDone()
+      await t.host.flush()
+      expect(t.api.responseBodies()).toHaveLength(1)
+      const saved = parseStoredSession(
+        JSON.parse(
+          readFileSync(path.join(disk.directory, `${watched.session.sessionId}.json`), 'utf8'),
+        ),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+    } finally {
+      disk.release.resolve(undefined)
+      await t.host.close()
+    }
+  })
+
+  it.each(['cancel', 'model', 'goal', 'key', 'trust', 'paid', 'budget'])(
+    'refuses final admission after %s changes during the reservation write, and refunds the nonsent request',
+    async (change) => {
+      const disk = heldBudgetStore(`durable-${change}`)
+      let key = 'LLM|1|secret'
+      const options: NonNullable<Parameters<typeof setup>[0]> = {
+        store: disk.store,
+        sessionBudgetUsd: 0.1,
+        isTrusted: true,
+        paid: ['webSearch'],
+        apiKey: () => Promise.resolve(key),
+        getAccountId: () => Promise.resolve(createHash('sha256').update(key).digest('hex')),
+      }
+      const t = setup(options)
+      const watched = await startSession(t)
+      try {
+        await waitForBudgetWrite(t, watched.session, disk)
+        switch (change) {
+          case 'cancel': {
+            await watched.session.cancel()
+
+            break
+          }
+          case 'model': {
+            await watched.session.setModel('muse-spark-1.3-contributor')
+
+            break
+          }
+          case 'goal': {
+            await watched.session.controlGoal({
+              verb: 'set',
+              objective: 'Changed while storage waits',
+            })
+            await watched.session.controlGoal({ verb: 'pause' })
+
+            break
+          }
+          case 'key': {
+            key = 'LLM|1|changed-before-fetch'
+
+            break
+          }
+          case 'trust': {
+            options.isTrusted = false
+
+            break
+          }
+          case 'paid': {
+            options.paid = []
+
+            break
+          }
+          default: {
+            options.sessionBudgetUsd = 0.01
+          }
+        }
+        disk.release.resolve(undefined)
+        await watched.turnDone()
+        await t.host.flush()
+        expect(t.api.responseBodies()).toEqual([])
+        expect((await storedBudget(disk.store, watched.session.sessionId)) ?? 0).toBe(0)
+      } finally {
+        disk.release.resolve(undefined)
+        await t.host.close()
+      }
+    },
+  )
+
+  it('sends no capped request when the reservation write fails', async () => {
+    const disk = heldBudgetStore('durable-write-failed', true)
+    const t = setup({ store: disk.store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await watched.turnDone()
+    await t.host.close()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: 'reservation write refused',
+    })
+    expect((await storedBudget(disk.store, watched.session.sessionId)) ?? 0).toBe(0)
+  })
+
+  it('sends no capped request when no session store is available', async () => {
+    const t = setup({ sessionBudgetUsd: 0.1, hasNoStore: true })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'failed',
+      reason: UI_TEXT.sessionBudgetStoreUnavailable,
+    })
+    await t.host.close()
+  })
+
+  it('refunds a proven nonsent capped request stopped by the final external preflight', async () => {
+    const store = memorySessionStore()
+    const started = vi.fn()
+    const t = setup({
+      store,
+      sessionBudgetUsd: 0.1,
+      admitResponseAttempt: Object.assign(
+        () => {
+          void watched.session.cancel()
+        },
+        { onRequestStarted: started },
+      ),
+    })
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'stop after preflight' }])
+    await watched.turnDone()
+    await t.host.close()
+    expect(t.api.responseBodies()).toEqual([])
+    expect(started).not.toHaveBeenCalled()
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd ?? 0).toBe(0)
+    expect(
+      watched.events.some(
+        (event) => event.type === 'backendNotice' && event.text.includes('possible charge'),
+      ),
+    ).toBe(false)
+  })
+
+  it('sends no unreserved request when a cap is enabled during final key retrieval', async () => {
+    const held = Promise.withResolvers<string | undefined>()
+    let hasAskedForKey = false
+    const options: NonNullable<Parameters<typeof setup>[0]> = {
+      store: memorySessionStore(),
+      sessionBudgetUsd: 0,
+      // Account discovery finishes before the deliberately held final credential read.
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      apiKey: () => {
+        hasAskedForKey = true
+        return held.promise
+      },
+    }
+    const t = setup(options)
+    const watched = await startSession(t)
+    await watched.session.sendTurn([{ type: 'text', text: 'hi' }])
+    await vi.waitFor(() => {
+      expect(hasAskedForKey).toBe(true)
+    })
+    options.sessionBudgetUsd = 0.1
+    held.resolve('LLM|1|secret')
+    await watched.turnDone()
+    expect(t.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('admits no two-host overspend when both real claims publish before final admission', async () => {
+    const pair = await sharedBudgetHosts('two-host-publication-barrier', 0.1)
+    const barrier = holdBothBudgetClaims([pair.firstStore, pair.secondStore])
+    const firstDone = pair.firstWatched.turnDone()
+    const secondDone = pair.secondWatched.turnDone()
+    try {
+      await Promise.all([
+        pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }]),
+        pair.secondWatched.session.sendTurn([{ type: 'text', text: 'second host' }]),
+      ])
+      await vi.waitFor(() => {
+        expect(barrier.state()).toMatchObject({ plans: 2, claims: 2, failures: [] })
+      })
+      await Promise.all([firstDone, secondDone])
+      expect(pair.first.api.responseBodies()).toEqual([])
+      expect(pair.second.api.responseBodies()).toEqual([])
+      expect((await storedBudget(pair.firstStore, pair.firstWatched.session.sessionId)) ?? 0).toBe(
+        0,
+      )
+    } finally {
+      barrier.planned.resolve(undefined)
+      barrier.published.resolve(undefined)
+      barrier.refunded.resolve(undefined)
+      await pair.close()
+    }
+  })
+
+  it('binds a temporary host to immutable parent spend without saving its transcript under the parent ID', async () => {
+    const bound = await scopedBudgetAttempt('owned-attempt-scope')
+    try {
+      expect(Object.isFrozen(bound.scope)).toBe(true)
+      await budgetTurn(bound.attempt, bound.attemptWatched, 'temporary trial', {
+        text: 'temporary reply',
+      })
+      expect(bound.attempt.api.responseBodies()).toHaveLength(1)
+      const saved = await bound.store.load(bound.parentWatched.session.sessionId)
+      expect(saved?.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(JSON.stringify(saved?.transcript)).not.toContain('temporary')
+      expect(
+        existsSync(path.join(bound.directory, `${bound.attemptWatched.session.sessionId}.json`)),
+      ).toBe(false)
+      expect(bound.scope.sessionId).toBe(bound.parentWatched.session.sessionId)
+      const total = await bound.scope.journal.read(bound.scope.sessionId, bound.scope.accountId)
+      expect(total.spentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      const closing = bound.parent.host.close()
+      expect(bound.scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      await expect(bound.parent.host.getOwnedBudgetScope(bound.scope.sessionId)).rejects.toThrow(
+        UI_TEXT.historyUnavailable,
+      )
+      await closing
+    } finally {
+      await bound.close()
+    }
+  })
+
+  it.each(['key', 'model', 'goal', 'trust', 'lifetime', 'cap'])(
+    'rechecks parent scope after durable storage and refunds a nonsent temporary call when %s changes',
+    async (change) => {
+      const bound = await scopedBudgetAttempt(`owned-scope-${change}`)
+      const held = Promise.withResolvers<undefined>()
+      const published = Promise.withResolvers<undefined>()
+      const reserve = bound.scope.journal.reserve.bind(bound.scope.journal)
+      const spy = vi.spyOn(bound.scope.journal, 'reserve').mockImplementation(async (...args) => {
+        const claim = await reserve(...args)
+        published.resolve(undefined)
+        await held.promise
+        return claim
+      })
+      try {
+        await bound.attemptWatched.session.sendTurn([{ type: 'text', text: 'temporary' }])
+        await published.promise
+        switch (change) {
+          case 'key': {
+            bound.changeKey('LLM|1|changed-scope-key')
+
+            break
+          }
+          case 'model': {
+            await bound.parentWatched.session.setModel('muse-spark-1.3-contributor')
+
+            break
+          }
+          case 'goal': {
+            await bound.parentWatched.session.controlGoal({
+              verb: 'set',
+              objective: 'new parent goal',
+            })
+            await bound.parentWatched.session.cancel()
+
+            break
+          }
+          case 'trust': {
+            bound.parentOptions.isTrusted = false
+
+            break
+          }
+          case 'lifetime': {
+            bound.parentWatched.session.dispose()
+
+            break
+          }
+          default: {
+            bound.parentOptions.sessionBudgetUsd = 0.01
+          }
+        }
+        held.resolve(undefined)
+        await bound.attemptWatched.turnDone()
+        await bound.parent.host.close()
+        expect(bound.attempt.api.responseBodies()).toEqual([])
+        const refunded = await bound.scope.journal.read(
+          bound.scope.sessionId,
+          bound.scope.accountId,
+        )
+        expect(refunded.spentUsd).toBe(0)
+      } finally {
+        held.resolve(undefined)
+        spy.mockRestore()
+        await bound.close()
+      }
+    },
+  )
+
+  it('fails closed for an unknown parent while cap-off valid no-store scope stays unshared', async () => {
+    const t = setup()
+    const watched = await startSession(t)
+    await expect(t.host.getOwnedBudgetScope('unknown-parent')).rejects.toThrow(
+      UI_TEXT.historyUnavailable,
+    )
+    await expect(t.host.getOwnedBudgetScope(watched.session.sessionId)).resolves.toBeUndefined()
+    expect(t.api.responseBodies()).toEqual([])
+    await t.host.close()
+  })
+
+  it('fences the direct session scope and a held final key read at host close-start while SessionEnd awaits', async () => {
+    const hookHeld = Promise.withResolvers<undefined>()
+    const hookStarted = Promise.withResolvers<undefined>()
+    const keyHeld = Promise.withResolvers<string | undefined>()
+    const keyStarted = Promise.withResolvers<undefined>()
+    const store = budgetStoreIn(path.join(scheduleRoot, 'host-closing-direct-scope'))
+    const t = setup({
+      store,
+      sessionBudgetUsd: 1,
+      // Bind the account before holding credentials at the actual request boundary.
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      hooks: hooksFor('SessionEnd', 'held-end'),
+      runHook: async () => {
+        hookStarted.resolve(undefined)
+        await hookHeld.promise
+        return await hookReply()
+      },
+      apiKey: () => {
+        keyStarted.resolve(undefined)
+        return keyHeld.promise
+      },
+    })
+    const watched = await startSession(t)
+    const scope = await watched.session.ownedBudgetScope()
+    if (scope === undefined) {
+      throw new Error('Expected direct owned session scope')
+    }
+    let closing: Promise<void> | undefined
+    try {
+      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(true)
+      await watched.session.sendTurn([{ type: 'text', text: 'held final key' }])
+      await keyStarted.promise
+      closing = t.host.close()
+      await hookStarted.promise
+      expect(scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
+      keyHeld.resolve('LLM|1|secret')
+      await watched.turnDone()
+      expect(t.api.responseBodies()).toEqual([])
+      expect((await storedBudget(store, watched.session.sessionId)) ?? 0).toBe(0)
+    } finally {
+      keyHeld.resolve('LLM|1|secret')
+      hookHeld.resolve(undefined)
+      await (closing ?? t.host.close())
+    }
+  })
+
+  it.each([0.1, 0])(
+    'blocks a later capped host until an earlier held request settles, first cap %s',
+    async (firstCap) => {
+      const pair = await sharedBudgetHosts(`two-host-held-${String(firstCap)}`, 0.1, firstCap)
+      const held = Promise.withResolvers<undefined>()
+      pair.first.api.script({ text: 'first host', hold: held.promise })
+      try {
+        await pair.firstWatched.session.sendTurn([{ type: 'text', text: 'first host' }])
+        await vi.waitFor(() => {
+          expect(pair.first.api.responseBodies()).toHaveLength(1)
+        })
+        await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped host' }])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toEqual([])
+        if (firstCap === 0) {
+          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+        }
+        expect(
+          await storedBudget(pair.secondStore, pair.firstWatched.session.sessionId),
+        ).toBeGreaterThan(standardCost(10, 5))
+        held.resolve(undefined)
+        await pair.firstWatched.turnDone()
+        await pair.secondWatched.session.sendTurn([
+          { type: 'text', text: 'after verified settlement' },
+        ])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toHaveLength(1)
+        expect(
+          await storedBudget(pair.secondStore, pair.firstWatched.session.sessionId),
+        ).toBeCloseTo(standardCost(10, 5) * 2, 12)
+      } finally {
+        held.resolve(undefined)
+        await pair.close()
+      }
+    },
+  )
+
+  it.each([502, 429])(
+    'keeps earlier ambiguous uncapped retries unknown despite a successful tail, with 429 as established refusal: %s',
+    async (status) => {
+      const pair = await sharedBudgetHosts(`two-host-uncapped-retry-${String(status)}`, 0.1, 0)
+      try {
+        await budgetTurn(
+          pair.first,
+          pair.firstWatched,
+          'uncapped retry',
+          { httpError: { status } },
+          { text: 'known tail usage' },
+        )
+        expect(pair.first.api.responseBodies()).toHaveLength(2)
+        await pair.secondWatched.session.sendTurn([{ type: 'text', text: 'later capped request' }])
+        await pair.secondWatched.turnDone()
+        expect(pair.second.api.responseBodies()).toHaveLength(status === 429 ? 1 : 0)
+        if (status === 502) {
+          expect(lastReason(pair.secondWatched.events)).toBe(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+          const journal = pair.secondStore.budget
+          if (journal === undefined) {
+            throw new Error('No shared budget journal')
+          }
+          const total = await journal.read(
+            pair.firstWatched.session.sessionId,
+            FAKE_MODEL_API_ACCOUNT_ID,
+          )
+          expect(total.hasUnknownHistoricalFees).toBe(true)
+        }
+      } finally {
+        await pair.close()
+      }
+    },
+  )
+
+  it('never lowers the authoritative disk spend when a second host saves its stale snapshot', async () => {
+    const pair = await sharedBudgetHosts('two-host-stale-save', 10)
+    try {
+      const stale = await pair.secondStore.load(pair.firstWatched.session.sessionId)
+      if (stale === undefined) {
+        throw new Error('No initial shared session')
+      }
+      await budgetTurn(pair.first, pair.firstWatched, 'priced request', {
+        text: 'done',
+        usage: { input: 1_000_000, output: 0 },
+      })
+      await pair.first.host.flush()
+      await pair.secondStore.save({ ...stale, budgetSpentUsd: 0 })
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(pair.directory, `${stale.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(1_000_000, 0), 12)
+    } finally {
+      await pair.close()
+    }
+  })
+
+  it.each([false, true])(
+    'starts a controlled fork with inherited paid and closed-child history at verified zero, including side chat: %s',
+    async (sideChat) => {
+      const directory = path.join(scheduleRoot, `fresh-fork-${String(sideChat)}`)
+      const store = budgetStoreIn(directory)
+      const t = setupSubagents({ store, sessionBudgetUsd: 10, paid: ['imageGeneration'] })
+      const watched = await startApprovedSubagentSession(t)
+      await completePaidChild(t, watched.session, 'fork_closed_child')
+      await vi.waitFor(() => {
+        expect(watched.session.activeTurnId).toBeUndefined()
+      })
+      await budgetTurn(
+        t,
+        watched,
+        'draw before forking',
+        { calls: [imageCall({ prompt: 'old image', path: 'parent.png' })] },
+        { text: 'parent done' },
+      )
+      await t.host.flush()
+      const fork = await t.host.forkSession(
+        watched.session.sessionId,
+        'muse-spark-1.3',
+        undefined,
+        { sideChat },
+      )
+      await t.host.flush()
+      const initial = await store.load(fork.session.sessionId)
+      expect(initial?.budgetSpentUsd).toBe(0)
+      expect(initial?.transcript.some(({ item }) => item.paid === 'imageGeneration')).toBe(true)
+      expect(initial?.children?.length).toBeGreaterThan(0)
+      expect(initial?.children?.every((child) => child.state === 'closed')).toBe(true)
+      const journal = store.budget
+      if (journal === undefined) {
+        throw new Error('No fork budget journal')
+      }
+      const initialTotal = await journal.read(fork.session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+      expect(initialTotal.hasUnknownHistoricalFees).toBe(false)
+      const forkWatched = { session: fork.session, ...watchSessionTurns(fork.session) }
+      const before = t.api.responseBodies().length
+      await budgetTurn(t, forkWatched, 'first own request', { text: 'new scope reply' })
+      await t.host.flush()
+      expect(t.api.responseBodies()).toHaveLength(before + 1)
+      const saved = parseStoredSession(
+        JSON.parse(readFileSync(path.join(directory, `${fork.session.sessionId}.json`), 'utf8')),
+      )
+      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(saved.ok && saved.session.budgetIsFreshFork).toBeUndefined()
+      expect(await storedBudget(store, fork.session.sessionId)).toBeCloseTo(standardCost(10, 5), 12)
+      await t.host.close()
+    },
+  )
+
+  it.each([{ httpError: { status: 502 } }, { networkError: 'lost after send' }])(
+    'keeps unknown sent liability and refuses a same-claim automatic response retry: %j',
+    async (failure) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 0.1 })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'hi', failure, { text: 'unsafe retry' })
+      await t.host.close()
+      expect(t.api.responseBodies()).toHaveLength(1)
+      expect(lastReason(watched.events)).toBe(UI_TEXT.sessionBudgetRetryUnavailable)
+      const [reserved] = reservations(t)
+      const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
+      expectSavedBudget(store, watched.session.sessionId, liability)
+      expect(watched.events).toContainEqual({
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(liability) }),
+      })
+      expect(
+        watched.events.some(
+          (event) => event.type === 'backendNotice' && event.text.includes('This turn cost'),
+        ),
+      ).toBe(false)
+    },
+  )
+
+  it('keeps a capped 429 retry under one claim because the first request was explicitly refused', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, sessionBudgetUsd: 0.1 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'hi', { httpError: { status: 429 } }, { text: 'allowed' })
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      standardCost(10, 5),
+      12,
+    )
+  })
+
+  it('omits capped hosted search with a visible reason and keeps cap-off paid search unchanged', async () => {
+    for (const capUsd of [0.1, 0]) {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: capUsd, paid: ['webSearch'] })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'find it', { text: 'done' })
+      await t.host.close()
+      const tools = z
+        .array(z.object({ type: z.string() }))
+        .parse(t.api.responseBodies()[0]?.['tools'])
+      expect(tools.some((tool) => tool.type === 'web_search')).toBe(capUsd === 0)
+      expect(t.paidRequests.filter(({ request }) => request.feature === 'webSearch')).toHaveLength(
+        capUsd === 0 ? 1 : 0,
+      )
+      expect(
+        watched.events.some(
+          (event) =>
+            event.type === 'backendNotice' && event.text === UI_TEXT.sessionBudgetSearchUnavailable,
+        ),
+      ).toBe(capUsd > 0)
+    }
+  })
+
+  it.each([false, true])(
+    'charges the known image fee in shared spending, including an unsavable billed image: %s',
+    async (isInvalidImage) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 0.1, paid: ['imageGeneration'] })
+      const watched = await startSession(t, 'allowAll')
+      if (isInvalidImage) {
+        t.api.images.push({ b64: Buffer.from('GIF89a…').toString('base64') })
+      }
+      await budgetTurn(
+        t,
+        watched,
+        'draw',
+        { calls: [imageCall({ prompt: 'a cat', path: 'budget.png' })] },
+        { text: 'done' },
+      )
+      await t.host.close()
+      expect(t.api.imageBodies()).toHaveLength(1)
+      expect(t.paidUses).toEqual([{ feature: 'imageGeneration', units: 1 }])
+      expectSavedBudget(
+        store,
+        watched.session.sessionId,
+        standardCost(10, 5) * 2 + PAID_PRICES_USD.imageGeneration,
+      )
+    },
+  )
+
+  it('buys no image whose known flat fee cannot fit the remaining cap', async () => {
+    const t = setup({ sessionBudgetUsd: 0.02, paid: ['imageGeneration'] })
+    const watched = await startSession(t, 'allowAll')
+    await budgetTurn(
+      t,
+      watched,
+      'draw',
+      {
+        calls: [imageCall({ prompt: 'a cat', path: 'too-expensive.png' })],
+        usage: { input: 8000, output: 5 },
+      },
+      { text: 'done' },
+    )
+    await t.host.close()
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(t.api.imageBodies()).toEqual([])
+    expect(t.paidUses).toEqual([])
+    expect(
+      watched.events.some(
+        (event) =>
+          event.type === 'itemCompleted' &&
+          event.item.tool === 'generate_image' &&
+          event.item.failureReason?.includes('session budget') === true,
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps no old request base when the model changes away and back before usage arrives', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await holdBudgetReply(t, { text: 'ok', usage: { input: 1_000_000, output: 0 } })
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    await watched.session.setModel('muse-spark-1.3')
+    watched.release()
+    await watched.turnDone()
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it('keeps no compaction count base when the model changes while counting', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await startSession(t)
+    await budgetTurn(t, watched, 'go', { text: 'Start' })
+    const { counted, countStarted } = holdCompactionCount(t)
+    t.api.script({ text: 'SUMMARY' })
+    const compacting = watched.session.compact()
+    await countStarted.promise
+    await watched.session.setModel('muse-spark-1.3-contributor')
+    await watched.session.setModel('muse-spark-1.3')
+    counted.resolve(42)
+    await compacting
+    await budgetTurn(t, watched, 'again', { text: 'Again' })
+    expectFullBudgetEstimate(t)
+  })
+
+  it.each([
+    {
+      name: 'overflow',
+      usage: { input: 0, output: Number.MAX_VALUE },
+    },
+    {
+      name: 'negative',
+      usage: { input: 10, output: -1_000_000 },
+    },
+    { name: 'fractional', usage: { input: 0.5, output: 1 } },
+    { name: 'unsafe', usage: { input: Number.MAX_SAFE_INTEGER + 1, output: 1 } },
+    { name: 'cached greater than input', usage: { input: 1, output: 1, cached: 2 } },
+  ])(
+    'keeps invalid $name usage out of totals and charges the conservative reservation',
+    async ({ usage }) => {
+      const store = memorySessionStore()
+      const t = setup({ store, sessionBudgetUsd: 1, showReplyUsage: true })
+      const watched = await startSession(t)
+      await budgetTurn(t, watched, 'hi', { text: 'odd', usage })
+      await t.host.close()
+      const saved = store.saved.get(watched.session.sessionId)
+      expect(saved?.usage).toEqual({
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+      })
+      expect(Number.isFinite(saved?.budgetSpentUsd)).toBe(true)
+      expect(
+        watched.session
+          .history()
+          .items.every((item) => item.costUsd === undefined || Number.isFinite(item.costUsd)),
+      ).toBe(true)
+      const [reserved] = reservations(t)
+      expectSavedBudget(
+        store,
+        watched.session.sessionId,
+        standardCost(reserved?.input ?? 0, reserved?.output ?? 0),
+      )
+      expect(countLogged(t.log, 'Model API usage with invalid token counts was ignored')).toBe(1)
+    },
+  )
+
+  it('keeps no base from a negative count of the compacted context', async () => {
+    const t = setup({ sessionBudgetUsd: 10 })
+    const watched = await preparedBudgetCompaction(t)
+    t.api.inputTokens = -5
+    await watched.session.compact()
+    await budgetTurn(t, watched, 'next request', { text: 'Next' })
+    expectFullBudgetEstimate(t)
   })
 })
 
@@ -4709,6 +6351,75 @@ describe('ModelApiSession: workspace context (M10)', () => {
     expect(failures).toEqual(['unknown skill nope', 'invalid arguments: id is required'])
   })
 
+  it('gives a bundled skill to the model after one line naming its package root, by read_skill and by /id (M89)', async () => {
+    const packageRoot = `${ROOT}/.ext/vendor/high-quality-projects-skill`
+    const t = setup({
+      files: {
+        '.ext/vendor/high-quality-projects-skill/skills/feature_delivery/SKILL.md': skillFile(
+          'feature_delivery',
+          'Deliver a feature',
+          `Read \${SKILL_ROOT}/docs/DELIVERY.md.`,
+        ),
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+      },
+      bundledSkills: { packageRoot, isEnabled: () => true },
+    })
+    const { session, events, turnDone } = await startSession(t)
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_skill', arguments: '{"id":"feature_delivery"}', callId: 'c1' },
+          { name: 'read_skill', arguments: '{"id":"shout"}', callId: 'c2' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'skill', selector: 'feature_delivery', arguments: 'x' }])
+    await turnDone()
+    const rootLine = `This skill ships with the Muse Spark extension; its package root, SKILL_ROOT, is ${packageRoot}`
+    const bodies = t.api.responseBodies()
+    expect(bodies[0]?.['instructions']).toContain('- feature_delivery: Deliver a feature')
+    expect((bodies[0]?.['input'] as Record<string, unknown>[])[0]).toEqual({
+      type: 'message',
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: `The user invoked the skill "feature_delivery". Arguments: x\n\n${rootLine}\n\nRead \${SKILL_ROOT}/docs/DELIVERY.md.`,
+        },
+      ],
+    })
+    const outputs = (bodies[1]?.['input'] as Record<string, unknown>[]).filter(
+      (item) => item['type'] === 'function_call_output',
+    )
+    expect(outputs.map((item) => item['output'])).toEqual([
+      `Skill feature_delivery: Deliver a feature\n\n${rootLine}\n\nRead \${SKILL_ROOT}/docs/DELIVERY.md.`,
+      // A project skill has no package root, so no line.
+      'Skill shout: Repeat in caps\n\nUPPER CASE.',
+    ])
+    expect(
+      events.flatMap((event) =>
+        event.type === 'itemCompleted' && event.item.kind === 'toolCall'
+          ? [event.item.visibleOutput]
+          : [],
+      ),
+    ).toEqual(['Loaded skill feature_delivery (bundled)', 'Loaded skill shout (project)'])
+    await expect(session.listSkills()).resolves.toEqual([
+      {
+        selector: 'shout',
+        displayName: 'shout',
+        description: 'Repeat in caps',
+        argumentHint: undefined,
+      },
+      {
+        selector: 'feature_delivery',
+        displayName: 'feature_delivery',
+        description: 'Deliver a feature',
+        argumentHint: undefined,
+      },
+    ])
+  })
+
   it('offers no shell, refuses one, and loads no context in Restricted Mode', async () => {
     const t = setup({
       isTrusted: false,
@@ -5277,7 +6988,10 @@ async function completePaidChild(
     { text: 'First child task done.' },
     { text: 'Parent done.' },
   )
+  const finished = watchSessionTurns(session).turnDone()
   await session.sendTurn([{ type: 'text', text: 'delegate' }])
+  // A ready child can precede its parent's durable settlement and terminal event.
+  await finished
   await waitForChildReady(t, session)
   return t.api.responseBodies().length
 }
@@ -5388,7 +7102,12 @@ describe('ModelApiSession subagents (M48)', () => {
     async (variant) => {
       const paid: PaidFeature[] = ['subagents']
       let key: string | undefined = 'LLM|1|secret'
-      const t = setup({ paid, apiKey: () => Promise.resolve(key) })
+      const t = setup({
+        paid,
+        apiKey: () => Promise.resolve(key),
+        // The parent owns this initial account; only the child's HTTP key changes here.
+        getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      })
       const { session } = await startApprovedSubagentSession(t)
       session.onEvent((event) => {
         if (event.type !== 'turnStarted' || !event.turnId.includes(':subagent-')) {
@@ -5439,7 +7158,9 @@ describe('ModelApiSession subagents (M48)', () => {
         })
         expect(session.status).toBe('idle')
       })
-      expect(t.api.responseBodies()).toHaveLength(variant === 'missingKey' ? 1 : 2)
+      // The parent also owns its original account; it cannot replay old
+      // history under a replacement key after the child was refused.
+      expect(t.api.responseBodies()).toHaveLength(['key', 'missingKey'].includes(variant) ? 1 : 2)
       expect(t.paidUses).toEqual([])
       expect(t.subagentUsage).toEqual([])
     },
@@ -8764,6 +10485,24 @@ describe('ModelApiSession: protocol semantics (D26)', () => {
     )
   })
 
+  it('logs a token-count failure by status without the network message', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await answerFirst(t, session, turnDone)
+    t.api.script({ text: 'THE SUMMARY' })
+    vi.spyOn(t.client, 'countInputTokens').mockRejectedValue(
+      new ModelApiError(
+        'private account path from the network',
+        502,
+        'private-kind',
+        'private-code',
+      ),
+    )
+    await expect(session.compact()).resolves.toEqual({ status: 'accepted', reason: undefined })
+    expect(t.log.warn).toHaveBeenCalledWith('The compacted context could not be counted: HTTP 502')
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('private')
+  })
+
   it('pages a stored output on character boundaries', async () => {
     const t = setup()
     const { session, events, turnDone } = await startSession(t, 'allowAll')
@@ -11783,6 +13522,7 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     let keyReads = 0
     const t = setup({
       mcpServers: mcp,
+      getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       apiKey: async () => {
         keyReads += 1
         await release.promise
@@ -12696,6 +14436,1308 @@ describe('web fetch on the Model API backend (M69)', () => {
     await turnDone()
     expect(signals[0]?.aborted).toBe(true)
     expect(fetchRows(events)[0]).toMatchObject({ status: 'cancelled' })
+  })
+})
+
+// --- M78 (PLAN.md D49): command rules, permission profiles, the Auto reviewer ---
+
+/** The user's rules and profiles of these tests, a profile chosen or not. */
+function m78Settings(profile = '', repositoryRules: unknown = {}): () => PermissionSettings {
+  return () => ({
+    commandRules: [
+      { pattern: ['git', 'status'], decision: 'allow', match: ['git status'] },
+      {
+        pattern: ['git', 'push'],
+        decision: 'ask',
+        justification: 'pushes are reviewed',
+        match: ['git push'],
+      },
+      {
+        pattern: ['rm', '-rf'],
+        decision: 'forbid',
+        justification: 'never delete trees',
+        match: ['rm -rf build'],
+      },
+    ],
+    profiles: {
+      locked: { denyRead: ['**/.env', 'secrets'], extraRoots: ['/docs'] },
+    },
+    profile,
+    repositoryRules,
+  })
+}
+
+function shellCall(command: string, callId = 'sh1') {
+  return { name: 'bash', arguments: JSON.stringify({ command }), callId }
+}
+
+type CardRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
+
+/** The user's answer to a card. */
+async function answer(
+  session: ModelApiSession,
+  request: CardRequest,
+  choiceId: 'allow_once' | 'abort',
+): Promise<void> {
+  await session.decideApproval({
+    approvalId: request.approvalId,
+    choiceId,
+    requirementId: request.requirementId,
+  })
+}
+
+/** One turn of shell calls under the options, up to its first card. */
+async function untilFirstCard(
+  options: Parameters<typeof setup>[0],
+  mode: string,
+  commands: readonly string[],
+  replies: readonly ScriptedReply[] = [{ text: 'ok' }],
+) {
+  const t = setup(options)
+  const started = await startSession(t, mode)
+  t.api.script(
+    { calls: commands.map((command, index) => shellCall(command, `sh${String(index + 1)}`)) },
+    ...replies,
+  )
+  await started.session.sendTurn([{ type: 'text', text: 'go' }])
+  const request = await approvalRequest(started.events, 0)
+  return { t, ...started, request }
+}
+
+/** The Auto reviewer's requests among everything sent (M78). */
+function reviewerBodies(t: ReturnType<typeof setup>): readonly Record<string, unknown>[] {
+  return t.api
+    .responseBodies()
+    .filter((body) => body['instructions'] === AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions)
+}
+
+function resolutions(events: readonly AgentEvent[]) {
+  return events.filter(
+    (event): event is Extract<AgentEvent, { type: 'approvalResolved' }> =>
+      event.type === 'approvalResolved',
+  )
+}
+
+function reviewRows(events: readonly AgentEvent[]) {
+  return events
+    .filter(
+      (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+        event.type === 'itemCompleted' && event.item.tool === 'auto_review',
+    )
+    .map((event) => event.item)
+}
+
+function choiceIds(request: CardRequest): readonly string[] {
+  return request.availableChoices.map((choice) => choice.choiceId)
+}
+
+function commandsRun(t: ReturnType<typeof setup>): readonly string[] {
+  return t.shellCalls.map((call) => call.command)
+}
+
+describe('ModelApiSession: command rules (M78, PLAN.md D49)', () => {
+  it('refuses a forbidden command in Bypass, telling the model the rule’s reason', async () => {
+    const t = setup({ permissionSettings: m78Settings() })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [shellCall('sudo rm -rf build')] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'clean' }])
+    await turnDone()
+    expect(t.shellCalls).toEqual([])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'sh1')).toBe(
+      `Error: bash ${MODEL_API_MODEL_TEXT.toolRefusedByRule}: never delete trees`,
+    )
+  })
+
+  it('runs a rule-allowed command in Manual with no card, the row naming the rule', async () => {
+    const t = setup({ permissionSettings: m78Settings() })
+    const { session, events, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script({ calls: [shellCall('git status')] }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'status' }])
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git status'])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(resolutions(events)).toMatchObject([
+      { decision: 'approved', resolvedBy: UI_TEXT.commandRuleResolver },
+    ])
+  })
+
+  it('asks for a chained, substituted or redirected line though its first command is allowed', async () => {
+    for (const line of ['git status && curl x', 'git status $(curl x)', 'git status > x']) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        { permissionSettings: m78Settings() },
+        'promptUnmatched',
+        [line],
+      )
+      expect(choiceIds(request)).toContain('allow_session')
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+    }
+  })
+
+  it('asks for an ask rule even in Auto with the reviewer on, with no session choice, and no hook allow answers it', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      {
+        permissionSettings: m78Settings(),
+        paid: ['autoReviewer'],
+        hooks: hooksFor('PermissionRequest', 'allow-all'),
+        runHook: () => permitHook(),
+      },
+      'onRequest',
+      ['git push origin main'],
+    )
+    expect(choiceIds(request)).toEqual(['allow_once', 'abort'])
+    expect(request.note).toBe(fill(UI_TEXT.approvalAskRuleWhy, { why: 'pushes are reviewed' }))
+    expect(request.isJudgeEscalated).toBe(false)
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git push origin main'])
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidRequests).toEqual([])
+  })
+
+  it('applies a repository’s ask rule and refuses its allow rule, saying so once', async () => {
+    const { t, session, events, turnDone, request } = await untilFirstCard(
+      {
+        permissionSettings: m78Settings('', {
+          commandRules: [
+            { pattern: ['npm', 'publish'], decision: 'ask', match: ['npm publish'] },
+            { pattern: ['curl'], decision: 'allow', match: ['curl x'] },
+          ],
+        }),
+      },
+      'onRequest',
+      ['curl x', 'npm publish'],
+    )
+    await answer(session, request, 'abort')
+    await answer(session, await approvalRequest(events, 1), 'abort')
+    await turnDone()
+    expect(events.filter((event) => event.type === 'backendNotice')).toEqual([
+      {
+        type: 'backendNotice',
+        level: 'warning',
+        text: fill(UI_TEXT.commandRuleAllowInRepository, {
+          setting: 'museSpark.modelApiRepositoryRules',
+          index: 2,
+          pattern: 'curl',
+          detail: '',
+        }),
+      },
+    ])
+    expect(t.shellCalls).toEqual([])
+    expect(countLogged(t.log, 'Permission settings: rule')).toBe(1)
+  })
+})
+
+describe('ModelApiSession: permission profiles (M78, PLAN.md D49)', () => {
+  it('asks for every shell command under a profile, even one a rule allows, and says why', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      { permissionSettings: m78Settings('locked') },
+      'onRequest',
+      ['git status'],
+    )
+    expect(request.note).toBe(UI_TEXT.approvalProfileNote)
+    expect(choiceIds(request)).toEqual(['allow_once', 'abort'])
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['git status'])
+  })
+
+  it('binds the file tools: denied paths are neither read, written, listed nor searched', async () => {
+    const t = setup({
+      permissionSettings: m78Settings('locked'),
+      files: {
+        '.env': 'KEY=secret',
+        'app/.ENV': 'KEY=secret',
+        'secrets/key.txt': 'secret',
+        'src/a.ts': 'const secret = 1',
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":".env"}', callId: 'r1' },
+          { name: 'read_file', arguments: '{"path":"app/.ENV"}', callId: 'r2' },
+          {
+            name: 'write_file',
+            arguments: '{"path":"secrets/new.txt","content":"x"}',
+            callId: 'w1',
+          },
+          {
+            name: 'edit_file',
+            arguments: '{"path":".env","find":"KEY","replace":"K"}',
+            callId: 'e1',
+          },
+          { name: 'list_files', arguments: '{}', callId: 'l1' },
+          { name: 'search', arguments: '{"pattern":"secret"}', callId: 's1' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'look' }])
+    await turnDone()
+    expect(hasApprovalCard(events)).toBe(false)
+    for (const [callId, path] of [
+      ['r1', '.env'],
+      ['r2', 'app/.ENV'],
+      ['w1', 'secrets/new.txt'],
+      ['e1', '.env'],
+    ] as const) {
+      expect(toolOutput(t, callId)).toBe(
+        `Error: ${path} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
+      )
+    }
+    expect(t.files.has(`${ROOT}/secrets/new.txt`)).toBe(false)
+    expect(t.files.get(`${ROOT}/.env`)).toBe('KEY=secret')
+    expect(toolOutput(t, 'l1')).toBe('src/a.ts')
+    expect(toolOutput(t, 's1')).toBe('src/a.ts:1: const secret = 1')
+  })
+
+  it('reads a file under an extra root by its absolute path, and nothing outside it', async () => {
+    const t = setup({ permissionSettings: m78Settings('locked') })
+    t.files.set('/docs/guide.md', 'Guide text')
+    t.files.set('/docs/secrets/token', 'secret')
+    t.files.set('/elsewhere/x.md', 'no')
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_file', arguments: '{"path":"/docs/guide.md"}', callId: 'r1' },
+          { name: 'read_file', arguments: '{"path":"/docs/secrets/token"}', callId: 'r2' },
+          { name: 'read_file', arguments: '{"path":"/elsewhere/x.md"}', callId: 'r3' },
+          { name: 'write_file', arguments: '{"path":"/docs/new.md","content":"x"}', callId: 'w1' },
+        ],
+      },
+      { text: 'ok' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'read' }])
+    await turnDone()
+    expect(toolOutput(t, 'r1')).toBe('Read text file `/docs/guide.md`.\n1|Guide text')
+    expect(toolOutput(t, 'r2')).toBe(
+      `Error: /docs/secrets/token ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
+    )
+    expect(toolOutput(t, 'r3')).toBe('Error: path /elsewhere/x.md is outside the workspace')
+    // An extra root is for reading: nothing is written there.
+    expect(toolOutput(t, 'w1')).toBe('Error: path /docs/new.md is outside the workspace')
+    expect(t.files.has('/docs/new.md')).toBe(false)
+  })
+
+  it('fails closed on a profile named but not defined: the shell asks, and it is said', async () => {
+    const { session, events, turnDone, request } = await untilFirstCard(
+      { permissionSettings: m78Settings('typo') },
+      'onRequest',
+      ['git status'],
+    )
+    expect(request.note).toBe(UI_TEXT.approvalProfileNote)
+    expect(events).toContainEqual({
+      type: 'backendNotice',
+      level: 'warning',
+      text: fill(UI_TEXT.permissionProfileUnknown, {
+        setting: 'museSpark.modelApiPermissionProfile',
+        name: 'typo',
+      }),
+    })
+    await answer(session, request, 'abort')
+    await turnDone()
+  })
+})
+
+/** A wait the test holds open: `hold` marks it entered, then waits for `release`. */
+function heldWait() {
+  const entered = Promise.withResolvers<undefined>()
+  const released = Promise.withResolvers<undefined>()
+  return {
+    entered: entered.promise,
+    hold: async () => {
+      entered.resolve(undefined)
+      await released.promise
+    },
+    release: () => {
+      released.resolve(undefined)
+    },
+  }
+}
+
+/** The user's rules of these tests with `npm test` allowed too. */
+function npmTestAllowed(): PermissionSettings {
+  const settings = m78Settings()()
+  return {
+    ...settings,
+    commandRules: [
+      ...settings.commandRules,
+      { pattern: ['npm', 'test'], decision: 'allow', match: ['npm test'] },
+    ],
+  }
+}
+
+const SYNTHETIC_PRIVATE = 'SYNTHETIC-PRIVATE-TEXT'
+
+/** A Bypass add_memory of a new note, held as its index line (`MEMORY.md`) is about to be written. */
+async function heldIndexLineAdd(options: Parameters<typeof setup>[0]) {
+  const write = heldWait()
+  const t = setup({
+    ...options,
+    beforeMemoryWrite: async (path) => {
+      if (path.endsWith('/MEMORY.md')) await write.hold()
+    },
+  })
+  const { session, events, turnDone } = await startSession(t, 'allowAll')
+  t.api.script({ calls: [ADD_DEPLOY] }, { text: 'done' })
+  await session.sendTurn([{ type: 'text', text: 'remember' }])
+  await write.entered
+  return { t, session, events, turnDone, write }
+}
+
+/** The row a refused call completed with. */
+function completedRow(events: readonly AgentEvent[], tool: string) {
+  return events.find(
+    (event): event is Extract<AgentEvent, { type: 'itemCompleted' }> =>
+      event.type === 'itemCompleted' && event.item.tool === tool,
+  )?.item
+}
+
+describe('ModelApiSession: the live policy fence at each I/O (M78, the RV78 review)', () => {
+  it.each([
+    [
+      'a repository forbid rule',
+      (settings: PermissionSettings): PermissionSettings => ({
+        ...settings,
+        repositoryRules: {
+          commandRules: [{ pattern: ['npm', 'test'], decision: 'forbid', match: ['npm test'] }],
+        },
+      }),
+    ],
+    [
+      'a repository ask rule',
+      (settings: PermissionSettings): PermissionSettings => ({
+        ...settings,
+        repositoryRules: {
+          commandRules: [{ pattern: ['npm', 'test'], decision: 'ask', match: ['npm test'] }],
+        },
+      }),
+    ],
+    [
+      'a permission profile',
+      (settings: PermissionSettings): PermissionSettings => ({ ...settings, profile: 'locked' }),
+    ],
+  ])(
+    'refuses a rule-allowed command at its held process entry once %s applies',
+    async (_change, tighten) => {
+      let settings = npmTestAllowed()
+      const base = memoryToolIo({}, ROOT)
+      const entry = heldWait()
+      // The real adapter awaits the Windows job assembly here, before its final admission.
+      const io: MemoryToolIo = {
+        ...base,
+        runShell: async (...args: Parameters<ToolIo['runShell']>) => {
+          await entry.hold()
+          return await base.runShell(...args)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'test' }])
+      await entry.entered
+      settings = tighten(settings)
+      entry.release()
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(toolOutput(t, 'sh1')).toBe(
+        `Error: bash ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
+      expect(completedRow(events, 'bash')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+    },
+  )
+
+  it.each([
+    ['read_file', '{"path":"private.txt"}'],
+    ['list_files', '{}'],
+    // The model's own arguments are sent back: the pattern is not the private text.
+    ['search', '{"pattern":"PRIVATE"}'],
+  ])(
+    'discards what %s read once the repository denies the file during the read',
+    async (tool, args) => {
+      let settings = m78Settings()()
+      const base = memoryToolIo({ 'private.txt': SYNTHETIC_PRIVATE, 'src/a.ts': 'x' }, ROOT)
+      const read = heldWait()
+      const io: MemoryToolIo = {
+        ...base,
+        readFile: async (...readArgs: Parameters<ToolIo['readFile']>) => {
+          const [absolutePath] = readArgs
+          if (absolutePath.endsWith('private.txt')) await read.hold()
+          return await base.readFile(...readArgs)
+        },
+        listFiles: async () => {
+          if (tool === 'list_files') await read.hold()
+          return await base.listFiles()
+        },
+        searchFiles: async (job) => {
+          await read.hold()
+          return await base.searchFiles(job)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script({ calls: [{ name: tool, arguments: args, callId: 'r1' }] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'look' }])
+      await read.entered
+      settings = { ...settings, repositoryRules: { denyRead: ['private.txt'] } }
+      read.release()
+      await turnDone()
+      expect(toolOutput(t, 'r1')).toBe(
+        `Error: ${tool} ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
+      expect(completedRow(events, tool)).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+      expect(JSON.stringify(t.api.responseBodies())).not.toContain(SYNTHETIC_PRIVATE)
+    },
+  )
+
+  it('refuses a memory edit whose note the repository denies while its write waits', async () => {
+    let settings = m78Settings()()
+    const write = heldWait()
+    const t = setup({
+      files: { '.agents/memory/note.md': 'before' },
+      permissionSettings: () => settings,
+      beforeMemoryWrite: write.hold,
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'edit_memory',
+            arguments: JSON.stringify({
+              scope: 'project',
+              path: 'note.md',
+              old_str: 'before',
+              new_str: 'after',
+            }),
+            callId: 'm1',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await write.entered
+    settings = { ...settings, repositoryRules: { denyRead: ['.agents/memory/note.md'] } }
+    write.release()
+    await turnDone()
+    expect(t.files.get(`${ROOT}/.agents/memory/note.md`)).toBe('before')
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'm1')).toBe(
+      `Error: edit_memory ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+    )
+    expect(completedRow(events, 'edit_memory')).toMatchObject({
+      status: 'failed',
+      visibleOutput: UI_TEXT.policyChangedRefused,
+    })
+  })
+
+  // The RV78f review: the image and PDF reads the fence covers had no case.
+  it.each([
+    ['an image', 'private.png', () => Buffer.concat([SOURCE_PNG, Buffer.from(SYNTHETIC_PRIVATE)])],
+    ['a PDF', 'private.pdf', () => pdfFixture(1)],
+  ])(
+    'discards %s read_file read whole once the repository denies it during the read',
+    async (_kind, name, bytesOf) => {
+      let settings = m78Settings()()
+      const bytes = bytesOf()
+      const base = memoryToolIo({}, ROOT)
+      base.binaries.set(`${ROOT}/${name}`, bytes)
+      const read = heldWait()
+      const io: MemoryToolIo = {
+        ...base,
+        readBytes: async (...readArgs: Parameters<ToolIo['readBytes']>) => {
+          await read.hold()
+          return await base.readBytes(...readArgs)
+        },
+      }
+      const t = setup({ io, permissionSettings: () => settings })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      t.api.script(
+        { calls: [{ name: 'read_file', arguments: JSON.stringify({ path: name }), callId: 'v1' }] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'look' }])
+      await read.entered
+      settings = { ...settings, repositoryRules: { denyRead: [name] } }
+      read.release()
+      await turnDone()
+      expect(toolOutput(t, 'v1')).toBe(
+        `Error: read_file ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+      )
+      expect(completedRow(events, 'read_file')).toMatchObject({
+        status: 'failed',
+        visibleOutput: UI_TEXT.policyChangedRefused,
+      })
+      expect(JSON.stringify(t.api.requests)).not.toContain(Buffer.from(bytes).toString('base64'))
+    },
+  )
+
+  it('refuses a project skill the repository denies before its body is returned (RV78f)', async () => {
+    const t = setup({
+      files: {
+        '.agents/skills/deploy/SKILL.md': skillFile('deploy', 'Ship it', SYNTHETIC_PRIVATE),
+      },
+      permissionSettings: m78Settings('', { denyRead: ['.agents/skills/deploy'] }),
+    })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [{ name: 'read_skill', arguments: '{"id":"deploy"}', callId: 'k1' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'deploy' }])
+    await turnDone()
+    expect(toolOutput(t, 'k1')).toBe(
+      `Error: .agents/skills/deploy/SKILL.md ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`,
+    )
+    expect(JSON.stringify(t.api.requests)).not.toContain(SYNTHETIC_PRIVATE)
+  })
+
+  it('reports Stop during a memory read as the stop, not as a file error (RV78f)', async () => {
+    const read = heldWait()
+    const t = setup({
+      files: { '.agents/memory/note.md': SYNTHETIC_PRIVATE },
+      beforeMemoryRead: async (path) => {
+        if (path.endsWith('/note.md')) await read.hold()
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      {
+        calls: [
+          { name: 'read_memory', arguments: '{"scope":"project","path":"note.md"}', callId: 'm2' },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'recall' }])
+    await read.entered
+    const stopping = session.cancel()
+    read.release()
+    await stopping
+    await turnDone()
+    expect(completedRow(events, 'read_memory')).toMatchObject({
+      status: 'cancelled',
+      visibleOutput: MODEL_API_MODEL_TEXT.toolCancelledByStop,
+    })
+    t.api.script({ text: 'fine' })
+    await session.sendTurn([{ type: 'text', text: 'something else' }])
+    await turnDone()
+    expect(toolOutput(t, 'm2')).toBe(`Error: ${MODEL_API_MODEL_TEXT.toolCancelledByStop}`)
+    expect(JSON.stringify(t.api.requests)).not.toContain(SYNTHETIC_PRIVATE)
+  })
+
+  it('sends no image edit whose source the repository denies during its reservation (RV78f P1)', async () => {
+    let settings = m78Settings()()
+    const store = memorySessionStore()
+    const journal = store.budget
+    if (journal === undefined) throw new Error('Expected a budget journal')
+    const reserve = journal.reserve.bind(journal)
+    const held = heldWait()
+    const settled: number[] = []
+    journal.reserve = async (...args: Parameters<typeof reserve>) => {
+      const claim = await reserve(...args)
+      if (args[2] !== PAID_PRICES_USD.imageGeneration) return claim
+      // The image's own claim: the awaits between approval and the send.
+      await held.hold()
+      return {
+        ...claim,
+        settle: (actualUsd: number, isUnknown?: boolean) => {
+          settled.push(actualUsd)
+          return claim.settle(actualUsd, isUnknown)
+        },
+      }
+    }
+    const source = Buffer.concat([SOURCE_PNG, Buffer.from(SYNTHETIC_PRIVATE)])
+    const t = setup({
+      paid: ['imageGeneration'],
+      sessionBudgetUsd: 1,
+      store,
+      permissionSettings: () => settings,
+    })
+    t.io.binaries.set(`${ROOT}/photo.png`, source)
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      { calls: [editCall({ prompt: 'brighten', images: ['photo.png'], path: 'out.png' }, 'e1')] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'edit' }])
+    await held.entered
+    settings = { ...settings, repositoryRules: { denyRead: ['photo.png'] } }
+    held.release()
+    await turnDone()
+    expect(t.api.editBodies()).toEqual([])
+    // No image request at all left (RV78g P3-4).
+    expect(t.api.requests.filter((request) => request.path.startsWith('/images'))).toEqual([])
+    expect(JSON.stringify(t.api.requests)).not.toContain(source.toString('base64'))
+    expect(toolOutput(t, 'e1')).toBe(
+      `Error: edit_image ${MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange}`,
+    )
+    // Nothing was sent, so the claim settles at nothing and nothing is billed.
+    expect(settled).toEqual([0])
+    expect(t.paidUses).toEqual([])
+    expect(t.io.binaries.has(`${ROOT}/out.png`)).toBe(false)
+  })
+
+  it('ends add_memory as a stop when Stop comes while its index line is written (RV78g P2-3)', async () => {
+    const { t, session, events, turnDone, write } = await heldIndexLineAdd({})
+    const stopping = session.cancel()
+    write.release()
+    await stopping
+    await turnDone()
+    expect(completedRow(events, 'add_memory')).toMatchObject({
+      status: 'cancelled',
+      visibleOutput: MODEL_API_MODEL_TEXT.toolCancelledByStop,
+    })
+    // The note itself was published before the Stop; its index line was not.
+    expect(t.files.has(`${ROOT}/.agents/memory/deploy.md`)).toBe(true)
+    expect(t.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+  })
+
+  it('keeps a note reported written when only its new index line is denied during the write (RV78)', async () => {
+    let settings = m78Settings()()
+    const { t, events, turnDone, write } = await heldIndexLineAdd({
+      permissionSettings: () => settings,
+    })
+    settings = { ...settings, repositoryRules: { denyRead: ['.agents/memory/MEMORY.md'] } }
+    write.release()
+    await turnDone()
+    expect(toolOutput(t, 'call_add')).toBe(DEPLOY_WRITTEN)
+    expect(completedRow(events, 'add_memory')).toMatchObject({ status: 'completed' })
+    expect(t.files.has(`${ROOT}/.agents/memory/deploy.md`)).toBe(true)
+    expect(t.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+  })
+
+  it("judges a stored child's result after a resume by the revision its child ran under (RV78g P1)", async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store, permissionSettings: m78Settings() })
+    const { session } = await startApprovedSubagentSession(t)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'subagent_spawn',
+            arguments: JSON.stringify({ role: 'worker', objective: 'Look around' }),
+            callId: 'spawn',
+          },
+          {
+            name: 'subagent_wait',
+            arguments: '{"subagent_id":"subagent-1","timeout_ms":5000}',
+            callId: 'wait',
+          },
+        ],
+      },
+      { text: 'child done' },
+      { text: 'parent done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'delegate' }])
+    await waitForIdleResponses(t, session, 3)
+    await t.host.flush()
+    const stored = await store.load(session.sessionId)
+    expect(stored?.children?.map((child) => child.id)).toEqual(['subagent-1'])
+    const revision = stored?.children?.[0]?.policyRevision
+    expect(revision).toMatch(/^[a-f0-9]{64}$/)
+    if (stored === undefined || revision === undefined) {
+      throw new Error('expected a saved child with its revision')
+    }
+    session.dispose()
+    const lead = MODEL_API_MODEL_TEXT.subagentResult
+    const pending = [
+      {
+        childId: 'subagent-1',
+        text: `${lead}\nsubagent-1: CURRENT-RESULT`,
+        policyRevision: revision,
+      },
+      { childId: 'subagent-1', text: `${lead}\nsubagent-1: STALE-RESULT`, policyRevision: 'stale' },
+      `${lead}\nsubagent-1: LEGACY-RESULT`,
+    ]
+    for (const [settings, delivered] of [
+      [m78Settings(), true],
+      [m78Settings('', { denyRead: ['elsewhere'] }), false],
+    ] as const) {
+      // A store of its own: the other run's host may still save its session.
+      const resumedStore = memorySessionStore()
+      resumedStore.saved.set(session.sessionId, { ...stored, pendingChildResults: pending })
+      const resumedHost = setupSubagents({ store: resumedStore, permissionSettings: settings })
+      await resumedHost.host.load()
+      const resumed = await resumedHost.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+      const turns = watchSessionTurns(resumed.session)
+      resumedHost.api.script({ text: 'fine' })
+      await resumed.session.sendTurn([{ type: 'text', text: 'and now?' }])
+      await turns.turnDone()
+      const sent = JSON.stringify(resumedHost.api.responseBodies())
+      expect(sent.includes('CURRENT-RESULT')).toBe(delivered)
+      expect(sent).not.toContain('STALE-RESULT')
+      expect(sent).not.toContain('LEGACY-RESULT')
+      expect(sent.split(MODEL_API_MODEL_TEXT.subagentResultWithheld).length - 1).toBe(
+        delivered ? 2 : 3,
+      )
+      resumed.session.dispose()
+    }
+  })
+})
+
+/** Runs the calls, refuses each of the `cards` cards, and checks nothing was reviewed. */
+async function noReview(
+  options: Parameters<typeof setup>[0],
+  mode: string,
+  calls: readonly { name: string; arguments: string; callId: string }[],
+  cards: number,
+) {
+  const t = setup({ permissionSettings: m78Settings(), paid: ['autoReviewer'], ...options })
+  const { session, events, turnDone } = await startSession(t, mode)
+  t.api.script({ calls: [...calls] }, { text: 'done' })
+  await session.sendTurn([{ type: 'text', text: 'go' }])
+  for (let index = 0; index < cards; index += 1) {
+    await answer(session, await approvalRequest(events, index), 'abort')
+  }
+  await turnDone()
+  expect(events.filter((event) => event.type === 'approvalRequested')).toHaveLength(cards)
+  expect(reviewerBodies(t)).toEqual([])
+  expect(t.paidRequests.filter((asked) => asked.request.feature === 'autoReviewer')).toEqual([])
+  return { t, events }
+}
+
+function scriptAllowReview(t: ReturnType<typeof setup>) {
+  t.api.script(
+    { calls: [shellCall('npm test')] },
+    { text: 'ALLOW: runs the tests', usage: { input: 900, output: 20 } },
+    { text: 'done' },
+  )
+}
+
+const REVIEWER_ON = { permissionSettings: m78Settings(), paid: ['autoReviewer'] as PaidFeature[] }
+
+describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
+  it('sends no reviewer while host close awaits SessionEnd after a held consent', async () => {
+    const consent = Promise.withResolvers<boolean>()
+    const asked = Promise.withResolvers<undefined>()
+    const ending = Promise.withResolvers<undefined>()
+    const hook = Promise.withResolvers<Awaited<ReturnType<typeof hookReply>>>()
+    const store = createFileSessionStore({
+      directory: path.join(scheduleRoot, 'review-close-start'),
+      log: new FakeLogOutputChannel(),
+      retentionDays: () => 0,
+      now: () => 0,
+      sleep: () => Promise.resolve(undefined),
+    })
+    const t = setup({
+      ...REVIEWER_ON,
+      store,
+      hooks: hooksFor('SessionEnd', 'hold-end'),
+      runHook: () => {
+        ending.resolve(undefined)
+        return hook.promise
+      },
+      allowsPaidUse: (request) => {
+        if (request.feature === 'autoReviewer') {
+          asked.resolve(undefined)
+          return consent.promise
+        }
+        return Promise.resolve(true)
+      },
+    })
+    const { session, events } = await startSession(t, 'onRequest')
+    t.api.script(
+      { calls: [shellCall('npm test')] },
+      { text: 'ASK: requires confirmation' },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'run tests' }])
+    await asked.promise
+    const closing = t.host.close()
+    try {
+      await ending.promise
+      consent.resolve(true)
+      await approvalRequest(events, 0)
+      expect(reviewerBodies(t)).toEqual([])
+      expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+      expect(commandsRun(t)).toEqual([])
+      await session.cancel()
+    } finally {
+      consent.resolve(false)
+      hook.resolve(await hookReply())
+      await closing
+    }
+  })
+
+  it('admits a finite-cap reviewer after a settled ordinary request through its own real journal claim', async () => {
+    const store = budgetStoreIn(path.join(scheduleRoot, 'review-budget-positive'))
+    const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    scriptAllowReview(t)
+    const finished = turnDone()
+    try {
+      await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+      await vi.waitFor(() => {
+        expect(reviewerBodies(t)).toHaveLength(1)
+        expect(commandsRun(t)).toEqual(['npm test'])
+      })
+      await finished
+      expect(hasApprovalCard(events)).toBe(false)
+      expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
+        { feature: 'autoReviewer', units: 1 },
+      ])
+      expect(t.reviewerUsage).toEqual([
+        { modelId: 'muse-spark-1.3', inputTokens: 900, outputTokens: 20, cachedTokens: 0 },
+      ])
+      const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+      expect(total?.hasUnknownHistoricalFees).toBe(false)
+      expect(total?.spentUsd).toBeGreaterThan(0)
+      expect(total?.spentUsd).toBeLessThan(1)
+    } finally {
+      await session.cancel()
+      await t.host.close()
+    }
+  })
+
+  it.each([
+    { input: -1, output: 1 },
+    { input: 1, output: 1, cached: 2 },
+    { input: 0.5, output: 1 },
+    { input: Number.MAX_SAFE_INTEGER + 1, output: 1 },
+  ])(
+    'retains conservative unknown liability and asks after invalid reviewer usage %j',
+    async (usage) => {
+      const store = budgetStoreIn(
+        path.join(
+          scheduleRoot,
+          `review-invalid-${String(usage.input)}-${String(usage.cached ?? 0)}`,
+        ),
+      )
+      const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => 1 })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        { calls: [shellCall('npm test')] },
+        { text: 'ALLOW: runs the tests', usage },
+        { text: 'done' },
+      )
+      const reviewed = Promise.withResolvers<undefined>()
+      const stopWatching = session.onEvent((event) => {
+        if (event.type === 'itemCompleted' && event.item.tool === 'auto_review')
+          reviewed.resolve(undefined)
+      })
+      try {
+        await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+        // Assert the actual completed review, after its durable journal settlement.
+        await reviewed.promise
+        expect(reviewerBodies(t)).toHaveLength(1)
+        expect(reviewRows(events)).toMatchObject([{ status: 'failed' }])
+        const request = await approvalRequest(events, 0)
+        expect(commandsRun(t)).toEqual([])
+        expect(t.reviewerUsage).toEqual([])
+        expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([
+          { feature: 'autoReviewer', units: 1 },
+        ])
+        const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
+        expect(total?.hasUnknownHistoricalFees).toBe(true)
+        expect(total?.spentUsd).toBeGreaterThan(0)
+        await answer(session, request, 'abort')
+        await turnDone()
+      } finally {
+        stopWatching()
+        await session.cancel()
+        await t.host.close()
+      }
+    },
+  )
+
+  it('never bills a reviewer to a key changed while its popup waits', async () => {
+    // The offline transport accepts this initial synthetic key; the replacement stays valid-shaped.
+    let key = 'LLM|1|secret'
+    const entered = Promise.withResolvers<undefined>()
+    const consent = Promise.withResolvers<boolean>()
+    const t = setup({
+      ...REVIEWER_ON,
+      apiKey: () => Promise.resolve(key),
+      allowsPaidUse: (request) => {
+        if (request.feature === 'autoReviewer') {
+          entered.resolve(undefined)
+          return consent.promise
+        }
+        return Promise.resolve(true)
+      },
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    const finished = turnDone()
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'run tests' }])
+    await entered.promise
+    key = CURRENT_SHAPE_KEYS[1]
+    consent.resolve(true)
+    const request = await approvalRequest(events, 0)
+    await answer(session, request, 'abort')
+    await finished
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+    expect(commandsRun(t)).toEqual([])
+  })
+
+  it('does not run a finite-cap direct review before an owned budget journal is bound', async () => {
+    let capUsd = 0
+    const { t, session, turnDone, request } = await untilFirstCard(
+      {
+        ...REVIEWER_ON,
+        sessionBudgetUsd: () => capUsd,
+        allowsPaidUse: (request) => {
+          if (request.feature === 'autoReviewer') capUsd = 1
+          return Promise.resolve(true)
+        },
+      },
+      'onRequest',
+      ['npm test'],
+      [{ text: 'done' }],
+    )
+    await answer(session, request, 'abort')
+    await turnDone()
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses.filter((use) => use.feature === 'autoReviewer')).toEqual([])
+  })
+
+  it.each(['forbid', 'ask'] as const)(
+    'rejudges a new %s rule after a held reviewer response',
+    async (decision) => {
+      let policy = m78Settings()()
+      const reviewHeld = Promise.withResolvers<undefined>()
+      const t = setup({ ...REVIEWER_ON, permissionSettings: () => policy })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        { calls: [shellCall('npm test')] },
+        { hold: reviewHeld.promise, text: 'ALLOW: runs tests', usage: { input: 900, output: 20 } },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await vi.waitFor(() => {
+        expect(reviewerBodies(t)).toHaveLength(1)
+      })
+      policy = {
+        ...policy,
+        commandRules: [{ pattern: ['npm', 'test'], decision, match: ['npm test'] }],
+      }
+      reviewHeld.resolve(undefined)
+      if (decision === 'ask') {
+        const request = await approvalRequest(events, 0)
+        expect(request.note).toBe(UI_TEXT.approvalAskRuleNote)
+        await answer(session, request, 'abort')
+      }
+      await turnDone()
+      expect(commandsRun(t)).toEqual([])
+      expect(
+        resolutions(events).some((event) => event.resolvedBy === UI_TEXT.autoReviewerResolver),
+      ).toBe(false)
+      expect(t.paidUses).toContainEqual({ feature: 'autoReviewer', units: 1 })
+      expect(t.reviewerUsage).toContainEqual({
+        modelId: 'muse-spark-1.3',
+        inputTokens: 900,
+        outputTokens: 20,
+        cachedTokens: 0,
+      })
+    },
+  )
+
+  it('refuses a new missing-profile file denial after an existing card is approved', async () => {
+    let policy = m78Settings()()
+    const t = setup({ permissionSettings: () => policy })
+    const { session, events, turnDone } = await startSession(t, 'promptUnmatched')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: 'new.txt', content: 'must stay absent' }),
+            callId: 'new-write',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'write' }])
+    const request = await approvalRequest(events, 0)
+    policy = { ...policy, profile: 'missing' }
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(t.io.files.has(`${ROOT}/new.txt`)).toBe(false)
+  })
+
+  it('refuses project add_memory when its possible index write is denied', async () => {
+    const policy: PermissionSettings = {
+      ...m78Settings()(),
+      profile: 'locked',
+      profiles: { locked: { denyRead: ['**/MEMORY.md'] } },
+    }
+    const t = setup({ permissionSettings: () => policy })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'add_memory',
+            arguments: JSON.stringify({
+              path: 'new.md',
+              scope: 'project',
+              content: 'must stay absent',
+            }),
+            callId: 'add-note',
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'remember' }])
+    await turnDone()
+    expect(t.io.files.has(`${ROOT}/.agents/memory/new.md`)).toBe(false)
+    expect(t.io.files.has(`${ROOT}/.agents/memory/MEMORY.md`)).toBe(false)
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(toolOutput(t, 'add-note')).toContain(MODEL_API_MODEL_TEXT.pathDeniedByPolicy)
+  })
+
+  it('keeps complex/chained/evaluator commands away from paid or hook automation', async () => {
+    for (const command of [
+      'git status && git status',
+      'git status > out.txt',
+      'eval "git status"',
+    ]) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        {
+          ...REVIEWER_ON,
+          hooks: hooksFor('PermissionRequest', 'allow'),
+          runHook: permitHook,
+        },
+        'onRequest',
+        [command],
+        [{ text: 'done' }],
+      )
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(reviewerBodies(t)).toEqual([])
+      expect(commandsRun(t)).toEqual([])
+      expect(t.paidRequests).toEqual([])
+    }
+  })
+  it('asks the paid-use popup, reviews once with no tools, and runs an allowed command with no card', async () => {
+    const t = setup(REVIEWER_ON)
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    scriptAllowReview(t)
+    await session.sendTurn([{ type: 'text', text: 'run the tests' }])
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['npm test'])
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(t.paidRequests).toEqual([
+      {
+        request: {
+          feature: 'autoReviewer',
+          modelId: 'muse-spark-1.3',
+          tool: 'bash',
+          action: 'npm test',
+        },
+        requiresAsking: false,
+      },
+    ])
+    const [review] = reviewerBodies(t)
+    expect(reviewerBodies(t)).toHaveLength(1)
+    expect(review).toMatchObject({ model: 'muse-spark-1.3', tools: [], store: false })
+    expect(JSON.stringify(review?.['input'])).toContain('run the tests')
+    expect(JSON.stringify(review?.['input'])).toContain('action: npm test')
+    expect(t.paidUses).toContainEqual({ feature: 'autoReviewer', units: 1 })
+    expect(t.reviewerUsage).toEqual([
+      { modelId: 'muse-spark-1.3', inputTokens: 900, outputTokens: 20, cachedTokens: 0 },
+    ])
+    expect(resolutions(events)).toMatchObject([
+      { decision: 'approved', resolvedBy: UI_TEXT.autoReviewerResolver },
+    ])
+    expect(reviewRows(events)).toMatchObject([
+      {
+        status: 'completed',
+        paid: 'autoReviewer',
+        visibleOutput: fill(UI_TEXT.autoReviewAllowed, { reason: 'runs the tests' }),
+      },
+    ])
+    // The review is the transcript's, never the conversation's.
+    const last = JSON.stringify(t.api.responseBodies().at(-1)?.['input'])
+    expect(last).not.toContain('runs the tests')
+    expect(last).not.toContain(AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions)
+  })
+
+  it('shows the card with the reviewer’s reason when it asks, and the user decides', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      REVIEWER_ON,
+      'onRequest',
+      ['rm -r dist'],
+      [{ text: 'ASK: deletes the build output' }, { text: 'done' }],
+    )
+    expect(request).toMatchObject({
+      isJudgeEscalated: true,
+      note: fill(UI_TEXT.autoReviewAsked, { reason: 'deletes the build output' }),
+    })
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(commandsRun(t)).toEqual(['rm -r dist'])
+  })
+
+  it('falls back to the card when the review fails, trying it once, or cannot be read', async () => {
+    for (const [reply, note] of [
+      [{ httpError: { status: 500 } }, UI_TEXT.autoReviewerFailed],
+      [{ text: 'Looks fine to me.' }, UI_TEXT.autoReviewerUnreadable],
+    ] as const) {
+      const { t, session, turnDone, request } = await untilFirstCard(
+        REVIEWER_ON,
+        'onRequest',
+        ['npm test'],
+        [reply, { text: 'done' }],
+      )
+      expect(request.note).toBe(note)
+      expect(t.api.requests.filter((sent) => sent.path.endsWith('/responses'))).toHaveLength(2)
+      await answer(session, request, 'abort')
+      await turnDone()
+      expect(t.shellCalls).toEqual([])
+    }
+  })
+
+  it('shows the plain card and bills nothing when the popup is denied', async () => {
+    const { t, session, turnDone, request } = await untilFirstCard(
+      { ...REVIEWER_ON, allowsPaidUse: () => Promise.resolve(false) },
+      'onRequest',
+      ['npm test'],
+    )
+    expect(request.isJudgeEscalated).toBe(false)
+    expect(request.note).toBeUndefined()
+    expect(reviewerBodies(t)).toEqual([])
+    expect(t.paidUses).toEqual([])
+    await answer(session, request, 'abort')
+    await turnDone()
+  })
+
+  it('trips its breaker after three declines in a row, and reviews again after the next message', async () => {
+    const decline = { text: 'ASK: network' }
+    const { t, session, events, turnDone, request } = await untilFirstCard(
+      REVIEWER_ON,
+      'onRequest',
+      ['curl a', 'curl b', 'curl c', 'curl d'],
+      [decline, decline, decline, { text: 'done' }],
+    )
+    await answer(session, request, 'abort')
+    for (const index of [1, 2, 3]) {
+      const next = await approvalRequest(events, index)
+      if (index === 3) {
+        expect(next.note).toBe(UI_TEXT.autoReviewerPaused)
+      }
+      await answer(session, next, 'abort')
+    }
+    await turnDone()
+    expect(reviewerBodies(t)).toHaveLength(3)
+    expect(
+      events.filter(
+        (event) => event.type === 'backendNotice' && event.text === UI_TEXT.autoReviewerTripped,
+      ),
+    ).toHaveLength(1)
+    t.api.script({ calls: [shellCall('npm test', 'e')] }, { text: 'ALLOW: tests' }, { text: 'ok' })
+    await session.sendTurn([{ type: 'text', text: 'now the tests' }])
+    await turnDone()
+    expect(reviewerBodies(t)).toHaveLength(4)
+    expect(commandsRun(t)).toEqual(['npm test'])
+  })
+
+  it('stops with the turn: Stop during a review cancels the turn, not into a card', async () => {
+    const t = setup(REVIEWER_ON)
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    const held = Promise.withResolvers<undefined>()
+    t.api.script({ calls: [shellCall('npm test')] }, { hold: held.promise, text: 'ALLOW: late' })
+    await session.sendTurn([{ type: 'text', text: 'test' }])
+    await vi.waitFor(() => {
+      expect(reviewerBodies(t)).toHaveLength(1)
+    })
+    await session.cancel()
+    held.resolve(undefined)
+    await turnDone()
+    expect(hasApprovalCard(events)).toBe(false)
+    expect(t.shellCalls).toEqual([])
+    expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'cancelled' })
+    expect(reviewRows(events)).toMatchObject([{ status: 'cancelled' }])
+  })
+
+  describe('never answers what a rule, the profile, D24 or a paid call settled', () => {
+    it('a forbid', async () => {
+      const { t } = await noReview({}, 'onRequest', [shellCall('rm -rf build')], 0)
+      expect(t.shellCalls).toEqual([])
+    })
+
+    it('an ask rule', async () => {
+      await noReview({}, 'onRequest', [shellCall('git push')], 1)
+    })
+
+    it('the profile’s ask', async () => {
+      await noReview(
+        { permissionSettings: m78Settings('locked') },
+        'onRequest',
+        [shellCall('npm test')],
+        1,
+      )
+    })
+
+    it('a protected write', async () => {
+      const { events } = await noReview(
+        {},
+        'onRequest',
+        [
+          {
+            name: 'write_file',
+            arguments: JSON.stringify({ path: '.git/hooks/pre-commit', content: 'x' }),
+            callId: 'w',
+          },
+        ],
+        1,
+      )
+      expect(events.find((event) => event.type === 'approvalRequested')).toMatchObject({
+        isProtectedWrite: true,
+      })
+    })
+
+    it('a paid call', async () => {
+      const { t } = await noReview(
+        { paid: ['autoReviewer', 'imageGeneration'] },
+        'onRequest',
+        [imageCall({ prompt: 'a cat', path: 'cat.png' })],
+        0,
+      )
+      expect(t.paidRequests.map((asked) => asked.request.feature)).toEqual(['imageGeneration'])
+    })
+
+    it('a question a hook demanded', async () => {
+      await noReview(
+        {
+          hooks: hooksFor('PreToolUse', 'ask'),
+          runHook: () =>
+            hookReply(
+              JSON.stringify({
+                hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask' },
+              }),
+            ),
+        },
+        'onRequest',
+        [shellCall('npm test')],
+        1,
+      )
+    })
+
+    it('anything in Manual', async () => {
+      await noReview({}, 'promptUnmatched', [shellCall('npm test')], 1)
+    })
+
+    it('anything while the reviewer is off', async () => {
+      await noReview({ paid: [] }, 'onRequest', [shellCall('npm test')], 1)
+    })
   })
 })
 

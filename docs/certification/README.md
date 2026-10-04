@@ -81,6 +81,7 @@ The PNGs beside the records are that day's harness renders.
 - [0.9.1](release-0.9.1.md): Muse Code 1.4.0 on Windows: rename, fork and the sandbox warning limited for every version; known 1.4.0 schema fingerprints (PLAN.md D26 amendment)
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
+- [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
 - [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
 - [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.
@@ -99,3 +100,5 @@ The PNGs beside the records are that day's harness renders.
 - [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
 - [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
 - [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
+- [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.
+- [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)

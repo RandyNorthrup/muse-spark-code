@@ -8,7 +8,13 @@ import {
   MuseCodeHost,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MSP_FRAME_LIMIT_BYTES, MSP_UNRESPONSIVE_MISSES, UI_TEXT } from '../../src/shared/constants'
+import {
+  MSP_COMMAND_TIMEOUT_MS,
+  MSP_FRAME_LIMIT_BYTES,
+  MSP_LONG_COMMAND_TIMEOUT_MS,
+  MSP_UNRESPONSIVE_MISSES,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCapture'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { countLogged } from './helpers/logText'
@@ -539,6 +545,69 @@ describe('MuseCodeHost', () => {
     )
   })
 
+  it('keeps an output read pending past the normal deadline and uses its late reply (READS)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('item/readOutput')
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const answered = vi.fn()
+      const failed = vi.fn()
+      const read = session.readOutput({
+        itemId: 'ed',
+        outputRef: 'p',
+        offsetBytes: 0,
+        lengthBytes: 100,
+      })
+      void read.then(answered).catch(failed)
+      await vi.advanceTimersByTimeAsync(MSP_COMMAND_TIMEOUT_MS)
+      expect(answered).not.toHaveBeenCalled()
+      expect(failed).not.toHaveBeenCalled()
+      const request = server.requestsFor('item/readOutput')[0]
+      expect(request).toBeDefined()
+      server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request?.id,
+          result: {
+            content: '{"files":[]}',
+            encoding: 'utf8',
+            mediaType: 'application/json',
+            offsetBytes: 0,
+            byteLen: 12,
+            eof: true,
+          },
+        })}\n`,
+      )
+      await expect(read).resolves.toMatchObject({ content: '{"files":[]}', eof: true })
+    } finally {
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
+  it('bounds an unanswered output read at the long deadline (READS)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.silence('item/readOutput')
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      const read = session.readOutput({
+        itemId: 'ed',
+        outputRef: 'p',
+        offsetBytes: 0,
+        lengthBytes: 100,
+      })
+      const failure = expect(read).rejects.toThrow(
+        'Muse Code did not answer item/readOutput within 180 s',
+      )
+      await Promise.all([failure, vi.advanceTimersByTimeAsync(MSP_LONG_COMMAND_TIMEOUT_MS)])
+    } finally {
+      vi.useRealTimers()
+      await host.close()
+    }
+  })
+
   it('turns sessionNotLoaded into SessionNotLoadedError (D25)', async () => {
     const { host, server } = setup()
     const session = await host.startSession(startOptions)
@@ -979,6 +1048,8 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
       sessionId: 's-old',
     })
     expect(events.map((event) => event.type)).toEqual(['approvalRequested', 'questionRequested'])
+    // Both were waiting before this window: neither raises a new notice (M82).
+    expect(events.map((event) => 'isReplayed' in event && event.isReplayed)).toEqual([true, true])
   })
 
   it('does not pull pending prompts when the resume names none, and survives a failed pull', async () => {
@@ -1088,6 +1159,26 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
         approvalId: 'a1',
         requirementId: { approvalId: 'a1', sourceIndex: 2 },
       }),
+    ])
+  })
+
+  it('marks a question shown again to a second surface as replayed (M82)', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    const first: AgentEvent[] = []
+    session.onEvent((event) => {
+      first.push(event)
+    })
+    server.notify('userInput/requested', questionParams(session.sessionId))
+    await settle()
+    expect(first).toEqual([expect.objectContaining({ type: 'questionRequested' })])
+    expect(first[0]).not.toHaveProperty('isReplayed')
+    const late: AgentEvent[] = []
+    session.onEvent((event) => {
+      late.push(event)
+    })
+    expect(late).toEqual([
+      expect.objectContaining({ type: 'questionRequested', userInputId: 'u1', isReplayed: true }),
     ])
   })
 

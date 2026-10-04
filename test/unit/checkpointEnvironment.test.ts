@@ -32,7 +32,8 @@ function factsOver(h: Harness, signal = new AbortController().signal, trusted = 
   const port = checkpointPort(h)
   const check = manager.workspaceActionGuard(signal, h.root)
   const process = vi.fn(
-    async (args: readonly string[], cwd: string) => await realGit(args, cwd, undefined, check),
+    async (args: readonly string[], cwd: string) =>
+      await realGit(args, cwd, undefined, undefined, check),
   )
   const facts = () =>
     describeEnvironment({
@@ -218,7 +219,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
       const manager = fakeMuseCodeManager({ workspaceRoot: h.root })
       const check = manager.workspaceActionGuard(new AbortController().signal, other.root)
       await expect(
-        realGit(['rev-parse', '--show-toplevel'], other.root, undefined, check),
+        realGit(['rev-parse', '--show-toplevel'], other.root, undefined, undefined, check),
       ).rejects.toThrow(UI_TEXT.checkpointFailed)
     },
     REAL_GIT_TIMEOUT_MS,
@@ -230,7 +231,7 @@ describe('automatic prompt Git helper exclusion (M72)', () => {
       const h = await committedWorkspace()
       const fixture = factsOver(h)
       fixture.process.mockImplementationOnce(async (args, cwd) => {
-        const result = await realGit(args, cwd, undefined, fixture.check)
+        const result = await realGit(args, cwd, undefined, undefined, fixture.check)
         await fixture.manager.dispose()
         return result
       })
