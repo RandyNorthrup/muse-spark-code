@@ -41,28 +41,31 @@ Use this order for a candidate branch:
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
-   Its `pull_request` event starts the seven hosted jobs. Do not also dispatch
+   Its `pull_request` event starts the fast Ubuntu tier. Do not also dispatch
    `ci.yml` manually for the same commit; `workflow_dispatch` remains available
-   when an explicit branch check is needed without a pull request.
+   for an explicit full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and check every job: Ubuntu, Windows and macOS quality; Linux and
-   Windows accessibility and VS Code integration; macOS dictation; packaging;
-   gitleaks; and semgrep. Fix failures and repeat from the exact-tree gate.
-   Later branch changes need a fresh pull-request run. The protected merge
-   does not repeat identical CI on a `main` push; release tags still build.
-6. Add the pull-request run ID, `headSha`, seven conclusions, independent
-   review, and any unproved platform or live gate to the PR proof once checks
-   finish. A printed success line without the process exit status is not a
-   gate result.
+   commit and inspect all seven required conclusions. After fast checks and
+   review pass, choose **Merge when ready** to enter GitHub's merge queue.
+   The `merge_group` event runs the full tier on the candidate commit that
+   will become `main`; inspect its run SHA and every job before accepting the
+   merge. Fix failures and repeat from the exact-tree gate. Later branch
+   changes need fresh PR checks and a fresh queue candidate. Do not repeatedly
+   merge `main` into the PR just to refresh strict branch checks.
+6. Add both run IDs and SHAs, the required conclusions, independent review,
+   and any unproved platform or live gate to the PR proof. A printed success
+   line without the process exit status is not a gate result. Queue use starts
+   after the maintainer enables it in the main ruleset (see below).
 
 - Run `npm run quality` and make it green. It runs every gate: formatting,
   ESLint (zero warnings), stylelint, type checks, dead-code and cycle
   detection, duplication, unit tests with coverage thresholds, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI runs the gates on
-  Ubuntu, Windows and macOS, the accessibility gate and the integration
-  tests on Ubuntu and Windows, and gitleaks and semgrep as jobs of their
+  Ubuntu, Windows and macOS in the merge queue, the complete accessibility
+  gate on Ubuntu and integration tests on Ubuntu and Windows, and gitleaks
+  and semgrep as jobs of their
   own; the PowerShell lint runs only where Windows PowerShell exists, so a
   green run on one platform is not quite the whole set.
 - Add or change tests with the code. A new check must be seen to fail once
@@ -93,6 +96,43 @@ Use this order for a candidate branch:
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
   (`v*`) cannot be moved or deleted.
+
+## CI tiers and required checks
+
+`ci.yml` calls `build.yml` with `fast: true` only on `pull_request`. That tier
+runs formatting, ESLint/stylelint, all five compiler projects, localization,
+host API, knip, cycles, duplication, the production build and its size/split/
+host-global/notices checks, audit, and every unit/process-e2e test on Ubuntu.
+Gitleaks and semgrep also run. Expected wall time is at most about 12 minutes;
+this estimate still needs hosted measurement.
+
+`merge_group` and manual dispatch select the full tier. Static gates run on
+all three OSes. Each OS runs four Vitest shards (Windows files remain serial
+within a shard), uploads blob reports, checks that all four arrived, then
+merges coverage and enforces the original thresholds once per OS. The full
+448-page a11y harness runs once on Ubuntu against the production webview from
+the static gate; the browser content, themes and scenarios are OS-independent.
+Linux/Windows VS Code integration, the macOS helper and the universal VSIX/ACP
+package checks remain. Packages and tests run in parallel where dependencies
+allow. Expected full wall time is roughly 10–15 minutes, pending hosted proof.
+
+The seven required names stay: `build / quality (ubuntu-latest)`,
+`build / quality (windows-latest)`, `build / quality (macos-latest)`,
+`build / gitleaks`, `build / semgrep`, `build / dictation helper (macos)` and
+`build / package (.vsix)`. Quality/helper/package names aggregate the selected
+tier and fail on failed, cancelled or missing required work. Their PR success
+means the fast tier passed; their queue success means the full tier passed.
+Artifact names and contents stay unchanged. Hosts and Action check are not
+currently required by the main ruleset and keep their existing triggers.
+
+Maintainer rollout: enable a merge queue on `main`, retain those seven names,
+and set `strict_required_status_checks_policy` to `false`; queue candidates
+provide the combined-commit check instead. Use merge commits, one PR per group,
+and a 30-minute check-response budget initially. Inspect the first hosted PR
+and queue runs before relying on timing estimates. See
+[`docs/certification/ciflow.md`](docs/certification/ciflow.md) for exact settings
+and evidence. Publishing consumes CI artifacts through the separate release
+workflow; its artifact-reuse change is owned by RELFAST.
 
 ## Style
 

@@ -347,6 +347,89 @@ describe('packaging (M26)', () => {
   })
 })
 
+describe('tiered CI (CIFLOW)', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..')
+  const read = (file: string) => readFileSync(path.join(root, file), 'utf8')
+  const build = read('.github/workflows/build.yml')
+  const job = (id: string) => {
+    const body = build.split(`\n  ${id}:\n`, 2)[1]?.split(/\n {2}[\w-]+:\n/, 1)[0]
+    if (body === undefined) throw new Error(`missing job ${id}`)
+    return body
+  }
+  it('checks PRs quickly and merge groups/manual calls fully, on the event commit', () => {
+    const ci = read('.github/workflows/ci.yml')
+    for (const event of ['pull_request', 'merge_group', 'workflow_dispatch']) {
+      expect(ci).toContain(`\n  ${event}:\n`)
+    }
+    expect(ci).toContain("fast: ${{ github.event_name == 'pull_request' }}")
+    expect(build).toContain('        default: false')
+    expect(build).not.toMatch(/\n {10}ref:/)
+    for (const id of ['checks', 'unit']) {
+      expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
+      expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
+    }
+    expect(job('checks')).toContain(
+      'npx run-s format:check lint typecheck check:l10n check:host-api deadcode cycles duplication build security:audit',
+    )
+    expect(job('unit')).toContain('npx vitest run\n')
+    for (const id of ['coverage', 'accessibility', 'integration', 'native-build', 'packages']) {
+      expect(job(id)).toContain('if: ${{ !inputs.fast }}')
+    }
+    expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
+    expect(job('accessibility')).toContain('run: npm run test:a11y\n')
+    expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
+    expect(job('packages')).toContain('name: muse-spark-code-vsix')
+    expect(job('packages')).toContain('name: muse-spark-code-acp')
+    expect(job('packages')).toContain('name: muse-spark-code-sboms')
+  })
+
+  it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
+    expect(job('unit')).toContain("shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4]') }}")
+    expect(job('unit')).toContain('--shard="$SHARD/4" --reporter=blob')
+    expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
+    expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
+    expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
+    expect(job('coverage')).toContain('merge-multiple: true')
+    expect(job('coverage')).toContain('for shard in 1 2 3 4; do')
+    expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
+    expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
+    const config = read('vitest.config.ts')
+    expect(config).toContain('statements: 90,\n  branches: 85,\n  functions: 90,\n  lines: 90,')
+    expect(config).toContain("arg !== '--shard' && !arg.startsWith('--shard=')")
+    expect(config).toContain('...(process.argv.every')
+    expect(config).toContain('thresholds: COVERAGE_THRESHOLDS,')
+    expect(config).toContain("fileParallelism: process.platform !== 'win32'")
+  })
+
+  it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
+    const id = 'required'
+    expect(job(id)).toContain('name: ${{ matrix.check }}')
+    for (const name of [
+      'quality (ubuntu-latest)',
+      'quality (windows-latest)',
+      'quality (macos-latest)',
+      'dictation helper (macos)',
+      'package (.vsix)',
+    ]) {
+      expect(job(id)).toContain(`- ${name}\n`)
+    }
+    expect(job(id)).toMatch(
+      /needs:\s+\[checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast\]/,
+    )
+    expect(job(id)).toContain('if: always()')
+    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+      expect(job(id)).toContain(`          test "$${key}" = success\n`)
+    }
+    expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
+    for (const key of ['COVERAGE', 'ACCESSIBILITY', 'INTEGRATION', 'HELPER', 'PACKAGES']) {
+      expect(job(id)).toContain(`            test "$${key}" = success\n`)
+    }
+    expect(job(id)).not.toContain('continue-on-error')
+    expect(job('secrets')).toContain('name: gitleaks')
+    expect(job('sast')).toContain('name: semgrep')
+  })
+})
+
 describe('toolchain pins (AGENTS.md)', () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 

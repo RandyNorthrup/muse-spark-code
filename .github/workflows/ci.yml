@@ -1,10 +1,8 @@
-# Pull requests and optional manual branch dispatches run the shared build
-# (build.yml): the quality gates on three platforms, the integration tests,
-# the macOS helper, the .vsix, secret scanning and semgrep.
 name: CI
 
 on:
   pull_request:
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -19,3 +17,5 @@ jobs:
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
     # no other secret is passed (least privilege).
     uses: ./.github/workflows/build.yml
+    with:
+      fast: ${{ github.event_name == 'pull_request' }}

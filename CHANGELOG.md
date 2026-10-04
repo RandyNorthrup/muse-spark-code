@@ -307,6 +307,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- **Tiered CI and merge-queue checks.** PRs run fast Ubuntu checks; queue
+  candidates run all three OSes with four test shards and merged coverage,
+  the full Ubuntu accessibility harness, integration, native-helper and
+  universal-package checks. Existing required names and release artifacts
+  stay unchanged; enabling the repository's merge queue remains maintainer work.
 - **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up
   from 100 KiB: new strings bring `dist/uiText.js` to 100.2 KiB; the new
   budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so
