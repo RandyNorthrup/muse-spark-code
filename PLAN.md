@@ -9153,6 +9153,27 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M71 — Git and pull requests (D49)
 
+**FIX78B repair (2026-10-04, bounded rig proof complete; lead gates open):** close RVFIX78's remaining P2/P3
+without merging main. Classify the Muse settings destination by canonical
+workspace containment before the planning read, refusing held/untrusted
+project bytes and binding permitted reads to the existing native project
+root guard. Reuse `readPlanFile`, canonical path IO and held refusal text.
+Prove XDG-in-workspace and personal-link-to-project regressions, plus an
+actual host UI regression with raw VS Code trust true and combined trust
+false, personal import and released controls. Drill both guards on Mac mini
+through the prescribed rig helpers, restore exact source bytes, and record
+bounded evidence in `docs/certification/m71.md`. Full quality, hosted/native
+editor certification and the later main join remain lead-owned. Readiness:
+brief, existing source and tests settle behavior; no new wire shape, UI,
+dependency or owner decision. Existing plan remains the proof ledger; the
+skill's separate structural ledger validator remains deferred under the
+recorded no-extra-planning-layer decision.
+Evidence: 137 tests in four whole files on Mac mini, three guards drilled
+red/restored-green with exact source hashes, five type projects and scoped
+static/build gates. Host API inventory regenerated. Current receipts and
+the pre-existing Model API budget versus common.md mismatch are recorded
+in `docs/certification/m71.md`; no budget changed in this repair.
+
 **MG78b current-main join, 2026-10-04 (merge review fix in; lead gates open).**
 Join main `77800e8f` into `8a796842`, retaining Git and every main feature
 and lazy bundle. Preserve main budgets, including UI text at 125 KiB; an
@@ -11978,6 +11999,13 @@ requests) that found each request's estimate above what Meta counted.
 - **Size.** S.
 
 ### M83 — Import from other agents (D49)
+
+**M71 integration correction (FIX78B, 2026-10-04):** canonical project scope
+must also guard the Muse settings planning read, including XDG roots and
+personal links into a project. Host UI trust wiring needs an executed
+mutation-sensitive regression. Scope and bounded receipts belong to M71
+above and `docs/certification/m71.md`; older M83 records do not prove these
+two boundaries.
 
 **Status 2026-10-02 (round 5): exposure-preserving import (D64) implemented;
 prescribed scoped rig verification complete, lead certification pending.** Five

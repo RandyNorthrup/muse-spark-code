@@ -34,7 +34,7 @@ The VS Code adapter: 21 files. Everything else reaches VS Code only through them
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
 | `src/extension.ts`                         | 146               |
-| `src/host/agentImportHost.ts`              | 29                |
+| `src/host/agentImportHost.ts`              | 28                |
 | `src/host/cliFeatures.ts`                  | 27                |
 | `src/host/codeIntel/languageServices.ts`   | 45                |
 | `src/host/conversation/transferDialogs.ts` | 9                 |
@@ -349,7 +349,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.fs`                                                                       | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`                                                                                                                                          |
 | `workspace.getConfiguration`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                      |
 | `workspace.getWorkspaceFolder`                                                       | `src/extension.ts`                                                                                                                                                                                                                                      |
-| `workspace.isTrusted`                                                                | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                          |
+| `workspace.isTrusted`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                         |
 | `workspace.notebookDocuments`                                                        | `src/extension.ts`                                                                                                                                                                                                                                      |
 | `workspace.onDidChangeConfiguration`                                                 | `src/extension.ts`                                                                                                                                                                                                                                      |
 | `workspace.onDidGrantWorkspaceTrust`                                                 | `src/extension.ts`                                                                                                                                                                                                                                      |

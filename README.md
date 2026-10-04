@@ -949,9 +949,13 @@ refuse links and junctions below the project root, including dangling ones.
 An arbitrary native writer can still race the final filesystem operation;
 Node has no handle-relative publication API to close that window.
 
-Project sources require workspace trust. Losing trust stops project reads
-and effects; closing activation stops pending prompts. Personal imports
-remain available in Restricted Mode. A repository's MCP servers are listed
+Project reads and effects require workspace trust and release of any held
+pull-request worktree. This includes Muse settings physically inside an open
+project through `XDG_CONFIG_HOME` or a personal path linked into that project;
+the importer classifies the resolved path before reading it. Losing trust
+stops project reads and effects; closing activation stops pending prompts.
+Personal imports remain available in Restricted Mode and held worktrees.
+A repository's MCP servers are listed
 but are not offered for personal settings; personal rules remain Muse Code's
 `/rules import`. Hooks keep supported matchers and restrictions. Unsupported
 events, non-command handlers, narrowing fields (`if`, `args`, `shell`),

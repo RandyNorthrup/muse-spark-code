@@ -21,6 +21,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { type MemoryImportIo, memoryImportIo } from './helpers/memoryImportIo'
 import { readContextText } from '../../src/core/context/contextFiles'
 import type { ImportWriteNotice } from '../../src/core/import/agentImport'
+import { museSettingsPath } from '../../src/host/backend/museSettings'
 
 const HOME = '/home/u'
 const WS = '/ws'
@@ -44,6 +45,7 @@ const FILES: Record<string, string> = {
 }
 
 interface Options {
+  readonly museSettingsFile?: string
   readonly files?: Record<string, string>
   readonly isTrusted?: boolean
   readonly trust?: () => boolean
@@ -106,7 +108,7 @@ function run(options: Options = {}) {
     isWorkspaceTrusted: () => options.trust?.() ?? options.isTrusted ?? true,
     isProjectHeld: () => options.held?.() ?? options.isHeld ?? false,
     isActive: () => options.isActive?.() ?? true,
-    museSettingsFile: SETTINGS,
+    museSettingsFile: options.museSettingsFile ?? SETTINGS,
     currentRoot: options.currentRoot ?? (() => WS),
     editProject:
       options.editProject ??
@@ -676,6 +678,48 @@ describe('importFromAgents', () => {
     expect(flow.io.files.has(`${WS}/.agents/skills/ship/SKILL.md`)).toBe(false)
     expect(flow.opened).toEqual([])
     expect(flow.edits).toEqual([])
+  })
+
+  it.each(['xdg', 'linked'] as const)(
+    'refuses the %s Muse settings planning read inside a held project',
+    async (location) => {
+      const target = `${WS}/muse/settings.json`
+      const settings =
+        location === 'xdg'
+          ? museSettingsPath({ platform: 'linux', homeDir: HOME, xdgConfigHome: WS })
+          : SETTINGS
+      const io = memoryImportIo({
+        files: { ...FILES, [target]: '{"mcpServers":{"existing":{"command":"keep"}}}' },
+        ...(location === 'linked' && { links: { [SETTINGS]: target } }),
+      })
+      const read = vi.spyOn(io, 'readFile')
+      const flow = run({
+        io,
+        museSettingsFile: settings,
+        isTrusted: false,
+        isHeld: true,
+        pick: (items) => items.filter((item) => item.label === 'github').map((item) => item.id),
+      })
+      await flow.done
+      expect(read.mock.calls.some(([file]) => file === settings || file === target)).toBe(false)
+      expect(flow.warnings).toContain(UI_TEXT.worktreeHeldShell)
+      expect(flow.opened).toEqual([])
+      expect(flow.edits).toEqual([])
+      expect(io.files.get(target)).toBe('{"mcpServers":{"existing":{"command":"keep"}}}')
+    },
+  )
+
+  it('binds a released XDG project settings planning read to the native project root', async () => {
+    const settings = museSettingsPath({ platform: 'linux', homeDir: HOME, xdgConfigHome: WS })
+    const io = memoryImportIo({ files: { ...FILES, [settings]: '{}' } })
+    const read = vi.spyOn(io, 'readFile')
+    const flow = run({
+      io,
+      museSettingsFile: settings,
+      pick: (items) => items.filter((item) => item.label === 'github').map((item) => item.id),
+    })
+    await flow.done
+    expect(read).toHaveBeenCalledWith(settings, HOOK_CONFIG_MAX_BYTES, WS)
   })
 
   it('imports the project once the hold is released', async () => {

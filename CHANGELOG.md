@@ -401,6 +401,11 @@ happened, not what was planned; superseded entries are kept.
   window that VS Code trusts, project reads and writes (including unsaved
   editor copies) are refused with the held-worktree text until the trust card
   is confirmed, while the user's own files still import.
+- Import planning also refuses Muse settings reads when `XDG_CONFIG_HOME`
+  places them inside a held or untrusted project, or a personal settings path
+  resolves into that project. Permitted project reads carry the native root
+  guard. Host UI regressions distinguish raw VS Code trust from combined
+  project trust and retain personal-import and released controls.
 
 ## [0.11.0] - 2026-10-03
 

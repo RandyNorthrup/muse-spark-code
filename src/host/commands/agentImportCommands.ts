@@ -31,7 +31,7 @@ import {
   scanAgentImports,
 } from '../../core/import/agentImport'
 import { isSamePath } from '../../core/paths'
-import { confineWorkspacePath } from '../../core/workspacePath'
+import { confineWorkspacePath, resolveWorkspacePath } from '../../core/workspacePath'
 import { pathModule } from '../../core/workspaceRoot'
 import {
   AGENT_IMPORT_ROOT_CHANGED_CODE,
@@ -363,19 +363,39 @@ async function readPlanFile(
   project: ImportProjectRoot | undefined,
   isProject: boolean,
 ): Promise<ImportPlanFile> {
-  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
+  // A personal settings spelling can resolve into any open project (XDG
+  // roots and links included). Classify before reading, without Git metadata.
+  let isProjectFile = isProject
+  if (!isProjectFile) {
+    try {
+      const file = await deps.io.realPath(absolutePath)
+      const roots =
+        deps.workspaceRoots?.() ?? (deps.workspaceRoot === undefined ? [] : [deps.workspaceRoot])
+      for (const root of roots) {
+        const canonical = await deps.io.realPath(root)
+        if (resolveWorkspacePath(canonical, file, deps.platform).ok) {
+          isProjectFile = true
+          break
+        }
+      }
+    } catch {
+      deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
+      return { status: 'unreadable' }
+    }
+  }
+  if (!deps.isActive() || (isProjectFile && !deps.isWorkspaceTrusted())) {
     return { status: 'outside' }
   }
-  if (isProject && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
+  if (isProjectFile && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
     deps.log.warn(`${LOG_PREFIX}  is unsafe or outside the workspace`)
     return { status: 'outside' }
   }
-  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
+  if (!deps.isActive() || (isProjectFile && !deps.isWorkspaceTrusted())) {
     return { status: 'outside' }
   }
   let read: ImportRead
   try {
-    read = await deps.io.readFile(absolutePath, maxBytes, isProject ? project?.path : undefined)
+    read = await deps.io.readFile(absolutePath, maxBytes, isProjectFile ? project?.path : undefined)
   } catch {
     deps.log.warn(`${LOG_PREFIX}  could not be read (failed)`)
     return { status: 'unreadable' }
@@ -598,7 +618,7 @@ async function planFor(
         deps,
         deps.museSettingsFile,
         HOOK_CONFIG_MAX_BYTES,
-        undefined,
+        project,
         false,
       ),
       hooksFile: await hooksFileState(deps, hooksFile, project),
