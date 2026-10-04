@@ -5581,6 +5581,24 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
 
 ### M27 — The tree kill's orphans (D25)
 
+**JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
+PRs #96 and #89 hid the helper's preparation error and kept its failed
+promise for the session. Keep compilation and success caching unchanged;
+clear only an unavailable result so the next caller tries preparation
+again, sharing each in-flight attempt. Collect the real helper log in
+`toolIo.test.ts`'s missing-helper assertion. Prove compile and self-test
+recovery with fake runners, deliberately restore the old cache to see the
+regressions fail, then restore exact bytes. Run the two owned suites on
+Win11 and the lane's scoped gates; full quality remains the lead's gate
+under `common.md`. Record the paths to unavailability and actual receipts
+in `docs/certification/jobflake.md`. The first hosted failure's specific
+trigger remains unknown until the improved assertion captures it.
+Final Win11 proof: 53 passed, 2 existing platform skips. All five type
+projects, scoped lint/format, host API, duplication, dead code,
+localization and production build passed. Both recovery controls failed
+with the old cache and passed after exact-byte restoration. Aggregate
+quality and the unchanged pins' npm audit triage remain with the lead.
+
 **Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
 merged through pull request #12 from `hardening/m27-orphans`, shipped in
 0.6.0.

@@ -240,7 +240,6 @@ happened, not what was planned; superseded entries are kept.
 - **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
   1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
   to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
-- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up from 100 KiB: new strings bring `dist/uiText.js` to 102.6 KiB; the new budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so activation is unchanged.
 - **Code intelligence and voice load on first use** (PLAN.md D6). Muse
   Code's `ide` code intelligence answers and both voice engines' drivers now
   ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
@@ -252,12 +251,14 @@ happened, not what was planned; superseded entries are kept.
   log has the cause, and the next call or press tries again.
 - Regenerate the host API inventory and bundled-package notices from the
   combined import, session board, reviewer, budget and handoff source.
+- **The shared English text bundle's budget is 125 KiB** (PLAN.md D6), up from 100 KiB: new strings bring `dist/uiText.js` to 102.6 KiB; the new budget is that plus 15 %, rounded up to 25 KiB. It loads lazily, so activation is unchanged.
 - The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
 
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- Windows commands retry job helper preparation after a failed first build or self-test instead of keeping the fallback for the whole session (0.11.0).
 - **Revert on an edit no longer overwrites your saved or unsaved changes**.
   Edit review's Revert and the pane's hunk Revert are one step under the
   turn checkpoints' file-edit lease: they read the saved file, rebuild the
