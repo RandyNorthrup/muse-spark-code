@@ -17,6 +17,8 @@
   "queuedEditTitle": "Vzít zprávu z fronty zpět do pole promptu",
   "queuedDelivered": "Už předáno běžícímu kolu",
   "queuedTooLate": "Tato zpráva už dorazila k modelu, takže ji už nelze upravit.",
+  "queuedEditUnsupported": "Tato konverzace nedokáže vzít zprávu z fronty zpět, takže ji nelze upravit.",
+  "queuedImagesNotReturned": "Zpráva je zpět v poli pro zadání, ale její obrázky se vrátit nepodařilo. Před odesláním je připojte znovu.",
   "composerLabel": "Zpráva pro Muse",
   "connecting": "Připojování k hostiteli rozšíření…",
   "notSignedIn": "Nepřihlášeno",
@@ -604,52 +606,52 @@
   "tasksTabEnded": "Konverzace, ke které tento seznam patří, byla uzavřena.",
   "stepSummary": {
     "edited": {
-      "one": "Upraven soubor",
-      "few": "Upraveny {count} soubory",
-      "many": "Upraveno {count} souboru",
-      "other": "Upraveno {count} souborů"
+      "one": "upraven soubor",
+      "few": "upraveny {count} soubory",
+      "many": "upraveno {count} souboru",
+      "other": "upraveno {count} souborů"
     },
     "read": {
-      "one": "Přečten soubor",
-      "few": "Přečteny {count} soubory",
-      "many": "Přečteno {count} souboru",
-      "other": "Přečteno {count} souborů"
+      "one": "přečten soubor",
+      "few": "přečteny {count} soubory",
+      "many": "přečteno {count} souboru",
+      "other": "přečteno {count} souborů"
     },
     "searched": {
-      "one": "Prohledána složka",
-      "few": "Prohledány {count} složky",
-      "many": "Prohledáno {count} složek",
-      "other": "Prohledáno {count} složek"
+      "one": "prohledána složka",
+      "few": "prohledány {count} složky",
+      "many": "prohledáno {count} složek",
+      "other": "prohledáno {count} složek"
     },
     "ran": {
-      "one": "Spuštěn příkaz",
-      "few": "Spuštěny {count} příkazy",
-      "many": "Spuštěno {count} příkazů",
-      "other": "Spuštěno {count} příkazů"
+      "one": "spuštěn příkaz",
+      "few": "spuštěny {count} příkazy",
+      "many": "spuštěno {count} příkazů",
+      "other": "spuštěno {count} příkazů"
     },
     "fetched": {
-      "one": "Načtena stránka",
-      "few": "Načteny {count} stránky",
-      "many": "Načteno {count} stránek",
-      "other": "Načteno {count} stránek"
+      "one": "načtena stránka",
+      "few": "načteny {count} stránky",
+      "many": "načteno {count} stránek",
+      "other": "načteno {count} stránek"
     },
     "searchedWeb": {
-      "one": "Prohledán web",
-      "few": "Web prohledán {count}krát",
-      "many": "Web prohledán {count}krát",
-      "other": "Web prohledán {count}krát"
+      "one": "prohledán web",
+      "few": "web prohledán {count}krát",
+      "many": "web prohledán {count}krát",
+      "other": "web prohledán {count}krát"
     },
     "used": {
-      "one": "Použit nástroj",
-      "few": "Použity {count} nástroje",
-      "many": "Použito {count} nástrojů",
-      "other": "Použito {count} nástrojů"
+      "one": "použit nástroj",
+      "few": "použity {count} nástroje",
+      "many": "použito {count} nástrojů",
+      "other": "použito {count} nástrojů"
     },
     "failed": {
-      "one": "Nezdařil se {count}",
-      "few": "Nezdařily se {count}",
-      "many": "Nezdařilo se {count}",
-      "other": "Nezdařilo se {count}"
+      "one": "nezdařil se {count}",
+      "few": "nezdařily se {count}",
+      "many": "nezdařilo se {count}",
+      "other": "nezdařilo se {count}"
     }
   },
   "showHiddenSteps": {

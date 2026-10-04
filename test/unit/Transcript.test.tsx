@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -8,6 +8,7 @@ import { segment, Transcript } from '../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../src/webview/state/uiState'
 import {
   mountTranscript,
+  renderSteps,
   renderTranscript,
   tool,
   transcriptProps,
@@ -23,6 +24,28 @@ const attachment = {
 }
 
 const longOutput = Array.from({ length: 20 }, (_, index) => `line ${String(index + 1)}`).join('\n')
+
+/** A question card waiting on the user: a step that never folds. */
+function waitingQuestion() {
+  return tool({
+    id: 'w',
+    tool: 'request_user_input',
+    args: '{}',
+    status: 'inProgress',
+    question: {
+      userInputId: 'q',
+      questions: [
+        {
+          id: 'c',
+          header: 'Colour',
+          question: 'Which?',
+          selection: { mode: 'single' },
+          options: [{ label: 'Red' }],
+        },
+      ],
+    },
+  })
+}
 
 describe('Transcript', () => {
   it('renders every entry kind', () => {
@@ -176,7 +199,7 @@ describe('Transcript', () => {
   })
 
   it('renders a fetched patch with line numbers and a write from its content', () => {
-    renderTranscript(
+    renderSteps(
       [
         tool({
           id: 'ed',
@@ -218,7 +241,7 @@ describe('Transcript', () => {
   })
 
   it('shows failures, generic bodies, and decided or answered outcomes', () => {
-    renderTranscript([
+    renderSteps([
       tool({
         id: 'f',
         tool: 'powershell',
@@ -249,30 +272,12 @@ describe('Transcript', () => {
     expect(screen.getByText('match')).toBeInTheDocument()
   })
 
-  it('folds steps behind one row in Focus view but never a step waiting on the user', () => {
-    const waiting = tool({
-      id: 'w',
-      tool: 'request_user_input',
-      args: '{}',
-      status: 'inProgress',
-      question: {
-        userInputId: 'q',
-        questions: [
-          {
-            id: 'c',
-            header: 'Colour',
-            question: 'Which?',
-            selection: { mode: 'single' },
-            options: [{ label: 'Red' }],
-          },
-        ],
-      },
-    })
+  it('folds steps under one summary in Focus view but never a step waiting on the user', () => {
     const entries: TranscriptEntry[] = [
       { kind: 'assistant', id: 'a', text: 'plan', isStreaming: false },
       tool({ id: 't1' }),
       { kind: 'reasoning', id: 'r', parts: [], isStreaming: false, startedAt: 0, durationMs: 1 },
-      waiting,
+      waitingQuestion(),
       tool({ id: 't2' }),
     ]
     expect(segment(entries, true).map((part) => part.kind)).toEqual([
@@ -281,44 +286,43 @@ describe('Transcript', () => {
       'entry',
       'steps',
     ])
-    expect(segment(entries, false).every((part) => part.kind === 'entry')).toBe(true)
     renderTranscript(entries, { isFocusView: true })
-    expect(screen.getByText('Show 2 steps hidden by Focus view')).toBeInTheDocument()
+    // Focus view folds a single step too, as before, now under its summary (M87).
+    const summaries = screen.getAllByRole('button', { name: 'Read a file' })
+    expect(summaries).toHaveLength(2)
     expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Show 2 steps hidden by Focus view'))
-    expect(screen.getByText('Hide 2 steps hidden by Focus view')).toBeInTheDocument()
+    fireEvent.click(summaries[0]!)
+    expect(summaries[0]).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getAllByText('Read')).toHaveLength(1)
-    expect(screen.getByText('Show 1 step hidden by Focus view')).toBeInTheDocument()
+    expect(summaries[1]).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('counts the hidden steps in the display language’s plural forms (M40)', () => {
+  it('counts each part in the display language’s plural forms (M40, M87)', () => {
     setUiText(
       {
         ...EN,
-        showHiddenSteps: {
-          one: 'Pokaż {count} krok',
-          few: 'Pokaż {count} kroki',
-          many: 'Pokaż {count} kroków',
-          other: 'Pokaż {count} kroku',
-        },
-        hideHiddenSteps: {
-          one: 'Ukryj {count} krok',
-          few: 'Ukryj {count} kroki',
-          many: 'Ukryj {count} kroków',
-          other: 'Ukryj {count} kroku',
+        stepSummary: {
+          ...EN.stepSummary,
+          read: {
+            one: 'odczytano {count} plik',
+            few: 'odczytano {count} pliki',
+            many: 'odczytano {count} plików',
+            other: 'odczytano {count} pliku',
+          },
         },
       },
       'pl',
     )
     try {
       const steps = (count: number) =>
-        Array.from({ length: count }, (_, index) => tool({ id: `t${String(index)}` }))
-      const two = render(<Transcript {...transcriptProps(steps(2), { isFocusView: true })} />)
-      fireEvent.click(screen.getByText('Pokaż 2 kroki'))
-      expect(screen.getByText('Ukryj 2 kroki')).toBeInTheDocument()
+        Array.from({ length: count }, (_, index) =>
+          tool({ id: `t${String(index)}`, args: `{"path":"f${String(index)}.ts"}` }),
+        )
+      const two = render(<Transcript {...transcriptProps(steps(2), {})} />)
+      expect(screen.getByRole('button', { name: 'Odczytano 2 pliki' })).toBeInTheDocument()
       two.unmount()
-      renderTranscript(steps(5), { isFocusView: true })
-      expect(screen.getByText('Pokaż 5 kroków')).toBeInTheDocument()
+      renderTranscript(steps(5))
+      expect(screen.getByRole('button', { name: 'Odczytano 5 plików' })).toBeInTheDocument()
     } finally {
       setUiText(EN, 'en')
     }
@@ -344,7 +348,7 @@ describe('Transcript editor integration (M5)', () => {
   })
 
   it('links the path of an edit or read row to the file at its change, with no review buttons (M16)', () => {
-    const props = renderTranscript(
+    const props = renderSteps(
       [
         tool({
           id: 'ed',
@@ -438,7 +442,7 @@ function chevronOf(index: number): Element | null {
 
 describe('Transcript rows (M15, M16)', () => {
   it('marks rows that open with a chevron that turns, and disables rows with nothing to show', () => {
-    renderTranscript([
+    renderSteps([
       tool({ id: 'rd', tool: 'read_file', args: '{"path":"a.ts"}', output: 'a\nb' }),
       tool({ id: 'empty', tool: 'read_file', output: '' }),
     ])
@@ -464,7 +468,7 @@ describe('Transcript rows (M15, M16)', () => {
   })
 
   it('opens a shell or read output in an editor on click or Enter, with the stored ref when there is one', () => {
-    const props = renderTranscript([
+    const props = renderSteps([
       tool({
         id: 'sh',
         tool: 'powershell',
@@ -488,7 +492,7 @@ describe('Transcript rows (M15, M16)', () => {
   })
 
   it('offers Click to expand on every diff with a stored patch (the diff editor) and clips long ones inline otherwise', () => {
-    const props = renderTranscript([
+    const props = renderSteps([
       tool({
         id: 'e1',
         tool: 'edit_file',
@@ -517,7 +521,7 @@ describe('Transcript rows (M15, M16)', () => {
 
   it('offers the editor for a rename stopped partway, and for no other failed edit (M67)', () => {
     const diff = '--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new'
-    const props = renderTranscript([
+    const props = renderSteps([
       tool({
         id: 'r1',
         tool: 'rename_symbol',
@@ -987,7 +991,7 @@ describe('Transcript replies (M25)', () => {
 
 describe('Transcript: paid rows and cited sources (M33)', () => {
   it('marks a paid row, with its price in the tooltip, and shows the search query', () => {
-    renderTranscript([
+    renderSteps([
       tool({
         id: 'ws',
         tool: 'web_search',
@@ -1040,5 +1044,295 @@ describe('Transcript: paid rows and cited sources (M33)', () => {
       { kind: 'assistant', id: 'b', text: 'Plain', isStreaming: false, citations: [] },
     ])
     expect(screen.queryByRole('navigation', { name: 'Sources' })).toBeNull()
+  })
+})
+
+/** A user card as the reducer leaves it once accepted. */
+function userCard(overrides: Partial<Extract<TranscriptEntry, { kind: 'user' }>> = {}) {
+  return {
+    kind: 'user' as const,
+    id: 'l2',
+    seq: 1,
+    text: 'queued text',
+    status: 'queued' as const,
+    disposition: 'queued',
+    turnId: 't2',
+    attachments: [],
+    ...overrides,
+  }
+}
+
+describe('Transcript: the step summary in the default view (M87, PLAN.md D66)', () => {
+  const run: TranscriptEntry[] = [
+    { kind: 'user', id: 'u', seq: 0, text: 'go', status: 'sent', attachments: [] },
+    tool({ id: 'e1', tool: 'edit_file', args: '{"path":"a.ts"}' }),
+    tool({ id: 's1', tool: 'powershell', args: '{"command":"ls"}' }),
+    { kind: 'reasoning', id: 'r', parts: ['x'], isStreaming: false, startedAt: 0, durationMs: 1 },
+    tool({ id: 'e2', tool: 'write_file', args: '{"path":"b.ts","content":"x"}' }),
+    tool({ id: 'e3', tool: 'edit_file', args: '{"path":"a.ts"}' }),
+    tool({ id: 'r1', args: '{"path":"x.ts"}' }),
+    tool({ id: 'r2', args: '{"path":"y.ts"}' }),
+    tool({ id: 'r3', args: '{"path":"z.ts"}' }),
+    { kind: 'assistant', id: 'a', text: 'done', isStreaming: false },
+  ]
+
+  it('folds two or more finished steps under what they did, in first-seen order', () => {
+    expect(segment(run, false).map((part) => part.kind)).toEqual(['entry', 'steps', 'entry'])
+    renderTranscript(run)
+    const summary = screen.getByRole('button', {
+      name: 'Edited 2 files, ran a command, and read 3 files',
+    })
+    expect(summary).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Read')).toBeNull()
+    fireEvent.click(summary)
+    expect(summary).toHaveAttribute('aria-expanded', 'true')
+    const list = document.querySelector(
+      `#${CSS.escape(summary.getAttribute('aria-controls') ?? '')}`,
+    )
+    expect(list?.querySelectorAll(':scope > li')).toHaveLength(8)
+  })
+
+  it('leaves one finished step alone, and a run broken by a message as two', () => {
+    const lone: TranscriptEntry[] = [
+      tool({ id: 'r1' }),
+      { kind: 'assistant', id: 'a', text: 'between', isStreaming: false },
+      tool({ id: 'r2' }),
+    ]
+    expect(segment(lone, false).every((part) => part.kind === 'entry')).toBe(true)
+    renderTranscript(lone)
+    expect(screen.getAllByText('Read')).toHaveLength(2)
+  })
+
+  it('never folds a step waiting on the user, and keeps a running one below the group', () => {
+    const entries: TranscriptEntry[] = [
+      tool({ id: 'r1' }),
+      tool({
+        id: 'live',
+        tool: 'powershell',
+        args: '{"command":"npm test"}',
+        status: 'inProgress',
+      }),
+      tool({ id: 'r2', args: '{"path":"b.ts"}' }),
+      // Waiting, whatever status the wire gives the row (D36): never folded.
+      { ...waitingQuestion(), status: 'awaitingInput' },
+    ]
+    const parts = segment(entries, false)
+    expect(parts.map((part) => (part.kind === 'steps' ? 'steps' : part.entry.id))).toEqual([
+      'steps',
+      'live',
+      'w',
+    ])
+    renderTranscript(entries)
+    expect(screen.getByRole('button', { name: 'Read 2 files' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    expect(document.querySelector('.tool-dot-running')).not.toBeNull()
+    // Two finished steps and nothing else: a run of thoughts alone reads as a thought.
+    const thoughts: TranscriptEntry[] = [
+      { kind: 'reasoning', id: 'x', parts: [], isStreaming: false, startedAt: 0, durationMs: 1 },
+      { kind: 'reasoning', id: 'y', parts: [], isStreaming: false, startedAt: 0, durationMs: 1 },
+    ]
+    renderTranscript(thoughts)
+    expect(screen.getByRole('button', { name: UI_TEXT.thoughtDone })).toBeInTheDocument()
+  })
+
+  it('names a failure in the summary and carries the failure dot, never hiding it', () => {
+    renderTranscript([
+      tool({ id: 's1', tool: 'powershell', args: '{"command":"a"}', status: 'failed' }),
+      tool({ id: 's2', tool: 'powershell', args: '{"command":"b"}' }),
+      tool({ id: 's3', tool: 'powershell', args: '{"command":"c"}', status: 'interrupted' }),
+    ])
+    const summary = screen.getByRole('button', { name: 'Ran 3 commands and 1 failed' })
+    expect(summary.querySelector('.tool-dot-failed')).not.toBeNull()
+    renderTranscript([tool({ id: 'r1' }), tool({ id: 'r2', args: '{"path":"b.ts"}' })])
+    expect(
+      screen.getByRole('button', { name: 'Read 2 files' }).querySelector('.tool-dot-failed'),
+    ).toBeNull()
+  })
+})
+
+/** A time as the card formats it in English, the zone the test set. */
+function timeOf(atMs: number): string {
+  return new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(atMs)
+}
+
+function dateTimeOf(atMs: number): string {
+  return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(atMs)
+}
+
+function fullOf(atMs: number): string {
+  return new Intl.DateTimeFormat('en', { dateStyle: 'full', timeStyle: 'short' }).format(atMs)
+}
+
+describe('Transcript: message times (M87, PLAN.md D66)', () => {
+  const zone = process.env['TZ']
+  // Local noon on 4 October 2026 in New York (16:00 UTC).
+  const NOW = Date.UTC(2026, 9, 4, 16, 0)
+  const TODAY = Date.UTC(2026, 9, 4, 14, 5)
+  // 23:59 on the 3rd in New York: 03:59 UTC on the 4th, so a UTC check would call it today.
+  const LATE_YESTERDAY = Date.UTC(2026, 9, 4, 3, 59)
+
+  beforeAll(() => {
+    process.env['TZ'] = 'America/New_York'
+    setUiText(EN, 'en')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+  })
+
+  afterAll(() => {
+    vi.useRealTimers()
+    if (zone === undefined) {
+      delete process.env['TZ']
+    } else {
+      process.env['TZ'] = zone
+    }
+    setUiText(EN, 'en')
+  })
+
+  it('shows today’s time alone and an older one with its date, the full date in the title', () => {
+    renderTranscript([
+      { kind: 'user', id: 'u1', seq: 0, text: 'now', status: 'sent', attachments: [], atMs: TODAY },
+      {
+        kind: 'user',
+        id: 'u2',
+        seq: 1,
+        text: 'late',
+        status: 'sent',
+        attachments: [],
+        atMs: LATE_YESTERDAY,
+      },
+      { kind: 'assistant', id: 'a', text: 'reply', isStreaming: false, atMs: TODAY },
+    ])
+    const [today, yesterday, reply] = document.querySelectorAll('time')
+    expect(today).toHaveTextContent(timeOf(TODAY))
+    expect(today).toHaveAttribute('dateTime', new Date(TODAY).toISOString())
+    expect(today).toHaveAttribute('title', `Sent ${fullOf(TODAY)}`)
+    expect(yesterday).toHaveTextContent(dateTimeOf(LATE_YESTERDAY))
+    expect(yesterday).toHaveAttribute('title', `Sent ${fullOf(LATE_YESTERDAY)}`)
+    expect(fullOf(LATE_YESTERDAY)).toContain('October 3')
+    expect(reply).toHaveAttribute('title', `Received ${fullOf(TODAY)}`)
+  })
+
+  it('makes the time a keyboard stop only on a card with no button of its own', () => {
+    renderTranscript(
+      [
+        // Imported or not yet in a session: no rewind, so the time is the stop.
+        {
+          kind: 'user',
+          id: 'u1',
+          seq: 0,
+          text: 'mine',
+          status: 'sent',
+          attachments: [],
+          atMs: TODAY,
+        },
+        { kind: 'assistant', id: 'a1', text: 'streaming', isStreaming: true, atMs: TODAY },
+        { kind: 'assistant', id: 'a2', text: 'done', isStreaming: false, atMs: TODAY },
+      ],
+      {},
+    )
+    const [user, streaming, done] = document.querySelectorAll('time')
+    expect(user).toHaveAttribute('tabindex', '0')
+    expect(streaming).toHaveAttribute('tabindex', '0')
+    expect(done).not.toHaveAttribute('tabindex')
+  })
+
+  it('gives a card with its rewind menu or its queued menu no extra stop', () => {
+    renderTranscript(
+      [
+        { kind: 'user', id: 'u1', seq: 0, text: 'a', status: 'sent', attachments: [], atMs: TODAY },
+        userCard({ atMs: TODAY }),
+      ],
+      { onRewind: vi.fn(), onEditQueued: vi.fn() },
+    )
+    for (const time of document.querySelectorAll('time')) {
+      expect(time).not.toHaveAttribute('tabindex')
+    }
+  })
+
+  it('shows no time where none was recorded', () => {
+    renderTranscript([
+      { kind: 'user', id: 'u1', seq: 0, text: 'old', status: 'sent', attachments: [] },
+      { kind: 'assistant', id: 'a', text: 'old', isStreaming: false },
+    ])
+    expect(document.querySelectorAll('time')).toHaveLength(0)
+  })
+})
+
+/** A queued card's "…" button. */
+function menuButton(): HTMLElement {
+  return screen.getByRole('button', { name: UI_TEXT.queuedMenuLabel })
+}
+
+describe('Transcript: Edit on a queued message (M87, PLAN.md D66)', () => {
+  it('marks a queued card and offers Edit from its "…", passing the ids the host gave it', () => {
+    const onEditQueued = vi.fn()
+    renderTranscript([userCard({ replayItemId: 'u2' })], { onEditQueued })
+    expect(screen.getByText(UI_TEXT.queuedLabel)).toBeInTheDocument()
+    fireEvent.click(menuButton())
+    expect(menuButton()).toHaveAttribute('aria-expanded', 'true')
+    const edit = screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit })
+    expect(edit).toHaveAttribute('title', UI_TEXT.queuedEditTitle)
+    expect(edit).toHaveFocus()
+    fireEvent.click(edit)
+    expect(onEditQueued).toHaveBeenCalledWith({ localId: 'l2', turnId: 't2', userMessageId: 'u2' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('opens the menu on a right-click, Shift+F10 or the context-menu key', () => {
+    renderTranscript([userCard()], { onEditQueued: vi.fn() })
+    const card = screen.getByText('queued text')
+    const isDefaultKept = fireEvent.contextMenu(card)
+    // The panel's own menu, not the webview's.
+    expect(isDefaultKept).toBe(false)
+    expect(screen.getByRole('menu', { name: UI_TEXT.queuedMenuLabel })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menuitem'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(menuButton()).toHaveFocus()
+    fireEvent.keyDown(menuButton(), { key: 'F10', shiftKey: true })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('menuitem'), { key: 'Escape' })
+    fireEvent.keyDown(menuButton(), { key: 'ContextMenu' })
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('leaves a right-click on selected text to the quote menu', () => {
+    renderTranscript([userCard()], { onEditQueued: vi.fn() })
+    const text = screen.getByText('queued text')
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    const selection = globalThis.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+    try {
+      expect(fireEvent.contextMenu(text)).toBe(true)
+      expect(screen.queryByRole('menu')).toBeNull()
+    } finally {
+      selection?.removeAllRanges()
+    }
+  })
+
+  it('says a Muse Code steer was delivered instead of offering Edit, and lets a Model API one be edited', () => {
+    const steered = userCard({ disposition: 'steered', turnId: 't1' })
+    const view = mountTranscript([steered], { onEditQueued: vi.fn() })
+    expect(screen.queryByText(UI_TEXT.queuedLabel)).toBeNull()
+    fireEvent.click(menuButton())
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.queuedDelivered })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.queryByRole('menuitem', { name: UI_TEXT.queuedEdit })).toBeNull()
+    view.rerender({ canEditSteered: true })
+    expect(screen.getByText(UI_TEXT.queuedLabel)).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit })).toBeInTheDocument()
+  })
+
+  it('offers no menu where nothing can take a message back, nor on a sent card', () => {
+    renderTranscript([userCard()])
+    expect(screen.queryByRole('button', { name: UI_TEXT.queuedMenuLabel })).toBeNull()
+    expect(fireEvent.contextMenu(screen.getByText('queued text'))).toBe(true)
+    renderTranscript([userCard({ id: 's', status: 'sent', text: 'sent text' })], {
+      onEditQueued: vi.fn(),
+    })
+    expect(screen.queryByRole('button', { name: UI_TEXT.queuedMenuLabel })).toBeNull()
   })
 })

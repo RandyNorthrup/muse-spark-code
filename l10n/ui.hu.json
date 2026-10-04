@@ -17,6 +17,8 @@
   "queuedEditTitle": "Vegye ki az üzenetet a sorból, és tegye vissza a prompt mezőbe",
   "queuedDelivered": "Már átadva a futó körnek",
   "queuedTooLate": "Ez az üzenet már elérte a modellt, ezért már nem szerkeszthető.",
+  "queuedEditUnsupported": "Ez a beszélgetés nem tud visszavenni sorba állított üzenetet, ezért az nem szerkeszthető.",
+  "queuedImagesNotReturned": "Az üzenet visszakerült a beviteli mezőbe, de a képeit nem sikerült visszaadni. Küldés előtt csatolja őket újra.",
   "composerLabel": "Üzenet a Muse számára",
   "connecting": "Csatlakozás a kiegészítők gazdafolyamatához…",
   "notSignedIn": "Nincs bejelentkezve",

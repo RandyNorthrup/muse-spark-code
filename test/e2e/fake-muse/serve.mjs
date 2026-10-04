@@ -19,6 +19,9 @@
 //                     moves it (M46); `task/stop` then ends it
 //   anything else     "echo: <text>" streamed in two deltas
 //
+// A `turn/start` while a turn runs is queued behind it and launches when it
+// ends; `turn/unqueue` reclaims a queued one (M87, as captured 2026-10-04).
+//
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
 // so the handshake raises no warning), MUSE_FAKE_START=crash (exit 3 before
 // the handshake, the spawn-failure drill), =silent (read the handshake and
@@ -144,6 +147,13 @@ const state = {
   nextId: 0,
   /** The turn in flight, if any: { sessionId, turnId, onCancel } */
   running: undefined,
+  /**
+   * Submits queued behind it (M87, `ifBusy: "queue"`, the default):
+   * { session, turnId, text, commandId }, launched in order as each turn ends.
+   */
+  queue: [],
+  /** Turns a `turn/unqueue` reclaimed: a second reclaim is `already_applied`. */
+  reclaimed: new Set(),
   /** The approval in flight, if any: { resolve } */
   pendingApproval: undefined,
   /** Long tool calls by item (M46): { sessionId, call, isBackground, onBackground } */
@@ -232,6 +242,29 @@ function completeTurn(session, turnId, terminal, extra = {}) {
   }
   notify('usage/changed', state.usage)
   state.running = undefined
+  launchNext()
+}
+
+/**
+ * The next queued submit launches as the running turn ends, as captured on
+ * 2026-10-04 (docs/certification/m87-c.md): `turn/started` at the launch,
+ * then its `userMessage` item.
+ */
+function launchNext() {
+  const next = state.queue.shift()
+  if (next === undefined) {
+    return
+  }
+  startTurn(next.session, next.turnId, next.text)
+}
+
+function startTurn(session, turnId, text) {
+  session.record.status = 'running'
+  session.record.activeTurnId = turnId
+  state.running = { sessionId: session.record.sessionId, turnId, onCancel: undefined }
+  setImmediate(() => {
+    void runTurn(session, turnId, text)
+  })
 }
 
 function awaitDecision() {
@@ -712,20 +745,26 @@ const handlers = {
     return { commandId: params.commandId, session: record(session), viewCursor: `v:${sessionId}:0` }
   },
   'turn/start': (params) => {
-    if (state.running !== undefined) {
-      throw new Error('a turn is already running')
-    }
     const session = sessionFor(params)
     const turnId = id('turn')
     const text = params.input.find((part) => part.type === 'text')?.text ?? ''
-    session.record.status = 'running'
-    session.record.activeTurnId = turnId
     session.record.firstUserPrompt ??= text
     session.record.title ??= text
-    state.running = { sessionId: session.record.sessionId, turnId, onCancel: undefined }
-    setImmediate(() => {
-      void runTurn(session, turnId, text)
-    })
+    // Busy: queued behind the running turn (M87), the CLI's default `ifBusy`.
+    if (state.running !== undefined) {
+      if ((params.ifBusy ?? 'queue') !== 'queue') {
+        throw new Error('a turn is already running')
+      }
+      state.queue.push({ session, turnId, text, commandId: params.commandId })
+      return {
+        commandId: params.commandId,
+        turnId,
+        status: 'accepted',
+        disposition: 'queued',
+        startedNewTurn: false,
+      }
+    }
+    startTurn(session, turnId, text)
     return {
       commandId: params.commandId,
       turnId,
@@ -733,6 +772,28 @@ const handlers = {
       disposition: 'started',
       startedNewTurn: true,
     }
+  },
+  // A queued submit reclaimed before it launches (M87), as captured on
+  // 2026-10-04: `turn/unqueued` (with the queueing `turn/start`'s commandId)
+  // went out before the ack; a reclaim after the launch was refused
+  // `run_active`, a second one `already_applied`.
+  'turn/unqueue': (params) => {
+    const index = state.queue.findIndex(
+      (queued) =>
+        queued.turnId === params.turnId && queued.session.record.sessionId === params.sessionId,
+    )
+    const [queued] = index === -1 ? [] : state.queue.splice(index, 1)
+    if (queued === undefined) {
+      throw rejected(state.reclaimed.has(params.turnId) ? 'already_applied' : 'run_active')
+    }
+    state.reclaimed.add(queued.turnId)
+    notify('turn/unqueued', {
+      sessionId: params.sessionId,
+      turnId: queued.turnId,
+      commandId: queued.commandId,
+      viewCursor: `v:${params.sessionId}:unqueued`,
+    })
+    return { commandId: params.commandId, status: 'accepted', turnId: queued.turnId }
   },
   'turn/cancel': (params) => {
     state.running?.onCancel?.()

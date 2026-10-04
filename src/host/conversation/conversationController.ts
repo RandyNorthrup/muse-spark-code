@@ -5306,10 +5306,16 @@ export class ConversationController {
       this.post({ type: 'withdrawRefused', localId, reason })
     }
     const { session } = this
+    if (session?.withdrawQueued === undefined) {
+      // A backend without the verb takes nothing back (M87, the lead's string).
+      this.deps.log.info(`Queued message ${localId} not withdrawn: the session cannot`)
+      refuse(UI_TEXT.queuedEditUnsupported)
+      return
+    }
     const queued = this.queuedMessages.get(localId)
     const isQueuedHere =
       queued?.turnId === message.turnId && queued.userMessageId === message.userMessageId
-    if (!isQueuedHere || session?.withdrawQueued === undefined) {
+    if (!isQueuedHere) {
       this.deps.log.info(`Queued message ${localId} not withdrawn: it is not queued here`)
       refuse(UI_TEXT.queuedTooLate)
       return

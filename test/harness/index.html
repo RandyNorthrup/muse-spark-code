@@ -1567,6 +1567,78 @@
           send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })
           transcriptFixture()
         },
+        // --- M87 lane C: the default view folds a run of finished steps under
+        // what they did (a failure named, with its dot), shown folded and open.
+        'steps-summary': () => {
+          window.harnessSilent = true
+          setDraft('Tidy the notes, then run the check')
+          key({ key: 'Enter' })
+          const done = (itemId, tool, args, extra = {}) =>
+            event({
+              type: 'itemCompleted',
+              item: { itemId, kind: 'toolCall', status: 'completed', tool, args, ...extra },
+            })
+          done('s1', 'read_file', '{"path":"notes.md"}', { visibleOutput: '1|# Notes' })
+          done('s2', 'read_file', '{"path":"todo.md"}', { visibleOutput: '1|- tidy' })
+          done('s3', 'edit_file', '{"path":"notes.md"}', {
+            patchSummary: { files: 1, added: 2, removed: 1 },
+          })
+          done('s4', 'powershell', '{"command":"npm test","description":"Run the check"}', {
+            status: 'failed',
+            failureReason: 'exit code 1',
+          })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 's5',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'The notes are tidy; the check failed once on a stale snapshot.',
+            },
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+        },
+        'steps-summary-open': () => {
+          steps['steps-summary']()
+          whenFound('.steps-toggle', (summary) => {
+            summary.click()
+            summary.focus()
+          })
+        },
+        // A card with no button of its own (no session, so no rewind): its
+        // time is the keyboard stop, shown with the focus ring.
+        'message-time': () => {
+          window.harnessSilent = true
+          setDraft('What changed since this morning?')
+          key({ key: 'Enter' })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'mt1',
+              kind: 'agentMessage',
+              status: 'completed',
+              text: 'Two files: `notes.md` and `todo.md`.',
+              recordedAt: new Date().toISOString(),
+            },
+          })
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+          whenFound('.message-user time[tabindex]', (time) => time.focus())
+        },
+        // A message steered into the running Muse Code turn: its "…" menu
+        // says it was delivered (Edit there needs lane W's wiring).
+        'queued-menu': () => {
+          window.harnessSilent = true
+          setDraft('Start the refactor')
+          key({ key: 'Enter' })
+          send({
+            type: 'briefSubmitted',
+            localId: 'steer-1',
+            text: 'Keep the old names',
+            attachments: [],
+          })
+          send({ type: 'turnAccepted', localId: 'steer-1', turnId: 't1', disposition: 'steered' })
+          whenFound('.queued-button', (button) => button.click())
+        },
         'add-context': () => {
           click('Attach')
           later(100, () => {

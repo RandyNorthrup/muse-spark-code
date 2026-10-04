@@ -15831,3 +15831,155 @@ describe('what a Model API turn ran, for its checkpoint (M86, spec 8)', () => {
     io.runs[0]?.finish({ stdout: 'ready', exitCode: 0 })
   })
 })
+
+/** A running turn whose first reply (a read of a.txt) is held, so input can wait for its next request (M87). */
+async function heldReadTurn() {
+  const t = setup({ files: { 'a.txt': 'alpha\n' } })
+  const { session, events, turnDone } = await startSession(t)
+  const held = Promise.withResolvers<undefined>()
+  t.api.script(
+    {
+      calls: [{ name: 'read_file', arguments: '{"path":"a.txt"}', callId: 'call_read' }],
+      hold: held.promise,
+    },
+    { text: 'It says alpha.' },
+  )
+  const running = await session.sendTurn([{ type: 'text', text: 'what is in a.txt?' }])
+  await vi.waitFor(() => {
+    expect(t.api.responseBodies()).toHaveLength(1)
+  })
+  return { t, session, events, turnDone, held, running }
+}
+
+const STEER_IMAGE = {
+  type: 'image',
+  mediaType: 'image/png',
+  base64Data: TINY_PNG_BASE64,
+  width: 1,
+  height: 1,
+} as const
+
+describe('ModelApiHost: taking a message back before a request reads it (M87, PLAN.md D66)', () => {
+  it('takes a queued turn out of the queue with its images, and ends it withdrawn', async () => {
+    const { t, session, events, turnDone, held } = await heldReadTurn()
+    const queued = await session.sendTurn([{ type: 'text', text: 'queued-zeta' }, STEER_IMAGE])
+    expect(queued.disposition).toBe('queued')
+    await expect(
+      session.withdrawQueued({
+        turnId: queued.turnId,
+        userMessageId: queued.userMessageId,
+        disposition: 'queued',
+      }),
+    ).resolves.toEqual({
+      status: 'withdrawn',
+      images: [{ mediaType: 'image/png', base64Data: TINY_PNG_BASE64 }],
+    })
+    expect(events).toContainEqual({
+      type: 'turnWithdrawn',
+      turnId: queued.turnId,
+      reason: UI_TEXT.turnUnqueued,
+    })
+    held.resolve(undefined)
+    await turnDone()
+    // It never ran: one turn, two requests (the read and its answer), no queued text.
+    expect(events.filter((event) => event.type === 'turnStarted')).toHaveLength(1)
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(t.api.responseBodies())).not.toContain('queued-zeta')
+    // Taken already: a second Edit is too late.
+    await expect(
+      session.withdrawQueued({
+        turnId: queued.turnId,
+        userMessageId: queued.userMessageId,
+        disposition: 'queued',
+      }),
+    ).resolves.toEqual({ status: 'tooLate' })
+  })
+
+  it('takes a steer back before drainSteered reads it, saying nothing to the running turn', async () => {
+    const { t, session, events, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [
+      { type: 'text', text: 'steer to take back' },
+      STEER_IMAGE,
+    ])
+    await expect(
+      session.withdrawQueued({
+        turnId: running.turnId,
+        userMessageId: steered.userMessageId,
+        disposition: 'steered',
+      }),
+    ).resolves.toEqual({
+      status: 'withdrawn',
+      images: [{ mediaType: 'image/png', base64Data: TINY_PNG_BASE64 }],
+    })
+    held.resolve(undefined)
+    await turnDone()
+    expect(t.api.responseBodies()).toHaveLength(2)
+    expect(JSON.stringify(t.api.responseBodies()[1])).not.toContain('steer to take back')
+    // The running turn was never told it ended early (lane P's warning).
+    expect(events.filter((event) => event.type === 'turnWithdrawn')).toEqual([])
+    expect(events.filter((event) => event.type === 'messageAdmitted')).toEqual([])
+    expect(session.history().items.filter((item) => item.kind === 'userMessage')).toHaveLength(1)
+  })
+
+  it('says too late once drainSteered put the steer in a request, and tells the panel it was admitted', async () => {
+    const { t, session, events, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [{ type: 'text', text: 'steer in time' }])
+    const finished = turnDone()
+    held.resolve(undefined)
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(2)
+    })
+    expect(JSON.stringify(t.api.responseBodies()[1])).toContain('steer in time')
+    expect(events).toContainEqual({ type: 'messageAdmitted', userMessageId: steered.userMessageId })
+    await expect(
+      session.withdrawQueued({
+        turnId: running.turnId,
+        userMessageId: steered.userMessageId,
+        disposition: 'steered',
+      }),
+    ).resolves.toEqual({ status: 'tooLate' })
+    await finished
+  })
+
+  it('answers too late for a turn that is not queued, another turn, or another message', async () => {
+    const { session, turnDone, held, running } = await heldReadTurn()
+    const steered = await session.steer(running.turnId, [{ type: 'text', text: 'mine' }])
+    for (const ref of [
+      { turnId: running.turnId, userMessageId: running.userMessageId, disposition: 'queued' },
+      { turnId: 'other-turn', userMessageId: steered.userMessageId, disposition: 'steered' },
+      { turnId: running.turnId, userMessageId: 'other-message', disposition: 'steered' },
+    ]) {
+      await expect(session.withdrawQueued(ref)).resolves.toEqual({ status: 'tooLate' })
+    }
+    held.resolve(undefined)
+    await turnDone()
+  })
+
+  it('stamps each user message and reply with its time, kept in the session file and read back', async () => {
+    const store = memorySessionStore()
+    const t = setup({ store, files: { 'a.txt': 'alpha\n' } })
+    const { session, turnDone } = await startSession(t)
+    await readAlphaTurn(t, session, turnDone)
+    const stamped = session
+      .history()
+      .items.filter((item) => item.kind === 'userMessage' || item.kind === 'agentMessage')
+    expect(stamped.map((item) => item.kind)).toEqual(['userMessage', 'agentMessage'])
+    for (const item of stamped) {
+      expect(item.recordedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    }
+    const [asked, answered] = stamped
+    expect(Date.parse(answered?.recordedAt ?? '')).toBeGreaterThan(
+      Date.parse(asked?.recordedAt ?? ''),
+    )
+    await t.host.flush()
+    session.dispose()
+    const reopened = setup({ store })
+    await reopened.host.load()
+    const loaded = await reopened.host.resumeSession(session.sessionId, 'muse-spark-1.3')
+    expect(
+      loaded.history.items
+        .filter((item) => item.kind === 'userMessage' || item.kind === 'agentMessage')
+        .map((item) => item.recordedAt),
+    ).toEqual(stamped.map((item) => item.recordedAt))
+  })
+})

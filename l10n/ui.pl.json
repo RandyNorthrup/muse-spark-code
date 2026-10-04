@@ -17,6 +17,8 @@
   "queuedEditTitle": "Wyjmij wiadomość z kolejki i przenieś ją z powrotem do pola promptu",
   "queuedDelivered": "Już przekazano do trwającej tury",
   "queuedTooLate": "Ta wiadomość dotarła już do modelu, więc nie można jej już edytować.",
+  "queuedEditUnsupported": "Ta rozmowa nie może cofnąć wiadomości z kolejki, więc nie można jej edytować.",
+  "queuedImagesNotReturned": "Wiadomość wróciła do pola tekstowego, ale nie udało się przywrócić jej obrazów. Dołącz je ponownie przed wysłaniem.",
   "composerLabel": "Wiadomość do Muse",
   "connecting": "Łączenie z hostem rozszerzeń…",
   "notSignedIn": "Nie zalogowano",
@@ -604,52 +606,52 @@
   "tasksTabEnded": "Rozmowa, do której należy ta lista, została zamknięta.",
   "stepSummary": {
     "edited": {
-      "one": "Edytowano plik",
-      "few": "Edytowano {count} pliki",
-      "many": "Edytowano {count} plików",
-      "other": "Edytowano {count} pliku"
+      "one": "edytowano plik",
+      "few": "edytowano {count} pliki",
+      "many": "edytowano {count} plików",
+      "other": "edytowano {count} pliku"
     },
     "read": {
-      "one": "Odczytano plik",
-      "few": "Odczytano {count} pliki",
-      "many": "Odczytano {count} plików",
-      "other": "Odczytano {count} pliku"
+      "one": "odczytano plik",
+      "few": "odczytano {count} pliki",
+      "many": "odczytano {count} plików",
+      "other": "odczytano {count} pliku"
     },
     "searched": {
-      "one": "Przeszukano folder",
-      "few": "Przeszukano {count} foldery",
-      "many": "Przeszukano {count} folderów",
-      "other": "Przeszukano {count} folderu"
+      "one": "przeszukano folder",
+      "few": "przeszukano {count} foldery",
+      "many": "przeszukano {count} folderów",
+      "other": "przeszukano {count} folderu"
     },
     "ran": {
-      "one": "Uruchomiono polecenie",
-      "few": "Uruchomiono {count} polecenia",
-      "many": "Uruchomiono {count} poleceń",
-      "other": "Uruchomiono {count} polecenia"
+      "one": "uruchomiono polecenie",
+      "few": "uruchomiono {count} polecenia",
+      "many": "uruchomiono {count} poleceń",
+      "other": "uruchomiono {count} polecenia"
     },
     "fetched": {
-      "one": "Pobrano stronę",
-      "few": "Pobrano {count} strony",
-      "many": "Pobrano {count} stron",
-      "other": "Pobrano {count} strony"
+      "one": "pobrano stronę",
+      "few": "pobrano {count} strony",
+      "many": "pobrano {count} stron",
+      "other": "pobrano {count} strony"
     },
     "searchedWeb": {
-      "one": "Przeszukano sieć",
-      "few": "Przeszukano sieć {count} razy",
-      "many": "Przeszukano sieć {count} razy",
-      "other": "Przeszukano sieć {count} razy"
+      "one": "przeszukano sieć",
+      "few": "przeszukano sieć {count} razy",
+      "many": "przeszukano sieć {count} razy",
+      "other": "przeszukano sieć {count} razy"
     },
     "used": {
-      "one": "Użyto narzędzia",
-      "few": "Użyto {count} narzędzi",
-      "many": "Użyto {count} narzędzi",
-      "other": "Użyto {count} narzędzia"
+      "one": "użyto narzędzia",
+      "few": "użyto {count} narzędzi",
+      "many": "użyto {count} narzędzi",
+      "other": "użyto {count} narzędzia"
     },
     "failed": {
-      "one": "Nie powiodło się: {count}",
-      "few": "Nie powiodły się: {count}",
-      "many": "Nie powiodło się: {count}",
-      "other": "Nie powiodło się: {count}"
+      "one": "nie powiodło się: {count}",
+      "few": "nie powiodły się: {count}",
+      "many": "nie powiodło się: {count}",
+      "other": "nie powiodło się: {count}"
     }
   },
   "showHiddenSteps": {

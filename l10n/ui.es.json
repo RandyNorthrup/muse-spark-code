@@ -17,6 +17,8 @@
   "queuedEditTitle": "Saca el mensaje de la cola y devuélvelo al cuadro de texto",
   "queuedDelivered": "Ya entregado al turno en curso",
   "queuedTooLate": "Este mensaje ya llegó al modelo, así que ya no se puede editar.",
+  "queuedEditUnsupported": "Esta conversación no puede recuperar un mensaje en cola, así que no se puede editar.",
+  "queuedImagesNotReturned": "El mensaje ha vuelto al cuadro de texto, pero sus imágenes no se pudieron recuperar. Vuelve a adjuntarlas antes de enviar.",
   "composerLabel": "Mensaje para Muse",
   "connecting": "Conectando con el host de extensiones…",
   "notSignedIn": "No ha iniciado sesión",

@@ -297,6 +297,66 @@ body {
   border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
 }
 
+/* A queued card (M87, PLAN.md D66): its badge, and its "…" in the corner
+   (the rewind button's place and look), always shown so Edit is found by the
+   pointer and reached by Tab. Its menu opens beneath, as the rewind menu does. */
+.message-queued {
+  padding-right: 32px;
+}
+
+.message-queued-badge {
+  margin-top: 4px;
+  font-size: 0.85em;
+}
+
+.rewind-button.queued-button {
+  visibility: visible;
+}
+
+/* A message's time (M87): at the card's corner beside its buttons, shown on
+   hover and while focus is inside the card. A card with no button of its
+   own makes the time its keyboard stop (`tabindex`), in the corner itself. */
+.message-time {
+  position: absolute;
+  padding: 0 4px;
+  border-radius: var(--ms-radius);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  background: var(--vscode-input-background);
+  opacity: 0%;
+}
+
+.message-assistant > .message-time {
+  right: 54px;
+  bottom: 4px;
+  background: var(--vscode-editor-background);
+}
+
+.message-user > .message-time {
+  top: 6px;
+  right: 30px;
+}
+
+.message-time:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.message-assistant > .message-time[tabindex],
+.message-user > .message-time[tabindex] {
+  right: 4px;
+}
+
+.message-assistant:hover > .message-time,
+.message-assistant:focus-within > .message-time,
+.message-user:hover > .message-time,
+.message-user:focus-within > .message-time {
+  opacity: 100%;
+}
+
 .cursor {
   display: inline-block;
   width: 0.55em;
@@ -1283,11 +1343,17 @@ body {
   color: var(--vscode-descriptionForeground);
 }
 
-/* Focus view: consecutive steps fold into one row. */
+/* Consecutive steps fold into one summary row (M16, M87): its dot (the
+   failure's when one failed), what the steps did, and the chevron. */
 .steps-toggle {
   width: 100%;
   padding: 2px 0;
   color: var(--vscode-descriptionForeground);
+}
+
+.steps-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .steps-list {

@@ -17,6 +17,8 @@
   "queuedEditTitle": "메시지를 대기열에서 꺼내 프롬프트 상자로 되돌리기",
   "queuedDelivered": "실행 중인 턴에 이미 전달됨",
   "queuedTooLate": "이 메시지가 이미 모델에 도달하여 더 이상 편집할 수 없습니다.",
+  "queuedEditUnsupported": "이 대화는 대기 중인 메시지를 되돌릴 수 없으므로 편집할 수 없습니다.",
+  "queuedImagesNotReturned": "메시지가 입력란으로 돌아왔지만 이미지는 되돌리지 못했습니다. 보내기 전에 다시 첨부하세요.",
   "composerLabel": "Muse에게 메시지 보내기",
   "connecting": "확장 호스트에 연결하는 중…",
   "notSignedIn": "로그인하지 않음",
