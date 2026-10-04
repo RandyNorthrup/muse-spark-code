@@ -11,6 +11,27 @@
   --ms-radius: 6px;
   --ms-icon-size: 16px;
   --ms-control-size: 26px;
+
+  /* The painted height of the toolbar's labelled pills: the model pill and
+     the open-file, reference and shell chips. */
+  --ms-chip-height: 20px;
+
+  /* The shortest the model pill gets in a narrow panel. */
+  --ms-pill-min-width: 2.5rem;
+
+  /* A card's text button (the approval choices): one line, one height. */
+  --ms-button-height: 28px;
+
+  /* The chat column (the owner's requests of 2026-10-04): the transcript, the
+     panes and dock above the composer, and the composer share one centred
+     column this wide, side gutters included, as Claude Code's panel does. */
+  --ms-column-max-width: 760px;
+
+  /* The column's distance from each panel edge once the panel is wider. It is
+     taken from the panel (the webview's viewport), not from the transcript's
+     scroller, so the scrollbar never moves the transcript off the composer. */
+  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
 }
 
 html,
@@ -242,12 +263,16 @@ body {
 
 /* --- transcript --- */
 
+/* In the chat column: the body's padding is the gutter, and the start inset
+   is fixed so that the scrollbar takes its room from the end side's slack. */
 .transcript {
   display: flex;
   flex-direction: column;
   gap: var(--ms-gap);
-  width: 100%;
-  margin: 0;
+  box-sizing: border-box;
+  max-width: calc(var(--ms-column-max-width) - 2 * var(--ms-gap));
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset) 0;
   padding: 0;
   list-style: none;
 }
@@ -381,9 +406,12 @@ body {
 
 /* --- composer --- */
 
-/* Positioning context for the palette, which sits above the composer. */
+/* Positioning context for the palette, which sits above the composer. In the
+   chat column, so the box, its banners, chips and menus, and the floating
+   palette and popovers move as one; narrower panels keep the full width. */
 .composer-area {
   position: relative;
+  margin-inline: var(--ms-column-inset);
 }
 
 .composer {
@@ -448,6 +476,12 @@ body {
   flex-shrink: 0;
 }
 
+/* A narrow panel (the owner's request of 2026-10-04): every control keeps one
+   row, one height and one centre line. The icon buttons are square, the mode
+   button shows its icon, and the pill takes the room the controls leave. A
+   chip that no longer fits beside the pill moves to a row of its own below
+   it, at the start. Only a panel too narrow for the controls themselves
+   puts the right group on a second row. */
 @container (max-width: 340px) {
   .mode-button > span {
     display: none;
@@ -461,14 +495,32 @@ body {
 
   .composer-toolbar {
     flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 4px;
   }
 
+  /* Room for Attach, Commands and the shortest pill decides the wrap, not
+     the pill's or a chip's whole label. */
   .composer-toolbar-group:first-child {
-    flex-basis: 100%;
+    flex: 1 1 0;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    min-width: calc(2 * var(--ms-control-size) + var(--ms-pill-min-width) + 4px);
   }
 
   .composer-toolbar-group:last-child {
     margin-inline-start: auto;
+  }
+
+  .composer-toolbar .icon-button,
+  .composer-toolbar .mode-button,
+  .composer-toolbar .send-button {
+    padding-inline: 0;
+  }
+
+  .composer-toolbar .pill {
+    flex: 1 1 0;
+    max-width: max-content;
   }
 }
 
@@ -493,24 +545,26 @@ body {
   cursor: pointer;
 }
 
-/* Block layout lets the model label ellipsize when squeezed. The minimum
-   height preserves its touch target beside a paid badge in narrow panels. */
+/* The model pill (the owner's request of 2026-10-04). Its target is a whole
+   control (--ms-control-size, over WCAG 2.5.8's 24 px); its fill is painted
+   at the chips' height inside it, inside transparent block borders. Block
+   layout lets the model label ellipsize when squeezed. */
 .pill {
   display: inline-block;
   flex: 0 1 auto;
-  min-width: 3em;
-  min-height: var(--ms-control-size);
-  height: auto;
+  min-width: var(--ms-pill-min-width);
   overflow: hidden;
-  padding: 1px 8px;
+  padding: 0 8px;
+  border-block-width: calc((var(--ms-control-size) - var(--ms-chip-height)) / 2);
   border-radius: 999px;
   color: var(--vscode-badge-foreground);
   font-size: 0.85em;
-  line-height: 1.4;
+  line-height: var(--ms-chip-height);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--vscode-badge-background);
+  background-clip: padding-box;
 }
 
 .mode-button {
@@ -560,10 +614,11 @@ body {
 
 /* --- states: (0,3,0) last --- */
 
+/* The colour alone: the pill's fill keeps its painted height. */
 .icon-button:hover:enabled,
 .pill:hover:enabled,
 .mode-button:hover:enabled {
-  background: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--vscode-toolbar-hoverBackground);
 }
 
 /* The question card's Submit is greyed out until every question has an answer (M16). */
@@ -593,6 +648,15 @@ body {
 
 .button-secondary:hover:enabled {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Forced colours paint transparent borders: the pill keeps a 1 px one, as
+   the other controls do, and its label stays centred in the control. */
+@media (forced-colors: active) {
+  .pill {
+    border-block-width: 1px;
+    line-height: calc(var(--ms-control-size) - 2px);
+  }
 }
 
 /* --- attachments --- */
@@ -1549,7 +1613,9 @@ body {
   flex-direction: column;
   gap: 4px;
   max-height: 45vh;
-  margin: 0 var(--ms-gap);
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset);
+  padding-inline: var(--ms-gap);
   overflow-y: auto;
 }
 
@@ -1610,6 +1676,34 @@ body {
   gap: 6px;
 }
 
+/* The approval choices (the owner's request of 2026-10-04): one height and
+   one line each, so "Always allow …" weighs what "Allow once" does; the fill
+   tells approving from rejecting. A row too short for the next choice takes
+   it whole onto the next row, and a label longer than the card ellipsizes
+   (its full text is the title). A narrow card stacks them, each full width. */
+.approval-choices {
+  container: approval-choices / inline-size;
+  align-items: center;
+}
+
+.approval-choices > button {
+  flex: 0 1 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--ms-button-height);
+  padding-block: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container approval-choices (width < 340px) {
+  .approval-choices > button {
+    flex-basis: 100%;
+  }
+}
+
 .question-header {
   font-weight: 600;
 }
@@ -1664,10 +1758,11 @@ body {
 
 /* --- todo panel --- */
 
-/* The goal strip (M45) is the same box, above the task list. */
+/* The goal strip (M45) is the same box, above the task list; both in the
+   chat column. */
 .todo,
 .goal {
-  margin: 0 var(--ms-gap);
+  margin: 0 var(--ms-column-gutter);
   padding: 6px var(--ms-gap);
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--ms-radius);
@@ -1781,13 +1876,15 @@ body {
 
 /* --- conversation diff tally (M87), above the goal and task panes --- */
 
+/* The rule above it spans the panel, as the header's does; its text sits in
+   the chat column. */
 .diff-tally {
   display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ms-gap);
-  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
+  padding: var(--ms-gap) calc(var(--ms-column-inset) + var(--ms-gap) * 1.5);
   border-top: 1px solid var(--vscode-panel-border);
   color: var(--vscode-foreground);
 }
@@ -1869,9 +1966,10 @@ body {
   flex: 1 1 200px;
 }
 
-/* Session-scoped Model API schedules (M52): wrap on narrow sidebars. */
+/* Session-scoped Model API schedules (M52): wrap on narrow sidebars; in the
+   chat column. */
 .local-schedules {
-  margin: 0 var(--ms-gap) 4px;
+  margin: 0 var(--ms-column-gutter) 4px;
   padding: 6px var(--ms-gap);
   max-height: 35vh;
   border: 1px solid var(--vscode-panel-border);
@@ -2151,9 +2249,11 @@ body {
   flex: 0 1 auto;
   gap: 4px;
   align-items: center;
+  box-sizing: border-box;
   min-width: 0;
   max-width: 220px;
-  padding: 1px 4px 1px 6px;
+  height: var(--ms-chip-height);
+  padding: 0 4px 0 6px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 999px;
   color: var(--vscode-foreground);

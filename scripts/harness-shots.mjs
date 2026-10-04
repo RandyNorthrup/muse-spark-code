@@ -8,6 +8,7 @@
 //   node scripts/harness-shots.mjs palette    one scenario
 //   node scripts/harness-shots.mjs chat-menu --theme=dark  captured theme
 //   node scripts/harness-shots.mjs chat-menu-narrow --theme=light  320 px
+//   node scripts/harness-shots.mjs column-wide --theme=dark   1400 px (SIZED_SCENARIOS)
 //   node scripts/harness-shots.mjs --lang=de  in l10n/ui.de.json → harness-shots/de/
 //   node scripts/harness-shots.mjs --lang=pseudo   in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
@@ -25,8 +26,9 @@ import {
   HARNESS_PATH,
   LOOPBACK,
   SCENARIOS,
+  SIZED_SCENARIOS,
   serveRepo,
-  withNarrowPage,
+  withSizedPage,
 } from './lib/harnessServer.mjs'
 
 const OUT_DIR = 'harness-shots'
@@ -40,9 +42,10 @@ const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
 async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
-  if (['share-narrow', 'chat-menu-narrow', 'chat-tool-menu-narrow'].includes(scenario)) {
-    await withNarrowPage(chrome, profileDir, url, async (page) => {
-      await page.getByRole(scenario === 'share-narrow' ? 'dialog' : 'menu').waitFor()
+  const sized = SIZED_SCENARIOS[scenario]
+  if (sized !== undefined) {
+    await withSizedPage(chrome, profileDir, url, sized, async (page) => {
+      await page.locator(sized.ready).first().waitFor()
       await page.screenshot({ path: file, animations: 'disabled' })
     })
     return file

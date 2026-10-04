@@ -63,6 +63,9 @@ export const SCENARIOS = [
   'message-time',
   'queued-menu',
   'queued-menu-edit',
+  'column',
+  'column-narrow',
+  'column-wide',
   'long',
   'editor',
   'history',
@@ -182,11 +185,32 @@ export function serveRepo(repoRoot) {
   })
 }
 
-/** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
-export async function withNarrowPage(chrome, profileDir, url, run) {
+/**
+ * The scenarios that need a viewport of their own width, and the element a
+ * screenshot waits for: the 320 px share dialog and chat menus, and the chat
+ * column at 320 and 1400 px (M87), which marks the page once its geometry
+ * checks pass or reports why they did not. The wide column keeps the
+ * scrollbars headless Chrome otherwise hides, as its check measures one.
+ */
+export const SIZED_SCENARIOS = {
+  'share-narrow': { width: 320, ready: '[role="dialog"]' },
+  'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
+  'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },
+  'column-narrow': { width: 320, ready: '[data-column-checked], .harness-report' },
+  'column-wide': {
+    width: 1400,
+    ready: '[data-column-checked], .harness-report',
+    hasScrollbars: true,
+  },
+}
+const VIEWPORT_HEIGHT = 760
+
+/** Chrome's CLI clamps windows to 500 px: a sized scenario gets a real viewport of its width. */
+export async function withSizedPage(chrome, profileDir, url, sized, run) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
-    viewport: { width: 320, height: 760 },
+    ...(sized.hasScrollbars === true && { ignoreDefaultArgs: ['--hide-scrollbars'] }),
+    viewport: { width: sized.width, height: VIEWPORT_HEIGHT },
     timeout: PAGE_TIMEOUT_MS,
   })
   try {

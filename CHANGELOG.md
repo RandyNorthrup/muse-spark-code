@@ -37,8 +37,10 @@ happened, not what was planned; superseded entries are kept.
   - **The tasks pane** collapses to two lines. **Open in a tab** (or **Open
     Tasks in a Tab**) mirrors the list in a read-only editor tab that
     rebuilds after its webview reloads and says when its conversation
-    closes; where VS Code has the command, **Move into new window** moves
-    it into a window of its own.
+    closes; where VS Code has the command (its built-in
+    `workbench.action.moveEditorToNewWindow`), **Move into new window**
+    moves it into a window of its own. Acceptance in native VS Code is
+    still open.
   - **One radial menu for the chat.** Right-click a row, press Shift+F10 or
     the Menu key, or use its one ⋯: each action is one blue pill, its icon
     then its name (the owner's request of 2026-10-04), the pills stacked in
@@ -47,7 +49,10 @@ happened, not what was planned; superseded entries are kept.
     has fork and the Rewind group's second burst, queued Edit; a reply Copy
     response and Reply to this output; a restore Redo; a tool Open output;
     a landed edit Review and **Revert** (Revert asks first and is not
-    offered while a turn runs). A label too long for the panel ends in an
+    offered while a turn runs; it rechecks the session and turn through
+    patch loading, file preparation and every write or delete, a turn
+    started meanwhile refuses it, and no send overlaps its file I/O). A
+    label too long for the panel ends in an
     ellipsis with the whole label in its tooltip; an unavailable note is
     the same pill, opaque, with a dimmed icon. Selected text keeps its
     Copy, Ask about this and Comment on this menu, in the same pills. Arrow
@@ -65,6 +70,29 @@ happened, not what was planned; superseded entries are kept.
     trace whose beam draws the P/QRS/T shape itself and leaves only a fading
     trail; under reduced motion both stand still. Stop turns red on hover
     and focus.
+  - **One centred chat column** (the owner's requests of 2026-10-04). The
+    transcript (queued messages and the working line included), the diff
+    tally, the goal, task and schedule panes, the approval dock and the
+    composer share one column, at most 760 px wide with its side gutters,
+    so their edges line up at every width; a wide panel centres it, the
+    transcript's scrollbar no longer shifts it, and a narrow panel keeps
+    the full width.
+  - **Even approval buttons.** "Always allow …" and "Allow once" are the
+    same height (28 px), one line each; the fill alone tells approving from
+    rejecting. A label longer than the card ends in an ellipsis with the
+    full text in its tooltip, and in a narrow card the choices stack, each
+    as wide as the card.
+  - **A shorter model pill.** Its fill is 20 px tall instead of 26 px, the
+    open-file chip's height, inside the same 26 px click target.
+  - **Narrow panels.** The composer's controls stay on one row at one
+    height: square icon buttons, the mode button as its icon alone, and a
+    model pill that shortens. An open-file chip that no longer fits moves
+    to its own row below the controls.
+  - **Plural counts.** The localization gate requires `{count}` in a
+    language's `one` form when it also covers an integer other than 1 in
+    0–200. Seven step-summary forms each in Russian, French and Brazilian
+    Portuguese now show the actual count; German forms may still omit it
+    when English does.
 - **Auto rules, permission profiles and an optional paid reviewer (M78).**
   Standing command rules include executable examples; repository rules only
   tighten them. Complex commands ask, native language-service reads obey file
@@ -277,19 +305,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Revert rechecks its session and turn state through patch loading, file
-  preparation and actual write/delete admission. A turn started meanwhile
-  refuses the action, and new sends cannot overlap Revert's file I/O (M87).
-- M87 certification keeps native VS Code Tasks acceptance open alongside
-  hosted CI. The Tasks guide names the built-in window-move command and
-  accurately describes the generated host-API inventory.
-
 - Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
-- The localization gate now requires `{count}` in a language's `one` form
-  when it also covers an integer other than 1 in 0–200 (M87). Seven
-  step-summary forms each in Russian, French and Brazilian Portuguese now
-  show the actual count; German forms may still omit it when English does.
 
 ## [0.11.0] - 2026-10-03
 

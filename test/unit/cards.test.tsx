@@ -131,6 +131,22 @@ describe('ApprovalCard', () => {
     expect(screen.getAllByText('Allow once')[1]).toBeEnabled()
   })
 
+  it('keeps each choice in its DOM order, with its full text as its title for an ellipsized label', () => {
+    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={vi.fn()} />)
+    const choices = screen.getAllByRole('button')
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      'Allow once',
+      'Always allow in this workspace: Get-Content ...',
+      'Reject',
+    ])
+    // The rule's preview when the host gives one, the label otherwise.
+    expect(choices.map((choice) => choice.getAttribute('title'))).toEqual([
+      'Allow once',
+      'Always allow in this workspace: Get-Content ...',
+      'Reject',
+    ])
+  })
+
   it('falls back to the subject fields and hides the feedback box without such a choice', () => {
     const onDecide = vi.fn()
     render(
