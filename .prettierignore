@@ -8,3 +8,6 @@ CHANGELOG.md
 
 # Claude Code session settings (permission rules), written by the tool
 .claude/
+
+# Pinned third-party workflow package; retain archive bytes.
+vendor/

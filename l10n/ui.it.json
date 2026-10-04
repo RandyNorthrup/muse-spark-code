@@ -1126,6 +1126,31 @@
     "many": "Competenze non riuscite ({count}): {skills}",
     "other": "Competenze non riuscite ({count}): {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark include le competenze {skills}. Installarle per Muse Code? Vengono copiate nella tua cartella di configurazione di Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark include una versione più recente delle sue competenze in dotazione ({tag}). Aggiornare la copia usata da Muse Code?",
+  "bundledSkillsInstall": "Installa",
+  "bundledSkillsUpdate": "Aggiorna",
+  "bundledSkillsNotNow": "Non ora",
+  "bundledSkillsInstalled": {
+    "one": "{count} competenza in dotazione ({tag}) installata per Muse Code: {skills}",
+    "many": "{count} competenze in dotazione ({tag}) installate per Muse Code: {skills}",
+    "other": "{count} competenze in dotazione ({tag}) installate per Muse Code: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} competenza esclusa perché una tua competenza ha lo stesso nome: {skills}",
+    "many": "{count} competenze escluse perché alcune tue competenze hanno gli stessi nomi: {skills}",
+    "other": "{count} competenze escluse perché alcune tue competenze hanno gli stessi nomi: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} competenza in dotazione rimossa da Muse Code: {skills}",
+    "many": "{count} competenze in dotazione rimosse da Muse Code: {skills}",
+    "other": "{count} competenze in dotazione rimosse da Muse Code: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Per Muse Code non è installata nessuna competenza in dotazione, quindi non è stato rimosso nulla.",
+  "bundledSkillsInstallFailed": "Non è stato possibile installare le competenze in dotazione in {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "Non è stato possibile rimuovere le competenze in dotazione da {folder}: {reason}",
+  "bundledSkillsNotOurs": "esiste già una cartella con quel nome che non è stata installata da Muse Spark, quindi è stata lasciata com’è",
+  "bundledSkillsUnavailable": "Non è stato possibile caricare il programma di installazione delle competenze in dotazione; reinstalla l’estensione e ricarica la finestra. I dettagli sono nel log.",
   "notSignedInReason": "Accedi prima di inviare un messaggio.",
   "noWorkspaceReason": "Apri prima una cartella; Muse lavora all’interno di un’area di lavoro.",
   "nothingToSendReason": "Digita prima un messaggio o allega un’immagine.",

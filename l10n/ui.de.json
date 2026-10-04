@@ -1098,6 +1098,28 @@
     "one": "{count} fehlgeschlagen: {skills}",
     "other": "{count} fehlgeschlagen: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark bringt die Skills {skills} mit. Für Muse Code installieren? Sie werden in Ihren Muse-Konfigurationsordner kopiert.",
+  "bundledSkillsUpdateOffer": "Muse Spark bringt eine neuere Version seiner mitgelieferten Skills ({tag}) mit. Die Kopie aktualisieren, die Muse Code verwendet?",
+  "bundledSkillsInstall": "Installieren",
+  "bundledSkillsUpdate": "Aktualisieren",
+  "bundledSkillsNotNow": "Nicht jetzt",
+  "bundledSkillsInstalled": {
+    "one": "{count} mitgelieferter Skill ({tag}) für Muse Code installiert: {skills}",
+    "other": "{count} mitgelieferte Skills ({tag}) für Muse Code installiert: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} Skill ausgelassen, weil einer Ihrer eigenen Skills so heißt: {skills}",
+    "other": "{count} Skills ausgelassen, weil Ihre eigenen Skills so heißen: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} mitgelieferter Skill aus Muse Code entfernt: {skills}",
+    "other": "{count} mitgelieferte Skills aus Muse Code entfernt: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Für Muse Code sind keine mitgelieferten Skills installiert, daher wurde nichts entfernt.",
+  "bundledSkillsInstallFailed": "Die mitgelieferten Skills konnten nicht unter {folder} installiert werden: {reason}",
+  "bundledSkillsRemoveFailed": "Die mitgelieferten Skills konnten nicht unter {folder} entfernt werden: {reason}",
+  "bundledSkillsNotOurs": "dort gibt es einen gleichnamigen Ordner, den nicht Muse Spark installiert hat, daher blieb er unverändert",
+  "bundledSkillsUnavailable": "Das Installationsmodul für die mitgelieferten Skills konnte nicht geladen werden; installieren Sie die Erweiterung neu und laden Sie das Fenster neu. Details stehen im Protokoll.",
   "notSignedInReason": "Melden Sie sich an, bevor Sie eine Nachricht senden.",
   "noWorkspaceReason": "Öffnen Sie zuerst einen Ordner; Muse arbeitet innerhalb eines Arbeitsbereichs.",
   "nothingToSendReason": "Geben Sie zuerst eine Nachricht ein, oder hängen Sie ein Bild an.",
