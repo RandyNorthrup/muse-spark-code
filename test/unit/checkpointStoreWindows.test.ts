@@ -12,6 +12,8 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { turnKey } from '../../src/host/checkpoints/checkpointStore'
 import { readArchives } from '../../src/host/checkpoints/checkpointArchives'
+import { didWriteRef } from '../../src/host/checkpoints/recordRefs'
+import { ShadowGit } from '../../src/host/checkpoints/shadowGit'
 import { GitExitError, processGitProcess } from '../../src/host/git'
 import {
   CHECKPOINT_NATIVE_WINDOW,
@@ -31,6 +33,7 @@ import {
   redoOutcome,
   removeCheckpointFolders,
   restoreTurn,
+  shadowGit,
   shadowRefs,
   storedUnit,
   storedUnits,
@@ -48,6 +51,129 @@ const realGit = processGitProcess()
 const SHORT_HEARTBEAT_MS = 50
 const OLD_PRESENCE_MS = 10 * 60 * 1000
 const UNIT_REF = '/m86/unit/'
+
+/** Real shadow refs, with command failures injected only after initialization. */
+async function refFixture() {
+  const h = await harness()
+  await h.store.turns('none')
+  const shadow = new ShadowGit(
+    {
+      storageDir: h.storage,
+      top: h.top,
+      platform: process.platform,
+      instance: h.store.instance,
+    },
+    { git: realGit, env: process.env, signal: new AbortController().signal },
+  )
+  const ref = 'refs/muse-spark/test-lock'
+  const previous = await shadow.text(['hash-object', '-w', '--stdin'], { input: 'previous' })
+  const next = await shadow.text(['hash-object', '-w', '--stdin'], { input: 'next' })
+  await shadow.run(['update-ref', ref, previous])
+  return { h, shadow, ref, previous, next }
+}
+
+describe('checkpoint ref lock contention', () => {
+  it.each(['present', 'absent'])(
+    'retries one git exit failure while the previous ref is %s, then persists the next value',
+    async (state) => {
+      const { h, shadow, ref, previous, next } = await refFixture()
+      if (state === 'absent') {
+        await shadow.run(['update-ref', '-d', ref])
+      }
+      const run = shadow.run.bind(shadow)
+      let attempts = 0
+      vi.spyOn(shadow, 'run').mockImplementation(async (args, command) => {
+        if (args[0] === 'update-ref') {
+          attempts += 1
+          if (attempts === 1) {
+            throw new GitExitError(1, 'cannot lock ref: File exists', 'update-ref')
+          }
+        }
+        return await run(args, command)
+      })
+      await expect(
+        didWriteRef(shadow, ref, next, state === 'absent' ? undefined : previous),
+      ).resolves.toBe(true)
+      expect(attempts).toBe(2)
+      expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(next)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'throws the git error after exactly three unchanged-ref failures',
+    async () => {
+      const { h, shadow, ref, previous, next } = await refFixture()
+      const run = shadow.run.bind(shadow)
+      const error = new GitExitError(1, 'cannot lock ref: File exists', 'update-ref')
+      let attempts = 0
+      vi.spyOn(shadow, 'run').mockImplementation(async (args, command) => {
+        if (args[0] === 'update-ref') {
+          attempts += 1
+          throw error
+        }
+        return await run(args, command)
+      })
+      await expect(didWriteRef(shadow, ref, next, previous)).rejects.toBe(error)
+      expect(attempts).toBe(3)
+      expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(previous)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'aborts during the contention wait without another write attempt',
+    async () => {
+      const { h, shadow, ref, previous, next } = await refFixture()
+      const run = shadow.run.bind(shadow)
+      const controller = new AbortController()
+      let attempts = 0
+      vi.spyOn(shadow, 'run').mockImplementation(async (args, command) => {
+        if (args[0] === 'update-ref') {
+          attempts += 1
+          throw new GitExitError(1, 'cannot lock ref: File exists', 'update-ref')
+        }
+        const output = await run(args, command)
+        if (args[0] === 'for-each-ref' && args.includes(ref)) {
+          // Abort after the re-read, once didWriteRef has entered its wait.
+          setTimeout(() => {
+            controller.abort()
+          }, 0)
+        }
+        return output
+      })
+      await expect(
+        didWriteRef(shadow, ref, next, previous, controller.signal),
+      ).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+      expect(attempts).toBe(1)
+      expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(previous)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+
+  it(
+    'returns false without retrying when another writer wins the compare-and-swap',
+    async () => {
+      const { h, shadow, ref, previous, next } = await refFixture()
+      const rival = await shadow.text(['hash-object', '-w', '--stdin'], { input: 'rival' })
+      const run = shadow.run.bind(shadow)
+      let attempts = 0
+      vi.spyOn(shadow, 'run').mockImplementation(async (args, command) => {
+        if (args[0] === 'update-ref') {
+          attempts += 1
+          await run(['update-ref', ref, rival, previous], command)
+        }
+        return await run(args, command)
+      })
+      await expect(didWriteRef(shadow, ref, next, previous)).resolves.toBe(false)
+      expect(attempts).toBe(1)
+      expect(shadowGit(h.storage, ['rev-parse', ref]).trim()).toBe(rival)
+    },
+    REAL_GIT_TIMEOUT_MS,
+  )
+})
 // Real filesystem operations with one injectable directory-cleanup failure.
 vi.mock('node:fs/promises', async (importOriginal) => ({
   ...(await importOriginal<typeof fs>()),
