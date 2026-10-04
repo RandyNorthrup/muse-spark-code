@@ -217,23 +217,23 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
-| `dist/modelApi.js`        | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                     |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
-| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                             |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                               |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
-| `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                               |
-| `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                             |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
-| `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                         |
-| `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                           |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
+| `dist/modelApi.js`        | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                                                                          |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `.vsix`                   | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                                                     |
+| `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
+| `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
+| `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
