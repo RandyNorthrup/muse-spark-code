@@ -17,8 +17,8 @@ import { Buffer } from 'node:buffer'
 import {
   MAX_ENCODED_MEDIA_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
-  MODEL_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
@@ -49,8 +49,8 @@ function leftOut(part: InputContentPart): InputContentPart {
     type: 'input_text',
     text:
       part.type === 'input_file'
-        ? fill(MODEL_TEXT.pdfLeftOut, { name: part.filename })
-        : MODEL_TEXT.imageLeftOut,
+        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+        : MODEL_API_MODEL_TEXT.imageLeftOut,
   }
 }
 
@@ -131,7 +131,7 @@ export class MediaBudget {
       if (item.type === 'function_call_output' && typeof item.output !== 'string') {
         const reversedOutput = item.output.toReversed()
         const output = reversedOutput.map((part): FunctionOutputPart =>
-          canRetain(part) ? part : { type: 'input_text', text: MODEL_TEXT.imageLeftOut },
+          canRetain(part) ? part : { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
         )
         const isItemChanged = output.some((part, index) => part !== reversedOutput[index])
         return isItemChanged ? { ...item, output: output.toReversed() } : item

@@ -420,6 +420,7 @@
   "webFetchProxyRefused": "代理或途中的其他机器返回了 {status}，而不是安全地连接到 {address}（{host}）。未读取任何内容。",
   "webFetchUnreachable": "无法在 {address} 访问 {host}。（{detail}）",
   "webFetchNetwork": "请求失败：{detail}",
+  "webFetchUnavailable": "无法加载网页获取功能，因此未获取任何内容；请重新安装扩展并重新加载窗口。日志中有详细信息。",
   "webFetchMoved": "网页重定向到了另一台主机上的 {location}。Muse 可以通过新的调用获取它，届时会再次询问。",
   "webFetchRestrictedMode": "受限模式下网页获取已关闭。信任此工作区即可使用。",
   "packRecalled": "已从打包输出 {id} 调回第 {start} 至 {end} 个字符（共 {total} 个）",

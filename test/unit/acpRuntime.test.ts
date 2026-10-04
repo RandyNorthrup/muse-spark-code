@@ -44,7 +44,7 @@ import { displayLanguage } from '../../src/runtime/locale'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { webReadable } from '../../src/runtime/webStreams'
-import { MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { FILE_REFUSAL_MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { FAKE_MODEL_API_KEY, fakeModelApi } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
@@ -752,7 +752,7 @@ describe('createRuntimeBackend', () => {
         expect(readFileSync(path.join(b, 'note.txt'), 'utf8')).toBe('before B')
         expect(peer.hasCurrentRun('lint', 'project')).toBe(true)
         const after = api.responseBodies().at(-1)?.['input']
-        expect(JSON.stringify(after)).toContain(MODEL_TEXT.pathChangedAfterApproval)
+        expect(JSON.stringify(after)).toContain(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       } finally {
         held.resolve(undefined)
         writing.mockRestore()

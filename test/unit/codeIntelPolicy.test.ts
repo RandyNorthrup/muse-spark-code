@@ -12,7 +12,7 @@ import { planRename } from '../../src/core/codeIntel/rename'
 import { repoMapSection } from '../../src/core/codeIntel/repoMap'
 import type { PermissionSettings } from '../../src/core/permissionSettings'
 import { createToolIo } from '../../src/host/backend/toolIo'
-import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { CODE_INTEL_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import {
   fakeLanguageService,
   KIND,
@@ -83,7 +83,7 @@ async function setup(serviceOptions: Omit<FakeServiceOptions, 'files'> = {}) {
     assertAccess: (file: { readonly relative: string; readonly canonical: string }) => {
       if (current.files.isDenied([file.relative, file.canonical])) {
         throw new CodeIntelRefusal(
-          MODEL_TEXT.codeIntelPolicyRefused,
+          CODE_INTEL_MODEL_TEXT.codeIntelPolicyRefused,
           UI_TEXT.codeIntelPolicyRefused,
         )
       }
@@ -289,7 +289,7 @@ describe('code intelligence file policy over native IO (M67/M78)', () => {
       signal: new AbortController().signal,
       beforeAccess: t.assertAccess,
     })
-    expect(result.failureReason).toContain(MODEL_TEXT.codeIntelPolicyRefused)
+    expect(result.failureReason).toContain(CODE_INTEL_MODEL_TEXT.codeIntelPolicyRefused)
     expect(result.patch?.summary.files).toBe(1)
     expect(await readFile(first.checkedAbsolute, 'utf8')).toBe(first.after)
     expect(await readFile(second.checkedAbsolute, 'utf8')).toBe(second.before)

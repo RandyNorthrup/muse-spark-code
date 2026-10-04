@@ -420,6 +420,7 @@
   "webFetchProxyRefused": "プロキシまたは途中の別のマシンが、{address} ({host}) への安全な接続の代わりに {status} を返しました。何も読み取っていません。",
   "webFetchUnreachable": "{address} の {host} に到達できませんでした。({detail})",
   "webFetchNetwork": "要求に失敗しました: {detail}",
+  "webFetchUnavailable": "ページの取得を読み込めなかったため、何も取得されませんでした。拡張機能を再インストールし、ウィンドウを再読み込みしてください。詳細はログにあります。",
   "webFetchMoved": "ページは別のホストの {location} にリダイレクトしました。Muse は新しい呼び出しで取得でき、その際に再度確認します。",
   "webFetchRestrictedMode": "制限モードではページの取得はオフです。使用するにはワークスペースを信頼してください。",
   "packRecalled": "パック済み出力 {id} の文字 {start}～{end}（全 {total} 文字）を呼び戻しました",
