@@ -118,5 +118,21 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API 後端：生效的權限設定檔，依其在 `museSpark.modelApiPermissionProfiles` 中的名稱指定；留空表示無。設定檔開啟期間，除「略過權限」以外，每個 shell 命令和 MCP 工具呼叫都會詢問，因為 shell 和 MCP 伺服器在設定檔的檔案規則之外執行。僅限使用者和電腦設定。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 後端：存放庫可以在其 `.vscode/settings.json` 中新增的規則：詢問或禁止的 `commandRules`，以及 `denyRead` glob。它們只能收緊您自己的規則，因此這裡的允許規則不會套用。",
   "config.modelApiAutoReviewer.description": "付費，預設為關閉。在 Model API 後端的自動模式下，一次單獨的模型呼叫會評判每個沒有規則決定的有風險操作，看起來安全時不詢問直接執行；它拒絕或失敗時由您決定。它絕不會允許被禁止的命令、您的規則要求詢問的命令、受保護的寫入或付費呼叫。每次審查依對話模型的權杖費率計入您的 Model API 金鑰，除非您在此工作區中一律允許審查，否則會先詢問。",
-  "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。"
+  "config.museCodeAutoReviewer.description": "預設開啟。在 Muse Code 的自動模式下，只有目前回合中沒有規則作出決定的核准請求才符合審查條件：在隱藏的規劃工作階段中使用您的訂閱進行一次簡短的 Muse Code 回合。受保護的寫入、付費呼叫、子工作、提問、重播或升級的請求、未知對象、沒有僅允許一次選項的請求，以及多個面板共用的工作階段都不會被審查。成功的審查可以允許一次；拒絕、失敗、工作階段忙碌、逾時或斷路器觸發時會顯示核准卡片。主程序結束後會重新建立輔助工作階段。",
+  "config.modelApiTab.description": "付費，預設關閉。在 Model API 後端上，輸入時建議幽靈文字補全，費用計入您的 Model API 金鑰：以一般輸入速度計算，Standard 約每小時 $0.80，貢獻者模型約每小時 $0.05，並受每日預算限制。每個視窗的首次建議會詢問一次（在此視窗允許一次、在此工作區一律允許，或不允許；不允許會將該視窗中的 Tab 稍後提醒）。開啟時會要求確認價格。若 Copilot 已開啟，除非同時執行兩者，否則其語言優先使用 Copilot。",
+  "config.tabModel.description": "Tab 補全請求使用的模型。Standard 按權杖收費較高；Meta 不會使用傳送的內容訓練。貢獻者模型按權杖收費較低，Meta 會使用傳送的程式碼訓練。",
+  "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 費率，不使用您的程式碼訓練。",
+  "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：貢獻者費率，Meta 會使用傳送的程式碼訓練。",
+  "config.tabDailyBudgetUsd.description": "本機所有視窗中 Tab 補全請求的每日固定預算（美元）；最壞情況會超出預算的請求不會傳送。$0.05 到 $50。",
+  "config.tabLanguages.description": "Tab 提供建議的語言，形式如同 GitHub Copilot 的 github.copilot.enable：除非在此另行列出，所有語言皆開啟，plaintext、markdown 和 scminput 除外。",
+  "config.tabMultiline.description": "Tab 何時為多行補全加入周圍脈絡。",
+  "config.tabMultiline.enumDescriptions.auto": "游標行為空白行或以區塊起始符結尾時，以及每次明確手動觸發時，使用多行。",
+  "config.tabMultiline.enumDescriptions.onInvoke": "僅在明確手動觸發時加入多行脈絡。",
+  "config.tabMultiline.enumDescriptions.never": "絕不加入多行脈絡；僅補全行內剩餘部分。",
+  "config.tabTrigger.description": "Tab 在輸入時自動建議，或僅在手動觸發時建議。",
+  "config.tabTrigger.enumDescriptions.automatic": "短暫延遲後自動建議。",
+  "config.tabTrigger.enumDescriptions.onInvoke": "僅在手動觸發建議時建議。",
+  "config.tabWithCopilot.description": "在 GitHub Copilot 也提供建議的語言中，Tab 的行為。",
+  "config.tabWithCopilot.enumDescriptions.yield": "對 Copilot 已涵蓋的語言不傳送 Tab 自動請求；明確手動觸發仍有效。",
+  "config.tabWithCopilot.enumDescriptions.both": "即使 Copilot 已涵蓋該語言，也傳送 Tab 自動請求。"
 }

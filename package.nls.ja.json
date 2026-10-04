@@ -118,5 +118,21 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API バックエンド: 有効な権限プロファイル。`museSpark.modelApiPermissionProfiles` での名前で指定し、空の場合はなしです。プロファイルが有効な間は、権限バイパス以外では、シェルと MCP サーバーがプロファイルのファイル ルールの外で実行されるため、すべてのシェル コマンドと MCP ツールの呼び出しで確認します。ユーザー設定とマシン設定のみ。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API バックエンド: リポジトリが自身の `.vscode/settings.json` に追加できるルール。確認または禁止する `commandRules` と、`denyRead` の glob です。自分のルールを厳しくすることしかできないため、ここでの許可ルールは適用されません。",
   "config.modelApiAutoReviewer.description": "有料、既定ではオフ。Model API バックエンドの自動モードでは、どのルールでも決まらないリスクのある操作を別のモデル呼び出しが判定し、安全と見なせる場合は確認なしで実行します。拒否または失敗した場合はあなたが判断します。禁止されたコマンド、ルールで確認が必要なコマンド、保護された書き込み、有料の呼び出しは決して許可しません。各レビューは会話のモデルのトークン料金で Model API キーに請求され、このワークスペースでレビューを常に許可しない限り、先に確認します。",
-  "config.museCodeAutoReviewer.description": "既定ではオン。Muse Code の自動モードでは、実行中のターンに対する承認のうち、どのルールでも決まらないものだけが対象です。非表示のプラン セッションで、サブスクリプションを使って短い Muse Code ターンを実行します。保護された書き込み、有料呼び出し、子タスク、質問、再送またはエスカレーションされた要求、不明な対象、1 回だけ許可する選択肢がない要求、複数パネルで共有するセッションはレビューしません。正常なレビューは 1 回だけ許可できます。拒否、失敗、使用中のセッション、タイムアウト、連続失敗による停止では承認カードを表示します。ホスト終了後は補助セッションを作り直します。"
+  "config.museCodeAutoReviewer.description": "既定ではオン。Muse Code の自動モードでは、実行中のターンに対する承認のうち、どのルールでも決まらないものだけが対象です。非表示のプラン セッションで、サブスクリプションを使って短い Muse Code ターンを実行します。保護された書き込み、有料呼び出し、子タスク、質問、再送またはエスカレーションされた要求、不明な対象、1 回だけ許可する選択肢がない要求、複数パネルで共有するセッションはレビューしません。正常なレビューは 1 回だけ許可できます。拒否、失敗、使用中のセッション、タイムアウト、連続失敗による停止では承認カードを表示します。ホスト終了後は補助セッションを作り直します。",
+  "config.modelApiTab.description": "有料、既定ではオフ。Model API バックエンドで入力中にゴーストテキスト補完を提案し、料金は Model API キーに請求されます。通常の入力ペースで Standard は 1 時間あたり約 $0.80、コントリビューターモデルは約 $0.05 で、1 日の予算が上限です。各ウィンドウの最初の提案の前に 1 回確認します (このウィンドウで今回のみ許可、このワークスペースでは常に許可、または許可しない。許可しないを選ぶとそのウィンドウでは Tab がスヌーズされます)。オンにすると料金の確認を求めます。Copilot がオンの場合、両方を実行しない限り、その言語では Copilot が優先されます。",
+  "config.tabModel.description": "Tab 補完リクエストが使用するモデル。Standard はトークン単価が高く、送信内容を Meta の学習に使用しません。コントリビューターモデルはトークン単価が安く、送信したコードが Meta の学習に使用されます。",
+  "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standard 料金。コードを学習に使用しません。",
+  "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: コントリビューター料金。送信したコードが Meta の学習に使用されます。",
+  "config.tabDailyBudgetUsd.description": "このマシンの全ウィンドウにわたる Tab 補完リクエストの 1 日の上限 (米ドル)。上限を超えるおそれのあるリクエストは送信されません。$0.05 から $50 まで。",
+  "config.tabLanguages.description": "Tab が提案する言語。GitHub Copilot の github.copilot.enable と同じ形式で、ここで別に指定しない限り plaintext、markdown、scminput を除くすべての言語がオンです。",
+  "config.tabMultiline.description": "複数行補完のために Tab が周囲のコンテキストを追加するタイミング。",
+  "config.tabMultiline.enumDescriptions.auto": "カーソル行が空行の場合、ブロック開始で終わる場合、および明示的な呼び出しのたびに複数行。",
+  "config.tabMultiline.enumDescriptions.onInvoke": "明示的な呼び出し時のみ複数行コンテキストを追加。",
+  "config.tabMultiline.enumDescriptions.never": "複数行コンテキストを追加しない。行の残りのみ補完。",
+  "config.tabTrigger.description": "Tab が入力中自動で提案するか、呼び出したときのみ提案するか。",
+  "config.tabTrigger.enumDescriptions.automatic": "短い待機時間の後に自動で提案。",
+  "config.tabTrigger.enumDescriptions.onInvoke": "手動で提案を呼び出したときのみ提案。",
+  "config.tabWithCopilot.description": "GitHub Copilot も提案する言語で Tab がどう動作するか。",
+  "config.tabWithCopilot.enumDescriptions.yield": "Copilot が対応する言語には Tab 自動リクエストを送信しない。明示的な呼び出しは引き続き動作。",
+  "config.tabWithCopilot.enumDescriptions.both": "Copilot が対応する言語にも Tab 自動リクエストを送信。"
 }

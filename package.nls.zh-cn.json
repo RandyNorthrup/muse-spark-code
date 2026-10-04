@@ -118,5 +118,21 @@
   "config.modelApiPermissionProfile.markdownDescription": "Model API 后端：生效的权限配置文件，按其在 `museSpark.modelApiPermissionProfiles` 中的名称指定；留空表示无。配置文件开启期间，除“绕过权限”外，每条 shell 命令和 MCP 工具调用都会询问，因为 shell 和 MCP 服务器在配置文件的文件规则之外运行。仅限用户和计算机设置。",
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
   "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
-  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。"
+  "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。",
+  "config.modelApiTab.description": "付费，默认关闭。在 Model API 后端上，输入时建议幽灵文本补全，费用计入你的 Model API 密钥：按正常输入速度，Standard 约每小时 $0.80，贡献者模型约每小时 $0.05，并受每日预算限制。每个窗口的首次建议会询问一次（在此窗口允许一次、在此工作区始终允许，或不允许；不允许会将该窗口中的 Tab 稍后提醒）。打开时会要求确认价格。如果 Copilot 已开启，除非同时运行两者，否则其语言优先使用 Copilot。",
+  "config.tabModel.description": "Tab 补全请求使用的模型。Standard 按 token 收费更高；Meta 不会用发送的内容训练。贡献者模型按 token 收费更低，Meta 会用发送的代码训练。",
+  "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 费率，不用你的代码训练。",
+  "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：贡献者费率，Meta 会用发送的代码训练。",
+  "config.tabDailyBudgetUsd.description": "本机所有窗口中 Tab 补全请求的每日硬性预算（美元）；最坏情况会超出预算的请求不会发送。$0.05 到 $50。",
+  "config.tabLanguages.description": "Tab 给出建议的语言，形如 GitHub Copilot 的 github.copilot.enable：除非在此另行列出，所有语言开启，plaintext、markdown 和 scminput 除外。",
+  "config.tabMultiline.description": "Tab 何时为多行补全添加周围上下文。",
+  "config.tabMultiline.enumDescriptions.auto": "光标行为空行或以块起始符结尾时，以及每次显式手动触发时，使用多行。",
+  "config.tabMultiline.enumDescriptions.onInvoke": "仅在显式手动触发时添加多行上下文。",
+  "config.tabMultiline.enumDescriptions.never": "从不添加多行上下文；仅补全行内剩余部分。",
+  "config.tabTrigger.description": "Tab 在输入时自动建议，还是仅在手动触发时建议。",
+  "config.tabTrigger.enumDescriptions.automatic": "短暂防抖后自动建议。",
+  "config.tabTrigger.enumDescriptions.onInvoke": "仅在手动触发建议时建议。",
+  "config.tabWithCopilot.description": "在 GitHub Copilot 也给出建议的语言中，Tab 的行为。",
+  "config.tabWithCopilot.enumDescriptions.yield": "对 Copilot 已覆盖的语言不发送 Tab 自动请求；显式手动触发仍有效。",
+  "config.tabWithCopilot.enumDescriptions.both": "即使 Copilot 已覆盖该语言，也发送 Tab 自动请求。"
 }

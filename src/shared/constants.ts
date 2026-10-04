@@ -87,6 +87,8 @@ export const CONTEXT_KEYS = {
   signedIn: 'museSpark.signedIn',
   /** The focused conversation runs a command Ctrl+B can move to the background (M46). */
   canMoveToBackground: 'museSpark.canMoveToBackground',
+  /** Tab completions are on: lane W binds Invoke under it, lane H maintains it (M94, PLAN.md D73). */
+  tabOn: 'museSpark.tabOn',
 } as const
 
 // Built-in VS Code commands the extension invokes.
@@ -358,6 +360,22 @@ export const SETTING_DEFAULTS = {
   // hidden side session before the user. On until turned off; machine scoped,
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
+  // Inline completions (M94, PLAN.md D73): the paid feature's own setting,
+  // off until the user turns it on and accepts its price in the confirmation.
+  modelApiTab: false,
+  // Q-M94b, decided 2026-10-04: Standard, which Meta does not train on.
+  tabModel: 'muse-spark-1.3',
+  // Q-M94c, decided 2026-10-04: the hard daily budget in US dollars.
+  tabDailyBudgetUsd: 1,
+  // Shaped like Copilot's `github.copilot.enable` with the same default
+  // (V12): every language on except plaintext, markdown and scminput.
+  tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
+  // Multi-line context: added by D73's rules, on Invoke, or never.
+  tabMultiline: 'auto',
+  // The probe's latency gate may flip this to onInvoke (M94 step 1).
+  tabTrigger: 'automatic',
+  // Automatic Tab requests yield to Copilot's languages unless both run.
+  tabWithCopilot: 'yield',
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
@@ -407,6 +425,16 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiSessionBudgetUsd',
   // What may approve a command for the user, on their subscription (M90).
   'museCodeAutoReviewer',
+  // Tab chooses what runs, what is billed and how much is approved (M94,
+  // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
+  // settings cannot change what Tab spends.
+  'modelApiTab',
+  'tabModel',
+  'tabDailyBudgetUsd',
+  'tabLanguages',
+  'tabMultiline',
+  'tabTrigger',
+  'tabWithCopilot',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -468,6 +496,8 @@ export const PAID_FEATURES = [
   // M78 (PLAN.md D49): the Auto reviewer's calls.
   'autoReviewer',
   'bestOfN',
+  // M94 (PLAN.md D73): inline completions, billed to the Model API key.
+  'tab',
 ] as const
 // The paid features the Muse Code backend can use too, billed to a stored
 // Model API key (M44, PLAN.md D37): images through the `ide` server and
@@ -484,6 +514,7 @@ export const PAID_FEATURE_SETTINGS = {
   subagents: 'modelApiSubagents',
   autoReviewer: 'modelApiAutoReviewer',
   bestOfN: 'modelApiBestOfN',
+  tab: 'modelApiTab',
 } as const satisfies Readonly<Record<PaidFeature, keyof typeof SETTING_DEFAULTS>>
 // Meta's published prices (dev.meta.ai/docs/pricing-rate-limits, read
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
@@ -626,12 +657,19 @@ export const PRIVATE_ATTACHMENT_NAMES: ReadonlySet<string> = new Set([
   'auth.json',
   'id_rsa',
   'id_ed25519',
+  // M94 (PLAN.md D73, research L25): Zed's secret-file list names these.
+  'secrets.yml',
+  '.dev.vars',
 ])
 export const PRIVATE_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new Set([
   '.key',
   '.pem',
   '.p12',
   '.pfx',
+  // M94 (PLAN.md D73): the leaders' secret-file lists (Continue L9, Zed L25).
+  '.crt',
+  '.cert',
+  '.keystore',
 ])
 // `.env.production` and its kin are private too (shared/privateFiles.ts).
 export const PRIVATE_ENV_PREFIX = '.env.'
@@ -1303,6 +1341,104 @@ export const MODEL_API_TOOLS = {
   // M69 (PLAN.md D49, M44b): one public HTTPS page, read by the extension itself.
   webFetch: 'web_fetch',
 } as const
+// --- Inline completions (Tab) (M94, PLAN.md D73) ---
+
+// Tab rides the Model API key client, never the subscription, so its
+// tunables sit beside that section. Lane 0 names every constant lanes C, L,
+// H, K and U need; the probe (lane P, M94 step 1) retunes the starred values
+// from measured latency, reasoning and cache-hit figures. Planned values are
+// D73's value table.
+// Fast mode's window before the cursor.
+export const TAB_FAST_PREFIX_CHARS = 6000
+// Fast mode's window after the cursor.
+export const TAB_FAST_SUFFIX_CHARS = 1600
+// Multi-line mode's window before the cursor.
+export const TAB_MULTILINE_PREFIX_CHARS = 12_000
+// Multi-line mode's window after the cursor.
+export const TAB_MULTILINE_SUFFIX_CHARS = 3200
+// Recent-edit and definition snippets' budget in multi-line mode.
+export const TAB_CONTEXT_CHARS = 8000
+// The prefix window starts on a multiple of this line, so consecutive
+// requests share a cached prefix (A6, A7).
+export const TAB_PREFIX_ANCHOR_LINES = 32
+// A fast completion never runs past this many lines.
+export const TAB_FAST_MAX_LINES = 3
+// A multi-line completion never runs past this many lines.
+export const TAB_MULTILINE_MAX_LINES = 16
+// A reply is cut here, at a line boundary first.
+export const TAB_MAX_COMPLETION_CHARS = 2000
+// Automatic triggers wait this long on the token; the probe retunes it (*).
+export const TAB_DEBOUNCE_MS = 350
+// Fast mode's output cap, reasoning included; the probe retunes it (*).
+export const TAB_FAST_MAX_OUTPUT_TOKENS = 128
+// Multi-line mode's output cap; the probe retunes it (*).
+export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 512
+// Provider-side backstop only, never UX: a stale answer is dropped by the
+// token. The probe sets it from measured totals (M94 step 1).
+export const TAB_REQUEST_TIMEOUT_MS = 30_000
+// Typing-through LRU windows (Continue's design, research §4).
+export const TAB_CACHE_ENTRIES = 64
+// The latency gate: a slower median first text defaults the trigger to onInvoke.
+export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
+// Open requests at once (Zed's cap, L22).
+export const TAB_MAX_IN_FLIGHT = 2
+// Starts per window, under the contributor tier's 100 RPM team limit (A8).
+export const TAB_MAX_REQUESTS_PER_MINUTE = 20
+// Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
+export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
+// The fixed hole marker in the user message (Continue's hole-filler, L8).
+export const TAB_HOLE_MARKER = '{{FILL_HERE}}'
+// The reply is the text between these two fixed tags (L8).
+export const TAB_REPLY_OPEN_TAG = '<COMPLETION>'
+export const TAB_REPLY_CLOSE_TAG = '</COMPLETION>'
+// The hard daily budget's default (Q-M94c, decided 2026-10-04).
+export const TAB_DAILY_BUDGET_DEFAULT_USD = 1
+// The daily budget setting's bounds (D73).
+export const TAB_DAILY_BUDGET_MIN_USD = 0.05
+export const TAB_DAILY_BUDGET_MAX_USD = 50
+// Files past this are never read into a request (D73: 192 KiB).
+export const TAB_FILE_MAX_BYTES = 192 * 1024
+// The status-bar menu's timed snoozes: 15 minutes and an hour.
+export const TAB_SNOOZE_SHORT_MINUTES = 15
+export const TAB_SNOOZE_LONG_MINUTES = 60
+// `museSpark.tabModel` (Q-M94b, decided 2026-10-04): Standard by default,
+// which Meta does not train on; the contributor tier is the user's choice.
+export const TAB_MODELS = [
+  DEFAULT_MODEL_ID,
+  `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
+] as const
+export type TabModel = (typeof TAB_MODELS)[number]
+// `museSpark.tabMultiline`: when multi-line context is added.
+export const TAB_MULTILINE_MODES = ['auto', 'onInvoke', 'never'] as const
+export type TabMultiline = (typeof TAB_MULTILINE_MODES)[number]
+// `museSpark.tabTrigger`: automatic suggestions, or Invoke only.
+export const TAB_TRIGGER_MODES = ['automatic', 'onInvoke'] as const
+export type TabTrigger = (typeof TAB_TRIGGER_MODES)[number]
+// `museSpark.tabWithCopilot`: yield automatic requests to Copilot, or run both.
+export const TAB_WITH_COPILOT_MODES = ['yield', 'both'] as const
+export type TabWithCopilot = (typeof TAB_WITH_COPILOT_MODES)[number]
+// A `beforeTabFileRead` answer waits this long, since a suggestion waits for it.
+export const TAB_HOOK_TIMEOUT_MS = 1500
+// Allow/deny verdicts kept per path and content digest.
+export const TAB_HOOK_VERDICT_CACHE = 128
+// Waiting `afterTabFileEdit` runs; past it the oldest is dropped and logged.
+export const TAB_EDIT_HOOK_QUEUE = 8
+// Tab's text for the model (M94, PLAN.md D73), English whatever the display
+// language. A block of its own beside MODEL_TEXT so the activation bundle
+// does not carry it: only dist/tab.js (lane H) reads it. Lane C assembles
+// the request body from it, starting from the probe's wording (lane P).
+export const TAB_MODEL_TEXT = {
+  // The role and the output contract: only the hole's completion, between
+  // the reply tags, never explanations, fences or the surrounding text.
+  tabSystem:
+    'You are Tab, an inline code completion engine. Complete the code at the marked hole: output only the missing code, between the reply tags, with no explanations, no code fences and no repetition of the surrounding text.',
+  // One user message per request: the file's workspace-relative path and
+  // language id, the prefix, the fixed hole marker, the suffix and, in
+  // multi-line mode, context snippets, each fenced as data.
+  tabUserTemplate:
+    'File {path} ({languageId}). The parts below are fenced data: the prefix, the hole marker where the completion goes, the suffix, and any context snippets from related files.\n{snippets}\n```{languageId} path={path} prefix\n{prefix}\n```\n{holeMarker}\n```{languageId} path={path} suffix\n{suffix}\n```',
+} as const
+
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---
 //
 // The same tool on the `ide` session server for Muse Code, whose own

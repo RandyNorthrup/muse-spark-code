@@ -363,3 +363,23 @@ describe('PaidUsage: the Auto reviewer (M78)', () => {
     expect(usage.current.autoReviewCostUsd).toBeUndefined()
   })
 })
+
+describe('PaidUsage: Tab completions (M94 lane 0, PLAN.md D73)', () => {
+  it('names Tab, prices it by token tiers, and lists it once it has requests', () => {
+    expect(paidFeatureName('tab')).toBe(UI_TEXT.paidTabName)
+    const price = paidFeaturePrice('tab')
+    expect(price).toContain('$1.250/1M input')
+    expect(price).toContain('$0.100/1M input')
+    expect(paidCostUsd('tab', EMPTY_PAID_TALLY)).toBe(0)
+    expect(paidCostUsd('tab', { ...EMPTY_PAID_TALLY, tabCostUsd: 1.5 })).toBeCloseTo(1.5)
+    expect(paidTotalUsd({ ...EMPTY_PAID_TALLY, tabCostUsd: 1.5 })).toBeCloseTo(1.5)
+    expect(listedPaidFeatures([], { ...EMPTY_PAID_TALLY, tabRequests: 2 })).toEqual(['tab'])
+  })
+
+  it('keeps Tab counters optional and rejects negative ones at the panel boundary', () => {
+    expect(paidTallySchema.safeParse(EMPTY_PAID_TALLY).success).toBe(true)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabRequests: 3 }).success).toBe(true)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabRequests: -1 }).success).toBe(false)
+    expect(paidTallySchema.safeParse({ ...EMPTY_PAID_TALLY, tabCostUsd: -0.5 }).success).toBe(false)
+  })
+})

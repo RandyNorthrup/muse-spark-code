@@ -4330,7 +4330,7 @@ and the two hook points.
     hour of typing (research §7). The confirmation also says that Copilot, if
     on, is yielded to.
   - **A hard daily budget**, `museSpark.tabDailyBudgetUsd` (machine-scoped;
-    default $1.00 until Q-M94c is answered; from $0.05 to $50).
+    default $1.00, decided 2026-10-04 (Q-M94c); from $0.05 to $50).
     - It is kept for each local calendar day, across every window on the
       machine, in a ledger of its own under the extension's global storage:
       one file per window per day (`tab-spend/<date>/<window>.json`),
@@ -4348,10 +4348,11 @@ and the two hook points.
   - **The model.** `museSpark.tabModel` is `muse-spark-1.3` (default:
     Standard, Meta does not train on it) or `muse-spark-1.3-contributor`,
     which the setting and the confirmation say is cheaper and that Meta trains
-    on the code it is sent (D4; Q-M94b).
-  - **The D48 popup, once per window, not per keystroke** (Q-M94a). A popup
-    before each request is impossible. The first request in a window asks
-    D48's question, naming Tab, the model's rates and today's budget:
+    on the code it is sent (D4; Q-M94b, decided 2026-10-04: Standard).
+  - **The D48 popup, once per window, not per keystroke** (Q-M94a, decided
+    2026-10-04). A popup before each request is impossible. The first request
+    in a window asks D48's question, naming Tab, the model's rates and today's
+    budget:
     - **Allow once** allows Tab in this window until it closes;
     - **Allow always in this workspace** is D48's revocable grant;
     - **Deny** snoozes Tab in this window.
@@ -4561,19 +4562,19 @@ and the two hook points.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
 - **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
-  use; Tab would ask on every keystroke pause. D73 asks once per window
-  instead: Allow once (this window until it closes), Allow always in this
-  workspace, or Deny (Tab snoozed in this window). Is that acceptable as Tab's
-  form of D48? **Default until answered: as D73 says.**
+  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
+  yes, once per window, as Tab's form of D48** — Allow once this window (until
+  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
+  window).
 - **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
   does not train on the code, and typing costs about $0.80 an hour (from $0.40
   to $2.00; research §7). On the contributor model it costs about $0.05 an
-  hour, and Meta trains on every file window Tab sends. **Default until
-  answered: Standard; the contributor model is a setting the user chooses,
+  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
+  (owner): Standard; the contributor model is a setting the user chooses,
   with the training said in the setting and the confirmation.**
 - **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
   minutes of typical typing on Standard, or a full working day and more on the
-  contributor model. **Default until answered: $1.00, from $0.05 to $50.**
+  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
 - **Q-M94d (watch, not a question): next edit suggestions.** These wait for
   `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
   V16 and V17). Each VS Code release's notes are read for it. When it lands,
@@ -13926,8 +13927,8 @@ lead reviews the plan.
   - **CONTRIBUTING.** The probe and the live check.
   - **This plan, and `docs/certification/m94.md`.** The drills, the probe's
     receipts, the live counts and the bundle sizes.
-- **Owner steps.** None are needed to build it. Q-M94a–c have defaults until
-  he answers. The probe and the live check use the existing DPAPI test key on
+- **Owner steps.** None are needed to build it. Q-M94a–c are decided
+  (owner, 2026-10-04; §3). The probe and the live check use the existing DPAPI test key on
   the contributor model under his live-spend rule, so no credential is minted.
 - **Certification checklist.**
   - [ ] The probe recorded, with its call count; the constants and §7 of the

@@ -76,6 +76,8 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    // M94 lane 0: keeps this table total while lane L writes Tab's wording.
+    tab: UI_TEXT.paidConfirmTab,
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
 }

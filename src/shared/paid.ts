@@ -47,6 +47,13 @@ export const paidTallySchema = z.object({
   bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
   bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
   bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
+  // Tab suggestion requests sent this window (M94, PLAN.md D73); absent
+  // means none. Lane L counts them, lane U shows them in Account & usage.
+  tabRequests: z.optional(z.int().check(z.nonnegative())),
+  tabUnknownRequests: z.optional(z.int().check(z.nonnegative())),
+  tabTokens: z.optional(z.int().check(z.nonnegative())),
+  tabCachedTokens: z.optional(z.int().check(z.nonnegative())),
+  tabCostUsd: z.optional(z.number().check(z.nonnegative())),
 })
 export type PaidTally = z.infer<typeof paidTallySchema>
 
@@ -188,6 +195,11 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // estimate. Count only reported costs here, not unknown HTTP tries.
       return tally.bestOfNCostUsd ?? 0
     }
+    case 'tab': {
+      // Tab requests are billed apart from every conversation, so they are
+      // counted here alone. Count only reported costs, not unknown tries.
+      return tally.tabCostUsd ?? 0
+    }
   }
 }
 
@@ -207,7 +219,8 @@ export function listedPaidFeatures(
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
-      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0),
+      (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+      (feature === 'tab' && (tally.tabRequests ?? 0) > 0),
   )
 }
 
@@ -236,6 +249,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    tab: UI_TEXT.paidTabName,
   }
   return names[feature]
 }
@@ -312,7 +326,10 @@ export function paidFeaturePrice(feature: PaidFeature): string {
       return fill(UI_TEXT.paidVoicePrice, { price: formatUsd(PAID_PRICES_USD.voicePerHour, 2) })
     }
     case 'scheduledPrompts':
-    case 'autoReviewer': {
+    case 'autoReviewer':
+    case 'tab': {
+      // Tab bills ordinary Model API tokens on the request's model (M94,
+      // PLAN.md D73); the popup quotes these same tier rates.
       return tokenRatesByTier()
     }
     case 'subagents': {

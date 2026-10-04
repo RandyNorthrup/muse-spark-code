@@ -282,6 +282,11 @@ function paidUseText(feature: PaidFeature, tally: PaidTally): string {
     case 'bestOfN': {
       return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
     }
+    // M94 lane 0: the row's request count, keeping this total while lane U
+    // writes the Tab row (tokens, cached tokens, costs, budget).
+    case 'tab': {
+      return plural(UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0)
+    }
   }
 }
 
