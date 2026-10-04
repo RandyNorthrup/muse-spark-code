@@ -23,7 +23,14 @@ import {
   resolveAgent,
 } from './customAgents'
 import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
-import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
+import {
+  type BundledSkillsSource,
+  bundledSkillsRoot,
+  loadSkills,
+  projectSkillsRoot,
+  type SkillDefinition,
+  type SkillRoot,
+} from './skills'
 
 export interface WorkspaceContextDeps {
   /** Bytes and directory entries, links included (PLAN.md D27). */
@@ -32,6 +39,11 @@ export interface WorkspaceContextDeps {
   readonly platform: NodeJS.Platform
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
+  /**
+   * The skills that ship with the extension (M89, PLAN.md D68), the lowest
+   * source; undefined where none ship (the ACP agent, the evaluation).
+   */
+  readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76); undefined when the host has no home. */
   readonly personalAgentsRoot: string | undefined
   /**
@@ -94,6 +106,16 @@ export class WorkspaceContext {
     ]
     if (this.deps.personalSkillsRoot !== undefined) {
       roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
+    }
+    // The extension's own files, read only from its own package (M89).
+    const { bundledSkills } = this.deps
+    if (bundledSkills?.isEnabled() === true) {
+      roots.push({
+        directory: bundledSkillsRoot(bundledSkills.packageRoot, this.deps.platform),
+        source: 'bundled',
+        confineTo: bundledSkills.packageRoot,
+        packageRoot: bundledSkills.packageRoot,
+      })
     }
     return roots
   }

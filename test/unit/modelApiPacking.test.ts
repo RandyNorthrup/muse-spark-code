@@ -6,7 +6,11 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_API_TOOLS, MODEL_TEXT, OBS_PACK_THRESHOLD_CHARS } from '../../src/shared/constants'
+import {
+  MODEL_API_TOOLS,
+  MODEL_API_MODEL_TEXT,
+  OBS_PACK_THRESHOLD_CHARS,
+} from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends/modelapi/client'
@@ -183,6 +187,25 @@ describe('observation packing on the host', () => {
     await plain.host.close()
   })
 
+  it('keeps observations whole for the Reviewer, then packs the next ordinary request', async () => {
+    const harness = await setup(true)
+    await readThenAsk(harness)
+    const full = responseOutputsByCall(harness.api, 1).get('c1')
+    const packed = responseOutputsByCall(harness.api, 3).get('c1')
+    expect(packed).not.toBe(full)
+    harness.api.script({ text: 'reviewed' })
+    await harness.session.review([{ type: 'text', text: 'Review it' }], '/review')
+    await harness.turnDone()
+    // The Reviewer cannot recall a placeholder through its read-only tools.
+    expect(toolsOf(harness.api, 4)).not.toContain(MODEL_API_TOOLS.recallOutput)
+    expect(responseOutputsByCall(harness.api, 4).get('c1')).toBe(full)
+    harness.api.script({ text: 'continue' })
+    await sendText(harness, 'continue')
+    expect(toolsOf(harness.api, 5)).toContain(MODEL_API_TOOLS.recallOutput)
+    expect(responseOutputsByCall(harness.api, 5).get('c1')).toBe(packed)
+    await harness.host.close()
+  })
+
   it('sends a long output whole twice, then as a sticky placeholder', async () => {
     const harness = await setup(true)
     expect(BIG.length).toBeGreaterThan(OBS_PACK_THRESHOLD_CHARS)
@@ -224,8 +247,10 @@ describe('observation packing on the host', () => {
     expect(firstPage).toContain('call recall_output again')
     // Framed as untrusted tool data, naming the tool its call named.
     const { lead } = recalledParts(firstPage)
-    expect(lead).toContain(fill(MODEL_TEXT.packSourceTool, { tool: MODEL_API_TOOLS.readFile }))
-    expect(lead).toContain(MODEL_TEXT.packRecalledUntrusted)
+    expect(lead).toContain(
+      fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool: MODEL_API_TOOLS.readFile }),
+    )
+    expect(lead).toContain(MODEL_API_MODEL_TEXT.packRecalledUntrusted)
     const next = /offset (\d+)/.exec(firstPage)?.[1] ?? ''
     expect(next).not.toBe('')
     scriptRecall(harness.api, 'c1', Number(next), 'r2', 'got the rest')

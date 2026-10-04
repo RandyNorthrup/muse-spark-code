@@ -1,9 +1,10 @@
 // The Model API backend's permission engine: the four MSP approval modes
 // (shared/permissionModes.ts maps the five UI modes onto them) applied to
 // the in-process tools, plus the "always allow in this session" rules the
-// approval cards can add. There is no LLM judge here, so `onRequest` (the
-// UI's Auto) behaves as the prompting mode with edits allowed, which is
-// what Claude Code's Auto does when its classifier has nothing to say.
+// approval cards can add. `onRequest` (the UI's Auto) behaves as the
+// prompting mode with edits allowed, which is what Claude Code's Auto does
+// when its classifier has nothing to say; the opt-in Auto reviewer (M78,
+// autoReviewer.ts) may answer what no rule settled.
 //
 //   allowAll         → ordinary tools run; paid calls and child tasks ask
 //   onRequest        → reads and edits run, shell commands ask
@@ -34,6 +35,19 @@
 // tools write only Markdown notes under a memory root, so Manual asks, Auto
 // and Edit automatically write, and Plan refuses, as for any edit.
 //
+// A shell command meets the policy (M78, PLAN.md D49; permissionPolicy.ts):
+//
+//   a forbid rule   → refused in every mode, Bypass included
+//   Bypass, Plan    → as the mode says
+//   a profile on    → asks: the shell escapes the profile's confinement
+//   an ask rule     → asks
+//   an allow rule   → runs (one plain command only)
+//   a session rule  → runs (D24: the exact command line)
+//   otherwise       → asks; in Auto the Auto reviewer may answer
+//
+// Only an ask nothing settled can reach the reviewer: never a forbid, an ask
+// rule, the profile's ask, a protected write, a paid call or a child task,
+// nor a call a hook demanded a question for (the caller's check).
 // A web fetch (M69, PLAN.md D49, the M44b design) is a network tool: it
 // changes nothing, but the URL it sends can carry anything the conversation
 // holds, so it asks per host in every mode but Bypass (Auto included, as a
@@ -50,6 +64,9 @@
 import type { ApprovalChoice } from '../../../shared/agentEvents'
 import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
+import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
+import type { PermissionPolicy } from './permissionPolicy'
+import { commandShape, type ShellDialect } from './shellSyntax'
 
 export type ToolClass =
   'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn' | 'network'
@@ -141,8 +158,15 @@ function ruleKey(toolName: string, command: string | undefined): string {
   return command === undefined ? toolName : `${toolName}\u{0}${command}`
 }
 
-/** The choices an approval card offers for a tool call (MSP vocabulary). */
-export function choicesFor(toolName: string, command?: string): readonly ApprovalChoice[] {
+/**
+ * The choices an approval card offers for a tool call (MSP vocabulary):
+ * "Allow for this session" only where a session rule could answer later.
+ */
+export function choicesFor(
+  toolName: string,
+  command?: string,
+  hasSessionChoice = true,
+): readonly ApprovalChoice[] {
   const sessionLabel =
     command === undefined
       ? `${UI_TEXT.allowSessionPrefix} ${toolName}`
@@ -154,13 +178,17 @@ export function choicesFor(toolName: string, command?: string): readonly Approva
       decision: 'approved',
       scope: 'once',
     },
-    {
-      choiceId: APPROVAL_CHOICE_IDS.allowSession,
-      label: sessionLabel,
-      decision: 'approvedPolicyAmendment',
-      scope: 'session',
-      rulePreview: sessionLabel,
-    },
+    ...(hasSessionChoice
+      ? [
+          {
+            choiceId: APPROVAL_CHOICE_IDS.allowSession,
+            label: sessionLabel,
+            decision: 'approvedPolicyAmendment',
+            scope: 'session',
+            rulePreview: sessionLabel,
+          },
+        ]
+      : []),
     {
       choiceId: APPROVAL_CHOICE_IDS.abort,
       label: UI_TEXT.reject,
@@ -180,10 +208,61 @@ export interface PermissionQuery {
    * web fetch's host (M69).
    */
   readonly command?: string | undefined
+  /** The shell the command is for (M78); bash when not said. */
+  readonly dialect?: ShellDialect | undefined
   /** An edit whose target is a protected path (D24). */
   readonly isProtected?: boolean
   /** An MCP tool its server marks read-only (M50). */
   readonly isReadOnly?: boolean
+}
+
+/** What settled a shell command's verdict beyond the mode (M78). */
+export type SettledBy = 'forbidRule' | 'askRule' | 'allowRule' | 'profile' | 'complexCommand'
+
+/** The verdict on a call, and what the card and the Auto reviewer may do about an ask. */
+export interface PermissionJudgement {
+  readonly verdict: PermissionVerdict
+  /** A command rule or the permission profile, when one of them settled it. */
+  readonly settledBy?: SettledBy | undefined
+  /** The rule that settled it. */
+  readonly rule?: CommandRule | undefined
+  /** An ask nothing settled, in Auto: the Auto reviewer may answer it (M78). */
+  readonly isReviewable: boolean
+  /** The card may offer "Allow for this session": never for an ask rule or under a profile. */
+  readonly hasSessionChoice: boolean
+}
+
+/** No rules, no profile: what the engine judges by when the policy is not given. */
+export const NO_POLICY: PermissionPolicy = {
+  commandRules: [],
+  profileName: undefined,
+  files: {
+    denyGlobs: [],
+    isDenyAll: false,
+    extraRoots: [],
+    isDenied: () => false,
+  },
+  problems: [],
+}
+
+// The classes whose ask the Auto reviewer may answer: what runs code the
+// workspace's files do not describe. Edits run in Auto anyway, protected
+// ones always ask; paid calls and child tasks ask in the paid-use popup.
+const REVIEWABLE_CLASSES: ReadonlySet<ToolClass> = new Set(['shell', 'mcp'])
+const REVIEWED_MODE: ApprovalMode = 'onRequest'
+
+/** An ask nothing settled: the reviewer may answer it in Auto, and the card offers a session rule. */
+function unsettledAsk(isReviewable: boolean): PermissionJudgement {
+  return { verdict: 'ask', isReviewable, hasSessionChoice: true }
+}
+
+/** A verdict with nothing for the reviewer or a session rule to answer. */
+function settled(
+  verdict: PermissionVerdict,
+  settledBy?: SettledBy,
+  rule?: CommandRule,
+): PermissionJudgement {
+  return { verdict, settledBy, rule, isReviewable: false, hasSessionChoice: false }
 }
 
 /** The mode plus the rules a session accumulated. */
@@ -191,6 +270,52 @@ export class PermissionEngine {
   private readonly allowed = new Set<string>()
 
   public constructor(private mode: ApprovalMode) {}
+
+  /** A shell command: the mode, the rules, the profile and the session's rules, in that order. */
+  private judgeShell(
+    byMode: PermissionVerdict,
+    query: PermissionQuery & { readonly command: string },
+    policy: PermissionPolicy,
+  ): PermissionJudgement {
+    const { decision, rule } = judgeCommand(
+      policy.commandRules,
+      query.command,
+      query.dialect ?? 'bash',
+    )
+    if (decision === 'forbid') {
+      return settled('deny', 'forbidRule', rule)
+    }
+    if (byMode !== 'ask') {
+      return settled(byMode)
+    }
+    if (policy.profileName !== undefined) {
+      return settled('ask', 'profile')
+    }
+    if (decision === 'ask') {
+      return settled('ask', 'askRule', rule)
+    }
+    if (decision === 'allow') {
+      return settled('allow', 'allowRule', rule)
+    }
+    if (this.allowed.has(ruleKey(query.toolName, query.command))) {
+      return settled('allow')
+    }
+    const dialect = query.dialect ?? 'bash'
+    const shape = commandShape(query.command, dialect)
+    if (
+      !shape.isPlain ||
+      shape.commands.length !== 1 ||
+      isEvaluator(shape.commands[0] ?? [], dialect)
+    ) {
+      return {
+        verdict: 'ask',
+        settledBy: 'complexCommand',
+        isReviewable: false,
+        hasSessionChoice: true,
+      }
+    }
+    return unsettledAsk(this.mode === REVIEWED_MODE)
+  }
 
   public setMode(mode: ApprovalMode): void {
     this.mode = mode
@@ -218,18 +343,46 @@ export class PermissionEngine {
     return this.allowed.has(ruleKey(query.toolName, query.command))
   }
 
-  public verdict(query: PermissionQuery): PermissionVerdict {
+  public judge(query: PermissionQuery, policy: PermissionPolicy = NO_POLICY): PermissionJudgement {
     const isProtected = query.isProtected === true
+    const isMcp = query.toolClass === 'mcp'
+    const isShell = query.toolClass === 'shell'
     const byMode = verdictFor(this.mode, query.toolClass, isProtected, query.isReadOnly === true)
-    // A session rule never answers for a paid call (D30).
     if (
-      byMode !== 'ask' ||
-      isProtected ||
-      query.toolClass === 'paid' ||
-      query.toolClass === 'spawn'
+      isMcp &&
+      byMode !== 'deny' &&
+      this.mode !== 'allowAll' &&
+      policy.profileName !== undefined
     ) {
-      return byMode
+      // A server's read-only hint does not confine it to our file rules.
+      return settled('ask', 'profile')
     }
-    return this.allowed.has(ruleKey(query.toolName, query.command)) ? 'allow' : 'ask'
+    const { command } = query
+    if (isShell && command !== undefined) {
+      return this.judgeShell(byMode, { ...query, command }, policy)
+    }
+    if (isShell && byMode === 'ask') {
+      return {
+        verdict: 'ask',
+        settledBy: 'complexCommand',
+        isReviewable: false,
+        hasSessionChoice: true,
+      }
+    }
+    if (byMode !== 'ask') {
+      return settled(byMode)
+    }
+    // A session rule never answers for a protected write or a paid call
+    // (D24, D30); the card still offers one, as it always has.
+    if (isProtected || query.toolClass === 'paid' || query.toolClass === 'spawn') {
+      return { verdict: 'ask', isReviewable: false, hasSessionChoice: true }
+    }
+    return this.allowed.has(ruleKey(query.toolName, command))
+      ? settled('allow')
+      : unsettledAsk(this.mode === REVIEWED_MODE && REVIEWABLE_CLASSES.has(query.toolClass))
+  }
+
+  public verdict(query: PermissionQuery, policy: PermissionPolicy = NO_POLICY): PermissionVerdict {
+    return this.judge(query, policy).verdict
   }
 }

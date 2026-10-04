@@ -376,6 +376,38 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
 - **Webview.** `default-src 'none'`, a per-load script nonce, no remote
   origins, no inline styles; every message between the host and the
   webview is validated against a schema.
+- **Review (M70).** A review's git material (diffs, file names, branch
+  name, commit message) reaches the model between random markers under
+  a sentence that calls it untrusted data; a marker the material already
+  holds is replaced. Git runs for a review only in a trusted workspace, as
+  the prompt's git facts do: no `core.fsmonitor` hook (an empty value, which
+  older Git reads as disabled too), no signature program, no replace refs
+  (`--no-replace-objects`), no external diff driver or text conversion
+  (`--no-ext-diff`, `--no-textconv`), and every configured clean and
+  process filter program and its required flag overridden for each call
+  (their names are read, never their commands; the working-tree diff
+  compares saved text). A revision the user names can never read as a git
+  option. Each request is bound to its folder's physical identity (canonical
+  path, device and inode), so a link or junction retargeted while a picker
+  is open or git runs cancels the request before foreign material is
+  returned; the last check before the turn is sent is synchronous and does
+  not exclude an unrelated replacement after it (the residual every
+  path-then-act check has). Files that may hold secrets are left out of every
+  diff. Repository branch names and recent commit subjects are omitted from
+  Reviewer system instructions: git material belongs in the untrusted turn
+  block. The date and trusted workspace rules remain. On the Model API the
+  Reviewer has only tools that read, and any
+  other call is refused in every mode, Bypass included; on Muse Code the
+  review turn runs in Plan mode, which Muse Code's own allow rules still
+  apply to, so it is not claimed strictly read-only, and the mode the user
+  had comes back when it ends (Bypass only while its setting still allows
+  it). The review pane's Revert writes back through the same workspace
+  confinement as Edit Review (canonical path, links and junctions), refuses
+  a file whose editor has unsaved changes, serializes writes to one file,
+  and runs as a checkpointed edit like any other explicit edit. Its writer and
+  deletion adapter invoke the original/canonical dirty-buffer predicate inside
+  that admission, immediately before I/O; a buffer dirtied during the wait
+  refuses the operation and releases the activity lease.
 - **Prompt injection.** Workspace files, rules, skills and custom agents
   reach the model by design in a trusted workspace, and so do fetched web
   pages (marked as untrusted content); the permission modes and the approval
@@ -426,3 +458,46 @@ Only the latest release on the Visual Studio Marketplace receives fixes.
   attribute is assessed and refused.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
+
+## Headless CI boundary (M80, PLAN D65)
+
+The frozen M80 contract adds memory-only stdin authentication to exec and a
+second trusted installed scanner child. B/C implementation and actual L/LA/LR
+acceptance are pending; this policy defines their required boundary.
+The Action step directly execs its trusted absolute launcher. Only that initial
+run-step environment holds the Model API key; launcher deletes variable before
+children and holds it in memory until cleanup. It sends key only by private
+stdin to exec and scan-secrets. Neither stores it or passes it to children.
+Git/tools/hooks/checks/install/apply/publish never receive it via env/argv/file.
+Local OS credential authentication is unchanged; CI uses no auth set/keyring.
+
+One bounded owner covers diff generation, exec, extraction, patch Git, scanner
+and publication. Stop revokes eligibility, starts no later child, forwards exact
+signal, escalates/reaps under fixed bounds and clears references/staging in
+finally. Scanner failure/cancellation/overflow withholds entire patch. Exact
+staged-byte scan includes removed/context/deleted lines; binary/image changes
+withhold the whole fix. No redaction rewrites published patch bytes. A
+stopped or failed wrapper publishes nothing, not even its result.
+Every Git command runs with no system and an empty global configuration, no
+inherited `GIT_*`, empty hooks, fsmonitor, external diff/textconv and signing
+off, and its configuration closed by shape: any effective configuration name a
+fresh `git init` does not write (URL rewrites, includes, ssh commands,
+upload/receive-pack, credential helpers, filters among them) refuses the
+command before it starts. Network commands use only the validated remote's own
+transport and never discover a parent repository. Tokens are explicit
+one-command headers only. A candidate digest is visibly unsigned. Registry
+installation requires npm 11.19.0's same verified bundle, subject/lock/registry
+SHA-512, release predicate and signing-certificate URI identity.
+
+Residuals: initial OS environment remains inspectable by same user; deleting
+variable cannot erase that record or guarantee memory zeroization. Private
+self-hosted warns; public self-hosted refuses. Collaborators can change workflows
+under GitHub trust. Use secret-free checkout: ordinary readable workspace files
+can reach Meta; no M78 deny-read guarantee exists. Instruction markers do not
+prove prompt-injection immunity. Redaction/scanning covers known patterns/exact
+literals only. A patch can change unprotected scripts/actions that execute later.
+Run proposal, secret-free tests and privileged push in separate jobs, and **read
+proposal before maintainer approval**. Passing tests are information, not approval.
+POSIX signal e2e is skipped on Windows; argv/injected-env hashes do not establish
+full environment-block audit. Full boundaries, bounds and pending receipts are
+in [docs/ci.md](docs/ci.md) and [m80.md](docs/certification/m80.md).

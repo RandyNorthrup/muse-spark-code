@@ -337,6 +337,8 @@ describe('mapNotification', () => {
         availableChoices: choices,
         isJudgeEscalated: true,
         isProtectedWrite: false,
+        // The asking turn: the Auto reviewer answers only the running parent turn's (M90).
+        turnId: 't1',
       },
     ],
     [

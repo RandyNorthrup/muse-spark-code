@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bundledSkillSourcesRoot,
+  bundledSkillsPackageRoot,
+  bundledSkillsRoot,
   loadSkills,
   parseSkillFile,
   personalSkillsRoot,
   projectSkillsRoot,
+  skillBodyForModel,
 } from '../../src/core/context/skills'
 import { SKILL_FILE_MAX_BYTES } from '../../src/shared/constants'
 import { encoded, loaderDeps, memoryContextIo } from './helpers/fakeContextIo'
@@ -75,6 +79,97 @@ describe('skill roots', () => {
         xdgConfigHome: undefined,
       }),
     ).toBe(String.raw`C:\Users\r\.config\muse\skills`)
+  })
+
+  it('put the bundled package inside the extension and its Muse Code copy beside the personal root (M89)', () => {
+    expect(bundledSkillsPackageRoot('/ext', 'linux')).toBe(
+      '/ext/vendor/high-quality-projects-skill',
+    )
+    expect(bundledSkillsPackageRoot(String.raw`C:\ext`, 'win32')).toBe(
+      String.raw`C:\ext\vendor\high-quality-projects-skill`,
+    )
+    expect(bundledSkillsRoot('/ext/vendor/p', 'linux')).toBe('/ext/vendor/p/skills')
+    expect(
+      bundledSkillSourcesRoot({ platform: 'linux', homeDir: '/home/r', xdgConfigHome: undefined }),
+    ).toBe('/home/r/.config/muse/skill-sources')
+    expect(
+      bundledSkillSourcesRoot({ platform: 'linux', homeDir: '/home/r', xdgConfigHome: '/xdg' }),
+    ).toBe('/xdg/muse/skill-sources')
+    expect(
+      bundledSkillSourcesRoot({
+        platform: 'win32',
+        homeDir: String.raw`C:\Users\r`,
+        xdgConfigHome: undefined,
+      }),
+    ).toBe(String.raw`C:\Users\r\.config\muse\skill-sources`)
+  })
+})
+
+describe('loadSkills: the bundled source (M89)', () => {
+  const PACKAGE = '/ext/vendor/high-quality-projects-skill'
+  const roots = [
+    { directory: `${ROOT}/.agents/skills`, source: 'project' as const, confineTo: ROOT },
+    { directory: USER_ROOT, source: 'user' as const, confineTo: undefined },
+    {
+      directory: `${PACKAGE}/skills`,
+      source: 'bundled' as const,
+      confineTo: PACKAGE,
+      packageRoot: PACKAGE,
+    },
+  ]
+
+  it('comes last: a project or personal skill with the same id shadows a bundled one', async () => {
+    const files = new Map([
+      [`${ROOT}/.agents/skills/project_setup/SKILL.md`, skillFile('project_setup', 'Mine')],
+      [`${USER_ROOT}/feature_delivery/SKILL.md`, skillFile('feature_delivery', 'Personal')],
+      [`${PACKAGE}/skills/project_setup/SKILL.md`, skillFile('project_setup', 'Bundled setup')],
+      [`${PACKAGE}/skills/feature_delivery/SKILL.md`, skillFile('feature_delivery', 'Bundled')],
+      [`${PACKAGE}/skills/quality_retrofit/SKILL.md`, skillFile('quality_retrofit', 'Retrofit')],
+    ])
+    const load = await loadSkills({ io: memoryContextIo(files), platform: 'linux' }, roots)
+    expect(load.skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`)).toEqual([
+      'project:project_setup:Mine',
+      'user:feature_delivery:Personal',
+      'bundled:quality_retrofit:Retrofit',
+    ])
+    expect(load.warnings).toEqual([
+      'bundled skill feature_delivery skipped: the user skill with the same id takes precedence',
+      'bundled skill project_setup skipped: the project skill with the same id takes precedence',
+    ])
+    // Only the bundled skill carries its package root.
+    expect(load.skills.map((skill) => skill.packageRoot)).toEqual([undefined, undefined, PACKAGE])
+  })
+
+  it('reads only inside its package: a link out of it is skipped', async () => {
+    const files = new Map([
+      ['/elsewhere/sneaky/SKILL.md', skillFile('sneaky', 'Outside the package')],
+      [`${PACKAGE}/skills/quality_retrofit/SKILL.md`, skillFile('quality_retrofit', 'Retrofit')],
+    ])
+    const io = memoryContextIo(files, { [`${PACKAGE}/skills/sneaky`]: '/elsewhere/sneaky' })
+    const load = await loadSkills({ io, platform: 'linux' }, roots.slice(2))
+    expect(load.skills.map((skill) => skill.id)).toEqual(['quality_retrofit'])
+    expect(load.warnings).toEqual([
+      `bundled skill sneaky skipped: SKILL.md is refused: path ${PACKAGE}/skills/sneaky/SKILL.md leads outside the workspace through a link`,
+    ])
+  })
+})
+
+describe('skillBodyForModel (M89)', () => {
+  const base = {
+    id: 'feature_delivery',
+    name: 'feature_delivery',
+    description: 'Deliver',
+    body: '# Feature delivery',
+    isUserInvocable: true,
+    argumentHint: undefined,
+  }
+
+  it('puts exactly one line naming SKILL_ROOT before a bundled body, and nothing before the others', () => {
+    expect(skillBodyForModel({ ...base, source: 'bundled', packageRoot: '/ext/vendor/p' })).toBe(
+      'This skill ships with the Muse Spark extension; its package root, SKILL_ROOT, is /ext/vendor/p\n\n# Feature delivery',
+    )
+    expect(skillBodyForModel({ ...base, source: 'project' })).toBe('# Feature delivery')
+    expect(skillBodyForModel({ ...base, source: 'user' })).toBe('# Feature delivery')
   })
 })
 

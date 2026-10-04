@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import {
   MODEL_API_TOOLS,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
@@ -326,18 +327,18 @@ describe('ObservationPack.recall', () => {
   it('refuses what is not JSON, what has no id, and what was never packed', () => {
     const { pack } = packedStore()
     const notJson = pack.recall('{nope')
-    expect(notJson.output).toBe(`Error: ${MODEL_TEXT.packInvalidJson}`)
+    expect(notJson.output).toBe(`Error: ${MODEL_API_MODEL_TEXT.packInvalidJson}`)
     expect(notJson.failureReason).toBe(UI_TEXT.packRecallInvalid)
     const noId = pack.recall(JSON.stringify({ offset: 0 }))
     expect(noId.output).toContain('invalid arguments')
     expect(noId.failureReason).toBe(UI_TEXT.packRecallInvalid)
     const unknown = recallAt(pack, 0, 'call_missing')
     expect(unknown.output).toBe(
-      `Error: ${fill(MODEL_TEXT.packUnknownId, { id: 'call_missing', known: CALL_ID })}`,
+      `Error: ${fill(MODEL_API_MODEL_TEXT.packUnknownId, { id: 'call_missing', known: CALL_ID })}`,
     )
     expect(unknown.failureReason).toBe(fill(UI_TEXT.packRecallUnknownId, { id: 'call_missing' }))
     expect(new ObservationPack().recall(JSON.stringify({ id: 'call_missing' })).output).toBe(
-      `Error: ${fill(MODEL_TEXT.packUnknownId, { id: 'call_missing', known: 'none' })}`,
+      `Error: ${fill(MODEL_API_MODEL_TEXT.packUnknownId, { id: 'call_missing', known: 'none' })}`,
     )
   })
 
@@ -377,7 +378,7 @@ describe('ObservationPack.recall', () => {
     for (const offset of [-1, 1.5, BIG.length, BIG.length + 1]) {
       const outcome = recallAt(pack, offset)
       expect(outcome.output).toBe(
-        `Error: ${fill(MODEL_TEXT.packBadOffset, { id: CALL_ID, last: String(BIG.length - 1) })}`,
+        `Error: ${fill(MODEL_API_MODEL_TEXT.packBadOffset, { id: CALL_ID, last: String(BIG.length - 1) })}`,
       )
       expect(outcome.failureReason).toBe(
         fill(UI_TEXT.packRecallBadOffset, { id: CALL_ID, last: BIG.length - 1 }),
@@ -446,7 +447,7 @@ describe('ObservationPack.recall', () => {
     const text = `😀${'a'.repeat(OBS_PACK_THRESHOLD_CHARS)}`
     const { pack } = packedStore(OBS_PACK_WHOLE_SENDS + 1, text)
     expect(recallAt(pack, 1).output).toBe(
-      `Error: ${fill(MODEL_TEXT.packBadOffset, { id: CALL_ID, last: String(text.length - 1) })}`,
+      `Error: ${fill(MODEL_API_MODEL_TEXT.packBadOffset, { id: CALL_ID, last: String(text.length - 1) })}`,
     )
     expect(pageOf(recallAt(pack, 2))).toBe('a'.repeat(OBS_PACK_PAGE_CHARS))
   })
@@ -526,9 +527,9 @@ describe('a recalled page is untrusted tool data', () => {
     // So the store's own frame carries the boundary: the tool, the notice
     // right before the opening marker, and markers the page never held.
     expect(first.lead).toContain(
-      fill(MODEL_TEXT.packSourceTool, { tool: MODEL_API_TOOLS.webFetch }),
+      fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool: MODEL_API_TOOLS.webFetch }),
     )
-    expect(first.lead.endsWith(`${MODEL_TEXT.packRecalledUntrusted}\n`)).toBe(true)
+    expect(first.lead.endsWith(`${MODEL_API_MODEL_TEXT.packRecalledUntrusted}\n`)).toBe(true)
     expect(text).not.toContain(first.marker)
     // Fresh for every recall, even of the same page.
     const again = framed(recallOk(recallAt(pack, offset, WEB_CALL_ID)))
@@ -541,19 +542,19 @@ describe('a recalled page is untrusted tool data', () => {
     const pack = packedWebFetch(text)
     const head = framed(recallOk(recallAt(pack, 0, WEB_CALL_ID)))
     expect(head.page).toBe(text.slice(0, OBS_PACK_PAGE_CHARS))
-    expect(head.lead).toContain(MODEL_TEXT.packRecalledUntrusted)
+    expect(head.lead).toContain(MODEL_API_MODEL_TEXT.packRecalledUntrusted)
     const lastOffset = text.length - 10
     const tail = framed(recallOk(recallAt(pack, lastOffset, WEB_CALL_ID)))
     expect(tail.page).toBe(text.slice(lastOffset))
     expect(tail.lead).toContain('end of output')
-    expect(tail.lead).toContain(MODEL_TEXT.packRecalledUntrusted)
+    expect(tail.lead).toContain(MODEL_API_MODEL_TEXT.packRecalledUntrusted)
   })
 
   it('says so when the call that named the tool is not in the request', () => {
     const { pack } = packedStore()
     const { lead } = framed(recallOk(recallAt(pack, 0)))
-    expect(lead).toContain(MODEL_TEXT.packSourceUnknown)
-    expect(lead).toContain(MODEL_TEXT.packRecalledUntrusted)
+    expect(lead).toContain(MODEL_API_MODEL_TEXT.packSourceUnknown)
+    expect(lead).toContain(MODEL_API_MODEL_TEXT.packRecalledUntrusted)
   })
 })
 

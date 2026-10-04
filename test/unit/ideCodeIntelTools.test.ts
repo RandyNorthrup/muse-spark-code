@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
 import { diagnosticsTool } from '../../src/core/diagnostics'
 import { handleMcpMessage } from '../../src/core/mcp'
+import * as codeIntelEntry from '../../src/host/ide/codeIntelEntry'
 import { ideCodeIntelTools } from '../../src/host/ide/codeIntelTools'
 import { IDE_MCP_SERVER_INFO } from '../../src/shared/constants'
 import { fakeLanguageService, loc } from './helpers/fakeLanguageService'
@@ -43,7 +44,8 @@ function tools() {
     io,
     now: () => 0,
   }
-  return { io, list: ideCodeIntelTools(deps) }
+  // The source module, as dist/codeIntel.js exports it.
+  return { io, list: ideCodeIntelTools(deps, () => codeIntelEntry) }
 }
 
 /** A call's JSON-RPC result, or undefined when the server did not answer. */
@@ -69,7 +71,7 @@ async function call(name: string, args: Record<string, unknown>) {
 
 describe('ide code intelligence tools', () => {
   it('lists every tool as read-only, getDiagnostics too, and none without a folder', async () => {
-    expect(ideCodeIntelTools(undefined)).toEqual([])
+    expect(ideCodeIntelTools(undefined, () => codeIntelEntry)).toEqual([])
     const diagnostics = diagnosticsTool({
       getDiagnostics: () => [],
       workspaceRoot: ROOT,

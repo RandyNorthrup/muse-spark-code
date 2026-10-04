@@ -21,6 +21,7 @@ import { randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   MODEL_API_TOOLS,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   OBS_PACK_CHARS_PER_TOKEN,
   OBS_PACK_HEAD_LINES,
@@ -57,7 +58,7 @@ export const RECALL_TOOL_DEFINITION: FunctionToolDefinition = {
 
 /**
  * What a `recall_output` call returns; the host reports it as the tool
- * outcome. `output` is the model's (English, MODEL_TEXT); `visibleOutput`
+ * outcome. `output` is the model's (English, MODEL_API_MODEL_TEXT); `visibleOutput`
  * and `failureReason` are the row's, in the display language, with the
  * recalled text itself shown as it was.
  */
@@ -184,7 +185,7 @@ export class ObservationPack {
     head: readonly string[],
     tail: readonly string[],
   ): string {
-    return fill(MODEL_TEXT.packPlaceholder, {
+    return fill(MODEL_API_MODEL_TEXT.packPlaceholder, {
       id: callId,
       chars: String(entry.text.length),
       lines: String(entry.lineCount),
@@ -285,12 +286,12 @@ export class ObservationPack {
     try {
       raw = JSON.parse(argsJson)
     } catch {
-      return failure(MODEL_TEXT.packInvalidJson, UI_TEXT.packRecallInvalid)
+      return failure(MODEL_API_MODEL_TEXT.packInvalidJson, UI_TEXT.packRecallInvalid)
     }
     const parsed = recallOutputArgs.safeParse(raw)
     if (!parsed.success) {
       return failure(
-        fill(MODEL_TEXT.packInvalidArguments, { detail: z.prettifyError(parsed.error) }),
+        fill(MODEL_API_MODEL_TEXT.packInvalidArguments, { detail: z.prettifyError(parsed.error) }),
         UI_TEXT.packRecallInvalid,
       )
     }
@@ -303,7 +304,7 @@ export class ObservationPack {
         known = fill(MODEL_TEXT.packKnownIdsMore, { known, count: String(omitted) })
       }
       return failure(
-        fill(MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
+        fill(MODEL_API_MODEL_TEXT.packUnknownId, { id, known: known === '' ? 'none' : known }),
         fill(UI_TEXT.packRecallUnknownId, { id }),
       )
     }
@@ -316,7 +317,7 @@ export class ObservationPack {
       packBoundary(entry.text, offset) !== offset
     ) {
       return failure(
-        fill(MODEL_TEXT.packBadOffset, { id, last: String(last) }),
+        fill(MODEL_API_MODEL_TEXT.packBadOffset, { id, last: String(last) }),
         fill(UI_TEXT.packRecallBadOffset, { id, last }),
       )
     }
@@ -329,24 +330,24 @@ export class ObservationPack {
       id,
       source:
         entry.tool === undefined
-          ? MODEL_TEXT.packSourceUnknown
-          : fill(MODEL_TEXT.packSourceTool, { tool: entry.tool }),
+          ? MODEL_API_MODEL_TEXT.packSourceUnknown
+          : fill(MODEL_API_MODEL_TEXT.packSourceTool, { tool: entry.tool }),
       start: String(offset),
       end: String(end),
       total: String(total),
     }
     const lead =
       end >= total
-        ? fill(MODEL_TEXT.packPageLast, pageFacts)
-        : fill(MODEL_TEXT.packPage, { ...pageFacts, next: String(end) })
+        ? fill(MODEL_API_MODEL_TEXT.packPageLast, pageFacts)
+        : fill(MODEL_API_MODEL_TEXT.packPage, { ...pageFacts, next: String(end) })
     const marker = newMarker()
     return {
       output: [
         lead,
-        MODEL_TEXT.packRecalledUntrusted,
-        fill(MODEL_TEXT.packRecalledOpen, { marker }),
+        MODEL_API_MODEL_TEXT.packRecalledUntrusted,
+        fill(MODEL_API_MODEL_TEXT.packRecalledOpen, { marker }),
         page,
-        fill(MODEL_TEXT.packRecalledClose, { marker }),
+        fill(MODEL_API_MODEL_TEXT.packRecalledClose, { marker }),
       ].join('\n'),
       visibleOutput: `${fill(UI_TEXT.packRecalled, { id, start: offset, end, total })}\n${page}`,
     }

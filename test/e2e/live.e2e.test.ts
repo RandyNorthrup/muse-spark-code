@@ -10,82 +10,31 @@
 // (goal, skill, verify) that run after it, whose loops vary from turn to turn.
 // The budget below is that reality with headroom, so a regression past it
 // fails the drill rather than the owner's plan.
+// M70 adds a review turn held in Plan mode: 37 model attempts on
+// 2026-09-28 (Muse Code 1.4.0), within the same budget.
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MuseCodeBackendManager } from '../../src/host/backend/museCodeBackendManager'
-import { CONTRIBUTOR_MODEL_SUFFIX, DEFAULT_MODEL_ID } from '../../src/shared/constants'
+import { PlanModeHold, type PlanModeRestore } from '../../src/core/review/planModeHold'
+import { reviewTurnText } from '../../src/core/review/reviewPrompt'
+import { REVIEW_FINDINGS_LANGUAGE } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from '../unit/helpers/fakes'
+import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog, sleep } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_E2E'] === '1'
 const TURN_TIMEOUT_MS = 180_000
-const TRACE_DIR = path.join(homedir(), '.local', 'share', 'muse', 'local-tracing', 'bootstrap')
-/** One line per model attempt admitted; the two fields are not adjacent on the line. */
-const ATTEMPT_LINE = /event="model.attempt.lifecycle".*phase="admission"/g
 const ATTEMPT_BUDGET = 60
-const LOG_WAIT_MS = 30_000
-const LOG_POLL_MS = 250
+// How long the review drill waits for the hold to report the mode set back.
+const RESTORE_WAIT_MS = 30_000
+const RESTORE_POLL_MS = 250
 const PROMPT = 'Reply with exactly the word OK and nothing else.'
-// The owner's rule for live tests (2026-09-24): the contributor tier, on
-// throwaway content only.
-const LIVE_MODEL_ID = `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-/** A running host holds its log locked; that read fails and the file is skipped for now. */
-function tryRead(file: string): string | undefined {
-  try {
-    return readFileSync(file, 'utf8')
-  } catch {
-    return undefined
-  }
-}
-
-/** The trace log of the host that served the session, once it can be read. */
-async function sessionLog(sessionId: string): Promise<string> {
-  const mark = `session_id="${sessionId}"`
-  const deadline = Date.now() + LOG_WAIT_MS
-  for (;;) {
-    const found = readdirSync(TRACE_DIR)
-      .map((name) => tryRead(path.join(TRACE_DIR, name)))
-      .find((text) => text?.includes(mark) === true)
-    if (found !== undefined) {
-      return found
-    }
-    if (Date.now() > deadline) {
-      throw new Error(`no readable trace log mentions session ${sessionId}`)
-    }
-    await sleep(LOG_POLL_MS)
-  }
-}
-
-function countAttempts(log: string): number {
-  return log.match(ATTEMPT_LINE)?.length ?? 0
-}
 
 /** One turn on the real CLI: the session id and the streamed reply text. */
 async function runDrill(workspaceRoot: string): Promise<{ sessionId: string; text: string }> {
-  const backend = new MuseCodeBackendManager({
-    // Opt-in independent CLI drill: no VS Code checkpoint namespace or restore surface.
-    beforeWorkspaceHostStart: () => Promise.resolve(),
-    log: new FakeLogOutputChannel(),
-    extensionVersion: '0.0.0-live-e2e',
-    getConfiguredBinaryPath: () => '',
-    getEnvironmentVariables: () => [],
-    workspaceRoot,
-    getShellSandbox: () => 'off',
-    getSandboxNetwork: () => 'default',
-    userProfileDir: process.env['USERPROFILE'],
-    isWorkspaceTrusted: () => true,
-    getProxySettings: () => ({ proxy: '', noProxy: [] }),
-  })
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', new FakeLogOutputChannel())
   const events: AgentEvent[] = []
   try {
     const host = await backend.ensureHost()
@@ -139,4 +88,85 @@ describe.skipIf(!IS_ENABLED)('live Muse Code conversation (MUSE_LIVE_E2E=1)', ()
     },
     TURN_TIMEOUT_MS,
   )
+
+  // M70 (PLAN.md D49): `/review` on Muse Code is its own turn held in Plan
+  // mode, the text Muse Code gets, and the session's mode set back after it.
+  it(
+    'runs a review turn in Plan mode on the real CLI and sets the mode back after it (M70)',
+    async () => {
+      writeFileSync(
+        path.join(workspaceRoot, 'sum.ts'),
+        'export function sum(a: number, b: number) {\n  return a + b + 1\n}\n',
+      )
+      const { sessionId, text, modes, restored } = await runReviewDrill(workspaceRoot)
+      const attempts = countAttempts(await sessionLog(sessionId))
+      process.stderr.write(
+        `live e2e review: modes ${JSON.stringify(modes)}; restored ${JSON.stringify(restored)}; reply ${JSON.stringify(text.slice(0, REVIEW_REPLY_SHOWN_CHARS))}; model attempts ${String(attempts)}\n`,
+      )
+      expect(restored).toEqual([{ ok: true, isAfterTurn: true }])
+      expect(text).toContain(REVIEW_FINDINGS_LANGUAGE)
+      expect(attempts).toBeGreaterThan(0)
+      expect(attempts).toBeLessThanOrEqual(ATTEMPT_BUDGET)
+    },
+    TURN_TIMEOUT_MS,
+  )
 })
+
+const REVIEW_REPLY_SHOWN_CHARS = 400
+
+/** One review turn in Plan mode on the real CLI (M70): the modes it went through, and the reply. */
+async function runReviewDrill(workspaceRoot: string) {
+  const backend = liveBackend(workspaceRoot, '0.0.0-live-e2e', new FakeLogOutputChannel())
+  const events: AgentEvent[] = []
+  const restored: PlanModeRestore[] = []
+  try {
+    const host = await backend.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot,
+      modelId: LIVE_MODEL_ID,
+      approvalMode: 'promptUnmatched',
+    })
+    const hold = new PlanModeHold({
+      planMode: 'denyUnmatched',
+      restoreMode: () => 'promptUnmatched',
+      onRestored: (outcome) => {
+        restored.push(outcome)
+      },
+    })
+    const done = new Promise<AgentEvent>((resolve) => {
+      session.onEvent((event) => {
+        events.push(event)
+        if (event.type !== 'turnCompleted') {
+          return
+        }
+        hold.turnEnded(event.turnId)
+        resolve(event)
+      })
+    })
+    const reviewText = reviewTurnText({
+      request: { scope: 'custom', focus: 'general', instructions: 'the file sum.ts' },
+      material: undefined,
+      isRoleIncluded: true,
+      newMarker: () => 'unused',
+    })
+    await hold.send(
+      session,
+      [{ type: 'text', text: reviewText }],
+      '/review the file sum.ts',
+      () => true,
+    )
+    expect(await done).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    const deadline = Date.now() + RESTORE_WAIT_MS
+    while (restored.length === 0 && Date.now() < deadline) {
+      await sleep(RESTORE_POLL_MS)
+    }
+    return {
+      sessionId: session.sessionId,
+      text: events.flatMap((event) => (event.type === 'textDelta' ? [event.delta] : [])).join(''),
+      modes: events.flatMap((event) => (event.type === 'approvalModeChanged' ? [event.mode] : [])),
+      restored,
+    }
+  } finally {
+    await backend.dispose()
+  }
+}

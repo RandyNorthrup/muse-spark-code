@@ -7,6 +7,7 @@ import {
   type ToolClass,
   verdictFor,
 } from '../../src/core/backends/modelapi/permissions'
+import { compilePolicy } from '../../src/core/backends/modelapi/permissionPolicy'
 import { isProtectedPath } from '../../src/core/protectedPaths'
 import { APPROVAL_MODES, type ApprovalMode } from '../../src/shared/permissionModes'
 
@@ -275,5 +276,182 @@ describe('paid calls (M34, PLAN.md D30)', () => {
     const engine = new PermissionEngine('allowAll')
     engine.allowForSession('generate_image')
     expect(engine.verdict({ toolName: 'generate_image', toolClass: 'paid' })).toBe('ask')
+  })
+})
+
+// --- M78 (PLAN.md D49): command rules, the profile and the Auto reviewer's reach ---
+
+/** A policy of the user's rules, with or without a profile on. */
+function policyOf(profile = '') {
+  return compilePolicy(
+    {
+      commandRules: [
+        { pattern: ['git', 'status'], decision: 'allow', match: ['git status'] },
+        { pattern: ['git', 'push'], decision: 'ask', match: ['git push'] },
+        { pattern: ['rm', '-rf'], decision: 'forbid', match: ['rm -rf x'] },
+      ],
+      profiles: { locked: { denyRead: ['**/.env'] } },
+      profile,
+      repositoryRules: {},
+    },
+    'linux',
+  )
+}
+
+function bash(command: string) {
+  return { toolName: 'bash', toolClass: 'shell', command, dialect: 'bash' } as const
+}
+
+describe('PermissionEngine.judge: shell commands under the rules (M78)', () => {
+  const policy = policyOf()
+
+  it('refuses a forbidden command in every mode, Bypass included', () => {
+    for (const mode of APPROVAL_MODES) {
+      expect(new PermissionEngine(mode).judge(bash('rm -rf build'), policy)).toMatchObject({
+        verdict: 'deny',
+        settledBy: 'forbidRule',
+        isReviewable: false,
+      })
+    }
+  })
+
+  it('runs a rule-allowed command in Auto and in Manual, and Plan still refuses it', () => {
+    for (const mode of ['onRequest', 'promptUnmatched'] as const) {
+      expect(new PermissionEngine(mode).judge(bash('git status'), policy)).toMatchObject({
+        verdict: 'allow',
+        settledBy: 'allowRule',
+      })
+    }
+    expect(new PermissionEngine('denyUnmatched').judge(bash('git status'), policy).verdict).toBe(
+      'deny',
+    )
+  })
+
+  it('asks for an ask rule with no session choice, and the reviewer never answers it', () => {
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('bash', 'git push')
+    expect(engine.judge(bash('git push'), policy)).toEqual({
+      verdict: 'ask',
+      settledBy: 'askRule',
+      rule: policy.commandRules[1],
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+    // Bypass skips questions, never refusals.
+    expect(new PermissionEngine('allowAll').judge(bash('git push'), policy).verdict).toBe('allow')
+  })
+
+  it('asks for every shell command while a profile is on, rule-allowed ones and session rules too', () => {
+    const locked = policyOf('locked')
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('bash', 'ls')
+    for (const command of ['git status', 'ls', 'npm test']) {
+      expect(engine.judge(bash(command), locked)).toMatchObject({
+        verdict: 'ask',
+        settledBy: 'profile',
+        isReviewable: false,
+        hasSessionChoice: false,
+      })
+    }
+    expect(engine.judge(bash('rm -rf x'), locked).verdict).toBe('deny')
+    expect(new PermissionEngine('allowAll').judge(bash('ls'), locked).verdict).toBe('allow')
+  })
+
+  it('does not treat an external read-only MCP hint as profile confinement', () => {
+    const query = { toolName: 'mcp__files__read_file', toolClass: 'mcp', isReadOnly: true } as const
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession(query.toolName)
+    expect(engine.judge(query, policyOf('locked'))).toMatchObject({
+      verdict: 'ask',
+      settledBy: 'profile',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+    expect(new PermissionEngine('allowAll').judge(query, policyOf('locked')).verdict).toBe('allow')
+  })
+
+  it('keeps chained lines as explicit user decisions instead of automated reviews', () => {
+    const line = bash('git status && curl example.com')
+    expect(new PermissionEngine('onRequest').judge(line, policy)).toEqual({
+      verdict: 'ask',
+      settledBy: 'complexCommand',
+      isReviewable: false,
+      hasSessionChoice: true,
+    })
+    expect(new PermissionEngine('promptUnmatched').judge(line, policy)).toMatchObject({
+      verdict: 'ask',
+      isReviewable: false,
+    })
+  })
+
+  it.each([
+    'git status && git status',
+    'git status > out.txt',
+    'eval "git status"',
+    './eval "git status"',
+    'git status $(touch x)',
+  ])('never grants automated allow to %s', (command) => {
+    const engine = new PermissionEngine('onRequest')
+    expect(engine.judge(bash(command), policy)).toMatchObject({
+      verdict: 'ask',
+      isReviewable: false,
+    })
+    // The user's existing exact-line grant remains exact, never a prefix.
+    engine.allowForSession('bash', command)
+    expect(engine.judge(bash(command), policy).verdict).toBe('allow')
+    expect(engine.judge(bash(`${command} extra`), policy).verdict).toBe('ask')
+    expect(new PermissionEngine('allowAll').judge(bash(command), policy).verdict).toBe('allow')
+  })
+
+  it('keeps D24’s session rule on the exact line: a session allow covers only that line', () => {
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('bash', 'npm test')
+    expect(engine.judge(bash('npm test'), policy).verdict).toBe('allow')
+    expect(engine.judge(bash('npm test -- --watch'), policy).verdict).toBe('ask')
+  })
+})
+
+describe('PermissionEngine.judge: what the Auto reviewer may answer (M78)', () => {
+  it('only an unsettled shell or MCP ask in Auto', () => {
+    const engine = new PermissionEngine('onRequest')
+    const isReviewable = (query: Parameters<PermissionEngine['judge']>[0]) =>
+      engine.judge(query).isReviewable
+    expect(isReviewable(shell('npm test'))).toBe(true)
+    expect(isReviewable({ toolName: 'mcp__x__y', toolClass: 'mcp' })).toBe(true)
+    expect(isReviewable({ toolName: 'mcp__x__y', toolClass: 'mcp', isReadOnly: true })).toBe(false)
+    expect(isReviewable({ toolName: 'write_file', toolClass: 'edit', isProtected: true })).toBe(
+      false,
+    )
+    expect(isReviewable({ toolName: 'generate_image', toolClass: 'paid' })).toBe(false)
+    expect(isReviewable({ toolName: 'subagent_spawn', toolClass: 'spawn' })).toBe(false)
+    expect(isReviewable({ toolName: 'write_file', toolClass: 'edit' })).toBe(false)
+  })
+
+  it('nothing in any other mode', () => {
+    for (const mode of ['allowAll', 'promptUnmatched', 'denyUnmatched'] as const) {
+      const engine = new PermissionEngine(mode)
+      expect(engine.judge(shell('npm test')).isReviewable).toBe(false)
+      expect(engine.judge({ toolName: 'mcp__x__y', toolClass: 'mcp' }).isReviewable).toBe(false)
+    }
+  })
+
+  it('offers the session choice for a protected write as before, which never answers it', () => {
+    const engine = new PermissionEngine('onRequest')
+    const write = { toolName: 'write_file', toolClass: 'edit', isProtected: true } as const
+    engine.allowForSession('write_file')
+    expect(engine.judge(write)).toEqual({
+      verdict: 'ask',
+      isReviewable: false,
+      hasSessionChoice: true,
+    })
+  })
+})
+
+describe('choicesFor: no session choice where no session rule could answer (M78)', () => {
+  it('leaves out "Always allow in this session"', () => {
+    expect(choicesFor('bash', 'git push', false).map((choice) => choice.choiceId)).toEqual([
+      APPROVAL_CHOICE_IDS.allowOnce,
+      APPROVAL_CHOICE_IDS.abort,
+    ])
   })
 })

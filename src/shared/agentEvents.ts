@@ -141,6 +141,11 @@ export const itemSnapshotFields = {
   depth: z.optional(z.number()),
   durationMs: z.optional(z.number()),
   controlStatus: z.optional(z.string()),
+  /**
+   * `agentMessage`: the response's tokens (M82, Model API only, and only
+   * while its setting is on; Muse Code reports no per-reply totals on its
+   * protocol, PLAN.md D26).
+   */
   usage: z.optional(tokenUsageSchema),
   result: z.optional(subagentResultSchema),
   /** `toolCall`: durably backgrounded, and by whom (M14). */
@@ -166,6 +171,12 @@ export const itemSnapshotFields = {
   modelVisibleContent: z.optional(z.array(z.unknown())),
   /** `agentMessage`: the sources the reply cites (`url_citation`, M33), each once. */
   citations: z.optional(z.array(citationSchema)),
+  /**
+   * `agentMessage`: the response's dollar estimate (M82, Model API only,
+   * and only while its setting is on). Muse Code reports no per-reply
+   * totals on its protocol, and its cost is never invented (PLAN.md D26).
+   */
+  costUsd: z.optional(z.number()),
   /**
    * `workflow` (M47, captured live 2026-09-25): the run as above, and the
    * reconciled message it ends with. Its `children` are taken as they come
@@ -357,12 +368,23 @@ const agentEventSchema = z.discriminatedUnion('type', [
     isJudgeEscalated: z.boolean(),
     isProtectedWrite: z.boolean(),
     /**
+     * Why the card asks beyond the mode (M78): the user's ask rule, the
+     * permission profile, or the Auto reviewer's reason. The extension's
+     * own; Muse Code sends none.
+     */
+    note: z.optional(z.string()),
+    /**
      * A custom child's own `permission-mode`: the client answers it under
      * the less automatic of this and its own mode (childPermissionMode).
      */
     permissionMode: z.optional(z.enum(PERMISSION_MODES)),
     /** A pending card shown to a later surface; joining never approves it automatically. */
     isReplayed: z.optional(z.boolean()),
+    /**
+     * The turn that asked (Muse Code's `turnId`, captured 2026-10-02): the
+     * Auto reviewer answers only the running parent turn's (M90).
+     */
+    turnId: z.optional(z.string()),
   }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({
@@ -378,6 +400,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     itemId: z.string(),
     decision: z.string(),
     resolvedBy: z.string(),
+    /** Why the one who answered allowed it (the Auto reviewer on Muse Code, M90); the extension's own. */
+    reason: z.optional(z.string()),
   }),
   // The agent asked the user something (`request_user_input`).
   z.object({
@@ -385,6 +409,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
     userInputId: z.string(),
     itemId: z.string(),
     questions: z.array(questionSchema),
+    /** A pending question shown to a later surface (M82): it raises no new notice. */
+    isReplayed: z.optional(z.boolean()),
   }),
   z.object({
     type: z.literal('questionSettled'),

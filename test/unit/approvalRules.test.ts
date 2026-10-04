@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { childPermissionMode, editAutomaticallyChoice } from '../../src/core/agent/approvalRules'
+import {
+  allowOnceChoice,
+  childPermissionMode,
+  editAutomaticallyChoice,
+  isReviewableApproval,
+} from '../../src/core/agent/approvalRules'
 import { APPROVAL_CHOICE_IDS, choicesFor } from '../../src/core/backends/modelapi/permissions'
+import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import { narrowApprovalMode } from '../../src/core/context/customAgents'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { PERMISSION_MODES, type PermissionMode } from '../../src/shared/constants'
 import { mspApprovalMode } from '../../src/shared/permissionModes'
+import { raceRequested } from './helpers/stageRaceCapture'
 
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 
@@ -127,4 +134,87 @@ describe('child approval policy (M76 review, RV70x)', () => {
       }
     },
   )
+})
+
+/** The captured eight-stage PowerShell line (stageRaceCapture), asked by turn `t1`. */
+function shellRequest(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
+  const mapped = mapNotification({
+    method: 'approval/requested',
+    params: { ...raceRequested('s1'), turnId: 't1' },
+  })
+  if (
+    typeof mapped === 'string' ||
+    !('event' in mapped) ||
+    mapped.event.type !== 'approvalRequested'
+  ) {
+    throw new Error('the captured request did not map')
+  }
+  return { ...mapped.event, ...overrides }
+}
+
+describe('the Auto reviewer on Muse Code: what it may answer (M90, PLAN.md D69)', () => {
+  it('takes a request of the running parent turn in Auto, with its allow-once choice', () => {
+    expect(isReviewableApproval(shellRequest(), 'auto', 't1')).toBe(true)
+    for (const kind of ['fileAccess', 'network', 'unixSocket', 'process', 'tool']) {
+      expect(
+        isReviewableApproval(shellRequest({ subject: { kind, path: 'x' } }), 'auto', 't1'),
+      ).toBe(true)
+    }
+  })
+
+  it.each(PERMISSION_MODES.filter((mode) => mode !== 'auto'))(
+    'never in %s, whatever a custom child’s own mode says',
+    (mode) => {
+      expect(isReviewableApproval(shellRequest(), mode, 't1')).toBe(false)
+      // A Bypass parent's child set to Auto answers under Auto; the panel's
+      // mode is still not Auto, so no reviewer.
+      expect(isReviewableApproval(shellRequest({ permissionMode: 'auto' }), mode, 't1')).toBe(false)
+    },
+  )
+
+  it.each([
+    ['a request replayed to a later surface', { isReplayed: true }],
+    ['a protected write', { isProtectedWrite: true }],
+    ['one the CLI’s judge escalated', { isJudgeEscalated: true }],
+    ['a child’s (another turn)', { turnId: 'child-session-1' }],
+    ['one that names no turn', { turnId: undefined }],
+    ['a subject kind MSP does not name', { subject: { kind: 'somethingNew', command: 'x' } }],
+    [
+      'a child task',
+      { toolName: 'subagent_spawn', subject: { kind: 'tool', toolName: 'subagent_spawn' } },
+    ],
+    ['a paid image call', { toolName: 'mcp__ide__generateImage', subject: { kind: 'tool' } }],
+    [
+      'a paid call named on its subject',
+      { subject: { kind: 'tool', toolName: 'mcp__ide__editImage' } },
+    ],
+    [
+      'a request with no allow-once choice',
+      {
+        availableChoices: [
+          { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
+        ],
+      },
+    ],
+    ['a custom child that asks', { permissionMode: 'manual' as const }],
+  ])('never %s', (_case, overrides: Partial<ApprovalRequest>) => {
+    expect(isReviewableApproval(shellRequest(overrides), 'auto', 't1')).toBe(false)
+  })
+
+  it('takes the allow-once choice, never an "always" one', () => {
+    const request = shellRequest()
+    expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'allow_local_prefix',
+      'abort',
+    ])
+    expect(allowOnceChoice(request)?.choiceId).toBe('allow_once')
+    expect(
+      allowOnceChoice({
+        availableChoices: request.availableChoices.filter(
+          (choice) => choice.choiceId !== 'allow_once',
+        ),
+      }),
+    ).toBeUndefined()
+  })
 })

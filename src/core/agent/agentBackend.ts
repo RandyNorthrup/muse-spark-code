@@ -431,6 +431,13 @@ export interface AgentSession {
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
   /**
+   * A `/review` turn run as the built-in Reviewer, with its own prompt and
+   * only the tools that read (M70, PLAN.md D49). The Model API backend has
+   * one; Muse Code, which has no Reviewer the extension can pick, reviews
+   * with an ordinary turn held in Plan mode instead.
+   */
+  readonly review?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
+  /**
    * Inject input into the running turn. A `SteerRefusedError` says none of
    * it was taken (no turn to steer); any other failure may have reached it.
    */

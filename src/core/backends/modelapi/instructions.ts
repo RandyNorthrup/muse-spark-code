@@ -124,11 +124,17 @@ function gitLines(git: GitFacts | undefined): readonly string[] {
   return [`- Git branch: ${git.branch}`, tree, ...commits]
 }
 
-function environmentText(facts: InstructionFacts): string {
+/** The environment section: today's date and the git facts (D15); the Reviewer's too (M70). */
+export function environmentText(facts: Pick<InstructionFacts, 'today' | 'environment'>): string {
   return [
     '# Environment',
     [`- Today's date: ${facts.today}`, ...gitLines(facts.environment.git)].join(LINE),
   ].join(PARAGRAPH)
+}
+
+/** The workspace's rules files, as every prompt carries them; undefined without any. */
+export function rulesText(rules: string | undefined): string | undefined {
+  return rules === undefined ? undefined : `# Workspace rules${PARAGRAPH}${rules}`
 }
 
 const WORKING_RULES = [
@@ -255,9 +261,7 @@ export function instructionsFor(facts: InstructionFacts): string {
     environmentText(facts),
     WORKING_RULES,
     verifyText(facts),
-    facts.context.rules === undefined
-      ? undefined
-      : `# Workspace rules${PARAGRAPH}${facts.context.rules}`,
+    rulesText(facts.context.rules),
     skillsText(facts.context),
     agentsText(facts.context),
     agentRoleText(facts.agent),

@@ -223,6 +223,7 @@ export default tseslint.config(
       '.vscode-test/**',
       'harness-shots/**',
       '.claude/**',
+      'vendor/**',
     ],
   },
 )

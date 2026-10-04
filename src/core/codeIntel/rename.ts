@@ -71,8 +71,8 @@ async function plannedFile(
   if ((await query.unsavedPath(file)) !== undefined) {
     throw new CodeIntelRefusal(`${file.relative} ${MODEL_TEXT.fileHasUnsavedChanges}`)
   }
-  const before = await query.deps.io.readFile(file.checkedAbsolute, file.checkedAbsolute)
-  const document = await ask(query.service.open(file.absolute))
+  const before = await query.readDisk(file)
+  const { document } = await query.openAsEdited(file)
   const { text } = document
   if (
     before === undefined ||
@@ -107,6 +107,7 @@ async function placedFiles(
       .filter((entry) => entry.edits.length > 0)
       .map(async (entry) => ({ file: await query.place(entry.path), edits: entry.edits })),
   )
+  if (query.hasDeniedResults) throw query.policyRefusal()
   const outside = placed.filter((entry) => entry.file === undefined).length
   if (outside > 0) {
     throw new CodeIntelRefusal(fill(MODEL_TEXT.renameOutside, { count: String(outside) }))
@@ -202,6 +203,7 @@ async function plan(query: CodeIntelQuery, raw: unknown): Promise<RenamePlan> {
   if (changed.length === 0) {
     throw new CodeIntelRefusal(fill(MODEL_TEXT.renameNothing, { place }))
   }
+  query.checkReadable()
   return {
     from: from.slice(0, CODE_INTEL_NAME_MAX_CHARS),
     to,

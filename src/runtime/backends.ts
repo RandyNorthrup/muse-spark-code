@@ -12,9 +12,8 @@
 
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { fileIdentityKey, sameFile, statIdentity, statIdentitySync } from '../core/fs/fileIdentity'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
-import { AcpPaidUse } from '../acp/paid'
+import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
 import { environmentValue } from '../core/backends/musecode/launch'
@@ -23,7 +22,7 @@ import { personalAgentsRoot } from '../core/context/customAgents'
 import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
-import { canonicalPath } from '../host/canonicalPath'
+import { redactSecrets } from '../core/redact'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -40,6 +39,7 @@ import type { Logger } from '../host/logger'
 import { createWorkspaceFileLister } from '../host/mention/workspaceFiles'
 import { pageConverter } from '../host/web/pageConverter'
 import { createWebFetcher } from '../host/web/webFetcher'
+import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   type EnvironmentVariable,
   MENTION_INDEX_LIMIT,
@@ -59,11 +59,18 @@ import {
   paidGrantsFile,
   workspaceSessionsFolder,
 } from './dataFolder'
-import { withoutCredentials } from './credentialVariables'
+import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
 
+export interface ExecRuntimeOptions {
+  readonly isEphemeral: boolean
+  readonly headlessPaid: HeadlessPaidPolicy
+  readonly streamIdleMs: number
+}
+
 export interface RuntimeBackendDeps {
+  readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
   /** The folder holding the agent, backend, search and page-converter bundles. */
@@ -157,20 +164,22 @@ function modelApiManager(
   const warn = (message: string) => {
     log.warn(message)
   }
-  const listFiles = createWorkspaceFileLister({
-    workspaceRoot,
-    respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
-    isWorkspaceTrusted,
-    runGit: deps.runGit,
-    findFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
-    log,
-  })
+  const filesIn = (root: string) =>
+    createWorkspaceFileLister({
+      workspaceRoot: root,
+      respectGitIgnore: () => SETTING_DEFAULTS.respectGitIgnore,
+      isWorkspaceTrusted,
+      runGit: deps.runGit,
+      findFiles: () => walkFiles(root, MENTION_INDEX_LIMIT, log),
+      log,
+    })
+  const listFiles = filesIn(workspaceRoot)
   const io = createToolIo({
     platform,
     listFiles,
     systemRoot,
     // No credential variable reaches a tool's process (AGENTS.md rule 8).
-    env: () => withoutCredentials(deps.env),
+    env: () => withoutKeyringRoutes(withoutCredentials(deps.env)),
     searchWorkerPath: path.join(deps.distDir, SEARCH_WORKER_FILE),
     log: warn,
     // The agent cannot see the editor's buffers (D62); the client's `fs/*` will (M63c).
@@ -200,6 +209,37 @@ function modelApiManager(
     systemPath,
     warn: warnMemory,
   })
+  const store =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : createFileSessionStore({
+          directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),
+          log,
+          retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
+          now: () => Date.now(),
+          sleep: deps.sleep,
+        })
+  // Snapshot copies are plain structured data. Keep their type/shape while
+  // replacing every string leaf before a headless transcript reaches disk.
+  const redactSnapshot = (value: unknown, literals: readonly string[]): void => {
+    if (typeof value !== 'object' || value === null) return
+    for (const [key, leaf] of Object.entries(value)) {
+      if (typeof leaf === 'string') Reflect.set(value, key, redactSecrets(leaf, literals))
+      else redactSnapshot(leaf, literals)
+    }
+  }
+  const headlessStore =
+    store === undefined
+      ? undefined
+      : {
+          ...store,
+          async save(snapshot: Parameters<typeof store.save>[0]) {
+            const key = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+            const copy = structuredClone(snapshot)
+            redactSnapshot(copy, key === undefined ? [] : [key])
+            await store.save(copy)
+          },
+        }
   return new ModelApiBackendManager({
     log,
     getApiKey: () => credentials.getApiKey(),
@@ -208,9 +248,11 @@ function modelApiManager(
     assertWorkspaceCurrent,
     workspaceEdits,
     io,
+    listAttemptFiles: (attemptRoot) => filesIn(attemptRoot)(),
     contextIo: fileContextIo,
     webFetch: createWebFetcher(log, pageConverter(path.join(deps.distDir, PAGE_WORKER_FILE), log)),
     fetch: deps.fetch,
+    ...(deps.exec !== undefined && { streamIdleMs: deps.exec.streamIdleMs }),
     newId: () => randomUUID(),
     now: () => Date.now(),
     sleep: deps.sleep,
@@ -228,17 +270,19 @@ function modelApiManager(
     isConfidentialWorkspace: () => false,
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
-    store: createFileSessionStore({
-      directory: workspaceSessionsFolder(dataInput, storedWorkspaceRoot),
-      log,
-      retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
-      now: () => Date.now(),
-      sleep: deps.sleep,
-    }),
+    store: deps.exec === undefined ? store : headlessStore,
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,
         workspaceRoot,
+        isWorkspaceTrusted,
+        log,
+        now: () => Date.now(),
+      }),
+    describeAttemptEnvironment: (attemptRoot) =>
+      describeEnvironment({
+        runGit: deps.runGit,
+        workspaceRoot: attemptRoot,
         isWorkspaceTrusted,
         log,
         now: () => Date.now(),
@@ -249,6 +293,9 @@ function modelApiManager(
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
+    // M82's cap and reply line are VS Code settings; ACP exposes neither.
+    sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.
@@ -257,6 +304,9 @@ function modelApiManager(
     isPaidUseRemembered: (feature) => paid.isRemembered(storedWorkspaceRoot, feature),
     noteSubagentUsage: (modelId) => {
       log.warn(`A subagent's usage on ${modelId} was reported, but the agent runs no subagents`)
+    },
+    noteReviewerUsage: () => {
+      log.warn('An Auto reviewer reported usage, but the ACP agent runs no Auto reviewer')
     },
     memory,
     bundlePath: path.join(deps.distDir, MODEL_API_BUNDLE_FILE),
@@ -293,6 +343,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       sleep: deps.sleep,
     }),
     log: deps.log,
+    ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
@@ -368,12 +419,11 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
-    const canonical = await canonicalPath(cwd)
-    const identity = await statIdentity(canonical)
-    const key = fileIdentityKey(identity)
-    if (key === undefined || !identity.isDirectory()) {
+    const identity = await captureWorkspaceIdentity(cwd)
+    if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
     }
+    const { canonical, key } = identity
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
@@ -382,14 +432,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
-      try {
-        for (const root of [cwd, canonical]) {
-          const current = statIdentitySync(root)
-          if (!current.isDirectory() || !sameFile(current, identity)) {
-            throw new Error(MODEL_TEXT.pathChangedAfterApproval)
-          }
-        }
-      } catch {
+      if (!identity.isCurrent()) {
         throw new Error(MODEL_TEXT.pathChangedAfterApproval)
       }
     }
@@ -428,7 +471,9 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     museCode,
     paid,
     forgetUnflaggedGrants: () =>
-      deps.options.backend === 'modelApi' ? paid.forgetUnflagged() : Promise.resolve(),
+      deps.exec === undefined && deps.options.backend === 'modelApi'
+        ? paid.forgetUnflagged()
+        : Promise.resolve(),
     close: async () => {
       // A probe still waiting on its short-lived host ends with the agent.
       accountHosts.close()

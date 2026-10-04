@@ -2,12 +2,13 @@
 // into a temp folder for the test, run through `searchOnWorker` against
 // real files, including the pathological pattern that must be stopped.
 
-import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { buildSync } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { GLOB_LIMITS } from '../../src/core/backends/modelapi/globLimits'
 import { searchOnWorker } from '../../src/host/backend/toolIo'
 import { SEARCH_MAX_FILE_BYTES, SEARCH_MAX_HITS } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -39,8 +40,20 @@ function job(pattern: string, names: readonly string[] = ['a.txt', 'b.bin', 'mis
     root: paths.root,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    denyRead: [] as readonly string[],
+    globLimits: GLOB_LIMITS,
     files: names.map((name) => ({ relative: name, absolute: path.join(paths.root, name) })),
   }
+}
+
+function expectAlphaHits(outcome: Awaited<ReturnType<typeof searchOnWorker>>): void {
+  expect(outcome).toEqual({
+    ok: true,
+    hits: [
+      { file: 'a.txt', line: 1, text: 'alpha one' },
+      { file: 'a.txt', line: 3, text: 'alpha three' },
+    ],
+  })
 }
 
 describe('searchOnWorker', () => {
@@ -66,16 +79,32 @@ describe('searchOnWorker', () => {
         job('^alpha', ['a.txt', 'elsewhere/secret.txt']),
         10_000,
       )
-      expect(outcome).toEqual({
-        ok: true,
-        hits: [
-          { file: 'a.txt', line: 1, text: 'alpha one' },
-          { file: 'a.txt', line: 3, text: 'alpha three' },
-        ],
-      })
+      expectAlphaHits(outcome)
     } finally {
       await rm(path.join(paths.root, 'elsewhere'), { force: true })
       await removeFolder(outside)
+    }
+  }, 30_000)
+
+  it('skips a file the deny-read globs cover, by its canonical path through a link too (M78)', async () => {
+    const vault = path.join(paths.root, 'vault')
+    await mkdir(vault, { recursive: true })
+    await writeFile(path.join(vault, 'key.txt'), 'alpha key\n')
+    // A junction to the denied folder: listed as `alias/key.txt`, read as `vault/key.txt`.
+    await symlink(vault, path.join(paths.root, 'alias'), 'junction')
+    try {
+      const outcome = await searchOnWorker(
+        paths.worker,
+        {
+          ...job('^alpha', ['a.txt', 'vault/key.txt', 'alias/key.txt']),
+          denyRead: ['vault'],
+        },
+        10_000,
+      )
+      expectAlphaHits(outcome)
+    } finally {
+      await rm(path.join(paths.root, 'alias'), { force: true })
+      await removeFolder(vault)
     }
   }, 30_000)
 

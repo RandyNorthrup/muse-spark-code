@@ -48,9 +48,13 @@ export function fakeModelApiHostDeps(base: {
     isPaidFeatureOn: () => false,
     notePaidUse: () => undefined,
     promptCacheRetention: () => 'in_memory',
+    // No session budget, no reply usage line (M82).
+    sessionBudgetUsd: () => 0,
+    showReplyUsage: () => false,
     allowsPaidUse: () => Promise.resolve(false),
     isPaidUseRemembered: () => false,
     noteSubagentUsage: () => undefined,
+    noteReviewerUsage: () => undefined,
     memory: undefined,
   }
 }

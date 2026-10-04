@@ -6,6 +6,7 @@
 // tools, 2026-09-25 (M43).
 
 import {
+  AUTO_REVIEW_ROW_TOOL,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   GOAL_TOOLS,
@@ -69,8 +70,11 @@ interface ParsedArgs {
   readonly currentWork: string | undefined
   /** `cron_delete`'s job id (M43). */
   readonly id: string | undefined
+  /** The action an Auto review judged (M78). */
+  readonly action: string | undefined
   /** The files a verify row checked (M68). */
   readonly paths: readonly string[] | undefined
+
   /** A code intelligence tool's symbol name (M67). */
   readonly symbol: string | undefined
 }
@@ -88,7 +92,9 @@ const NO_ARGS: ParsedArgs = {
   status: undefined,
   currentWork: undefined,
   id: undefined,
+  action: undefined,
   paths: undefined,
+
   symbol: undefined,
 }
 
@@ -127,7 +133,9 @@ function parseArgs(args: string): ParsedArgs {
       status: pick('status'),
       currentWork: pick('current_work'),
       id: pick('id'),
+      action: pick('action'),
       paths: stringList(record['paths']),
+
       symbol: pick('symbol'),
     }
   } catch {
@@ -211,6 +219,10 @@ function otherPresentation(
   // The run itself is its own card below the row (M47); the row shows the script.
   if (tool === WORKFLOW_TOOL) {
     return { summary: '', body: 'workflow' }
+  }
+  // One Auto review (M78): the action it judged; its verdict is the output.
+  if (tool === AUTO_REVIEW_ROW_TOOL) {
+    return { summary: parsed.action ?? '', body: 'generic' }
   }
   // The verify loop's rows (M68) name the files they checked.
   if (VERIFY_ROW_TOOLS.has(tool)) {

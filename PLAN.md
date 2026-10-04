@@ -217,31 +217,58 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                    |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                                           |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                                       |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                     |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                 |
-| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job)                  |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                              |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                           |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                  |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                         |
-| `dist/browserCheck.js`    | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB) |
-| `dist/browserRuntime.js`  | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                         |
+| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
+| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
+| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
+| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
+| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
+| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
+| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
+| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
+| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
+| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
+| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
+| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
+| `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                    |
+| `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                            |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
 mirrors both scripts and changes with them, with a CHANGELOG entry.
 
+**M78b implementation scope (2026-10-02): deferred cohort bundles.**
+**FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
+bundle with fixed translated text and log its cause; pin both production
+dynamic-import filenames; suppress best-of-N failure notices after disposal
+during the first import. Exercise the real built controller and bundle,
+red-drill every affected guard, and record Kubuntu receipts in
+`docs/certification/m78.md`. The lead retains aggregate quality and release
+gates; this lane runs only the scoped rig checks named in FIXCOH.md.
+
+Kubuntu's production metafiles at `12060f84` measure activation at 613.0 KiB
+and the Model API backend at 406.0 KiB, above their unchanged 600/400 KiB
+caps. Defer the session board and best-of-N implementation until a board
+or best-of-N action, and the Auto review execution until paid consent.
+Use dynamic imports, transfer the installed localization table, retain
+current policy/budget/cancellation guards across loading, and verify both
+metafile separation and ordinary startup/first-turn behavior. New artifact
+caps use measured size plus 15%, rounded up to 25 KiB. Certification goes
+in `docs/certification/m78.md`; no existing cap is raised.
+
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
 The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
 emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
-the Model API backend, the checkpoint store, the import bundle and the ACP agent require it
+the Model API backend, the review, the checkpoint store, the import bundle,
+the board, the reviewer and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
 The browser and integration-test bundles retain their inline fallback. The
 development build writes the table beside the extension, so the integration
@@ -250,6 +277,10 @@ ACP packager and both CI member lists include it. Existing bundle caps stay
 unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
 and every before/after size are in
 [`docs/certification/shared-ui-text.md`](docs/certification/shared-ui-text.md).
+M70c also keeps `dist/review.js` lazy with its 50 KiB cap and checks its shared
+table import. Current M70c build: extension 522.6/600 KiB, Model API 331.9/400,
+review 41.0/50, checkpoint store 113.3/225, UI text 77.5/100, ACP 711.8/850;
+focused proof in `docs/certification/m70.md`.
 
 **Amendment (M81, 2026-10-01): the browser check is a bundle of its own.**
 On the release candidate `dist/extension.js` was 592.3 KiB of its 600 and
@@ -367,6 +398,75 @@ entry or any file of the parser's packages (`micromark*`, `mdast-util-*`,
 `dist/planMarkdown.js` stops carrying the reader. Since PR #53's third review
 the reader also writes the brief (`mdast-util-to-markdown`, the version
 remark-gfm's writer resolves to): 139.0 KiB.
+
+**Amendment (M70, 2026-09-30): the review is a bundle of its own.** At the M72 candidate
+(`1fd98aaf`) `dist/extension.js` was 591.6 KiB of its 600 and
+`dist/modelApi.js` 398.4 of its 400. M70 as first ported added 30.1 KiB to
+the activation bundle and 9.9 KiB to the Model API bundle: the review's code
+(about 10 KiB in each of the host's two halves), its 70 strings (4.6 KiB in
+every bundle that carries the English table) and its model text (3.5 KiB in
+every bundle that carries `MODEL_TEXT`).
+
+- **`dist/review.js`** (budget 50 KiB, 40.8 KiB measured) is built from
+  `src/host/review/reviewEntry.ts` and required by `lazyReview`
+  (`reviewBundle.ts`) the first time a review, an Open diff or a Revert
+  needs it: the git collector, the material readers and the review turn's
+  text, the Plan-mode hold, and edit review (`EditReview`, which the pane's
+  hunks share a write lane with, so one instance serves both). Only types
+  and the loader stay at activation. A module that cannot be loaded refuses
+  with `reviewUnavailable` and the log has the cause; the next use tries
+  again. `check-bundle-split.mjs` fails when any of those files is in
+  `dist/extension.js`, `dist/modelApi.js` or `dist/acp.js`, or missing from
+  `dist/review.js`; `reviewBundle.test.ts` builds the real entry and loads it
+  with Node's `require`.
+- **`REVIEW_MODEL_TEXT`** is the review's model text as a block of its own
+  beside `MODEL_TEXT`, so a bundle that never reviews does not carry it (a
+  single object cannot be tree-shaken by key).
+- **Session-only model text** is `MODEL_API_MODEL_TEXT`, a separate block
+  beside `MODEL_TEXT`: 57 existing keys used only by `ModelApiHost` (one is
+  also read by the lazy MCP pool), with every word unchanged. Activation
+  and the ACP loader can discard this unused object. The split gate rejects
+  the session text's return to either loader. This repairs M70's initial
+  603.7 KiB activation overflow without raising any cap.
+- **Measured** (lane production build, after merging M72 candidate `54a1eaf5`):
+  `dist/extension.js` 599.4/600 KiB, `dist/modelApi.js` 331.8/400,
+  `dist/review.js` 40.8/50, `dist/checkpointStore.js` 190.3/225,
+  `dist/acp.js` 788.8/850, `dist/webview/main.js` 799.5/900.
+  These focused measurements do not certify the full aggregate or platforms.
+
+**Amendment (PR #89, 2026-10-03): code intelligence and voice load on first
+use.** Merging `main` into the M77/M78/M82 cohort took `dist/extension.js`
+to 603.3 KiB (main alone 565.0, the cohort alone 592.9). As at M57, the
+600 KiB budget stays and code that activation does not use moves out:
+
+- **Code intelligence's `ide` answers** (M67): `codeIntelQuery`,
+  `codeIntelTools`, `repoMap`, `codeText` and `rename` (22.6 KiB of
+  activation) are built from `src/host/ide/codeIntelEntry.ts` into
+  `dist/codeIntel.js` (80.3 KiB, budget 100 KiB) and required by
+  `codeIntelLoader` on the first `mcp__ide__*` code intelligence call. The
+  tool list (`definitions.ts`: names, descriptions, schemas) stays, so
+  `tools/list` loads nothing. A call that cannot load it is answered with
+  `MODEL_TEXT.codeIntelUnavailable` as an error result, as any refusal is;
+  the log has the cause and the next call tries again. The Model API
+  backend keeps its own copy in `dist/modelApi.js`.
+- **Voice's drivers** (M9, M35): the dictation driver, Muse Voice's stream,
+  the recorder adapter and the process and WebSocket adapters
+  (`src/host/voice/voiceProcesses.ts`) are built from
+  `src/host/voice/voiceEntry.ts` into `dist/voice.js` (34.5 KiB, budget
+  50 KiB). Finding the helper stays at activation, so the microphone still
+  says at once whether it can record; the driver a panel creates loads the
+  bundle on its first `start`. A recording that cannot load it fails through
+  the listener's `onError` ("Voice dictation failed:" and
+  `dictationNotLoaded`, in all 14 tables), never silently, and the next
+  press tries again.
+- **Result:** `dist/extension.js` 568.7 KiB, 31.3 KiB under the unchanged
+  budget. Code intelligence alone would have left about 581 KiB, short of
+  the 20 KiB headroom asked for, so both moved. Each entry takes the
+  installed display table per call, as the other split bundles do.
+  `check-bundle-split.mjs` fails when activation carries either entry or a
+  moved module, or a bundle stops carrying one; size, host-global, notices,
+  VSIX allowlist, CI member list, knip and dpdm list both bundles.
+
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
 D62) builds a `ModelApiBackendManager` per folder, which since M57 needs a
@@ -446,6 +546,16 @@ any prompting mode would hang the turn, so `HAS_APPROVAL_UI = false` collapses
 Manual / Edit automatically / Auto to `denyUnmatched` (M2 behaviour) and only
 Plan and Bypass differ. Flipping the constant is an M4 change with its own
 live verification of each mode.
+
+**Correction (2026-10-03, D69).** The Auto row above did not hold under
+`muse serve`: the LLM approval judge `muse --help` names runs only in the
+CLI's interactive and `exec` commands, so serve's `onRequest` skips only the
+commands the CLI classifies as simple and asks for the rest, and Manual and
+Edit automatically are one mode to Muse Code there (it asks before no
+workspace edit). The panel described Auto as "approve actions that pass a
+safety check" until 0.11.0. D69 records the investigation, the honest
+per-backend descriptions and the extension's own reviewer (M90); the table
+is left as written.
 
 The mode button opens a **Modes** menu (title, `⇧ + tab to switch` hint, one
 row per mode with the Claude Code description adapted to Muse, a tick on the
@@ -1260,6 +1370,18 @@ Responses API, in an isolated home (`docs/certification/approval-decisions.md`).
   patch only once the item is finished. A read in flight is joined. A
   failed read is said once per conversation, at warning level, with how to
   retry (collapse and expand the row, which asks again).
+  - **READS correction (2026-10-03, 0.11.0).** Automatic patch reads wait
+    until the conversation's turn ends; the existing diff or written
+    content stays visible meanwhile. Reopening a row requests its patch
+    during a turn. At turn end, an open row without a page clears its
+    request marker and asks once, including after a failed read. A loaded
+    page is kept. `item/readOutput` uses the existing 180 s long-command
+    deadline so the four-read limiter retains its slots longer and accepts
+    replies past 60 s. No new protocol or notice text. Acceptance: deferred
+    reads, explicit reopening, one turn-end retry, loaded-page preservation,
+    the long deadline, and deliberate guard failures. Scoped lane gates
+    replace full quality here; lead owns the full machine matrix.
+    Evidence: `docs/certification/output-reads.md`.
 - **Startup (no change).** 0.10.1's slow-start wait already covers the
   owner's 0.10.0 failures: 30 s, then up to 120 s while the process runs.
   The log's connects took 10.8 s and 18.7 s on a loaded machine, so 120 s
@@ -1548,6 +1670,15 @@ itself. **Owner's go-ahead (2026-09-24):** "sure", for axe-core 4.13.0
   today, all in the `rewind` scenario, where an open menu covers two
   chevrons). A target crowded by its own neighbours inside a menu is not
   exempt (the review of PR #18).
+- **A second exemption (PR #69, 2026-10-04):** a `scrollable-region-focusable`
+  finding on a region that holds a listbox whose id a focused or focusable
+  element names in `aria-controls` while its `aria-activedescendant` is one
+  of that listbox's options. That is the composer's `/` and `@` lists:
+  the box keeps the focus, the arrows move the active option, and the
+  composer scrolls it into view, so WCAG 2.1.1 is met without a Tab stop
+  on the list, which axe cannot see. A plain scrollable region, or a
+  listbox no such control drives, is still reported. It is printed under
+  its own "Exempt:" heading and registered in §8.
 - **What axe cannot decide fails too** (the review of PR #18). axe files
   what it cannot settle under "incomplete"; the gate fails on it like a
   violation, with two exceptions. Contrast on text axe could not see where
@@ -2820,6 +2951,10 @@ the price accepted once, then only the row, the badge and the tally).
   Model API backend with a pay-as-you-go key is that consent (D1, D37); the
   popup covers what costs extra beyond it.
 
+**M80 headless amendment (D65):** interactive consent above is unchanged.
+Headless images use the explicit flag, `acceptEdits`, hard cap and per-use
+admission/tally; no remembered grant is accessed. Hosted search is refused.
+
 ### D49 — Coding quality first: what to build next (2026-09-27)
 
 The owner (2026-09-27):
@@ -3235,14 +3370,11 @@ add-generic-password -w` takes it as an argument, visible to `ps`. A
   of its own environment at start (`src/runtime/credentialVariables.ts`)
   and hands them back to Muse Code's processes only, so a shell command,
   a hook, git or a helper never sees one.
-- **AGENTS.md rule 8 (amended 2026-09-28)** names this store as
-  SecretStorage's stand-in outside VS Code (it is the store SecretStorage
-  itself rests on), filled only through `auth set`'s standard input and
-  never passed to a child process. Its one named exception is M80's CI
-  bootstrap: GitHub hands a secret to a step only through its environment
-  or script, so the Action's step shell is the one environment the key is
-  ever in; it pipes the key to `auth set` and unsets it before `exec`
-  starts.
+- **AGENTS.md rule 8 (amended 2026-10-02, D65)** retains local OS-store
+  authentication and names CI's memory-only stdin exception: the trusted
+  launcher feeds only `exec --key-stdin` and the trusted
+  `scan-secrets --key-stdin` child. CI does not use `auth set`, a throwaway
+  keyring or an environment-key fallback inside the agent.
 - **Later**: offering, in VS Code, to copy the key into the OS store for
   the other editors needs the native module in the `.vsix`, so
   per-platform packages (with M64).
@@ -3365,6 +3497,10 @@ modelApi` (the key of D61). There is no "auto", so the bill is never a
     lapses in every folder when the agent starts without that feature's
     flag, so turning the flag on again asks again (the panel's grant
     generation, D48, in the agent's terms).
+- **Headless M80 (D65):** `exec` replaces editor questions with denials.
+  Only explicitly flagged, affordable, ordinary image uses in `acceptEdits`
+  may proceed; protected/asking uses are denied. No grant store is touched.
+  Local OS-store auth remains; CI feeds exec and scanner by private stdin.
 - **Networks (Q66, 2026-09-27): loud, not re-routed.** VS Code's proxy and
   certificate settings do not reach the agent, and Node's `fetch` uses the
   environment's proxy only with `NODE_USE_ENV_PROXY=1` (Node 22.21+, 24+).
@@ -3450,6 +3586,40 @@ detector, heuristic, option or plan-format migration. The delivery ledger
 validator remains deferred because this canonical plan has no ledger;
 focused behavioral evidence and SHA-256-restored red drills go in
 `docs/certification/m83e.md`. Full quality and native UI remain lead-owned.
+
+### D65 — Headless execution and CI key readers (M80, 2026-10-02)
+
+Numbered D64 while it was built; M83 merged its own D64 first, so this
+decision became D65 at integration (2026-10-02).
+
+**The exception: headless runs in CI (M80, PLAN D65).** GitHub supplies the Model API key to the Action's own run-step process through its environment. The step directly execs the trusted launcher, which deletes that variable before it starts any child and holds the key only in memory until final cleanup. It sends the key only over private standard input to two trusted installed agent commands: `muse-spark-code-acp exec --key-stdin` for the run, and `muse-spark-code-acp scan-secrets --key-stdin` for the exact private staged patch. Both hold it in memory only, clear their references in finally, and never store it. No Git, tool, hook, check, install, apply or other child receives it in an environment, argument or file. The launcher's initial OS environment can remain inspectable by the same user; deleting the variable does not erase that record or guarantee memory zeroization. Nothing else is excepted.
+
+Local OS-store authentication is unchanged. Stdin CI uses neither `auth set`
+nor a throwaway keyring nor an environment-key fallback inside the agent.
+One bounded launcher owns diff generation, exec, extraction, patch Git,
+the trusted scanner and publication. Cancellation closes publication, stops
+later children and clears key references in finally; it cannot guarantee
+physical memory zeroization or graceful Windows signal delivery.
+
+Headless paid images require an explicit flag, `acceptEdits`, a hard USD cap
+and per-use ledger admission/settlement. Protected paths and `requiresAsking`
+are denied. No remembered grants, ordinary approval grants or translated-title
+policy decisions apply. Hosted search, voice, subagents and schedules stay off;
+the subscription pays none of these Model API calls. D48/D62's interactive
+popup policy remains in force for interactive sessions.
+
+Admission reserves the documented context-window liability for each attempt,
+including retries, using integer micro-USD and upward rounding (F1).
+Contributor minimum is $0.108135 ($0.118135 with images); standard minimum is
+$1.409024 ($1.419024 with images). Lost or unverified receipts keep their full
+reservation. The conditional billing theorem and provider assumptions are in
+[docs/ci.md](docs/ci.md); no M82 prerequisite or token-count estimator exists.
+
+Proposals, secret-free tests and reviewer-approved push run in separate jobs.
+Text patches publish only after exact staged-byte scanning. Any binary/image
+change withholds the entire patch. Registry installs require npm 11.19.0's
+verified provenance bundle, subject/digest and release-workflow certificate
+identity; unsigned candidate digests provide a different claim.
 
 ### D66 — Panel polish from the owner's requests of 2026-10-03 (M87)
 
@@ -3949,7 +4119,130 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
     window's reset) gets no timer: a timed send could only go before it
     lifts. The row says when it lifts instead.
 
+### D68 — Bundled skills: high-quality-projects in the box (M89, 2026-10-03)
+
+The owner asked to bundle his skill package
+([high-quality-projects-skill](https://github.com/RandyNorthrup/high-quality-projects-skill),
+MIT, © Randy Northrup) so every user of the extension has it. It holds three
+workflows (`project_setup`, `feature_delivery`, `quality_retrofit`) that depend
+on the package's shared `scripts/` (Bash, PowerShell and Python helpers),
+`templates/` and references, so a skill is never shipped as a lone `SKILL.md`.
+
+- **The owner's answers (2026-10-03).** Both backends, Muse Code by opt-in;
+  on by default.
+- **A pinned, vendored release.** `vendor/high-quality-projects-skill/` holds
+  the files of one tagged release (v0.7.0 first), copied by
+  `scripts/sync-bundled-skills.mjs` from the release archive after its SHA-256
+  matches the release's `SHA256SUMS.txt`. `VENDOR.json` records the tag, the
+  archive's SHA-256 and each copied path's SHA-256, pinning the vendored bytes. Builds stay offline and
+  reproducible; nothing is downloaded at run time. A newer tag is taken by
+  rerunning the script in a PR, with its CHANGELOG entry. Only what the
+  workflows read ships: `skills/`, `scripts/` (not `build-release.ps1`),
+  `templates/`, `AGENTS.md`, `LICENSE`, `README.md` and the `docs/` pages the
+  skills cite; never `tests/`, `docs/assets/`, `docs/evaluations/` or the
+  package's own CI files. The licence is listed in `THIRD_PARTY_NOTICES.txt`.
+- **Model API backend: a third skill source.** `SKILL_SOURCES` gains
+  `bundled`, the lowest precedence: a project or personal skill with the same
+  id shadows it, so a user's own copy always wins. Its root is the vendored
+  `skills/` folder inside the installed extension, read through the same
+  bounded loader as the others. `museSpark.bundledSkills` (machine-scoped
+  boolean, default `true`) turns the source off. When the model reads a
+  bundled skill (`read_skill` or a typed `/id`), the body is preceded by one
+  line naming the package root, so the skill's `SKILL_ROOT` resolves to the
+  vendored package; its scripts still run only through the shell tool, under
+  the session's permission mode, like any other command.
+- **Muse Code backend: an explicit install.** Muse Code reads only its own
+  skill folders, so **Muse Spark: Install Bundled Skills for Muse Code** copies
+  the vendored package to `<config home>/muse/skill-sources/high-quality-projects-skill/`
+  and links each workflow into Muse Code's personal skills folder
+  (`<config home>/muse/skills/<id>`): a junction on Windows, a directory symlink
+  elsewhere, as the package's own install guide prescribes. An id that already
+  exists there is left alone and named in the result. A marker file in the
+  copied package records the installed tag, and only folders carrying it are
+  ever replaced or removed. The install is offered once (a panel notice with
+  **Install** and **Not now**, the first time a Muse Code conversation starts
+  with the setting on). When the extension ships a newer vendored tag than an
+  installed one, the panel offers **Update** once. **Muse Spark: Remove Bundled
+  Skills from Muse Code** removes exactly what the install made. Nothing is
+  written to the user's config folder without one of these actions.
+- **Requirements stay the package's.** The delivery helpers need Python 3;
+  the README says so, and a missing Python is the script's own error.
+
+### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
+
+The owner reported clicking as many approvals in Auto as in Manual on the
+Muse Code backend. Investigation (2026-10-03; the CLI's session log and trace
+for his live session, plus a three-turn live probe on the contributor model):
+
+- The panel's modes reach Muse Code and take effect (`session/setApprovalMode`
+  applied, effective mode recorded), mid-turn changes included.
+- **D7's premise did not hold under `muse serve`.** D7 read `muse --help`
+  (1.3.0): Auto = `onRequest`, "judge-reviewed, prompt only on need". The LLM
+  approval judge exists only for the interactive and `exec` commands;
+  `muse serve` has no flag for it and the protocol cannot choose a reviewer
+  (`approval_reviewer.resolve outcome="disabled" reason="setting_off"`). Under
+  serve, `onRequest` skips only commands the CLI classifies as simple and safe;
+  every multi-statement script (all 142 approvals in his Oct 2–3 logs were
+  PowerShell scripts, which also get no "always allow" because the CLI cannot
+  split them into stages) still asks.
+- **Manual and Edit automatically are one mode to Muse Code** (`promptUnmatched`),
+  and Muse Code under serve does not ask before workspace file edits, so Edit
+  automatically has nothing to answer there.
+
+Decisions (the owner chose the reviewer on 2026-10-03):
+
+- **The reviewer.** In Auto on the Muse Code backend, when Muse Code raises an
+  approval no rule settled, the extension asks a reviewer before the user. It
+  reuses M78's reviewer core (`autoReviewer.ts`: `reviewerInput`,
+  `parseReviewerAnswer`, `ReviewBreaker`) and its rubric, and runs on the
+  user's Muse subscription: a hidden side session in the same `muse serve`
+  (Plan mode in an empty folder; the conversation's model; never listed in
+  History), one short turn per review. It answers ALLOW or ASK with a reason.
+- **Its reach.** It can turn an ask into an allow, nothing else. A decline, an
+  unreadable answer, a timeout (`MUSE_CODE_REVIEW_TIMEOUT_MS`), an error, a
+  closed or busy side session, or a tripped breaker leave the approval to the
+  user, as today. It never answers a file write the extension's own rules
+  protect, a paid call, a child task or a question that is not an approval.
+  One review at a time per window.
+- **Tool boundary.** Muse Code's SDK `SessionConfig` only configures
+  `mcpServers`; it cannot disable native tools. Any review-turn item other
+  than the captured ones (the prompt's echo, Muse Code's reminder agents,
+  reasoning and the reply) cancels the turn, shows the normal card with the
+  generic failure reason, and recreates the side session.
+  Residual: a command covered by the user's always-allow rule could run in
+  the empty folder before cancellation lands. The captured setup supplied
+  no workspace files, rules or skills; CLI-global context is not excluded.
+- **Verdict boundary (review fixes, 2026-10-03 and -04).** Changed kind,
+  command, path, access, host, target or tool name invalidates both a held review and a later-stage
+  allowance. Accepted messages and steering release held reviews and clear
+  allowances. Queue admission rechecks the breaker; reasoning setup shares
+  the deadline and cancellation. Only a completed reply in a completed
+  turn carries a verdict. Unseen tool resolutions retain attribution for
+  the newest 50 item ids until their rows arrive, live or from a same-session
+  history read, which also keeps the outcomes the panel saw.
+- **Shown, not hidden.** An approval the reviewer allowed shows in the
+  transcript as allowed by the reviewer, with its reason; an ASK shows the
+  reason on the card the user answers.
+- **Default and setting.** On in Auto (`museSpark.museCodeAutoReviewer`,
+  machine-scoped, default `true`); the first review in a window posts one
+  notice saying what it does and how to turn it off. It costs one short turn
+  of the user's Muse subscription per review, which the notice says.
+- **Honest mode descriptions.** The mode picker, README and this plan describe
+  each mode per backend: on Muse Code, Edit automatically is Manual, and Auto
+  is Muse Code's own simple-command skip plus the reviewer.
+- **Upstream.** A request to Meta for an approval judge under `muse serve`
+  (or a way to pick the reviewer over the protocol) goes with the event-log
+  report; when it lands, the extension prefers it and keeps this reviewer as
+  the fallback.
+
 ## 3. Open questions (need the owner)
+
+- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
+  flag/hard cap, required real Action receipt, and hosted-search refusal are
+  settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
+  metadata on failure. D-M6 correction: fake W spends $0 actual money;
+  text/review simulates $0.000004, one returned image makes $0.010004, about
+  one cent, under $1.00. No claim of a sub-cent successful image.
 
 - **CLI recovery, the steer refusal's reason:** which `commandRejected`
   reason does Muse Code send for a `turn/steer` whose `expectedTurnId` is no
@@ -4019,6 +4312,26 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### Q-M78b — Remaining Model API bundle overage (2026-10-02)
+
+After the action-only splits, activation is 589.1/600 KiB, the board is
+61.0/75 KiB and the reviewer is 55.2/75 KiB. Model API is 412,447 bytes:
+2,847 bytes (2.780273438 KiB) over its 400 KiB cap. Metafile tables,
+first-use tests, red drills and scoped receipts are in
+`docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
+
+**Resolved 2026-10-02 (lead): the budget is revisited, as M57 planned.**
+M57 set 400 KiB as 295.6 KiB plus about a third, a margin to "hold two or
+three milestones of that size before the budget is revisited on purpose".
+M77, M78 and M82 are those milestones. They added 49.2 KiB to the bundle,
+each part attributed in the metafile tables. The largest parts are the host's
+turn logic (+28.4 KiB) and M78's permission policy, shell syntax and command
+rules (+11.6 KiB). These run whenever the model works, so a third lazy
+bundle would load on nearly every turn and only move the bytes. The new
+budget follows the repository's rule: 402.8 KiB measured, plus 15%,
+rounded up to 25 KiB, which is 475 KiB. The board and paid-review splits stay,
+because those run only on their own actions.
 
 ### Q-M74 — Remaining automatic work (2026-09-29)
 
@@ -5450,6 +5763,24 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
   signing credentials created.
 
 ### M27 — The tree kill's orphans (D25)
+
+**JOBFLAKE follow-up (2026-10-03, scoped gates verified):** hosted Windows failures in
+PRs #96 and #89 hid the helper's preparation error and kept its failed
+promise for the session. Keep compilation and success caching unchanged;
+clear only an unavailable result so the next caller tries preparation
+again, sharing each in-flight attempt. Collect the real helper log in
+`toolIo.test.ts`'s missing-helper assertion. Prove compile and self-test
+recovery with fake runners, deliberately restore the old cache to see the
+regressions fail, then restore exact bytes. Run the two owned suites on
+Win11 and the lane's scoped gates; full quality remains the lead's gate
+under `common.md`. Record the paths to unavailability and actual receipts
+in `docs/certification/jobflake.md`. The first hosted failure's specific
+trigger remains unknown until the improved assertion captures it.
+Final Win11 proof: 53 passed, 2 existing platform skips. All five type
+projects, scoped lint/format, host API, duplication, dead code,
+localization and production build passed. Both recovery controls failed
+with the old cache and passed after exact-byte restoration. Aggregate
+quality and the unchanged pins' npm audit triage remain with the lead.
 
 **Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
 merged through pull request #12 from `hardening/m27-orphans`, shipped in
@@ -8567,6 +8898,130 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 
 ### M70 — Review (D49)
 
+- **Main reconciliation (MG69, 2026-10-02).** Finish the inherited merge of
+  `origin/main` `0e9546e0` into `544c16c2`, preserving M70 review/Revert,
+  M84 session transfer and M83 imports, including both lazy bundles and
+  checkpoint edit tests. Regenerate the host API record and notices from
+  merged source on Kubuntu. Keep Unreleased milestones under Added and
+  released changelog sections byte-identical to main. Run required owning
+  suites, static gates and build on the rig; commit with configured hooks,
+  no push. Evidence: `docs/certification/mg69.md`. Full quality remains
+  the lead's gate under the lane brief.
+- **Second main reconciliation (M70m2, 2026-10-02).** Complete the inherited
+  merge of `e66263f1` (M73 packing, M74 handoff and the charset repair) into
+  `c48bf6bd`, keeping both features' commands, turn admission and source.
+  The handoff waits for the review pane as for the other modals. Reviewer
+  requests retain whole observations because its existing read-only tool
+  set has no `recall_output`; ordinary requests still pack. Keep packing's
+  model text in the existing lazy Model API block. Run the owning suites
+  and static gates on Kubuntu, regenerate the host API record there, and
+  retain released changelog sections byte-for-byte from `origin/main`.
+  No push; configured hooks and all gates remain unchanged. Evidence goes
+  in `docs/certification/m70m2.md`.
+- **Main reconciliation (M70m, 2026-10-02).** Finish the inherited merge of
+  `9f35526d` in `4debea77`, merge `origin/main` `2a03a79b` (0.10.1) in
+  `90c1a0c4`, then include the newer docs-audit head `2067d2f9` (PR #74).
+  Keep the review/Revert implementation and main's session transfer and
+  evaluation intact, including all tests and harness scenarios; regenerate
+  the host API record on Kubuntu. Focused rig proof and the browser capture
+  limitation are recorded in `docs/certification/m70m.md`. Full quality and
+  PR acceptance remain the lead's gates, as the lane brief requires.
+- **Revert restructured (M70e, RV69, 2026-10-02).** The fourth review round
+  on Revert ends the patching: the lead's decision is one operation under
+  checkpoint admission, in order: take the lease, read the saved bytes,
+  rebuild from those bytes, re-resolve the canonical target inside the
+  workspace, check no editor is dirty, then publish only while the file
+  still holds those bytes, through the guarded conditional writes the
+  model's tools use (`ToolIo.writeFileIfUnchanged`; a created file's trash
+  through `fsAtomic.deleteFileIfUnchanged`, which compares the bytes, the
+  canonical path and the file's identity just before the removal; a file
+  absent when read through the absence-conditional write a restore uses),
+  then let the lease go. No raw `workspace.fs` write or delete is left in
+  Revert; `createRevertIo` notes the file as the user's only once a change
+  lands. (1) A save during admission is now read and rebuilt from; one after
+  the read refuses the publication. (2) A folder swapped for a link during
+  admission is refused by the re-resolve, and after it by the writers'
+  bound-path checks. (3) A `/review` start barrier belongs to the
+  conversation generation that set it: `dropSession` drops it and an old
+  `finally` never clears a newer one. (4) A Revert that changed the file
+  stays reverted (and its once-only hold kept) when the lease release fails
+  afterwards; the failure is logged, as a turn's failed release is (no
+  user-visible notice exists for it). Proof in `docs/certification/m70.md`.
+- **Independent review follow-up (M70d, 2026-10-01).** Four code-reading
+  findings, each confirmed before repair, after merging main's shared
+  English table (PR #67). (1) The changed-file list carried git's
+  `--name-status` lines; it now holds paths (a rename as `old → new`) read
+  from `-z` output, which also keeps git's quoting out of the privacy
+  check. (2) The cut never mid-line in practice (git's diff opens with a
+  short line), but a line break exactly at the cap kept 200,001
+  characters; the cut is now within the cap and the docs say how it falls.
+  (3) A pane press or read overtaken by a restart, a crash, the host
+  closing the session or a sign-in check returned silently: the pane
+  waited forever and an unwritten hunk stayed "already reverted". It is
+  answered while the panel still shows that conversation, and a press
+  releases only its own hold. (4) A revision word over 256 characters
+  parsed as git and was refused as "too long"; the parser now applies the
+  wire schema itself, so such a word is custom text. Also: the activation
+  review-admission fixture lacked M72's `asUserEdit`, so its four cases
+  timed out since the main merge. Proof in `docs/certification/m70.md`.
+- **Shared-table decision (M70c, 2026-10-01).** Remove the lane's empty-table
+  build workaround in its own commit, then merge approved `build/shared-ui-text`
+  (`44d920fd`). Every Node bundle loads `dist/uiText.js`; review stays lazy
+  with its unchanged 50 KiB cap. No other build-layout change. Build before
+  further fixes; stop and report if any cap is exceeded.
+- **Independent review follow-up (M70b, 2026-10-01).** Reproduce RV70 findings
+  1–5 before fixing: wait for ordinary mode admission; fence late review
+  acknowledgements to their submitted session/generation; recheck dirty buffers
+  inside checkpoint write/delete admission; omit git metadata from Reviewer
+  system instructions; report unreadable pane patches as omitted edits.
+  Reuse existing mode settlement, session fences, dirty predicate, date text
+  and pane omission path. One commit per finding, guard drills with
+  byte-exact SHA-256 restoration. Run the two reported failing suites alone and
+  resolve any isolated failures without changing deadlines. No M72 merge this
+  round; full quality and installed-editor checks remain the lead's gates.
+- **RV70 finding 1 verified (M70c).** Reviews await the existing ordinary
+  mode-settlement lane, including refusal. Controller guard drill: 329 green,
+  two intended failures, 329 restored with matching SHA-256. Isolated native
+  controller fixtures now arrange held admission before the retarget action;
+  retained Model API checkpoint test waits for actual admission (331 pass).
+  Deadlines and assertions unchanged; proof in `docs/certification/m70.md`.
+- **RV70 finding 2 verified (M70c).** Track the submitted session, including
+  owned resume recovery, and apply the current session/generation fence after
+  acknowledgement before accepting its capture/turn. Clear and retire cases
+  fail without the guard; full controller file passes 331 tests after exact
+  restoration. M57's real bundle fixture is built in its existing setup hook,
+  retaining its deadline and goal-refusal assertions.
+- **RV70 finding 3 verified (M70c).** Revert binds its existing
+  dirty-buffer predicate to both original and canonical paths and passes it
+  to the write/delete adapter. The adapter invokes it after checkpoint
+  admission, immediately before I/O. This port argument is needed because
+  the adapter receives only the canonical target and cannot otherwise recheck
+  a dirty buffer opened through a link. No new option or helper module.
+  All four regression cases failed before repair. Predicate/write/delete
+  guard drills each restored all 32 owning tests with matching SHA-256.
+- **RV70 finding 4 verified (M70c).** Omit git metadata from
+  Reviewer system instructions; repository material belongs only in its
+  untrusted turn block. Keep the existing date text in a date-only
+  `REVIEW_MODEL_TEXT` template: the ordinary environment formatter always
+  adds git facts, and passing it undefined git would falsely suggest that
+  the repository is absent or unavailable. Ordinary-turn formatting stays.
+  Commit-subject regression fails before repair and when system metadata is
+  reintroduced; 22 owning tests pass after SHA-256-exact restoration.
+- **RV70 finding 5 verified (M70c).** Unreadable descriptions throw the
+  existing localized refusal, entering the pane's existing omission path.
+  Sole and mixed corrupt patches are counted honestly; the real bundle test
+  now requires refusal. Four before/mutated failures, 372 restored owning
+  tests, byte-exact SHA-256. No new UI key or parser shape.
+- **M70c closure.** All five RV70 findings reproduced, repaired and drilled;
+  nine source/compiled guard mutations rejected with exact SHA-256 restoration
+  (two shared-table checks; mode wait, session fence, dirty predicate and its
+  two I/O callers; system metadata; malformed description). Required static gates/build pass,
+  plus passing evidence for all 840 tests in 11 owning files. The combined
+  run's native-picker timeout and UI worker startup failure are retained;
+  complete material/UI files pass alone after bounded fixture preparation.
+  No timeout, threshold, ignore, rule level or name filter changed. Full
+  quality, installed-editor/rig certification and the new M72 merge remain
+  the lead's work. Detailed receipts in `docs/certification/m70.md`.
 - **Goal.** Review what the agent did before it lands.
 - **Scope.**
   - `/review` with presets:
@@ -8600,6 +9055,146 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
 - **Tests.** The fake Model API and the fake `muse serve`; the pane in the
   harness and the accessibility gate.
 - **Size.** L.
+- **As built** (`feature/m70-review`; written 2026-09-28, resumed and joined
+  to the M72 candidate `1fd98aaf` on 2026-09-30; `docs/certification/m70.md`).
+  - **`/review` grammar.** `/review` (uncommitted), `/review branch [base]`,
+    `/review commit [revision]`, `/review <text>` (custom, no git), each
+    with an optional leading `security`. A keyword counts only with at most
+    one revision word after it, so `/review branch naming in utils` is
+    custom text. A revision is one word of at most 256 characters that
+    never starts with `-`: the parser applies the wire schema itself, so any
+    other word there makes the line custom text, and a leading `-` is
+    refused again before git sees it. The palette's Review
+    group has the presets, **Security review** (`/security-review`, Claude
+    Code's name) and the pane (`/changes`); a missing base or commit is
+    picked in a quick pick, the base suggested from `origin/HEAD`, else
+    `main` or `master`.
+  - **The material** comes from the extension's own git
+    (`src/core/review/reviewMaterial.ts`, `src/host/review/reviewCollector.ts`)
+    run as the prompt's git facts run: `GIT_METADATA_OPTIONS` (no fsmonitor
+    hook, disabled with an empty value because Git 2.25 and 2.35 read
+    `false` as a hook pathname; no signature program; `--no-replace-objects`,
+    so a replace ref cannot show other commits than history holds), every
+    configured clean and process filter overridden for the call (names read
+    with the shared `gitFilterOptions`, never commands; the working-tree
+    diff compares saved text), `--no-ext-diff`, `--no-textconv` and
+    `--relative`. It covers the uncommitted changes against `HEAD` (staged,
+    then unstaged, before a first commit), a branch from its merge base, and
+    one commit against its first parent (a root commit whole). Files that
+    may hold secrets (M54's attachment rule, now `shared/privateFiles.ts`)
+    are left out of every diff by pathspec and only named. The changed files
+    are listed by path (a rename as `old → new`), read from git's `-z`
+    output so no path arrives quoted. The diff is cut after its last whole
+    line within 200,000 characters (git's diff opens with a short
+    `diff --git` line, so one always fits), and the reviewer is told so.
+    Everything git said, the branch name and commit message included, goes
+    between random markers under a sentence that calls it untrusted data
+    (D49's untrusted content); a marker the material already holds is
+    replaced, three tries. Restricted Mode refuses the git presets with the
+    reason; custom instructions still run.
+    The branch scope's base and merge-base facts also live inside those
+    markers: a base chosen from git's picker is repository data too.
+  - **A request owns its folder.** Each git request is bound to the
+    folder's canonical path and its device and inode
+    (`src/host/workspaceIdentity.ts`, shared with the ACP agent's Model API
+    hosts): git runs only at that canonical cwd, the lexical and canonical
+    path are compared before and after every call, after a picker and
+    before the material is released, and trust is re-read each time. A link
+    or junction retargeted, or a directory replaced, cancels the request;
+    once lost it stays lost. The last synchronous comparison before the
+    turn is sent does not exclude an unrelated replacement after it (the
+    residual every path-then-act check has).
+  - **The Model API's Reviewer** (`reviewer.ts`) is the conversation's own
+    turn run with its prompt (role, workspace, environment, the review
+    method, the workspace rules) and only `read_file`, `search`,
+    `list_files` and `mcp__ide__getDiagnostics`: no write, shell, memory,
+    MCP, subagent, image or web search, and a call to anything else is
+    refused in every mode, Bypass included. It performs no additional external MCP startup
+    during the review turn and is not stopped by an unavailable server;
+    configured servers can still start when the conversation opens; the next ordinary turn
+    keeps its required-server check. No payment is asked: it is the user's
+    own turn (D49). A child task whose role is `reviewer` runs the same way
+    and stays a paid child task (D45, D48); one that names an M76 custom
+    agent runs as that agent, whose own prompt, tools and mode govern it.
+  - **Muse Code** gets the same text with the role and the method at its
+    head, as the turn's text (`REVIEW_MODEL_TEXT`), no skill. The turn runs
+    in Plan mode (`denyUnmatched`) and `PlanModeHold` puts the user's mode
+    back when that turn ends. Muse Code applies its own allow rules in Plan
+    mode, so the review is not claimed strictly read-only (D46; the owner's
+    ruling). The mode logic is the careful part:
+    - a mode the user picks while the hold is being set cancels that
+      pending review; one picked during the review wins and nothing is put
+      back; the newest choice follows every outstanding mode request, and
+      a new turn waits for them rather than trusting the panel's label;
+    - Bypass comes back only while its setting still allows it (D24): a
+      restore revoked while it was in flight is corrected to Manual before
+      it is reported, off and on again does not revive an earlier pending
+      remote confirmation, and a fallback the backend refuses retires only
+      the session that owned the unsafe request, never a replacement;
+    - the session going releases the hold, and a review whose Plan
+      admission was refused after a revocation retires the old Bypass owner
+      rather than relabelling it Manual.
+  - **A review is a turn for checkpoints (M72, D51).** It is marked
+    running and takes the pre-turn capture before it is sent (released with
+    the mark when its turn cannot be sent), as a message does, because a
+    Plan-mode turn on Muse Code is not strictly read-only. One review starts
+    at a time, and a message sent while one starts waits for it, then goes
+    into the review turn as a steer. That wait belongs to the conversation
+    generation that started the review: a cleared or replaced conversation
+    drops it, so the old review's outstanding command neither holds up nor
+    refuses the next conversation, and its end never clears a newer one.
+  - **Findings**: the review ends with a fenced `muse-review` JSON block
+    (the extension's own format, parsed with zod); the reply shows it as a
+    list with severity, title, detail and a `file:line` that opens the file
+    at those lines. A model-chosen severity is shown as it came; a location
+    outside the workspace is text, never opened. A block that does not
+    parse stays a code block.
+  - **The review pane** (`/changes`) lists the conversation's edits, its
+    agents' included, in the order they landed, file by file and hunk by
+    hunk (at most 200 edits and 20,000 diff lines, the first patch
+    included; the rest are counted). Accept marks a hunk; Revert takes that
+    one hunk out of the file as it is now (M36's exact reverse-apply), once,
+    or says why it could not. A comment on a line quotes the file, the line
+    and three lines around it as a `chat_reference` from `diff`, and goes as
+    a steer into the running turn or as the next message. Revert is an
+    explicit file edit of edit review, serialized per file so overlapping
+    reverts rebuild from each other's bytes, and each one is one operation
+    under the checkpointed edit lease (another window refuses a restore
+    meanwhile): read the saved bytes, rebuild from them, re-resolve the
+    canonical target inside the workspace (links and junctions), refuse an
+    editor with unsaved changes, then publish only while the file still
+    holds those bytes at that path with no link on the way (the tools'
+    `writeFileIfUnchanged`; a created file emptied goes to the trash through
+    `deleteFileIfUnchanged`; a file absent when read is written only while
+    still absent). A refused publication says why (changed since, or
+    unsaved changes). It is announced to live verification without an own
+    edit round of the agent's (`beginExternalEdit`) and is the user's once
+    it lands. A Revert that changed the file stays reverted when the lease
+    release fails afterwards (logged). A press or a pane read that a restart, a
+    crash, the host closing the session or a sign-in check overtakes is
+    answered while the panel still shows that conversation (attached, or
+    the one the next message resumes); a press that wrote nothing gives its
+    hunk back, and only its own hold. A cleared or other conversation hears
+    nothing of it.
+  - **Bundles** (D6 amendment): the review's code is `dist/review.js`, and
+    the Model API and review bundles carry no English table.
+    The lane's budget repair splits the existing model text used only by
+    `ModelApiHost` into `MODEL_API_MODEL_TEXT` beside the shared block,
+    following `REVIEW_MODEL_TEXT`. Its words and callers' behaviour stay
+    identical; activation can discard that unused object. The bundle-split
+    gate must reject its return to activation or the ACP loader. This is
+    required to fit M70 under the unchanged 600 KiB activation cap.
+  - **Wire evidence** (AGENTS.md rule 13): nothing new is read from Muse
+    Code or Meta. `session/setApprovalMode` and `session/approvalModeChanged`
+    are M4's captured shapes; the findings block is the extension's own
+    format and is parsed as untrusted model output.
+  - **Left to the owner** (not settled here): widening the list of files
+    that may hold secrets beyond M54's (`.npmrc`, `.netrc`, cloud
+    credential folders); offering the read-only code intelligence tools
+    (M67) to the Reviewer; whether Muse Code's review should refuse to run
+    at all while its Plan mode is not strictly read-only. The safest
+    default is built: the narrowest tool list, the current list of names,
+    and the honest notice.
 
 ### M71 — Git and pull requests (D49)
 
@@ -10073,6 +10668,30 @@ maxBytes)`, which returns at most one byte past the cap and only for a
 
 ### M77 — Session board and best-of-N (D49)
 
+**RV78 review fixes, 2026-10-02.** The board's git status ran through the
+ordinary runner, so opening it could start a repository's configured
+fsmonitor program with no approval, in any mode. It now runs through
+`metadataGit` (`src/host/git.ts`), the prompt's git-facts runner moved there
+and shared: `GIT_METADATA_OPTIONS`, filter drivers emptied by name and
+`GIT_OPTIONAL_LOCKS=0`. A real-git regression proves the fsmonitor canary
+live and then silent under the board. Best-of-N's Start hid the form before
+the host accepted the run, so a startup refusal (a notice, no update) left an
+empty dialog; the form now stays until a new run arrives. Records and drills
+are in `docs/certification/m77.md`.
+
+**Lane resume, 2026-09-30.** Retain the existing M82 commits and staged M77
+port. Compilation passed all five projects. The initial focused run found
+voice Stop was blocked by a newly enabled cap; Stop now reaches its existing
+driver even when a new recording is unavailable. Native shared-budget fixtures
+use the production rename backoff instead of exhausting retries during reads.
+Both affected suites then passed all 719 tests. The initial production build
+failed at 651.0 KiB against the unchanged 600 KiB activation limit.
+The lead's resumed-lane decision removes the controller split and keeps every
+feature. One shared English-table change will land separately; this lane
+records any remaining cap failure without adding a split, loader or cap change.
+The native skill ledger validator is deferred: this canonical plan predates its
+JSON ledger format; converting the project plan is outside this lane.
+
 - **Goal.** Run several agents at once and pick the best result.
 - **Scope.**
   - A board of every conversation in the window and its worktrees: state,
@@ -10088,13 +10707,267 @@ maxBytes)`, which returns at most one byte past the cap and only for a
   - Worktrees need git, so best-of-N is unavailable in Restricted Mode.
 - **Backends.** The board: both. Best-of-N: the Model API.
 - **Acceptance.** Best-of-N asks once with the rates, N and the request
-  ceiling per attempt; "take this one" merges only that worktree's
-  changes; the board shows every conversation's state.
+  ceiling per attempt; each actual Model API HTTP attempt, including a
+  retry, must be admitted against that ceiling and the consented key.
+  "Take this one" applies and stages the selected immutable Git-tree
+  snapshot, including uncommitted tracked and unignored new files. It
+  creates no project commit; ignored files are outside the snapshot. The
+  target must still have the captured base HEAD, a clean index and working
+  tree, no dirty editors, and trusted, unchanged account/context ownership.
+  A failed, cancelled, or unreadable attempt is never takeable. The board
+  shows every conversation's state.
+- **Completion review (2026-09-29; verification queued).** The branch's
+  original reply-usage counter did not bound HTTP retries, discarded the
+  terminal outcome, acquired run ownership after consent, and compared and
+  merged branch commits even though normal file tools leave uncommitted
+  edits. Complete these existing behaviors with the window-owned run lease,
+  pre-HTTP admission, immutable `add`/`write-tree` capture, and ordinary
+  `git apply --index` of the captured binary patch. Recheck target paths,
+  symlink/protected-path confinement and ownership before applying. No
+  synthetic commits, force, or three-way application. Automatic snapshots
+  suppress repository programs; applying a patch creates no commit. M82's
+  cross-host attempts must use the originating account-owned budget journal;
+  bind the canonical M82 OwnedSessionBudgetScope before consent and to every
+  attempt host; finite-cap runs refuse when no owned scope exists. M82 must
+  integrate before this consumer draft is typechecked. Extend the
+  existing PaidUsage tally with each admitted attempt request, unknown
+  request costs, and validated per-response token/cost deltas from the owned
+  worktree host. Cumulative transcript frames are never billed twice, and
+  missing usage never becomes an invented zero-dollar estimate. Attempt
+  costs remain their own reported row until actually folded into a parent.
+  Source changes
+  and tests remain unverified until the scheduled host slot is released.
+  - **Independent completion repair:** Best-of-N automatic Git operations
+    reuse the bounded absolute executable runner with per-command hooks,
+    fsmonitor, replacement-ref and maintenance/GC controls. A bounded
+    names-only config read refuses executable filter drivers and configured
+    hook commands. Git 2.36 or newer is required for the documented
+    fsmonitor boolean behavior; other Git callers keep their normal policy.
+    Every actual invocation rechecks ownership/trust after preflight awaits.
+    Capture checks cancellation after worktree validation and between Git
+    awaits; Take repeats canonical targets after status/HEAD checks. Attempt
+    hosts bind the existing file-lister factory to their actual worktree
+    root, including uncommitted/new files and VS Code search fallback.
+    Real temporary repo program canaries, replacement refs, held validators
+    and production manager file-lister tests are required; proof is queued.
 - **Tests.** The fake Model API with N attempts, and the board in the
   harness and the accessibility gate.
 - **Size.** L.
+- **Files (built 2026-09-28).** `src/shared/{bestOfN,sessionBoard,paid,protocol,constants}.ts`,
+  `src/core/{sessionBoard.ts,bestOfN/bestOfN.ts,bestOfN/bestOfNRunner.ts,bestOfN/worktreeConversationHost.ts}`,
+  `src/host/{sessionBoard.ts,bestOfN/bestOfNManager.ts}`, the controller's
+  pending prompts and best-of-N wiring
+  (`src/host/conversation/conversationController.ts`,
+  `src/host/backend/modelApiBackendManager.ts`, `src/extension.ts`),
+  `src/webview/{App.tsx,state/uiState.ts,components/SessionBoardDialog.tsx,components/BestOfNDialog.tsx,components/Header.tsx,components/icons.tsx,components/UsageDialog.tsx,styles.css}`,
+  the `museSpark.modelApiBestOfN` setting (`package.json`,
+  `src/host/settings.ts`, `package.nls.json`), the 14 UI and manifest
+  tables, the harness (`board` and `bestofn` scenarios).
+- **Decisions taken.** Attempt branches are
+  `best-of-n/<run>/<index>` in folders beside the repository, like M32's
+  worktrees; the runner asks the one D48 popup only after the guards
+  (a live run, no folder, untrusted, wrong backend, off, out of bounds,
+  unpriced model) pass. An attempt that would ask the user (an approval or
+  a question) is declined and counted; retries count against its ceiling;
+  the comparison diff is clipped at 32,000 chars with the clip marked.
+  The board orders running, then waiting, then the rest; its waiting mark
+  comes from `PendingPrompts`, shared window-wide by every surface's
+  controller. Best-of-N is Model API only; the board serves both backends.
+- **Tests (built 2026-09-28).** `bestOfN.test.ts` (branches, folders, the
+  paid request, numstat, clipping), `bestOfNAttempts.test.ts`,
+  `bestOfNRunner.test.ts` (guards, consent, take, cancel),
+  `bestOfNManager.test.ts`, `worktreeConversationHost.test.ts` (ceiling,
+  declines), `sessionBoard.test.ts` (rows, ordering),
+  `sessionBoardHost.test.ts`, `SessionBoardDialog.test.tsx`,
+  `BestOfNDialog.test.tsx`, plus the touched `conversationController`,
+  `paidFeatures` and `paidHost` suites. The harness `board`/`bestofn`
+  scenarios run in the accessibility gate.
+- **Gates.** `npm run quality` and meaningful red/restored drills remain
+  queued for the completion draft; `docs/certification/m77.md` records this
+  explicit verification hold. The prior branch did not contain that record.
+- **Docs.** README (Session board and best-of-N, Paid features, settings
+  table), CHANGELOG, the 14 UI and manifest tables.
+- **Security.** Attempts run worktree-confined on the Model API backend
+  only; the paid gate (D30/D48) covers the setting and every run; the key
+  never reaches `muse serve`; "take" applies and stages only the captured
+  chosen tree, through ordinary Git apply with no force/three-way fallback.
+  The attempt index is pinned to its original absolute Git directory.
+- **Status.** Completion draft on `feature/m77-board` (2026-09-29),
+  verification queued; M82 external parent-budget binding remains an
+  integration dependency. No new model calls or verifiers were run during
+  the shared host verification hold.
 
 ### M78 — Auto, made safe (D49)
+
+**MGCOH main merge, 2026-10-02.** Integrate `origin/main` at `0e9546e0`
+into `feature/m77-m78-m82` at `8c72bdcc`. Main already includes M84,
+0.10.1, M74, the editor-guide fixes and M83's import. Preserve every
+cohort and main feature, all translated keys, every lazy bundle's gate and
+CI package membership. Regenerate the host API inventory and package
+notices on Kubuntu. Keep the activation, Model API, board and reviewer
+caps at 600/475/75/75 KiB. The MGCOH receipt in
+`docs/certification/m78.md` records the merged-source checks; full quality
+and publication remain the lead's responsibility under the lane brief.
+
+**MGCOH current-main follow-up.** Main advanced during the first merge's
+hooks to `8dac84cf` (M84's narrow-share focus fix, PR #80). Retain that
+fix unchanged and resolve the App test's imports with both the share page
+constant and the cohort's paid tally fixture. The same 32 owning files
+pass all 1,727 tests again at snapshot `5c8e2f1d`. Scoped static gates
+and all four narrow-share accessibility themes pass at `f6ec1cc0`.
+The extra README screenshot command's wide Chrome CLI step hangs on this
+rig; a bounded direct-binary retry times out. The narrow Playwright
+capture renders correctly, but no clean wide screenshot-command pass is
+claimed. Record that optional browser-runner blocker in the certification
+without changing main's source or any gate. This adds no feature beyond
+current main and changes no cap or approval policy.
+
+**Main merge, 2026-10-02 (M78m).** Merge `origin/main` at `e66263f1`
+(M74's handoff, with M84, 0.10.1 and the documentation fixes already in
+the cohort's ancestry) into `1372f047`. Keep both features whole. The
+controller test helper retains both M74's held-host callback and M82's
+owned voice-budget scope, and the paid palette's regression names M78's
+reviewer and M77's best-of-N beside the five existing toggles. M74 adds no
+dispatcher tool or tool-output path, so the existing M78 fence table still
+covers the complete dispatcher. Unreleased milestones stay under Added;
+the released changelog remains byte-identical to main. The host API record
+is generated on Kubuntu from the merged source. Scoped evidence is in
+`docs/certification/m78.md`; aggregate quality remains the lead's gate.
+
+**RV78g review fix, 2026-10-02: an outcome that cannot name its files fails
+closed.** Muse's review of the choke-point fence found one P1, four P2 and
+four P3, most from one root: the fence trusted `touched`, but a command's,
+a server's, the IDE's or a child's output cannot list every file it quotes.
+The lead's decision: `ToolOutcome.touched` is `{ names, complete }` and
+defaults to incomplete. Only tools whose output provably carries just the
+listed files say complete (`read_file`, `list_files`, `search`, the writes
+and edits with rename, the image tools, memory with its note, `read_skill`).
+The dispatcher judges a complete outcome as before; an incomplete one is
+also refused when the file policy's revision moved at all since admission.
+The revision (`filePolicyRevision`) is a digest of the profile, its
+deny-read globs, deny-all, extra roots and the trust, recorded in each
+`Admission`: a digest, not a counter, so a stored child result is judged the
+same way after a restart, and no glob or root is stored. Each child records
+its spawn admission's revision (persisted with it and with each pending
+result): a drained result is withheld when it moved, after a resume too, and
+`subagent_wait`, `read_result` and `status` carry their children's
+revisions; a result saved before revisions is withheld. `addIndexLine`
+throws its owner's Stop on after logging, so `add_memory` ends as a stop; a
+refusal of the index line alone still keeps the note reported written
+(`IndexLineStoppedError`). The store hands the I/O its caller's own guard
+and asks it once more after a failure. Every table row runs again with a
+deny on a file no call reads (complete rows delivered, opaque rows refused),
+the no-I/O row is checked against the fakes' I/O counters, egress rows
+assert no image request and nothing billed, and the subagent rows quote a
+marker. Seven red drills are in `docs/certification/m78.md`.
+
+**RV78f review fix, 2026-10-02: the fence at its two choke points.** The
+follow-up review found three paths the per-I/O fence missed (an image
+edit's sources sent to Meta after a deny landed during the reservation
+awaits; `read_skill`, which consulted no file rule; MCP and IDE results
+after their await), image and PDF reads with no regression, and a Stop
+during a memory read reported as a file error. The lead's decision: fencing
+tool by tool keeps missing the next tool, so the fence moves to the two
+places every path crosses. **The dispatcher's fence**: `runCall` judges
+every call's outcome, from every tool, built-in or external, with
+`policyRefusal` over the call's `Admission` (its query, its judgement after
+any card, and now the workspace's trust) and the files the outcome reports
+in `ToolOutcome.touched`, synchronously right before the outcome is built
+for the model. Every path that runs a call fills an `AdmissionSlot` at its
+admission; a tool that reports no files is judged on verdict, mode and
+trust alone. A refusal replaces the outcome; a read recorded as seen is
+forgotten; a write already made is said to stay and keeps its patch on the
+row (`UI_TEXT.policyChangedKeptWrite`, 14 tables). A rejection keeps its
+own words. The per-tool post-read `readFence` is gone: reads report what
+they touched instead. Side effects keep their fence at the moment they
+happen: a shell command's process entry, a memory note's write (a read is
+the dispatcher's), and **the egress fence**: the image request judges the
+call again, with its target and every source, inside each attempt's final
+admission, with no await before the send; a refusal sends nothing and
+settles its claim at zero. `read_skill` refuses a denied project skill at
+admission. `MemoryStore` throws its owner's Stop on, for reads and writes.
+A table-driven regression drives every tool the dispatcher knows
+(`classifiedToolNames()`) plus an MCP and an IDE tool with its I/O held
+while a deny, a mode or a trust change lands; receipts and five red drills
+are in `docs/certification/m78.md`.
+
+**RV78 review fix, 2026-10-02: one live policy fence at every I/O.** The
+independent review found one class in three places: the command and file
+policy was decided before an await and not judged again at the I/O. A
+rule-allowed shell command still entered its process after a forbid rule,
+an ask rule or a profile arrived during the Windows job assembly's load; a
+read finished under the old file rules and its text reached the model; a
+memory note was written after its path was denied. The lead's decision:
+one fence, `ModelApiHost.policyRefusal`, called at the moment of each I/O
+with the current compiled policy (rules, profile, mode) for that exact
+operation. It runs inside `ToolIo.runShell`'s final admission callback (as
+`runVerifyCommand` already fenced checks), after every read used to build
+model input completes (`read_file` text and its images and PDFs,
+`list_files`, `search`), and inside every MemoryIo read/write assertion.
+What ran with no question must still be allowed; an answered ask must not
+now be refused nor newly settled by a rule or the profile; no touched file
+may now be denied, nor read under an extra root the profile dropped. A
+refusal replaces the outcome (the model gets `toolRefusedByPolicyChange`,
+the row `policyChangedRefused`, in English and all 14 translated tables),
+so nothing read is sent. A note already written when its new index line
+was refused stays reported as written, its index line logged as not
+written. Held-boundary regressions and three red drills are in
+`docs/certification/m78.md`.
+
+**Final lane receipt, 2026-10-01/02.** Implemented on the release candidate
+with the approved shared English fallback (PR #67 tip `909db6736`, merged
+as `3375e828`; the named shared branch was deleted by the lead). The required
+`integrate/m72-on-24ff` merge reported Already up to date. Every bundle fits
+its unchanged cap: extension 581.5 KiB, Model API 372.5 KiB, checkpoint store
+126.3 KiB and shared UI table 82.3 KiB. All seven scoped static gates passed,
+including all five type projects and zero clones. Final Kubuntu owning run:
+51 suites / 2,083 passed / three Windows-only skips. Mac's 51-suite run passed
+2,081 tests before the final two UI regressions; its final three UI callers
+then passed all 246 tests. Windows VM native refresh passed 278 tests; the
+Windows host's shell witnesses passed all 159 with no skips. Eleven unique
+red/restored drills fired, with exact source hashes restored; the merged
+host's three affected drills were refreshed. Actual 320px viewport/body
+measurements and five narrow screenshots prove reflow, and 20 accessibility
+pages passed in four themes. This review also caught and repaired the reducer
+dropping approval reasons; delivery, stages and restoration are covered.
+The installed offline ACP tarball and both extension/backend bundles loaded
+the approved English fallback. No controller split, injected-table stub,
+cap change, public push or paid call remains. Full aggregate quality,
+independent review, installed-host/platform certification and hosted CI are
+the lead's remaining gates under common.md, not passing lane claims.
+
+**Resumed scoped proof, 2026-10-01.** The release-candidate port passed all
+five Windows type projects and 46 owning Kubuntu suites (1,889 passed,
+three Windows-only skips). Windows VM native coverage passed seven suites
+(278 passed, 22 platform/capability skips); the Windows host independently
+passed all 159 shell cases, including real Bash and PowerShell 5.1.
+Ten intended red/restored drills cover rules, missing profiles, reviewer
+claims/usage, native file/verification policy and both new UI presentations;
+every restoration matches SHA-256. Localization, dead code and the refreshed
+host API record passed. Five lane test clones and two invalid `void` types
+were corrected without changing assertions, ignores or thresholds. The one
+older-base checkpoint clone is already fixed on the release-candidate branch
+to be merged. Build sharing follows the lead's `build/shared-ui-text` only;
+full quality, independent review and final platform/installed proof remain
+the lead's gates. Receipts are in `docs/certification/m78.md`.
+
+**Lane readiness review, 2026-09-30.** Resume from the preserved cohort tree
+`23bd93a3647f9029c2c79f5a0f95e3350666efa6`, taking its net feature delta
+against main `32709441`. Keep M82's durable spend and M72's current turn,
+publication and shutdown fences. Reuse the existing command lexer, policy
+compiler, permission engine, paid popup and direct reviewer; no new package,
+wire shape, bundle split or setting beyond the planned milestone. Integrate
+the held policy/read/format boundaries and M77's rooted attempt editor and
+shared edit recorder. Acceptance includes native Bash/PowerShell comparisons,
+complex-command fallback, repository tightening, malformed-profile denial,
+post-await owner/policy checks, paid consent and finite-cap direct claims.
+The resumed native tests also require the automatic verify round to retain
+its original edited-file policy fence after a lookup filters denied files out;
+an empty allowed-file list cannot authorize a check over a revoked edit.
+Focused gates and exact-restoration red drills bind this port. Full quality,
+rig and installed/visual gates remain the lead's responsibility under common.md.
+The skill's JSON-ledger validator remains deferred for this older canonical
+plan; no competing plan or invented certification is created.
 
 - **Goal.** Auto on the Model API earns its name.
 - **Scope.**
@@ -10318,72 +11191,114 @@ independent review and the full candidate gates remain required.**
   for a stronger plan location (`specs/…/plan.md`, `docs/plans/`), which is
   the model's judgement, not a fixed name (D13).
 
-### M80 — Headless and CI (D49)
+### M80 — Headless and CI (D49, D65)
 
-- **Goal.** The agent runs where the editor does not.
-- **Scope.**
-  - An `exec` mode in the ACP agent's package:
-    - a prompt in, JSONL events or a final JSON out;
-    - a schema for the output;
-    - a budget, kept by reservation as in M82, and an attempt cap.
-  - M80 builds on M63 and D61 (PR #32), and on PR #32's amendment of
-    AGENTS.md rule 8, which names the OS credential store as the store
-    outside VS Code (the one SecretStorage itself rests on) and this
-    bootstrap as its one exception.
-  - A GitHub Action for PR review and "fix this" comments, on the user's
-    own runners and key.
-    - It runs only for triggers from the repository's owners, members and
-      collaborators, on branches of the same repository. The key is never
-      present on a job that checks out a fork's code
-      (`pull_request_target` included), and the Action refuses a
-      self-hosted runner on a public repository.
-    - `exec` denies every approval question, has no shell or check tools
-      on PR content, and never uses `--trust-workspace`. A tool process
-      it starts gets no `DBUS_SESSION_BUS_ADDRESS` or other route to the
-      keyring session.
-    - The OS credential store does not protect the key from processes of
-      the same user, which is why nothing from the PR runs beside it.
-  - **The key follows D61 and AGENTS.md rule 8.**
-    - It lives in the operating system's credential store, the one the
-      ACP agent already uses (`@napi-rs/keyring`, filled by
-      `muse-spark-code-acp auth set` from standard input).
-    - Its one way in is `auth set`'s standard input: from the user's
-      terminal locally, from the Action's step shell in CI.
-    - Inside the agent it is never passed as an environment variable, an
-      argument or a file, and never to a process the agent starts (a
-      tool, a check, `exec`'s commands).
-    - A local headless run reads that entry, like the ACP agent.
-    - In CI the Action sets, runs and clears inside one shell: on Linux,
-      one `dbus-run-session` that starts and unlocks a throwaway keyring,
-      pipes the repository secret into `auth set` through standard
-      input, runs `exec`, and clears the entry on exit; on macOS and
-      Windows, the runner's own store, cleared in an always-run step. The
-      entry's account name is unique to the run, so concurrent jobs and a
-      developer's own key on a self-hosted runner never collide.
-    - GitHub hands a secret to a step only through the step's
-      environment or its script, so in CI the Action's own step shell is
-      the one environment the key is ever in. That shell writes it to
-      `auth set`'s standard input and unsets it before `exec` starts; the
-      shell and `auth set` are the only processes that hold it outside
-      the store. PR #32's amendment to AGENTS.md rule 8 names this
-      bootstrap as the exception, and nothing else.
-    - `exec` cannot show D48's popup or M71's push confirmation, so it
-      refuses paid features and never pushes. A "fix this" result leaves
-      as a patch, or a commit pushed by a separate step the repository's
-      owner wrote.
-    - If no store is available, the run stops with that reason; there is
-      no fallback.
-- **Backends.** The Model API with the key from the store. Muse Code only
-  where the CLI is already signed in on that machine; a device sign-in
-  needs a person, so it is not offered in CI.
-- **Acceptance.** A fork's PR or an outside commenter starts nothing;
-  outside the Action's step shell, the key is in no environment, and it is
-  in no argument, file or log; no process `exec` starts gets it or a route
-  to the keyring; `exec` answers every approval question with a denial.
-- **Tests.** `exec` against the fake Model API; the Action's steps in a
-  workflow test on the owner's repository, with a drill for the trigger
-  check.
-- **Size.** M.
+**Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
+2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
+`exec` and counts-only `scan-secrets` to the existing ACP package/bin,
+using the existing in-process ACP engine. No new backend entry or UI.
+
+**Integration, 2026-10-02 (lead-directed, `feature/m80-headless`):** lanes C
+and D merged into B, and the pieces no lane owned were written: the W workflow
+`.github/workflows/action-check.yml`, the fake-only test package's launcher
+`test/action/exec-test-launcher.ts` with its scripted transport and checker,
+and the launcher/rehearsal test. Lane D's twelve built-process rows now run
+unconditionally and found three defects, all fixed: `--help` omitted
+scan-secrets, a legacy key's tail survived a pattern-only network error
+description, and the fd writer closed stdout on EAGAIN. One cross-lane fix
+pass closed RVM80A (Muse, lane A) and RVM80CD (Codex, lanes C and D),
+including the P1: safeGit now refuses any effective Git configuration name a
+fresh `git init` does not write. Every fix has a regression and a red drill
+(`docs/certification/m80.md`). The hosted action-check/build/hosts matrices and
+L/LA/LR remain open; M80 is not certified.
+
+**M80Bw follow-up, platform verified 2026-10-02:** the lead authorizes a
+new Windows termination path after the existing bounded cleanup/flush grace.
+Use self-SIGKILL rather than waiting for `process.exit()` to join a blocked
+native pipe writer. Windows forced termination reports process exit 1 and may
+lose buffered output; any delivered result retains its first-stop status/code.
+Normal drained exits and POSIX behavior retain the existing exit table. Keep
+D29's two-second parent bound unchanged. Three consecutive complete A+B runs
+passed on both Win11 and Kubuntu (439/439 each). Win11 self-kill and scanner
+flush red drills fired and restored byte-exact. Self-kill holds; no worker-thread
+change is needed. Kubuntu static/build gates passed at `128d9aac`; the
+certification record binds the source/test bytes and receipts.
+Full quality and C/D/L/LA/LR remain lead-owned.
+
+**Lane B baseline, Windows certification initially blocked, 2026-10-02:** deliver only frozen v4 §5.2/§5.3/§9:
+the existing ACP engine's one-turn client/tap, integer micro-USD ledger,
+streaming transport, lifecycle, bounded untrusted inputs, headless paid policy,
+runtime/CLI/scanner wiring and D1–D30/P1–P10/L1–L12 tests. Reuse lane A at
+`e39ac9d3`; keep Model API core unchanged. F2 carries observed metadata on
+transport loss without granting completion or credit. Tests, typechecks and
+builds run only on the rigs; full quality and C/D/live acceptance remain lead
+work. Readiness review: supplied v4 contract plus lead F1/F2 rulings resolve
+the two minor ambiguities; no new scope or dependencies are needed. Existing
+roadmap format is retained as instructed by the lane brief; the skill's
+structured-ledger validator is deferred rather than migrating the roadmap.
+Evidence moves with implementation in `docs/certification/m80.md`.
+
+**Lane A, 2026-10-02:** implement the frozen scratchpad `m80/SPEC.md` v4
+§5.1/§9 and the M80A brief only. Pure argument/result/event/output/fd/key/scanner
+modules, literal-first redaction, constants, all 14 translations and deterministic
+schemas compile independently; `cliArgs` and `main` remain unchanged. F1 parses
+ASCII decimal budget strings directly into safe integer micro-USD (at most six
+fractional digits); accounting identities use that integer domain, and B rounds
+sub-micro reservations/charges upward. F2's observed terminal/reason/usage payload
+on transport settlement is B's task. Evidence and guard drills live in
+[the lane A record](docs/certification/m80.md). This does not close M80, full
+quality, engine/Action/packaging/host acceptance or L/LA/LR. D still owns replacing
+the obsolete bootstrap/reservation/paid policy wording below with v4's policy.
+
+| Lane / receipt | Scope                                                                                    | Current state                                                                                                                    |
+| -------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| A              | Pure arguments/protocol/egress/fd/key/scanner, translations, schemas                     | Delivered in `e39ac9d3`; focused rig gates and deliberate breaks recorded                                                        |
+| B              | CLI/scanner lifecycle, real engine, tap, ledger, streaming transport                     | Integrated; M80Bw Windows forced exit; 76 guard drills; integration fixed EAGAIN on full pipes and the legacy-key residue leak   |
+| C              | Gate/install/launcher/sanitized Git/proposal/apply                                       | Integrated; 83 guard drills; integration closed Git configuration by shape (RVM80CD P1) and the P2 lifecycle/validation findings |
+| D              | Package/schema distribution, test package, build/release/hosts, E/H tests, documentation | Integrated; the 12 built-process rows run and pass; actionlint 1.7.12 clean                                                      |
+| W              | action-check.yml: W-review/text/image, low-budget, gate drill, apply, local rehearsal    | Written at integration; local rehearsal passes on the rigs; hosted matrix pending                                                |
+| L              | Local contributor text/PNG/PDF captures                                                  | Pending lead review and authorized live execution                                                                                |
+| LA             | Required real Action candidate using `MUSE_MODEL_API_KEY`                                | Pending secure secret setup and actual run receipt                                                                               |
+| LR             | Published npm package provenance and registry Action smoke                               | Pending release; registry support cannot be claimed before this receipt                                                          |
+
+- **Exec:** exactly one bounded UTF-8 prompt; `plan` by default or
+  `acceptEdits`; never trust or bypass. Ordinary approval requests and questions
+  are denied. Model API exec starts no tool/shell/check/hook/MCP/Git/web-fetch
+  process. Local Muse Code exec uses the already-signed-in CLI; no login.
+- **Accounting:** every admitted billable HTTP attempt, retry, compaction and
+  image consumes request/cap headroom. Context-window reservations use exact
+  tariff arithmetic, round upward to integer micro-USD, and retain uncertain
+  liability permanently. No counting endpoint, byte heuristic or M82 budget.
+  F2 retains observed terminal/reason/usage on transport loss, which still
+  withholds prose and settles the full reservation. Latest valid response
+  completion plus ACP end_turn authorizes success; missing accounting exits 9.
+- **Keys:** D65 names both trusted stdin readers, exec and the scanner. Local
+  OS-store auth is unchanged. CI never fills a keyring; no other child gets
+  the key or keyring/credential routes. Initial launcher environment inspection
+  and same-user memory inspection remain residual risks.
+- **Images:** off by default; explicit flag + `acceptEdits` + hard budget,
+  per-use admission and returned/refunded/uncertain tally. No remembered grants,
+  hosted search, voice, subagents or schedules; no subscription billing.
+- **Action:** same-repo OWNER/MEMBER/COLLABORATOR triggers only; refuse forks,
+  bots, `pull_request_target`, public self-hosted runners and changed API head.
+  Install trusted package before checkout, use one sanitized Git runner and
+  bounded launcher across all proposal phases. Candidate is unsigned and
+  digest pinned; registry path verifies npm 11.19.0 bundles and signer identity.
+- **Publication:** metadata-only tool events; whole incomplete messages
+  withheld; all output leaves redact exact literals before patterns.
+  Completed/0 alone permits comments and exact scanned text patches. Any binary
+  change (including an unignored generated PNG) withholds the entire patch.
+  Prepare/tests have read permission and no secrets; push uses `muse-apply`
+  maintainer review and exact digest/head/lease checks in its own job.
+- **Acceptance:** A1–A17/A19–A22, D1–D30, P1–P10, L1–L12, G1–G25,
+  E1–E7, H1–H4, W-review/text/image/low-budget/gate/apply, R1–R39,
+  unchanged integrated quality/build/host matrices, L and LA before candidate
+  certification; LR after release before registry-path support.
+  [m80.md](docs/certification/m80.md) carries observed and pending evidence.
+- **Windows limits:** standalone POSIX signal tests are explicitly skipped;
+  argv and injected child-env hashes do not prove full environment-block audit.
+- **Size:** L. Existing bundle caps remain unchanged; final integrated-tree
+  sizes and package/workflow hashes belong to the lead's closing receipt.
 
 ### M81 — Browser check (D49)
 
@@ -10521,6 +11436,222 @@ same day, each with a test and a red drill. Decisions taken while building:
 
 ### M82 — Awareness and budgets (D49)
 
+**Resume review 2026-09-29.** The settled-spend, request-model pricing and
+replayed-question fixes in the existing branch are retained. Completion
+also requires the open request's reserved liability to survive a crash
+before usage arrives, including a snapshot whose replay cannot be saved.
+The reservation write must finish before fetch, and unavailable or failing
+storage refuses the capped request. Final key/account, model, goal, trust
+and paid admission checks stay synchronous after the write; a nonsent
+reservation is refunded durably under its original account. Final usage
+replaces the liability. A model change invalidates an
+older request's or token-count call's base even if the model switches back
+before it answers. Stored usage and reply spend must stay finite and
+nonnegative. A failed compacted-context token count logs a status and fixed
+words only. These paths are checked with held fake responses, a real
+session-file readback, model changes, reloads and red/restored drills; no
+new paid live run is authorized for this completion.
+
+**Shared spending and paid fees (resume owner decision, 2026-09-29).** The
+cap remains per conversation across hosts sharing its session store. A
+scoped budget journal owns each request's durable liability through actual
+settlement or refund; journal entries remain visible after crashes, and
+stale whole-session saves cannot lower authoritative spend. Every admission
+refreshes that spend, publishes its own liability and rechecks the total
+synchronously after key retrieval. Missing, corrupt or unreadable journal
+data refuses a capped request. Legacy spend is seeded once from the fresh
+account-owned session file; unverified historical paid fees are reported
+explicitly, never invented as zero.
+
+Known image-generation fees enter that same admission and settlement.
+Hosted search has no captured hard query bound, so it is unavailable while
+a finite cap is active, with a localized reason; cap-off search retains its
+paid consent. No unsupported wire field is added. This preserves the spend
+cap rather than redefining it as a token-only budget. Real shared-disk tests
+must cover two hosts publishing liabilities, a later publisher, stale
+saves, crash retention, model/key/cap changes and known paid fees.
+
+A capped response attempt that was sent but never reports usage keeps its
+whole liability. An ambiguous transport or server failure cannot retry with
+the same allowance; a new request needs a fresh admission. Explicit 429
+refusals may retry under the original claim because no work was admitted.
+Cap-off HTTP retries retain their existing behavior. Image calls already
+retry only explicit 429 refusals. These limits are surfaced and documented,
+without guessing a new billing field.
+
+A request begun with the cap off still publishes an open-unbounded claim
+when a shared journal exists. Finite admission refuses while that possible
+charge is unsettled, even when another host has a different current setting.
+Known actual usage clears that temporary uncertainty; an unverified tariff
+or earlier ambiguous retry retains a permanent unknown-cost marker. The
+final retry tail cannot certify earlier attempts as unbilled. Cap-off
+requests without session storage keep their existing behavior; a provided
+but unavailable journal fails closed. Known image fees have a hard flat
+bound and publish ordinary claims in either setting. This remains scoped
+owned-row metadata, with no election or shared configuration coordinator.
+
+The owned Model API host exposes a typed immutable parent budget scope for
+external trial attempts and paid voice. It contains only the session ID,
+account digest, journal, current-cap getter and final owner/context fence.
+An attempt host reserves and settles its own row in that parent scope;
+its temporary transcript is never saved or seeded under the parent's ID.
+The fence checks the originating lifetime, account, trust, model and goal
+context after async storage and actual key retrieval. Unknown sessions or
+managers fail closed. The backend manager already returns the typed Model
+API host, so this adds no generic agent API or runtime bundle identity test.
+
+An owned optional `ResponseAttemptGuard.onRequestStarted` observer runs
+after every key, admission, Stop and confirmed-run fence and request-init
+build, synchronously adjacent to fetch. It marks attempted sends and child
+request debits there; preflight alone never consumes an attempt or turns a
+known nonsent reservation into unknown spend. Context packing and external
+trial counters compose after that marker. Transport attempts still are not
+verified invoices: missing usage retains liability and uncertainty. This
+is internal callback metadata, with no new HTTP/MSP fields, call arguments,
+duplicate key read, body build or admission call.
+
+**Paid voice integration (owner-approved completion).** On an actual Model
+API conversation, a finite cap makes Muse Voice unavailable with a localized
+reason. Cap-off voice obtains the current owned parent scope, publishes an
+open-unbounded row before authentication/audio, and checks the actual key
+digest and parent lifetime/context before each send. The key is reread
+after the durable write; the controller fences attachment, auth admission,
+restart epoch and paid availability while cancellation awaits. A context
+change has its own localized reason instead of claiming the cap is on.
+Stop or owner changes
+before authentication refund only the proven nonsent row. Once
+authentication may have been sent, local PCM duration is an estimate, not a
+server billing receipt: settlement keeps an unknown-cost marker, including
+a final transcript, until supported billing-duration evidence exists. The
+earlier M35 record captured local recording and synthetic protocol tests,
+and explicitly lacked a live paid voice call. CLI voice and free system
+dictation retain their existing behavior. No new audio bound or wire usage
+field is guessed. A voice stream retains its original scope while another
+recording or surface begins; stale text cannot land on a replacement owner.
+Paid voice captures that scope and the controller's auth admission revision,
+attachment/send epochs, model and permission mode before the consent popup.
+An accepted popup cannot authorize a replacement account or recreate capture
+after disposal. Direct paid reviewers use their own explicit claim in the
+canonical response guard, never the preceding main response's settled claim.
+All owned session scopes inherit a host close-start fence, including during
+awaited SessionEnd hooks. Billable usage requires safe nonnegative integer
+counts and cached input no greater than total input; invalid reports retain
+unknown liability rather than reducing it.
+Per-reply dollar amounts are labeled estimated in every UI language. This
+also covers D36's future-model tier fallback; it must not read as a verified
+provider charge. The known-only turn-budget footer remains unchanged.
+Cap-off paid voice keeps its no-folder/no-store behavior. Each recording
+captures a separate consent fence before its popup, including the actual
+account digest and auth/model/mode/attachment/lifetime revisions, even when
+there is no journal. The fence is checked before authentication, audio and
+end sends; a later finite cap refuses those sends. Stop and the next press
+do not invalidate a finishing recording's original owner. A stale final
+transcript cannot enter a replacement owner. No shared-spend or verified
+audio-billing claim is made for this unshared path.
+A narrow controller revision fences local model/mode changes and observed
+model events, so a round trip cannot restore old no-journal consent.
+Current-main adapters use the existing defaults where M82 has no setting
+surface: ACP keeps the cap off and per-reply display off. The manual live
+panel fixture supplies the same owned voice/notification ports; its budget
+drill is case22, retaining the original case19 capture as historical evidence.
+
+**Status 2026-09-28: built** (`docs/certification/m82.md`). Drafted by a
+Muse Code instance, reviewed and finished by Claude; the record holds the
+rig gate, 27 red drills, and a live check on the contributor model (two
+requests) that found each request's estimate above what Meta counted.
+
+- **Decisions.**
+  - **Notifications are VS Code's own.** VS Code gives extensions no
+    operating-system notification (its chat's OS toasts are internal), so
+    the notice is `showInformationMessage`, raised only while
+    `vscode.window.state.focused` is false; it waits in the window's corner.
+    An OS-level toast would need a helper process per OS (§3).
+  - A turn counts as long at 60 s (`BACKGROUND_TURN_NOTIFICATION_MIN_MS`).
+    A turn whose length the backend did not report notifies; a cancelled
+    one never does. The message names the terminal: completed, failed, or
+    "ended" for a word the wire adds later (D36). Approvals and questions
+    notify; a pending card or question replayed to a later surface (or
+    pulled again by a resume) is marked `isReplayed` and does not.
+  - One `BackgroundNotifier` per window raises each notice once by key
+    (session and turn, approval or question), so two surfaces on one
+    session do not both notify; the keys it remembers are bounded
+    (`BACKGROUND_NOTICE_KEYS_MAX`).
+  - `museSpark.notifyOnBackgroundTurn` is not machine-scoped: it chooses
+    nothing that runs or is billed (D15), so a workspace may set it.
+    `museSpark.modelApiReplyUsage` is display only.
+  - **Per-reply usage** accumulates every request of the turn (tool steps,
+    failed attempts that reported usage) and is told on the last message of
+    the next response that has one, so a turn's lines add up to its cost.
+    The host attaches it while the setting is on; Muse Code attaches nothing
+    (D26).
+  - **The budget's estimate** (`sessionBudget.ts`): the last reported
+    request's input tokens, plus each part of this request (the
+    instructions, the tools, each input item, as JSON) that the reported
+    one did not carry, at one token per UTF-8 byte
+    (`SESSION_BUDGET_MIN_BYTES_PER_TOKEN`), since a byte-level tokenizer
+    never makes a token of less than a byte. Parts are matched by SHA-256,
+    and a part the base carried and this request does not is never
+    subtracted, so older media left out or a compaction can only raise the
+    estimate. With no base (the first request, a model change, a cap set
+    mid-conversation) every part counts; after a compaction, Meta's count
+    of the new context is the base. The live check measured the estimate at
+    3.6 and 2.2 times what Meta counted.
+  - **The reservation** prices input and the whole output allowance at the
+    model's verified list price (`modelApiPaidTier`), no cache discount; a
+    model with no verified price is refused while a cap is set rather than
+    priced by guess. `max_output_tokens` is the most that fits, capped at
+    the usual maximum; with room for less than one output token the request
+    is not sent. Every request is reserved (turns, retries, compactions),
+    checked before the PreLLMCall hooks see it and again on the body sent.
+  - **Settling.** A response's reported usage replaces its reservation,
+    priced at the model the request was sent to, even if the session
+    switched models meanwhile; a request counted for another model is no
+    base. A sent response that never reported usage (a Stop, a dropped
+    stream, a response timeout or a crash) retains its whole reservation.
+    This is possible liability, not verified billed spending. A nonsent
+    request, or an established 400/429 refusal before the response began,
+    counts nothing. Other unknown sent outcomes remain reserved. A negative
+    token count is no report. A reply that used every output token the
+    budget left is marked as possibly cut short.
+  - **Saved as it is spent.** Each reported usage saves the session. While
+    a call waits for its output the replay cannot be saved (a call without
+    its output cannot be replayed after a crash), so the token totals and
+    the spend are written onto the session's last saved snapshot instead.
+    Closing the window waits up to `MODEL_API_CLOSE_SETTLE_MS` for the turns
+    it stops to charge and save. A negative stored spend or a negative count
+    of the compacted context is refused.
+    The request's reservation is also saved before fetch, even before any
+    response frame. The save is awaited; a capped request without working
+    session storage is refused. A stop or an account, model, goal, trust
+    or web-search admission change during the write prevents the request
+    and releases its nonsent liability. The shared journal, initialized
+    once from the fresh account-owned file, supplies all subsequent spend;
+    old snapshots cannot lower it. Unknown sent attempts cannot repeat
+    under the same allowance; explicit rate-limit refusals can.
+  - **Child tasks** retain their separate paid confirmations (D48) and
+    request ceilings. Their reported usage counts toward that conversation
+    and its owning goal (M45), but their requests are not reserved against
+    the parent's cap and can exceed it (M82 owner decision, retained by the
+    M78 lane brief). Ordinary, best-of-N and direct reviewer reservations
+    remain enforced through their owned journal.
+  - **Known flat fees** enter the same journal: image generation reserves
+    its published fee before sending, including a billed image that cannot
+    be saved. Search has no captured hard billed-query bound and is
+    unavailable with a finite cap. With no cap it keeps paid consent and
+    records reported search fees. Unverified historical paid fees prevent
+    a cap on that history; a fresh conversation can be capped.
+  - Spend persists with the session; a fork or side chat is a conversation
+    of its own and starts at zero. Its controlled initial snapshot carries
+    `budgetIsFreshFork: true`, `forkedFrom` and explicit zero spend so copied
+    paid and closed-child history does not become an unverified new charge.
+    The runtime marker clears after journal activation; the one-time intent
+    prevents a repeated load or stale save from seeding again. Legacy rows
+    never get this interpretation from a missing spend or a fork link alone.
+    The turn's cost against the cap is shown
+    after each turn with a cap.
+  - Cache savings is the uncached price minus the priced one, with its
+    share; its value template is a pre-formatted amount and percentage,
+    allow-listed by the localization gate as such.
 - **Goal.** The user knows what happened and what it cost.
 - **Scope.**
   - An OS notification when a long turn ends or waits for approval while
@@ -10534,9 +11665,10 @@ same day, each with a test and a red drill. Decisions taken while building:
       output at list price fits what is left;
     - a request that cannot fit is not sent, and the turn stops and says
       so;
-    - the only overrun possible is the error in that input estimate; the
-      setting's description says so, and the turn's cost after the fact
-      is shown against the cap.
+    - the cap uses conservative input estimates and published prices;
+      actual billing can differ, and the setting makes no exhaustive
+      overrun claim. The turn's reported cost and reserved unknown
+      liability are documented separately.
   - Cache savings shown in Account & usage, on the Model API only (D26:
     Muse Code reports no honest cache totals).
 - **Backends.** Both. Cost is for the Model API.
@@ -12199,6 +13331,119 @@ usage window gives has never been captured (§3).
       them.
 - [ ] Hosted CI green on the milestone PR's exact head.
 
+### M89 — Bundled skills (D68)
+
+- **Goal.** The high-quality-projects workflows work out of the box on the
+  Model API backend and, after one click, on Muse Code.
+- **Scope.** D68: the vendored release and its sync script; the `bundled` skill
+  source and its setting; the Muse Code install, update offer and removal;
+  strings in all 14 tables; README, PRIVACY (the files the install writes),
+  CHANGELOG, this plan and `docs/certification/m89.md`.
+- **Lanes and file ownership.** One integration branch
+  (`feature/m89-bundled-skills`); lane 0 first, then V, S and I in parallel,
+  then W. Region-owned files follow M87's lane rules (constants, styles,
+  harness).
+
+| Lane      | Owns                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0 Strings | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json` (setting and command titles)                                                                                                                                                           |
+| V Vendor  | `scripts/sync-bundled-skills.mjs`, `vendor/high-quality-projects-skill/**`, `.vscodeignore`, `scripts/third-party-notices.mjs` and `THIRD_PARTY_NOTICES.txt`, `scripts/check-vsix-size.mjs` only if the budget needs it; tests `bundledSkillsVendor.test.ts` |
+| S Source  | `src/core/context/skills.ts`, `src/core/context/catalogFiles.ts` (if needed), the `bundled` constants region, the Model API `read_skill`/`/id` path; tests `skills.test.ts`                                                                                  |
+| I Install | the new `src/host/skills/bundledSkillsInstall.ts`, its command registration region in `src/extension.ts`, the controller's one-time offer; tests `bundledSkillsInstall.test.ts`                                                                              |
+| W Wiring  | `package.json` (setting, commands), README, PRIVACY, CHANGELOG, PLAN, `docs/certification/m89.md`, the full gate                                                                                                                                             |
+
+- **Acceptance.**
+  1. A fresh install on the Model API backend lists `project_setup`,
+     `feature_delivery` and `quality_retrofit` in the slash menu and the
+     model's catalogue; turning `museSpark.bundledSkills` off removes them.
+  2. A project or personal skill with one of those ids shadows the bundled one.
+  3. A bundled skill's body names the package root, and its `SKILL_ROOT`
+     resolves inside the installed extension.
+  4. The VSIX carries exactly the vendored paths in `VENDOR.json`, and the
+     sync script refuses an archive whose SHA-256 differs from `SHA256SUMS.txt`.
+  5. Install for Muse Code creates the package copy, the marker and the three
+     links; an existing same-id folder is left alone and reported; Remove
+     deletes only marked folders and links; both work on Windows (junctions),
+     macOS and Linux (symlinks).
+  6. The offer appears once; Not now is remembered; a newer vendored tag
+     offers Update once.
+  7. The VSIX stays within its D6 budget.
+- **Tests.** Unit tests for each lane (fakes, temp folders, no network), with
+  a red drill for every guard recorded in `docs/certification/m89.md`; the
+  install on all three rigs.
+- **Vendor review follow-up (2026-10-03).** Minimal ustar fixtures test the
+  copy allow-list, required files, entry types, traversal, duplicates and the
+  archive root; names that collide by case or trailing dots and spaces are
+  refused before selection, so an excluded alias cannot replace an allowed
+  file. `VENDOR.json` records each file's SHA-256 and the test checks every
+  vendored file against it; the Muse Code installer reads the new records.
+  Drills in `docs/certification/m89-vendor.md`.
+- **Gates.** The full quality gate; the VSIX size gate; check-l10n; host-API.
+- **Security.** Vendored files are fixed at build time and checksum-verified;
+  nothing downloads at run time; the install writes only under the user's
+  Muse config home, only on a click, and only removes what it marked; links
+  never point outside the copied package.
+- **Certification checklist.**
+  - [x] Lane 0's keys in all 14 tables (2026-10-03, `check-l10n` 0 problems).
+  - [ ] Every acceptance item above, with its test and drill (1, 2, 3, 5 and 6
+        done by lanes S and I, `docs/certification/m89.md`; 4 and 7 are lane
+        V's).
+  - [ ] VSIX size within budget, measured.
+  - [x] Install and remove proven on Windows, macOS and Linux (the three
+        rigs, 56 tests each, real junctions and symlinks).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated (lanes 0, S, I
+        and W done; lane V's rows to add).
+
+### M90 — Auto on Muse Code: the reviewer (D69)
+
+**Status 2026-10-04: PR #104, after two independent review rounds and a
+live recheck; record in `docs/certification/m90.md`.** The reviewer is `src/host/review/` (`museCodeReviewer.ts`: the
+side session and the window's queue; `reviewedApprovals.ts`: what follows a
+review; `museCodeReviewerBundle.ts`: the window's port), built into
+`dist/museCodeReviewer.js` and required on the first review; the
+controller only decides which approvals go to it (`isReviewableApproval`
+in `approvalRules.ts`) and what it is shown. The side session runs in an
+empty folder under the extension's global storage, outside every
+workspace, so `session/list` for the workspace never returns it (captured
+live) and the controller filters its id as well.
+
+- **Goal.** Auto on Muse Code may answer eligible unsettled approvals for
+  the running turn once after a successful review. Exclusions and every
+  failure path retain the normal card; each mode describes its backend
+  truthfully.
+- **Depends on.** PR #89 (M78's reviewer core) on main.
+- **Scope.** The side-session reviewer, its setting and notice, the transcript
+  row and card reason, the per-backend mode descriptions, strings in all 14
+  tables, README, PRIVACY (what the reviewer is shown), CHANGELOG, PLAN D7
+  correction, `docs/certification/m90.md`.
+- **Acceptance.**
+  1. In Auto on Muse Code, an approval the reviewer ALLOWs is answered allow
+     once without a card and shows in the transcript with its reason.
+  2. ASK, an unreadable answer, a timeout, an error and a tripped breaker each
+     leave the card to the user (with the reason when there is one).
+  3. Manual, Edit automatically, Plan and Bypass never consult the reviewer;
+     the setting off disables it.
+  4. The side session is never listed, runs in Plan mode in an empty folder,
+     uses the conversation's model, and is recreated after a Muse Code
+     restart or exit, timeout, busy fallback or tool activity. Any item
+     other than an agent message or reasoning cancels its turn and shows
+     the failure card. A command covered by an always-allow rule could run
+     in that empty folder before the cancel lands; native tools cannot be
+     disabled through the SDK's `SessionConfig`.
+  5. The reviewer is shown the user's latest message, the turn's earlier
+     calls and the request, all marked as data (M78's input), and its
+     verdict text is never executed.
+  6. Mode descriptions match the investigation above on both backends.
+- **Tests.** Unit tests against the fake CLI for every acceptance item, each
+  guard with a red drill; one live check on the contributor model in an empty
+  workspace (a safe and an unsafe script) with the model calls counted.
+- **Gates.** The full quality gate; activation bundle within D6 (the reviewer
+  loads lazily if it is over ~3 KiB).
+- **Certification checklist.**
+  - [x] Acceptance 1–6 with tests and drills (`docs/certification/m90.md`).
+  - [x] Live check recorded with its call count.
+  - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
@@ -12511,6 +13756,102 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**MG87b merge (2026-10-04), source proof and explicit deferrals.** Merge `origin/main`
+into M81 while retaining all main bundles, budgets, translations and
+permission behavior. Browser results join M78's live policy fence; best-of-N
+attempts receive no window browser check. The lane runs targeted static
+gates and Kubuntu tests, with hooks on and no origin push; full quality
+remains the lead's gate. Kubuntu passes 7,105 tests; final integration and
+fixture runs pass 672 and 19 tests. Activation is 610.2 KiB against 600: the
+brief assigns its correction to the activation-diet lane. Focused accessibility
+has two missing Chrome results, so no complete browser pass is claimed.
+See `docs/certification/mg87b.md` for resolutions, drills and gate evidence.
+
+**MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
+files (2,056 tests; two existing Windows-only cases platform-skipped), all
+five compiler projects and every required static gate. Both review and import
+bundles remain lazy and within unchanged caps; host API and notices are
+regenerated there. Released changelog bytes match main. Full quality remains
+the lead's gate under the lane brief. See `docs/certification/mg69.md` and
+`mg69-gates.json` for snapshots and conflict resolutions.
+
+**M70m2 merged-source proof (2026-10-02).** Kubuntu passed 1,989 tests in
+45 owning/merged files, every required static gate and the production
+build under unchanged caps. Both new integration guards fail when removed;
+after SHA-256-exact restoration, their two complete files pass 28 tests.
+The host API record is generated from the merged source on the rig.
+Full quality and installed-editor/browser acceptance remain the lead's
+work, as the lane brief requires. See `docs/certification/m70m2.md`.
+
+**M70m merged-source proof (2026-10-02).** The lane brief requires focused
+rig checks and forbids this lane from running full quality. Kubuntu passed
+1,407 focused tests and the required static gates/build; Windows 11 passed
+425 Revert, atomic-file and controller tests. Real Chrome execution of the
+harness's axe checks passed 20 pages. The separate standard CLI accessibility
+attempt returned no DOM on all 20 pages (a one-page reproduction exited 0
+with empty stdout), so that invocation cannot certify accessibility. At an actual 320px viewport, review passes and neither dialog overflows once
+the harness's fixed 690px html/body widths are overridden in the driver;
+share has a `scrollable-region-focusable` violation in main's unchanged
+CodeBlock tool-output pre. Preserve that inherited behavior in this merge
+lane and hand it to the lead. No gate, rule or deadline is weakened; the
+standard capture, the narrow share keyboard-access fix and full four-machine,
+installed-editor and hosted acceptance remain the lead's work. See
+`docs/certification/m70m.md` for exact snapshots and conflict resolutions.
+
+**M80Bw Windows force-exit resolution (2026-10-02).** The lead's new
+self-termination path passes D29 and three consecutive complete A+B runs on
+both Win11 and Kubuntu (439/439 each). Windows forced process exit is 1;
+buffered output may be lost, while any delivered result preserves first-stop
+status and its logical exit code. Drained exits retain their original codes.
+The two-second test bound, all gates and existing synchronous key cleanup
+remain intact. Two Win11 guard drills failed as intended and restored exact
+SHA-256 bytes. See `docs/certification/m80.md`; full quality/C/D/L/LA/LR remain
+open for the lead.
+
+**M80B Windows force-exit blocker (historical, superseded by M80Bw).** The implementation and
+76 guard drills are present; Kubuntu A+B passed 437/437. Win11 passed
+436/437, failing D29's unread-stderr force-exit fixture. Test-owned timestamps
+show SIGINT at 624 ms, SIGTERM at 639 ms and exit 130 requested at 945 ms;
+Node then waits on its blocked asynchronous filesystem pipe worker. Closing
+fd 2 returned at 966 ms but did not unblock exit; using the native pipe stream
+blocked signal timers instead. Both probes were reverted. common.md's explicit
+two-failed-fixes rule stops this path. Keep the failing test, original limits,
+and Windows gate open. The lead must resolve the Windows native I/O/termination
+contract or obtain an explicit scope ruling before B/M80 can be certified.
+The remaining hosted/full-quality/C/D/L/LA/LR gates are also lead-owned, not
+closed by this lane. No gate or hook was changed.
+
+**MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
+build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,
+board and reviewer, under the existing 600/475/75/75 KiB caps. The M78m
+budget failures below describe the earlier tree and its earlier 400 KiB
+Model API cap; M78b's extraction and the approved 475 KiB decision have
+resolved those failures. The focused MGCOH suite passes 1,727 tests in
+32 files, including the compiled bundles and split-guard red/restored
+drills. All five compilers and the required scoped static gates pass;
+PLAN formatting from the conflict union is repaired on the rig. This lane
+does not run full quality, installed-host or release certification: those
+remain with the lead. See the MGCOH record in `docs/certification/m78.md`.
+
+**M78m production-budget blocker (2026-10-02).** The merge's required
+Kubuntu checks pass, but the additional production build fails the unchanged
+600 KiB activation and 400 KiB Model API caps. The clean pre-merge branch
+`1372f047` also fails: 603.5 KiB and 404.4 KiB. With main `e66263f1`
+merged they measure 613.0 KiB and 406.0 KiB. This lane preserves all features
+and the M77 resume decision against a controller split; it defers the
+broader bundle-size repair to the lead rather than introducing a new loader
+or changing a cap. The budget gate still fails, so aggregate quality and
+release readiness remain blocked until that repair passes. This is a
+recorded remediation deferral, not a passing build or a gate waiver. Exact
+rig snapshots, results and logs are in `docs/certification/m78.md`.
+
+The additional focused accessibility run also exits 1: all 32 pages
+(eight cohort/M74/M84 scenarios in four themes) return no axe result. The
+same symptom is recorded on main's M74 branch; its cause remains
+unisolated. No browser-accessibility pass is claimed, and no machine
+setting or gate is changed to force one. The lead must resolve this
+browser/harness blocker before claiming aggregate quality or accessibility.
+
 **M76b lane boundary (2026-10-01):** the owner's `common.md` explicitly
 forbids a full `npm run quality` or full unit run in this shared lane and
 assigns aggregate quality, coverage, accessibility, editor/platform and
@@ -12567,6 +13908,32 @@ defect older than this PR: Node 20.18's `TextDecoder` reads windows-1252 as
 ISO-8859-1 (the euro sign and curly quotes come out as controls), so
 `textDecoding.ts` decodes that table itself on every Node. Receipts, red
 drills and sizes are in `docs/certification/pr60-sniffer7.md`.
+
+**M80 lane D gate boundary (2026-10-02).** The M80D brief overrides the
+full-suite instruction for implementing lanes: rigs only, serial focused tests,
+no `npm run quality`, no live/model calls and no push. The lead owns unchanged
+full quality and build/hosts/action-check matrices on the exact integrated tree.
+No threshold, timeout, ignore, hook or rule is weakened.
+
+B's real exec/scanner CLI and C's test launcher/Action are absent from this frozen
+lane-A-based worktree. E1–E7/H1–H4 built/installed acceptance, actual fake test
+package, recipe operational paths, reviewed immutable Action SHA and L/LA/LR
+remain pending those integrations and lead receipts. The e2e file runs package
+and host-harness guards now; explicit B skips are not success. Supplying an
+installed package activates all built rows, so hosted jobs cannot silently
+certify an old package. Standalone POSIX signal rows still skip on Windows.
+
+Kubuntu has shellcheck at /usr/bin/shellcheck; actionlint remains absent from
+PATH and searched installed locations. The supplied common.md bans network calls
+except npm ci; scoped actionlint install permission was requested asynchronously.
+Until an approved tool is available, actionlint remains open, never substituted
+by Windows-only lint or syntax checks. Lane D's certification records each actual rig result and drill.
+
+The generic feature-delivery validator expects a `quality-ledger` fence and
+reported `input-error` against this established PLAN. Its structural gate is
+deferred; the lane brief's canonical section/ID plan is preserved rather than
+adding a competing ledger or rewriting the roadmap. Inventory succeeded and
+manual readiness review covered v4/F1/F2, ownership, dependencies and claim limits.
 
 **M75 current-main ToolIO integration repair (2026-09-30).** Exact tree
 `7d1ed818` passed host, webview and integration types plus scoped lint,
@@ -12762,9 +14129,20 @@ persistent Chrome profile; those attempted script changes were reverted.
 Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
+M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
+| ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `scripts/exec-schema.mjs`, `conditional` | `eslint-disable-next-line unicorn/no-thenable` | JSON Schema requires the literal `then` keyword for conditional validation. This object is serialized as data, never consumed as a Promise. Computed keys and `Object.fromEntries` also trigger the rule; the exception is limited to this property. | 2026-10-02 |
+
+| M80 lane B location                                          | Escape hatch                                         | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Date       |
+| ------------------------------------------------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/main.ts`, `exitHeadless`                        | `eslint-disable-next-line unicorn/no-process-exit`   | A standalone headless command owns its process. It must end within the deadline/grace/force bounds even if a pipe or late backend setup never closes, including usage errors. Writes remain async and bounded before exit.                                                                                                                                                                                                                                                                                                                                             | 2026-10-02 |
+| `src/runtime/exec/execClient.ts`, constructor session router | Reflection of SDK 1.4.0's private `builder.handlers` | The SDK's constructor-installed session router validates a closed union before custom notification parsers, dropping future variants. This headless instance uses `request()` and no active-session helpers; remove only its single constructor handler after validating the exact descriptor `client-session-update-router`. The SDK's original builder and public handler/request/connection APIs remain in use. Structural checking fails closed if this pinned seam changes; real JSON-RPC and real-engine tests cover it. No dependency or SDK source is patched. | 2026-10-02 |
 
 **REL signing decisions (2026-10-02).** The extension relies on the VS Code
 Marketplace's signing of published extensions and does not self-sign the VSIX:
@@ -12785,10 +14163,24 @@ source/build. `checkpointStoreBundle.test.ts` builds that actual entry, loads
 it with Node require, exercises real activity/disposal and installed language,
 and refuses missing/malformed modules before repairing them (2026-09-30).
 
-| File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
-| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
+M70's `src/host/review/reviewBundle.ts` uses the type predicate
+`isReviewBundle` the same way: the required module is unknown; its
+`createReviewFeatures` must be a function, whose signature is trusted because
+entry, loader and package come from one source/build. `reviewBundle.test.ts`
+builds that actual entry (without the English table, as the production build
+does), loads it with Node require, and proves the activation table is the one
+it reads, the single load, and the refusal of a missing or malformed module
+before a repaired one loads (2026-09-30).
+
+| File                                            | Construct                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                     | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                           | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                    | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
+| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
+| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 
 | File                                     | Construct                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ---------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -12817,6 +14209,10 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
 | File                             | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
 | -------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/modelApiHost.test.ts` | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
+
+| File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
 
@@ -12940,7 +14336,11 @@ and refuses missing/malformed modules before repairing them (2026-09-30).
   into a file that no longer has a name. On Windows the rename is refused
   while another program holds the file without sharing delete, and each
   retry compares again; a change saved and closed between the last
-  comparison and the rename is still replaced. The verify ledger knows a
+  comparison and the rename is still replaced. A Revert's removal of a
+  file Muse created (`fsAtomic.deleteFileIfUnchanged`, M70) has the same
+  kind of gap: the bytes, the canonical path and the file's identity are
+  checked last, then the file moves to the trash; a change saved between
+  that check and the move goes with it, into the trash. The verify ledger knows a
   file by its real path: two hard links to one file are two files there,
   so an edit through one does not make a run over the other stale.
 
@@ -13511,3 +14911,24 @@ merge queue's child process kept running. The tag therefore names the
 release commit, based on main `44b76f24` before M84 merged, rather than
 main's tip; the release workflow's ancestor check allows this. The release
 commit is an ancestor of main through PR #75 (merge `2a03a79b`).
+
+**0.11.0 released (2026-10-03, tag `v0.11.0` on main's release merge `11d06066`, PR #97, release run 37161958638).**
+The release contains the Muse Code recovery and merged repeat notices
+(#96), approval decisions docked and serialized (#90), turn checkpoints
+rebuilt on the model's own writes (M86, #95), custom agents (M76, #70),
+handoff (M74, #71, #84), import from other agents (M83, #77), session export,
+import and share (M84, #80), observation packing (M73, #76, #81), Muse Code
+1.4.2 (#85) and the release artifacts' checksums, SBOMs and attestations
+(#86). A read-only check of the README's What's new against the code
+corrected two overstatements and five missing scopes before the release PR
+merged. Published: the GitHub Release (`muse-spark-code-0.11.0.vsix`,
+1,749,424 bytes, SHA-256
+`1dcc420fca9bc8b55d34def666d048d53f75676675faccf88a9cdeb508c8923f`;
+`muse-spark-code-acp-0.11.0.tgz`, 865,556 bytes, `0363cc1d…aaf1`), Open VSX and
+the VS Code Marketplace, all serving byte-identical VSIX files (each
+downloaded and hashed). npm (`muse-spark-code-acp`) failed with `EOTP` again
+and awaits the owner's token. Install smoke: the released VSIX, checked
+against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
+Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
+(1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
+`muse-spark-code-acp --version` prints 0.11.0.
