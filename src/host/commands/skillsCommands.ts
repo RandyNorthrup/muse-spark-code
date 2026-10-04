@@ -20,6 +20,7 @@ import {
 } from '../../core/backends/musecode/skillsCli'
 import { stderrForLog } from '../../core/backends/musecode/logText'
 import { clipForLog } from '../../core/logging'
+import { redactSecrets } from '../../core/redact'
 import { type SkillImportSource, UI_TEXT } from '../../shared/constants'
 import type { PluralForms } from '../../shared/l10n/forms'
 import { fill, plural } from '../../shared/l10n/text'
@@ -75,15 +76,15 @@ function firstLine(text: string): string {
 }
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 /** Why a finished CLI run failed, in one line. */
 function failureOf(result: ProcessResult): string {
-  return (
+  return redactSecrets(
     firstLine(result.stderr) ||
-    firstLine(result.stdout) ||
-    fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })
+      firstLine(result.stdout) ||
+      fill(UI_TEXT.processExitCode, { code: String(result.exitCode) }),
   )
 }
 

@@ -50,10 +50,11 @@ Releases and npm.
   cannot catch a path or an e-mail address, so free text Muse Code writes
   (sign-in endings, MSP error messages, `muse serve` and `muse skills`
   stderr) is logged in fixed words, by its kind, or by its length where
-  the log helpers are used. Not everywhere: some MSP error messages (a
-  failed `skill/list` or `turn/cancel`, and a failure shown as a panel
-  notice) and the first stderr or stdout line of a failed skill activation
-  are logged as sent, with keys redacted.
+  the log helpers are used. Any other external text that reaches the log
+  or the panel (an MSP error in a notice, the first stderr or stdout line
+  of a failed skill activation, git's errors, MCP server and helper
+  process errors) passes through the same redaction first, so a
+  secret-shaped value in it is redacted, never logged or shown as sent.
 - **Workspace trust.** In VS Code's Restricted Mode the agent loads no
   workspace rules, skills, custom agents or memory, runs no shell commands, and the
   extension runs no `git` (a repository's `.git/config` can name programs

@@ -5102,6 +5102,58 @@ describe('ConversationController: backends and tiers (M7)', () => {
     ])
   })
 
+  it('redacts secret-shaped MSP errors in the log and the notice', async () => {
+    const t = setup()
+    const secret = `ghp_${'a'.repeat(36)}`
+    // Before the first send: the attach-time skill load shares the failing
+    // call, so the log line is recorded no matter when the panel re-lists.
+    t.server.handle('skill/list', () => {
+      throw new Error(`catalog unavailable: ${secret}`)
+    })
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'listSkills' })
+    const warnings = t.log.warn.mock.calls.map(([line]) => String(line))
+    expect(warnings.some((line) => line.includes('skill/list failed'))).toBe(true)
+    expect(warnings.join('\n')).not.toContain(secret)
+    expect(warnings.join('\n')).toContain('[redacted]')
+    t.server.handle('session/setModel', () => {
+      throw new Error(`switch refused: ${secret}`)
+    })
+    await t.controller.handle({ type: 'setModel', modelId: 'nope' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: expect.stringContaining('[redacted]') as string,
+    })
+    expect(String((t.surface.posted.at(-1) as { text?: unknown }).text)).not.toContain(secret)
+  })
+
+  it('blocks a confirmed contributor model once the workspace turns confidential', async () => {
+    const options = { confirmsContributor: true, isConfidentialWorkspace: false }
+    const t = setup(options)
+    await t.send('l1', 'hi')
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(1)
+    options.isConfidentialWorkspace = true
+    t.surface.posted.length = 0
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(1)
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'notice',
+        level: 'warning',
+        text: 'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+      },
+      expect.objectContaining({ type: 'sessionInfo' }),
+    ])
+    options.isConfidentialWorkspace = false
+    await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.3-contributor' })
+    expect(t.contributorPrompts).toEqual(['muse-spark-1.3-contributor'])
+    expect(t.server.requestsFor('session/setModel')).toHaveLength(2)
+  })
+
   it('explains the Model API backend once per session instead of the sandbox notice', async () => {
     const t = setup({
       platform: 'win32',

@@ -2882,8 +2882,8 @@ stopped and the next message resumes the same session.
   settings, logs or the CLI.
 - Contributor-tier models (Meta may train on their traffic) are opt-in with
   one confirmation per model in each panel, and refused with
-  `museSpark.confidentialWorkspace` when a panel that has not confirmed the
-  model chooses or resumes it. Resuming a contributor-tier conversation asks
+  `museSpark.confidentialWorkspace` whenever one is chosen, even one the
+  panel already confirmed. Resuming a contributor-tier conversation asks
   again unless that panel already confirmed the model, or in a confidential
   workspace moves it to a standard model.
 - Voice audio stays on the machine on Windows; on macOS Apple recognises on

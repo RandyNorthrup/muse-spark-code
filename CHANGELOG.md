@@ -9,6 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **External error text is redacted before it reaches the log or the panel.**
+  MSP errors, the first stderr/stdout line of a failed skill activation,
+  git's errors and MCP server/process errors pass through the shared
+  secret redaction first, so a secret-shaped value in them is redacted
+  instead of logged or shown as sent (SECURITY.md said so again).
+- **A confidential workspace blocks contributor models even after an earlier
+  yes.** The confidential check runs before the per-panel confirmation
+  shortcut, so turning `museSpark.confidentialWorkspace` on refuses a
+  contributor model the panel already confirmed; turning it off lets the
+  earlier confirmation stand.
 - **Docs, setting descriptions and panel hints now match the code** (a
   truth audit of the 0.12.0 tree). The README, PRIVACY.md, SECURITY.md,
   acp.md, ci.md, RELEASING.md, CONTRIBUTING.md, the walkthrough and the

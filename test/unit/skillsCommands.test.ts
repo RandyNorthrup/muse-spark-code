@@ -237,6 +237,26 @@ describe('manageSkills', () => {
     expect(none.restartPrompts()).toBe(0)
   })
 
+  it('redacts secret-shaped values from failed skill stderr in the notice and the log', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const t = harness({
+      cli: (args) =>
+        args[1] === 'list'
+          ? ok(CATALOG)
+          : { exitCode: 1, stdout: '', stderr: `activation refused for ${secret}\nsecond line` },
+      picks: () => new Set(['bundled:grill', 'user:caveman']),
+      confirmsRestart: false,
+    })
+    await manageSkills(t.manage)
+    expect(t.errors).toHaveLength(1)
+    expect(t.errors[0]).not.toContain(secret)
+    expect(t.errors[0]).toContain('[redacted]')
+    const warned = t.log.warn.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(warned).toContain('Skill changes that failed')
+    expect(warned).not.toContain(secret)
+    expect(warned).toContain('[redacted]')
+  })
+
   it('reports a CLI that disappears between the list and a change', async () => {
     const t = harness({ cli: () => ok(CATALOG), picks: () => new Set<string>() })
     const runCli = t.manage.runCli

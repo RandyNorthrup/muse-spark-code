@@ -243,8 +243,9 @@ security notes for contributors are in `PLAN.md` §9.
 - **Contributor-tier models.** Meta may use traffic to the models whose id
   ends in `-contributor` to train its models. The extension asks before a
   panel first uses one (and again for a different contributor model), and
-  refuses them when the `museSpark.confidentialWorkspace` setting is on and
-  the panel has not already confirmed that model.
+  refuses them whenever one is chosen while the
+  `museSpark.confidentialWorkspace` setting is on, even one the panel
+  already confirmed.
 
 - **Voice dictation**, the free default, never sends audio to Meta or to
   this extension's author. On Windows, speech is recognised by the

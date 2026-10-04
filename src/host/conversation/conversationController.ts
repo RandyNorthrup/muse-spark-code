@@ -59,6 +59,7 @@ import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
+import { redactSecrets } from '../../core/redact'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
 import { isPrivateFileName } from '../../shared/privateFiles'
@@ -562,8 +563,10 @@ const UNSAVED_FILES_NAMED = 3
 // How a notice the user saw reads in the log (M39).
 const NOTICE_PREFIX = 'Shown in the panel: '
 
+// An error in words for the log or the panel: external text (an MSP failure,
+// CLI output) is redacted first, since it can carry a secret-shaped value.
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 // The two tables below are built when used, never at module load: the
@@ -6019,7 +6022,7 @@ export class ConversationController {
         return
       }
       if (isGoalRefusedError(error)) {
-        this.deps.log.info(`Goal ${verb} refused: ${error.message}`)
+        this.deps.log.info(`Goal ${verb} refused: ${redactSecrets(error.message)}`)
         this.say('warning', goalRefusalText(verb, error.refusal))
         result(false)
         return
@@ -6224,12 +6227,15 @@ export class ConversationController {
 
   /** Whether a contributor-tier model may be used here: blocked, or confirmed once. */
   private async allowsModel(modelId: string): Promise<boolean> {
-    if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
-      return true
-    }
-    if (this.deps.isConfidentialWorkspace()) {
+    // The confidential check runs before the confirmation shortcut: a
+    // workspace turned confidential after an earlier yes still never sends
+    // to a contributor (training) model.
+    if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
       return false
+    }
+    if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
+      return true
     }
     if (!(await this.deps.confirmContributor(modelId))) {
       return false

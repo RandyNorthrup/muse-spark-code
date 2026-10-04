@@ -75,3 +75,79 @@ complete. The two alt texts that no longer matched (`slash-commands.png`,
 | tsc: host, webview and unit projects            | exit 0                                                          |
 | Targeted vitest on the Kubuntu rig (13 files)   | 481 passed                                                      |
 | `npm run test:a11y`                             | not run here (the same Chrome stall); CI runs it on the PR      |
+
+## 2026-10-04 audit fixes
+
+Two defects the audit found, fixed on this branch.
+
+**Unredacted logging (AGENTS.md rule 8).** `describe(error)` in
+`src/host/conversation/conversationController.ts` and the `failureOf`
+first-stderr-line in `src/host/commands/skillsCommands.ts` reached the log
+and panel notices as sent. Both now pass through `redactSecrets`
+(`src/core/redact.ts`) first, as `src/host/logger.ts` does. The same sweep
+(`describe(`, `stderr`, `error.message` in `src/host`) redacted every other
+place raw external text is logged or shown: `sandboxSetup.ts` (helper
+stderr/stdout), `cliFeatures.ts` (`muse export` stderr), `createRulesFile.ts`
+(`muse init` output), `worktreeCommands.ts` (`gitMessage`, git stderr),
+`sessionBoard.ts` (git worktree error), `memoryCommands.ts`,
+`museConfigCommands.ts`, `verifyEditor.ts`, `bundledSkillsInstall.ts`,
+`bestOfNManager.ts` (attempt errors reach the panel), `workspaceFiles.ts`
+(git error), `storeErrors.ts` (`describeStoreError`), `mcpProcess.ts`,
+`ideMcpServer.ts`, `mcpJobLaunch.ts`, and the goal-refused log line in
+`conversationController.ts`. Reviewed and left alone: content/equality
+checks (`importIo.ts`, `checkpointStore.ts`), rethrow constructors whose
+text is formatted at the catch site (`processTree.ts`, `git.ts`), internal
+require errors of shipped bundles/tables (already fixed words in the panel;
+`lazyBundle.ts`, `l10n.ts`, `planMarkdownBundle.ts`, `reviewBundle.ts`,
+`modelApiBackendManager.ts`), model-bound tool output (`toolIo.ts`,
+`searchWorker.ts`), and the voice helper adapter (`voiceProcesses.ts`,
+`voiceBundle.ts`: fixed commands, OS error text, `dist/voice.js` boundary).
+
+**Confidential workspace gap.** `allowsModel`
+(`src/host/conversation/conversationController.ts`) checked the
+per-panel confirmation shortcut before `museSpark.confidentialWorkspace`,
+so a confirmed contributor model kept sending after the workspace turned
+confidential. The confidential check now runs first: a confidential
+workspace refuses even a confirmed contributor model with the existing
+`contributorBlocked` notice and never calls `session/setModel`; turning
+the setting off lets the earlier confirmation stand without asking again.
+
+Docs: SECURITY.md describes the redacted behaviour again, README.md and
+`docs/PRIVACY.md` no longer except confirmed models from the confidential
+block, CHANGELOG `[Unreleased]` → Fixed carries both bullets.
+
+### Red drills
+
+Each new guard was broken on purpose, watched to fail, and restored
+byte-exact (the diff after each restore holds only the intended change).
+
+- `test/unit/skillsCommands.test.ts`, "redacts secret-shaped values from
+  failed skill stderr in the notice and the log": with the
+  `redactSecrets` wrapper removed from `failureOf`, the run failed
+  (1 failed, 8 skipped; exit 1), the raw secret reaching the notice;
+  restored, the file passes (9 passed).
+- `test/unit/conversationController.test.ts`, "redacts secret-shaped MSP
+  errors in the log and the notice": with the wrapper removed from
+  `describe`, the run failed (1 failed, 483 skipped; exit 1), the raw
+  secret reaching the `skill/list failed` log line; restored, the test
+  passes.
+- `test/unit/conversationController.test.ts`, "blocks a confirmed
+  contributor model once the workspace turns confidential": with the old
+  shortcut-first order restored, the run failed (1 failed, 483 skipped;
+  exit 1) with `session/setModel` sent twice to the contributor model;
+  restored to check-first, the test passes with one `session/setModel`
+  and no re-prompt after the setting is turned off.
+
+### Gates
+
+- `test/unit/skillsCommands.test.ts` whole file: 9 passed.
+- `test/unit/conversationController.test.ts` whole file: 473 passed,
+  10 skipped, plus the two new tests (one needed its failing-handler
+  override moved before the first send: the attach-time skill load shares
+  the call). Two suites (`deferred best-of-N`, `the Model API bundle`)
+  error here on esbuild file access (`Access is denied` resolving files
+  that exist): a sandbox limit of this machine, unrelated to the patch;
+  the rig reruns everything.
+- `tsc --noEmit` on the host project and on the unit-test project: exit 0.
+- Full `npm run quality` not run here per the lane (reviewer reruns on a
+  rig); no gate was weakened.
