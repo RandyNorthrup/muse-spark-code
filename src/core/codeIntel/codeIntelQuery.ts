@@ -78,6 +78,8 @@ export interface CodeIntelDeps {
   readonly io: CodeIntelIo
   /** Epoch milliseconds, for the repo map's time budget. */
   readonly now: () => number
+  /** Model API file policy, read live; other adapters retain their own permission contract. */
+  readonly canReadFile?: ((file: PlacedFile) => boolean) | undefined
 }
 
 export type CodeIntelAnswer =
@@ -222,6 +224,8 @@ export function byPlace<T extends { readonly relative: string; readonly at: Code
 
 /** One call's view of the workspace: confinement and file reads, each done once. */
 export class CodeIntelQuery {
+  private readonly policyWithheld = new Set<string>()
+  private readonly permitted = new Map<string, PlacedFile>()
   /** Files whose lines this call took from an editor with unsaved changes. */
   private readonly unsaved = new Set<string>()
   private readonly realPaths = new Map<string, Promise<string>>()
@@ -240,19 +244,21 @@ export class CodeIntelQuery {
 
   public constructor(public readonly deps: CodeIntelDeps) {}
 
-  private async placeOnce(path: string): Promise<PlacedFile | undefined> {
+  private requireReadable(file: PlacedFile): void {
+    if (this.deps.canReadFile?.(file) === false) throw this.policyRefusal()
+    this.permitted.set(file.checkedAbsolute, file)
+  }
+
+  private async placeOnce(path: string, io: RealPathIo = this.io): Promise<PlacedFile | undefined> {
     const { workspaceRoot, platform } = this.deps
-    const textual = await confineWorkspacePath(workspaceRoot, path, platform, this.io)
+    const textual = await confineWorkspacePath(workspaceRoot, path, platform, io)
     if (textual.ok) {
       return textual
     }
     let realRoot: string
     let realTarget: string
     try {
-      ;[realRoot, realTarget] = await Promise.all([
-        this.io.realPath(workspaceRoot),
-        this.io.realPath(path),
-      ])
+      ;[realRoot, realTarget] = await Promise.all([io.realPath(workspaceRoot), io.realPath(path)])
     } catch {
       // A path the file system will not resolve is not shown as a workspace file.
       return undefined
@@ -266,6 +272,19 @@ export class CodeIntelQuery {
     return { absolute: path, relative: forward, canonical: forward, checkedAbsolute: realTarget }
   }
 
+  /** Fresh native paths at an actual read, including a provider's real workspace path. */
+  private async recheckPlacement(file: PlacedFile, path = file.absolute): Promise<void> {
+    const rebound = await this.placeOnce(path, this.deps.io)
+    if (
+      rebound === undefined ||
+      !isSamePath(rebound.checkedAbsolute, file.checkedAbsolute, this.deps.platform)
+    ) {
+      throw new CodeIntelRefusal(MODEL_TEXT.pathChangedAfterApproval)
+    }
+    this.requireReadable(rebound)
+    this.requireReadable(file)
+  }
+
   /**
    * The file's lines as the language service read them: the editor's when
    * it holds unsaved changes (the answer then says so), else the disk's;
@@ -275,16 +294,21 @@ export class CodeIntelQuery {
     let text: string | undefined
     try {
       const edited = await this.unsavedPath(file)
+      this.requireReadable(file)
       if (edited === undefined) {
-        text = await this.deps.io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+        text = await this.readDisk(file)
       } else {
         // The editor's document, by the editor's own path: the same file
         // opened by its real path would be another document, read from disk.
+        await this.recheckPlacement(file, edited)
+        this.requireReadable(file)
         const document = await ask(this.service.open(edited))
         this.noteDocument(file, document)
         text = document.text
       }
-    } catch {
+      this.requireReadable(file)
+    } catch (error: unknown) {
+      if (error instanceof CodeIntelRefusal) throw error
       // A file that cannot be read as text keeps its locations, without their lines.
       return
     }
@@ -378,6 +402,7 @@ export class CodeIntelQuery {
   private async byWorkspaceSymbol(symbol: string): Promise<Target> {
     const [first, ...others] = await this.symbolsNamed(symbol)
     if (first === undefined) {
+      if (this.hasDeniedResults) throw this.policyRefusal()
       throw new CodeIntelRefusal(fill(MODEL_TEXT.codeIntelNoSymbolNamed, { symbol }))
     }
     const { file, document } = await this.openAsEdited(first.file)
@@ -405,6 +430,43 @@ export class CodeIntelQuery {
     }
   }
 
+  /** A result denied by policy is not an outside-workspace result. */
+  public wasDenied(path: string | undefined): boolean {
+    return path !== undefined && this.policyWithheld.has(path)
+  }
+
+  public get hasDeniedResults(): boolean {
+    return this.policyWithheld.size > 0
+  }
+
+  public policyRefusal(): CodeIntelRefusal {
+    return new CodeIntelRefusal(MODEL_TEXT.codeIntelPolicyRefused, UI_TEXT.codeIntelPolicyRefused)
+  }
+
+  /** Awaited provider work cannot publish information a new policy now denies. */
+  public checkReadable(): void {
+    for (const file of this.permitted.values()) this.requireReadable(file)
+  }
+
+  /** A rename's exact disk bytes, with fresh confinement and policy at the read. */
+  public async readDisk(file: PlacedFile): Promise<string | undefined> {
+    await this.recheckPlacement(file)
+    this.requireReadable(file)
+    const text = await this.deps.io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+    this.requireReadable(file)
+    return text
+  }
+
+  public policyNotes(): readonly string[] {
+    return this.policyWithheld.size === 0
+      ? []
+      : [
+          fill(MODEL_TEXT.codeIntelPolicyHidden, {
+            count: String(this.policyWithheld.size),
+          }),
+        ]
+  }
+
   public get service(): LanguageServiceHost {
     return this.deps.service
   }
@@ -416,6 +478,7 @@ export class CodeIntelQuery {
     if (!resolved.ok) {
       throw new CodeIntelRefusal(resolved.reason)
     }
+    this.requireReadable(resolved)
     return resolved
   }
 
@@ -426,16 +489,22 @@ export class CodeIntelQuery {
    * (a workspace opened through a link, whose files the server reports by
    * their real paths).
    */
-  public place(path: string | undefined): Promise<PlacedFile | undefined> {
+  public async place(path: string | undefined): Promise<PlacedFile | undefined> {
     if (path === undefined) {
-      return Promise.resolve(undefined)
+      return undefined
     }
     let known = this.placed.get(path)
     if (known === undefined) {
       known = this.placeOnce(path)
       this.placed.set(path, known)
     }
-    return known
+    const file = await known
+    if (file !== undefined && this.deps.canReadFile?.(file) === false) {
+      this.policyWithheld.add(path)
+      return undefined
+    }
+    if (file !== undefined) this.requireReadable(file)
+    return file
   }
 
   /** A line of a file on disk (0-based), trimmed and clipped; undefined when it cannot be read. */
@@ -488,8 +557,12 @@ export class CodeIntelQuery {
     file: PlacedFile,
   ): Promise<{ readonly file: PlacedFile; readonly document: OpenedDocument }> {
     const edited = await this.unsavedPath(file)
+    await this.recheckPlacement(file, edited ?? file.absolute)
+    this.requireReadable(file)
     const asked = edited === undefined ? file : { ...file, absolute: edited }
-    return { file: asked, document: await ask(this.service.open(asked.absolute)) }
+    const document = await ask(this.service.open(asked.absolute))
+    this.requireReadable(file)
+    return { file: asked, document }
   }
 
   /** Remembers a document the answer read with unsaved changes, for `unsavedNotes`. */
@@ -517,7 +590,8 @@ export class CodeIntelQuery {
   public async isDescribable(path: string | undefined): Promise<boolean> {
     return (
       path !== undefined &&
-      ((await this.place(path)) !== undefined || (await this.isInLibrary(path)))
+      ((await this.place(path)) !== undefined ||
+        (!this.wasDenied(path) && (await this.isInLibrary(path))))
     )
   }
 

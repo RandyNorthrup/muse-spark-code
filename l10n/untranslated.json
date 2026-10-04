@@ -31,6 +31,7 @@
       "onboardingShortcuts.mentionFile",
       "onboardingShortcuts.dictation",
       "paidVoiceName",
+      "usageCacheSavingsValue",
       "mcpToolLabel",
       "goalItem",
       "composerShellMode",
@@ -42,6 +43,8 @@
       "noticeRepeatBadge",
       "agentImportSourceCursor",
       "exportThenRunSkipped",
+      "execUsage",
+      "execScanUsage",
       "contextMeterUnderOne",
       "diffTallyLines"
     ],

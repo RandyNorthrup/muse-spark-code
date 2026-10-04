@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  countSecretMatches,
   MAY_HOLD_SECRET,
   redactableSlices,
   redactSecrets,
@@ -423,6 +424,54 @@ const SLICE_MAX_PIECES = 40
 const SLICE_MAX_CHARS = 24
 // How many cases must hold a match that a cut at every line break would split.
 const SLICE_FLOOR = 200
+
+describe('M80 countSecretMatches (A19/A21)', () => {
+  it('uses literal-first coverage and counts overlapping patterns only once', () => {
+    const key = 'LLM|123|before%after+/.=$&'
+    expect(countSecretMatches(`${key} Bearer abc.def`, ['', key, key])).toBe(2)
+    expect(countSecretMatches('api_key="secret words"', [])).toBe(1)
+    expect(countSecretMatches('token count 123 0123456789abcdef c29tZQ== [redacted]', [])).toBe(0)
+    expect(countSecretMatches(`key=${key}`, [key])).toBe(1)
+  })
+  it.each(['ghp_', 'gho_', 'ghu_', 'ghs_', 'ghr_', 'github_pat_', 'xoxb-'])(
+    'removes the entire long %s token',
+    (prefix) => {
+      const secret = prefix + 'a'.repeat(1000)
+      expect(redactSecrets(secret)).toBe('[redacted]')
+      expect(countSecretMatches(secret, [])).toBe(1)
+    },
+  )
+  it('removes what an earlier pattern-only pass left of an exact literal (M80 E6)', () => {
+    const key = 'LLM|123456|fabricated%legacy.key-for-m80d'
+    // A network error's description is redacted by pattern alone before it is
+    // logged; the legacy key pattern stops at `%` and leaves the tail.
+    const described = redactSecrets(`request failed (startup ${key}); retrying`)
+    expect(described).toContain('%legacy.key-for-m80d')
+    expect(redactSecrets(described, [key])).toBe('request failed (startup [redacted]); retrying')
+    expect(countSecretMatches(described, [key])).toBe(1)
+  })
+  it('removes an exact literal in its percent-encoded form (RVM80A P3-3)', () => {
+    const key = 'LLM|123|abc%tail'
+    expect(redactSecrets(`x ${encodeURIComponent(key)} y`, [key])).toBe('x [redacted] y')
+    expect(countSecretMatches(`x ${encodeURIComponent(key)} y`, [key])).toBe(1)
+    expect(redactSecrets('lone \u{D800} kept', ['\u{D800}'])).toBe('lone [redacted] kept')
+  })
+  it.each([
+    ['ghp_', 20],
+    ['ghs_', 20],
+    ['github_pat_', 20],
+    ['xoxb-', 10],
+  ])('redacts %s from %i characters, shorter than SPEC §4.2 asks (RVM80A P3-5)', (prefix, min) => {
+    expect(redactSecrets(`${prefix}${'a'.repeat(min)}`)).toBe('[redacted]')
+    expect(redactSecrets(`${prefix}${'a'.repeat(min - 1)}`)).toBe(`${prefix}${'a'.repeat(min - 1)}`)
+  })
+  it.each(['AKIA', 'ASIA'])('redacts a %s access key id of exactly 16 more', (prefix) => {
+    expect(redactSecrets(`id ${prefix}${'A'.repeat(16)} end`)).toBe('id [redacted] end')
+    expect(redactSecrets(`id ${prefix}${'A'.repeat(15)} end`)).toBe(
+      `id ${prefix}${'A'.repeat(15)} end`,
+    )
+  })
+})
 
 describe('redactableSlices', () => {
   it('cuts only where the pieces redact as the whole text does', () => {
