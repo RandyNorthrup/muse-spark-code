@@ -3785,6 +3785,12 @@ choices:
   - **Reduced motion and forced colours:** under `prefers-reduced-motion` the
     bubbles appear in place without the burst or the goo; under
     `forced-colors` the filter is off and the bubbles are bordered buttons.
+- **Centered composer (the owner's request of 2026-10-04).** The composer is
+  centered with a maximum width: the composer area and the approval dock cap
+  at `--ms-composer-max-width` (760 px; the transcript has no reading width of
+  its own) and center with `margin-inline: auto`, so the box, its banners,
+  chips and menus, the floating palette and popovers, and the dock stay
+  aligned. Narrow panels keep the full-width layout and side gutters.
 
 ### D67 — Saved prompts, bookmarks and timed sends (M88)
 

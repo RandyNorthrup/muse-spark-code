@@ -210,6 +210,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- The composer is centered with a maximum width (the owner's request of
+  2026-10-04): the message box and the approval dock cap at 760 px and align,
+  while narrow panels keep the full-width layout.
 - Highlighted-text actions now open as themed round bubbles, with an inward
   fan that fits a 320 px panel, visible focus/hover labels, arrow and Home/End
   navigation, and focus return. Copy, Ask about this and Comment on this keep

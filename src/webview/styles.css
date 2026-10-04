@@ -11,6 +11,7 @@
   --ms-radius: 6px;
   --ms-icon-size: 16px;
   --ms-control-size: 26px;
+  --ms-composer-max-width: 760px;
 }
 
 html,
@@ -381,9 +382,16 @@ body {
 
 /* --- composer --- */
 
-/* Positioning context for the palette, which sits above the composer. */
+/* Positioning context for the palette, which sits above the composer. The
+   area caps at the composer's reading width and centers, so the box, its
+   banners, chips and menus, and the floating palette and popovers move as
+   one; narrower panels keep the full-width layout. */
 .composer-area {
   position: relative;
+  align-self: center;
+  width: 100%;
+  max-width: var(--ms-composer-max-width);
+  margin-inline: auto;
 }
 
 .composer {
@@ -1447,8 +1455,14 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-self: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--ms-composer-max-width);
   max-height: 45vh;
-  margin: 0 var(--ms-gap);
+  margin-block: 0;
+  margin-inline: auto;
+  padding-inline: var(--ms-gap);
   overflow-y: auto;
 }
 
