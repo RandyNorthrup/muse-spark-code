@@ -39,6 +39,11 @@ happened, not what was planned; superseded entries are kept.
   block it does not read, or when `MODEL_TEXT` holds a key no source file
   of `dist/extension.js` reads; the code intelligence and web fetch
   bundles' tests check that neither carries any key or value of `MODEL_TEXT`.
+- Documented the `/legal` design (PLAN.md D76/M97): an offline, read-only
+  licensing and copyright/header scan, an evidence-based report, and optional
+  selected fixes through existing approvals. Recorded ecosystem coverage,
+  research, cost/privacy boundaries, implementation lanes and certification
+  requirements. The command is planned; this change adds no product code.
 
 ## [0.12.1] - 2026-10-04
 

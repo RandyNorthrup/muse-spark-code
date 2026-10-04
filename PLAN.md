@@ -4259,7 +4259,166 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
+
+The owner asked for a read-only codebase scan of licensing, legal risks and
+copyright/header hygiene, followed by recommendations and an optional,
+authorized fix phase. **Planned; this lane writes documentation only.** D70–D75
+and M91–M96 belong to other drafts; their absence here does not release those
+numbers. Research: `docs/certification/m97-research.md`.
+
+- **Two phases, with a real boundary.** `/legal` and a command-palette entry
+  run the deterministic scanner locally, without a model, writes or network.
+  The report appears before any optional explanation or repair. Scan takes the
+  existing Plan-mode hold (M70) only for a live conversation, restored only
+  while it still owns that hold. A scan never starts a backend;
+  no edit, formatter, hook, verify-loop check, install, build, package-manager
+  evaluation or arbitrary shell command runs. Read files directly; any needed
+  read-only command must pass the existing admission guard. `legal_scan` never
+  exposes a write operation. A skill is guidance, not the security boundary.
+  Muse Code's native tools cannot be disabled through `SessionConfig` (D69):
+  certify its Plan-mode behavior, including standing allow rules, before a
+  model explanation can run. If read-only admission cannot be proved, keep the
+  deterministic report available and refuse that explanation with a reason.
+- **Facts, not a legal certificate.** A versioned, zod-validated result carries
+  stable finding ids, rule/data versions, distribution assumptions, scan scope,
+  exclusions, incomplete checks and sorted evidence. Each finding has severity
+  (`blocker`, `should-fix`, `advice`), workspace-relative file:line when available,
+  package@version and license expression where applicable, its evidence source,
+  confidence, explanation, recommendation and fixable flag. Missing evidence
+  remains unknown; a heuristic never becomes a proven violation or a clean bill
+  of health. Every panel, JSON and requested Markdown export says:
+  “not legal advice; for distribution decisions consult a lawyer”.
+- **Across ecosystems, without running their build files.** Read manifests,
+  locks and installed metadata already present within the chosen workspace;
+  cover direct and transitive packages, preserving conflicting evidence.
+  Missing locks, unresolved versions, dynamic metadata, absent installed data,
+  unsupported lock versions or an unreadable subtree make coverage incomplete.
+  No resolver, lifecycle script, `setup.py`, Gradle/Maven plugin or helper is run.
+
+| Ecosystem         | Local evidence to recognize                                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| npm / pnpm / Yarn | `package.json`, npm locks, `pnpm-lock.yaml`, Yarn classic/Berry locks, present package license/NOTICE files; absent PnP/install metadata stays unknown                        |
+| pip / uv / Poetry | `pyproject.toml`, requirements, `uv.lock`, `poetry.lock`, present distribution `METADATA` and license files; requirements without resolved transitive versions are incomplete |
+| Cargo             | `Cargo.toml`, `Cargo.lock`, present crate manifests, `license` / `license-file` and vendored licenses                                                                         |
+| Go modules        | `go.mod`, `go.sum`, `vendor/modules.txt`, present module/vendor license files; checksums alone are not license metadata                                                       |
+| Maven / Gradle    | POMs, Gradle declarations/locks and present artifact POM/license metadata; do not evaluate executable build logic                                                             |
+| NuGet             | project/package declarations, `packages.lock.json`, `project.assets.json`, present `.nuspec`, license expressions/files                                                       |
+| Composer          | `composer.json`, `composer.lock`, present package licenses                                                                                                                    |
+| Ruby gems         | `Gemfile`, `Gemfile.lock`, static gemspec declarations and present gem metadata; never execute a gemspec                                                                      |
+
+- **Project and dependency licenses.** Recognize LICENSE/COPYING and SPDX
+  declarations using pinned matching data; compare project manifest and README
+  declarations. Preserve custom `LicenseRef` text and unknown/UNLICENSED or
+  proprietary declarations. Parse `AND`, `OR`, `WITH` and parentheses; an `OR`
+  alternative is a choice, not two mandatory licenses, and an exception changes
+  the analysis. Flag possible GPL/AGPL obligations when an MIT/Apache project
+  combines or distributes that code, LGPL linking/source/relinking questions,
+  and MPL file-level obligations, with version and usage evidence. Do not call
+  permissive-to-GPL combination categorically incompatible. Flag SSPL,
+  Business Source License (`BUSL-1.1`, distinct from Boost `BSL-1.0`), Commons
+  Clause and CC-BY-NC restrictions; SPDX recognition is not OSI approval.
+- **What actually ships.** Separate development, production, optional and
+  transitive dependencies, then identify distributed ones from existing bundle
+  metafiles and package manifests/inventories. A dev dependency can still ship.
+  Reuse the approach in `scripts/third-party-notices.mjs`, which reads esbuild
+  inputs and actual license/NOTICE files; its permissive allow-list is not a
+  universal compatibility engine. Check upstream Apache NOTICE obligations
+  when a NOTICE exists, complete `THIRD_PARTY_NOTICES` for bundled/vendored
+  code, and inclusion through `.vscodeignore` / package `files`. Absent or stale
+  build evidence leaves distribution unknown; scanning never rebuilds or packs.
+- **Copied code and assets.** Find vendor folders, foreign headers and source
+  references such as “adapted from”, CodePen and Stack Overflow. Preserve source
+  URLs, attribution and license evidence; a source mention is only a lead.
+  Stack Overflow uses CC BY-SA versions tied to contribution dates, not one
+  guessed version. Check fonts, icons, images and sounds for adjacent license
+  files, `.license` sidecars or REUSE declarations; known restricted families
+  need provenance evidence, not a verdict from their filenames.
+- **The owner's code-quality scope is header hygiene.** Check SPDX identifiers
+  against the applicable license and existing copyright holders/year format.
+  `museSpark.legalHeaderPolicy` is a workspace enum `required` / `optional` /
+  `off`, default `optional`, honoring the detected project style and REUSE
+  declarations. Generated files are excluded from header checks and the report
+  names that exclusion; shipped generated code still counts for notices.
+  Multiple upstream holders can be legitimate. An earlier year alone is not
+  stale; flag conflicting/impossible dates or a breach of the chosen policy.
+  Never invent ownership or replace third-party headers with the project owner.
+- **Other risks are explicitly heuristic.** Third-party marks in names, icons
+  and README, and missing disclaimers (this product remains Unofficial / not
+  endorsed by Meta); apparent data collection without a privacy policy; store
+  README/LICENSE and npm license-field omissions; crypto/export indicators;
+  model-weight/config license conditions such as Llama community terms. No
+  assertion of trademark permission, export clearance or worldwide compliance.
+  Reuse `src/core/redact.ts` and the existing secret-scan rules (`security:secrets`)
+  for secret/PII indicators; list location/type only, never their values.
+- **Offline first; enrichment is a separate choice.** “Fetch missing license
+  metadata” first lists registry hosts, exact package/version queries, request
+  count and the identifiers that will leave the machine. Confirm before any
+  public registry API call; obey D43's proxy/TLS/network posture, bounded
+  responses, cancellation and public-address checks. No credentials, source
+  upload, arbitrary URL fetch, install or persistent cache. Private names are
+  not queried without explicit disclosure/consent. Capture each real response
+  shape before writing its parser (rule 13); failures remain unknown.
+- **An accessible report, saved only on request.** Summary and severity groups
+  show evidence, limitations, suggestions and fixable markers. Labelled
+  checkboxes select findings; “Fix all safe ones” previews the exact eligible
+  findings and patches before confirmation. Nothing is pre-authorized by scan.
+  Preserve keyboard operation, screen-reader status/labels, focus return,
+  narrow-panel wrapping, zoom and all four themes (D32). Markdown is created
+  only after the user requests export and chooses a destination; exported
+  text has the same scrub/disclaimer policy.
+- **Fix is optional and bounded.** After explicit selection/patch confirmation,
+  use normal edit tools and the current permission mode's approvals; Plan or
+  Restricted Mode cannot write. Recheck trust, workspace, permission state and
+  evidence hashes before each selected patch; a changed file needs a fresh
+  report/preview. Batch authorization names only the selected paths; formatting
+  stays within them, and installs/builds/check scripts need their normal
+  independent approval rather than inheriting that authorization. Add LICENSE,
+  NOTICE/THIRD_PARTY_NOTICES, SPDX/copyright headers,
+  attribution comments or project-owned manifest license metadata only from
+  verified evidence and confirmed ownership. A supported dependency-license
+  declaration in a project manifest is a correction of metadata, never a grant
+  of rights. No dependency-code edits, guessed licenses, automatic removal,
+  overwriting existing notices or silent change of the chosen project license.
+  Missing or changed project license needs separate explicit confirmation and
+  cannot enter “safe ones”; unknown ownership/terms are recommendations only.
+- **One scanner, both backends and CI.** Pure `src/core/legal/`, no `vscode`;
+  host/runtime adapters load it lazily as `dist/legalScan.js`, with a measured
+  D6 budget proposed before implementation merges and no existing cap raised.
+  Model API gets native `legal_scan`; Muse Code gets the same read-only tool
+  over the authenticated loopback `ide` MCP bridge (as code-intelligence tools
+  do today, `readOnlyHint` plus actual guards). Missing `sessionMcp` capability
+  is reported, never a guessed protocol fallback. The bundled `/legal` skill
+  uses D68's loading/install mechanism without modifying its pinned upstream
+  vendor package; report authorization stays host-owned even if a user skill
+  shadows it. Headless/ACP exposes `muse-spark-code-acp exec legal-scan --json`
+  as a reserved deterministic subcommand before prompt parsing: no backend,
+  sign-in, credential-store access, model call or ACP-frame stdout mixing.
+  Exit 0 = complete/no blockers, 1 = complete/blockers, 2 = incomplete/input or
+  operational failure; advice alone does not fail CI. No headless auto-fix.
+- **Cost.** The deterministic scan and report cost nothing. An explicit Explain
+  choice permits at most one short, bounded turn over scrubbed findings, never
+  raw source or secret/PII snippets. Muse Code uses the user's subscription;
+  Model API states its estimated cost and cap before consent and follows
+  D30/D48's paid gate, per-use popup, badge, paid row and PaidUsage. Denial or
+  unavailable consent leaves the free report usable; no automatic paid fallback.
+  Fixing through a model is the user's separately requested normal coding turn,
+  with its backend's existing billing and approvals.
+- **Data provenance.** Vendor a pinned, checksummed SPDX identifier/matching
+  dataset only with its own verified redistribution terms and recorded source.
+  CC0 identifier lists are available; exception lists and tools may have other
+  licenses. Preserve their notices, review updates in a PR and build offline;
+  a CC0 dataset does not relicense the licenses it describes. No new package or
+  tool installation is approved by this design record (D3/D9 apply at delivery).
+
 ## 3. Open questions (need the owner)
+
+- **M97:** No owner step or design answer blocks this plan. Default header
+  policy is optional; the report chooses no license or owner on the user's
+  behalf. Delivery must prove Muse Code explanation confinement, each registry
+  response shape and the exact vendored dataset's terms/size. If proof is
+  missing, keep that capability unavailable with an explicit limitation;
+  do not weaken read-only admission or claim complete coverage.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -13670,6 +13829,105 @@ joined with M57, M58 and PR #49's sign-in
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
 
+### M97 — Read-only legal scan, then selected fixes (D76, planned)
+
+- **Goal.** Both backends offer an evidence-based legal/licensing and header
+  hygiene report without modifying the project; the user can then authorize
+  selected, supported fixes. The feature does not certify that everything is legal.
+- **Scope.** D76's ecosystem readers, license expressions/matching and evidence
+  provenance, distribution/notices, copied code/assets, header policy and
+  heuristic risks; the lazy scanner, native/MCP tools, bundled skill,
+  slash/palette entry, report and selected-fix handoff, deterministic ACP/CI
+  subcommand, opt-in registry enrichment and optional explanation.
+- **Depends on.** D68/M89 bundled skills; M70's Plan hold; M67/M69's `ide`
+  tools/confinement; M80's exec routing; D43 and D48. Reuse current boundaries,
+  not another approval engine or a hosted compliance service.
+- **Lanes and file ownership.** Muse codes; Codex independently reviews each
+  lane's finished diff and gate-fire evidence. Lead serializes shared files,
+  integration and aggregate gates; no lane rewrites another's region.
+
+| Lane                   | Muse implementation ownership                                                                                                                       | Codex review / acceptance focus                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings   | Finding/tool/postMessage schemas, named limits in `constants.ts`, English and all 14 `l10n/ui.*.json`, manifest translations, header-policy setting | Boundary validation, runtime text reads, complete real translations, no secret-bearing result fields                            |
+| S Scanner              | `src/core/legal/**`, pinned data/provenance, ecosystem and distribution fixtures in `test/**`                                                       | Offline/no execution/no writes, expressions, evidence conflicts, incomplete coverage, actual shipped dependency set             |
+| B Backend / skill      | Native tool, `src/host/ide/**` adapter, `/legal` routing and Plan hold, D68 bundled-skill integration                                               | Both backends, actual read-only enforcement, trust/cancellation/hold ownership, no vendor-package mutation                      |
+| W Report / fix         | Accessible webview report and selected-patch handoff using existing approval/edit paths; owned harness cases                                        | Exact selection/preview, stale evidence refusal, Bypass still requires user selection, Plan refuses writes, themes/narrow panel |
+| R Runtime / enrichment | Reserved exec subcommand in `src/runtime/**`, lazy build/package wiring, optional public registry reader                                            | No backend/auth/ACP stdout contamination; exit semantics; captures before parsers; disclosed bounded network calls              |
+| I Docs / integration   | README, `docs/acp.md`, `docs/PRIVACY.md`, CHANGELOG, PLAN and `docs/certification/m97.md`                                                           | Truthful scope/cost, packaged notices/data, exact-tree rig and installed-host receipts                                          |
+
+- **Acceptance.**
+  1. `/legal`, palette and both tools yield the same deterministic findings for
+     identical workspace bytes, policy, distribution evidence and rule/data
+     versions; changing only the model/backend cannot change the facts.
+  2. All ecosystem rows in D76 have known-license and incomplete/conflicting
+     metadata fixtures. Unknown, UNLICENSED, proprietary and source-available
+     entries stay visible; dual licenses/exceptions are evaluated correctly.
+  3. A copyleft/distribution fixture flags its specific unmet obligation;
+     permissive/GPL combination, LGPL linkage, MPL files and development-only
+     versus actually bundled dependencies do not collapse into one rule.
+  4. Missing/mismatched project LICENSE/manifest/README, missing Apache NOTICE
+     attribution, incomplete packaged third-party notices, foreign vendored
+     headers and an asset lacking provenance each have attributable findings.
+  5. Required/optional/off header policies, existing REUSE/sidecars, generated
+     exclusions, conflicting holders/year formats and legitimate old years are
+     covered; no guessed owner or automatic year rewrite is offered.
+  6. Scan writes nothing: compare the complete fixture tree's paths, types and
+     SHA-256 bytes before/after success, error and cancellation, and assert no
+     write/network/spawn/format/hook/check adapter was invoked. Seed an unsafe
+     shell/build/gemspec and a prompt-injection file; neither executes. Deny
+     traversal, escaping links/reparse points and unbounded input. Optional
+     enrichment runs only after its exact query list is approved.
+  7. Selecting fixes changes only selected project-owned files after explicit
+     preview/authorization and current-mode approval. Denial, Plan/Restricted
+     Mode, changed bytes, trust loss, disposal or switched workspace refuses
+     writes. Project-license changes ask separately; dependency edits and
+     automatic removal remain impossible. Partial failures are listed and
+     rescanned, never reported as complete success.
+  8. Report/export preserves severity, evidence, uncertainty, fixability and
+     disclaimer, with no secret/PII values in model context, logs or exports.
+     Keyboard/screen-reader, 320px panel, zoom, four themes and pseudo-locale
+     receipts pass; all user strings are translated in the 14 tables.
+  9. Installed VSIX on Muse Code and Model API, and installed ACP headless
+     `exec legal-scan --json`, exercise real scanner routing with fake model
+     transports. No credential or model is required for deterministic scan.
+     Optional explanations have separate confinement and billed-use receipts.
+  10. Scanner stays lazy, packaged data/skill/licenses/notices ship, and every
+      existing D6 cap plus the reviewed scanner cap passes on the final tree.
+- **Tests and red drills.** Fixture repos live only under `test/**`, use small
+  local files and fake registries, and cover every item above. Each new assertion
+  and guard is deliberately broken once, observed failing, restored byte-exact
+  (SHA-256), then its complete owning test file rerun; record mutation, failure,
+  restoration, machine and exit code in `docs/certification/m97.md`. Include
+  scan write/network admission, expression/NOTICE mismatches, missing adapters,
+  secret redaction, selected-file authorization and stale-file refusal. Never
+  mutate a user's repo as a drill. Windows reparse/path and installed-host
+  checks run on Windows 11; other checks/builds use Mac mini and Kubuntu.
+- **Gates.** Lead runs full `npm run quality` and required CI/installed-host
+  gates on the final integrated tree. Lane tests/builds and multi-project types
+  run on rigs; local changed-file formatting/lint only. Preserve coverage,
+  security, localization, host-API, accessibility, duplication, dead-code,
+  bundle/split and package budgets. New external response parsers need counted
+  captures before implementation, not invented fixtures. No paid/live call is
+  authorized by this planning lane.
+- **Security and cost.** Bound all reads, file counts and result sizes through
+  named constants; root-confine and cancel; treat repository contents as data.
+  No workspace scripts, credentials, model weights or confidential file bodies
+  are uploaded. D76's free default, registry disclosure and one-turn explanation
+  consent apply. Existing hidden-turn, request packing, checkpoint, paid-use and
+  verification invariants remain intact; run their owning regression files if
+  routing changes them.
+- **Docs and owner steps.** None expected from the owner. Delivery documents
+  commands/settings only after each documented invocation succeeds; update
+  README, ACP guide, PRIVACY, CHANGELOG and certification together. This planning
+  commit documents the decision, not availability of a new product command.
+- **Certification checklist.**
+  - [x] Owner request, D76 design, lanes and source-grounded research recorded.
+  - [ ] Acceptance 1–10, each with its failing drill and passing receipt.
+  - [ ] Optional registry shapes captured; SPDX data provenance/terms pinned.
+  - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
+  - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
+  - [ ] Delivered commands, costs, limits and privacy documented from real runs.
+
 ## 7. Gates
 
 **CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
@@ -13703,6 +13961,13 @@ Blocker for the owner: GitHub's documentation offers merge queues only in
 organization-owned repositories, and this one is user-owned. Until that is
 settled, PRs keep the full tier and no check is weaker than before. Record:
 `docs/certification/ciflow.md`.
+
+**M97 planning lane (2026-10-04).** Documentation only; its brief forbids this
+lane's aggregate quality run and delegates it to the lead. Changed Markdown,
+commit hooks and rig static/build results are recorded in
+`docs/certification/m97-research.md`. No executable file or new test/guard is
+delivered; no runtime acceptance or gate-fire certification is claimed. M97's
+implementation checklist above remains open, with existing gates unchanged.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
