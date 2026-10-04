@@ -4190,6 +4190,69 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
 
+### D70 — (reserved for M91 hooks; on another branch, 2026-10-04)
+
+### D71 — Muse Gadgets: help build them, never become one (M92, 2026-10-04)
+
+The owner asked whether Meta's Muse Gadgets (gadgets.muse.ai,
+github.com/facebookincubator/muse-gadget-sdk, Apache 2.0) belong in the
+extension "to make programming and working with devices easier", and approved
+the scope below on 2026-10-04.
+
+**What the SDK is (checked 2026-10-04):**
+
+- **ESP32 SDK:** firmware on ESP-IDF 6.0.1 for about 17 boards. Build with
+  `idf.py build`; flash and watch with `idf.py -p <port> flash monitor`
+  (Ctrl-] ends the monitor), or `tools/board.sh BOARD …`. The per-user SDK
+  token is set in menuconfig as `CONFIG_GADGET_SDK_TOKEN`, which lands in
+  `sdkconfig` and is compiled into the firmware. Pairing goes over BLE with
+  the Muse phone app; after that the device reaches Muse's cloud over Wi-Fi.
+- **Linux SDK:** a Python service (`/opt/musegadget`) installed with
+  `install.sh --sdk-token mgst_…`. It gives the Muse assistant `system.run`,
+  `file.read`, `file.write` and `device.health` on that machine, with the
+  installing account's rights. `musegadget send-user-msg "…"` posts to the
+  user's Muse chat.
+- **Built for coding agents already:** each SDK folder ships an `AGENTS.md`
+  (setup, build, flash), and `skills/` holds 50+ community `SKILL.md` device
+  skills.
+- **The token** matches `^mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$` (the
+  installer's own check).
+
+**Decisions:**
+
+- **No re-implementation.** In a trusted clone of the SDK, Muse Code already
+  reads its `AGENTS.md`. The extension adds only what that file can't give.
+- **Tokens are secrets.** `mgst_` tokens join the shared redaction table, and
+  so the logs, transcripts and `scan-secrets` (M92a). Every existing secret
+  warning covers them too.
+- **Device commands are bounded.** A monitor never exits by itself. The shell
+  tool's `timeout_ms` (≤ `SHELL_MAX_TIMEOUT_MS`) must return the output it
+  captured, with `isTimedOut`, and must end the whole process tree on all three
+  OSes, so that "flash, then capture N seconds of serial output" is one tool
+  call (M92b). A dedicated device tool is added only if that proof fails.
+- **Optional bundled skill.** A `muse_gadgets` skill (D68's bundled source) for
+  gadget work outside the SDK repo:
+  - Windows specifics: COM ports, `export.ps1`;
+  - the bounded-monitor pattern;
+  - token handling: the user types the token into menuconfig or the installer
+    in their own terminal, never into chat;
+  - a pointer to the SDK's `AGENTS.md`.
+
+  It is off unless `museSpark.bundledSkills` is on, like D68's. The skill is
+  first-party, so it does not live in the vendored package: `VENDOR.json`
+  pins the third-party bytes and the sync script owns that folder, so the
+  extension reads a small `first-party-skills/` folder beside `vendor/` as a
+  second `bundled` root through the same bounded loader (lowest precedence,
+  shadowed by a project or personal skill with the same id, same setting).
+  The Muse Code installer is unchanged: it copies the vendored package only.
+
+- **Phone ping as a recipe, not a feature.** The docs show a `Stop` or
+  `Notification` hook that runs `musegadget send-user-msg` (M91's events).
+  The extension ships no gadget code.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine. That service lets the
+  cloud assistant run any command there; README and the skill say so.
+
 ## 3. Open questions (need the owner)
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
@@ -13600,6 +13663,52 @@ joined with M57, M58 and PR #49's sign-in
   `status` and `clear` against a real Secret Service; `auth_required`
   before sign-in; the key never in a frame, an argument, the environment
   or the log; every gate green.
+
+### M92 — Muse Gadgets support (D71)
+
+- **Goal.** Firmware and device work with Muse Spark Code is safe, with tokens
+  never leaked, and practical, with bounded flash and monitor runs, without
+  duplicating the SDK's own agent guide.
+- **Scope.**
+  - **M92a, tokens:** `src/core/redact.ts` and its consumers; the existing
+    secret warnings; tests; CHANGELOG Security; README, SECURITY.md and
+    PRIVACY where they list secret kinds.
+  - **M92b, bounded runs:** a proof, on Windows, macOS and Linux with fakes,
+    that a timed-out shell command returns its captured output and leaves no
+    process behind (a fake never-ending "monitor" that prints, then sleeps,
+    with a child process). Fix the shell tool only where the proof fails.
+  - **M92c, skill:** `muse_gadgets` in the bundled source (D68's vendor
+    layout, or a first-party folder beside it), the model-facing text, and
+    strings in all 14 tables if any UI names it.
+  - **M92d, docs:** a README "Muse Gadgets" section (what helps, the phone-ping
+    hook recipe after M91, and the never-a-gadget warning); CHANGELOG; this
+    plan.
+- **Acceptance.**
+  1. A valid `mgst_` token is redacted everywhere the shared table applies, and
+     `scan-secrets` counts it. Near-misses (wrong last character or length,
+     embedded in a word) are not matched as gadget tokens.
+  2. A shell command with `timeout_ms` that never exits returns its captured
+     output with `isTimedOut: true`, and its process tree is gone afterwards,
+     on all three OSes.
+  3. With bundled skills on, `/muse_gadgets` is listed and loads; with them
+     off, it isn't.
+  4. README states what the extension does and doesn't do with gadgets, with
+     the security warning.
+- **Tests.** Unit tests for each item, each red-drilled. M92b's process-tree
+  proof runs on the three rigs (targeted files only). No hardware, network or
+  model call is needed.
+- **Gates.** The full quality gate, check-l10n, host-API, VSIX size.
+- **Security.** A token never appears in a fixture literal (fixtures are built
+  at runtime). The skill tells the user to enter tokens themselves. Nothing
+  installs or talks to gadget services.
+- **Certification checklist.**
+  - [x] M92a: redaction, consumers and warnings, with drills
+        (`docs/certification/m92.md`)
+  - [x] M92b: bounded-run proof (Windows here, macOS/Linux on the rigs;
+        no shell fix needed)
+  - [x] M92c: bundled skill listed, loaded and toggled
+  - [x] M92d: README, CHANGELOG and this record (the phone-ping hook
+        recipe waits on M91)
 
 ## 7. Gates
 

@@ -1567,6 +1567,13 @@ export const SKILL_SOURCES = ['project', 'user', 'bundled'] as const
 // personal skills folder, marks the copy, and links each skill into
 // `<config home>/muse/skills/<id>`.
 export const BUNDLED_SKILLS_SETTING = 'museSpark.bundledSkills'
+// First-party bundled skills (M92, PLAN.md D71): the extension's own
+// `<id>/SKILL.md` folders beside the vendored package. The vendored folder
+// is pinned third-party bytes (`VENDOR.json`, owned by the sync script), so
+// first-party skills live here instead, read as a second `bundled` root
+// through the same bounded loader. The folder is its own skills'
+// `SKILL_ROOT`.
+export const FIRST_PARTY_SKILLS_DIR = 'first-party-skills'
 export const BUNDLED_SKILLS_PACKAGE_NAME = 'high-quality-projects-skill'
 export const BUNDLED_SKILLS_VENDOR_SEGMENTS = ['vendor', BUNDLED_SKILLS_PACKAGE_NAME] as const
 export const BUNDLED_SKILLS_DIR = 'skills'

@@ -733,7 +733,7 @@ In a trusted workspace the agent follows the same files Muse Code does:
   (`$XDG_CONFIG_HOME/muse/skills` when set). The palette's **Skills** group
   lists them, `/id arguments` invokes one, and the model loads one itself
   when a task matches its description. `user-invocable: false` in the front
-  matter keeps a skill out of the palette. The extension also brings three
+  matter keeps a skill out of the palette. The extension also brings four
   skills of its own; see [Bundled skills](#bundled-skills).
 - **Agents** (Model API backend only): `.agents/agents/<id>/AGENT.md` in the
   workspace (project scope) and the personal root `~/.config/muse/agents`
@@ -785,13 +785,17 @@ else wrote.
 The extension ships the three workflows of the
 [high-quality-projects](https://github.com/RandyNorthrup/high-quality-projects-skill)
 package (MIT, one pinned release, vendored into the extension at build time
-and never downloaded while it runs):
+and never downloaded while it runs), plus one skill of its own:
 
 - **project_setup:** a new project from a product interview through strict
   quality gates.
 - **feature_delivery:** a scoped feature or change in an existing project,
   with tests and red drills.
 - **quality_retrofit:** an existing codebase brought up to strict standards.
+- **muse_gadgets:** Meta's Muse Gadgets devices (ESP32 firmware and Linux
+  services); see [Muse Gadgets](#muse-gadgets). It is a first-party skill the
+  extension authors in its own folder, not part of the vendored package, so
+  the Muse Code install below does not copy it: it is a Model API skill only.
 
 They lean on the package's shared `scripts/`, `templates/` and `docs/`, so
 each workflow is the whole package, never a lone `SKILL.md`. The delivery
@@ -967,6 +971,33 @@ it and start a new conversation.
   the catalogue appears in its instructions only while paid subagents are on.
   On the CLI backend Muse Code reads its own agents and this extension sends
   it none.
+
+## Muse Gadgets
+
+Meta's [Muse Gadgets](https://gadgets.muse.ai/) are devices with a Muse
+assistant inside, built from the open
+[muse-gadget-sdk](https://github.com/facebookincubator/muse-gadget-sdk)
+(Apache 2.0): `esp32/` firmware (ESP-IDF 6.0.1) and a `linux/` assistant
+service. The extension helps you build gadgets; it never becomes one:
+
+- **Tokens stay secret.** Your per-user SDK token (`mgst_…`) is redacted
+  from logs and transcripts like any other secret. Type it yourself, in your
+  own terminal, into `idf.py menuconfig` or the Linux installer — never into
+  chat, never into a command — and never commit `sdkconfig` or
+  `sdkconfig.defaults` containing it.
+- **Device commands stay bounded.** A monitor never exits by itself, so the
+  shell tool's `timeout_ms` ends it and returns what it captured: flash, then
+  capture N seconds of serial output, in one call, with no process left
+  behind.
+- **The skill knows the drill.** `/muse_gadgets` (a bundled skill, off while
+  `museSpark.bundledSkills` is off) covers the SDK layout, the Windows and
+  POSIX setup, the bounded-monitor pattern and the token rules. In a clone of
+  the SDK, the model reads the SDK's own `AGENTS.md` first.
+- **Never a gadget.** The extension never installs, configures or recommends
+  the Linux gadget service on a development machine: that service lets the
+  cloud assistant run any command there. A Raspberry Pi or a spare box is
+  fine. Pinging your phone after a turn (a hook running `musegadget
+send-user-msg`) arrives with the hooks milestone.
 
 ## Muse Code's own tools
 
@@ -2716,7 +2747,7 @@ Bypass at once.
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                           |
 | `modelApiObservationPacking`      | `false`     | [Observation packing](#observation-packing-model-api) on the Model API backend: a tool output over 8,000 characters rides whole for two requests, then as a short placeholder, and the model pages it back with `recall_output`. Read when a conversation starts or is reopened. Machine-scoped                                                                                                                                                                                                                                                                                                                                                         |
 | `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                          |
-| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the one-time install offer for Muse Code. Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                          |
+| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`, and the first-party `muse_gadgets`): a skill source on the Model API backend, after the project's and your own, and the one-time install offer for Muse Code (the vendored three only). Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                            |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the edited files' errors and warnings from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                 |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file the Model API backend's edit tools write. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |

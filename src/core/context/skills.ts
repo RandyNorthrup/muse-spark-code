@@ -25,6 +25,7 @@ import {
   BUNDLED_SKILLS_DIR,
   BUNDLED_SKILLS_SOURCES_DIR,
   BUNDLED_SKILLS_VENDOR_SEGMENTS,
+  FIRST_PARTY_SKILLS_DIR,
   MODEL_TEXT,
   PERSONAL_SKILLS_DIR_SEGMENTS,
   PROJECT_SKILLS_DIR_SEGMENTS,
@@ -70,6 +71,8 @@ export interface SkillRoot extends CatalogRoot<SkillSource> {
  */
 export interface BundledSkillsSource {
   readonly packageRoot: string
+  /** The extension's own skills folder (M92, PLAN.md D71). */
+  readonly firstPartyRoot: string
   readonly isEnabled: () => boolean
 }
 
@@ -163,6 +166,11 @@ export function bundledSkillsRoot(packageRoot: string, platform: NodeJS.Platform
   return pathModule(platform).join(packageRoot, BUNDLED_SKILLS_DIR)
 }
 
+/** The extension's own skills folder (M92, PLAN.md D71): `<extension>/first-party-skills`. */
+export function firstPartySkillsRoot(extensionRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(extensionRoot, FIRST_PARTY_SKILLS_DIR)
+}
+
 /**
  * Where the Muse Code install keeps its copy of the package (M89):
  * `skill-sources`, beside the managed personal skill root, in the config home
@@ -201,15 +209,17 @@ export async function loadSkills(
   roots: readonly SkillRoot[],
 ): Promise<SkillsLoad> {
   const load = await loadCatalogFiles(deps, roots, SKILL_CATALOG, parseCatalogFile)
-  // Each source has one root, so an entry's source names its package.
+  // A source may read two roots (the vendored package and the first-party
+  // folder are both `bundled`, M92), so an entry's package travels with its
+  // root directory, not its source.
   const packageRoots = new Map(
     roots.flatMap((root) =>
-      root.packageRoot === undefined ? [] : [[root.source, root.packageRoot]],
+      root.packageRoot === undefined ? [] : [[root.directory, root.packageRoot]],
     ),
   )
   return {
     skills: load.entries.map((entry) => {
-      const packageRoot = packageRoots.get(entry.source)
+      const packageRoot = packageRoots.get(entry.directory)
       return {
         id: entry.id,
         source: entry.source,
