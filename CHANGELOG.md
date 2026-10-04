@@ -152,7 +152,9 @@ happened, not what was planned; superseded entries are kept.
 - **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
   high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
   top-level documentation under their MIT licence. A checksum-verified sync
-  script records the pinned archive and file inventory; packaging includes
+  script records the pinned archive and each file's SHA-256 (the tests check
+  every vendored file against it), and refuses archives whose names collide
+  by case or by trailing dots and spaces; packaging includes
   the assets and third-party notices. Formatting, linting and pre-commit
   checks preserve vendored bytes. Backend discovery and installation are
   covered by the other M89 lanes.
@@ -194,11 +196,6 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- **Bundled workflow vendor guards (M89).** Test the sync reader and copy
-  allow-list with minimal ustar archives; reject case and trailing-dot/space
-  filename collisions. Pin each vendored file's SHA-256 in `VENDOR.json` and
-  check every hash without changing the v0.7.0 workflow bytes. The Muse Code
-  installer reads the updated path/hash inventory.
 - Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
 
 ## [0.11.0] - 2026-10-03

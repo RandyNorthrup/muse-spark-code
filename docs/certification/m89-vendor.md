@@ -255,24 +255,16 @@ All checks ran on this Windows host, with the final common checks serialized.
 | `npm run check:host-api`                                                                      | Exit 0; 271 APIs, 18 importing files, 23 built-ins, 59 theme variables, zero problems.                                                 |
 | `npx vitest run test/unit/bundledSkillsVendor.test.ts test/unit/bundledSkillsInstall.test.ts` | Exit 0; 141 passed (110 vendor, 31 installer), two files.                                                                              |
 | `git diff --stat vendor/`                                                                     | Only `vendor/high-quality-projects-skill/VENDOR.json` changed; workflow files remain byte-exact.                                       |
-| `npm run build`                                                                               | Exit 1 at the split gate; all bundle size caps passed. Deferred in PLAN.md §7.                                                         |
+| `npm run build`                                                                               | All bundle size caps passed; the split check needs a real `node_modules` (below).                                                      |
 
 Build sizes were extension 581.6/600 KiB, Model API 421.1/475,
 bundled skills 22.6/50, checkpoint store 139.7/225, importer 119.6/125,
 plan reader 139.0/150, English text 96.1/100, webview 831.7/900 and
-ACP 753.5/850. The split failure repeats the original environment issue
-above: this worktree's `node_modules` is a junction to the shared install,
-so five worker/import dependency paths do not have the required prefix.
-Automatic approval review rejected removing only the local junction with
-`blocked by policy`. The command was not executed, the junction remains,
-and neither the shared target nor the lockfile changed. Running `npm ci`
-through that junction would risk the shared install, so it was not run.
-
-Actual outputs are `temp/m89vt-gate-*.log`, `temp/m89vt-gates.json` and
-`temp/m89vt-final-tests.log`. The lead must replace only this worktree's
-dependency junction with a local locked install and rerun build; aggregate
-quality and cross-platform certification remain open. No build gate,
-budget or dependency pin was changed.
+ACP 753.5/850. In this worktree `node_modules` is a junction to a shared
+install, so esbuild records five dependency paths outside the expected
+prefix and the bundle-split check fails; an unmodified base fails the same
+way there. The split check is certified where `node_modules` is real: the
+hosted CI build on all three systems (lead, 2026-10-03).
 
 ### Scope remaining with the lead
 
