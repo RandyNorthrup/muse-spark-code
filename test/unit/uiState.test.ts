@@ -222,6 +222,27 @@ describe('uiReducer: sending', () => {
     ])
   })
 
+  it('times the echo from its send, and keeps that time through the acceptance (M87)', () => {
+    const sentAt = Date.UTC(2026, 9, 4, 14, 5)
+    const pending = reduceAll([
+      {
+        type: 'submitted',
+        localId: 'l1',
+        text: 'hello',
+        attachments: [],
+        contextLabel: undefined,
+        at: sentAt,
+      },
+    ])
+    expect(pending.transcript[0]).toMatchObject({ status: 'pending', atMs: sentAt })
+    const accepted = uiReducer(pending, {
+      type: 'hostMessage',
+      message: { type: 'turnAccepted', localId: 'l1', turnId: 't1' },
+      at: sentAt + 900,
+    })
+    expect(accepted.transcript[0]).toMatchObject({ status: 'sent', atMs: sentAt })
+  })
+
   it('marks the echo sent and the turn active on turnAccepted', () => {
     const state = reduceAll([
       { type: 'submitted', localId: 'l1', text: 'hello', attachments: [], contextLabel: undefined },

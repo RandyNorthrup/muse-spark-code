@@ -107,11 +107,8 @@ export interface ComposerProps {
   readonly isRunning: boolean
   readonly modelLabel: string
   readonly permissionMode: PermissionMode
-  /** Reported usage for the ring; lane W supplies this when the lanes join. */
-  readonly context?: ContextMeterProps['context']
-  /** Legacy strings remain until lane W replaces App's context helpers. */
-  readonly contextLabel: string | undefined
-  readonly contextTitle: string | undefined
+  /** The reported context usage the meter draws (M87); no window, no meter. */
+  readonly context: ContextMeterProps['context']
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
   readonly paidBadge: { readonly label: string; readonly title: string } | undefined
   /** The badge opens Account & usage, where this window's tally is. */
@@ -349,8 +346,7 @@ export function Composer(props: ComposerProps) {
     isRunning,
     modelLabel,
     permissionMode,
-    contextLabel,
-    contextTitle,
+    context,
     paidBadge,
     onOpenUsage,
     focusRequests,
@@ -1078,17 +1074,7 @@ export function Composer(props: ComposerProps) {
               {paidBadge.label}
             </button>
           )}
-          <ContextMeter context={props.context} onCompact={onCompact} />
-          {contextLabel !== undefined && props.context === undefined ? (
-            <button
-              type="button"
-              className="context-label context-label-button"
-              title={contextTitle}
-              onClick={onCompact}
-            >
-              {contextLabel}
-            </button>
-          ) : null}
+          <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
             className="mode-button"

@@ -1069,9 +1069,14 @@ describe('App transcript (M4)', () => {
         pressure: 'normal',
       },
     })
-    expect(screen.getByText('12% context')).toHaveAttribute(
+    // The meter (M87): the floored percent in the ring, the detail in its name and tooltip.
+    const meter = screen.getByRole('button', {
+      name: 'Context 12% used · 120K of 1M tokens · pressure normal',
+    })
+    expect(meter).toHaveTextContent(/^12$/)
+    expect(meter).toHaveAttribute(
       'title',
-      '120K of 1M tokens · pressure normal · Click to compact now',
+      'Context 12% used · 120K of 1M tokens · pressure normal · Click to compact now',
     )
     deliver({
       type: 'agentEvent',
@@ -1929,7 +1934,7 @@ describe('App session history (M6)', () => {
         pressure: 'normal',
       },
     })
-    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Context 12% used/ }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'compact' })
     deliver({ type: 'attachmentRejected', name: 'audio.node', reason: 'not an image' })
     expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
@@ -3013,5 +3018,173 @@ describe('App: a refused best-of-N start (M77, the RV78 review)', () => {
     expect(
       postMessage.mock.calls.filter(([message]) => message.type === 'startBestOfN'),
     ).toHaveLength(2)
+  })
+})
+
+/** A signed-in panel whose cards get ids in order, on the given backend. */
+function renderBackend(backend: 'modelApi' | 'museCode', now?: () => number) {
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+  let next = 0
+  render(
+    <App
+      postMessage={postMessage}
+      newLocalId={() => `local-${String(++next)}`}
+      {...(now !== undefined && { now })}
+    />,
+  )
+  deliver(init)
+  deliver({ type: 'authState', status: 'signedIn', backend })
+  deliver({ type: 'sessionInfo', modelId: 'muse-spark-1.3', sessionId: 's1' })
+  return postMessage
+}
+
+/** One message running as t1 and a second accepted with `disposition`. */
+function runningWithSecond(disposition: 'steered' | 'queued', turnId: string) {
+  send('first')
+  deliver({ type: 'turnAccepted', localId: 'local-1', turnId: 't1', disposition: 'started' })
+  send('second')
+  deliver({
+    type: 'turnAccepted',
+    localId: 'local-2',
+    turnId,
+    userMessageId: 'u2',
+    disposition,
+  })
+  const card = screen.getByText('second').closest<HTMLElement>('[data-role="user"]')
+  if (card === null) {
+    throw new Error('The second card did not render')
+  }
+  return card
+}
+
+function editItem(itemId: string, path: string, added: number, removed: number) {
+  deliver({
+    type: 'agentEvent',
+    event: {
+      type: 'itemCompleted',
+      item: {
+        itemId,
+        kind: 'toolCall',
+        status: 'completed',
+        tool: 'edit_file',
+        args: JSON.stringify({ path }),
+        patchSummary: { files: 1, added, removed },
+      },
+    },
+  })
+}
+
+describe('App: the M87 wiring (PLAN.md D66)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('adds up the edits in a row above the goal and task panes, without Review before M70', () => {
+    renderReady()
+    const goal = showGoal()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    expect(screen.queryByRole('group', { name: UI_TEXT.diffTallyLabel })).toBeNull()
+    editItem('e1', 'src/a.ts', 3, 1)
+    editItem('e2', 'src/b.ts', 10, 2)
+    // The same file again: two files, every line counted.
+    editItem('e3', 'src/a.ts', 1, 0)
+    const tally = screen.getByRole('group', { name: UI_TEXT.diffTallyLabel })
+    expect(tally).toHaveTextContent('2 files changed')
+    expect(tally).toHaveTextContent('+14 −3')
+    expect(within(tally).queryByRole('button')).toBeNull()
+    const tasks = screen.getByRole('region', { name: 'Tasks' })
+    for (const below of [goal, tasks, textarea()]) {
+      expect(tally.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    }
+  })
+
+  it('opens the task list in a tab from the tasks pane', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'agentEvent',
+      event: { type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.todoOpenInTab }))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'openTasksTab' })
+  })
+
+  it('shows a sent card’s time from the moment it is sent, before the host accepts it', () => {
+    const sentAt = Date.UTC(2026, 9, 4, 14, 5)
+    renderBackend('modelApi', () => sentAt)
+    send('hello')
+    const time = screen.getByText('hello').closest('[data-role="user"]')?.querySelector('time')
+    expect(time).toHaveAttribute('dateTime', new Date(sentAt).toISOString())
+  })
+
+  it('takes a Model API steer back with the ids its card was given', () => {
+    const postMessage = renderBackend('modelApi')
+    const card = runningWithSecond('steered', 't1')
+    fireEvent.click(within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'withdrawQueued',
+      localId: 'local-2',
+      turnId: 't1',
+      userMessageId: 'u2',
+    })
+    deliver({ type: 'queuedWithdrawn', localId: 'local-2' })
+    expect(screen.queryByText('second', { selector: '.message-text' })).toBeNull()
+    expect(textarea()).toHaveValue('second')
+  })
+
+  // RV87C finding 4: a refused Edit leaves the card, and the focus on its "…".
+  it.each([
+    ['still queued', false],
+    ['too late, once a request read it', true],
+  ])('returns the focus to the card’s "…" when an Edit is refused (%s)', (_case, isAdmitted) => {
+    renderBackend('modelApi')
+    const card = runningWithSecond('steered', 't1')
+    fireEvent.click(within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    if (isAdmitted) {
+      deliver({ type: 'agentEvent', event: { type: 'messageAdmitted', userMessageId: 'u2' } })
+    }
+    deliver({ type: 'withdrawRefused', localId: 'local-2', reason: UI_TEXT.queuedTooLate })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByText('second')).toBeInTheDocument()
+    expect(document.activeElement).toBe(
+      within(card).getByRole('button', { name: UI_TEXT.rowMoreActions }),
+    )
+  })
+
+  it('says a Muse Code steer was delivered, and offers Edit on a message Muse Code queued', () => {
+    const postMessage = renderBackend('museCode')
+    const steer = runningWithSecond('steered', 't1')
+    fireEvent.click(within(steer).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    const note = screen.getByRole('menuitem', { name: UI_TEXT.queuedDelivered })
+    expect(note).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(note)
+    expect(postMessage.mock.calls.some(([message]) => message.type === 'withdrawQueued')).toBe(
+      false,
+    )
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    send('third')
+    deliver({
+      type: 'turnAccepted',
+      localId: 'local-3',
+      turnId: 't2',
+      userMessageId: 'u3',
+      disposition: 'queued',
+    })
+    const queued = screen.getByText('third').closest<HTMLElement>('[data-role="user"]')
+    if (queued === null) {
+      throw new Error('The queued card did not render')
+    }
+    fireEvent.click(within(queued).getByRole('button', { name: UI_TEXT.rowMoreActions }))
+    fireEvent.click(screen.getByRole('menuitem', { name: UI_TEXT.queuedEdit }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'withdrawQueued',
+      localId: 'local-3',
+      turnId: 't2',
+      userMessageId: 'u3',
+    })
   })
 })

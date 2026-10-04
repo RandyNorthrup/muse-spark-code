@@ -5,7 +5,6 @@
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import path from 'node:path'
-import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 
 export const LOOPBACK = '127.0.0.1'
@@ -63,6 +62,7 @@ export const SCENARIOS = [
   'steps-summary-open',
   'message-time',
   'queued-menu',
+  'queued-menu-edit',
   'long',
   'editor',
   'history',
@@ -156,8 +156,6 @@ const CONTENT_TYPES = {
 
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
 export function serveRepo(repoRoot) {
-  // Lane E's component is exercised before lane W mounts it in App.tsx.
-  let diffTallyBundle
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
@@ -166,26 +164,6 @@ export function serveRepo(repoRoot) {
       return
     }
     try {
-      if (url.pathname === '/test/harness/diff-tally.js') {
-        diffTallyBundle ??= build({
-          stdin: {
-            contents: `export { DiffTally } from './src/webview/components/DiffTally';
-              export { diffTally } from './src/webview/diffTally';
-              export { installEmbeddedTable } from './src/webview/installTable';
-              export { createElement } from 'react';
-              export { createRoot } from 'react-dom/client';`,
-            resolveDir: repoRoot,
-          },
-          bundle: true,
-          write: false,
-          format: 'esm',
-          define: { 'process.env.NODE_ENV': '"production"' },
-        })
-        response.writeHead(200, { 'content-type': CONTENT_TYPES['.js'] })
-        const bundle = await diffTallyBundle
-        response.end(bundle.outputFiles[0].contents)
-        return
-      }
       const body = await readFile(target)
       response.writeHead(200, {
         'content-type': CONTENT_TYPES[path.extname(target)] ?? 'application/octet-stream',

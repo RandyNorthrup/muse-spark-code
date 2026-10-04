@@ -356,6 +356,8 @@ export type UiAction =
       readonly contextLabel: string | undefined
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
+      /** When it was sent (M87): the card's time until the host's arrives. */
+      readonly at?: number | undefined
     }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
@@ -1896,6 +1898,7 @@ function withPendingCard(
     readonly contextLabel?: string | undefined
     readonly reference?: ChatReference | undefined
     readonly isPlanTurn?: boolean
+    readonly at?: number | undefined
   },
 ): UiState {
   return {
@@ -1917,6 +1920,7 @@ function withPendingCard(
         ...(card.contextLabel !== undefined && { contextLabel: card.contextLabel }),
         ...(card.reference !== undefined && { referenceLabel: referenceLabel(card.reference) }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
+        ...(card.at !== undefined && { atMs: card.at }),
       },
     ],
   }

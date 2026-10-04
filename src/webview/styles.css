@@ -449,7 +449,6 @@ body {
 }
 
 @container (max-width: 340px) {
-  .context-label,
   .mode-button > span {
     display: none;
   }
@@ -1885,12 +1884,6 @@ body {
   outline-offset: -1px;
 }
 
-.context-label {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
-  white-space: nowrap;
-}
-
 /* --- markdown --- */
 
 .markdown > :first-child {
@@ -2943,18 +2936,6 @@ li:focus-within > .row-actions .row-actions-button,
   color: var(--vscode-foreground);
   font-size: 0.9em;
   background: var(--vscode-inputValidation-errorBackground, transparent);
-}
-
-.context-label-button {
-  border: 0;
-  color: inherit;
-  font: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.context-label-button:hover {
-  text-decoration: underline;
 }
 
 /* --- Paid features (M33–M35, PLAN.md D30): loud, never alarming --- */

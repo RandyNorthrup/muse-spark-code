@@ -71,8 +71,7 @@ function renderComposer(overrides: Partial<ComposerProps> = {}) {
     isRunning: false,
     modelLabel: 'muse-spark-1.3 High',
     permissionMode: 'manual',
-    contextLabel: undefined,
-    contextTitle: undefined,
+    context: undefined,
     paidBadge: undefined,
     onOpenUsage: vi.fn(),
     focusRequests: 0,
@@ -695,11 +694,10 @@ describe('Composer attachments', () => {
 
   it('compacts from the context indicator and shows a dismissible banner (M14)', () => {
     const { props } = renderComposer({
-      contextLabel: '12% context',
-      contextTitle: '120K of 1M tokens · pressure normal · Click to compact now',
+      context: { usedTokens: 120_000, windowTokens: 1_000_000, pressure: 'normal' },
       banner: 'Unsupported file type: audio.node. Supported as uploads: images.',
     })
-    fireEvent.click(screen.getByRole('button', { name: '12% context' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Context 12% used/ }))
     expect(props.onCompact).toHaveBeenCalledTimes(1)
     // Read out by the app's live region, not by an alert of its own (M25).
     expect(screen.getByText(/Unsupported file type: audio\.node/)).toBeInTheDocument()
@@ -785,9 +783,16 @@ describe('Composer chrome', () => {
     const { view, props } = renderComposer()
     expect(screen.queryByTitle(/tokens/)).toBeNull()
     view.rerender(
-      <Composer {...props} contextLabel="12% context" contextTitle="120K of 1M tokens (normal)" />,
+      <Composer
+        {...props}
+        context={{ usedTokens: 120_000, windowTokens: 1_000_000, pressure: 'normal' }}
+      />,
     )
-    expect(screen.getByTitle('120K of 1M tokens (normal)')).toHaveTextContent('12% context')
+    expect(
+      screen.getByTitle(
+        'Context 12% used · 120K of 1M tokens · pressure normal · Click to compact now',
+      ),
+    ).toHaveTextContent('12')
   })
 
   it('uses the reported context ring and keeps compact available (M87)', () => {

@@ -1205,18 +1205,31 @@
         palette: () => {
           click('Commands')
         },
-        // M87 lane A: the real meter, mounted independently until lane W joins App.
-        'context-meter': async () => {
-          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
-          renderContextMeter({ usedTokens: 42, windowTokens: 100, pressure: 'normal' })
+        // M87: the context meter as the host's reported usage draws it, at
+        // 42 % (normal), 70 % (the warning level) and over the window.
+        'context-meter': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 420_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
         },
-        'context-meter-warning': async () => {
-          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
-          renderContextMeter({ usedTokens: 70, windowTokens: 100, pressure: 'normal' })
+        'context-meter-warning': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 700_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
         },
-        'context-meter-full': async () => {
-          const { renderContextMeter } = await import('../../dist/webview/m87a.js')
-          renderContextMeter({ usedTokens: 104, windowTokens: 100, pressure: 'normal' })
+        'context-meter-full': () => {
+          event({
+            type: 'contextUsage',
+            usedTokens: 1_040_000,
+            windowTokens: 1_000_000,
+            pressure: 'normal',
+          })
           whenFound('.context-meter', (meter) => meter.focus())
         },
         'palette-tips': () => {
@@ -1644,7 +1657,7 @@
           whenFound('.message-user time[tabindex]', (time) => time.focus())
         },
         // A message steered into the running Muse Code turn: its "…" menu
-        // says it was delivered (Edit there needs lane W's wiring).
+        // says it was delivered.
         'queued-menu': () => {
           window.harnessSilent = true
           setDraft('Start the refactor')
@@ -1657,6 +1670,28 @@
           })
           send({ type: 'turnAccepted', localId: 'steer-1', turnId: 't1', disposition: 'steered' })
           whenFound('[data-role="user"] .row-actions-button', (button) => button.click())
+        },
+        // The Edit variant: a Model API steer no request has read yet, so its
+        // "…" menu offers Edit (it goes back into the prompt box).
+        'queued-menu-edit': () => {
+          window.harnessSilent = true
+          send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+          setDraft('Start the refactor')
+          key({ key: 'Enter' })
+          send({
+            type: 'briefSubmitted',
+            localId: 'steer-1',
+            text: 'Keep the old names',
+            attachments: [],
+          })
+          send({
+            type: 'turnAccepted',
+            localId: 'steer-1',
+            turnId: 't1',
+            userMessageId: 'u-steer-1',
+            disposition: 'steered',
+          })
+          whenFound('[data-entry-id="steer-1"] .row-actions-button', (button) => button.click())
         },
         'add-context': () => {
           click('Attach')
@@ -3028,48 +3063,22 @@
             })
           })
         },
-        // --- M87 lane E: the real tally component, before lane W's App wiring ---
+        // --- M87: the conversation's edits added up above the goal strip: one
+        // patch naming eight files (8 files, +313 −96). Review waits for M70.
         'diff-tally': () => {
           steps.goal()
-          whenFound('.goal', (goal) => {
-            import('./diff-tally.js')
-              .then(({ DiffTally, diffTally, installEmbeddedTable, createElement, createRoot }) => {
-                const tableError = installEmbeddedTable(document)
-                if (tableError !== undefined) {
-                  throw tableError
-                }
-                const mount = document.createElement('div')
-                goal.before(mount)
-                const counts = diffTally([
-                  {
-                    kind: 'tool',
-                    id: 'tally-edit',
-                    tool: 'apply_patch',
-                    args: '{}',
-                    status: 'completed',
-                    output: '',
-                    isBackground: false,
-                    patchSummary: { files: 8, added: 313, removed: 96 },
-                  },
-                ])
-                createRoot(mount).render(
-                  createElement(DiffTally, {
-                    counts,
-                    onReview: () => {
-                      window.harnessReviewed = true
-                    },
-                  }),
-                )
-                whenFound('.diff-tally', (row) => {
-                  if (row.querySelector('.diff-tally-review') === null) {
-                    throw new Error('The diff tally did not render Review')
-                  }
-                })
-              })
-              .catch((error) => {
-                harnessErrors.push(String(error))
-              })
+          event({
+            type: 'itemCompleted',
+            item: {
+              itemId: 'tally-edit',
+              kind: 'toolCall',
+              status: 'completed',
+              tool: 'apply_patch',
+              args: '{}',
+              patchSummary: { files: 8, added: 313, removed: 96 },
+            },
           })
+          whenFound('.diff-tally', () => {})
         },
         // --- M45: a paused goal with its objective open for a change ---
         'goal-edit': () => {
