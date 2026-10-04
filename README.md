@@ -358,7 +358,7 @@ harness:shots`) against a scripted session, so they match the build.
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-0.12.0.vsix
+   code --install-extension muse-spark-code-0.12.1.vsix
    ```
 
 2. Open the **Muse Spark** view from the activity bar (or press
@@ -459,7 +459,7 @@ Get it from the
 | Editor                                                   | How                                                                                                                                                                                                                                                |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.12.0.vsix` |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.12.1.vsix` |
 | **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
@@ -468,7 +468,7 @@ Get it from the
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.0/muse-spark-code-acp-0.12.0.tgz
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.12.1/muse-spark-code-acp-0.12.1.tgz
 muse-spark-code-acp --version
 ```
 
@@ -3304,7 +3304,7 @@ was seen to fail on a deliberate break before being trusted; the records are
 in [`docs/certification/`](docs/certification/), one file per milestone.
 Accessibility is a gate too: every screen the harness shows passes axe-core's
 WCAG 2.2 AA rules in Light Modern, Dark Modern and both High Contrast themes
-(PLAN.md D32); CI runs it on Linux and Windows. So is localization
+(PLAN.md D32); CI's full tier runs it once, on Linux. So is localization
 (PLAN.md D33): text the user reads goes in the English table
 `src/shared/l10n/en.ts`, read as `UI_TEXT.key` when the code runs. A
 sentence around a value is a `{slot}` template filled with `fill`, and a
@@ -3357,19 +3357,26 @@ media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
 ```
 
-**Releases.** CI (`ci.yml`, every pull request and optional manual branch
-dispatch) calls
-`build.yml`:
+**Releases.** CI (`ci.yml`: pull requests, merge-queue groups and optional
+manual branch dispatches) calls `build.yml`. Once the merge queue is on, a
+pull request runs its fast tier: the static gates of `quality:gates`, the
+production build and every unit/e2e test on Ubuntu, with gitleaks and
+semgrep. Everything else (the merge queue, manual runs, the release build,
+and every pull request until the queue is on) runs the full tier:
 
-- `quality:gates` on Ubuntu, Windows and macOS;
-- the accessibility gate and the integration tests (VS Code stable and the
-  `engines.vscode` floor) on Ubuntu and Windows;
-- gitleaks over the full history and semgrep, as jobs of their own;
-- a `native-darwin` job that compiles the macOS helper and checks its
-  disclaim;
-- a `package` job (Ubuntu) that packs the `.vsix` with both helpers as the
+- the static gates of `quality:gates` on Ubuntu, Windows and macOS;
+- the unit/e2e tests in four shards per platform, merged before the coverage
+  thresholds apply;
+- the accessibility gate once on Ubuntu, and the integration tests (VS Code
+  stable and the `engines.vscode` floor) on Ubuntu and Windows;
+- gitleaks and semgrep, as jobs of their own;
+- a job that compiles the macOS helper and checks its disclaim;
+- a packaging job (Ubuntu) that packs the `.vsix` with both helpers as the
   `muse-spark-code-vsix` artifact, checks its compressed size budget, and
   packages the ACP agent with every locale table and both CycloneDX inventories.
+
+The seven required checks keep their names on both tiers (CONTRIBUTING.md,
+"CI tiers and required checks").
 
 A tag `v1.2.3` runs `release.yml`. It checks that the tag matches the
 manifest and is on `main`, runs the same build, creates a GitHub Release with

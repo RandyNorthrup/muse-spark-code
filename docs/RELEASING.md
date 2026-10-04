@@ -7,8 +7,11 @@ lanes do not push, tag, release, or call paid services.
 
 ## Artifacts and channels
 
-The build produces one universal VSIX, including the macOS helper compiled on
-macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The same VSIX goes to GitHub,
+CI's full tier produces one universal VSIX, including the macOS helper
+compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
+the merge queue, on manual runs, in the release workflow's own build, and on
+every PR until the merge queue is on; a fast PR run builds no packages
+(CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
 the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that universal
 release artifact.
