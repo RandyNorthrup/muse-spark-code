@@ -52,11 +52,24 @@
     // intelligence integration test (M67); main.ts imports the rest.
     "test/fixtures/workspace/code-intel/main.ts",
     "test/hosts/*.mjs",
+    // The GitHub Action's scripts (M80): each composite step runs one by path.
+    "action/lib/*.mjs",
+    "action/apply/lib/*.mjs",
+    // The Action tests' fake agent, fake npm and Git sentinel, started by path.
+    "test/action/*.mjs",
+    // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
+    "test/action/exec-test-launcher.ts",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],
 
-  "project": ["src/**/*.{ts,tsx}", "test/**/*.{ts,tsx}", "test/**/*.mjs", "scripts/**/*.mjs"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "test/**/*.{ts,tsx}",
+    "test/**/*.mjs",
+    "scripts/**/*.mjs",
+    "action/**/*.mjs"
+  ],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by
@@ -68,8 +81,9 @@
   // gitleaks (winget/brew) is a system binary, not an npm package: the
   // pre-commit hook and security:secrets call it. semgrep (pip) is started by
   // scripts/sast.mjs, which knip reads as code, not as a binary call.
-  // mkfifo (POSIX coreutils) makes the pipe the M86 recorder must refuse
-  // unopened (test/unit/writeRecorder.test.ts); the test skips Windows.
+  // System programs the tests start by name: mkfifo (POSIX coreutils) makes
+  // the M80 stuck-output pipe and the pipe M86 refuses to open
+  // (test/unit/writeRecorder.test.ts); both cases skip Windows.
   "ignoreBinaries": ["gitleaks", "mkfifo"],
 
   "ignoreExportsUsedInFile": true,

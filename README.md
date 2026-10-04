@@ -2790,6 +2790,92 @@ stopped and the next message resumes the same session.
   "Siri and Dictation are disabled" means Dictation must be switched on in
   System Settings > Keyboard.
 
+## Headless and CI (M80)
+
+The ACP package (`muse-spark-code-acp`) gains one-turn `exec`, a counts-only
+`scan-secrets` command and versioned JSON/JSONL schemas. `action/` is a
+same-repository GitHub review and fix Action, with an `action/apply`
+sub-action. Their fake-only tests pass on Linux, macOS and Windows; acceptance
+on hosted runners and with a real key is still pending, so this is **not
+certified yet**, and the Action's npm-registry install is supported only from
+a release published with provenance.
+[The CI guide](docs/ci.md) lists every option, exit code, bound and recipe.
+
+```text
+muse-spark-code-acp exec [options] <prompt>
+muse-spark-code-acp exec [options] --prompt-file <path>
+muse-spark-code-acp exec [options] -
+muse-spark-code-acp scan-secrets <file> [--key-stdin]
+```
+
+One turn runs through the existing ACP engine. Plan is the default and
+Accept edits the only other mode; trust, bypass and hosted search are refused.
+Every ordinary approval is denied and questions are declined. A Model API run
+stays untrusted, so it starts no shell, check, hook, MCP, Git or web-fetch tool
+process. Muse Code exec uses the existing sign-in, never starts a login and
+takes no USD budget.
+
+`exec` takes one literal prompt, `--prompt-file <path>` or `-` for stdin, plus
+up to eight `--untrusted-file <path>` resources. `--output` is `text`, `json`
+or `jsonl`; `--timeout` is the process deadline. Model API requires
+`--max-budget-usd` and accepts `--max-requests`, `--ephemeral` and
+`--key-stdin`; without `--key-stdin` it reads the local OS store. The stdin key
+stays in memory and conflicts with a stdin prompt. CI never runs `auth set` or
+gives the agent a key environment variable.
+
+Budgets are positive ASCII decimals up to $20 with at most six fractional
+digits, parsed straight into integer micro-USD. At 32,768 output tokens the
+minimum reservation is $0.108135 for the contributor model ($0.118135 with
+images) and $1.409024 for standard ($1.419024). The contributor model needs
+`--allow-contributor-models`; its content may be used for training under
+Meta's contributor terms. `--image-generation` also needs
+`--permission-mode acceptEdits`; images are off by default and tallied per
+use. Each liability rounds upward. Missing receipts, transport loss,
+cancellation and HTTP errors keep the full reservation. Only the latest
+verified completed response plus ACP `end_turn` exits 0; unverified accounting
+exits 9. Tool output text never leaves exec, and a cut-short agent message is
+withheld whole.
+
+`scan-secrets <file> [--key-stdin]` scans one bounded UTF-8 file locally,
+prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
+error. Its 30-second lifetime includes reading the key and flushing output.
+Only known literals and patterns are covered.
+
+On Windows a forced stop (the cleanup grace runs out, or a distinct second
+signal's 300 ms grace ends) terminates the process itself: process exit 1,
+and buffered stdout/stderr may be lost. A result that was delivered keeps its
+first-stop status, signal and logical exit code. Drained Windows exits and
+POSIX keep the normal table. Standalone POSIX signal tests are skipped on
+Windows.
+
+The Action accepts triggers from OWNER, MEMBER and COLLABORATOR on
+same-repository pull requests. Forks, bots, `pull_request_target`, public
+self-hosted runners and a changed API head are refused before anything is
+installed. It installs the agent before checkout and runs every Git child
+through one sanitized runner. Only its launcher holds the key, and it passes
+the key over stdin to exec and to the scanner. Only a completed run with exit 0
+posts the sticky review comment or publishes a scanned text patch. Any binary
+change (a generated image included) or detected secret withholds the whole
+patch. Preparing and testing a patch and the maintainer-approved push are
+separate jobs: read the proposal before you approve it. A candidate tarball is
+unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
+bundles and the signer identity.
+
+`npm run schema:exec` regenerates the
+[result](docs/schemas/exec-result-v1.schema.json) and
+[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+compares the committed bytes; both ship in the package's `schemas/`.
+After the production build, `node scripts/package-acp.mjs` packs the ACP
+tarball and `node scripts/package-acp-test.mjs` packs the private fake-only
+test variant (`muse-spark-code-acp-test-<version>.tgz`, whose bin is
+`dist/exec-test-launcher.js`). The test variant is never released.
+`.github/workflows/action-check.yml` runs the Action against it with a
+scripted fake Meta API: no key and no spend.
+
+See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
+[M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
+results and what is still open.
+
 ## Development
 
 ```bash
@@ -2867,7 +2953,7 @@ are recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run quality`                         | `quality:gates`, then `test:a11y`, `security:secrets` and `security:sast`; **exits non-zero on any finding**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run quality:ci`                      | `quality:gates`, `test:a11y`, then `test:integration` (no secrets or SAST); CI itself runs these as separate steps, see Releases                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run package`                         | `vsce package --no-dependencies` (after `vscode:prepublish` runs `npm run build`) → `.vsix`; it carries the macOS helper only if `bash native/darwin/build.sh` built it first, on a Mac                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run package:acp`                     | Production build, then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `npm run package:acp`                     | Production build, the committed exec schemas checked against `execProtocol.ts` (`scripts/exec-schema.mjs --check`), then `scripts/package-acp.mjs` → `dist/muse-spark-code-acp-<version>.tgz`, the ACP agent's npm package (`docs/acp.md`), with its own third-party notices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
