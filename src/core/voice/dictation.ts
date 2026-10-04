@@ -26,6 +26,7 @@ import {
   DICTATION_STOP_GRACE_MS,
 } from '../../shared/constants'
 import type { CoreLogger } from '../logging'
+import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
 
 export const DICTATION_STATUSES = ['idle', 'starting', 'listening'] as const
 export type DictationStatus = (typeof DICTATION_STATUSES)[number]
@@ -84,7 +85,14 @@ export interface HelperChild {
   kill(): void
 }
 
+/** Per-recording consent; send checks include current paid availability and the spend cap. */
+export type VoiceConsentFence = (keyDigest: string | undefined, isSending: boolean) => void
+
 export interface DictationListener {
+  /** Only paid Model API voice uses this extension-owned scope, per recording. */
+  ownedBudgetScope?(): Promise<OwnedSessionBudgetScope | undefined>
+  /** Captured by the recording once; no key value or journal is required. */
+  voiceConsentFence?(): VoiceConsentFence | undefined
   onStatus(status: DictationStatus): void
   /** One recognised phrase, as the engine wrote it. */
   onText(text: string): void

@@ -217,31 +217,54 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
-| Artifact                  | Budget (minified, uncompressed)                                                                                                                               |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                   |
-| `dist/modelApi.js`        | ≤ 400 KiB (M57: the Model API backend, loaded when it first starts; 295.6 KiB when split, see below)                                                          |
-| `dist/review.js`          | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                               |
-| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                      |
-| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                    |
-| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                |
-| `.vsix`                   | ≤ 1850 KiB compressed (REL after main joins: 1,633,017 bytes with the universal helper; +15%, rounded up to 25 KiB; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                             |
-| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                               |
-| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                          |
-| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                 |
-| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                        |
+| Artifact                  | Budget (minified, uncompressed)                                                                                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/extension.js`       | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
+| `dist/modelApi.js`        | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
+| `dist/review.js`          | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
+| `dist/searchWorker.js`    | ≤ 50 KiB                                                                                                                                                                                                          |
+| `dist/pageWorker.js`      | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
+| `dist/webview/main.js`    | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
+| `.vsix`                   | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
+| `dist/acp.js`             | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
+| `dist/planMarkdown.js`    | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
+| `dist/checkpointStore.js` | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
+| `dist/uiText.js`          | ≤ 100 KiB (shared English fallback for Node bundles; 72.7 KiB on the build-only baseline; installed tables remain per bundle)                                                                                     |
+| `dist/sessionBoard.js`    | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
+| `dist/reviewer.js`        | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
+| `dist/agentImport.js`     | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
+| `dist/codeIntel.js`       | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
+| `dist/voice.js`           | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
 has its own `scripts/check-vsix-size.mjs` gate in the CI package job. This table
 mirrors both scripts and changes with them, with a CHANGELOG entry.
 
+**M78b implementation scope (2026-10-02): deferred cohort bundles.**
+**FIXCOH review scope (2026-10-02).** Refuse a missing or malformed board
+bundle with fixed translated text and log its cause; pin both production
+dynamic-import filenames; suppress best-of-N failure notices after disposal
+during the first import. Exercise the real built controller and bundle,
+red-drill every affected guard, and record Kubuntu receipts in
+`docs/certification/m78.md`. The lead retains aggregate quality and release
+gates; this lane runs only the scoped rig checks named in FIXCOH.md.
+
+Kubuntu's production metafiles at `12060f84` measure activation at 613.0 KiB
+and the Model API backend at 406.0 KiB, above their unchanged 600/400 KiB
+caps. Defer the session board and best-of-N implementation until a board
+or best-of-N action, and the Auto review execution until paid consent.
+Use dynamic imports, transfer the installed localization table, retain
+current policy/budget/cancellation guards across loading, and verify both
+metafile separation and ordinary startup/first-turn behavior. New artifact
+caps use measured size plus 15%, rounded up to 25 KiB. Certification goes
+in `docs/certification/m78.md`; no existing cap is raised.
+
 **Amendment (2026-09-30): one English fallback for the Node bundles.**
 The approved `build/shared-ui-text` approach (`44d920fd`, lead decision 2)
 emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
-the Model API backend, the review, the checkpoint store, the import bundle
-and the ACP agent require it
+the Model API backend, the review, the checkpoint store, the import bundle,
+the board, the reviewer and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
 The browser and integration-test bundles retain their inline fallback. The
 development build writes the table beside the extension, so the integration
@@ -362,6 +385,39 @@ every bundle that carries `MODEL_TEXT`).
   `dist/review.js` 40.8/50, `dist/checkpointStore.js` 190.3/225,
   `dist/acp.js` 788.8/850, `dist/webview/main.js` 799.5/900.
   These focused measurements do not certify the full aggregate or platforms.
+
+**Amendment (PR #89, 2026-10-03): code intelligence and voice load on first
+use.** Merging `main` into the M77/M78/M82 cohort took `dist/extension.js`
+to 603.3 KiB (main alone 565.0, the cohort alone 592.9). As at M57, the
+600 KiB budget stays and code that activation does not use moves out:
+
+- **Code intelligence's `ide` answers** (M67): `codeIntelQuery`,
+  `codeIntelTools`, `repoMap`, `codeText` and `rename` (22.6 KiB of
+  activation) are built from `src/host/ide/codeIntelEntry.ts` into
+  `dist/codeIntel.js` (80.3 KiB, budget 100 KiB) and required by
+  `codeIntelLoader` on the first `mcp__ide__*` code intelligence call. The
+  tool list (`definitions.ts`: names, descriptions, schemas) stays, so
+  `tools/list` loads nothing. A call that cannot load it is answered with
+  `MODEL_TEXT.codeIntelUnavailable` as an error result, as any refusal is;
+  the log has the cause and the next call tries again. The Model API
+  backend keeps its own copy in `dist/modelApi.js`.
+- **Voice's drivers** (M9, M35): the dictation driver, Muse Voice's stream,
+  the recorder adapter and the process and WebSocket adapters
+  (`src/host/voice/voiceProcesses.ts`) are built from
+  `src/host/voice/voiceEntry.ts` into `dist/voice.js` (34.5 KiB, budget
+  50 KiB). Finding the helper stays at activation, so the microphone still
+  says at once whether it can record; the driver a panel creates loads the
+  bundle on its first `start`. A recording that cannot load it fails through
+  the listener's `onError` ("Voice dictation failed:" and
+  `dictationNotLoaded`, in all 14 tables), never silently, and the next
+  press tries again.
+- **Result:** `dist/extension.js` 568.7 KiB, 31.3 KiB under the unchanged
+  budget. Code intelligence alone would have left about 581 KiB, short of
+  the 20 KiB headroom asked for, so both moved. Each entry takes the
+  installed display table per call, as the other split bundles do.
+  `check-bundle-split.mjs` fails when activation carries either entry or a
+  moved module, or a bundle stops carrying one; size, host-global, notices,
+  VSIX allowlist, CI member list, knip and dpdm list both bundles.
 
 **Amendment (PR #32 joined with M57, 2026-09-27): the ACP agent loads the
 same `dist/modelApi.js`.** The agent's runtime (`src/runtime/backends.ts`,
@@ -4015,6 +4071,26 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
 | Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### Q-M78b — Remaining Model API bundle overage (2026-10-02)
+
+After the action-only splits, activation is 589.1/600 KiB, the board is
+61.0/75 KiB and the reviewer is 55.2/75 KiB. Model API is 412,447 bytes:
+2,847 bytes (2.780273438 KiB) over its 400 KiB cap. Metafile tables,
+first-use tests, red drills and scoped receipts are in
+`docs/certification/m78.md` and the lane's `m78/BUNDLE.md`.
+
+**Resolved 2026-10-02 (lead): the budget is revisited, as M57 planned.**
+M57 set 400 KiB as 295.6 KiB plus about a third, a margin to "hold two or
+three milestones of that size before the budget is revisited on purpose".
+M77, M78 and M82 are those milestones. They added 49.2 KiB to the bundle,
+each part attributed in the metafile tables. The largest parts are the host's
+turn logic (+28.4 KiB) and M78's permission policy, shell syntax and command
+rules (+11.6 KiB). These run whenever the model works, so a third lazy
+bundle would load on nearly every turn and only move the bytes. The new
+budget follows the repository's rule: 402.8 KiB measured, plus 15%,
+rounded up to 25 KiB, which is 475 KiB. The board and paid-review splits stay,
+because those run only on their own actions.
 
 ### Q-M74 — Remaining automatic work (2026-09-29)
 
@@ -10333,6 +10409,30 @@ maxBytes)`, which returns at most one byte past the cap and only for a
 
 ### M77 — Session board and best-of-N (D49)
 
+**RV78 review fixes, 2026-10-02.** The board's git status ran through the
+ordinary runner, so opening it could start a repository's configured
+fsmonitor program with no approval, in any mode. It now runs through
+`metadataGit` (`src/host/git.ts`), the prompt's git-facts runner moved there
+and shared: `GIT_METADATA_OPTIONS`, filter drivers emptied by name and
+`GIT_OPTIONAL_LOCKS=0`. A real-git regression proves the fsmonitor canary
+live and then silent under the board. Best-of-N's Start hid the form before
+the host accepted the run, so a startup refusal (a notice, no update) left an
+empty dialog; the form now stays until a new run arrives. Records and drills
+are in `docs/certification/m77.md`.
+
+**Lane resume, 2026-09-30.** Retain the existing M82 commits and staged M77
+port. Compilation passed all five projects. The initial focused run found
+voice Stop was blocked by a newly enabled cap; Stop now reaches its existing
+driver even when a new recording is unavailable. Native shared-budget fixtures
+use the production rename backoff instead of exhausting retries during reads.
+Both affected suites then passed all 719 tests. The initial production build
+failed at 651.0 KiB against the unchanged 600 KiB activation limit.
+The lead's resumed-lane decision removes the controller split and keeps every
+feature. One shared English-table change will land separately; this lane
+records any remaining cap failure without adding a split, loader or cap change.
+The native skill ledger validator is deferred: this canonical plan predates its
+JSON ledger format; converting the project plan is outside this lane.
+
 - **Goal.** Run several agents at once and pick the best result.
 - **Scope.**
   - A board of every conversation in the window and its worktrees: state,
@@ -10348,13 +10448,267 @@ maxBytes)`, which returns at most one byte past the cap and only for a
   - Worktrees need git, so best-of-N is unavailable in Restricted Mode.
 - **Backends.** The board: both. Best-of-N: the Model API.
 - **Acceptance.** Best-of-N asks once with the rates, N and the request
-  ceiling per attempt; "take this one" merges only that worktree's
-  changes; the board shows every conversation's state.
+  ceiling per attempt; each actual Model API HTTP attempt, including a
+  retry, must be admitted against that ceiling and the consented key.
+  "Take this one" applies and stages the selected immutable Git-tree
+  snapshot, including uncommitted tracked and unignored new files. It
+  creates no project commit; ignored files are outside the snapshot. The
+  target must still have the captured base HEAD, a clean index and working
+  tree, no dirty editors, and trusted, unchanged account/context ownership.
+  A failed, cancelled, or unreadable attempt is never takeable. The board
+  shows every conversation's state.
+- **Completion review (2026-09-29; verification queued).** The branch's
+  original reply-usage counter did not bound HTTP retries, discarded the
+  terminal outcome, acquired run ownership after consent, and compared and
+  merged branch commits even though normal file tools leave uncommitted
+  edits. Complete these existing behaviors with the window-owned run lease,
+  pre-HTTP admission, immutable `add`/`write-tree` capture, and ordinary
+  `git apply --index` of the captured binary patch. Recheck target paths,
+  symlink/protected-path confinement and ownership before applying. No
+  synthetic commits, force, or three-way application. Automatic snapshots
+  suppress repository programs; applying a patch creates no commit. M82's
+  cross-host attempts must use the originating account-owned budget journal;
+  bind the canonical M82 OwnedSessionBudgetScope before consent and to every
+  attempt host; finite-cap runs refuse when no owned scope exists. M82 must
+  integrate before this consumer draft is typechecked. Extend the
+  existing PaidUsage tally with each admitted attempt request, unknown
+  request costs, and validated per-response token/cost deltas from the owned
+  worktree host. Cumulative transcript frames are never billed twice, and
+  missing usage never becomes an invented zero-dollar estimate. Attempt
+  costs remain their own reported row until actually folded into a parent.
+  Source changes
+  and tests remain unverified until the scheduled host slot is released.
+  - **Independent completion repair:** Best-of-N automatic Git operations
+    reuse the bounded absolute executable runner with per-command hooks,
+    fsmonitor, replacement-ref and maintenance/GC controls. A bounded
+    names-only config read refuses executable filter drivers and configured
+    hook commands. Git 2.36 or newer is required for the documented
+    fsmonitor boolean behavior; other Git callers keep their normal policy.
+    Every actual invocation rechecks ownership/trust after preflight awaits.
+    Capture checks cancellation after worktree validation and between Git
+    awaits; Take repeats canonical targets after status/HEAD checks. Attempt
+    hosts bind the existing file-lister factory to their actual worktree
+    root, including uncommitted/new files and VS Code search fallback.
+    Real temporary repo program canaries, replacement refs, held validators
+    and production manager file-lister tests are required; proof is queued.
 - **Tests.** The fake Model API with N attempts, and the board in the
   harness and the accessibility gate.
 - **Size.** L.
+- **Files (built 2026-09-28).** `src/shared/{bestOfN,sessionBoard,paid,protocol,constants}.ts`,
+  `src/core/{sessionBoard.ts,bestOfN/bestOfN.ts,bestOfN/bestOfNRunner.ts,bestOfN/worktreeConversationHost.ts}`,
+  `src/host/{sessionBoard.ts,bestOfN/bestOfNManager.ts}`, the controller's
+  pending prompts and best-of-N wiring
+  (`src/host/conversation/conversationController.ts`,
+  `src/host/backend/modelApiBackendManager.ts`, `src/extension.ts`),
+  `src/webview/{App.tsx,state/uiState.ts,components/SessionBoardDialog.tsx,components/BestOfNDialog.tsx,components/Header.tsx,components/icons.tsx,components/UsageDialog.tsx,styles.css}`,
+  the `museSpark.modelApiBestOfN` setting (`package.json`,
+  `src/host/settings.ts`, `package.nls.json`), the 14 UI and manifest
+  tables, the harness (`board` and `bestofn` scenarios).
+- **Decisions taken.** Attempt branches are
+  `best-of-n/<run>/<index>` in folders beside the repository, like M32's
+  worktrees; the runner asks the one D48 popup only after the guards
+  (a live run, no folder, untrusted, wrong backend, off, out of bounds,
+  unpriced model) pass. An attempt that would ask the user (an approval or
+  a question) is declined and counted; retries count against its ceiling;
+  the comparison diff is clipped at 32,000 chars with the clip marked.
+  The board orders running, then waiting, then the rest; its waiting mark
+  comes from `PendingPrompts`, shared window-wide by every surface's
+  controller. Best-of-N is Model API only; the board serves both backends.
+- **Tests (built 2026-09-28).** `bestOfN.test.ts` (branches, folders, the
+  paid request, numstat, clipping), `bestOfNAttempts.test.ts`,
+  `bestOfNRunner.test.ts` (guards, consent, take, cancel),
+  `bestOfNManager.test.ts`, `worktreeConversationHost.test.ts` (ceiling,
+  declines), `sessionBoard.test.ts` (rows, ordering),
+  `sessionBoardHost.test.ts`, `SessionBoardDialog.test.tsx`,
+  `BestOfNDialog.test.tsx`, plus the touched `conversationController`,
+  `paidFeatures` and `paidHost` suites. The harness `board`/`bestofn`
+  scenarios run in the accessibility gate.
+- **Gates.** `npm run quality` and meaningful red/restored drills remain
+  queued for the completion draft; `docs/certification/m77.md` records this
+  explicit verification hold. The prior branch did not contain that record.
+- **Docs.** README (Session board and best-of-N, Paid features, settings
+  table), CHANGELOG, the 14 UI and manifest tables.
+- **Security.** Attempts run worktree-confined on the Model API backend
+  only; the paid gate (D30/D48) covers the setting and every run; the key
+  never reaches `muse serve`; "take" applies and stages only the captured
+  chosen tree, through ordinary Git apply with no force/three-way fallback.
+  The attempt index is pinned to its original absolute Git directory.
+- **Status.** Completion draft on `feature/m77-board` (2026-09-29),
+  verification queued; M82 external parent-budget binding remains an
+  integration dependency. No new model calls or verifiers were run during
+  the shared host verification hold.
 
 ### M78 — Auto, made safe (D49)
+
+**MGCOH main merge, 2026-10-02.** Integrate `origin/main` at `0e9546e0`
+into `feature/m77-m78-m82` at `8c72bdcc`. Main already includes M84,
+0.10.1, M74, the editor-guide fixes and M83's import. Preserve every
+cohort and main feature, all translated keys, every lazy bundle's gate and
+CI package membership. Regenerate the host API inventory and package
+notices on Kubuntu. Keep the activation, Model API, board and reviewer
+caps at 600/475/75/75 KiB. The MGCOH receipt in
+`docs/certification/m78.md` records the merged-source checks; full quality
+and publication remain the lead's responsibility under the lane brief.
+
+**MGCOH current-main follow-up.** Main advanced during the first merge's
+hooks to `8dac84cf` (M84's narrow-share focus fix, PR #80). Retain that
+fix unchanged and resolve the App test's imports with both the share page
+constant and the cohort's paid tally fixture. The same 32 owning files
+pass all 1,727 tests again at snapshot `5c8e2f1d`. Scoped static gates
+and all four narrow-share accessibility themes pass at `f6ec1cc0`.
+The extra README screenshot command's wide Chrome CLI step hangs on this
+rig; a bounded direct-binary retry times out. The narrow Playwright
+capture renders correctly, but no clean wide screenshot-command pass is
+claimed. Record that optional browser-runner blocker in the certification
+without changing main's source or any gate. This adds no feature beyond
+current main and changes no cap or approval policy.
+
+**Main merge, 2026-10-02 (M78m).** Merge `origin/main` at `e66263f1`
+(M74's handoff, with M84, 0.10.1 and the documentation fixes already in
+the cohort's ancestry) into `1372f047`. Keep both features whole. The
+controller test helper retains both M74's held-host callback and M82's
+owned voice-budget scope, and the paid palette's regression names M78's
+reviewer and M77's best-of-N beside the five existing toggles. M74 adds no
+dispatcher tool or tool-output path, so the existing M78 fence table still
+covers the complete dispatcher. Unreleased milestones stay under Added;
+the released changelog remains byte-identical to main. The host API record
+is generated on Kubuntu from the merged source. Scoped evidence is in
+`docs/certification/m78.md`; aggregate quality remains the lead's gate.
+
+**RV78g review fix, 2026-10-02: an outcome that cannot name its files fails
+closed.** Muse's review of the choke-point fence found one P1, four P2 and
+four P3, most from one root: the fence trusted `touched`, but a command's,
+a server's, the IDE's or a child's output cannot list every file it quotes.
+The lead's decision: `ToolOutcome.touched` is `{ names, complete }` and
+defaults to incomplete. Only tools whose output provably carries just the
+listed files say complete (`read_file`, `list_files`, `search`, the writes
+and edits with rename, the image tools, memory with its note, `read_skill`).
+The dispatcher judges a complete outcome as before; an incomplete one is
+also refused when the file policy's revision moved at all since admission.
+The revision (`filePolicyRevision`) is a digest of the profile, its
+deny-read globs, deny-all, extra roots and the trust, recorded in each
+`Admission`: a digest, not a counter, so a stored child result is judged the
+same way after a restart, and no glob or root is stored. Each child records
+its spawn admission's revision (persisted with it and with each pending
+result): a drained result is withheld when it moved, after a resume too, and
+`subagent_wait`, `read_result` and `status` carry their children's
+revisions; a result saved before revisions is withheld. `addIndexLine`
+throws its owner's Stop on after logging, so `add_memory` ends as a stop; a
+refusal of the index line alone still keeps the note reported written
+(`IndexLineStoppedError`). The store hands the I/O its caller's own guard
+and asks it once more after a failure. Every table row runs again with a
+deny on a file no call reads (complete rows delivered, opaque rows refused),
+the no-I/O row is checked against the fakes' I/O counters, egress rows
+assert no image request and nothing billed, and the subagent rows quote a
+marker. Seven red drills are in `docs/certification/m78.md`.
+
+**RV78f review fix, 2026-10-02: the fence at its two choke points.** The
+follow-up review found three paths the per-I/O fence missed (an image
+edit's sources sent to Meta after a deny landed during the reservation
+awaits; `read_skill`, which consulted no file rule; MCP and IDE results
+after their await), image and PDF reads with no regression, and a Stop
+during a memory read reported as a file error. The lead's decision: fencing
+tool by tool keeps missing the next tool, so the fence moves to the two
+places every path crosses. **The dispatcher's fence**: `runCall` judges
+every call's outcome, from every tool, built-in or external, with
+`policyRefusal` over the call's `Admission` (its query, its judgement after
+any card, and now the workspace's trust) and the files the outcome reports
+in `ToolOutcome.touched`, synchronously right before the outcome is built
+for the model. Every path that runs a call fills an `AdmissionSlot` at its
+admission; a tool that reports no files is judged on verdict, mode and
+trust alone. A refusal replaces the outcome; a read recorded as seen is
+forgotten; a write already made is said to stay and keeps its patch on the
+row (`UI_TEXT.policyChangedKeptWrite`, 14 tables). A rejection keeps its
+own words. The per-tool post-read `readFence` is gone: reads report what
+they touched instead. Side effects keep their fence at the moment they
+happen: a shell command's process entry, a memory note's write (a read is
+the dispatcher's), and **the egress fence**: the image request judges the
+call again, with its target and every source, inside each attempt's final
+admission, with no await before the send; a refusal sends nothing and
+settles its claim at zero. `read_skill` refuses a denied project skill at
+admission. `MemoryStore` throws its owner's Stop on, for reads and writes.
+A table-driven regression drives every tool the dispatcher knows
+(`classifiedToolNames()`) plus an MCP and an IDE tool with its I/O held
+while a deny, a mode or a trust change lands; receipts and five red drills
+are in `docs/certification/m78.md`.
+
+**RV78 review fix, 2026-10-02: one live policy fence at every I/O.** The
+independent review found one class in three places: the command and file
+policy was decided before an await and not judged again at the I/O. A
+rule-allowed shell command still entered its process after a forbid rule,
+an ask rule or a profile arrived during the Windows job assembly's load; a
+read finished under the old file rules and its text reached the model; a
+memory note was written after its path was denied. The lead's decision:
+one fence, `ModelApiHost.policyRefusal`, called at the moment of each I/O
+with the current compiled policy (rules, profile, mode) for that exact
+operation. It runs inside `ToolIo.runShell`'s final admission callback (as
+`runVerifyCommand` already fenced checks), after every read used to build
+model input completes (`read_file` text and its images and PDFs,
+`list_files`, `search`), and inside every MemoryIo read/write assertion.
+What ran with no question must still be allowed; an answered ask must not
+now be refused nor newly settled by a rule or the profile; no touched file
+may now be denied, nor read under an extra root the profile dropped. A
+refusal replaces the outcome (the model gets `toolRefusedByPolicyChange`,
+the row `policyChangedRefused`, in English and all 14 translated tables),
+so nothing read is sent. A note already written when its new index line
+was refused stays reported as written, its index line logged as not
+written. Held-boundary regressions and three red drills are in
+`docs/certification/m78.md`.
+
+**Final lane receipt, 2026-10-01/02.** Implemented on the release candidate
+with the approved shared English fallback (PR #67 tip `909db6736`, merged
+as `3375e828`; the named shared branch was deleted by the lead). The required
+`integrate/m72-on-24ff` merge reported Already up to date. Every bundle fits
+its unchanged cap: extension 581.5 KiB, Model API 372.5 KiB, checkpoint store
+126.3 KiB and shared UI table 82.3 KiB. All seven scoped static gates passed,
+including all five type projects and zero clones. Final Kubuntu owning run:
+51 suites / 2,083 passed / three Windows-only skips. Mac's 51-suite run passed
+2,081 tests before the final two UI regressions; its final three UI callers
+then passed all 246 tests. Windows VM native refresh passed 278 tests; the
+Windows host's shell witnesses passed all 159 with no skips. Eleven unique
+red/restored drills fired, with exact source hashes restored; the merged
+host's three affected drills were refreshed. Actual 320px viewport/body
+measurements and five narrow screenshots prove reflow, and 20 accessibility
+pages passed in four themes. This review also caught and repaired the reducer
+dropping approval reasons; delivery, stages and restoration are covered.
+The installed offline ACP tarball and both extension/backend bundles loaded
+the approved English fallback. No controller split, injected-table stub,
+cap change, public push or paid call remains. Full aggregate quality,
+independent review, installed-host/platform certification and hosted CI are
+the lead's remaining gates under common.md, not passing lane claims.
+
+**Resumed scoped proof, 2026-10-01.** The release-candidate port passed all
+five Windows type projects and 46 owning Kubuntu suites (1,889 passed,
+three Windows-only skips). Windows VM native coverage passed seven suites
+(278 passed, 22 platform/capability skips); the Windows host independently
+passed all 159 shell cases, including real Bash and PowerShell 5.1.
+Ten intended red/restored drills cover rules, missing profiles, reviewer
+claims/usage, native file/verification policy and both new UI presentations;
+every restoration matches SHA-256. Localization, dead code and the refreshed
+host API record passed. Five lane test clones and two invalid `void` types
+were corrected without changing assertions, ignores or thresholds. The one
+older-base checkpoint clone is already fixed on the release-candidate branch
+to be merged. Build sharing follows the lead's `build/shared-ui-text` only;
+full quality, independent review and final platform/installed proof remain
+the lead's gates. Receipts are in `docs/certification/m78.md`.
+
+**Lane readiness review, 2026-09-30.** Resume from the preserved cohort tree
+`23bd93a3647f9029c2c79f5a0f95e3350666efa6`, taking its net feature delta
+against main `32709441`. Keep M82's durable spend and M72's current turn,
+publication and shutdown fences. Reuse the existing command lexer, policy
+compiler, permission engine, paid popup and direct reviewer; no new package,
+wire shape, bundle split or setting beyond the planned milestone. Integrate
+the held policy/read/format boundaries and M77's rooted attempt editor and
+shared edit recorder. Acceptance includes native Bash/PowerShell comparisons,
+complex-command fallback, repository tightening, malformed-profile denial,
+post-await owner/policy checks, paid consent and finite-cap direct claims.
+The resumed native tests also require the automatic verify round to retain
+its original edited-file policy fence after a lookup filters denied files out;
+an empty allowed-file list cannot authorize a check over a revoked edit.
+Focused gates and exact-restoration red drills bind this port. Full quality,
+rig and installed/visual gates remain the lead's responsibility under common.md.
+The skill's JSON-ledger validator remains deferred for this older canonical
+plan; no competing plan or invented certification is created.
 
 - **Goal.** Auto on the Model API earns its name.
 - **Scope.**
@@ -10673,6 +11027,222 @@ independent review and the full candidate gates remain required.**
 
 ### M82 — Awareness and budgets (D49)
 
+**Resume review 2026-09-29.** The settled-spend, request-model pricing and
+replayed-question fixes in the existing branch are retained. Completion
+also requires the open request's reserved liability to survive a crash
+before usage arrives, including a snapshot whose replay cannot be saved.
+The reservation write must finish before fetch, and unavailable or failing
+storage refuses the capped request. Final key/account, model, goal, trust
+and paid admission checks stay synchronous after the write; a nonsent
+reservation is refunded durably under its original account. Final usage
+replaces the liability. A model change invalidates an
+older request's or token-count call's base even if the model switches back
+before it answers. Stored usage and reply spend must stay finite and
+nonnegative. A failed compacted-context token count logs a status and fixed
+words only. These paths are checked with held fake responses, a real
+session-file readback, model changes, reloads and red/restored drills; no
+new paid live run is authorized for this completion.
+
+**Shared spending and paid fees (resume owner decision, 2026-09-29).** The
+cap remains per conversation across hosts sharing its session store. A
+scoped budget journal owns each request's durable liability through actual
+settlement or refund; journal entries remain visible after crashes, and
+stale whole-session saves cannot lower authoritative spend. Every admission
+refreshes that spend, publishes its own liability and rechecks the total
+synchronously after key retrieval. Missing, corrupt or unreadable journal
+data refuses a capped request. Legacy spend is seeded once from the fresh
+account-owned session file; unverified historical paid fees are reported
+explicitly, never invented as zero.
+
+Known image-generation fees enter that same admission and settlement.
+Hosted search has no captured hard query bound, so it is unavailable while
+a finite cap is active, with a localized reason; cap-off search retains its
+paid consent. No unsupported wire field is added. This preserves the spend
+cap rather than redefining it as a token-only budget. Real shared-disk tests
+must cover two hosts publishing liabilities, a later publisher, stale
+saves, crash retention, model/key/cap changes and known paid fees.
+
+A capped response attempt that was sent but never reports usage keeps its
+whole liability. An ambiguous transport or server failure cannot retry with
+the same allowance; a new request needs a fresh admission. Explicit 429
+refusals may retry under the original claim because no work was admitted.
+Cap-off HTTP retries retain their existing behavior. Image calls already
+retry only explicit 429 refusals. These limits are surfaced and documented,
+without guessing a new billing field.
+
+A request begun with the cap off still publishes an open-unbounded claim
+when a shared journal exists. Finite admission refuses while that possible
+charge is unsettled, even when another host has a different current setting.
+Known actual usage clears that temporary uncertainty; an unverified tariff
+or earlier ambiguous retry retains a permanent unknown-cost marker. The
+final retry tail cannot certify earlier attempts as unbilled. Cap-off
+requests without session storage keep their existing behavior; a provided
+but unavailable journal fails closed. Known image fees have a hard flat
+bound and publish ordinary claims in either setting. This remains scoped
+owned-row metadata, with no election or shared configuration coordinator.
+
+The owned Model API host exposes a typed immutable parent budget scope for
+external trial attempts and paid voice. It contains only the session ID,
+account digest, journal, current-cap getter and final owner/context fence.
+An attempt host reserves and settles its own row in that parent scope;
+its temporary transcript is never saved or seeded under the parent's ID.
+The fence checks the originating lifetime, account, trust, model and goal
+context after async storage and actual key retrieval. Unknown sessions or
+managers fail closed. The backend manager already returns the typed Model
+API host, so this adds no generic agent API or runtime bundle identity test.
+
+An owned optional `ResponseAttemptGuard.onRequestStarted` observer runs
+after every key, admission, Stop and confirmed-run fence and request-init
+build, synchronously adjacent to fetch. It marks attempted sends and child
+request debits there; preflight alone never consumes an attempt or turns a
+known nonsent reservation into unknown spend. Context packing and external
+trial counters compose after that marker. Transport attempts still are not
+verified invoices: missing usage retains liability and uncertainty. This
+is internal callback metadata, with no new HTTP/MSP fields, call arguments,
+duplicate key read, body build or admission call.
+
+**Paid voice integration (owner-approved completion).** On an actual Model
+API conversation, a finite cap makes Muse Voice unavailable with a localized
+reason. Cap-off voice obtains the current owned parent scope, publishes an
+open-unbounded row before authentication/audio, and checks the actual key
+digest and parent lifetime/context before each send. The key is reread
+after the durable write; the controller fences attachment, auth admission,
+restart epoch and paid availability while cancellation awaits. A context
+change has its own localized reason instead of claiming the cap is on.
+Stop or owner changes
+before authentication refund only the proven nonsent row. Once
+authentication may have been sent, local PCM duration is an estimate, not a
+server billing receipt: settlement keeps an unknown-cost marker, including
+a final transcript, until supported billing-duration evidence exists. The
+earlier M35 record captured local recording and synthetic protocol tests,
+and explicitly lacked a live paid voice call. CLI voice and free system
+dictation retain their existing behavior. No new audio bound or wire usage
+field is guessed. A voice stream retains its original scope while another
+recording or surface begins; stale text cannot land on a replacement owner.
+Paid voice captures that scope and the controller's auth admission revision,
+attachment/send epochs, model and permission mode before the consent popup.
+An accepted popup cannot authorize a replacement account or recreate capture
+after disposal. Direct paid reviewers use their own explicit claim in the
+canonical response guard, never the preceding main response's settled claim.
+All owned session scopes inherit a host close-start fence, including during
+awaited SessionEnd hooks. Billable usage requires safe nonnegative integer
+counts and cached input no greater than total input; invalid reports retain
+unknown liability rather than reducing it.
+Per-reply dollar amounts are labeled estimated in every UI language. This
+also covers D36's future-model tier fallback; it must not read as a verified
+provider charge. The known-only turn-budget footer remains unchanged.
+Cap-off paid voice keeps its no-folder/no-store behavior. Each recording
+captures a separate consent fence before its popup, including the actual
+account digest and auth/model/mode/attachment/lifetime revisions, even when
+there is no journal. The fence is checked before authentication, audio and
+end sends; a later finite cap refuses those sends. Stop and the next press
+do not invalidate a finishing recording's original owner. A stale final
+transcript cannot enter a replacement owner. No shared-spend or verified
+audio-billing claim is made for this unshared path.
+A narrow controller revision fences local model/mode changes and observed
+model events, so a round trip cannot restore old no-journal consent.
+Current-main adapters use the existing defaults where M82 has no setting
+surface: ACP keeps the cap off and per-reply display off. The manual live
+panel fixture supplies the same owned voice/notification ports; its budget
+drill is case22, retaining the original case19 capture as historical evidence.
+
+**Status 2026-09-28: built** (`docs/certification/m82.md`). Drafted by a
+Muse Code instance, reviewed and finished by Claude; the record holds the
+rig gate, 27 red drills, and a live check on the contributor model (two
+requests) that found each request's estimate above what Meta counted.
+
+- **Decisions.**
+  - **Notifications are VS Code's own.** VS Code gives extensions no
+    operating-system notification (its chat's OS toasts are internal), so
+    the notice is `showInformationMessage`, raised only while
+    `vscode.window.state.focused` is false; it waits in the window's corner.
+    An OS-level toast would need a helper process per OS (§3).
+  - A turn counts as long at 60 s (`BACKGROUND_TURN_NOTIFICATION_MIN_MS`).
+    A turn whose length the backend did not report notifies; a cancelled
+    one never does. The message names the terminal: completed, failed, or
+    "ended" for a word the wire adds later (D36). Approvals and questions
+    notify; a pending card or question replayed to a later surface (or
+    pulled again by a resume) is marked `isReplayed` and does not.
+  - One `BackgroundNotifier` per window raises each notice once by key
+    (session and turn, approval or question), so two surfaces on one
+    session do not both notify; the keys it remembers are bounded
+    (`BACKGROUND_NOTICE_KEYS_MAX`).
+  - `museSpark.notifyOnBackgroundTurn` is not machine-scoped: it chooses
+    nothing that runs or is billed (D15), so a workspace may set it.
+    `museSpark.modelApiReplyUsage` is display only.
+  - **Per-reply usage** accumulates every request of the turn (tool steps,
+    failed attempts that reported usage) and is told on the last message of
+    the next response that has one, so a turn's lines add up to its cost.
+    The host attaches it while the setting is on; Muse Code attaches nothing
+    (D26).
+  - **The budget's estimate** (`sessionBudget.ts`): the last reported
+    request's input tokens, plus each part of this request (the
+    instructions, the tools, each input item, as JSON) that the reported
+    one did not carry, at one token per UTF-8 byte
+    (`SESSION_BUDGET_MIN_BYTES_PER_TOKEN`), since a byte-level tokenizer
+    never makes a token of less than a byte. Parts are matched by SHA-256,
+    and a part the base carried and this request does not is never
+    subtracted, so older media left out or a compaction can only raise the
+    estimate. With no base (the first request, a model change, a cap set
+    mid-conversation) every part counts; after a compaction, Meta's count
+    of the new context is the base. The live check measured the estimate at
+    3.6 and 2.2 times what Meta counted.
+  - **The reservation** prices input and the whole output allowance at the
+    model's verified list price (`modelApiPaidTier`), no cache discount; a
+    model with no verified price is refused while a cap is set rather than
+    priced by guess. `max_output_tokens` is the most that fits, capped at
+    the usual maximum; with room for less than one output token the request
+    is not sent. Every request is reserved (turns, retries, compactions),
+    checked before the PreLLMCall hooks see it and again on the body sent.
+  - **Settling.** A response's reported usage replaces its reservation,
+    priced at the model the request was sent to, even if the session
+    switched models meanwhile; a request counted for another model is no
+    base. A sent response that never reported usage (a Stop, a dropped
+    stream, a response timeout or a crash) retains its whole reservation.
+    This is possible liability, not verified billed spending. A nonsent
+    request, or an established 400/429 refusal before the response began,
+    counts nothing. Other unknown sent outcomes remain reserved. A negative
+    token count is no report. A reply that used every output token the
+    budget left is marked as possibly cut short.
+  - **Saved as it is spent.** Each reported usage saves the session. While
+    a call waits for its output the replay cannot be saved (a call without
+    its output cannot be replayed after a crash), so the token totals and
+    the spend are written onto the session's last saved snapshot instead.
+    Closing the window waits up to `MODEL_API_CLOSE_SETTLE_MS` for the turns
+    it stops to charge and save. A negative stored spend or a negative count
+    of the compacted context is refused.
+    The request's reservation is also saved before fetch, even before any
+    response frame. The save is awaited; a capped request without working
+    session storage is refused. A stop or an account, model, goal, trust
+    or web-search admission change during the write prevents the request
+    and releases its nonsent liability. The shared journal, initialized
+    once from the fresh account-owned file, supplies all subsequent spend;
+    old snapshots cannot lower it. Unknown sent attempts cannot repeat
+    under the same allowance; explicit rate-limit refusals can.
+  - **Child tasks** retain their separate paid confirmations (D48) and
+    request ceilings. Their reported usage counts toward that conversation
+    and its owning goal (M45), but their requests are not reserved against
+    the parent's cap and can exceed it (M82 owner decision, retained by the
+    M78 lane brief). Ordinary, best-of-N and direct reviewer reservations
+    remain enforced through their owned journal.
+  - **Known flat fees** enter the same journal: image generation reserves
+    its published fee before sending, including a billed image that cannot
+    be saved. Search has no captured hard billed-query bound and is
+    unavailable with a finite cap. With no cap it keeps paid consent and
+    records reported search fees. Unverified historical paid fees prevent
+    a cap on that history; a fresh conversation can be capped.
+  - Spend persists with the session; a fork or side chat is a conversation
+    of its own and starts at zero. Its controlled initial snapshot carries
+    `budgetIsFreshFork: true`, `forkedFrom` and explicit zero spend so copied
+    paid and closed-child history does not become an unverified new charge.
+    The runtime marker clears after journal activation; the one-time intent
+    prevents a repeated load or stale save from seeding again. Legacy rows
+    never get this interpretation from a missing spend or a fork link alone.
+    The turn's cost against the cap is shown
+    after each turn with a cap.
+  - Cache savings is the uncached price minus the priced one, with its
+    share; its value template is a pre-formatted amount and percentage,
+    allow-listed by the localization gate as such.
 - **Goal.** The user knows what happened and what it cost.
 - **Scope.**
   - An OS notification when a long turn ends or waits for approval while
@@ -10686,9 +11256,10 @@ independent review and the full candidate gates remain required.**
       output at list price fits what is left;
     - a request that cannot fit is not sent, and the turn stops and says
       so;
-    - the only overrun possible is the error in that input estimate; the
-      setting's description says so, and the turn's cost after the fact
-      is shown against the cap.
+    - the cap uses conservative input estimates and published prices;
+      actual billing can differ, and the setting makes no exhaustive
+      overrun claim. The turn's reported cost and reserved unknown
+      liability are documented separately.
   - Cache savings shown in Account & usage, on the Model API only (D26:
     Muse Code reports no honest cache totals).
 - **Backends.** Both. Cost is for the Model API.
@@ -12693,6 +13264,38 @@ lane and hand it to the lead. No gate, rule or deadline is weakened; the
 standard capture, the narrow share keyboard-access fix and full four-machine,
 installed-editor and hosted acceptance remain the lead's work. See
 `docs/certification/m70m.md` for exact snapshots and conflict resolutions.
+
+**MGCOH merge receipt (2026-10-02).** The merged cohort and main's M83
+build on Kubuntu at 591.8/403.0/61.0/55.4 KiB for activation, Model API,
+board and reviewer, under the existing 600/475/75/75 KiB caps. The M78m
+budget failures below describe the earlier tree and its earlier 400 KiB
+Model API cap; M78b's extraction and the approved 475 KiB decision have
+resolved those failures. The focused MGCOH suite passes 1,727 tests in
+32 files, including the compiled bundles and split-guard red/restored
+drills. All five compilers and the required scoped static gates pass;
+PLAN formatting from the conflict union is repaired on the rig. This lane
+does not run full quality, installed-host or release certification: those
+remain with the lead. See the MGCOH record in `docs/certification/m78.md`.
+
+**M78m production-budget blocker (2026-10-02).** The merge's required
+Kubuntu checks pass, but the additional production build fails the unchanged
+600 KiB activation and 400 KiB Model API caps. The clean pre-merge branch
+`1372f047` also fails: 603.5 KiB and 404.4 KiB. With main `e66263f1`
+merged they measure 613.0 KiB and 406.0 KiB. This lane preserves all features
+and the M77 resume decision against a controller split; it defers the
+broader bundle-size repair to the lead rather than introducing a new loader
+or changing a cap. The budget gate still fails, so aggregate quality and
+release readiness remain blocked until that repair passes. This is a
+recorded remediation deferral, not a passing build or a gate waiver. Exact
+rig snapshots, results and logs are in `docs/certification/m78.md`.
+
+The additional focused accessibility run also exits 1: all 32 pages
+(eight cohort/M74/M84 scenarios in four themes) return no axe result. The
+same symptom is recorded on main's M74 branch; its cause remains
+unisolated. No browser-accessibility pass is claimed, and no machine
+setting or gate is changed to force one. The lead must resolve this
+browser/harness blocker before claiming aggregate quality or accessibility.
+
 **M76b lane boundary (2026-10-01):** the owner's `common.md` explicitly
 forbids a full `npm run quality` or full unit run in this shared lane and
 assigns aggregate quality, coverage, accessibility, editor/platform and
@@ -12944,6 +13547,8 @@ persistent Chrome profile; those attempted script changes were reverted.
 Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
+M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
@@ -12978,7 +13583,10 @@ before a repaired one loads (2026-09-30).
 
 | File                                            | Construct                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                             | Added      |
 | ----------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                 | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                 | 2026-10-02 |
 | `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                       | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                            | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                       | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                          | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                              | 2026-09-30 |
 | `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate) | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules. | 2026-09-30 |
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                   | 2026-09-30 |
 

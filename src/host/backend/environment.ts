@@ -7,14 +7,9 @@
 // `core.hooksPath` there would run a program the workspace chose.
 
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
-import {
-  ENVIRONMENT_RECENT_COMMITS,
-  GIT_FILTER_NAMES_ARGS,
-  GIT_METADATA_OPTIONS,
-  UI_TEXT,
-} from '../../shared/constants'
+import { ENVIRONMENT_RECENT_COMMITS, UI_TEXT } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { gitFilterOptions } from '../git'
+import { metadataGit } from '../git'
 import type { Logger } from '../logger'
 
 export interface EnvironmentDeps {
@@ -49,21 +44,12 @@ export async function describeEnvironment(deps: EnvironmentDeps): Promise<Enviro
   }
   const startedAt = deps.now()
   try {
-    let names: string
-    try {
-      names = await deps.runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], root)
-    } catch (error: unknown) {
-      if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 1) {
-        throw error
-      }
-      names = ''
-    }
-    const filters = gitFilterOptions(names)
+    const git = await metadataGit(deps.runGit, root)
     const run = async (args: readonly string[]) => {
       if (!deps.isWorkspaceTrusted()) {
         throw new Error(UI_TEXT.checkpointFailed)
       }
-      return await deps.runGit([...GIT_METADATA_OPTIONS, ...filters, ...args], root)
+      return await git(args)
     }
     // Together, not one after another (M39): each may take up to git's own
     // timeout, and the first Model API turn waits for them.

@@ -12,6 +12,8 @@ import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } fro
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { formatTokenWindow } from '../../shared/palette'
+import { formatUsd } from '../../core/usage/insights'
 import { hasFileAttachment } from '../state/transcriptEntries'
 import {
   forkCutBefore,
@@ -95,6 +97,8 @@ export interface TranscriptProps {
   readonly activeTurnId?: string | undefined
   /** A reply's actions menu (M17); absent while no session exists. */
   readonly onReply?: ((entryId: string) => void) | undefined
+  /** Tokens and the dollar estimate under each reply (M82, Model API only). */
+  readonly showReplyUsage: boolean
   /** The latest Plan-mode reply, which carries the plan's actions (M79). */
   readonly planReplyId?: string | undefined
   readonly onSavePlan?: ((entryId: string) => void) | undefined
@@ -400,6 +404,8 @@ interface AssistantRowProps {
   readonly onApply: ((text: string) => void) | undefined
   /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
+  /** Tokens and the dollar estimate under the reply (M82); hidden while off. */
+  readonly showReplyUsage: boolean
   /** The plan's actions under the latest Plan-mode reply (M79); absent elsewhere. */
   readonly onSavePlan: ((entryId: string) => void) | undefined
   readonly onImplementPlan: ((entryId: string) => void) | undefined
@@ -452,6 +458,7 @@ const AssistantRow = memo(function AssistantRow({
   onInsert,
   onApply,
   onReply,
+  showReplyUsage,
   onSavePlan,
   onImplementPlan,
   quoteMenu,
@@ -504,6 +511,15 @@ const AssistantRow = memo(function AssistantRow({
             onRefuseLink={onRefuseLink}
           />
         )}
+        {showReplyUsage && entry.usage !== undefined && entry.costUsd !== undefined ? (
+          <div className="response-usage">
+            {fill(UI_TEXT.replyUsage, {
+              input: formatTokenWindow(entry.usage.inputTokens),
+              output: formatTokenWindow(entry.usage.outputTokens),
+              cost: formatUsd(entry.costUsd),
+            })}
+          </div>
+        ) : null}
         {onSavePlan === undefined || entry.isStreaming ? null : (
           <PlanActions
             entryId={entry.id}
@@ -798,6 +814,7 @@ function TranscriptList(props: TranscriptProps) {
     conversationNote,
     activeTurnId,
     onReply,
+    showReplyUsage,
     planReplyId,
     onSavePlan,
     onImplementPlan,
@@ -887,6 +904,7 @@ function TranscriptList(props: TranscriptProps) {
             onInsert={onInsert}
             onApply={onApply}
             onReply={onReply}
+            showReplyUsage={showReplyUsage}
             onSavePlan={isPlanReply ? onSavePlan : undefined}
             onImplementPlan={isPlanReply ? onImplementPlan : undefined}
             quoteMenu={quoteMenuFor(entry.id)}

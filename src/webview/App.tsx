@@ -61,6 +61,8 @@ import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
 import { HistoryDialog } from './components/HistoryDialog'
 import { ReviewPane } from './components/ReviewPane'
+import { SessionBoardDialog } from './components/SessionBoardDialog'
+import { BestOfNDialog } from './components/BestOfNDialog'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
@@ -157,7 +159,8 @@ function restoreNoteOf(state: UiState): string | undefined {
 }
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
-type Overlay = PaletteView | 'modes' | 'attach' | 'history' | 'usage' | 'agents' | 'review'
+type Overlay =
+  PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -887,13 +890,28 @@ export function App({
       if ((view === 'actions' || view === 'models') && store.getState().skills === undefined) {
         postMessage({ type: 'listSkills' })
       }
-      if (view === 'history') {
-        // Always re-list: the rows change while the dialog is closed.
-        postMessage({ type: 'listSessions' })
-      } else if (view === 'usage' || view === 'agents') {
-        // The Agent map notes Muse Code's delegation and workflow settings
-        // from the same account facts (M47), read fresh as the dialog's are.
-        postMessage({ type: 'readUsage' })
+      switch (view) {
+        case 'history': {
+          // Always re-list: the rows change while the dialog is closed.
+          postMessage({ type: 'listSessions' })
+          break
+        }
+        case 'board': {
+          // The board re-reads too: conversations change while it is closed.
+          postMessage({ type: 'listSessions' })
+          postMessage({ type: 'requestSessionBoard' })
+          break
+        }
+        case 'usage':
+        case 'agents': {
+          // The Agent map notes Muse Code's delegation and workflow settings
+          // from the same account facts (M47), read fresh as the dialog's are.
+          postMessage({ type: 'readUsage' })
+          break
+        }
+        default: {
+          break
+        }
       }
       setOverlay(view)
     },
@@ -999,6 +1017,33 @@ export function App({
   const onOpenHistory = useCallback(() => {
     toggleOverlay('history')
   }, [toggleOverlay])
+  const onOpenBoard = useCallback(() => {
+    toggleOverlay('board')
+  }, [toggleOverlay])
+  const onOpenBestOfN = useCallback(() => {
+    setOverlay('bestOfN')
+  }, [])
+  const onStartBestOfN = useCallback(
+    (prompt: string, attempts: number, requestCeilingPerAttempt: number) => {
+      postMessage({ type: 'startBestOfN', prompt, attempts, requestCeilingPerAttempt })
+    },
+    [postMessage],
+  )
+  const onTakeBestOfNAttempt = useCallback(
+    (attemptId: string) => {
+      const run = store.getState().bestOfN
+      if (run !== undefined) {
+        postMessage({ type: 'takeBestOfNAttempt', runId: run.runId, attemptId })
+      }
+    },
+    [postMessage, store],
+  )
+  const onCancelBestOfN = useCallback(() => {
+    const run = store.getState().bestOfN
+    if (run !== undefined) {
+      postMessage({ type: 'cancelBestOfN', runId: run.runId })
+    }
+  }, [postMessage, store])
   const onOpenSideChat = useCallback(() => {
     const sessionId = store.getState().sessionId
     if (sessionId !== undefined) {
@@ -1718,6 +1763,7 @@ export function App({
               : undefined
           }
           onReply={onReply}
+          showReplyUsage={state.settings.modelApiReplyUsage}
           planReplyId={planReplyIdOf(state)}
           onSavePlan={onSavePlan}
           onImplementPlan={state.isSideChat ? undefined : onImplementPlan}
@@ -1858,6 +1904,35 @@ export function App({
         onClose={closeOverlay}
       />
     ) : null
+  const board =
+    overlay === 'board' ? (
+      <SessionBoardDialog
+        rows={state.board}
+        currentSessionId={state.sessionId}
+        onResume={(sessionId, backend) => {
+          postMessage({ type: 'activateBoardSession', sessionId, backend })
+          closeOverlay()
+        }}
+        onStartBestOfN={onOpenBestOfN}
+        onClose={closeOverlay}
+      />
+    ) : null
+  const bestOfN =
+    overlay === 'bestOfN' ? (
+      <BestOfNDialog
+        run={state.bestOfN}
+        isPaidOn={state.paid.features.includes('bestOfN')}
+        defaultPrompt={state.draft}
+        onStart={onStartBestOfN}
+        onTake={onTakeBestOfNAttempt}
+        onOpen={(attemptId) => {
+          if (state.bestOfN !== undefined)
+            postMessage({ type: 'openBestOfNAttempt', runId: state.bestOfN.runId, attemptId })
+        }}
+        onCancelRun={onCancelBestOfN}
+        onClose={closeOverlay}
+      />
+    ) : null
   const usageDialog =
     overlay === 'usage' ? (
       <UsageDialog
@@ -1921,6 +1996,7 @@ export function App({
           isSideChat={state.isSideChat}
           onNewConversation={onNewConversation}
           onOpenHistory={onOpenHistory}
+          onOpenBoard={onOpenBoard}
           onRename={state.sessionId === undefined || !state.canEditSessions ? undefined : onRename}
           agentCount={agentCount}
           runningAgentCount={runningAgentCount}
@@ -1929,6 +2005,8 @@ export function App({
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
         {history}
+        {board}
+        {bestOfN}
       </div>
       {usageDialog}
       {handoffDialog}

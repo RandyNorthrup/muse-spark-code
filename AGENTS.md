@@ -141,6 +141,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the review's (dist/review.js: git's material, the turn
                       text, the Plan-mode hold and edit review, loaded the
                       first time one is used),
+                      code intelligence's `ide` answers (dist/codeIntel.js,
+                      loaded on the first call) and voice's drivers
+                      (dist/voice.js, loaded on the first recording),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page),
                       commands, auth, settings, mentions,

@@ -9,6 +9,230 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Auto rules, permission profiles and an optional paid reviewer (M78).**
+  Standing command rules include executable examples; repository rules only
+  tighten them. Complex commands ask, native language-service reads obey file
+  denials, and malformed profiles deny access. Files a profile hides spend
+  none of the repo map's 1,000-file cap: it reads on to readable files.
+  Reviewer consent binds account,
+  model, turn and policy, uses its own M82 claim, and falls back to asking on
+  failure or its circuit breaker. It cannot allow a forbid, an ask rule,
+  a protected write or another paid call. Attempt editors stay rooted in their
+  worktree; applying a selected snapshot invalidates the original check ledger.
+  - **A settings change reaches calls already in flight.** Whatever any tool
+    brings back, an MCP or IDE tool's included, is judged again under the
+    current rules, profile, mode and workspace trust just before it reaches
+    the model. A call they no longer allow is refused with a reason in the
+    user's language and nothing from it is sent; a change it had already
+    written stays, and its row says so. Output that may quote files it
+    cannot list (a shell command's, an MCP or IDE tool's, a check's, a
+    subagent's) is refused if any file rule, the profile or the trust
+    changed at all while the call ran, and a subagent's result is withheld
+    if they changed since it started, after a restart too. A shell command
+    is judged again at its process's entry, a memory note at its write, and
+    an image edit's sources right before the request leaves the machine, so
+    a source denied meanwhile is never sent and nothing is billed.
+    `read_skill` refuses a project skill the file rules deny, and a Stop
+    during a memory read or write, its index line included, ends the call
+    as a stop, not a file error.
+  - Approval cards retain the Auto reviewer's and command rule's explanation
+    through webview delivery, later approval stages and saved-state restoration.
+  - **Automatic checks respect revoked file access.** A verification round keeps
+    the original edited-file policy fence even after denied files are filtered
+    out of lookup. It withholds diagnostics and refuses checks after revocation.
+- **Awareness and budgets** (M82, PLAN.md D49).
+  - While the VS Code window is unfocused, a VS Code notification says when
+    a turn of a minute or more ends, or a turn waits for your approval or
+    answer, with **Show conversation**; nothing shows while the window is
+    focused, and two panels on one conversation raise it once. Off with
+    `museSpark.notifyOnBackgroundTurn`.
+  - On the Model API, `museSpark.modelApiReplyUsage` (off by default) prints
+    the tokens and dollar estimate under each reply, counting every request
+    since the previous line in that turn. Muse Code reports no per-reply
+    totals, so its replies carry none. The dollar amount is labeled
+    estimated, including the unverified tier fallback for unfamiliar models.
+  - The machine-scoped `museSpark.modelApiSessionBudgetUsd` caps what each
+    Model API conversation may spend. Each request's input is estimated high
+    (the last reported input plus what was added since, one token per byte)
+    and `max_output_tokens` is lowered so it fits what is left; a request
+    that cannot fit is not sent and the turn says why. Each request is
+    priced at the model it was sent to, and the spend is saved as it is
+    spent, even while a call waits for approval. Shared durable liabilities
+    cover hosts reopening the same conversation, ordinary requests and known
+    image fees. Unknown sent usage retains its whole reservation;
+    ambiguous failures cannot retry under that same allowance while capped.
+    Hosted search is unavailable with a cap until its billed query bound is
+    verified; cap-off search keeps its paid consent. A model with no published price
+    is refused while a cap is set. The transcript shows each turn's cost
+    against the cap, and warns when a reply used all the output it was left.
+  - Account & usage shows what the prompt cache saved in dollars. Its value
+    (`usageCacheSavingsValue`) is a pre-formatted amount and percentage, so
+    the localization gate lets it stay the same in every language.
+  - **Voice Stop remains available after a cap or paid setting changes.** It
+    reaches the recording's existing driver instead of applying new-recording
+    availability. Child requests retain separate consent and ceilings; reported
+    cost is counted without reserving against the parent's cap, as decided for
+    M82. The setting and guide name that possible overrun in every language.
+  - **Model API session budgets retain their open reservation before a
+    response arrives.** Capped requests await a durable reservation write
+    before fetch and recheck final admission afterward; failed writes or
+    unavailable storage send no request. A stopped or superseded nonsent
+    request releases its reservation. Switching a model away and back, or
+    changing it during compacted-context counting, cannot restore a stale
+    budget base. Stored usage and reply costs refuse negative values,
+    overflowing usage reports are ignored, and token-count failures log a
+    status and fixed words instead of network text.
+    Stale session saves cannot lower the shared journal's spend, and crashes
+    retain unsettled claims. Unverified historical spending refuses a cap
+    rather than treating unknown amounts as zero. All new reasons and the
+    revised setting description are localized.
+    Shared uncapped requests publish pending uncertainty before HTTP, so a
+    capped host cannot admit around an unresolved earlier request. Verified
+    known usage clears that uncertainty; unknown tariffs or earlier ambiguous
+    retry attempts remain unknown despite a successful final response.
+    Fresh forks and side chats retain copied paid and closed-child history
+    while starting their own spend at verified zero; their first own request
+    is charged only to the new conversation.
+    Attempt observers run only after final admission and request building,
+    adjacent to fetch; Stop or confirmation refusal after preflight leaves
+    the request uncounted and refunds its known nonsent reservation.
+    Paid Muse Voice on the Model API backend is unavailable with a finite
+    cap. Uncapped shared recordings publish uncertainty before authentication
+    and fence the actual account and parent context before sends. Local audio
+    duration remains an estimate without a server billing receipt; CLI voice
+    and free system dictation retain their behavior.
+    Cap-off Model API voice also remains available without a folder or
+    journal, with its original consent account/context fenced before every
+    send. A later finite cap stops authentication, audio and end sends;
+    unshared window usage remains an estimate.
+- **Session board and best-of-N** (M77, PLAN.md D49). The header's board
+  button lists every conversation open in the window, on either backend, and
+  the saved conversations of the backend the window runs on, with its
+  state, branch, changed files and waiting approvals; typing filters and
+  Enter resumes. The board queries the known worktree roots and includes the
+  attempts of a running best-of-N. Its git reads run as the prompt's git
+  facts do: opening it starts no fsmonitor, filter or other program a
+  repository configures, in any mode, and takes no index lock.
+  - Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model
+    API backend, behind the new off-by-default, machine-scoped
+    `museSpark.modelApiBestOfN` setting: one paid-use popup per run names the
+    prompt, the published token rates, the attempt count and the per-attempt
+    request ceiling, and the subscription never pays. Each attempt works on
+    its own `best-of-n/<run>/<index>` branch; attempts that would ask are
+    declined and counted. Attempts run no shell command and no configured
+    check, in any mode, Bypass included: a working folder confines no
+    process. **Open** appears only for an attempt whose worktree was made.
+    Needs a trusted workspace with a folder open. The
+    form stays open after **Start** until the run begins, so a start that is
+    refused keeps its prompt and numbers beside the reason, ready to retry.
+  - Successful attempts compare side by side, and **Apply and stage** takes
+    only that attempt's immutable preview: its uncommitted tracked and
+    unignored new files, binary changes included, applied and staged as exact
+    bytes, with no project commit. A failed, cancelled or unreadable attempt
+    cannot be selected; fresh checkout, editor, ownership and path checks
+    refuse a changed or linked target.
+  - The run reserves its window owner before the paid popup and rechecks
+    context and account after it; actual HTTP tries and retries are counted at
+    the final key-read boundary, and every attempt host binds the M82 parent
+    journal, so a finite session budget refuses when that scope is
+    unavailable. Account & usage shows reported attempt tokens and cost
+    separately, with unreported requests marked unknown. Automatic Git
+    operations run with no hooks, fsmonitor or maintenance and refuse a
+    repository that configures filters or hook commands.
+  - Strings ship in all 14 UI and manifest tables.
+  - A missing or damaged board/best-of-N bundle gives a translated refusal
+    with reinstall guidance; its cause goes to the log. Closing the panel
+    during the first best-of-N load suppresses stale failure notices.
+- Defer the session board and best-of-N execution to their first action, and
+  Auto reviewer execution until paid consent. Each loads its own bundle with
+  the installed language, retaining current policy and budget admission.
+  Their new 75 KiB caps use measured size plus 15%, rounded up to 25 KiB.
+  The activation cap stays 600 KiB. The Model API cap is revisited, as M57
+  planned, to 475 KiB (402.8 KiB measured, by the same rule; PLAN.md Q-M78b).
+- **Review** (M70, PLAN.md D49), on both backends:
+  - `/review` reviews the uncommitted changes; `/review branch [base]` the
+    branch against its base, `/review commit [revision]` one commit (a
+    picker asks when you leave either out), `/review <what to look at>`
+    anything you describe, with no git. `security` first, or **Security
+    review** (`/security-review`), looks for injection, secrets,
+    authentication and unsafe APIs. The palette's new **Review** group has
+    each preset.
+  - Git's changes go with the review marked as untrusted data, files that
+    may hold secrets left out and only named; in Restricted Mode the git
+    presets say why they cannot run.
+  - On the Model API the review runs as the built-in **Reviewer**: its own
+    prompt and tools that only read, in every permission mode, and no
+    extra charge (it is your own turn). The model can start it as a paid
+    subagent with the role `reviewer` (a custom agent it names instead runs
+    as that agent). On Muse Code the review turn runs in
+    Plan mode and your permission mode comes back when it ends; Muse Code's
+    own allow rules still apply in Plan mode, so that review is not claimed
+    strictly read-only.
+  - Findings end the reply as a list with severity, file and line; each
+    location opens its file there.
+  - **The review pane** (`/changes`): every change this conversation made,
+    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
+    file is now) and **Comment on a line**, which sends your comment with
+    the lines around it into the running turn or as your next message.
+  - A review is a turn: it is marked running and takes its turn checkpoint
+    like a message, and a message you send while a review is starting waits
+    for it and then goes into the review turn. Clearing the conversation
+    while a review is still starting lets the new conversation's review or
+    message start at once.
+  - 70 new strings in the 14 tables (the word for review in Simplified
+    Chinese is the table's existing 审阅).
+  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
+    review turn's text, the Plan-mode hold and edit review (Open diff and
+    Revert) are the new `dist/review.js` (43.2 KiB, budget 50), required the
+    first time one is used; a module that cannot be loaded refuses the review
+    with `reviewUnavailable` and the log has the cause.
+
+### Changed
+
+- **The release package's size budget is 2200 KiB** (PLAN.md D6), up from
+  1850 KiB: the cohort's four lazily loaded bundles bring the universal VSIX
+  to 1,938,910 bytes; the new budget is that plus 15 %, rounded up to 25 KiB.
+- **Code intelligence and voice load on first use** (PLAN.md D6). Muse
+  Code's `ide` code intelligence answers and both voice engines' drivers now
+  ship as `dist/codeIntel.js` and `dist/voice.js`, required on the first
+  call and the first recording, so `dist/extension.js` goes from 603.3 to
+  568.7 KiB under its unchanged 600 KiB budget (new budgets 100 and 50 KiB).
+  Nothing changes in use. With a damaged install a code intelligence call
+  answers with an error result saying so, and a recording fails with
+  "Voice dictation failed" and reinstall guidance in every UI language; the
+  log has the cause, and the next call or press tries again.
+- Regenerate the host API inventory and bundled-package notices from the
+  combined import, session board, reviewer, budget and handoff source.
+- The host API compatibility record is regenerated from the combined source.
+
+### Fixed
+
+- Edit rows no longer load their diffs while a turn runs on Muse Code (0.11.0): a long turn's reads queued past 60 s and held up approvals. A row loads when you open it or once the turn ends, which also retries a read that failed.
+- Two windows starting turn checkpoints in one conversation at once no longer fail when one briefly holds the other's lock (0.11.0).
+- **Revert on an edit no longer overwrites your saved or unsaved changes**.
+  Edit review's Revert and the pane's hunk Revert are one step under the
+  turn checkpoints' file-edit lease: they read the saved file, rebuild the
+  pre-edit text from it, check that the path still leads to the same file
+  inside the workspace and that no editor has unsaved changes for it (the
+  file itself or a link to it), then write the file, or move a file Muse
+  created to the trash, only while it still holds what was read, with no
+  link or junction on the way. A save, an editor turning dirty or a folder
+  swapped for a link meanwhile makes Revert refuse and say why instead of
+  overwriting. Reverts of one file run in order and rebuild from each
+  other's bytes; a failed write frees the next one, and a Revert that wrote
+  stays done when releasing the lease fails afterwards (the log says so),
+  so it is not offered again. They tell live verification about the write
+  without creating an edit round of the agent's own.
+- A handoff brief that arrives while the review pane is open waits until
+  the pane closes, preserving one modal and one focus trap at a time.
+- The Reviewer retains whole tool observations when observation packing is
+  enabled, because its read-only tools cannot recall packed output. The
+  next ordinary request still uses the same packed placeholder.
+
+## [0.11.0] - 2026-10-03
+
+### Added
+
 - **Turn checkpoints (M86).** On by default again, with restore rebuilt on
   the model's own file-tool writes while each file still holds exactly
   what the model left. Commands, hooks, MCP tools or background work active
@@ -181,43 +405,6 @@ happened, not what was planned; superseded entries are kept.
   the others still load, and an agent it, or a file in it that was skipped,
   might define is refused by name rather than replaced by a broader personal
   or built-in agent of the same id.
-- **Review** (M70, PLAN.md D49), on both backends:
-  - `/review` reviews the uncommitted changes; `/review branch [base]` the
-    branch against its base, `/review commit [revision]` one commit (a
-    picker asks when you leave either out), `/review <what to look at>`
-    anything you describe, with no git. `security` first, or **Security
-    review** (`/security-review`), looks for injection, secrets,
-    authentication and unsafe APIs. The palette's new **Review** group has
-    each preset.
-  - Git's changes go with the review marked as untrusted data, files that
-    may hold secrets left out and only named; in Restricted Mode the git
-    presets say why they cannot run.
-  - On the Model API the review runs as the built-in **Reviewer**: its own
-    prompt and tools that only read, in every permission mode, and no
-    extra charge (it is your own turn). The model can start it as a paid
-    subagent with the role `reviewer` (a custom agent it names instead runs
-    as that agent). On Muse Code the review turn runs in
-    Plan mode and your permission mode comes back when it ends; Muse Code's
-    own allow rules still apply in Plan mode, so that review is not claimed
-    strictly read-only.
-  - Findings end the reply as a list with severity, file and line; each
-    location opens its file there.
-  - **The review pane** (`/changes`): every change this conversation made,
-    hunk by hunk, with **Accept**, **Revert** (that one hunk only, as the
-    file is now) and **Comment on a line**, which sends your comment with
-    the lines around it into the running turn or as your next message.
-  - A review is a turn: it is marked running and takes its turn checkpoint
-    like a message, and a message you send while a review is starting waits
-    for it and then goes into the review turn. Clearing the conversation
-    while a review is still starting lets the new conversation's review or
-    message start at once.
-  - 70 new strings in the 14 tables (the word for review in Simplified
-    Chinese is the table's existing 审阅).
-  - **It loads on first use** (M70, PLAN.md D6). Git's material, the
-    review turn's text, the Plan-mode hold and edit review (Open diff and
-    Revert) are the new `dist/review.js` (43.2 KiB, budget 50), required the
-    first time one is used; a module that cannot be loaded refuses the review
-    with `reviewUnavailable` and the log has the cause.
 
 ### Changed
 
@@ -253,34 +440,6 @@ happened, not what was planned; superseded entries are kept.
   tools (stylelint, and secretlint under `vsce` and `ovsx`); nothing in the
   VSIX or the ACP package loads it. The exception is removed when a fix ships
   or npm stops reporting it (PLAN §7).
-- **Handoff to a new conversation** (M74, PLAN.md D49). `/handoff`,
-  optionally with a goal after it, asks the model — as your own turn in the
-  current conversation — for a distilled brief: the goal, the decisions,
-  the files touched, the open work and the todo list. Anything drawn from
-  tool output, fetched pages or imported files is marked `[untrusted]` in
-  the brief, and the new conversation is told what that means. The brief
-  opens in a dialog before anything starts, with the open items the new
-  todo list will hold: review it, edit it, then start the new
-  conversation, or cancel and nothing starts; a reloaded panel shows it
-  again, and a brief that is ready while Account & usage, the Agent map or a share file
-  is open waits until you close it. Starting leaves the old conversation
-  in History and seeds the new one through the plan brief path, with the
-  open items (never completed or dropped ones) as its todo list before
-  the first request. The model wrote the brief, so the new conversation
-  starts in your starting mode only when the dialog showed all of it: a
-  brief or an item holding a character the dialog does not show (a
-  direction override, a zero-width character) starts in a mode that asks,
-  and the panel says so. A handoff from Plan mode stays in Plan. Model API
-  backend only (on Muse Code the command says it is unavailable there).
-  Side chats are refused; one handoff runs at a time; a `/handoff` while a
-  reply runs is refused ("Wait for the reply to finish, or stop it,
-  first."), nothing queued; an oversized (over 256 KB) or empty brief is
-  refused with the reason; a refused `/handoff` stays in the prompt with
-  its goal. While a new API key is being activated, a Start is refused
-  before anything is left and the brief stays to start again, Cancel
-  still works, and a brief that arrives meanwhile opens with the next
-  `/handoff`. No new setting: nothing automatic runs. Automatic
-  compaction, the hidden follow-up and memory flush stay unbuilt and off.
 - Take the compatible development updates from the grouped Dependabot pull
   request: ACP SDK 1.5.0, jsdom 30.1.1 and Prettier 3.9.9. Its TypeScript
   7.0.2 is left out: typescript-eslint 8.70.1 accepts only `<6.1.0`, so
@@ -289,7 +448,6 @@ happened, not what was planned; superseded entries are kept.
   alone; no file of the extension changes.
 - A skill file over its 64 KB cap is now refused before it is read whole, so
   its log line says "is over the 65536 byte limit" without the file's size.
-- The host API compatibility record is regenerated from the combined source.
 
 ### Fixed
 
@@ -483,25 +641,6 @@ happened, not what was planned; superseded entries are kept.
   themes.** Their red text on the red tint measured 2.6:1 and 3.8:1, and
   WCAG AA asks for 4.5:1. They now use the theme's text colour on the tint,
   with a red edge.
-- **Revert on an edit no longer overwrites your saved or unsaved changes**.
-  Edit review's Revert and the pane's hunk Revert are one step under the
-  turn checkpoints' file-edit lease: they read the saved file, rebuild the
-  pre-edit text from it, check that the path still leads to the same file
-  inside the workspace and that no editor has unsaved changes for it (the
-  file itself or a link to it), then write the file, or move a file Muse
-  created to the trash, only while it still holds what was read, with no
-  link or junction on the way. A save, an editor turning dirty or a folder
-  swapped for a link meanwhile makes Revert refuse and say why instead of
-  overwriting. Reverts of one file run in order and rebuild from each
-  other's bytes; a failed write frees the next one, and a Revert that wrote
-  stays done when releasing the lease fails afterwards (the log says so),
-  so it is not offered again. They tell live verification about the write
-  without creating an edit round of the agent's own.
-- A handoff brief that arrives while the review pane is open waits until
-  the pane closes, preserving one modal and one focus trap at a time.
-- The Reviewer retains whole tool observations when observation packing is
-  enabled, because its read-only tools cannot recall packed output. The
-  next ordinary request still uses the same packed placeholder.
 
 ### Release infrastructure
 

@@ -81,6 +81,7 @@ The PNGs beside the records are that day's harness renders.
 - [0.9.1](release-0.9.1.md): Muse Code 1.4.0 on Windows: rename, fork and the sandbox warning limited for every version; known 1.4.0 schema fingerprints (PLAN.md D26 amendment)
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
+- [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
 - [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
 - [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.

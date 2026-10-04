@@ -34,6 +34,7 @@ import {
   withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
 import { fakeManagerDeps } from './helpers/modelApiManager'
+import { fakeEditProviders } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
 import { fakeLanguageService, KIND, sym } from './helpers/fakeLanguageService'
 import { enteringShell } from './helpers/fakeToolIo'
@@ -176,12 +177,7 @@ async function setup(
     conditionalCompletions.push(pending)
     return pending
   })
-  const format = vi.fn<VerifyHooks['formatAfterEdit']>((_file, text) =>
-    Promise.resolve(text.replace('2', '3')),
-  )
-  const diagnostics = vi.fn<VerifyHooks['diagnosticsAfterEdit']>((files) =>
-    Promise.resolve(files.map((file) => ({ file, entries: [] }))),
-  )
+  const { format, diagnostics } = fakeEditProviders()
   const verify: VerifyHooks = {
     isDiagnosticsOn: () => settings.diagnostics,
     isFormatOnEdit: () => settings.format,

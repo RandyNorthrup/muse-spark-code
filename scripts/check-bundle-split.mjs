@@ -24,6 +24,10 @@
 // - the import from other agents (M83: the scan, the converters, the file
 //   access, the flow and smol-toml) is in dist/extension.js, dist/modelApi.js
 //   or dist/acp.js, or missing from dist/agentImport.js.
+// - code intelligence's `ide` answers (M67: the queries, the read tools, the
+//   repo map and the rename) or voice's drivers (M9, M35: the dictation
+//   driver, Muse Voice's stream, the processes and the socket) are in
+//   dist/extension.js, or missing from dist/codeIntel.js or dist/voice.js.
 //
 // Exits 1 on any problem.
 //
@@ -39,6 +43,26 @@ const BUNDLES = {
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
+const DEFERRED_ONLY = ['reviewerEntry.ts']
+const DEFERRED = [
+  {
+    output: 'dist/sessionBoard.js',
+    metafile: 'dist/meta/sessionBoard.json',
+    files: [
+      'src/host/sessionBoardEntry.ts',
+      'src/host/sessionBoard.ts',
+      'src/host/bestOfN/bestOfNManager.ts',
+      'src/core/bestOfN/bestOfNRunner.ts',
+      'src/core/bestOfN/worktreeConversationHost.ts',
+      'src/core/bestOfN/bestOfN.ts',
+    ],
+  },
+  {
+    output: 'dist/reviewer.js',
+    metafile: 'dist/meta/reviewer.json',
+    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+]
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
@@ -56,6 +80,12 @@ const ACTIVATION_ALLOWED = new Map([
 // goals, subagents, memory tools, permission engine and MCP client.
 const LAZY_ONLY = [
   'ModelApiHost.ts',
+  // M78: command policy and the paid, read-only Auto reviewer load with the backend.
+  'autoReviewer.ts',
+  'commandRules.ts',
+  'globLimits.ts',
+  'permissionPolicy.ts',
+  'shellSyntax.ts',
   // M67: the code intelligence tools' Model API side (reads and the rename's write).
   'codeIntelCalls.ts',
   'glob.ts',
@@ -71,6 +101,7 @@ const LAZY_ONLY = [
   'promptCache.ts',
   // The built-in Reviewer's prompt and tool list (M70).
   'reviewer.ts',
+  'sessionBudget.ts',
   'subagentTools.ts',
   'toolHookPayload.ts',
   'tools.ts',
@@ -113,14 +144,17 @@ const problems = []
 const onDisk = new Set(backendFiles())
 const lazy = new Set(LAZY_ONLY)
 for (const name of onDisk) {
-  const lists = Number(ACTIVATION_ALLOWED.has(name)) + Number(lazy.has(name))
+  const lists =
+    Number(ACTIVATION_ALLOWED.has(name)) +
+    Number(lazy.has(name)) +
+    Number(DEFERRED_ONLY.includes(name))
   if (lists !== 1) {
     problems.push(
       `${MODEL_API_DIR}/${name} is on ${lists === 0 ? 'neither list' : 'both lists'} in scripts/check-bundle-split.mjs`,
     )
   }
 }
-for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy]) {
+for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
   if (!onDisk.has(name)) {
     problems.push(`${MODEL_API_DIR}/${name} is listed but does not exist`)
   }
@@ -135,6 +169,17 @@ const acp = inputsOf(BUNDLES.acp)
 for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
   if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
     problems.push(`${bundle.output} carries the Model API session's model text`)
+  }
+}
+for (const bundle of DEFERRED) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file)) {
+        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
+      }
+    }
+    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
   }
 }
 // The bundles that load the backend from dist/modelApi.js rather than carry it.
@@ -238,6 +283,35 @@ const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
 const ENGLISH_TABLE = 'src/shared/l10n/en.ts'
 const AGENT_IMPORT = { output: 'dist/agentImport.js', metafile: 'dist/meta/agentImport.json' }
+// Split out of activation on 2026-10-03 (D6): each loads on its first use.
+// The Model API backend keeps its own copy of code intelligence.
+const ON_FIRST_USE = [
+  {
+    output: 'dist/codeIntel.js',
+    metafile: 'dist/meta/codeIntel.json',
+    use: 'the first code intelligence call',
+    files: [
+      'src/host/ide/codeIntelEntry.ts',
+      'src/core/codeIntel/codeIntelQuery.ts',
+      'src/core/codeIntel/codeIntelTools.ts',
+      'src/core/codeIntel/codeText.ts',
+      'src/core/codeIntel/rename.ts',
+      'src/core/codeIntel/repoMap.ts',
+    ],
+  },
+  {
+    output: 'dist/voice.js',
+    metafile: 'dist/meta/voice.json',
+    use: 'the first recording',
+    files: [
+      'src/host/voice/voiceEntry.ts',
+      'src/host/voice/voiceProcesses.ts',
+      'src/core/voice/dictation.ts',
+      'src/core/voice/museVoice.ts',
+      'src/core/voice/recorderHelper.ts',
+    ],
+  },
+]
 const uiText = inputsOf(UI_TEXT)
 if (!uiText.has(ENGLISH_TABLE)) {
   problems.push(`${UI_TEXT.output} no longer carries ${ENGLISH_TABLE}`)
@@ -248,7 +322,9 @@ for (const bundle of [
   BUNDLES.acp,
   CHECKPOINT_STORE,
   REVIEW,
+  ...DEFERRED,
   AGENT_IMPORT,
+  ...ON_FIRST_USE,
 ]) {
   const inputs = inputsOf(bundle)
   if (inputs.has(ENGLISH_TABLE)) {
@@ -335,6 +411,20 @@ for (const prefix of IMPORT_ONLY) {
   }
 }
 
+for (const bundle of ON_FIRST_USE) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    if (activation.has(file)) {
+      problems.push(
+        `${BUNDLES.activation.output} carries ${file}, which loads only on ${bundle.use}`,
+      )
+    }
+    if (!inputs.has(file)) {
+      problems.push(`${bundle.output} no longer carries ${file}`)
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -382,3 +472,7 @@ console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
+for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
+for (const bundle of ON_FIRST_USE) {
+  console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)
+}
