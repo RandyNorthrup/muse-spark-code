@@ -14092,8 +14092,18 @@ before a repaired one loads (2026-09-30).
   its own worktree can still write there; the extension does not parse
   commands for paths, so the command's own card (every mode but Bypass,
   unless a rule or the Auto reviewer allows it) is the control; (2) on Muse
-  Code the CLI decides which writes are protected, and the extension's Edit
-  automatically and Auto reviewer trust its `protectedWrite` flag; (3)
+  Code the CLI decides which writes ask. The extension judges every Muse
+  Code `fileAccess` write it is asked about by the same list, on the
+  absolute path Muse Code names (captured 2026-10-04: `\\?\C:\…\.muse\hooks.json`),
+  so one outside the workspace counts too: it is shown as protected, Edit
+  automatically and the M90 reviewer never answer it, and its card drops
+  Muse Code's standing "Always allow" choices. A workspace inside a
+  protected folder makes every such write ask, which only asks more. What
+  Muse Code writes without asking never reaches the extension: the same
+  capture, with the sandbox off (the extension's posture for a workspace
+  under the user's profile) and in Manual, wrote `.claude/settings.json`
+  and a file outside the workspace with no approval. That is Muse Code's
+  policy, to be raised upstream; (3)
   names matched by pattern rather than exactly are not protected: Roo's
   `.roorules-<mode>` fallback and Copilot's
   `.github/instructions/*.instructions.md`.

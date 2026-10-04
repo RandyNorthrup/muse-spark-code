@@ -23,6 +23,16 @@ happened, not what was planned; superseded entries are kept.
   before this a model could plant a hook or an instruction there without a
   card and have it act the next time you started that agent in the
   workspace.
+- **Muse Code's file-write approvals follow the same list.** When Muse Code
+  asks before writing a file the list protects, wherever it is (outside the
+  workspace too, such as `~/.claude/settings.json`), the card now says
+  "Protected write", "Edit automatically" and the Auto reviewer never
+  answer it, and it offers no "Always allow" rule. Before this the
+  extension went only by Muse Code's own flag, and Muse Code does not flag
+  these folders. Muse Code still writes some of them without asking at all
+  (it wrote `.claude/settings.json` that way in a live check with its
+  sandbox off); the extension cannot stop a write it is never asked
+  about.
 
 ## [0.12.1] - 2026-10-04
 
