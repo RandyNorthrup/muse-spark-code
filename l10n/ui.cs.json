@@ -1155,6 +1155,34 @@
     "many": "Selhalo ({count}): {skills}",
     "other": "Selhalo ({count}): {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark obsahuje dovednosti {skills}. Nainstalovat je pro Muse Code? Zkopírují se do vaší konfigurační složky Muse.",
+  "bundledSkillsUpdateOffer": "Muse Spark obsahuje novější verzi svých přibalených dovedností ({tag}). Aktualizovat kopii, kterou používá Muse Code?",
+  "bundledSkillsInstall": "Nainstalovat",
+  "bundledSkillsUpdate": "Aktualizovat",
+  "bundledSkillsNotNow": "Teď ne",
+  "bundledSkillsInstalled": {
+    "one": "Pro Muse Code byla nainstalována {count} přibalená dovednost ({tag}): {skills}",
+    "few": "Pro Muse Code byly nainstalovány {count} přibalené dovednosti ({tag}): {skills}",
+    "many": "Pro Muse Code bylo nainstalováno {count} přibalené dovednosti ({tag}): {skills}",
+    "other": "Pro Muse Code bylo nainstalováno {count} přibalených dovedností ({tag}): {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Vynechána {count} dovednost, protože jedna z vašich dovedností má stejný název: {skills}",
+    "few": "Vynechány {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}",
+    "many": "Vynecháno {count} dovednosti, protože vaše dovednosti mají stejné názvy: {skills}",
+    "other": "Vynecháno {count} dovedností, protože vaše dovednosti mají stejné názvy: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Z Muse Code byla odebrána {count} přibalená dovednost: {skills}",
+    "few": "Z Muse Code byly odebrány {count} přibalené dovednosti: {skills}",
+    "many": "Z Muse Code bylo odebráno {count} přibalené dovednosti: {skills}",
+    "other": "Z Muse Code bylo odebráno {count} přibalených dovedností: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Pro Muse Code nejsou nainstalovány žádné přibalené dovednosti, takže nebylo nic odebráno.",
+  "bundledSkillsInstallFailed": "Přibalené dovednosti se nepodařilo nainstalovat do {folder}: {reason}",
+  "bundledSkillsRemoveFailed": "Přibalené dovednosti se nepodařilo odebrat z {folder}: {reason}",
+  "bundledSkillsNotOurs": "složka s tímto názvem už existuje, ale nenainstaloval ji Muse Spark, proto zůstala beze změny",
+  "bundledSkillsUnavailable": "Instalátor přibalených dovedností se nepodařilo načíst; přeinstalujte rozšíření a znovu načtěte okno. Podrobnosti jsou v protokolu.",
   "notSignedInReason": "Před odesláním zprávy se přihlaste.",
   "noWorkspaceReason": "Nejdříve otevřete složku; Muse pracuje v rámci pracovního prostoru.",
   "nothingToSendReason": "Nejdříve napište zprávu nebo přiložte obrázek.",

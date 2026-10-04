@@ -27,6 +27,8 @@
     "src/host/review/reviewEntry.ts",
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
+    // The bundled skills installer's own bundle (M89), required by path on first use.
+    "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
     // path on its first use (D6, 2026-10-03).
     "src/host/ide/codeIntelEntry.ts",
@@ -72,6 +74,8 @@
     "scripts/**/*.mjs",
     "action/**/*.mjs"
   ],
+
+  "ignore": ["vendor/**"],
 
   // `vscode` (the extension host module) needs no entry here: knip resolves it
   // through @types/vscode. @vscode/test-electron is imported by

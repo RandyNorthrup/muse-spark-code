@@ -444,6 +444,14 @@ export interface ConversationDeps {
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
   /**
+   * The bundled skills' offer (M89, PLAN.md D68), asked when a Muse Code
+   * conversation starts: a notice with Install (or Update) and Not now, at
+   * most once per window; undefined when there is nothing to offer.
+   */
+  readonly bundledSkillsOffer?: () => Promise<
+    { readonly text: string; readonly actions: readonly NoticeAction[] } | undefined
+  >
+  /**
    * A turn of this surface's session needs the user (M82): the controller
    * names what, the window's `BackgroundNotifier` decides whether it shows.
    */
@@ -2785,8 +2793,28 @@ export class ConversationController {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
       this.noteShellSandbox(workspaceRoot)
+      void this.offerBundledSkills()
     }
     return session
+  }
+
+  /** The bundled skills' one-time offer for Muse Code (M89), in this panel. */
+  private async offerBundledSkills(): Promise<void> {
+    const { bundledSkillsOffer } = this.deps
+    if (bundledSkillsOffer === undefined) {
+      return
+    }
+    try {
+      const offer = await bundledSkillsOffer()
+      if (offer === undefined || this.isDisposed) {
+        return
+      }
+      this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
+      this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
+    } catch (error: unknown) {
+      // Nothing to offer is better than a wrong offer; the log says why.
+      this.deps.log.warn(`The bundled skills could not be offered: ${describe(error)}`)
+    }
   }
 
   /**

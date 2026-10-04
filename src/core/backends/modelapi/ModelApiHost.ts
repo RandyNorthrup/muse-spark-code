@@ -166,7 +166,12 @@ import {
   resolveAgentEffort,
   resolveAgentModel,
 } from '../../context/customAgents'
-import { type SkillDefinition, type SkillSource } from '../../context/skills'
+import {
+  type BundledSkillsSource,
+  type SkillDefinition,
+  type SkillSource,
+  skillBodyForModel,
+} from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
 import { textFileInput } from '../../textAttachment'
@@ -394,6 +399,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly log: CoreLogger
   /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
   readonly personalSkillsRoot: string | undefined
+  /** The skills that ship with the extension (M89, PLAN.md D68); undefined where none ship. */
+  readonly bundledSkills?: BundledSkillsSource | undefined
   /** The managed personal agent root (M76); undefined without a home. */
   readonly personalAgentsRoot: string | undefined
   /** VS Code workspace trust: gates rules, skills, memory and the shell (D13). */
@@ -1371,7 +1378,7 @@ function typedInvocation(selector: string, args: string | undefined): string {
  * body with the arguments, as Muse Code does for a `skill` input part.
  */
 function skillInvocationText(skill: SkillDefinition, args: string | undefined): string {
-  return `${MODEL_API_MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_API_MODEL_TEXT.skillArguments} ${args ?? MODEL_API_MODEL_TEXT.skillNoArguments}\n\n${skill.body}`
+  return `${MODEL_API_MODEL_TEXT.skillInvoked} "${skill.id}". ${MODEL_API_MODEL_TEXT.skillArguments} ${args ?? MODEL_API_MODEL_TEXT.skillNoArguments}\n\n${skillBodyForModel(skill)}`
 }
 
 /** An image or a PDF as Meta reads it: inline, as a data URL (M54 for the PDF). */
@@ -1874,6 +1881,7 @@ export class ModelApiSession implements AgentSession {
       workspaceRoot: deps.workspaceRoot,
       platform: deps.platform,
       personalSkillsRoot: deps.personalSkillsRoot,
+      bundledSkills: deps.bundledSkills,
       personalAgentsRoot: deps.personalAgentsRoot,
       // A child cannot spawn, so it reads no agents (M76).
       hasAgents: !isSubagent,
@@ -4342,7 +4350,8 @@ export class ModelApiSession implements AgentSession {
    * the permission settings bind as they bind `read_file` (M78, the RV78f
    * review): a denied one is refused before anything is returned, and its
    * names are what the dispatcher's fence judges again. A personal skill
-   * lives in Muse Code's own folder, not the workspace.
+   * lives in Muse Code's own folder, and a bundled one (M89) in the
+   * extension's, not the workspace.
    */
   private async readSkill(call: FunctionCallItem): Promise<ToolOutcome> {
     const parsed = readSkillArgs.safeParse(argumentsOf(call))
@@ -4354,11 +4363,11 @@ export class ModelApiSession implements AgentSession {
       return toolFailure(`${MODEL_API_MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
     const loaded: ToolOutcome = {
-      output: `Skill ${skill.id}: ${skill.description}\n\n${skill.body}`,
+      output: `Skill ${skill.id}: ${skill.description}\n\n${skillBodyForModel(skill)}`,
       visibleOutput: `Loaded skill ${skill.id} (${skill.source})`,
     }
     if (skill.source !== PROJECT_SKILL_SOURCE) {
-      // Muse Code's own folder: no file the workspace's rules name.
+      // Muse Code's own folder or the extension's: no file the workspace's rules name.
       return { ...loaded, touched: { names: [], complete: true } }
     }
     const file = await confineWorkspacePath(

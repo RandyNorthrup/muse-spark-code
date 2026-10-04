@@ -1099,6 +1099,28 @@
     "one": "Sikertelen ({count}): {skills}",
     "other": "Sikertelen ({count}): {skills}"
   },
+  "bundledSkillsOffer": "A Muse Spark a következő képességekkel érkezik: {skills}. Telepíti őket a Muse Code számára? Az Ön Muse konfigurációs mappájába kerülnek.",
+  "bundledSkillsUpdateOffer": "A Muse Spark a mellékelt képességek újabb kiadását hozza ({tag}). Frissíti a Muse Code által használt példányt?",
+  "bundledSkillsInstall": "Telepítés",
+  "bundledSkillsUpdate": "Frissítés",
+  "bundledSkillsNotNow": "Most nem",
+  "bundledSkillsInstalled": {
+    "one": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}",
+    "other": "{count} mellékelt képesség ({tag}) telepítve a Muse Code számára: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "{count} képesség kimaradt, mert az egyik saját képességének is ez a neve: {skills}",
+    "other": "{count} képesség kimaradt, mert saját képességeinek is ezek a nevei: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}",
+    "other": "{count} mellékelt képesség eltávolítva a Muse Code-ból: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Nincs a Muse Code számára telepített mellékelt képesség, így semmi sem lett eltávolítva.",
+  "bundledSkillsInstallFailed": "A mellékelt képességeket nem sikerült telepíteni ebbe a mappába ({folder}): {reason}",
+  "bundledSkillsRemoveFailed": "A mellékelt képességeket nem sikerült eltávolítani ebből a mappából ({folder}): {reason}",
+  "bundledSkillsNotOurs": "már létezik ilyen nevű mappa, amelyet nem a Muse Spark telepített, ezért érintetlenül maradt",
+  "bundledSkillsUnavailable": "A mellékelt képességek telepítőjét nem sikerült betölteni; telepítse újra a bővítményt, és töltse be újra az ablakot. A részletek a naplóban vannak.",
   "notSignedInReason": "Üzenet küldése előtt jelentkezzen be.",
   "noWorkspaceReason": "Először nyisson meg egy mappát; a Muse munkaterületen belül dolgozik.",
   "nothingToSendReason": "Először írjon egy üzenetet, vagy csatoljon egy képet.",

@@ -1099,6 +1099,28 @@
     "one": "{count} beceri başarısız oldu: {skills}",
     "other": "{count} beceri başarısız oldu: {skills}"
   },
+  "bundledSkillsOffer": "Muse Spark, {skills} becerileriyle birlikte gelir. Bunlar Muse Code için yüklensin mi? Muse yapılandırma klasörünüze kopyalanırlar.",
+  "bundledSkillsUpdateOffer": "Muse Spark, paketlenmiş becerilerinin daha yeni bir sürümüyle ({tag}) birlikte gelir. Muse Code'un kullandığı kopya güncellensin mi?",
+  "bundledSkillsInstall": "Yükle",
+  "bundledSkillsUpdate": "Güncelle",
+  "bundledSkillsNotNow": "Şimdi değil",
+  "bundledSkillsInstalled": {
+    "one": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}",
+    "other": "Muse Code için {count} paketlenmiş beceri ({tag}) yüklendi: {skills}"
+  },
+  "bundledSkillsSkipped": {
+    "one": "Kendi becerilerinizden biri aynı adı taşıdığı için {count} beceri dışarıda bırakıldı: {skills}",
+    "other": "Kendi becerileriniz aynı adları taşıdığı için {count} beceri dışarıda bırakıldı: {skills}"
+  },
+  "bundledSkillsRemoved": {
+    "one": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}",
+    "other": "Muse Code'dan {count} paketlenmiş beceri kaldırıldı: {skills}"
+  },
+  "bundledSkillsNothingToRemove": "Muse Code için yüklü paketlenmiş beceri yok, bu yüzden hiçbir şey kaldırılmadı.",
+  "bundledSkillsInstallFailed": "Paketlenmiş beceriler {folder} içine yüklenemedi: {reason}",
+  "bundledSkillsRemoveFailed": "Paketlenmiş beceriler {folder} içinden kaldırılamadı: {reason}",
+  "bundledSkillsNotOurs": "bu adda, Muse Spark'ın yüklemediği bir klasör var, bu yüzden ona dokunulmadı",
+  "bundledSkillsUnavailable": "Paketlenmiş becerilerin kurulum modülü yüklenemedi; uzantıyı yeniden yükleyin ve pencereyi yeniden yükleyin. Ayrıntılar günlükte.",
   "notSignedInReason": "Mesaj göndermeden önce oturum açın.",
   "noWorkspaceReason": "Önce bir klasör açın; Muse bir çalışma alanı içinde çalışır.",
   "nothingToSendReason": "Önce bir mesaj yazın veya bir görüntü ekleyin.",

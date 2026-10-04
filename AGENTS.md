@@ -152,7 +152,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       loaded on the first call) and voice's drivers
                       (dist/voice.js, loaded on the first recording),
                       the search worker and web fetch's page converter worker
-                      (dist/pageWorker.js, started for each page),
+                      (dist/pageWorker.js, started for each page), the
+                      bundled skills' Muse Code installer (skills/,
+                      dist/bundledSkills.js, loaded on first use),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

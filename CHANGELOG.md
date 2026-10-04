@@ -197,6 +197,33 @@ happened, not what was planned; superseded entries are kept.
     credential helper, and refuses any repository configuration a fresh
     clone does not carry. npm releases now carry provenance.
   - Acceptance on hosted runners and with a real key is still pending.
+- **Bundled workflow assets (M89 vendor lane).** Ship the byte-exact
+  high-quality-projects-skill v0.7.0 workflows, shared helpers, templates and
+  top-level documentation under their MIT licence. A checksum-verified sync
+  script records the pinned archive and each file's SHA-256 (the tests check
+  every vendored file against it), and refuses archives whose names collide
+  by case or by trailing dots and spaces; packaging includes
+  the assets and third-party notices. Formatting, linting and pre-commit
+  checks preserve vendored bytes. Backend discovery and installation are
+  covered by the other M89 lanes.
+- **Bundled skills** (M89, PLAN.md D68): the high-quality-projects
+  workflows `project_setup`, `feature_delivery` and `quality_retrofit` ship
+  with the extension. On the Model API backend they are a third skill
+  source after the project's and your own (a skill of yours with the same id
+  wins), and the model reads each after one line naming its package root,
+  the skill's `SKILL_ROOT`. For Muse Code, **Muse Spark: Install Bundled
+  Skills for Muse Code** copies the package to
+  `<config home>/muse/skill-sources/high-quality-projects-skill/`, marks the
+  copy, and links each skill into `<config home>/muse/skills/` (junctions on
+  Windows, directory symlinks elsewhere); a skill of yours with the same
+  name is left alone and named. The first Muse Code conversation offers it
+  once (Install / Not now, remembered), a newer vendored release offers
+  Update once, and **Remove Bundled Skills from Muse Code** removes only the
+  marked copy and the links into it. `museSpark.bundledSkills` (on by
+  default, machine-scoped) turns them off. The installer is its own lazily
+  loaded bundle, `dist/bundledSkills.js` (22.6 KiB; budget 50 KiB in
+  PLAN.md D6), so `dist/extension.js` grows by 4.8 KiB (576.8 to 581.6 KiB).
+  Strings in all 14 languages.
 - **Review** (M70, PLAN.md D49), on both backends:
   - `/review` reviews the uncommitted changes; `/review branch [base]` the
     branch against its base, `/review commit [revision]` one commit (a

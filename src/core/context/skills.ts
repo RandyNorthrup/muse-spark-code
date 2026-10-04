@@ -13,9 +13,19 @@
 // is a file the repository ships and is confined to the workspace like every
 // other workspace read (D24): a link that leads outside it is skipped with a
 // warning, as the file tools refuse it, and the other skills still load.
+//
+// The bundled skills (M89, PLAN.md D68) are a third source, the lowest: the
+// `skills/` folder of the package vendored inside the installed extension,
+// confined to that package, shadowed by a project or personal skill with the
+// same id. Their bodies name `${SKILL_ROOT}` paths, so each reaches the model
+// after one line saying which folder that is.
 
 import path from 'node:path'
 import {
+  BUNDLED_SKILLS_DIR,
+  BUNDLED_SKILLS_SOURCES_DIR,
+  BUNDLED_SKILLS_VENDOR_SEGMENTS,
+  MODEL_TEXT,
   PERSONAL_SKILLS_DIR_SEGMENTS,
   PROJECT_SKILLS_DIR_SEGMENTS,
   SKILL_FILE_MAX_BYTES,
@@ -44,9 +54,24 @@ export interface SkillDefinition {
   /** Shown in the palette unless the front matter says `user-invocable: false`. */
   readonly isUserInvocable: boolean
   readonly argumentHint: string | undefined
+  /** A bundled skill's package folder, its `SKILL_ROOT` (M89); undefined for the others. */
+  readonly packageRoot?: string
 }
 
-export type SkillRoot = CatalogRoot<SkillSource>
+export interface SkillRoot extends CatalogRoot<SkillSource> {
+  /** The package folder the root's skills name as `SKILL_ROOT` (the bundled root, M89). */
+  readonly packageRoot?: string
+}
+
+/**
+ * The bundled source as the host hands it in (M89, PLAN.md D68): the
+ * vendored package inside the installed extension, and its setting, read at
+ * each load so turning it off empties the source at the next refresh.
+ */
+export interface BundledSkillsSource {
+  readonly packageRoot: string
+  readonly isEnabled: () => boolean
+}
 
 export interface SkillsLoad {
   readonly skills: readonly SkillDefinition[]
@@ -128,6 +153,36 @@ export function personalSkillsRoot(input: PersonalSkillsRootInput): string {
   return p.join(configHome, ...PERSONAL_SKILLS_DIR_SEGMENTS)
 }
 
+/** The package vendored inside the installed extension (M89): `<extension>/vendor/high-quality-projects-skill`. */
+export function bundledSkillsPackageRoot(extensionRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(extensionRoot, ...BUNDLED_SKILLS_VENDOR_SEGMENTS)
+}
+
+/** The bundled package's skill root: its `skills/` folder (M89). */
+export function bundledSkillsRoot(packageRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(packageRoot, BUNDLED_SKILLS_DIR)
+}
+
+/**
+ * Where the Muse Code install keeps its copy of the package (M89):
+ * `skill-sources`, beside the managed personal skill root, in the config home
+ * that root resolves to.
+ */
+export function bundledSkillSourcesRoot(input: PersonalSkillsRootInput): string {
+  const p = pathModule(input.platform)
+  return p.join(p.dirname(personalSkillsRoot(input)), BUNDLED_SKILLS_SOURCES_DIR)
+}
+
+/**
+ * A skill's body as the model reads it (`read_skill`, a typed `/id`): a
+ * bundled one after the line naming its package root (M89, PLAN.md D68).
+ */
+export function skillBodyForModel(skill: SkillDefinition): string {
+  return skill.packageRoot === undefined
+    ? skill.body
+    : `${MODEL_TEXT.bundledSkillRoot} ${skill.packageRoot}\n\n${skill.body}`
+}
+
 export interface SkillsLoaderDeps {
   readonly io: ContextIo
   readonly platform: NodeJS.Platform
@@ -146,8 +201,22 @@ export async function loadSkills(
   roots: readonly SkillRoot[],
 ): Promise<SkillsLoad> {
   const load = await loadCatalogFiles(deps, roots, SKILL_CATALOG, parseCatalogFile)
+  // Each source has one root, so an entry's source names its package.
+  const packageRoots = new Map(
+    roots.flatMap((root) =>
+      root.packageRoot === undefined ? [] : [[root.source, root.packageRoot]],
+    ),
+  )
   return {
-    skills: load.entries.map((entry) => ({ id: entry.id, source: entry.source, ...entry.entry })),
+    skills: load.entries.map((entry) => {
+      const packageRoot = packageRoots.get(entry.source)
+      return {
+        id: entry.id,
+        source: entry.source,
+        ...entry.entry,
+        ...(packageRoot !== undefined && { packageRoot }),
+      }
+    }),
     warnings: load.warnings,
   }
 }

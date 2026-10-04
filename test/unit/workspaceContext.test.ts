@@ -160,6 +160,58 @@ describe('WorkspaceContext', () => {
     await expect(t.context.refreshSkills()).resolves.toBe(true)
   })
 
+  it('lists the bundled skills while museSpark.bundledSkills is on, and drops them at the refresh after it goes off (M89)', async () => {
+    const PACKAGE = `${ROOT}/.ext/vendor/high-quality-projects-skill`
+    const files = memoryTree(
+      {
+        '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
+        // A personal skill with a bundled id shadows the bundled one.
+        '.home/.config/muse/skills/feature_delivery/SKILL.md': skillFile(
+          'feature_delivery',
+          'Mine',
+        ),
+        '.ext/vendor/high-quality-projects-skill/skills/feature_delivery/SKILL.md': skillFile(
+          'feature_delivery',
+          'Bundled',
+        ),
+        '.ext/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md': skillFile(
+          'project_setup',
+          'Set up',
+        ),
+      },
+      ROOT,
+    )
+    let isOn = true
+    const context = new WorkspaceContext({
+      io: memoryContextIo(files),
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      personalSkillsRoot: USER_ROOT,
+      bundledSkills: { packageRoot: PACKAGE, isEnabled: () => isOn },
+      personalAgentsRoot: USER_AGENTS_ROOT,
+      hasAgents: false,
+      isWorkspaceTrusted: () => true,
+      loadMemory: undefined,
+      warn: () => undefined,
+    })
+    await context.load()
+    expect(
+      context.sections().skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`),
+    ).toEqual(['project:shout:Caps', 'user:feature_delivery:Mine', 'bundled:project_setup:Set up'])
+    expect(context.skill('project_setup')?.packageRoot).toBe(PACKAGE)
+    expect(context.skill('feature_delivery')?.packageRoot).toBeUndefined()
+    isOn = false
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.sections().skills.map((skill) => skill.id)).toEqual([
+      'shout',
+      'feature_delivery',
+    ])
+    expect(context.skill('project_setup')).toBeUndefined()
+    isOn = true
+    await expect(context.refreshSkills()).resolves.toBe(true)
+    expect(context.skill('project_setup')?.source).toBe('bundled')
+  })
+
   it('loads nothing in an untrusted workspace', async () => {
     const t = setup(
       {
