@@ -1,0 +1,516 @@
+{
+  "date": "2026-10-04T03:37:04.991Z",
+  "rig": "kubuntu",
+  "green": {
+    "exit": 0,
+    "snapshot": "246e2495",
+    "counts": "744 passed (744)",
+    "log": "green.log",
+    "failing": []
+  },
+  "drills": [
+    {
+      "id": "schema-card-id",
+      "guard": "withdrawQueued refuses an empty card id",
+      "source": "src/shared/protocol.ts",
+      "tests": ["test/unit/protocol.test.ts"],
+      "before_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "mutated_sha256": "2a885e0f2a6472d3643358d997c53fb722cc2210b055b09022bdcdc1cf0b69ed",
+      "after_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "red": {
+        "exit": 1,
+        "snapshot": "daa0e1a1",
+        "counts": "1 failed | 137 passed (138)",
+        "log": "schema-card-id.log",
+        "failing": [
+          "FAIL  test/unit/protocol.test.ts > parseWebviewToHostMessage > rejects withdraw with an empty card id"
+        ]
+      },
+      "expected_diagnostic": "rejects withdraw with an empty card id",
+      "matched": true
+    },
+    {
+      "id": "schema-withdrawn-card-id",
+      "guard": "queuedWithdrawn refuses an empty card id",
+      "source": "src/shared/protocol.ts",
+      "tests": ["test/unit/protocol.test.ts"],
+      "before_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "mutated_sha256": "15bcf17a03e3bdc4b168ccdbaac8edf061f5cd699eb76e08b83f47d95977b214",
+      "after_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "red": {
+        "exit": 1,
+        "snapshot": "efa03d7a",
+        "counts": "1 failed | 137 passed (138)",
+        "log": "schema-withdrawn-card-id.log",
+        "failing": [
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > rejects queuedWithdrawn with an empty card id"
+        ]
+      },
+      "expected_diagnostic": "rejects queuedWithdrawn with an empty card id",
+      "matched": true
+    },
+    {
+      "id": "schema-disposition",
+      "guard": "turnAccepted carries the disposition",
+      "source": "src/shared/protocol.ts",
+      "tests": ["test/unit/protocol.test.ts"],
+      "before_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "mutated_sha256": "8422ceeec9f095a15d16811fe5b7ffcd43df77bfb96069110016035aea9ad429",
+      "after_sha256": "0253f13f4e8b7fc8dc4afb0576ec7f01396ea0a88efd5b6689ff101eeaadf6b2",
+      "red": {
+        "exit": 1,
+        "snapshot": "f939a108",
+        "counts": "3 failed | 135 passed (138)",
+        "log": "schema-disposition.log",
+        "failing": [
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > accepts queued turnAccepted",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > accepts turnAccepted with a disposition the wire adds later",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > rejects turnAccepted with a numeric disposition"
+        ]
+      },
+      "expected_diagnostic": "accepts queued turnAccepted",
+      "matched": true
+    },
+    {
+      "id": "schema-admitted-id",
+      "guard": "messageAdmitted refuses an empty user item id",
+      "source": "src/shared/agentEvents.ts",
+      "tests": ["test/unit/protocol.test.ts"],
+      "before_sha256": "f659cbe88d5b3c5eab316a99c4398847949f9c89d19fc180d2c7a12d6d41ca6c",
+      "mutated_sha256": "d82181d7da0312ee84caeca5f19b31975a56ad81ec19f85af03b08562328ba15",
+      "after_sha256": "f659cbe88d5b3c5eab316a99c4398847949f9c89d19fc180d2c7a12d6d41ca6c",
+      "red": {
+        "exit": 1,
+        "snapshot": "6dcac3de",
+        "counts": "1 failed | 137 passed (138)",
+        "log": "schema-admitted-id.log",
+        "failing": [
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > rejects messageAdmitted with an empty user item id"
+        ]
+      },
+      "expected_diagnostic": "rejects messageAdmitted with an empty user item id",
+      "matched": true
+    },
+    {
+      "id": "schema-recorded-at",
+      "guard": "the item shape keeps recordedAt",
+      "source": "src/shared/agentEvents.ts",
+      "tests": ["test/unit/protocol.test.ts", "test/unit/mapNotification.test.ts"],
+      "before_sha256": "f659cbe88d5b3c5eab316a99c4398847949f9c89d19fc180d2c7a12d6d41ca6c",
+      "mutated_sha256": "2eb55d42b072bec7e626e62809d3fb80b2014208fd83724cdbb6323526a680ba",
+      "after_sha256": "f659cbe88d5b3c5eab316a99c4398847949f9c89d19fc180d2c7a12d6d41ca6c",
+      "red": {
+        "exit": 1,
+        "snapshot": "b3c289bb",
+        "counts": "5 failed | 170 passed (175)",
+        "log": "schema-recorded-at.log",
+        "failing": [
+          "FAIL  test/unit/mapNotification.test.ts > mapNotification: the M46 capture > maps a `!` command’s row: its command, how it ended, and no turn",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > accepts an item with its recorded time",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > accepts an item whose recorded time does not parse, kept as it came",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > rejects an item with a numeric recorded time",
+          "FAIL  test/unit/protocol.test.ts > parseHostToWebviewMessage > carries the recorded time of captured Muse Code items through to the webview (rule 13)"
+        ]
+      },
+      "expected_diagnostic": "carries the recorded time of captured Muse Code items",
+      "matched": true
+    },
+    {
+      "id": "ctl-ids",
+      "guard": "an Edit names the ids its card was accepted under",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "83b085736918c170654e1bfb2402a737ed51705fc0ce8669a70c92fe1eb173e8",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "2bd84984",
+        "counts": "2 failed | 392 passed (394)",
+        "log": "ctl-ids.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > takes back steered input the turn has not read, and a steer moved to a turn of its own"
+        ]
+      },
+      "expected_diagnostic": "asks nothing of the backend for a card it did not queue here",
+      "matched": true
+    },
+    {
+      "id": "ctl-started",
+      "guard": "only a queued or steered message is kept for an Edit",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "a1604e1b70c7a025fca19cd94f1633be0bca2d18210a9c977ceba9b06e513261",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "d179fcea",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-started.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot"
+        ]
+      },
+      "expected_diagnostic": "asks nothing of the backend for a card it did not queue here",
+      "matched": true
+    },
+    {
+      "id": "ctl-in-flight",
+      "guard": "one withdrawal in flight per card",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "6465a26e89b97e2c9f9eb4d5bdf9904549d8a65f6459637cc3d9d59f086a69ea",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "fca46f0f",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-in-flight.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > asks the backend once while an Edit is in flight"
+        ]
+      },
+      "expected_diagnostic": "asks the backend once while an Edit is in flight",
+      "matched": true
+    },
+    {
+      "id": "ctl-current",
+      "guard": "a late answer after the conversation changed is dropped",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "1677a39583dfed012f14524ccb6ac6c8e905d7ba084ea2b564e7267bde79e311",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "640fa7b2",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-current.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > drops an answer that comes after the conversation changed"
+        ]
+      },
+      "expected_diagnostic": "drops an answer that comes after the conversation changed",
+      "matched": true
+    },
+    {
+      "id": "ctl-too-late",
+      "guard": "an answered card is asked for no more",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "7b658c49c1295ca3253b02c185f1e475e76e328da3e1271eace6a7a6673e97ea",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "20ec5d78",
+        "counts": "2 failed | 392 passed (394)",
+        "log": "ctl-too-late.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > takes a queued message back through its session, under the ids its card was given",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > says it is too late when the model already has it, and asks no more for that card"
+        ]
+      },
+      "expected_diagnostic": "says it is too late when the model already has it",
+      "matched": true
+    },
+    {
+      "id": "ctl-images-kept",
+      "guard": "attachmentsKept is false where the backend kept no bytes",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "e1f087dd96a347826ecf9d71077ebced70698a4fdb74b0b23589f4592e9110cb",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "a132fce2",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-images-kept.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > puts the images it carried back in the composer, and says when they could not come back"
+        ]
+      },
+      "expected_diagnostic": "puts the images it carried back in the composer",
+      "matched": true
+    },
+    {
+      "id": "ctl-signed-out",
+      "guard": "a signed-out Edit hears withdrawRefused",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "d781f4f48d0e2144e5b1bd8f4dbfb73bb5f3d984075ab941224437184d7d44db",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "7a18c5bb",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-signed-out.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > answers a signed-out panel’s Edit with the reason, asking nothing"
+        ]
+      },
+      "expected_diagnostic": "answers a signed-out panel",
+      "matched": true
+    },
+    {
+      "id": "ctl-turn-started",
+      "guard": "a queued turn that started is no longer offered",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "10d45932402e7c02390e5c312b85fc3aca8884fe31b9b91c483fee262f67d5fa",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "c563898f",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-turn-started.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > stops asking once the model has it: its turn started, a request took it, or its turn ended"
+        ]
+      },
+      "expected_diagnostic": "stops asking once the model has it",
+      "matched": true
+    },
+    {
+      "id": "ctl-admitted",
+      "guard": "an admitted message is no longer offered",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "d2cd88b6eafa319ee14589b814e534ce1541d142359af98b415978bf87862169",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "9113b8b7",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-admitted.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > stops asking once the model has it: its turn started, a request took it, or its turn ended"
+        ]
+      },
+      "expected_diagnostic": "stops asking once the model has it",
+      "matched": true
+    },
+    {
+      "id": "ctl-turn-ended",
+      "guard": "a steer its turn ended without is no longer offered",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "cca17b424727cc167d4d78661ce86f623256249863dbf3f76e27ad86b199229d",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "f2a4a8f4",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-turn-ended.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > stops asking once the model has it: its turn started, a request took it, or its turn ended"
+        ]
+      },
+      "expected_diagnostic": "stops asking once the model has it",
+      "matched": true
+    },
+    {
+      "id": "ctl-turn-changed",
+      "guard": "a steer moved to its own turn follows it as queued",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "42251cc6cbd4b06dfe90020242632a2489f600b393b45b528781e7229088e3d4",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "79342ec9",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-turn-changed.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > takes back steered input the turn has not read, and a steer moved to a turn of its own"
+        ]
+      },
+      "expected_diagnostic": "a steer moved to a turn of its own",
+      "matched": true
+    },
+    {
+      "id": "ctl-disposition",
+      "guard": "turnAccepted is posted with the disposition",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "245b7367b9e1bb0494d6d25702fc93ad7585668e703e33c15c719769ebd0030b",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "93940e5f",
+        "counts": "8 failed | 386 passed (394)",
+        "log": "ctl-disposition.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController.sendMessage > starts a session on first send, applies effort, submits, confirms, loads skills",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController.sendMessage > steers a running turn and falls back to a fresh turn when the steer is rejected",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: lifecycle (D25) > resumes and retries once when the host no longer holds the session",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: a slow, wedged or damaged Muse Code (CLI recovery, 2026-10-03) > sends the message as a new turn when Muse Code says invalid_target: no turn took the steer",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: a slow, wedged or damaged Muse Code (CLI recovery, 2026-10-03) > sends the message as a new turn when Muse Code says missing_run: no turn took the steer",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: a slow, wedged or damaged Muse Code (CLI recovery, 2026-10-03) > sends the message as a new turn when Muse Code says already_terminal: no turn took the steer",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > tells the panel what became of each message: started, steered or queued",
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: queued messages (M87, PLAN.md D66) > takes back steered input the turn has not read, and a steer moved to a turn of its own"
+        ]
+      },
+      "expected_diagnostic": "tells the panel what became of each message",
+      "matched": true
+    },
+    {
+      "id": "ctl-tab-clear",
+      "guard": "a new conversation ends the tasks tab",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "9e6556f95e9c21c206eef30e0639061d07ec59e3e20bd3d88f0a178f698cb707",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "072985ce",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-tab-clear.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: the tasks tab (M87, PLAN.md D66) > ends with its conversation: a new one, another session, the panel closing, an account boundary"
+        ]
+      },
+      "expected_diagnostic": "ends with its conversation",
+      "matched": true
+    },
+    {
+      "id": "ctl-tab-session",
+      "guard": "another session taking the panel ends the tasks tab",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "cee0a828030e7d0d4f6ec8e1b4d2206a7b4c7a20176bac62bff18401848f4663",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "02b92323",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-tab-session.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: the tasks tab (M87, PLAN.md D66) > ends with its conversation: a new one, another session, the panel closing, an account boundary"
+        ]
+      },
+      "expected_diagnostic": "ends with its conversation",
+      "matched": true
+    },
+    {
+      "id": "ctl-tab-no-port",
+      "guard": "a host without tabs says the action failed",
+      "source": "src/host/conversation/conversationController.ts",
+      "tests": ["test/unit/conversationController.test.ts"],
+      "before_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "mutated_sha256": "6f645493da91f85373fddf242fb88a3d4af1bd69b17f6837e2f2292d47676236",
+      "after_sha256": "1de6d923a747556ea896aafb8593d81f174632ae0384c73d6c5f948cb34bdba7",
+      "red": {
+        "exit": 1,
+        "snapshot": "6f90e6ac",
+        "counts": "1 failed | 393 passed (394)",
+        "log": "ctl-tab-no-port.log",
+        "failing": [
+          "FAIL  test/unit/conversationController.test.ts > ConversationController: the tasks tab (M87, PLAN.md D66) > says it could not open where the host has no tabs, or the tab failed"
+        ]
+      },
+      "expected_diagnostic": "says it could not open where the host has no tabs",
+      "matched": true
+    },
+    {
+      "id": "red-merge",
+      "guard": "the withdrawn text goes before the draft",
+      "source": "src/webview/state/uiState.ts",
+      "tests": ["test/unit/uiState.test.ts"],
+      "before_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "mutated_sha256": "932a58e9a532ca89b4458d0067af39d53972f1f103369369711aa2cb8281f444",
+      "after_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "red": {
+        "exit": 1,
+        "snapshot": "9d1c5548",
+        "counts": "2 failed | 137 passed (139)",
+        "log": "red-merge.log",
+        "failing": [
+          "FAIL  test/unit/uiState.test.ts > uiReducer: a queued message taken back (M87, PLAN.md D66) > puts its text before the draft with a blank line, so no draft is lost",
+          "FAIL  test/unit/uiState.test.ts > uiReducer: a queued message taken back (M87, PLAN.md D66) > keeps the merged draft from a command that was waiting on the old one"
+        ]
+      },
+      "expected_diagnostic": "puts its text before the draft with a blank line",
+      "matched": true
+    },
+    {
+      "id": "red-revision",
+      "guard": "the merged draft outlives a command waiting on the old one",
+      "source": "src/webview/state/uiState.ts",
+      "tests": ["test/unit/uiState.test.ts"],
+      "before_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "mutated_sha256": "9cdb8e08a5fb82489545a783429259b0d7427b50d1a204f25a975161621eadf8",
+      "after_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "red": {
+        "exit": 1,
+        "snapshot": "05e780bb",
+        "counts": "1 failed | 138 passed (139)",
+        "log": "red-revision.log",
+        "failing": [
+          "FAIL  test/unit/uiState.test.ts > uiReducer: a queued message taken back (M87, PLAN.md D66) > keeps the merged draft from a command that was waiting on the old one"
+        ]
+      },
+      "expected_diagnostic": "keeps the merged draft from a command that was waiting",
+      "matched": true
+    },
+    {
+      "id": "red-refused-card",
+      "guard": "a refused Edit keeps its card",
+      "source": "src/webview/state/uiState.ts",
+      "tests": ["test/unit/uiState.test.ts"],
+      "before_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "mutated_sha256": "5abc4d1d78a278bede8335dc0ff59a3c7da28522fe3cb4918fc5c8d5a7b53caf",
+      "after_sha256": "48391e3707cf55392e04a49df7225a9ca08d5e2b649327f14cec71864065f4c2",
+      "red": {
+        "exit": 1,
+        "snapshot": "a104ee91",
+        "counts": "1 failed | 138 passed (139)",
+        "log": "red-refused-card.log",
+        "failing": [
+          "FAIL  test/unit/uiState.test.ts > uiReducer: a queued message taken back (M87, PLAN.md D66) > keeps the card when the host refuses, and says why"
+        ]
+      },
+      "expected_diagnostic": "keeps the card when the host refuses",
+      "matched": true
+    },
+    {
+      "id": "acp-admitted",
+      "guard": "ACP sends nothing for messageAdmitted",
+      "source": "src/acp/translate.ts",
+      "tests": ["test/unit/acpTranslate.test.ts"],
+      "before_sha256": "262b91f341d8772424ede12471eba243b8cc0aa767946f70ca4a6a3670f4db3f",
+      "mutated_sha256": "bb54a8c0d016f9d0d2a6d1ff7e55f5406480a7a6e9c569f8c914aaa3eccee457",
+      "after_sha256": "262b91f341d8772424ede12471eba243b8cc0aa767946f70ca4a6a3670f4db3f",
+      "red": {
+        "exit": 1,
+        "snapshot": "2e3dab8b",
+        "counts": "1 failed | 35 passed (36)",
+        "log": "acp-admitted.log",
+        "failing": [
+          "FAIL  test/unit/acpTranslate.test.ts > UpdateTranslator > sends nothing when a message reaches a request, since ACP never queues one (M87)"
+        ]
+      },
+      "expected_diagnostic": "sends nothing when a message reaches a request",
+      "matched": true
+    }
+  ],
+  "restored": {
+    "exit": 0,
+    "snapshot": "4912b104",
+    "counts": "744 passed (744)",
+    "log": "restored.log",
+    "failing": []
+  }
+}

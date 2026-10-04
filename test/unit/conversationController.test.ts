@@ -5,7 +5,16 @@ import { mkdir, rename, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { AgentHost, SessionMcpHttpServer } from '../../src/core/agent/agentBackend'
+import type {
+  AgentHost,
+  QueuedMessageRef,
+  SessionEventListener,
+  SessionMcpHttpServer,
+  TurnPart,
+  WithdrawOutcome,
+} from '../../src/core/agent/agentBackend'
+import type { AgentEvent, TodoItem } from '../../src/shared/agentEvents'
+import type { TasksTabPort, TasksTabView } from '../../src/host/views/tasksTabPort'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
 import {
   ModelApiHost,
@@ -325,6 +334,8 @@ function setup(
     damagedIds?: readonly string[]
     /** The Muse Code host's command deadlines (CLI recovery: a steer that times out). */
     timeouts?: CommandTimeouts
+    /** The surface's tasks tab (M87); none unless a test passes one. */
+    tasksTab?: TasksTabPort
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -621,6 +632,7 @@ function setup(
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     ...(options.verifyGuidance !== undefined && { verifyGuidance: options.verifyGuidance }),
+    ...(options.tasksTab !== undefined && { tasksTab: options.tasksTab }),
     saveAll,
     unsavedFiles: () => unsaved.files,
     applyCode: (text: string) => {
@@ -848,7 +860,7 @@ describe('ConversationController.sendMessage', () => {
       sessionInfo,
       { ...NO_FOLDER_CHECKPOINT, sessionId: 's1' },
       skillList,
-      { type: 'turnAccepted', localId: 'l1', turnId: 't1' },
+      { type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' },
     ])
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/start')).toHaveLength(1)
@@ -935,7 +947,12 @@ describe('ConversationController.sendMessage', () => {
       expectedTurnId: 't1',
       input: [{ type: 'text', text: 'also this' }, NOTE],
     })
-    expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't1',
+      disposition: 'steered',
+    })
     // Muse Code found no turn to take it (CLI recovery: only that falls back).
     t.server.handle('turn/steer', rejectionFor('invalid_target'))
     await t.send('l3', 'late')
@@ -6312,7 +6329,12 @@ describe('ConversationController: lifecycle (D25)', () => {
     t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
-    expect(t.surface.posted).toContainEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't2' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't2',
+      disposition: 'started',
+    })
   })
 
   it('does not retry a stale send when backend stopping crosses recovery lookup', async () => {
@@ -10613,7 +10635,12 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       t.server.handle('turn/steer', rejectionFor(reason))
       await t.send('l2', 'late')
       expect(t.server.requestsFor('turn/start')).toHaveLength(2)
-      expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
+      expect(t.surface.posted.at(-1)).toEqual({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        disposition: 'started',
+      })
     },
   )
 
@@ -10838,5 +10865,463 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       level: 'info',
       text: UI_TEXT.museCodeRestartedUnresponsive,
     })
+  })
+})
+
+/** What a fake tasks tab was asked, in order (M87). */
+function fakeTasksTab() {
+  const calls: (
+    { readonly call: 'open' | 'update'; readonly view: TasksTabView } | { readonly call: 'ended' }
+  )[] = []
+  const port: TasksTabPort = {
+    open: (view) => {
+      calls.push({ call: 'open', view })
+    },
+    update: (view) => {
+      calls.push({ call: 'update', view })
+    },
+    ended: () => {
+      calls.push({ call: 'ended' })
+    },
+  }
+  return { port, calls }
+}
+
+const OPEN_TASKS_TAB: ConversationMessage = { type: 'hostAction', action: 'openTasksTab' }
+const TASK_A: TodoItem = { text: 'Read the code', status: 'pending' }
+const TASK_A_DONE: TodoItem = { text: 'Read the code', status: 'completed' }
+const TASK_B: TodoItem = { text: 'Fix the bug', status: 'inProgress', activeForm: 'Fixing the bug' }
+const WITHDRAWN: WithdrawOutcome = { status: 'withdrawn', images: [] }
+
+/** Muse Code acknowledges every submit as queued behind another turn, as turn `tq`. */
+function queueEverySubmit(t: ReturnType<typeof setup>): void {
+  t.server.handle('turn/start', (params) => ({
+    turnId: 'tq',
+    status: 'accepted',
+    disposition: 'queued',
+    commandId: params['commandId'],
+  }))
+}
+
+/**
+ * The sessions `t`'s host starts take a message back as `answer` says (M87);
+ * each backend's own withdrawal is tested with that backend. `emit` sends an
+ * event as the attached session would; with `hasSteerIds`, each steer is
+ * acknowledged with a user item id of its own (`us1`, `us2`…), as the Model
+ * API's are.
+ */
+function withWithdraw(
+  t: ReturnType<typeof setup>,
+  answer: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>,
+  hasSteerIds = false,
+) {
+  const calls: QueuedMessageRef[] = []
+  const listeners: SessionEventListener[] = []
+  let steers = 0
+  const start = t.host.startSession.bind(t.host)
+  vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+    const session = await start(options)
+    const onEvent = session.onEvent.bind(session)
+    const steer = session.steer.bind(session)
+    return Object.assign(session, {
+      onEvent: (listener: SessionEventListener) => {
+        listeners.push(listener)
+        return onEvent(listener)
+      },
+      steer: async (expectedTurnId: string, parts: readonly TurnPart[]) => {
+        const submission = await steer(expectedTurnId, parts)
+        steers += 1
+        return hasSteerIds ? { ...submission, userMessageId: `us${String(steers)}` } : submission
+      },
+      withdrawQueued: (ref: QueuedMessageRef) => {
+        calls.push(ref)
+        return answer(ref)
+      },
+    })
+  })
+  return {
+    calls,
+    emit: (event: AgentEvent) => {
+      for (const listener of listeners) {
+        listener(event)
+      }
+    },
+  }
+}
+
+/** A running turn t1 on `t`, with one message steered into it as `l2`. */
+async function steeredIntoRunning(t: ReturnType<typeof setup>): Promise<void> {
+  await t.send('l1', 'hi')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+  await settle()
+  await t.send('l2', 'also this')
+}
+
+/** A panel whose session queued `l1` as turn `tq`, and takes messages back as `answer` says. */
+async function queuedL1(answer: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>) {
+  const t = setup()
+  queueEverySubmit(t)
+  const rig = withWithdraw(t, answer)
+  await t.send('l1', 'later')
+  return { t, rig }
+}
+
+/** Edit on a card, with the ids it names. */
+function withdraw(
+  t: ReturnType<typeof setup>,
+  localId: string,
+  turnId: string,
+  userMessageId?: string,
+): Promise<void> {
+  return t.controller.handle({
+    type: 'withdrawQueued',
+    localId,
+    turnId,
+    ...(userMessageId !== undefined && { userMessageId }),
+  })
+}
+
+/** The panel's refusal of an Edit on `localId`. */
+function withdrawRefusal(localId: string, reason: string = UI_TEXT.queuedTooLate) {
+  return { type: 'withdrawRefused', localId, reason }
+}
+
+/** A withdrawal the test answers when it chooses. */
+function heldAnswer() {
+  const held: { give?: (outcome: WithdrawOutcome) => void } = {}
+  const answer = () =>
+    new Promise<WithdrawOutcome>((resolve) => {
+      held.give = resolve
+    })
+  return { held, answer }
+}
+
+describe('ConversationController: queued messages (M87, PLAN.md D66)', () => {
+  it('tells the panel what became of each message: started, steered or queued', async () => {
+    const t = setup()
+    await steeredIntoRunning(t)
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'l1',
+      turnId: 't1',
+      disposition: 'started',
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't1',
+      disposition: 'steered',
+    })
+    const { t: queued } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    expect(queued.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l1',
+      turnId: 'tq',
+      disposition: 'queued',
+    })
+  })
+
+  it('takes a queued message back through its session, under the ids its card was given', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toEqual([{ turnId: 'tq', userMessageId: undefined, disposition: 'queued' }])
+    expect(t.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+    expect(logLines(t.log)).toContain('Queued message l1 withdrawn')
+    // Taken back, it is not asked for again.
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(1)
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+  })
+
+  it('puts the images it carried back in the composer, and says when they could not come back', async () => {
+    const image = { mediaType: 'image/png', base64Data: Buffer.from(PNG).toString('base64') }
+    const { t } = await queuedL1(() => Promise.resolve({ status: 'withdrawn', images: [image] }))
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'attachmentAdded',
+        attachment: expect.objectContaining({ mediaType: 'image/png', width: 2, height: 3 }),
+      },
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+    // A backend that keeps no bytes cannot give them back.
+    const { t: bare } = await queuedL1(() =>
+      Promise.resolve({ status: 'withdrawn', images: undefined }),
+    )
+    bare.surface.posted.length = 0
+    await withdraw(bare, 'l1', 'tq')
+    expect(bare.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: false },
+    ])
+  })
+
+  it('asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    for (const [localId, turnId, userMessageId] of [
+      ['forged', 'tq', undefined],
+      ['l1', 't9', undefined],
+      ['l1', 'tq', 'u9'],
+    ] as const) {
+      await withdraw(t, localId, turnId, userMessageId)
+      expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal(localId))
+    }
+    expect(rig.calls).toEqual([])
+    // A message that started its own turn was never queued.
+    const started = setup()
+    const startedRig = withWithdraw(started, () => Promise.resolve(WITHDRAWN))
+    await started.send('l1', 'now')
+    await withdraw(started, 'l1', 't1')
+    expect(startedRig.calls).toEqual([])
+    // A session with no way to take one back.
+    const plain = setup()
+    queueEverySubmit(plain)
+    await plain.send('l1', 'later')
+    await withdraw(plain, 'l1', 'tq')
+    expect(plain.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+  })
+
+  it('answers a signed-out panel’s Edit with the reason, asking nothing', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    t.auth.isAdmitted = false
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1', UI_TEXT.notSignedInReason))
+  })
+
+  it('takes back steered input the turn has not read, and a steer moved to a turn of its own', async () => {
+    const t = setup()
+    const rig = withWithdraw(t, () => Promise.resolve(WITHDRAWN), true)
+    await steeredIntoRunning(t)
+    expect(t.surface.posted.at(-1)).toMatchObject({ disposition: 'steered', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    expect(rig.calls).toEqual([{ turnId: 't1', userMessageId: 'us1', disposition: 'steered' }])
+    // The turn left the next steer unread: it waits as a turn of its own.
+    await t.send('l3', 'and this')
+    rig.emit({ type: 'userMessageTurnChanged', userMessageId: 'us2', turnId: 't5' })
+    await withdraw(t, 'l3', 't1', 'us2')
+    expect(rig.calls).toHaveLength(1)
+    await withdraw(t, 'l3', 't5', 'us2')
+    expect(rig.calls.at(-1)).toEqual({ turnId: 't5', userMessageId: 'us2', disposition: 'queued' })
+  })
+
+  it('stops asking once the model has it: its turn started, a request took it, or its turn ended', async () => {
+    const { t: queued, rig: queuedRig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    queued.server.notify('turn/started', { sessionId: 's1', turnId: 'tq', viewCursor: 'v' })
+    await settle()
+    await withdraw(queued, 'l1', 'tq')
+    expect(queuedRig.calls).toEqual([])
+    const t = setup()
+    const rig = withWithdraw(t, () => Promise.resolve(WITHDRAWN), true)
+    await steeredIntoRunning(t)
+    rig.emit({ type: 'messageAdmitted', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    await t.send('l3', 'and this')
+    t.finishTurn()
+    await settle()
+    await withdraw(t, 'l3', 't1', 'us2')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.filter((message) => message.type === 'withdrawRefused')).toHaveLength(2)
+  })
+
+  it('says it is too late when the model already has it, and asks no more for that card', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve({ status: 'tooLate' }))
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(1)
+  })
+
+  it('asks the backend once while an Edit is in flight', async () => {
+    const { held, answer } = heldAnswer()
+    const { t, rig } = await queuedL1(answer)
+    t.surface.posted.length = 0
+    const first = withdraw(t, 'l1', 'tq')
+    await vi.waitFor(() => {
+      expect(rig.calls).toHaveLength(1)
+    })
+    await withdraw(t, 'l1', 'tq')
+    held.give?.(WITHDRAWN)
+    await first
+    expect(rig.calls).toHaveLength(1)
+    expect(t.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+  })
+
+  it('says why when the backend fails, logs no words of its own, and lets the Edit be tried again', async () => {
+    const failure = String.raw`turn/unqueue failed under C:\Users\someone`
+    let attempts = 0
+    const { t, rig } = await queuedL1(() => {
+      attempts += 1
+      return attempts === 1 ? Promise.reject(new Error(failure)) : Promise.resolve(WITHDRAWN)
+    })
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1', failure))
+    expect(logLines(t.log)).toContain('Withdrawing queued message l1 failed: Error')
+    expect(logLines(t.log).join('\n')).not.toContain('someone')
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'queuedWithdrawn',
+      localId: 'l1',
+      attachmentsKept: true,
+    })
+  })
+
+  it('drops an answer that comes after the conversation changed', async () => {
+    const { held, answer } = heldAnswer()
+    const { t, rig } = await queuedL1(answer)
+    const withdrawing = withdraw(t, 'l1', 'tq')
+    await vi.waitFor(() => {
+      expect(rig.calls).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    t.surface.posted.length = 0
+    held.give?.(WITHDRAWN)
+    await withdrawing
+    expect(t.surface.posted).toEqual([])
+  })
+})
+
+describe('ConversationController: the tasks tab (M87, PLAN.md D66)', () => {
+  it('opens with the conversation’s list and name, keeps up with both, and is the controller’s own', async () => {
+    const tab = fakeTasksTab()
+    const t = setup({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls).toEqual([])
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(t.hostActions).toEqual([])
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] } },
+    ])
+    t.server.notify('session/todoListChanged', {
+      sessionId: 's1',
+      items: [TASK_A_DONE, TASK_B],
+    })
+    t.server.notify('session/nameChanged', { sessionId: 's1', name: 'Refactor' })
+    await settle()
+    expect(tab.calls.slice(1)).toEqual([
+      {
+        call: 'update',
+        view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A_DONE, TASK_B] },
+      },
+      { call: 'update', view: { conversation: 'Refactor', items: [TASK_A_DONE, TASK_B] } },
+    ])
+  })
+
+  it('opens before the first message, and follows the session that message starts', async () => {
+    const tab = fakeTasksTab()
+    const t = setup({ tasksTab: tab.port })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: UI_TEXT.untitledConversation, items: [] } },
+    ])
+    await t.send('l1', 'hi')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({
+      call: 'update',
+      view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] },
+    })
+    expect(tab.calls).not.toContainEqual({ call: 'ended' })
+  })
+
+  it('opens for a resumed session with the list and name its history carried', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    t.server.handle('session/resume', (params) => ({
+      ...envelope({ ...storedSession, sessionId: params['sessionId'], status: 'idle' }),
+      history: {
+        mode: 'snapshot',
+        items: null,
+        snapshot: { state: { items: [], name: 'Planned', todoList: { items: [TASK_B] } } },
+      },
+    }))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: 'Planned', items: [TASK_B] } },
+    ])
+  })
+
+  it('ends with its conversation: a new one, another session, the panel closing, an account boundary', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    await t.controller.handle(OPEN_TASKS_TAB)
+    await t.controller.handle({ type: 'clearConversation' })
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    // Nothing more reaches it until it opens again.
+    await t.send('l2', 'again')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls.at(-1)).toEqual({
+      call: 'open',
+      view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] },
+    })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    t.controller.dispose()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    expect(tab.calls.filter((call) => call.call === 'ended')).toHaveLength(3)
+    const boundary = fakeTasksTab()
+    const b = setup({ tasksTab: boundary.port })
+    await b.send('l1', 'hi')
+    await b.controller.handle(OPEN_TASKS_TAB)
+    await b.controller.backendStopping(true)
+    expect(boundary.calls.at(-1)).toEqual({ call: 'ended' })
+  })
+
+  it('stays through a restart that resumes the same conversation', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    await t.controller.handle(OPEN_TASKS_TAB)
+    await t.controller.backendStopping(false)
+    await t.send('l2', 'go on')
+    await settle()
+    expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(tab.calls).not.toContainEqual({ call: 'ended' })
+    expect(tab.calls.at(-1)).toMatchObject({ call: 'update' })
+  })
+
+  it('says it could not open where the host has no tabs, or the tab failed', async () => {
+    const failed = fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })
+    const t = setup()
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(t.hostActions).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'notice', level: 'error', text: failed })
+    const broken: TasksTabPort = {
+      open: () => {
+        throw new Error('no editor group')
+      },
+      update: vi.fn<(view: TasksTabView) => void>(),
+      ended: vi.fn<() => void>(),
+    }
+    const b = setup({ tasksTab: broken })
+    await b.send('l1', 'hi')
+    await b.controller.handle(OPEN_TASKS_TAB)
+    expect(b.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: `${failed}: no editor group`,
+    })
+    // A tab that never opened follows nothing.
+    b.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    await b.controller.handle({ type: 'clearConversation' })
+    expect(broken.update).not.toHaveBeenCalled()
+    expect(broken.ended).not.toHaveBeenCalled()
   })
 })

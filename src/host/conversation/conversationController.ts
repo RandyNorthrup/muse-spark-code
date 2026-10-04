@@ -26,6 +26,7 @@ import {
   type OutputPageRequest,
   type PromptSettledError,
   type PromptSettledReason,
+  type QueuedMessageRef,
   type SessionHistoryOutcome,
   type SessionListEvent,
   type SessionMcpHttpServer,
@@ -136,6 +137,7 @@ import type { CheckpointPort } from '../checkpoints/checkpointHost'
 import type { ReviewNotice } from '../editor/editReview'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
+import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 import {
   ConversationCheckpoints,
   type NoticeLevel,
@@ -377,6 +379,12 @@ export interface ConversationDeps {
    * nothing to say.
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
+  /**
+   * This surface's tasks tab (M87, PLAN.md D66): "Open in a tab" opens it,
+   * and it follows the conversation's list. Undefined in a host without
+   * editor tabs, where the action says it failed.
+   */
+  readonly tasksTab?: TasksTabPort
   readonly now: () => number
   readonly log: Logger
 }
@@ -457,6 +465,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   // owns needs no admission, and the panel has already closed its dialog.
   'requestHandoff',
   'confirmHandoff',
+  'withdrawQueued',
 ])
 const QUEUED_DISPOSITION = 'queued'
 const TOOL_CALL_KIND = 'toolCall'
@@ -977,6 +986,24 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /**
+   * Messages of this session accepted as queued or steered that may still be
+   * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
+   * Edit may name. The backend has the last word (`tooLate`).
+   */
+  private readonly queuedMessages = new Map<string, QueuedMessageRef>()
+  /** Cards whose withdrawal is in flight: a second Edit leaves the answer to the first. */
+  private readonly withdrawals = new Set<string>()
+  /** The conversation's name as the surface shows it; undefined while untitled. */
+  private conversationName: string | undefined
+  /** The last todo list a session's events or history gave (M87: the tasks tab's list). */
+  private todoList: { readonly sessionId: string; readonly items: readonly TodoItem[] } | undefined
+  /**
+   * The conversation a tasks tab was opened for (M87), by its session; a
+   * conversation that had none yet takes its first. Undefined: no tab is
+   * open for this surface's conversation.
+   */
+  private tasksTabFor: { readonly sessionId: string | undefined } | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1204,6 +1231,7 @@ export class ConversationController {
       ...(!this.canEditSessions && { canEditSessions: false }),
     })
     void this.checkpoints.sessionChanged(this.session?.sessionId)
+    this.refreshTasksTab()
   }
 
   private postSessionList(): void {
@@ -1235,7 +1263,76 @@ export class ConversationController {
   }
 
   private setTitle(name: string | undefined): void {
+    this.conversationName = name
     this.deps.surface.setTitle(name ?? UI_TEXT.untitledConversation)
+    this.refreshTasksTab()
+  }
+
+  /** What the tasks tab shows for `sessionId` (M87): its last list, under the conversation's name. */
+  private tasksTabView(sessionId: string | undefined): TasksTabView {
+    const list = this.todoList
+    return {
+      conversation: this.conversationName ?? UI_TEXT.untitledConversation,
+      items: list !== undefined && list.sessionId === sessionId ? [...list.items] : [],
+    }
+  }
+
+  /**
+   * "Open in a tab" on the task list (M87, PLAN.md D66): the tab opens for
+   * this conversation, the session it runs on now or resumes on next.
+   */
+  private openTasksTab(): void {
+    const failed = fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })
+    const port = this.deps.tasksTab
+    if (port === undefined) {
+      this.notice('error', failed)
+      return
+    }
+    const sessionId = this.session?.sessionId ?? this.resumeTarget?.sessionId
+    try {
+      port.open(this.tasksTabView(sessionId))
+    } catch (error: unknown) {
+      this.notice('error', `${failed}: ${describe(error)}`)
+      return
+    }
+    this.tasksTabFor = { sessionId }
+  }
+
+  /**
+   * The tasks tab follows its conversation (M87): its list and name while
+   * that conversation's session is the attached one, and the end once
+   * another session takes the surface. Between sessions (one opening, a
+   * restart) nothing is said: the same conversation may come back.
+   */
+  private refreshTasksTab(): void {
+    const bound = this.tasksTabFor
+    const sessionId = this.session?.sessionId
+    if (bound === undefined || sessionId === undefined) {
+      return
+    }
+    if (bound.sessionId === undefined) {
+      // A conversation that had no session when its tab opened: this is its first.
+      this.tasksTabFor = { sessionId }
+    } else if (bound.sessionId !== sessionId) {
+      this.endTasksTab()
+      return
+    }
+    this.deps.tasksTab?.update(this.tasksTabView(sessionId))
+  }
+
+  /** The tasks tab's conversation ended (cleared, replaced, its panel closed). */
+  private endTasksTab(): void {
+    if (this.tasksTabFor === undefined) {
+      return
+    }
+    this.tasksTabFor = undefined
+    this.deps.tasksTab?.ended()
+  }
+
+  /** A session's todo list as its events or its history give it (M87). */
+  private noteTodoList(sessionId: string, items: readonly TodoItem[]): void {
+    this.todoList = { sessionId, items: [...items] }
+    this.refreshTasksTab()
   }
 
   private postComposerState(): void {
@@ -1308,6 +1405,7 @@ export class ConversationController {
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
+    this.queuedMessages.clear()
     this.childSessionIds.clear()
     this.finishedTurns.clear()
     this.forgetForegroundShells()
@@ -1515,6 +1613,21 @@ export class ConversationController {
     this.track(event)
   }
 
+  /**
+   * Messages no longer to be taken back once `turnId` started, was withdrawn
+   * or ended (M87). A start or a withdrawal settles the turn's own queued
+   * message; a steered one joined a turn already running, so it stays until
+   * admitted. An end settles both: a steer the turn did not take has by
+   * then moved to a turn of its own (`userMessageTurnChanged`).
+   */
+  private forgetQueuedTurn(turnId: string, hasEnded = false): void {
+    for (const [localId, message] of this.queuedMessages) {
+      if (message.turnId === turnId && (hasEnded || message.disposition === QUEUED_DISPOSITION)) {
+        this.queuedMessages.delete(localId)
+      }
+    }
+  }
+
   /** The controller's own bookkeeping for an event the webview was sent. */
   /**
    * A turn of a known child session (M48): its row names the session id, and
@@ -1539,6 +1652,8 @@ export class ConversationController {
   private track(event: AgentEvent): void {
     switch (event.type) {
       case 'turnStarted': {
+        // A queued message's turn started: the model has it now (M87).
+        this.forgetQueuedTurn(event.turnId)
         // A child's own turn reaches the parent stream; the running parent
         // turn keeps the steering, Stop and Ctrl+B (the review of PR #35).
         if (this.isChildTurn(event.turnId)) {
@@ -1562,7 +1677,37 @@ export class ConversationController {
         }
         break
       }
+      case 'messageAdmitted': {
+        // It reached a request (M87): an Edit can no longer take it back.
+        for (const [localId, message] of this.queuedMessages) {
+          if (message.userMessageId === event.userMessageId) {
+            this.queuedMessages.delete(localId)
+          }
+        }
+        break
+      }
+      case 'userMessageTurnChanged': {
+        // A steer the turn ended without waits as a turn of its own (M53),
+        // still to be taken back as a queued message under its new turn.
+        for (const [localId, message] of this.queuedMessages) {
+          if (message.userMessageId === event.userMessageId) {
+            this.queuedMessages.set(localId, {
+              ...message,
+              turnId: event.turnId,
+              disposition: QUEUED_DISPOSITION,
+            })
+          }
+        }
+        break
+      }
+      case 'todoChanged': {
+        if (this.session !== undefined) {
+          this.noteTodoList(this.session.sessionId, event.items)
+        }
+        break
+      }
       case 'turnWithdrawn': {
+        this.forgetQueuedTurn(event.turnId)
         // It will never run: a late acceptance must not make it the running turn.
         this.finishedTurns.add(event.turnId)
         this.turnClocks.delete(event.turnId)
@@ -1574,6 +1719,7 @@ export class ConversationController {
         break
       }
       case 'turnCompleted': {
+        this.forgetQueuedTurn(event.turnId, true)
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -2872,6 +3018,7 @@ export class ConversationController {
       // Someone else's file (M84): the panel offers no Insert or Apply on it.
       ...(this.importedSessionIds.has(sessionId) && { imported: true }),
     })
+    this.noteTodoList(sessionId, history.todos)
   }
 
   /** A side panel may only load its own fork; Model API also checks its durable marker. */
@@ -3216,12 +3363,7 @@ export class ConversationController {
         this.attachments.clear()
         this.post({ type: 'attachmentsCleared' })
       }
-      for (const image of images) {
-        const added = this.attachments.add(image.mediaType, Buffer.from(image.base64Data, 'base64'))
-        if (added.ok) {
-          this.post({ type: 'attachmentAdded', attachment: added.attachment })
-        }
-      }
+      this.returnImages(images)
       this.post({ type: 'restoreDraft', text: message.text })
       return true
     } catch (error: unknown) {
@@ -3230,6 +3372,23 @@ export class ConversationController {
       }
       return false
     }
+  }
+
+  /**
+   * A message's images back in the composer (M53's rewind, M87's Edit on a
+   * queued message); true when every one came back.
+   */
+  private returnImages(images: readonly SentImage[]): boolean {
+    let isEveryImageBack = true
+    for (const image of images) {
+      const added = this.attachments.add(image.mediaType, Buffer.from(image.base64Data, 'base64'))
+      if (added.ok) {
+        this.post({ type: 'attachmentAdded', attachment: added.attachment })
+      } else {
+        isEveryImageBack = false
+      }
+    }
+    return isEveryImageBack
   }
 
   /** A separate Plan-mode fork, leaving this surface attached (M53). */
@@ -4708,6 +4867,7 @@ export class ConversationController {
           this.pendingPlanTurnIds.add(turnId)
         }
       }
+      this.noteQueuedMessage(submittedSession, localId, submission)
       // A queued turn is not the running one, and an ack that lands after its
       // own turn completed must not mark it running again (D26).
       if (submission.disposition !== QUEUED_DISPOSITION && !this.finishedTurns.has(turnId)) {
@@ -4720,6 +4880,7 @@ export class ConversationController {
         ...(submission.userMessageId !== undefined && {
           userMessageId: submission.userMessageId,
         }),
+        disposition: submission.disposition,
       })
       this.noteActivity()
       return { isAccepted: true, hasSetTodos: seededSession !== undefined, turnId }
@@ -4744,6 +4905,93 @@ export class ConversationController {
         this.noteMuseCodeFault(error)
       }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    }
+  }
+
+  /**
+   * A message the backend queued or steered, where its session can take one
+   * back (M87, PLAN.md D66): kept under its card's id for an Edit. Not one
+   * whose queued turn already started or ended before this ack (D26).
+   */
+  private noteQueuedMessage(
+    session: AgentSession,
+    localId: string,
+    submission: TurnSubmission,
+  ): void {
+    const { turnId, disposition } = submission
+    const isQueued = disposition === QUEUED_DISPOSITION
+    if (
+      session.withdrawQueued === undefined ||
+      !(isQueued || disposition === STEERED_DISPOSITION) ||
+      this.finishedTurns.has(turnId) ||
+      (isQueued && this.activeTurnId === turnId)
+    ) {
+      return
+    }
+    this.queuedMessages.set(localId, {
+      turnId,
+      userMessageId: submission.userMessageId,
+      disposition,
+    })
+  }
+
+  /**
+   * Edit on a queued message (M87, PLAN.md D66): the session takes it back
+   * if the model does not have it yet. Only a message this conversation
+   * accepted as queued or steered, under the ids the card names, is asked
+   * for; anything else is refused before the backend hears of it. Taken
+   * back, its images return to the composer and the card is told; too late,
+   * the card stays and says why.
+   */
+  private async withdrawQueued(
+    message: Extract<ConversationMessage, { type: 'withdrawQueued' }>,
+  ): Promise<void> {
+    const { localId } = message
+    if (this.withdrawals.has(localId)) {
+      // The first Edit's answer is on its way.
+      return
+    }
+    const refuse = (reason: string) => {
+      this.post({ type: 'withdrawRefused', localId, reason })
+    }
+    const { session } = this
+    const queued = this.queuedMessages.get(localId)
+    const isQueuedHere =
+      queued?.turnId === message.turnId && queued.userMessageId === message.userMessageId
+    if (!isQueuedHere || session?.withdrawQueued === undefined) {
+      this.deps.log.info(`Queued message ${localId} not withdrawn: it is not queued here`)
+      refuse(UI_TEXT.queuedTooLate)
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    this.withdrawals.add(localId)
+    try {
+      const outcome = await session.withdrawQueued(queued)
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      this.queuedMessages.delete(localId)
+      if (outcome.status === 'tooLate') {
+        this.deps.log.info(`Queued message ${localId} not withdrawn: it reached the model`)
+        refuse(UI_TEXT.queuedTooLate)
+        return
+      }
+      for (const key of [localId, queued.userMessageId]) {
+        if (key !== undefined) {
+          this.acceptedUserCards.delete(key)
+        }
+      }
+      // A backend that keeps no bytes gives no images back (undefined).
+      const isKept = outcome.images !== undefined && this.returnImages(outcome.images)
+      this.deps.log.info(`Queued message ${localId} withdrawn`)
+      this.post({ type: 'queuedWithdrawn', localId, attachmentsKept: isKept })
+    } catch (error: unknown) {
+      this.deps.log.warn(`Withdrawing queued message ${localId} failed: ${failureForLog(error)}`)
+      if (this.isCurrentSessionAction(session, generation)) {
+        refuse(describe(error))
+      }
+    } finally {
+      this.withdrawals.delete(localId)
     }
   }
 
@@ -5212,6 +5460,8 @@ export class ConversationController {
     // name this conversation.
     this.pendingHandoff = undefined
     this.dropSession()
+    // The tasks tab's conversation is gone with it (M87).
+    this.endTasksTab()
     this.isSideChat = this.deps.surface.isSideChat === true
     // A new conversation is new: the session a restart or crash left to
     // resume is not picked up by its first message (D25).
@@ -5564,6 +5814,11 @@ export class ConversationController {
     if (action === 'reload') {
       // The webview's error boundary asked for a fresh document (M11).
       this.deps.surface.reload()
+      return
+    }
+    if (action === 'openTasksTab') {
+      // The tab mirrors this surface's conversation (M87): the controller's own.
+      this.openTasksTab()
       return
     }
     // A restart asked for from a fault's notice: the session it names is
@@ -6014,13 +6269,31 @@ export class ConversationController {
   private async dispatch(message: ConversationMessage): Promise<void> {
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
-      // A command the panel waits on hears the refusal too (M45, M74), or
-      // the prompt's `/goal …` or `/handoff …`, the goal strip's Save and the
-      // handoff dialog's Start stay waiting after admission returns.
-      if (message.type === 'goalCommand') {
-        this.post({ type: 'goalCommandResult', requestId: message.requestId, accepted: false })
-      } else if (message.type === 'requestHandoff' || message.type === 'confirmHandoff') {
-        this.post({ type: 'handoffCommandResult', requestId: message.requestId, accepted: false })
+      // A command the panel waits on hears the refusal too (M45, M74, M87),
+      // or the prompt's `/goal …` or `/handoff …`, the goal strip's Save, the
+      // handoff dialog's Start and a queued card's Edit stay waiting after
+      // admission returns.
+      switch (message.type) {
+        case 'goalCommand': {
+          this.post({ type: 'goalCommandResult', requestId: message.requestId, accepted: false })
+          break
+        }
+        case 'requestHandoff':
+        case 'confirmHandoff': {
+          this.post({ type: 'handoffCommandResult', requestId: message.requestId, accepted: false })
+          break
+        }
+        case 'withdrawQueued': {
+          this.post({
+            type: 'withdrawRefused',
+            localId: message.localId,
+            reason: UI_TEXT.notSignedInReason,
+          })
+          break
+        }
+        default: {
+          break
+        }
       }
       return
     }
@@ -6033,6 +6306,10 @@ export class ConversationController {
           message.includeEditorContext === true,
           message.reference,
         )
+        break
+      }
+      case 'withdrawQueued': {
+        await this.withdrawQueued(message)
         break
       }
       case 'cancelTurn': {
@@ -6624,6 +6901,8 @@ export class ConversationController {
         this.attachments.clear()
         this.post({ type: 'conversationCleared', accountBoundary: true })
         this.post({ type: 'attachmentsCleared' })
+        // The tasks tab's conversation ends at the account boundary too (M87).
+        this.endTasksTab()
       }
       this.sessionRecords = new Map()
       this.postSessionList()
@@ -6711,6 +6990,7 @@ export class ConversationController {
     this.deltaTimer = undefined
     this.pendingDelta = undefined
     this.dropSession()
+    this.endTasksTab()
     this.forgetModels()
     this.listWatch.dispose()
     this.usageWatch.dispose()
