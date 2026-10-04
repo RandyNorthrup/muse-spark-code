@@ -59,7 +59,7 @@ function decodeEntities(text) {
 async function scan(chrome, port, page, lang, profileDir) {
   const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
-    if (page.scenario === 'share-narrow') {
+    if (page.scenario === 'share-narrow' || page.scenario === 'chat-menu-narrow') {
       return await withNarrowPage(chrome, profileDir, url, async (tab) => {
         const result = tab.locator('#axe-result')
         await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })

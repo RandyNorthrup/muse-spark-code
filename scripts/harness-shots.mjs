@@ -6,6 +6,8 @@
 //
 //   node scripts/harness-shots.mjs            all scenarios → harness-shots/
 //   node scripts/harness-shots.mjs palette    one scenario
+//   node scripts/harness-shots.mjs chat-menu --theme=dark  captured theme
+//   node scripts/harness-shots.mjs chat-menu-narrow --theme=light  320 px
 //   node scripts/harness-shots.mjs --lang=de  in l10n/ui.de.json → harness-shots/de/
 //   node scripts/harness-shots.mjs --lang=pseudo   in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/harness-shots.mjs
@@ -33,14 +35,15 @@ const WINDOW_SIZE = '690,760'
 const VIRTUAL_TIME_BUDGET_MS = 6000
 const execFileAsync = promisify(execFile)
 const repoRoot = process.cwd()
+const THEMES = new Set(['light', 'dark', 'hc-dark', 'hc-light'])
 
-async function shoot(chrome, port, scenario, lang, outDir, profileDir) {
+async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const file = path.join(outDir, `${scenario}.png`)
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}`
-  if (scenario === 'share-narrow') {
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${scenario}${langQuery(lang)}${theme === undefined ? '' : `&theme=${theme}`}`
+  if (scenario === 'share-narrow' || scenario === 'chat-menu-narrow') {
     await withNarrowPage(chrome, profileDir, url, async (page) => {
-      await page.getByRole('dialog').waitFor()
-      await page.screenshot({ path: file })
+      await page.getByRole(scenario === 'share-narrow' ? 'dialog' : 'menu').waitFor()
+      await page.screenshot({ path: file, animations: 'disabled' })
     })
     return file
   }
@@ -66,14 +69,21 @@ async function main() {
   if (chrome === undefined) {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
-  const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
+  const args = process.argv.slice(2)
+  const theme = args.find((arg) => arg.startsWith('--theme='))?.slice('--theme='.length)
+  if (theme !== undefined && !THEMES.has(theme)) {
+    throw new Error(`Unknown theme: ${theme}`)
+  }
+  const { lang, scenarios: requested } = harnessArgs(
+    args.filter((arg) => !arg.startsWith('--theme=')),
+  )
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}. Known: ${SCENARIOS.join(', ')}`)
   }
   await prepareLang(repoRoot, lang)
   const scenarios = requested.length > 0 ? requested : SCENARIOS
-  const outDir = path.join(repoRoot, OUT_DIR, lang ?? '')
+  const outDir = path.join(repoRoot, OUT_DIR, lang ?? '', theme ?? '')
   await mkdir(outDir, { recursive: true })
   // Chrome's profile lives in a temporary directory for the run, not beside
   // the screenshots, and goes when the run ends.
@@ -81,7 +91,7 @@ async function main() {
   const { server, port } = await serveRepo(repoRoot)
   try {
     for (const scenario of scenarios) {
-      const file = await shoot(chrome, port, scenario, lang, outDir, profileDir)
+      const file = await shoot(chrome, port, scenario, lang, theme, outDir, profileDir)
       console.log(`${scenario}: ${path.relative(repoRoot, file)}`)
     }
   } finally {

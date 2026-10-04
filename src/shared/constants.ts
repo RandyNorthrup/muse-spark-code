@@ -16,6 +16,15 @@ export const CHAT_PANEL_VIEW_TYPE = 'museSpark.chatPanel'
 // `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
 export const WALKTHROUGH_QUALIFIED_ID = `${EXTENSION_QUALIFIED_ID}#${WALKTHROUGH_ID}`
+// M87 F: radial menu geometry, shared by the pure layout and its renderer.
+export const GOOEY_MENU = {
+  bubbleSize: 40,
+  edgePadding: 8,
+  radius: 76,
+  gap: 12,
+  blur: 10,
+} as const
+
 export const COMMAND_IDS = {
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
