@@ -154,6 +154,7 @@ describe('team conflict prediction', () => {
   })
 
   it('publishes restarted results while an old read remains unresolved', async () => {
+    vi.useFakeTimers()
     const state = fixture()
     const old = Promise.withResolvers<readonly PredictionTask[]>()
     const reads = vi
@@ -161,12 +162,12 @@ describe('team conflict prediction', () => {
       .mockReturnValueOnce(old.promise)
       .mockResolvedValue(state.tasks)
     const predictor = new ConflictPredictor({ ...state.deps, readTasks: reads })
+    predictor.start()
     const oldPoll = predictor.poll()
     predictor.stop()
     predictor.start()
-    const newPoll = predictor.poll()
+    await vi.advanceTimersByTimeAsync(TEAM_DIFF_POLL_MS)
     expect(reads).toHaveBeenCalledTimes(2)
-    await newPoll
     expect(state.events).toHaveLength(3)
     old.resolve([])
     await oldPoll

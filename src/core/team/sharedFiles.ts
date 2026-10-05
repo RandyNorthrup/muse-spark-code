@@ -1,4 +1,3 @@
-import nodePath from 'node:path'
 import * as z from 'zod/mini'
 import { TEAM_WRITE_SET_MAX } from '../../shared/constants'
 import { teamSharedFileSchema } from '../../shared/team'
@@ -22,14 +21,19 @@ export function canonicalTeamPath(
 ): string {
   const slashes = path.replaceAll('\\', '/')
   if (slashes.startsWith('/') || slashes.includes('\0')) throw new RangeError('writes')
-  const normalized = nodePath.posix.normalize(slashes).replace(/\/$/, '')
-  if (
-    normalized === '.' ||
-    normalized === '..' ||
-    normalized.startsWith('../') ||
-    /^[A-Za-z]:/.test(normalized)
-  )
-    throw new RangeError('writes')
+  const parts: string[] = []
+  for (const part of slashes.split('/')) {
+    if (part === '' || part === '.') continue
+    if (part === '..') {
+      if (parts.length === 0) throw new RangeError('writes')
+      parts.pop()
+    } else {
+      if (parts.length === 0 && /^[A-Za-z]:/.test(part)) throw new RangeError('writes')
+      parts.push(part)
+    }
+  }
+  const normalized = parts.join('/')
+  if (normalized === '') throw new RangeError('writes')
   return isCaseInsensitive ? normalized.toLowerCase() : normalized
 }
 

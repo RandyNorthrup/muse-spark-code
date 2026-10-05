@@ -144,7 +144,7 @@ artifacts. No model call ran and no spend was incurred.
 | Shared files                        | JSON/changelog no-lock policy, root anchoring, Windows case folding                                                                                                                       |
 | Prediction                          | integration state, landing routine, one notification, late-stop suppression                                                                                                               |
 
-## Current blocker and bounded stop
+## Original blocker and bounded stop (superseded by FIXM96CC)
 
 The real-Git fixture first passed at snapshot `e785c620` in 4.733 seconds.
 Later runs crossed its unchanged 5,000 ms limit. Two performance fixes were
@@ -180,7 +180,7 @@ This has its own positive/negative test and the `lease-retired-pipeline`
 red drill. The earlier active-parent-only implementation was insufficient
 for a QA step after retirement.
 
-## Final observed receipts
+## Original lane receipts (historical)
 
 | Check                                              | Machine       | Result                                  | Snapshot   |
 | -------------------------------------------------- | ------------- | --------------------------------------- | ---------- |
@@ -240,17 +240,17 @@ pass those files: 27/27, exit 0. The original hint-expiry assertion was
 corrected to retain an answer when querying a different repository; expiry
 now means actual hint disappearance in the corresponding scope.
 
-| Finding                             | Resolution                                                                                                                                                                                                                                                                | Named regression                                                                                                                                                                | Red drill IDs                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 1 (P2) repository merge downgrade   | Effective order preserves explicit user choices, strict built-ins, and strict repository additions over repository text rules, including overlapping patterns. Existing identical-pattern validation stays.                                                               | `preserves strict built-ins and user authority across overlapping repository rules`                                                                                             | `F1-trusted-precedence`, `F1-repository-no-downgrade`                                  |
-| 2 (P2) path aliases                 | One confined lexical normalizer resolves separators and dot segments before matching declarations, base files, role permissions, growth and hints. Stored lease paths fold on insensitive volumes; the host can select volume case policy explicitly.                     | `canonicalizes path aliases before leasing, role clipping, growth and hint matching`; `folds case consistently on insensitive filesystems and preserves sensitive distinctions` | `F2-lexical-identity`, `F2-case-identity`                                              |
-| 3 (P2) narrower JSON globs          | Bounded fixed prefix/suffix containment, character classes and brace alternatives prove narrower merge-kind globs exempt. Wider globs that may create ordinary files and overlapping higher-priority text overrides keep conservative leases.                             | `exempts narrower merge-kind globs while leasing globs that can create ordinary files`                                                                                          | `F3-contained-globs`, `F3-text-override`, `F3-brace-containment`, `F3-compiler-bounds` |
-| 4 (P2) hint answers                 | Cache identity includes own window, other window, repository and each canonical path. Expiry uses the complete fresh hint snapshot for the queried scope, independent of the current task. A new path asks; a dropped path expires; surviving paths retain Continue/Wait. | `retains Continue and Wait for live hints across unrelated tasks, repositories and windows`                                                                                     | `F4-hint-snapshot-expiry`, `F4-answer-scope`                                           |
-| 5 (P2) asymmetric prediction        | Task-pair events and deduplication include `otherAttempt`. Integration events have no other task attempt; submission warnings identify both initial attempts.                                                                                                             | `identifies both attempts and notifies symmetrically when either task is reassigned`                                                                                            | `F5-both-attempt-identities`, `F5-both-attempt-events`                                 |
-| 6 (P2) restarted polling            | Stop detaches old pending work; only the owning generation clears pending state. A stale read returns before merging, so new polls work even when an old read never settles.                                                                                              | `starts fresh polling after restart and prevents an old finalizer from clearing new work`; `publishes restarted results while an old read remains unresolved`                   | `F6-generation-pending`, `F6-finalizer-ownership`, `F6-late-snapshot`                  |
-| 7 (P2) unsupported release headings | Unsupported ATX/setext release structure refuses all merge inputs with `structure` and the offending heading. Kept checks refuse unsupported structure too. Indented headings cannot be swallowed by multiline bullets; fenced examples are preserved.                    | `refuses unsupported release headings on every input and in the kept check`                                                                                                     | `F7-unsupported-heading`, `F7-kept-structure`, `F7-indented-heading`                   |
+| Finding                             | Resolution                                                                                                                                                                                                                                                                | Named regression                                                                                                                                                                | Red drill IDs                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1 (P2) repository merge downgrade   | Effective order preserves explicit user choices, strict built-ins, and strict repository additions over repository text rules, including overlapping patterns. Existing identical-pattern validation stays.                                                               | `preserves strict built-ins and user authority across overlapping repository rules`                                                                                             | `F1-trusted-precedence`, `F1-repository-no-downgrade`                                              |
+| 2 (P2) path aliases                 | One confined lexical normalizer resolves separators and dot segments before matching declarations, base files, role permissions, growth and hints. Stored lease paths fold on insensitive volumes; the host can select volume case policy explicitly.                     | `canonicalizes path aliases before leasing, role clipping, growth and hint matching`; `folds case consistently on insensitive filesystems and preserves sensitive distinctions` | `F2-lexical-identity`, `F2-case-identity`, `F2-root-confinement`, `F2-drive-root`, `F2-empty-path` |
+| 3 (P2) narrower JSON globs          | Bounded fixed prefix/suffix containment, character classes and brace alternatives prove narrower merge-kind globs exempt. Wider globs that may create ordinary files and overlapping higher-priority text overrides keep conservative leases.                             | `exempts narrower merge-kind globs while leasing globs that can create ordinary files`                                                                                          | `F3-contained-globs`, `F3-text-override`, `F3-brace-containment`, `F3-compiler-bounds`             |
+| 4 (P2) hint answers                 | Cache identity includes own window, other window, repository and each canonical path. Expiry uses the complete fresh hint snapshot for the queried scope, independent of the current task. A new path asks; a dropped path expires; surviving paths retain Continue/Wait. | `retains Continue and Wait for live hints across unrelated tasks, repositories and windows`                                                                                     | `F4-hint-snapshot-expiry`, `F4-answer-scope`                                                       |
+| 5 (P2) asymmetric prediction        | Task-pair events and deduplication include `otherAttempt`. Integration events have no other task attempt; submission warnings identify both initial attempts.                                                                                                             | `identifies both attempts and notifies symmetrically when either task is reassigned`                                                                                            | `F5-both-attempt-identities`, `F5-both-attempt-events`                                             |
+| 6 (P2) restarted polling            | Stop detaches old pending work; only the owning generation clears pending state. A stale read returns before merging, so new polls work even when an old read never settles.                                                                                              | `starts fresh polling after restart and prevents an old finalizer from clearing new work`; `publishes restarted results while an old read remains unresolved`                   | `F6-generation-pending`, `F6-finalizer-ownership`, `F6-late-snapshot`                              |
+| 7 (P2) unsupported release headings | Unsupported ATX/setext release structure refuses all merge inputs with `structure` and the offending heading. Kept checks refuse unsupported structure too. Indented headings cannot be swallowed by multiline bullets; fenced examples are preserved.                    | `refuses unsupported release headings on every input and in the kept check`                                                                                                     | `F7-unsupported-heading`, `F7-kept-structure`, `F7-indented-heading`                               |
 
-The eighteen distinct successful core drills ran complete owned files, each exited 1 on
+The twenty-one distinct successful core drills ran complete owned files, each exited 1 on
 its named regression, and restored SHA-256-identical source bytes in
 `finally`. Machine-readable receipts are in
 [m96c-c-fix-drills.json](m96c-c-fix-drills.json); raw reports and the runner
@@ -274,7 +274,7 @@ required certification and PLAN records.
 
 The real-Git test still covers ten actual branch commits, thirty tables,
 ten cumulative merge commits, a release after the fifth integration, all
-three hundred serial table merges/formatter steps, each saved-byte SHA-256,
+three hundred table merges/formatter steps over ordered integrations, each saved-byte SHA-256,
 all final values and raw integer/predecessor key order, every final
 committed blob and clean status. Per-path fixture values ensure accidentally
 reusing the first table's blob is observable. No assertion or deadline was
@@ -286,14 +286,65 @@ The failing old implementation took 7.406 seconds with the rig's diagnostic
 2.020 seconds. Three default-deadline runs passed at 1.870, 1.553 and 1.972
 seconds; no `--testTimeout` flag or per-test timeout was supplied. Those
 three runs preceded the fixture's final lint corrections. The final-source
-JSON/real-Git file pair also passes the default deadline, 25/25, exit 0
+JSON/real-Git file pair also passes the default deadline in 2.093 seconds, 25/25, exit 0
 (`temp/final-json-repository-default.json`). The unchanged five-second
 case deadline is now proven directly on macmini, superseding the stopped
 fixture record above.
 
 Together with the 27 core cases, the complete owned lane passes 52/52
-registered cases across five files. The nineteen distinct guard drills
-(eighteen core guards plus the fixture) have current successful receipts
+registered cases across five files. The twenty-two distinct guard drills
+(twenty-one core guards plus the fixture) have current successful receipts
 whose before/restored hashes independently match the final source files.
 All eight review findings are fixed; none is left as a named review
 residual. Final static/build checks are recorded in the next checkpoint.
+
+## FIXM96CC final verification — macmini, 2026-10-05
+
+Implementation checkpoint: `54c4d74be8763918e3437aa9c8ae0c3c4709afec`.
+The follow-up contains the final gate corrections and these receipts.
+
+| Check                 | Command / scope                                                                                                                                             | Result                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Core regressions      | `npx vitest run test/unit/teamCollisions.test.ts test/unit/teamConflictPredict.test.ts test/unit/teamChangelog.test.ts --maxWorkers=3 --testTimeout=120000` | 27/27 pass, exit 0                                                                                             |
+| JSON and real Git     | `npx vitest run test/unit/teamJsonTable.test.ts test/unit/teamCollisionRepositories.test.ts --maxWorkers=3`                                                 | 25/25 pass, exit 0; default five-second case deadline; real-Git body 2.093 s                                   |
+| Compiler projects     | `npm run typecheck`                                                                                                                                         | All five projects pass, exit 0                                                                                 |
+| Changed-file ESLint   | `npx eslint --max-warnings=0` over four source and four test files                                                                                          | Exit 0, no suppression added                                                                                   |
+| Changed-file Prettier | `npx prettier --check` over the eleven changed files                                                                                                        | Exit 0                                                                                                         |
+| Dead code             | `npm run deadcode` (plain knip)                                                                                                                             | Exit 0                                                                                                         |
+| Duplication           | `npx jscpd`                                                                                                                                                 | 842 files, 0 clones, exit 0                                                                                    |
+| Localization          | `npm run check:l10n`                                                                                                                                        | 14 tables, 120 manifest strings, 426 source files, 0 problems, exit 0                                          |
+| Host API              | `npm run check:host-api`                                                                                                                                    | 271 VS Code APIs, 18 importing files, 23 Node built-ins, 59 theme variables, 0 problems, exit 0                |
+| Production build      | `npm run build`                                                                                                                                             | All 17 JavaScript budgets, bundle split, host globals and 83-package notices pass, exit 0                      |
+| Guard proof           | Twenty-two distinct mutations, 42 successful executions                                                                                                     | Every named regression fails, exit 1; every latest successful before/restored SHA-256 matches the final source |
+| Commit hooks          | ESLint/Prettier and staged gitleaks                                                                                                                         | Implementation checkpoint passed; final follow-up uses the same hooks                                          |
+
+Final build sizes: extension 590.7/600 KiB, Model API 430.2/475 KiB,
+checkpoint store 135.7/225 KiB, webview JavaScript 866.2/900 KiB,
+ACP 801.0/850 KiB. These are the current product's budgets; lane C is
+still assembled into the team by X2, so this does not certify that future
+bundle or the complete scheduler.
+
+Two gates first fired on the repair itself and were corrected without
+changing their rules. jscpd found an eight-line setup duplicate; the second
+restart case now exercises the actual polling interval while the old read
+remains unresolved. The prediction drills were repeated against that test.
+The host API gate found the normalizer's extra `node:path` import (66 where
+the generated record says 65). A small confined lexical stack now resolves
+dot segments without that import, preserving the generated record and lane
+ownership. Regressions and drills additionally reject empty/root paths,
+root escapes, and drive prefixes before a later `..` can erase them. All
+shared-file drills were refreshed against the final normalizer.
+
+Raw final test/gate output and timing receipts remain in ignored `temp/`:
+`final-core.json`, `final-json-repository-default.json`, `final-gates.json`
+and the corresponding `final-*.log` files. Final successful drill receipts
+are permanent in `m96c-c-fix-drills.json`; earlier executions are explicitly
+historical. No dependency, gate, timeout, ignore, test registration or
+localization exemption changed. All eight RVM96CC findings are fixed;
+there is no deferred P2/P3 review finding in this lane (PLAN §9).
+
+No full quality run, push, merge, rebase, credential access, live model
+attempt or paid call occurred. The scoped full-quality exception is
+recorded in PLAN §7. The lead still owns full quality, the other rigs,
+S/K/Q/T2/X2 assembly, product README/CHANGELOG reconciliation and whole
+milestone certification.

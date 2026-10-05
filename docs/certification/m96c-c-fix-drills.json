@@ -413,6 +413,252 @@
       "mutant": "c5c4cfe8e15e9e82a1dbb1bf94030b33b3d4d406598b6cf9e5d4f643396b73f1",
       "fired": true,
       "restored": "cd5d016a5f93b6545015c392d36e377d7b5905d9b5f27fc05663b4503a92a232"
+    },
+    {
+      "id": "F5-both-attempt-identities",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "identifies both attempts",
+      "failures": [
+        "team conflict prediction identifies both attempts and notifies symmetrically when either task is reassigned"
+      ],
+      "before": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2",
+      "mutant": "7833c929f3a656c20ed4b43abd97203fbe52efc353fbbec5957b105f669da84a",
+      "fired": true,
+      "restored": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2"
+    },
+    {
+      "id": "F5-both-attempt-events",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "identifies both attempts",
+      "failures": [
+        "team conflict prediction identifies both attempts and notifies symmetrically when either task is reassigned"
+      ],
+      "before": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2",
+      "mutant": "2770fb9bf5e2ca664b2d9d9111774e3764c0df117e67b6c44ab45ae2f88d3187",
+      "fired": true,
+      "restored": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2"
+    },
+    {
+      "id": "F6-generation-pending",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "starts fresh polling after restart",
+      "failures": [
+        "team conflict prediction starts fresh polling after restart and prevents an old finalizer from clearing new work",
+        "team conflict prediction publishes restarted results while an old read remains unresolved"
+      ],
+      "before": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2",
+      "mutant": "aec78c4a578cd1c74cc532bbb7b923d5d2749bf3dd8fcfad3193217e1aaee0f5",
+      "fired": true,
+      "restored": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2"
+    },
+    {
+      "id": "F6-finalizer-ownership",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "starts fresh polling after restart",
+      "failures": [
+        "team conflict prediction starts fresh polling after restart and prevents an old finalizer from clearing new work"
+      ],
+      "before": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2",
+      "mutant": "8bff4e2fd4bdd501f7ad124c143c895b2b782d0b56bb683820a70ad05f450652",
+      "fired": true,
+      "restored": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2"
+    },
+    {
+      "id": "F6-late-snapshot",
+      "file": "src/core/team/conflictPredict.ts",
+      "test": "test/unit/teamConflictPredict.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "starts fresh polling after restart",
+      "failures": [
+        "team conflict prediction starts fresh polling after restart and prevents an old finalizer from clearing new work"
+      ],
+      "before": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2",
+      "mutant": "22a2b85cb9f055b476a2db94d8e232524d94cc1801ca097647936d621388ae54",
+      "fired": true,
+      "restored": "819aea426fa59ba893c5cdabf000cd802aca5dac4a6d26a13eaa0eb00dbad7f2"
+    },
+    {
+      "id": "F2-root-confinement",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "canonicalizes path aliases",
+      "failures": [
+        "team collision leases clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive",
+        "team collision leases canonicalizes path aliases before leasing, role clipping, growth and hint matching"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "a05637b1346bb0d2f1cf50eadf5388fa2b3b9c9a3326495718f89d679c57f912",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F2-drive-root",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "canonicalizes path aliases",
+      "failures": [
+        "team collision leases clips roles, conservatively overlaps future prefixes, and makes whole-tree/in-place writers exclusive",
+        "team collision leases canonicalizes path aliases before leasing, role clipping, growth and hint matching"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "82aa6fb55cb90c90ffad5e509b8d1d84cfe4caef588aa6433a3b52bba837f1b3",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F2-empty-path",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "canonicalizes path aliases",
+      "failures": [
+        "team collision leases canonicalizes path aliases before leasing, role clipping, growth and hint matching"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "9510b3e6a7cd1c1b42d4f4774a66f71aed4f0b0ac3b70bf4f7672ea15a2d9a99",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F3-brace-containment",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "exempts narrower merge-kind globs",
+      "failures": [
+        "team collision leases exempts narrower merge-kind globs while leasing globs that can create ordinary files"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "a20470a149bf6b4c54cff033f3a9f0a24d4c5b27c6b5f912326af646458a25f2",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F3-compiler-bounds",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "exempts narrower merge-kind globs",
+      "failures": [
+        "team collision leases exempts narrower merge-kind globs while leasing globs that can create ordinary files"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "9ee9914c51170a231049837755d381a83db9736af36ea961414a57f963921b83",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F1-trusted-precedence",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "preserves strict built-ins",
+      "failures": [
+        "team collision leases preserves strict built-ins and user authority across overlapping repository rules",
+        "team collision leases exempts narrower merge-kind globs while leasing globs that can create ordinary files"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "b6da73d482520e3f20b293d22305e9726d9e1a25bd43240fc2845c8acbf3bdd6",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F1-repository-no-downgrade",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "preserves strict built-ins",
+      "failures": [
+        "team collision leases preserves strict built-ins and user authority across overlapping repository rules"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "e664119b5934ff3c6f2cb6844facfec89568a73830ffe620d36745f0e5a1a57a",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F2-lexical-identity",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "canonicalizes path aliases",
+      "failures": [
+        "team collision leases canonicalizes path aliases before leasing, role clipping, growth and hint matching",
+        "team collision leases retains Continue and Wait for live hints across unrelated tasks, repositories and windows"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "0db4c087373731bc8523ea5fe2b942669ed5b066e557bf55904d34f09b30eb15",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F2-case-identity",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "folds case consistently",
+      "failures": [
+        "team collision leases folds case consistently on insensitive filesystems and preserves sensitive distinctions",
+        "team collision leases never serializes built-in JSON/changelog files, while declared text shared files serialize"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "08ba85df1e48485bb85f60e2ded288e32d839eaa939626b2b49701a09edb58f1",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F3-contained-globs",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "exempts narrower merge-kind globs",
+      "failures": [
+        "team collision leases exempts narrower merge-kind globs while leasing globs that can create ordinary files"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "46cc4784e2441c7be5df37f4fb05becf5d084ae14ffd2e986620764dc90b7eb4",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
+    },
+    {
+      "id": "F3-text-override",
+      "file": "src/core/team/sharedFiles.ts",
+      "test": "test/unit/teamCollisions.test.ts",
+      "rig": "macmini",
+      "exit": 1,
+      "expected": "exempts narrower merge-kind globs",
+      "failures": [
+        "team collision leases exempts narrower merge-kind globs while leasing globs that can create ordinary files"
+      ],
+      "before": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2",
+      "mutant": "5e15354719fe3b2f024315d63440bea23a9d2d5aefe9af72db2604af17169d5d",
+      "fired": true,
+      "restored": "d594e435c74393740e5427b0e5eb6132bfb1ef962b215a0ccf5e099349f299c2"
     }
   ]
 }

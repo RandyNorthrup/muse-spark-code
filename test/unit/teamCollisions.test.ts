@@ -221,8 +221,14 @@ describe('team collision leases', () => {
       expect(questions[0]?.paths).toEqual(['src/a.ts'])
     }
     for (const outside of [
+      '',
+      '.',
+      'src/..',
       'src/../../escape.ts',
       './C:/escape.ts',
+      './C:/../escape.ts',
+      './/C:/../escape.ts',
+      'src/../C:/../escape.ts',
       String.raw`\\server\file`,
       '/escape.ts',
     ])
