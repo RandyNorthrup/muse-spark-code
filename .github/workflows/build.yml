@@ -342,8 +342,9 @@ jobs:
             extension/dist/uiText.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
             extension/dist/sessionBoard.js extension/dist/reviewer.js \
             extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
-            extension/dist/webFetch.js \
-            extension/dist/webview/main.js extension/dist/webview/main.css; do
+            extension/dist/webFetch.js extension/dist/whatsNew.js extension/dist/whatsNew.json \
+            extension/dist/webview/main.js extension/dist/webview/main.css \
+            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
               exit 1

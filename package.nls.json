@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "How the browser check gets its browser: Google’s Chrome for Testing headless shell, pinned to this extension version and downloaded from storage.googleapis.com into the extension’s storage (about 100 to 120 MB for each pinned version). Only you can change this, never a repository’s settings.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Ask before downloading it.",
   "config.browserCheckRuntime.enumDescriptions.download": "Download it when a check needs it, without asking, now and for every later pinned version.",
-  "config.browserCheckRuntime.enumDescriptions.off": "No browser check: the tool is not offered and nothing is downloaded."
+  "config.browserCheckRuntime.enumDescriptions.off": "No browser check: the tool is not offered and nothing is downloaded.",
+  "command.showWhatsNew.title": "What's New",
+  "config.showWhatsNewOnUpdate.description": "On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it."
 }

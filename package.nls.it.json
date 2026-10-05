@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Come il controllo nel browser ottiene il suo browser: Chrome for Testing headless shell di Google, fissato per questa versione dell’estensione e scaricato da storage.googleapis.com nell’archivio dell’estensione (circa 100–120 MB per ogni versione fissata). Solo tu puoi modificarlo, mai le impostazioni di un repository.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Chiedi prima di scaricarlo.",
   "config.browserCheckRuntime.enumDescriptions.download": "Scaricalo quando un controllo ne ha bisogno, senza chiedere, ora e per ogni versione fissata successiva.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Nessun controllo nel browser: lo strumento non è offerto e non viene scaricato nulla."
+  "config.browserCheckRuntime.enumDescriptions.off": "Nessun controllo nel browser: lo strumento non è offerto e non viene scaricato nulla.",
+  "command.showWhatsNew.title": "Novità",
+  "config.showWhatsNewOnUpdate.description": "Attivato per impostazione predefinita: dopo un aggiornamento dell’estensione, Novità si apre in una scheda dell’editor quando la versione ha elementi in evidenza; dopo una patch di sole correzioni, una notifica discreta la propone al suo posto. Disattivato non mostra nulla dopo gli aggiornamenti; Muse Spark: Novità la apre comunque."
 }

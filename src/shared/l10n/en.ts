@@ -1832,6 +1832,27 @@ export const EN = {
     'a folder of that name exists that Muse Spark did not install, so it was left alone',
   bundledSkillsUnavailable:
     'The bundled skills installer could not be loaded; reinstall the extension and reload the window. The log has the details.',
+  // What's New after an update (M99, PLAN.md D79): the page's own words (the
+  // release notes stay English), the notice after a fixes-only patch, and its
+  // buttons. {version}, {from}, {to}: versions such as 0.13.0; {date}: a
+  // release's date in the display language.
+  whatsNewTitle: 'What’s New in Muse Spark Code',
+  whatsNewVersion: 'You’re on version {version}.',
+  whatsNewUpdatedFrom: 'Updated from {from} to {to}.',
+  whatsNewReleased: 'Released {date}',
+  whatsNewHighlights: 'Highlights',
+  whatsNewTryIt: 'Try it',
+  whatsNewOpenSetting: 'Open the setting',
+  whatsNewNotesInEnglish: 'The release notes are in English.',
+  whatsNewNoNotes: 'No release notes ship with version {version}.',
+  whatsNewFullChangelog: 'Full changelog on GitHub',
+  whatsNewReadme: 'README on GitHub',
+  whatsNewHideOnUpdate: 'Don’t show on updates',
+  whatsNewUpdatedNotice: 'Muse Spark Code updated to {version}.',
+  whatsNewOpen: 'What’s New',
+  whatsNewDontShowAgain: 'Don’t show again',
+  whatsNewUnavailable:
+    'What’s New could not be loaded; reinstall the extension and reload the window. The log has the details.',
   // The conversation's notices (they were English literals in the controller).
   notSignedInReason: 'Sign in before sending a message.',
   noWorkspaceReason: 'Open a folder first; Muse works inside a workspace.',

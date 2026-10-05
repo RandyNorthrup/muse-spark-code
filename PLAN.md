@@ -251,6 +251,9 @@ quality`) and as a CI job.
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
 | `dist/browserCheck.js`     | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                    |
 | `dist/browserRuntime.js`   | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                            |
+| `dist/whatsNew.js`         | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                          |
+| `dist/whatsNew.json`       | ≤ 40 KiB raw (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                          |
+| `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                        |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -4622,6 +4625,113 @@ Decisions (the owner chose the reviewer on 2026-10-03):
   (or a way to pick the reviewer over the protocol) goes with the event-log
   report; when it lands, the extension prefers it and keeps this reviewer as
   the fallback.
+
+### D79 — What's New after an update (M99, 2026-10-04)
+
+The owner asked (2026-10-04): "after the app updates it opens a whats new/
+changelog in whatever editor so the users can take advantage of any changes
+we make". His standing ruling: enhancements are on by default.
+
+- **When it shows.** On activation the running version is compared, by
+  semver precedence (prereleases included), with the newest version What's
+  New ran for (`globalState` key `museSpark.whatsNewLastSeenVersion`,
+  registered with `setKeysForSync`, so a page seen on one machine is not
+  shown again on another).
+  - No stored version and no sign of earlier use: a fresh install. The
+    version is recorded and nothing shows; the walkthrough and onboarding
+    cover new users.
+  - No stored version but signs of earlier use (any stored global key, a
+    remembered last session in the workspace, or the extension's global
+    storage folder, all read before activation writes anything): an upgrade
+    from a version before this feature. Without this, everyone updating to
+    the release that brings What's New would be taken for a new user and
+    never see it. Its page starts at the newest release with Highlights.
+  - A newer version: an upgrade, shown once. The same version or an older one
+    (a downgrade): nothing, and the newer record stays, so going back up shows
+    nothing again.
+  - It shows on the extension's first activation after the update (its view,
+    a command, a restored tab). The manifest gains no `onStartupFinished`:
+    activating the 550 KiB bundle in every window to announce an update is not
+    worth the startup cost.
+- **One window.** Several windows activate together after an update. The
+  window whose exclusive create (`open(…, 'wx')`) of
+  `<global storage>/whats-new/<version>.claim` succeeds shows it; the others
+  see the file and stay quiet. Chosen over a claim in `globalState` re-read
+  after a delay: the file system's exclusive create is atomic on one machine,
+  while `globalState`'s propagation between windows has no ordering guarantee
+  (two windows can each read the other's claim last, and neither shows it).
+  A claim that cannot be written (read-only storage) lets that window show
+  it, logged: a second tab is better than none. Keep the zero-byte claims of
+  other versions: an older window must not delete a newer window's claim
+  (nor a newer one delete an older window's still-active claim), allowing
+  another activation to show that version a second time.
+- **When in the window.** Some seconds after activation
+  (`WHATS_NEW_SETTLE_MS`), and then only while no conversation runs a turn
+  and no document was edited for `WHATS_NEW_QUIET_MS` (checked every
+  `WHATS_NEW_IDLE_POLL_MS`). The tab opens with `preserveFocus`, so the
+  keyboard stays where it was. A pending notification's answer is ignored
+  after disposal, so it cannot reopen a tab or write settings in that window.
+- **Page or notice (the rule).** An update whose releases (every one after
+  the version updated from, up to the running one) include one with a
+  `### Highlights` list opens the page. Otherwise (a patch of fixes only) a
+  quiet notification, "Muse Spark Code updated to x.y.z", offers **What's
+  New** (the page for those releases) and **Don't show again** (the setting
+  off). The choice is by content, not by version arithmetic; the changelog
+  guard below makes every minor or major release carry Highlights.
+- **What it shows.** A webview editor tab, "What's New in Muse Spark Code":
+  every fork the compatibility docs list has webviews, where
+  `markdown.showPreview` is not universal. For each release, newest first:
+  its Highlights (each may carry a **Try it** button) and then its shipped notes.
+  The footer links the full CHANGELOG and the README on GitHub and carries a
+  **Don't show on updates** box bound to the setting.
+- **Try it.** A Highlight ends with `<!-- try: command <id> -->` or
+  `<!-- try: setting <id> -->` (an HTML comment: invisible on GitHub, the
+  Marketplace and VS Code's changelog tab). The build fails on an id the
+  manifest does not contribute, in `[Unreleased]` too (so the change that
+  adds one fails, not the release); the page renders a button only for a
+  command in `COMMAND_IDS` or a setting in `SETTING_DEFAULTS`. The page sends
+  an index into the host's list of the buttons it rendered, never an id, so
+  nothing else can run. (A second check at click time was dropped in review:
+  that list holds only allowed entries, so it could never fire, and its red
+  drill proved it.)
+- **Content.** Built at build time from CHANGELOG.md
+  (`scripts/lib/whatsNewContent.mjs`, mdast with GFM) into
+  `dist/whatsNew.json`: released sections only (`[Unreleased]` never), as a
+  tree of text-only parts read through a zod schema before use. Raw HTML never
+  becomes markup (comments are dropped, other tags kept as their literal
+  text); pictures are their alt text; relative links point at the repository;
+  links with a scheme other than http or https are kept as text. The build
+  validates every release and `[Unreleased]`, but ships full notes for only
+  the newest two releases (`FULL_NOTES_RELEASES`, build-time constant in the
+  generator). Eight releases measured 177,802 bytes; two cover the current
+  release and its immediate predecessor within a hard 40 KiB raw content
+  budget. If neither has Highlights, retain the newest earlier Highlights
+  with its notes omitted. Older upgrades still have those Highlights and
+  the full-changelog link; older details live at that link. The size gate
+  rejects both missing content and content one byte over the budget.
+- **Security.** Strict CSP (`default-src 'none'`, the stylesheet from the
+  webview origin, one script by nonce, no inline style); every piece of text
+  escaped on the host; links carry their address for keyboards and screen
+  readers, but the page sends their index and the host opens its own copy
+  through `vscode.env.openExternal`.
+- **Setting and command.** `museSpark.showWhatsNewOnUpdate` (boolean,
+  default `true`, machine-scoped: the manifest test allows only machine or
+  window scope, and a page that opens by itself is the user's choice, never a
+  repository's). **Muse Spark: What's New** opens the current version's page
+  at any time (back to the newest release with Highlights), and the panel's
+  palette lists it under Support.
+- **Light.** The renderer, schema and tab are `dist/whatsNew.js` (D6, ≤ 50
+  KiB), required on the first page or notice; the page script is
+  `dist/webview/whatsNew.js` (≤ 25 KiB) with no package and no display
+  table. Activation carries only the version check, the claim and the loader.
+- **Language.** The page's own words are in all 14 tables; the release notes
+  stay English (CHANGELOG.md is written in English), marked `lang="en"`, and
+  a line says so in other languages.
+- **Release process.** A minor or major release's CHANGELOG section must
+  carry `### Highlights` with 1 to 5 bullets (3 to 5 recommended), and no
+  release being made may have more than 5; the changelog-version test fails
+  otherwise (`docs/RELEASING.md`). Older releases are taken as written
+  (0.10.0 has ten).
 
 ## 3. Open questions (need the owner)
 
@@ -14011,6 +14121,67 @@ live) and the controller filters its id as well.
   - [x] Acceptance 1–6 with tests and drills (`docs/certification/m90.md`).
   - [x] Live check recorded with its call count.
   - [x] README, PRIVACY, CHANGELOG, PLAN D7 and this record updated.
+
+### M99 — What's New after an update (D79)
+
+**Status 2026-10-04: built on `feature/m99-whats-new`; record in
+`docs/certification/m99.md`.** Activation's side is
+`src/host/whatsNew/whatsNew.ts` (the check, the claim, the wait for a quiet
+window, the loader) over `src/core/whatsNew/whatsNewVersions.ts` (semver,
+the install or upgrade decision, the releases a page shows, page or notice).
+`dist/whatsNew.js` is `whatsNewEntry.ts`, `whatsNewPanel.ts` (the tab and
+its messages) and `whatsNewHtml.ts` (the page, the Try it allow list) over
+`src/core/whatsNew/whatsNewContent.ts` (the schema).
+
+- **Goal.** After an update the user sees what changed and can try it, once,
+  in one window, without losing focus or interrupting a turn.
+- **Scope.** D79: the content generator in `npm run build`; the update
+  check, claim and timing; the page, its script and stylesheet; the setting,
+  the command and the palette item; the changelog guard; strings in all 14
+  tables; README, RELEASING, CHANGELOG (with this release's Highlights), the
+  host API record, this plan and `docs/certification/m99.md`.
+- **Acceptance.**
+  1. A fresh install records its version and shows nothing.
+  2. An upgrade shows the page once, in the background, after the window
+     settles; the next activation of that version shows nothing.
+  3. Of several windows activating together, exactly one shows it.
+  4. The same version or a downgrade shows nothing, keeping the newer record.
+  5. The setting off shows nothing (the version is still recorded).
+  6. A fixes-only patch shows the notification; **What's New** opens the
+     page, **Don't show again** turns the setting off.
+  7. Nothing shows while a turn runs or within `WHATS_NEW_QUIET_MS` of an
+     edit.
+  8. A Try it for a command or setting the extension does not contribute
+     fails the build, is never rendered, and is refused if asked for.
+  9. The page has its CSP with the load's nonce, escapes the notes, and opens
+     links through `openExternal` from the host's own list.
+  10. `dist/whatsNew.js` and the page script are not in `dist/extension.js`;
+      the page script carries no package or display table.
+  11. The generator keeps released sections only (`[Unreleased]` excluded)
+      and splits them at their headings.
+  12. A minor release without Highlights fails the changelog test.
+  13. The shipped content keeps only the newest two releases' full notes,
+      plus the newest earlier Highlights when needed; upgrades from before
+      that window still show Highlights and the full-changelog link.
+      `dist/whatsNew.json` has a hard 40 KiB raw budget, red-drilled, and the
+      packaged VSIX is compared with main `bf77aabe` on the same rig.
+- **Tests.** `whatsNewVersions`, `whatsNewContent` (the generator),
+  `whatsNewHtml` (with axe in jsdom), `whatsNewPanel`, `whatsNew`,
+  `whatsNewPage`, `whatsNewBundle` (the shipped bundle against a stand-in
+  `vscode`), `changelogVersion`, `manifest`, `settings`, `App`; each guard
+  red-drilled on a rig.
+- **Gates.** The full quality gate; D6 budgets with the two new rows; the
+  bundle-split gate's new entries; check-l10n; host API.
+- **Certification checklist.**
+  - [x] Acceptance 1–12 with tests and drills (`docs/certification/m99.md`).
+  - [x] Strings in all 14 tables (check-l10n 0 problems).
+  - [x] Full quality gate on Kubuntu at `b23e1181`, exit 0 (m99.md).
+  - [x] Acceptance 13 and FIXM99 review fixes at `696ec15d`: JSON 34,410
+        bytes, hard 40 KiB cap, 282 targeted tests passed, drills fired
+        (win11; m99.md).
+  - [x] Local Windows VSIX 2,102,696 bytes, within 2200 KiB, +36,468 bytes
+        versus main `bf77aabe` on the same rig (without the macOS helper).
+  - [ ] Universal VSIX within its 2200 KiB budget (hosted CI package job).
 
 ### M41 — Install Muse Code from the panel (folded into M55)
 

@@ -80,6 +80,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly browserCheckRuntime: BrowserRuntimeMode
   /** The skills that ship with the extension (M89, PLAN.md D68). */
   readonly bundledSkills: boolean
+  /** What's New after an update (M99, PLAN.md D79). */
+  readonly showWhatsNewOnUpdate: boolean
   /** Notify when a turn needs attention while the window is unfocused (M82). */
   readonly notifyOnBackgroundTurn: boolean
   /** Tokens and the dollar estimate under each Model API reply (M82). */
@@ -138,6 +140,7 @@ const settingSchemas = {
     .check(z.maxLength(BROWSER_CHECK_EXTRA_HOSTS_MAX)),
   browserCheckRuntime: z.enum(BROWSER_RUNTIME_MODES),
   bundledSkills: z.boolean(),
+  showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
   modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
@@ -218,6 +221,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),
     bundledSkills: readSetting(config, 'bundledSkills', log),
+    showWhatsNewOnUpdate: readSetting(config, 'showWhatsNewOnUpdate', log),
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),

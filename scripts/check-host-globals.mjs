@@ -27,6 +27,7 @@ const HOST_BUNDLES = [
   'dist/voice.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
+  'dist/whatsNew.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
 ]

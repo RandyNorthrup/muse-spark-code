@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Skąd kontrola w przeglądarce bierze przeglądarkę: Chrome for Testing headless shell firmy Google, przypięty do tej wersji rozszerzenia i pobierany z storage.googleapis.com do magazynu rozszerzenia (około 100–120 MB na każdą przypiętą wersję). Tylko Ty możesz to zmienić, nigdy ustawienia repozytorium.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Pytaj przed pobraniem.",
   "config.browserCheckRuntime.enumDescriptions.download": "Pobieraj, gdy kontrola go potrzebuje, bez pytania, teraz i dla każdej kolejnej przypiętej wersji.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Bez kontroli w przeglądarce: narzędzie nie jest oferowane i nic nie jest pobierane."
+  "config.browserCheckRuntime.enumDescriptions.off": "Bez kontroli w przeglądarce: narzędzie nie jest oferowane i nic nie jest pobierane.",
+  "command.showWhatsNew.title": "Nowości",
+  "config.showWhatsNewOnUpdate.description": "Domyślnie włączone: po aktualizacji rozszerzenia Nowości otwierają się na karcie edytora, gdy wydanie ma najważniejsze zmiany; po poprawce zawierającej tylko poprawki zamiast tego proponuje je dyskretne powiadomienie. Wyłączone nie pokazuje nic po aktualizacjach; Muse Spark: Nowości nadal je otwiera."
 }

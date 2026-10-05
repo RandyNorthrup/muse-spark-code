@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Tarayıcı denetiminin tarayıcısını nasıl edindiği: bu uzantı sürümüne sabitlenmiş ve storage.googleapis.com adresinden uzantının depolama alanına indirilen Google Chrome for Testing headless shell (sabitlenen her sürüm için yaklaşık 100–120 MB). Bunu yalnızca siz değiştirebilirsiniz, bir deponun ayarları asla değiştiremez.",
   "config.browserCheckRuntime.enumDescriptions.ask": "İndirmeden önce sor.",
   "config.browserCheckRuntime.enumDescriptions.download": "Bir denetim ihtiyaç duyduğunda sormadan indir; şimdi ve sonraki her sabitlenen sürüm için.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Tarayıcı denetimi yok: araç sunulmaz ve hiçbir şey indirilmez."
+  "config.browserCheckRuntime.enumDescriptions.off": "Tarayıcı denetimi yok: araç sunulmaz ve hiçbir şey indirilmez.",
+  "command.showWhatsNew.title": "Yenilikler",
+  "config.showWhatsNewOnUpdate.description": "Varsayılan olarak açık: uzantı güncellendikten sonra, sürümde öne çıkanlar varsa Yenilikler bir düzenleyici sekmesinde açılır; yalnızca düzeltme içeren bir yamadan sonra bunun yerine sessiz bir bildirim bunu önerir. Kapalıyken güncellemelerde hiçbir şey gösterilmez; Muse Spark: Yenilikler yine de açar."
 }

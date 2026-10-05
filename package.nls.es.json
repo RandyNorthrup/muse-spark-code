@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Cómo obtiene su navegador la comprobación en el navegador: Chrome for Testing headless shell de Google, fijado para esta versión de la extensión y descargado de storage.googleapis.com en el almacenamiento de la extensión (unos 100 a 120 MB por cada versión fijada). Solo usted puede cambiar esto, nunca la configuración de un repositorio.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Preguntar antes de descargarlo.",
   "config.browserCheckRuntime.enumDescriptions.download": "Descargarlo cuando una comprobación lo necesite, sin preguntar, ahora y para cada versión fijada posterior.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Sin comprobación en el navegador: la herramienta no se ofrece y no se descarga nada."
+  "config.browserCheckRuntime.enumDescriptions.off": "Sin comprobación en el navegador: la herramienta no se ofrece y no se descarga nada.",
+  "command.showWhatsNew.title": "Novedades",
+  "config.showWhatsNewOnUpdate.description": "Activado de forma predeterminada: tras actualizarse la extensión, Novedades se abre en una pestaña del editor cuando la versión tiene aspectos destacados; tras un parche solo con correcciones, una notificación discreta la ofrece en su lugar. Desactivado no muestra nada al actualizar; Muse Spark: Novedades la sigue abriendo."
 }

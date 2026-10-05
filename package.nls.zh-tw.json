@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "瀏覽器檢查取得瀏覽器的方式：Google 的 Chrome for Testing headless shell，固定為此延伸模組版本，從 storage.googleapis.com 下載到延伸模組的儲存空間（每個固定版本約 100 到 120 MB）。只有你可以變更此項，存放庫的設定不能。",
   "config.browserCheckRuntime.enumDescriptions.ask": "下載前詢問。",
   "config.browserCheckRuntime.enumDescriptions.download": "檢查需要時直接下載而不詢問，現在以及之後每個固定的版本都是如此。",
-  "config.browserCheckRuntime.enumDescriptions.off": "不使用瀏覽器檢查：不提供該工具，也不下載任何內容。"
+  "config.browserCheckRuntime.enumDescriptions.off": "不使用瀏覽器檢查：不提供該工具，也不下載任何內容。",
+  "command.showWhatsNew.title": "新功能",
+  "config.showWhatsNewOnUpdate.description": "預設開啟：擴充功能更新後，若該版本有亮點，「新功能」會在編輯器索引標籤中開啟；僅含修正的修補版本之後，改為以不打擾的通知提供。關閉後更新時不顯示任何內容；「Muse Spark: 新功能」仍可隨時開啟。"
 }

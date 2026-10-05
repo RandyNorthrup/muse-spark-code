@@ -1414,7 +1414,8 @@ export function App({
         }
         case 'openSettings':
         case 'openKeybindings':
-        case 'openLog': {
+        case 'openLog':
+        case 'showWhatsNew': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break

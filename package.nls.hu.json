@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Honnan kapja a böngészős ellenőrzés a böngészőjét: a Google Chrome for Testing headless shell, erre a bővítményverzióra rögzítve, letöltve a storage.googleapis.com oldalról a bővítmény tárhelyére (rögzített verziónként körülbelül 100–120 MB). Ezt csak Ön módosíthatja, egy tárház beállításai soha.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Kérdezzen a letöltés előtt.",
   "config.browserCheckRuntime.enumDescriptions.download": "Letöltés, amikor egy ellenőrzésnek szüksége van rá, kérdés nélkül, most és minden későbbi rögzített verziónál.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Nincs böngészős ellenőrzés: az eszköz nem érhető el, és semmi sem töltődik le."
+  "config.browserCheckRuntime.enumDescriptions.off": "Nincs böngészős ellenőrzés: az eszköz nem érhető el, és semmi sem töltődik le.",
+  "command.showWhatsNew.title": "Újdonságok",
+  "config.showWhatsNewOnUpdate.description": "Alapértelmezetten bekapcsolva: a bővítmény frissítése után az Újdonságok egy szerkesztőlapon nyílik meg, ha a kiadásnak vannak kiemelt újdonságai; csak javításokat tartalmazó frissítés után helyette egy visszafogott értesítés ajánlja fel. Kikapcsolva frissítéskor semmi sem jelenik meg; a Muse Spark: Újdonságok parancs továbbra is megnyitja."
 }

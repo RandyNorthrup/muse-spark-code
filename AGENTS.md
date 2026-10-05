@@ -160,6 +160,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first fetch),
                       the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
                       loaded on the first review),
+                      What's New after an update (whatsNew/: the check and
+                      claim at activation; the page in dist/whatsNew.js,
+                      loaded on the first page or notice, its content
+                      dist/whatsNew.json made from CHANGELOG.md by the build),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page), the
                       browser check's processes (the verified pinned runtime
@@ -240,7 +244,8 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
                       localization and host API gates; theme capture, the
                       pseudo-locale, harness screenshots, image rendering,
-                      changelog notes, VS Code versions for CI, the ACP
+                      changelog notes, What's New's content (lib/), VS Code
+                      versions for CI, the ACP
                       agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/ide-compatibility.md, docs/ide-compatibility/

@@ -88,7 +88,11 @@ Use this order for a candidate branch:
   nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
-  the machine.
+  the machine. A change users should try can add a bullet to the section's
+  `### Highlights` list, which What's New shows after the update (at most 5
+  per release; `docs/RELEASING.md` has the form and the `<!-- try: … -->`
+  button).
+
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,

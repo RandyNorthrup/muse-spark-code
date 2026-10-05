@@ -10,8 +10,12 @@
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
 // voice's drivers (M9/M35, loaded on the first recording), the window's web
 // fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
-// (M90, loaded on the first review), the webview, and
-// (in dev mode) the integration tests with esbuild.
+// (M90, loaded on the first review), What's New (M99: the page's renderer,
+// content schema and tab, loaded on the first page or notice), the webview,
+// What's New's page script, and (in dev mode) the integration tests with
+// esbuild. It first writes What's New's content, dist/whatsNew.json, from
+// CHANGELOG.md (scripts/lib/whatsNewContent.mjs); a Try it naming a command
+// or setting the manifest does not contribute fails the build.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
 //   node scripts/build.mjs --watch       rebuild on change (extension + webview)
@@ -46,6 +50,10 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import {
+  CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
+  writeWhatsNewContent,
+} from './lib/whatsNewContent.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -87,12 +95,16 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
+const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
+const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -238,6 +250,20 @@ const museCodeReviewerOptions = {
   outfile: MUSE_CODE_REVIEWER_OUTFILE,
 }
 
+// What's New's tab uses `vscode` (the webview panel, openExternal, the
+// commands), which the host provides, as for the import.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [WHATS_NEW_ENTRY],
+  outfile: WHATS_NEW_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
@@ -348,6 +374,14 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+// What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
+// and whatsNew.css, beside the panel's, loaded by that page alone.
+/** @type {import('esbuild').BuildOptions} */
+const whatsNewPageOptions = {
+  ...webviewOptions,
+  entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
+}
+
 function listIntegrationTests() {
   return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
     .map(String)
@@ -371,6 +405,11 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
+const whatsNewContent = writeWhatsNewContent()
+console.log(
+  `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
+)
+
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
@@ -386,12 +425,14 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -410,12 +451,14 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -447,6 +490,8 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(WHATS_NEW_OUTFILE)
+  reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
@@ -454,5 +499,7 @@ if (isWatch) {
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
+  reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
 }

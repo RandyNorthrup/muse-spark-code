@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Highlights
+
+- **What's New after every update.** When Muse Spark Code updates, a page like this one opens in an editor tab with each new release's highlights and full notes, without taking the keyboard or interrupting a running turn. A fixes-only patch shows a quiet notification instead. <!-- try: setting museSpark.showWhatsNewOnUpdate -->
+
 ### Added
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**
@@ -159,6 +163,38 @@ happened, not what was planned; superseded entries are kept.
   - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
   - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
 
+
+- **What's New** (M99, PLAN.md D79). After an update, the release notes of
+  recent versions since the one you had open in an editor tab ("What's New in
+  Muse Spark Code"): each release's Highlights (with a **Try it** button
+  where a highlight has a command or setting to try) and then its notes.
+  Full notes ship for the newest two releases, plus the newest earlier
+  Highlights when those releases have none; the full-changelog link covers
+  older details. The generated JSON has its own hard 40 KiB raw budget.
+  - **When.** Once per update, in one window only, some seconds after the
+    window starts and only while no turn runs and you are not typing; the
+    tab opens in the background. A patch release with no Highlights (fixes
+    only) shows a quiet notification ("Muse Spark Code updated to x.y.z")
+    with **What's New** and **Don't show again** instead. A fresh install
+    shows nothing (the walkthrough covers new users); a downgrade or the
+    same version shows nothing.
+  - **Turn it off** with `museSpark.showWhatsNewOnUpdate` (machine-scoped, on
+    by default) or the page's **Don't show on updates** box. **Muse Spark:
+    What's New** (Command Palette, or the panel's palette under Support)
+    opens the page for the current version at any time. The version you have
+    seen is synced by Settings Sync, so another machine does not show it
+    again.
+  - **Safe and light.** The page is a webview, which every VS Code fork has,
+    with a strict content security policy: no raw HTML from the notes, links
+    open in your browser through VS Code, and a Try it runs only a command or
+    setting the extension contributes. Its content is built from this
+    CHANGELOG at build time (`dist/whatsNew.json`) and its code loads only
+    when it is shown (`dist/whatsNew.js`), so startup does not grow. The
+    page's words are in all 14 languages; the release notes stay English.
+  - **Releases.** A minor or major release's CHANGELOG section must carry a
+    `### Highlights` list of 1 to 5 bullets, or the changelog test fails
+    (docs/RELEASING.md).
+
 ### Changed
 
 - **A smaller package, so the browser check fits the 2200 KiB VSIX budget
@@ -259,6 +295,10 @@ happened, not what was planned; superseded entries are kept.
   Tests only; the product is unchanged.
 
 - **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
+- What's New keeps version claims across overlapping updates, preventing
+  windows on different builds from deleting each other's claim and showing
+  duplicate notices. A pending notice cannot reopen its page or change the
+  update setting after the window is disposed.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.

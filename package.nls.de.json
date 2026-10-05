@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Wie die Browserprüfung ihren Browser erhält: die Chrome-for-Testing-Headless-Shell von Google, für diese Erweiterungsversion festgelegt und von storage.googleapis.com in den Speicher der Erweiterung heruntergeladen (etwa 100 bis 120 MB je festgelegter Version). Nur Sie können dies ändern, nie die Einstellungen eines Repositorys.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Vor dem Herunterladen fragen.",
   "config.browserCheckRuntime.enumDescriptions.download": "Herunterladen, wenn eine Prüfung ihn braucht, ohne zu fragen, jetzt und für jede spätere festgelegte Version.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Keine Browserprüfung: Das Tool wird nicht angeboten und nichts heruntergeladen."
+  "config.browserCheckRuntime.enumDescriptions.off": "Keine Browserprüfung: Das Tool wird nicht angeboten und nichts heruntergeladen.",
+  "command.showWhatsNew.title": "Neuigkeiten",
+  "config.showWhatsNewOnUpdate.description": "Standardmäßig aktiviert: Nach einem Update der Erweiterung öffnen sich die Neuigkeiten in einem Editor-Tab, wenn die Version das Wichtigste hervorhebt; nach einem Patch nur mit Fehlerbehebungen bietet stattdessen eine dezente Benachrichtigung sie an. Deaktiviert zeigt bei Updates nichts an; Muse Spark: Neuigkeiten öffnet sie weiterhin."
 }

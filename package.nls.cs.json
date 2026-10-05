@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Jak kontrola v prohlížeči získá svůj prohlížeč: Google Chrome for Testing headless shell, určený pro tuto verzi rozšíření a stažený ze storage.googleapis.com do úložiště rozšíření (asi 100 až 120 MB pro každou určenou verzi). Změnit to můžete jen vy, nikdy nastavení repozitáře.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Zeptat se před stažením.",
   "config.browserCheckRuntime.enumDescriptions.download": "Stáhnout, když ho kontrola potřebuje, bez ptaní, nyní i pro každou další určenou verzi.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Žádná kontrola v prohlížeči: nástroj se nenabízí a nic se nestahuje."
+  "config.browserCheckRuntime.enumDescriptions.off": "Žádná kontrola v prohlížeči: nástroj se nenabízí a nic se nestahuje.",
+  "command.showWhatsNew.title": "Novinky",
+  "config.showWhatsNewOnUpdate.description": "Zapnuto ve výchozím nastavení: po aktualizaci rozšíření se Novinky otevřou v kartě editoru, pokud vydání obsahuje hlavní novinky; po opravné verzi jen s opravami je místo toho nenápadně nabídne oznámení. Vypnuto nezobrazí po aktualizacích nic; příkaz Muse Spark: Novinky je otevře i tak."
 }

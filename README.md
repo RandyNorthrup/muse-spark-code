@@ -401,6 +401,23 @@ so they match the build.
 VS Code opens the extension's four-step walkthrough on install; **Muse
 Spark: Open Walkthrough** brings it back.
 
+### What's New after an update
+
+When the extension updates, **What's New in Muse Spark Code** opens in an
+editor tab (it works the same in VS Code's forks and remote windows): each
+new release's Highlights, with a **Try it** button where there is a command
+or setting to try, then its notes from the CHANGELOG. Full notes ship for
+the newest two releases; when neither has Highlights, the page also carries
+the newest earlier Highlights. Older upgrades can follow the page's full
+changelog link for all intervening details. It shows once per
+update and in one window only, waits until no turn is running and you have
+stopped typing, and does not take the keyboard. After a fixes-only patch a
+quiet notification offers it instead. A fresh install shows nothing. **Muse
+Spark: What's New** (or **What's New** in the panel's palette) opens it any
+time; `museSpark.showWhatsNewOnUpdate` or the page's **Don't show on
+updates** box turns it off. The page's words follow your display language;
+the release notes are in English.
+
 Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).
 The model pill shows the model as soon as the panel opens.
@@ -2963,6 +2980,7 @@ What stays in English:
 | (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                            |
 | (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                 |
 | Muse Spark: Download Browser Check Runtime          | —                                                                                                | Get the [browser check](#browser-check)'s pinned browser ready ahead of a check: the same consent, download and verification a check would do, with cancellable progress; says when it is ready or why not |
+| Muse Spark: What's New                              | —                                                                                                | Open the release notes of this version (back to the newest release with Highlights) in an editor tab; see [What's New after an update](#whats-new-after-an-update)                                         |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Eleven commands appear in the
@@ -2982,7 +3000,7 @@ when a conversation starts). The settings that choose what runs and what is bill
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
 `modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`, `browserCheckExtraHosts`,
-`browserCheckRuntime`,
+`browserCheckRuntime`, `showWhatsNewOnUpdate`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiSessionBudgetUsd`, `modelApiCommandRules`,
 `modelApiPermissionProfiles`, `modelApiPermissionProfile`,
@@ -3043,6 +3061,7 @@ Bypass at once.
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped |
 | `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); listing a loopback name also lets a local page use `https` and WebSockets. Empty means plain `http` to this computer only, unless you allow a host on a card or in the dialog for one check. `https` and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer's account (on Windows in particular). Only you widen it, never the model. Machine-scoped                                                                               |
 | `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                           |
+| `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust

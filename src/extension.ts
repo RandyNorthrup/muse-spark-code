@@ -2,7 +2,7 @@
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { execFile, type ExecFileException } from 'node:child_process'
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -111,6 +111,7 @@ import {
   runBundledSkillsRemove,
   type BundledSkillsCommandDeps,
 } from './host/skills/bundledSkills'
+import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
 import { createSessionTransferFiles } from './host/conversation/transferDialogs'
 import { createWorktreeFeatures } from './host/worktreeFeatures'
 import { lazyReview } from './host/review/reviewBundle'
@@ -181,6 +182,10 @@ import {
   AGENT_IMPORT_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
+  WHATS_NEW_BUNDLE_FILE,
+  WHATS_NEW_CLAIMS_DIR,
+  WHATS_NEW_CONTENT_FILE,
+  OUTPUT_CHANNEL_SCHEME,
   CHECKPOINT_STORE_BUNDLE_FILE,
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
@@ -222,7 +227,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
 import { fill, uiLocale } from './shared/l10n/text'
-import type { HostAction } from './shared/protocol'
+import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
 // `context.extension.packageJSON` is typed `any` by VS Code; validate the one
@@ -522,6 +527,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
+  // What's New (M99, PLAN.md D79): read before anything below stores state
+  // or creates the global storage folder, so an upgrade from a version
+  // before this feature (no version stored) is told from a fresh install.
+  const hasEarlierUse =
+    context.globalState.keys().length > 0 ||
+    context.workspaceState.get(WORKSPACE_STATE_KEYS.lastSession) !== undefined ||
+    existsSync(context.globalStorageUri.fsPath)
+  // A page seen on one machine is not shown again on another (Settings Sync).
+  context.globalState.setKeysForSync([GLOBAL_STATE_KEYS.whatsNewLastSeenVersion])
   // M16 stored an account-agnostic usage snapshot. Remove it before any
   // surface opens: a later sign-in may belong to another Meta account.
   try {
@@ -1517,6 +1531,56 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     restart: () => restartMuseCode('the bundled skills changed'),
     log,
   })
+  // What's New after an update (M99, PLAN.md D79): decided at the end of
+  // activation, shown once the window is quiet (no turn running, no edit for
+  // a moment), its page from its own bundle. The last edit's time tells quiet.
+  let lastEditAt = -Infinity
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.contentChanges.length > 0 && event.document.uri.scheme !== OUTPUT_CHANNEL_SCHEME) {
+        lastEditAt = performance.now()
+      }
+    }),
+  )
+  const whatsNew = createWhatsNew({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_BUNDLE_FILE).fsPath,
+    pages: {
+      extensionUri: context.extensionUri,
+      contentPath: vscode.Uri.joinPath(context.extensionUri, 'dist', WHATS_NEW_CONTENT_FILE).fsPath,
+      current: version,
+      isShownOnUpdate: () => currentSettings().showWhatsNewOnUpdate,
+      setShownOnUpdate: (isShown) => updateSetting('showWhatsNewOnUpdate', isShown),
+    },
+    log,
+    state: context.globalState,
+    lastSeenKey: GLOBAL_STATE_KEYS.whatsNewLastSeenVersion,
+    current: version,
+    hasEarlierUse,
+    isEnabled: () => currentSettings().showWhatsNewOnUpdate,
+    disable: () => updateSetting('showWhatsNewOnUpdate', false),
+    claim: (claimed) =>
+      hasClaimedVersion(
+        path.join(context.globalStorageUri.fsPath, WHATS_NEW_CLAIMS_DIR),
+        claimed,
+        log,
+      ),
+    // A loop, not Iterator#some: the extension host's floor is Node 20.
+    isBusy: () => {
+      for (const controller of controllers.values()) {
+        if (BACKEND_KINDS.some((kind) => controller.isTurnRunningOn(kind))) {
+          return true
+        }
+      }
+      return false
+    },
+    msSinceLastEdit: () => performance.now() - lastEditAt,
+    notify: (message, ...actions) => vscode.window.showInformationMessage(message, ...actions),
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      whatsNew.dispose()
+    },
+  })
   // Muse Code's memory (M49, PLAN.md D41): one store for the window, which
   // the Model API's memory tools and the Memory view both use, in the data
   // home `muse serve` sees (`museSpark.environmentVariables` included). The
@@ -1981,6 +2045,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
       case 'declineBundledSkills': {
         await bundledSkillsOffer.decline()
+        break
+      }
+      case 'showWhatsNew': {
+        whatsNew.show()
         break
       }
     }
@@ -2704,6 +2772,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.removeBundledSkills, () =>
       runBundledSkillsRemove(bundledSkillsCommand()),
     ),
+    registerLoggedCommand(log, COMMAND_IDS.showWhatsNew, () => {
+      whatsNew.show()
+    }),
     registerLoggedCommand(log, COMMAND_IDS.manageSkills, () => cliFeatures.manageSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importSkills, () => cliFeatures.importSkills()),
     registerLoggedCommand(log, COMMAND_IDS.importFromAgents, () => cliFeatures.importFromAgents()),
@@ -2732,5 +2803,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
   )
+  void whatsNew.check().catch(logRejection(log, 'What’s New'))
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
 }

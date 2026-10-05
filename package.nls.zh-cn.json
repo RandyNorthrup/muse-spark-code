@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "浏览器检查获取浏览器的方式：Google 的 Chrome for Testing headless shell，固定为此扩展版本，从 storage.googleapis.com 下载到扩展的存储中（每个固定版本约 100 到 120 MB）。只有你可以更改此项，存储库的设置不能。",
   "config.browserCheckRuntime.enumDescriptions.ask": "下载前询问。",
   "config.browserCheckRuntime.enumDescriptions.download": "检查需要时直接下载而不询问，现在以及之后每个固定的版本都是如此。",
-  "config.browserCheckRuntime.enumDescriptions.off": "不使用浏览器检查：不提供该工具，也不下载任何内容。"
+  "config.browserCheckRuntime.enumDescriptions.off": "不使用浏览器检查：不提供该工具，也不下载任何内容。",
+  "command.showWhatsNew.title": "新功能",
+  "config.showWhatsNewOnUpdate.description": "默认开启：扩展更新后，如果该版本有亮点，“新功能”会在编辑器标签页中打开；仅含修复的补丁版本之后，改为以不打扰的通知提供。关闭后更新时不显示任何内容；“Muse Spark: 新功能”仍可随时打开。"
 }

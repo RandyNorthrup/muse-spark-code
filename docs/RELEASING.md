@@ -6,6 +6,31 @@ tag's source tree; otherwise it runs the reusable build and its platform gates.
 The owner/lead performs publication; implementation
 lanes do not push, tag, release, or call paid services.
 
+## Writing the Highlights block
+
+Users see each release in What's New (PLAN.md D79, M99): after an update the
+extension opens a page with every new release's Highlights and full notes,
+built from `CHANGELOG.md` at build time. Before the release PR bumps
+`package.json`:
+
+1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
+   empty `## [Unreleased]` above it).
+2. Give the section a `### Highlights` list first, before `### Added`: 3 to
+   5 bullets (at most 5), each one sentence or two a user can act on, in the
+   form `- **What it is.** What it does for you.`
+3. Where a highlight has something to try, end its bullet with
+   `<!-- try: command museSpark.<id> -->` or
+   `<!-- try: setting museSpark.<key> -->`. The page shows a **Try it** (or
+   **Open the setting**) button; GitHub, the Marketplace and VS Code's
+   changelog tab show nothing. The id must be a command or setting
+   `package.json` contributes, or `npm run build` fails.
+4. A patch release of fixes only may leave Highlights out: users then get a
+   quiet notification instead of the page. A minor or major release
+   (`X.Y.0`) without Highlights fails `test/unit/changelogVersion.test.ts`,
+   as does a release with more than 5.
+
+The notes stay English; the page's own words are translated.
+
 ## Choosing the release build
 
 Tag/manifest and `main` ancestry checks still run first. The lookup considers

@@ -125,5 +125,7 @@
   "config.browserCheckRuntime.description": "Comment la vérification dans le navigateur obtient son navigateur : Chrome for Testing headless shell de Google, fixé pour cette version de l’extension et téléchargé depuis storage.googleapis.com dans le stockage de l’extension (environ 100 à 120 Mo par version fixée). Vous seul pouvez modifier ce paramètre, jamais les paramètres d’un dépôt.",
   "config.browserCheckRuntime.enumDescriptions.ask": "Demander avant de le télécharger.",
   "config.browserCheckRuntime.enumDescriptions.download": "Le télécharger quand une vérification en a besoin, sans demander, maintenant et pour chaque version fixée ultérieure.",
-  "config.browserCheckRuntime.enumDescriptions.off": "Pas de vérification dans le navigateur : l’outil n’est pas proposé et rien n’est téléchargé."
+  "config.browserCheckRuntime.enumDescriptions.off": "Pas de vérification dans le navigateur : l’outil n’est pas proposé et rien n’est téléchargé.",
+  "command.showWhatsNew.title": "Nouveautés",
+  "config.showWhatsNewOnUpdate.description": "Activé par défaut : après une mise à jour de l’extension, les Nouveautés s’ouvrent dans un onglet d’éditeur quand la version a des points forts ; après un correctif sans nouveauté, une notification discrète les propose à la place. Désactivé, rien ne s’affiche lors des mises à jour ; Muse Spark: Nouveautés les ouvre toujours."
 }
