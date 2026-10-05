@@ -15768,6 +15768,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M102 — Usage & cost in every editor (D82)
 
+- **Review repair FIXM102E (RVM102E, 2026-10-05).** Cancel an outstanding
+  ACP usage URL elicitation without waiting for the client, tell the client to
+  abandon it and return `stopReason: cancelled`, then accept another prompt.
+  Linux `usage open` detaches its OS handler and acknowledges successful spawn;
+  the companion keeps its own idle/explicit-stop lifetime. Both repairs require
+  regressions and byte-exact restored red drills in `docs/certification/m102-e.md`.
+  No dependency, protocol shape, guard relaxation or other-lane implementation.
 - **Goal.** One local history of every model call, whichever editor or backend
   made it, and one page that shows cost, tokens in and out, time, rate and plan
   limits, and budgets. The page has charts, a table behind every chart, export

@@ -152,6 +152,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 interface PreparingPrompt {
   isCancelled: boolean
   error?: unknown
+  abandonElicitation?: () => void
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -567,18 +568,37 @@ class AcpSession {
     const url = usageCompanionUrl(await usage.openPage())
     if (!this.canReplyUsage(preparing)) return true
     if (this.clientCapabilities.elicitation?.url != null) {
+      const cancellation = new AbortController()
+      const abandoned = new Promise<void>((resolve) => {
+        preparing.abandonElicitation = () => {
+          cancellation.abort()
+          resolve()
+        }
+      })
       try {
-        await this.client.request('elicitation/create', {
-          sessionId: this.sessionId,
-          mode: 'url',
-          elicitationId: randomUUID(),
-          message: UI_TEXT.openUsagePage,
-          url,
-        })
+        // SDK cancellation tells the client to abandon the request, but its
+        // promise still waits for the peer. Release this command independently;
+        // the race also consumes a late client failure without a stale reply.
+        await Promise.race([
+          this.client.request(
+            'elicitation/create',
+            {
+              sessionId: this.sessionId,
+              mode: 'url',
+              elicitationId: randomUUID(),
+              message: UI_TEXT.openUsagePage,
+              url,
+            },
+            { cancellationSignal: cancellation.signal },
+          ),
+          abandoned,
+        ])
         return true
       } catch {
         // An advertised feature can still fail; the local page remains reachable.
         this.deps.log.warn('ACP usage URL elicitation failed')
+      } finally {
+        delete preparing.abandonElicitation
       }
     }
     if (this.canReplyUsage(preparing))
@@ -836,6 +856,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -859,6 +880,7 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.abandonElicitation?.()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -884,6 +906,7 @@ class AcpSession {
     this.isDisposed = true
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
     }
     const wasRunning = this.pending !== undefined
     this.pending?.resolve('cancelled')

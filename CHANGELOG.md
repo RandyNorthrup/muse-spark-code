@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP `/usage` cancellation abandons a pending URL elicitation immediately,
+  returns a cancelled response, and lets the next prompt run before the client
+  answers the old request. Late answers cannot send a stale reply.
+
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.

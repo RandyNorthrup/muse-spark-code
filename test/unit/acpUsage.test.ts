@@ -6,11 +6,18 @@ import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { fakeUsageAccess, usageState } from './helpers/usageAdapters'
 
-function harness(options: { url?: boolean; broken?: boolean } = {}) {
+function harness(
+  options: {
+    url?: boolean
+    broken?: boolean
+    elicitation?: () => Promise<acp.CreateElicitationResponse>
+  } = {},
+) {
   const host = new FakeAgentHost()
   const fake = fakeUsageAccess()
   const updates: acp.SessionUpdate[] = []
   const elicitations: acp.CreateElicitationRequest[] = []
+  const elicitationSignals: AbortSignal[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const openPage = vi.fn().mockResolvedValue(`http://127.0.0.1:1234/#${'a'.repeat(64)}`)
   const app = createAcpAgent({
@@ -39,8 +46,9 @@ function harness(options: { url?: boolean; broken?: boolean } = {}) {
     })
     .onRequest('elicitation/create', (context) => {
       elicitations.push(context.params)
+      elicitationSignals.push(context.signal)
       if (options.broken) throw new Error('client failed')
-      return { action: 'accept' }
+      return options.elicitation?.() ?? { action: 'accept' }
     })
   const run = (op: (context: acp.ClientContext, sessionId: string) => Promise<void>) =>
     client.connectWith(app, async (context) => {
@@ -55,7 +63,7 @@ function harness(options: { url?: boolean; broken?: boolean } = {}) {
       host.sessions[0]?.sendTurn.mockRejectedValue(new Error('a usage command reached the model'))
       await op(context, sessionId)
     })
-  return { ...fake, host, updates, elicitations, openPage, run, log }
+  return { ...fake, host, updates, elicitations, elicitationSignals, openPage, run, log }
 }
 
 describe('ACP local usage command', () => {
@@ -199,6 +207,67 @@ describe('ACP local usage command', () => {
     expect(h.openPage).not.toHaveBeenCalled()
     expect(h.updates.some((update) => update.sessionUpdate === 'agent_message_chunk')).toBe(false)
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('abandons a pending URL elicitation on cancellation and accepts another prompt before a late client answer', async () => {
+    for (const isLateFailure of [false, true]) {
+      const pending = Promise.withResolvers<acp.CreateElicitationResponse>()
+      const elicitation = vi
+        .fn<() => Promise<acp.CreateElicitationResponse>>()
+        .mockResolvedValue({ action: 'accept' })
+        .mockReturnValueOnce(pending.promise)
+      const h = harness({ url: true, elicitation })
+      await h.run(async (client, sessionId) => {
+        const reply = client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: '/usage' }],
+        })
+        let response: acp.PromptResponse | undefined
+        void reply.then((value) => {
+          response = value
+        })
+        try {
+          await vi.waitFor(() => {
+            expect(h.elicitations).toHaveLength(1)
+          })
+          await expect(
+            client.request('session/prompt', {
+              sessionId,
+              prompt: [{ type: 'text', text: '/usage' }],
+            }),
+          ).rejects.toThrow()
+          await client.notify('session/cancel', { sessionId })
+          await vi.waitFor(() => {
+            expect(response).toEqual({ stopReason: 'cancelled' })
+          })
+          await vi.waitFor(() => {
+            expect(h.elicitationSignals[0]?.aborted).toBe(true)
+          })
+          expect(
+            await client.request('session/prompt', {
+              sessionId,
+              prompt: [{ type: 'text', text: '/usage page' }],
+            }),
+          ).toEqual({ stopReason: 'end_turn' })
+          expect(h.elicitations).toHaveLength(2)
+          expect(h.elicitationSignals[1]?.aborted).toBe(false)
+          const updateCount = h.updates.length
+          if (isLateFailure) pending.reject(new Error('late client failure'))
+          else pending.resolve({ action: 'accept' })
+          // A round trip orders the late answer before checking for stale updates.
+          await client.request('session/prompt', {
+            sessionId,
+            prompt: [{ type: 'text', text: '/usage open' }],
+          })
+          expect(h.updates).toHaveLength(updateCount + 1)
+          expect(h.log.warn).not.toHaveBeenCalled()
+        } finally {
+          pending.resolve({ action: 'cancel' })
+          await reply
+        }
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    }
   })
 
   it('refuses a foreign companion URL and propagates read errors without making a model call', async () => {
