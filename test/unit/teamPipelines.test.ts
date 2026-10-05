@@ -10,6 +10,7 @@ import {
   loadPipelines,
   pipelineCeiling,
   PipelineBranchError,
+  PipelineResultError,
   recordStepResult,
   specPipeline,
   startPipelineRun,
@@ -305,6 +306,55 @@ describe('rounds and redesign', () => {
   })
 })
 
+describe('result kinds', () => {
+  it('a work-done result cannot satisfy the review step: findings are required', () => {
+    const def = changePipeline()
+    let run = startPipelineRun(def, 'seeded bug')
+    run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
+    expect(() => recordStepResult(def, run, work('review', 'agents/engineering/t1'))).toThrow(
+      PipelineResultError,
+    )
+  })
+
+  it('a work-done result cannot satisfy the check step: a pass or fail is required', () => {
+    const def = changePipeline()
+    let run = startPipelineRun(def, 'seeded bug')
+    run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
+    run = recordStepResult(def, run, review('review', 'agents/engineering/t1', [])).run
+    expect(() => recordStepResult(def, run, work('verify', 'agents/engineering/t1'))).toThrow(
+      PipelineResultError,
+    )
+  })
+
+  it('a review or check result cannot satisfy the work step', () => {
+    const def = changePipeline()
+    const run = startPipelineRun(def, 'seeded bug')
+    expect(() =>
+      recordStepResult(def, run, review('implement', 'agents/engineering/t1', [])),
+    ).toThrow(PipelineResultError)
+    expect(() =>
+      recordStepResult(def, run, check('implement', 'agents/engineering/t1', true)),
+    ).toThrow(PipelineResultError)
+  })
+
+  it('the mismatch names the step and both kinds', () => {
+    const def = changePipeline()
+    let run = startPipelineRun(def, 'seeded bug')
+    run = recordStepResult(def, run, work('implement', 'agents/engineering/t1')).run
+    try {
+      recordStepResult(def, run, work('review', 'agents/engineering/t1'))
+      throw new Error('expected a PipelineResultError')
+    } catch (error) {
+      expect(error).toBeInstanceOf(PipelineResultError)
+      if (error instanceof PipelineResultError) {
+        expect(error.stepId).toBe('review')
+        expect(error.expected).toBe('reviewed')
+        expect(error.received).toBe('work-done')
+      }
+    }
+  })
+})
+
 describe('thresholds', () => {
   it('critical meets high, high meets high, medium does not', () => {
     expect(isFailingSeverity('critical', 'high')).toBe(true)
@@ -522,6 +572,45 @@ describe('loading', () => {
         reviewSeverity: 'high',
       }),
     ).toBe('noWorkStep')
+  })
+
+  it('a fractional round limit is refused: rounds are positive integers', () => {
+    const fs = memoryFs({
+      'personal/fraction.json': JSON.stringify({
+        id: 'fraction',
+        steps: [{ id: 'only', role: 'research', kind: 'work' }],
+        maxRounds: 1.5,
+        reviewSeverity: 'high',
+      }),
+    })
+    const { pipelines, refused } = loadPipelines({
+      personalDir: 'personal',
+      projectDir: 'project',
+      trusted: true,
+      fs,
+    })
+    expect(pipelines.map((def) => def.id).toSorted((a, b) => a.localeCompare(b))).toEqual([
+      'change',
+      'spec',
+    ])
+    expect(refused).toEqual([
+      { file: 'personal/fraction.json', reason: 'invalid', detail: 'schema mismatch' },
+    ])
+  })
+
+  it('a project file that lowers the rounds to a fraction is refused whole', () => {
+    const fs = memoryFs({
+      'project/fraction.json': JSON.stringify({ id: 'change', maxRounds: 2.5 }),
+    })
+    const { refused } = loadPipelines({
+      personalDir: 'personal',
+      projectDir: 'project',
+      trusted: true,
+      fs,
+    })
+    expect(refused).toEqual([
+      { file: 'project/fraction.json', reason: 'invalid', detail: 'change' },
+    ])
   })
 
   it('unparseable files are refused, and other files still load', () => {

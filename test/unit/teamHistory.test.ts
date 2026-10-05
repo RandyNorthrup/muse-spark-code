@@ -189,10 +189,15 @@ describe('sorting', () => {
 
 describe('totals', () => {
   it('totals today per role', () => {
-    const totals = historyTotals(rows, { groupBy: 'role', period: 'day', now: NOW })
+    const totals = historyTotals(rows, {
+      groupBy: 'role',
+      period: 'day',
+      now: NOW,
+      timeZone: 'UTC',
+    })
     const engineering = totals.find((item) => item.roleId === 'engineering')
     expect(engineering?.tasks).toBe(2)
-    expect(engineering?.tokens).toBe(180 + 200)
+    expect(engineering?.tokens).toBe(150 + 180)
     expect(engineering?.estimatedTokens).toBe(0)
     expect(engineering?.costUsd).toBeCloseTo(0.15, 10)
     expect(engineering?.unpricedTasks).toBe(0)
@@ -201,24 +206,65 @@ describe('totals', () => {
   })
 
   it('the week per entry counts the estimated, unpriced review', () => {
-    const totals = historyTotals(rows, { groupBy: 'entry', period: 'week', now: NOW })
+    const totals = historyTotals(rows, {
+      groupBy: 'entry',
+      period: 'week',
+      now: NOW,
+      timeZone: 'UTC',
+    })
     const reviewed = totals.find((item) => item.roleId === 'code-review')
     expect(reviewed?.tasks).toBe(1)
-    expect(reviewed?.tokens).toBe(50)
-    expect(reviewed?.estimatedTokens).toBe(50)
+    expect(reviewed?.tokens).toBe(45)
+    expect(reviewed?.estimatedTokens).toBe(45)
     expect(reviewed?.unpricedTasks).toBe(1)
     expect(reviewed?.costUsd).toBe(0)
     expect(reviewed?.provider).toBe('model-api')
     expect(reviewed?.model).toBe('other-model')
   })
 
+  it('today is the caller local day: Los Angeles still counts its evening', () => {
+    // Oct 5 03:00 UTC is still Oct 4 in Los Angeles; a row from Oct 4 22:00
+    // UTC is that same local day, but the previous UTC day.
+    const now = Date.UTC(2026, 9, 5, 3, 0, 0)
+    const evening = row({ taskId: 'la', startTime: Date.UTC(2026, 9, 4, 22, 0, 0) })
+    const local = historyTotals([evening], {
+      groupBy: 'role',
+      period: 'day',
+      now,
+      timeZone: 'America/Los_Angeles',
+    })
+    expect(local.reduce((tasks, item) => tasks + item.tasks, 0)).toBe(1)
+    expect(
+      historyTotals([evening], { groupBy: 'role', period: 'day', now, timeZone: 'UTC' }),
+    ).toEqual([])
+  })
+
+  it('the local day starts at local midnight, DST jumps included', () => {
+    // Oct 5 00:00 in Los Angeles is 07:00 UTC (PDT, UTC-7).
+    const now = Date.UTC(2026, 9, 5, 12, 0, 0)
+    const midnight = row({ taskId: 'midnight', startTime: Date.UTC(2026, 9, 5, 7, 0, 0) })
+    const before = row({ taskId: 'before', startTime: Date.UTC(2026, 9, 5, 6, 59, 0) })
+    const local = historyTotals([midnight, before], {
+      groupBy: 'role',
+      period: 'day',
+      now,
+      timeZone: 'America/Los_Angeles',
+    })
+    expect(local.reduce((tasks, item) => tasks + item.tasks, 0)).toBe(1)
+  })
+
   it('all time keeps hook-added and paid-tool lines apart', () => {
-    const totals = historyTotals(rows, { groupBy: 'role', period: 'all', now: NOW })
+    const totals = historyTotals(rows, {
+      groupBy: 'role',
+      period: 'all',
+      now: NOW,
+      timeZone: 'UTC',
+    })
     const engineering = totals.find((item) => item.roleId === 'engineering')
     expect(engineering?.tasks).toBe(3)
     expect(engineering?.hookAddedTokens).toBe(5)
     expect(engineering?.paidToolCostUsd).toBeCloseTo(0.002, 10)
-    expect(engineering?.tokens).toBe(180 + 200 + 30)
+    expect(engineering?.tokens).toBe(150 + 180 + 30)
   })
 })
 
@@ -246,13 +292,13 @@ describe('the record figures', () => {
     const figures = entryFigures(rows, pool)
     const first = figures[1]
     expect(first?.tasks).toBe(2)
-    expect(first?.done).toBe(1)
+    expect(first?.done).toBe(0)
     expect(first?.merged).toBe(1)
     expect(first?.interrupted).toBe(1)
     expect(first?.capped).toBe(0)
     expect(first?.findingsBySeverity).toEqual({ high: 1 })
     expect(first?.roundsToPassAvg).toBe(2)
-    expect(first?.avgTokens).toBe((180 + 30) / 2)
+    expect(first?.avgTokens).toBe((150 + 30) / 2)
     expect(first?.avgCostUsd).toBeCloseTo(0.03, 10)
     expect(first?.avgMinutes).toBe(30)
     const reviewed = figures[2]
@@ -265,6 +311,67 @@ describe('the record figures', () => {
     const figures = entryFigures(rows, [{ roleId: 'engineering', entryId: 'e1' }])
     expect(figures).toHaveLength(1)
     expect(figures[0]?.tasks).toBe(2)
+  })
+
+  it('counts done and merged separately: done is not a merge', () => {
+    const figures = entryFigures(
+      [
+        row({ taskId: 'd1', outcome: 'done' }),
+        row({ taskId: 'd2', outcome: 'done' }),
+        row({ taskId: 'm', outcome: 'merged' }),
+        row({ taskId: 'x', outcome: 'discarded' }),
+      ],
+      [{ roleId: 'engineering', entryId: 'e1' }],
+    )
+    expect(figures[0]?.tasks).toBe(4)
+    expect(figures[0]?.done).toBe(2)
+    expect(figures[0]?.merged).toBe(1)
+    expect(figures[0]?.discarded).toBe(1)
+  })
+})
+
+describe('agents', () => {
+  const agentRows: readonly TeamHistoryRow[] = [
+    row({ taskId: 'a1', entryId: 'e1', agentId: 'agent-1' }),
+    row({
+      taskId: 'a2',
+      roleId: 'code-review',
+      entryId: 'e2',
+      agentId: 'agent-1',
+      model: 'other-model',
+    }),
+    row({ taskId: 'a3', entryId: 'e1', agentId: 'agent-2' }),
+    row({ taskId: 'a4', entryId: 'e1' }),
+  ]
+
+  it('filters by agent across roles, and rows without an agent never match', () => {
+    expect(filterHistory(agentRows, { agentIds: ['agent-1'] }).map((item) => item.taskId)).toEqual([
+      'a1',
+      'a2',
+    ])
+    expect(filterHistory(agentRows, { agentIds: ['agent-2'] }).map((item) => item.taskId)).toEqual([
+      'a3',
+    ])
+    expect(filterHistory(agentRows, { agentIds: ['nobody'] })).toEqual([])
+  })
+
+  it('totals per agent across roles, with agentless rows in one unknown bucket', () => {
+    const totals = historyTotals(agentRows, {
+      groupBy: 'agent',
+      period: 'all',
+      now: NOW,
+      timeZone: 'UTC',
+    })
+    const first = totals.find((item) => item.agentId === 'agent-1')
+    expect(first?.tasks).toBe(2)
+    expect(first?.tokens).toBe(150 + 150)
+    expect(first?.provider).toBe('model-api')
+    expect(totals.find((item) => item.agentId === 'agent-2')?.tasks).toBe(1)
+    const unknown = totals.find((item) => item.agentId === undefined)
+    expect(unknown?.tasks).toBe(1)
+    expect(totals.map((item) => item.agentId ?? 'unknown')).toEqual(
+      ['agent-1', 'agent-2', 'unknown'].toSorted((a, b) => a.localeCompare(b)),
+    )
   })
 })
 
@@ -307,6 +414,18 @@ describe('export', () => {
     expect(csv).toContain('"say ""hi"", then\nleave"')
   })
 
+  it('CSV prefixes formula-opening cells with a single quote (OWASP rule)', () => {
+    const triggers = ['=1+1', '+7', '-7', '@mention', '\tindented', '\r carriage']
+    for (const trigger of triggers) {
+      const csv = exportHistoryCsv([row({ taskId: 'fx', brief: trigger })])
+      expect(csv).toContain(`'${trigger}`)
+      expect(csv).not.toContain(`,${trigger}\n`)
+    }
+    const plain = exportHistoryCsv([row({ taskId: 'plain', brief: 'fix the null dereference' })])
+    expect(plain).toContain(',fix the null dereference\n')
+    expect(plain).not.toContain("'fix")
+  })
+
   it('JSON holds no transcript key by default', () => {
     const parsed = JSON.parse(exportHistoryJson(rows, { loadTranscript })) as unknown[]
     expect(parsed).toHaveLength(rows.length)
@@ -337,8 +456,13 @@ describe('export', () => {
 })
 
 describe('measures', () => {
-  it('totals tokens by kind and durations by end minus start', () => {
-    expect(totalTokens(rows[0] ?? row({ taskId: 'z' }))).toBe(180)
+  it('totals input and output without adding the cached and reasoning subsets', () => {
+    const subsets = row({
+      taskId: 'subsets',
+      tokens: { input: 100, cachedInput: 80, output: 10, reasoning: 5 },
+    })
+    expect(totalTokens(subsets)).toBe(110)
+    expect(totalTokens(rows[0] ?? row({ taskId: 'z' }))).toBe(150)
     expect(durationMs(rows[0] ?? row({ taskId: 'z' }))).toBe(30 * 60_000)
     expect(durationMs(rows[3] ?? row({ taskId: 'z' }))).toBeUndefined()
   })

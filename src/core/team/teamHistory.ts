@@ -16,6 +16,7 @@
 import { redactSecrets } from '../redact'
 import {
   DAYS_PER_WEEK,
+  HOURS_PER_DAY,
   MILLISECONDS_PER_DAY,
   MILLISECONDS_PER_SECOND,
   SECONDS_PER_MINUTE,
@@ -25,9 +26,14 @@ import { knownSeverity } from '../../shared/reviewFindings'
 const MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 const MILLISECONDS_PER_WEEK = MILLISECONDS_PER_DAY * DAYS_PER_WEEK
 
-/** A finished (or interrupted) team task, as the ledger stores it. */
+/**
+ * A finished (or interrupted) team task, as the ledger stores it. `done` is
+ * a success that needed no merge (research, review, a question answered);
+ * `merged` is a success whose changes reached the checkout. The two are
+ * counted separately, never equated.
+ */
 export type TeamHistoryOutcome =
-  'merged' | 'discarded' | 'failed' | 'stopped' | 'capped' | 'cancelled' | 'interrupted'
+  'done' | 'merged' | 'discarded' | 'failed' | 'stopped' | 'capped' | 'cancelled' | 'interrupted'
 
 export interface TeamHistoryTokens {
   readonly input: number
@@ -40,6 +46,8 @@ export interface TeamHistoryRow {
   readonly taskId: string
   readonly roleId: string
   readonly entryId: string
+  /** The agent that ran the task, stable across the roles it serves. Undefined for rows written before agents were identified. */
+  readonly agentId?: string
   readonly provider: string
   readonly model: string
   readonly outcome: TeamHistoryOutcome
@@ -69,6 +77,8 @@ export interface TeamHistoryRow {
 export interface HistoryFilter {
   readonly roleIds?: readonly string[]
   readonly entryIds?: readonly string[]
+  /** Keeps only rows carrying one of these agent identities; rows without an agent never match a set agent filter. */
+  readonly agentIds?: readonly string[]
   readonly models?: readonly string[]
   readonly outcomes?: readonly TeamHistoryOutcome[]
   /** Epoch milliseconds, inclusive. */
@@ -79,12 +89,17 @@ export interface HistoryFilter {
 
 export type HistorySortKey = 'cost' | 'duration' | 'tokens'
 
-/** Which window a totals figure covers. `day` is the UTC calendar day holding `now`; `week` is trailing 7 days. */
+/**
+ * Which window a totals figure covers. `day` is the caller's local calendar
+ * day holding `now` in the injected `timeZone`; `week` is trailing 7 days.
+ */
 export type HistoryPeriod = 'day' | 'week' | 'all'
 
 export interface HistoryTotals {
   readonly roleId: string
   readonly entryId: string | undefined
+  /** Set for `agent` grouping: the agent totalled. Rows without an agent land in one `unknown` bucket, shown, never dropped. */
+  readonly agentId: string | undefined
   readonly provider: string | undefined
   readonly model: string | undefined
   readonly tasks: number
@@ -115,9 +130,13 @@ export interface EntryFigures {
   readonly avgMinutes: number | undefined
 }
 
-/** Tokens by kind, summed. Hook-added tokens stay a line of their own. */
+/**
+ * Tokens in and out, summed. Cached input is a subset of input and reasoning
+ * is a subset of output (D75's accounting definition), so neither is ever
+ * added again. Hook-added tokens stay a line of their own.
+ */
 export function totalTokens(row: Pick<TeamHistoryRow, 'tokens'>): number {
-  return row.tokens.input + row.tokens.cachedInput + row.tokens.output + row.tokens.reasoning
+  return row.tokens.input + row.tokens.output
 }
 
 /** Milliseconds from start to end; undefined while the row has no end. */
@@ -134,6 +153,8 @@ export function filterHistory(
     (row) =>
       (filter.roleIds === undefined || filter.roleIds.includes(row.roleId)) &&
       (filter.entryIds === undefined || filter.entryIds.includes(row.entryId)) &&
+      (filter.agentIds === undefined ||
+        (row.agentId !== undefined && filter.agentIds.includes(row.agentId))) &&
       (filter.models === undefined || filter.models.includes(row.model)) &&
       (filter.outcomes === undefined || filter.outcomes.includes(row.outcome)) &&
       (filter.from === undefined || row.startTime >= filter.from) &&
@@ -190,49 +211,174 @@ export function sortHistory(
   return indexed.map((item) => item.row)
 }
 
+/**
+ * The wall-clock fields of one instant in `timeZone`, read through
+ * `formatToParts` so no locale's field order can move them.
+ */
+function wallFields(
+  ms: number,
+  timeZone: string,
+): {
+  readonly year: number
+  readonly month: number
+  readonly day: number
+  readonly hour: number
+  readonly minute: number
+  readonly second: number
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(ms)
+  const at = (type: string): number => {
+    const part = parts.find((item) => item.type === type)
+    return part === undefined ? 0 : Number(part.value)
+  }
+  return {
+    year: at('year'),
+    month: at('month'),
+    day: at('day'),
+    hour: at('hour') % HOURS_PER_DAY,
+    minute: at('minute'),
+    second: at('second'),
+  }
+}
+
+/** Passes of the wall-to-UTC solver: two converge, the third covers a DST jump. */
+const WALL_SOLVE_PASSES = 3
+
+/**
+ * The UTC instant whose wall clock in `timeZone` reads `wallUtcMs` (a wall
+ * reading expressed as UTC milliseconds). Solved iteratively: each pass
+ * measures how far the guess's wall clock overshoots and shifts back.
+ * Converges in two passes except across a DST jump, where three suffice;
+ * an unknown zone throws the `Intl` `RangeError`.
+ */
+function utcFromWallClock(wallUtcMs: number, timeZone: string): number {
+  let guess = wallUtcMs
+  for (let pass = 0; pass < WALL_SOLVE_PASSES; pass += 1) {
+    const fields = wallFields(guess, timeZone)
+    const overshoot =
+      Date.UTC(
+        fields.year,
+        fields.month - 1,
+        fields.day,
+        fields.hour,
+        fields.minute,
+        fields.second,
+      ) - wallUtcMs
+    guess -= overshoot
+    if (overshoot === 0) {
+      break
+    }
+  }
+  return guess
+}
+
+/**
+ * The UTC bounds of the local calendar day holding `now` in `timeZone`:
+ * local midnight to the next local midnight, DST jumps included.
+ */
+function localDayWindow(
+  now: number,
+  timeZone: string,
+): { readonly from: number; readonly to: number } {
+  const fields = wallFields(now, timeZone)
+  const midnightWall = Date.UTC(fields.year, fields.month - 1, fields.day)
+  return {
+    from: utcFromWallClock(midnightWall, timeZone),
+    to: utcFromWallClock(midnightWall + MILLISECONDS_PER_DAY, timeZone),
+  }
+}
+
 function periodWindow(
   period: HistoryPeriod,
   now: number,
+  timeZone: string,
 ): { readonly from: number; readonly to: number } | undefined {
   if (period === 'all') {
     return undefined
   }
-  if (period === 'week') {
-    return { from: now - MILLISECONDS_PER_WEEK, to: now }
+  return period === 'week'
+    ? { from: now - MILLISECONDS_PER_WEEK, to: now }
+    : localDayWindow(now, timeZone)
+}
+
+/** Rows without an agent group under this bucket, shown, never dropped. */
+const UNKNOWN_AGENT = 'unknown'
+
+/** How `historyTotals` groups rows: by role, by entry (per agent slot) or by agent. */
+export type HistoryGroupBy = 'role' | 'entry' | 'agent'
+
+function totalsKey(groupBy: HistoryGroupBy, row: TeamHistoryRow): string {
+  switch (groupBy) {
+    case 'role': {
+      return row.roleId
+    }
+    case 'entry': {
+      return `${row.roleId}/${row.entryId}`
+    }
+    case 'agent': {
+      return row.agentId ?? UNKNOWN_AGENT
+    }
   }
-  const start = Math.floor(now / MILLISECONDS_PER_DAY) * MILLISECONDS_PER_DAY
-  return { from: start, to: start + MILLISECONDS_PER_DAY }
+}
+
+function compareTotals(groupBy: HistoryGroupBy, left: HistoryTotals, right: HistoryTotals): number {
+  switch (groupBy) {
+    case 'role': {
+      return left.roleId.localeCompare(right.roleId)
+    }
+    case 'entry': {
+      return `${left.roleId}/${left.entryId ?? ''}`.localeCompare(
+        `${right.roleId}/${right.entryId ?? ''}`,
+      )
+    }
+    case 'agent': {
+      return (left.agentId ?? UNKNOWN_AGENT).localeCompare(right.agentId ?? UNKNOWN_AGENT)
+    }
+  }
 }
 
 /**
- * Totals grouped by role, or by entry (per agent), over one period. Figures
- * the provider reported and our own estimates stay apart; unpriced tasks are
- * counted, never costed.
+ * Totals grouped by role, by entry (per agent slot) or by agent, over one
+ * period. `day` is the local calendar day holding `now` in `timeZone` (an
+ * IANA name such as `America/Los_Angeles`; unknown names throw the `Intl`
+ * `RangeError`). Figures the provider reported and our own estimates stay
+ * apart; unpriced tasks are counted, never costed.
  */
 export function historyTotals(
   rows: readonly TeamHistoryRow[],
   args: {
-    readonly groupBy: 'role' | 'entry'
+    readonly groupBy: HistoryGroupBy
     readonly period: HistoryPeriod
     readonly now: number
+    readonly timeZone: string
   },
 ): HistoryTotals[] {
-  const window = periodWindow(args.period, args.now)
+  const window = periodWindow(args.period, args.now, args.timeZone)
   const inWindow =
     window === undefined
       ? rows
       : rows.filter((row) => row.startTime >= window.from && row.startTime < window.to)
   const byKey: Record<string, HistoryTotals> = {}
   for (const row of inWindow) {
-    const key = args.groupBy === 'role' ? row.roleId : `${row.roleId}/${row.entryId}`
+    const key = totalsKey(args.groupBy, row)
     const tokens = totalTokens(row)
     const current: HistoryTotals | undefined = byKey[key]
     if (current === undefined) {
       byKey[key] = {
         roleId: row.roleId,
         entryId: args.groupBy === 'entry' ? row.entryId : undefined,
-        provider: args.groupBy === 'entry' ? row.provider : undefined,
-        model: args.groupBy === 'entry' ? row.model : undefined,
+        agentId: args.groupBy === 'agent' ? row.agentId : undefined,
+        provider: args.groupBy === 'role' ? undefined : row.provider,
+        model: args.groupBy === 'role' ? undefined : row.model,
         tasks: 1,
         tokens,
         estimatedTokens: row.estimated ? tokens : 0,
@@ -254,13 +400,7 @@ export function historyTotals(
       }
     }
   }
-  return Object.values(byKey).toSorted((left, right) =>
-    args.groupBy === 'role'
-      ? left.roleId.localeCompare(right.roleId)
-      : `${left.roleId}/${left.entryId ?? ''}`.localeCompare(
-          `${right.roleId}/${right.entryId ?? ''}`,
-        ),
-  )
+  return Object.values(byKey).toSorted((left, right) => compareTotals(args.groupBy, left, right))
 }
 
 function average(values: readonly number[]): number | undefined {
@@ -271,7 +411,8 @@ function average(values: readonly number[]): number | undefined {
 
 /**
  * The record's figures for exactly the pool's entries, in the pool's order:
- * tasks done, capped, failed and cancelled; changes merged and discarded;
+ * tasks done (outcome `done`), capped, failed and cancelled; changes merged
+ * and discarded (`merged` counts merges only, never other successes);
  * review findings by severity; rounds needed to pass review; average tokens,
  * cost and minutes. Rows for entries no longer in the pool are ignored here
  * (history totals above still count them). The pool order array is never
@@ -297,7 +438,7 @@ export function entryFigures(
       roleId: entry.roleId,
       entryId: entry.entryId,
       tasks: scoped.length,
-      done: scoped.filter((row) => row.outcome === 'merged').length,
+      done: scoped.filter((row) => row.outcome === 'done').length,
       capped: scoped.filter((row) => row.outcome === 'capped').length,
       failed: scoped.filter((row) => row.outcome === 'failed').length,
       cancelled: scoped.filter((row) => row.outcome === 'cancelled' || row.outcome === 'stopped')
@@ -355,11 +496,22 @@ function exportTranscript(row: TeamHistoryRow, options: HistoryExportOptions): s
   return body === undefined ? undefined : redactSecrets(body)
 }
 
+/**
+ * Cell-opening characters a spreadsheet reads as a formula (the OWASP CSV
+ * injection rule): equals, plus, minus, at, tab and carriage return.
+ */
+const CSV_FORMULA_PREFIXES = '=+-@\t\r'
+
 function csvCell(value: string | number): string {
   const text = typeof value === 'number' ? String(value) : value
-  return text.includes('"') || text.includes(',') || text.includes('\n') || text.includes('\r')
-    ? `"${text.replaceAll('"', '""')}"`
-    : text
+  const guarded =
+    text.length > 0 && CSV_FORMULA_PREFIXES.includes(text.charAt(0)) ? `'${text}` : text
+  return guarded.includes('"') ||
+    guarded.includes(',') ||
+    guarded.includes('\n') ||
+    guarded.includes('\r')
+    ? `"${guarded.replaceAll('"', '""')}"`
+    : guarded
 }
 
 const CSV_COLUMNS = [

@@ -38,7 +38,7 @@ const stepSchema = z.object({
 const definitionSchema = z.object({
   id: z.string(),
   steps: z.array(stepSchema),
-  maxRounds: z.number().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS)),
+  maxRounds: z.int().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS)),
   reviewSeverity: z.enum(['critical', 'high', 'medium', 'low', 'info']),
 })
 
@@ -158,6 +158,18 @@ export class PipelineStepError extends Error {
     public readonly received: string,
   ) {
     super(`expected step ${expected}, got ${received}`)
+  }
+}
+
+/** A result whose kind does not belong to the run's current step: a review step's findings and a check step's pass/fail cannot come from a `work-done` result, and a work step cannot be satisfied by a review or check result. */
+export class PipelineResultError extends Error {
+  public override readonly name = 'PipelineResultError'
+  public constructor(
+    public readonly stepId: string,
+    public readonly expected: string,
+    public readonly received: string,
+  ) {
+    super(`step ${stepId} takes ${expected}, got ${received}`)
   }
 }
 
@@ -309,13 +321,24 @@ function recurringFindings(
   return last.filter((finding) => earlier.has(finding.title))
 }
 
+/** The one result kind each step kind accepts: work proves itself done, review brings findings, check brings its pass or fail. */
+const EXPECTED_RESULT_KIND: Record<PipelineStepKind, PipelineStepResult['kind']> = {
+  work: 'work-done',
+  review: 'reviewed',
+  check: 'checked',
+}
+
 /**
- * Record a finished step and move the run. A failing review (findings at or
- * above the threshold) or a failed check loops back to the first work step
- * on the same branch with the findings; the round past `maxRounds` stops at
- * `redesign`, naming the findings that came back. The last step's success
- * hands the reviewed branch to the orchestrator's `merge`: this module never
- * merges by itself. Returns the updated run and the decision.
+ * Record a finished step and move the run. The result's kind must belong to
+ * the current step (`work-done` for work, `reviewed` for review, `checked`
+ * for check); anything else throws, so a bare `work-done` can never stand
+ * in for the review's findings or the check's pass/fail. A failing review
+ * (findings at or above the threshold) or a failed check loops back to the
+ * first work step on the same branch with the findings; the round past
+ * `maxRounds` stops at `redesign`, naming the findings that came back. The
+ * last step's success hands the reviewed branch to the orchestrator's
+ * `merge`: this module never merges by itself. Returns the updated run and
+ * the decision.
  */
 export function recordStepResult(
   def: PipelineDefinition,
@@ -328,6 +351,10 @@ export function recordStepResult(
   const step = currentStep(def, run)
   if (result.stepId !== step.id) {
     throw new PipelineStepError(step.id, result.stepId)
+  }
+  const expectedKind = EXPECTED_RESULT_KIND[step.kind]
+  if (result.kind !== expectedKind) {
+    throw new PipelineResultError(step.id, expectedKind, result.kind)
   }
   if (run.branch !== undefined && result.branch !== run.branch) {
     throw new PipelineBranchError(run.branch, result.branch)
@@ -487,7 +514,7 @@ const NARROWING_KEYS = new Set(['id', 'maxRounds', 'removeSteps'])
 
 const narrowingSchema = z.object({
   id: z.string(),
-  maxRounds: z.optional(z.number().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS))),
+  maxRounds: z.optional(z.int().check(z.gte(1), z.lte(PIPELINE_MAX_ROUNDS))),
   removeSteps: z.optional(z.array(z.string())),
 })
 
