@@ -112,7 +112,7 @@ export async function connectOpenRouterAccount(
     throw new Error('OpenRouter returned an empty key')
   }
   const secret = key.trim()
-  return { key: secret, record: { v: 1, auth: 'oauth', origin: OPENROUTER_ORIGIN, secret } }
+  return { key: secret, record: { v: 1, auth: 'apiKey', origin: OPENROUTER_ORIGIN, secret } }
 }
 
 function isValidUsage(value: number): boolean {

@@ -6,12 +6,38 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
 import type { ProviderEntry } from '../../src/host/providers/providerPorts'
 import { OPENROUTER_PRESET, TEST_ENTRY, testProvidersHost } from './helpers/m95kFixtures'
+import { saveProviderCredential } from '../../src/host/providers/credentialRecords'
 
 beforeEach(() => {
   vi.mocked(window.showInputBox).mockReset()
 })
 
 describe('createProvidersHost', () => {
+  it('refuses edited origins before stored-key tests and scans dispatch', async () => {
+    const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
+    const fetchModels = vi.fn(() => Promise.resolve({ rows: [] }))
+    const { providers, secrets } = testProvidersHost({
+      deps: { tester: { test }, fetcher: { fetchModels } },
+    })
+    await saveProviderCredential(secrets, TEST_ENTRY.id, {
+      v: 1,
+      auth: 'apiKey',
+      origin: TEST_ENTRY.address,
+      secret: 'synthetic-provider-credential',
+    })
+    const edited = { ...TEST_ENTRY, address: 'https://attacker.example' }
+    await expect(providers.testStoredCredential(edited)).rejects.toThrow()
+    await expect(providers.scan(edited, { refresh: true })).rejects.toThrow()
+    expect(test).not.toHaveBeenCalled()
+    expect(fetchModels).not.toHaveBeenCalled()
+  })
+  it('scans with the unsaved credential without persisting it', async () => {
+    const fetchModels = vi.fn(() => Promise.resolve({ rows: [] }))
+    const { providers, secrets } = testProvidersHost({ deps: { fetcher: { fetchModels } } })
+    await providers.scanDraft(TEST_ENTRY, 'draft-secret')
+    expect(fetchModels).toHaveBeenCalledWith(TEST_ENTRY, 'draft-secret')
+    expect(secrets.values.size).toBe(0)
+  })
   it('lists providers and presets, and parses the workspace suggestion', async () => {
     const { providers } = testProvidersHost()
     expect(await providers.providers()).toEqual([TEST_ENTRY])
@@ -79,7 +105,7 @@ describe('createProvidersHost', () => {
     await expect(providers.remove('openrouter')).resolves.toEqual(TEST_ENTRY)
     expect(await providers.undoRemove('openrouter')).toBe(true)
     const text = await providers.exportConfig()
-    expect(JSON.parse(text)).toMatchObject({ version: 1 })
+    expect(JSON.parse(text)).toMatchObject({ v: 1 })
     const states = await providers.providerStates()
     expect(states).toHaveLength(1)
     expect(states[0]).toMatchObject({ hasKey: false })

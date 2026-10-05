@@ -12,43 +12,83 @@ import type { AddressCheck, AddressPolicy, ProviderEntry, ProvidersStore } from 
  * (the draft's provider is validated against this same shape).
  */
 export const providerEntrySchema = z.object({
-  id: z.string(),
-  presetId: z.string(),
-  address: z.string(),
-  auth: z.enum(['apiKey', 'none', 'oauth', 'subscription']),
+  id: z.string().check(
+    z.regex(/^[a-z][a-z0-9-]{0,31}$/),
+    z.refine((id) => id !== 'meta'),
+  ),
+  preset: z.string(),
+  address: z.optional(z.string()),
+  auth: z.enum(['apiKey', 'none']),
   models: z.array(z.string()),
-  isPrivate: z.optional(z.boolean()),
+  privateNetwork: z.optional(z.boolean()),
+  format: z.optional(z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama'])),
+  pinned: z.optional(z.array(z.string())),
+  prices: z.optional(
+    z.record(
+      z.string(),
+      z.object({
+        input: z.number(),
+        output: z.number(),
+        cachedInput: z.optional(z.number()),
+        cacheWrite: z.optional(z.number()),
+        cacheWrite1h: z.optional(z.number()),
+        request: z.optional(z.number()),
+        image: z.optional(z.number()),
+      }),
+    ),
+  ),
+  routing: z.optional(
+    z.object({
+      privacy: z.enum(['zdr', 'no-training', 'any']),
+      order: z.optional(z.array(z.string())),
+      allowFallbacks: z.optional(z.boolean()),
+    }),
+  ),
+  numCtx: z.optional(z.record(z.string(), z.number())),
 })
 
 const providersDocumentSchema = z.object({
-  version: z.literal(1),
+  v: z.literal(1),
+  defaultModel: z.optional(z.string()),
   providers: z.array(providerEntrySchema),
 })
 
-export type ProvidersDocument = z.infer<typeof providersDocumentSchema>
+export interface ProvidersDocument {
+  readonly v: 1
+  readonly defaultModel?: string | undefined
+  readonly providers: ProviderEntry[]
+}
 
 /** Whether a parsed value is a providers document. */
-export function parseProvidersDocument(raw: unknown): ProvidersDocument {
+export function parseProvidersDocument(
+  raw: unknown,
+  presetAddress?: (preset: string) => string | undefined,
+): ProvidersDocument {
   const parsed = providersDocumentSchema.safeParse(raw)
   if (!parsed.success) {
     throw new Error(`The providers file is not valid: ${z.prettifyError(parsed.error)}`)
   }
-  for (const entry of parsed.data.providers) {
-    if (entry.id.trim() === '' || entry.presetId.trim() === '' || entry.address.trim() === '') {
+  const providers = parsed.data.providers.map((entry) => {
+    const address = entry.address ?? presetAddress?.(entry.preset) ?? ''
+    if (entry.id.trim() === '' || entry.preset.trim() === '' || address.trim() === '') {
       throw new Error(`The providers file names a provider with an empty id, preset or address`)
     }
-  }
-  return parsed.data
+    return { ...entry, address }
+  })
+  return { ...parsed.data, providers }
 }
 
-function parseDocumentText(text: string): ProvidersDocument {
+function parseDocumentText(
+  text: string,
+  presetAddress?: (preset: string) => string | undefined,
+): ProvidersDocument {
   let raw: unknown
   try {
     raw = JSON.parse(text)
   } catch {
     throw new Error('The providers file is not valid JSON')
   }
-  return parseProvidersDocument(raw)
+  return parseProvidersDocument(raw, presetAddress)
 }
 
 /**
@@ -59,8 +99,12 @@ function parseDocumentText(text: string): ProvidersDocument {
 export async function exportProviders(store: ProvidersStore): Promise<string> {
   const entries = await store.list()
   const document: ProvidersDocument = {
-    version: 1,
-    providers: entries.map((entry) => ({ ...entry, models: [...entry.models] })),
+    v: 1,
+    defaultModel: await store.defaultModel(),
+    providers: entries.map((entry) => ({
+      ...providerEntrySchema.parse(entry),
+      address: entry.address,
+    })),
   }
   return `${JSON.stringify(document, undefined, 2)}\n`
 }
@@ -80,12 +124,8 @@ export interface ImportPreview {
 
 function isSameEntry(left: ProviderEntry, right: ProviderEntry): boolean {
   return (
-    left.presetId === right.presetId &&
-    left.address === right.address &&
-    left.auth === right.auth &&
-    (left.isPrivate ?? false) === (right.isPrivate ?? false) &&
-    left.models.length === right.models.length &&
-    left.models.every((model, index) => model === right.models[index])
+    JSON.stringify(providerEntrySchema.parse(left)) ===
+    JSON.stringify(providerEntrySchema.parse(right))
   )
 }
 
@@ -98,8 +138,9 @@ export function previewProvidersImport(
   current: readonly ProviderEntry[],
   text: string,
   policy: AddressPolicy,
+  presetAddress?: (preset: string) => string | undefined,
 ): ImportPreview {
-  const incoming = parseDocumentText(text).providers
+  const incoming = parseDocumentText(text, presetAddress).providers
   const present = new Map(current.map((entry) => [entry.id, entry]))
   const rows: ImportPreviewRow[] = []
   for (const entry of incoming) {
@@ -128,6 +169,7 @@ export function previewProvidersImport(
 export interface ProvidersImportDeps {
   readonly store: ProvidersStore
   readonly policy: AddressPolicy
+  readonly presetAddress?: (preset: string) => string | undefined
   /**
    * Shows the preview (every address, every "needs a key") and asks to go
    * on. False, or a dismissal, imports nothing.
@@ -142,11 +184,12 @@ export interface ProvidersImportDeps {
  */
 export async function importProviders(deps: ProvidersImportDeps, text: string): Promise<number> {
   const current = await deps.store.list()
-  const preview = previewProvidersImport(current, text, deps.policy)
+  const preview = previewProvidersImport(current, text, deps.policy, deps.presetAddress)
   if (!(await deps.confirm(preview))) {
     return 0
   }
-  const incoming = parseDocumentText(text).providers
+  const incoming = parseDocumentText(text, deps.presetAddress).providers
   await deps.store.replaceAll(incoming)
+  await deps.store.setDefaultModel(parseDocumentText(text, deps.presetAddress).defaultModel)
   return incoming.length
 }

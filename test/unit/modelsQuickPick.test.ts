@@ -15,7 +15,7 @@ import { memoryProvidersStore } from './helpers/fakes'
 
 const GROQ_ENTRY: ProviderEntry = {
   id: 'groq',
-  presetId: 'groq',
+  preset: 'groq',
   address: 'https://api.groq.com/openai/v1',
   auth: 'apiKey',
   models: [],
@@ -75,6 +75,24 @@ beforeEach(() => {
 })
 
 describe('runAddProviderQuickPick', () => {
+  it('uses the entered unsaved credential for model discovery', async () => {
+    const fetchModels = vi.fn(() => Promise.resolve({ rows: [testRow('m1')] }))
+    const { providers, secrets } = testProvidersHost({
+      deps: { store: memoryProvidersStore(), fetcher: { fetchModels } },
+    })
+    vi.mocked(window.showInputBox).mockResolvedValue('draft-key')
+    const ui = scriptedUi({
+      pickOne: ['openrouter', 'paste'],
+      pickMany: [['m1']],
+      confirmSave: [false],
+    })
+    await runAddProviderQuickPick({ providers, isRemote: false, ui })
+    expect(fetchModels).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'openrouter' }),
+      'draft-key',
+    )
+    expect(secrets.values.size).toBe(0)
+  })
   it('adds a provider with a pasted key, end to end', async () => {
     const { providers, composed } = suggestiveHost()
     vi.mocked(window.showInputBox).mockResolvedValue('sk-or-pasted')

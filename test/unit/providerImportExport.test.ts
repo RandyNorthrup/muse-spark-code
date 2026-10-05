@@ -15,15 +15,15 @@ import { saveProviderCredential } from '../../src/host/providers/credentialRecor
 
 const OPENROUTER: ProviderEntry = {
   id: 'openrouter',
-  presetId: 'openrouter',
+  preset: 'openrouter',
   address: 'https://openrouter.ai',
-  auth: 'oauth',
+  auth: 'apiKey',
   models: ['openai/gpt-oss-20b'],
 }
 
 const GROQ: ProviderEntry = {
   id: 'groq',
-  presetId: 'groq',
+  preset: 'groq',
   address: 'https://api.groq.com/openai/v1',
   auth: 'apiKey',
   models: [],
@@ -31,7 +31,7 @@ const GROQ: ProviderEntry = {
 
 const LOCAL: ProviderEntry = {
   id: 'ollama',
-  presetId: 'ollama',
+  preset: 'ollama',
   address: 'http://127.0.0.1:11434',
   auth: 'none',
   models: ['qwen3:8b'],
@@ -59,11 +59,32 @@ function credentialKeys(value: unknown): string[] {
 }
 
 describe('exportProviders', () => {
+  it('round-trips canonical provider options and the default model', async () => {
+    const entry: ProviderEntry = {
+      ...OPENROUTER,
+      format: 'chat',
+      pinned: ['m'],
+      prices: { m: { input: 1, output: 2 } },
+      routing: { privacy: 'zdr', order: ['vendor'], allowFallbacks: false },
+      numCtx: { m: 32_768 },
+    }
+    const source = memoryStore([entry])
+    await source.setDefaultModel('openrouter/m')
+    const exported = await exportProviders(source)
+    expect(JSON.parse(exported)).toEqual({ v: 1, defaultModel: 'openrouter/m', providers: [entry] })
+    const target = memoryStore()
+    await importProviders(
+      { store: target, policy: POLICY, confirm: () => Promise.resolve(true) },
+      exported,
+    )
+    expect(target.current).toEqual([entry])
+    expect(await target.defaultModel()).toBe('openrouter/m')
+  })
   it('exports the non-secret configuration with no credential field', async () => {
     const secrets = memorySecrets()
     await saveProviderCredential(secrets, 'openrouter', {
       v: 1,
-      auth: 'oauth',
+      auth: 'apiKey',
       origin: 'https://openrouter.ai',
       secret: '[REDACTED]',
     })
@@ -71,8 +92,8 @@ describe('exportProviders', () => {
     // The text is this lane's own export; the cast names its document shape
     // for the field assertions (PLAN.md §8). A foreign shape is covered by
     // the malformed-import tests, which never reach this cast.
-    const parsed = JSON.parse(text) as { version: number; providers: ProviderEntry[] }
-    expect(parsed.version).toBe(1)
+    const parsed = JSON.parse(text) as { v: number; providers: ProviderEntry[] }
+    expect(parsed.v).toBe(1)
     expect(parsed.providers).toEqual([OPENROUTER, LOCAL])
     expect(credentialKeys(parsed)).toEqual([])
     for (const secret of secrets.values.values()) {
@@ -86,7 +107,7 @@ describe('previewProvidersImport', () => {
     const changed: ProviderEntry = { ...OPENROUTER, models: ['other/model'] }
     const preview = previewProvidersImport(
       [OPENROUTER, GROQ],
-      JSON.stringify({ version: 1, providers: [changed, LOCAL] }),
+      JSON.stringify({ v: 1, providers: [changed, LOCAL] }),
       POLICY,
     )
     expect(preview.rows).toEqual([
@@ -99,12 +120,12 @@ describe('previewProvidersImport', () => {
   it('refuses an unreadable file, a bad shape and an empty id', () => {
     expect(() => previewProvidersImport([], 'not json{', POLICY)).toThrow()
     expect(() =>
-      previewProvidersImport([], JSON.stringify({ version: 2, providers: [] }), POLICY),
+      previewProvidersImport([], JSON.stringify({ v: 2, providers: [] }), POLICY),
     ).toThrow()
     expect(() =>
       previewProvidersImport(
         [],
-        JSON.stringify({ version: 1, providers: [{ ...OPENROUTER, id: '  ' }] }),
+        JSON.stringify({ v: 1, providers: [{ ...OPENROUTER, id: '  ' }] }),
         POLICY,
       ),
     ).toThrow()
@@ -115,7 +136,7 @@ describe('previewProvidersImport', () => {
       previewProvidersImport(
         [],
         JSON.stringify({
-          version: 1,
+          v: 1,
           providers: [{ ...GROQ, address: 'https://attacker.example' }],
         }),
         POLICY,
@@ -130,7 +151,7 @@ describe('importProviders', () => {
     const confirm = vi.fn((_preview: ImportPreview) => Promise.resolve(true))
     const count = await importProviders(
       { store, policy: POLICY, confirm },
-      JSON.stringify({ version: 1, providers: [OPENROUTER] }),
+      JSON.stringify({ v: 1, providers: [OPENROUTER] }),
     )
     expect(count).toBe(1)
     expect(store.replaced).toEqual([[OPENROUTER]])
@@ -144,7 +165,7 @@ describe('importProviders', () => {
     await expect(
       importProviders(
         { store, policy: POLICY, confirm },
-        JSON.stringify({ version: 1, providers: [OPENROUTER] }),
+        JSON.stringify({ v: 1, providers: [OPENROUTER] }),
       ),
     ).resolves.toBe(0)
     expect(store.replaced).toEqual([])
@@ -153,7 +174,7 @@ describe('importProviders', () => {
       importProviders(
         { store, policy: POLICY, confirm: () => Promise.resolve(true) },
         JSON.stringify({
-          version: 1,
+          v: 1,
           providers: [{ ...GROQ, address: 'https://attacker.example' }],
         }),
       ),

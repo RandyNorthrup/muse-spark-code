@@ -9,6 +9,7 @@ import { window as fakeWindow } from './mocks/vscode'
 import { confirmModal, pickMany, pickOne } from './helpers/vscodeViews'
 import {
   createModelsPanelFeatures,
+  setComposerModelConfirmed,
   type ModelsPanelHostDeps,
   type ModelsPanelSeam,
 } from '../../src/host/models/modelsPanelEntry'
@@ -17,6 +18,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { scannedTwoModels, seamBase } from './helpers/m95kFixtures'
 import { FakeWebviewPanel, memoryProvidersStore, memorySecrets } from './helpers/fakes'
 import { FakeUri } from './mocks/vscode'
+import { fakeSurface } from './helpers/fakes'
+import { recoverProviderRemovals } from '../../src/host/models/modelsPanelBundle'
 
 function seam(): { readonly seam: ModelsPanelSeam } {
   return {
@@ -66,6 +69,18 @@ function hostDeps(overrides: Partial<ModelsPanelHostDeps> = {}): {
   }
 }
 
+function hostWithState(values: Map<string, unknown>): ReturnType<typeof hostDeps> {
+  return hostDeps({
+    globalState: {
+      get: (key) => values.get(key),
+      update: (key, value) => {
+        values.set(key, value)
+        return Promise.resolve()
+      },
+    },
+  })
+}
+
 beforeEach(() => {
   fakeWindow.createWebviewPanel.mockReset()
   fakeWindow.createWebviewPanel.mockImplementation(
@@ -82,6 +97,19 @@ beforeEach(() => {
 })
 
 describe('createModelsPanelFeatures', () => {
+  it('rejects a void model refusal and restores the surface post method', async () => {
+    const surface = fakeSurface('receipt')
+    const previous = surface.post
+    await expect(
+      setComposerModelConfirmed(surface, 'openrouter/m1', () => Promise.resolve()),
+    ).rejects.toThrow()
+    expect(surface.post).toBe(previous)
+    await setComposerModelConfirmed(surface, 'openrouter/m1', () => {
+      surface.post({ type: 'sessionInfo', modelId: 'openrouter/m1' })
+      return Promise.resolve()
+    })
+    expect(surface.post).toBe(previous)
+  })
   it('opens one panel tab and reopens it after disposal', () => {
     const { host } = hostDeps()
     const features = createModelsPanelFeatures(host, seam().seam)
@@ -157,9 +185,9 @@ describe('createModelsPanelFeatures', () => {
           {
             entry: {
               id: 'openrouter',
-              presetId: 'openrouter',
+              preset: 'openrouter',
               address: 'https://openrouter.ai',
-              auth: 'oauth',
+              auth: 'apiKey',
               models: [],
             },
             removedAt: 1,
@@ -167,15 +195,7 @@ describe('createModelsPanelFeatures', () => {
         ],
       ],
     ])
-    const { host, secrets } = hostDeps({
-      globalState: {
-        get: (key: string) => values.get(key),
-        update: (key: string, value: unknown) => {
-          values.set(key, value)
-          return Promise.resolve()
-        },
-      },
-    })
+    const { host, secrets } = hostWithState(values)
     await secrets.store('museSpark.provider.openrouter', '{"v":1}')
     const features = createModelsPanelFeatures(host, seam().seam)
     await features.completePendingRemovals()
@@ -190,7 +210,7 @@ describe('createModelsPanelFeatures', () => {
           {
             entry: {
               id: 'x',
-              presetId: 'x',
+              preset: 'x',
               address: 'https://x.example',
               auth: 'apiKey',
               models: [],
@@ -200,17 +220,14 @@ describe('createModelsPanelFeatures', () => {
         ],
       ],
     ])
-    const { host, secrets } = hostDeps({
-      globalState: {
-        get: (key: string) => values.get(key),
-        update: (key: string, value: unknown) => {
-          values.set(key, value)
-          return Promise.resolve()
-        },
-      },
-    })
+    const { host, secrets } = hostWithState(values)
     const features = createModelsPanelFeatures(host, seam().seam)
-    await features.completePendingRemovals()
+    await recoverProviderRemovals(
+      values.get('museSpark.providerPendingRemovals'),
+      () => features,
+      host.log,
+    )
+    expect(fakeWindow.createWebviewPanel).not.toHaveBeenCalled()
     expect(await secrets.get('museSpark.provider.x')).toBeUndefined()
     expect(values.get('museSpark.providerPendingRemovals')).toEqual([])
   })

@@ -65,6 +65,8 @@ export const COMMAND_IDS = {
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
+export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
+export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */

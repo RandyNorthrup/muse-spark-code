@@ -3,13 +3,7 @@
 // real object satisfies structurally, the ACP agent's OS credential store
 // implements (PLAN.md D61), and tests replace with a Map.
 
-import { MODEL_API_KEY_PATTERN, SECRET_KEYS } from '../../shared/constants'
-import {
-  type CredentialRecord,
-  deleteProviderCredential,
-  readProviderCredential,
-  saveProviderCredential,
-} from '../providers/credentialRecords'
+import { MODEL_API_KEY_PATTERN, PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../../shared/constants'
 
 export interface SecretStore {
   get(key: string): PromiseLike<string | undefined>
@@ -34,7 +28,11 @@ export class CredentialStore {
      * The configured provider ids (lane P's providers file). Absent until
      * that lane merges: only the Meta key counts meanwhile.
      */
-    private readonly providerIds?: () => PromiseLike<readonly string[]>,
+    private readonly providerIds?: () => PromiseLike<
+      readonly (
+        string | { readonly id: string; readonly auth: string; readonly models?: readonly string[] }
+      )[]
+    >,
   ) {}
 
   /**
@@ -71,21 +69,6 @@ export class CredentialStore {
     await this.secrets.delete(SECRET_KEYS.modelApiKey)
   }
 
-  /** A provider's stored credential record; undefined when none was entered. */
-  public async getProviderCredential(id: string): Promise<CredentialRecord | undefined> {
-    return await readProviderCredential(this.secrets, id)
-  }
-
-  /** Stores a provider's credential record, bound to its origin. */
-  public async setProviderCredential(id: string, record: CredentialRecord): Promise<void> {
-    await saveProviderCredential(this.secrets, id, record)
-  }
-
-  /** Deletes a provider's credential record (removal after its Undo). */
-  public async clearProviderCredential(id: string): Promise<void> {
-    await deleteProviderCredential(this.secrets, id)
-  }
-
   /**
    * Whether any configured provider holds a credential. A damaged record
    * counts: something is stored for that provider, and the panel asks for
@@ -96,9 +79,20 @@ export class CredentialStore {
     if (ids === undefined) {
       return false
     }
-    for (const id of ids) {
+    for (const provider of ids) {
+      if (
+        typeof provider !== 'string' &&
+        provider.auth === 'none' &&
+        (provider.models?.length ?? 0) > 0
+      ) {
+        return true
+      }
+      const id = typeof provider === 'string' ? provider : provider.id
       try {
-        if ((await readProviderCredential(this.secrets, id)) !== undefined) {
+        // Auth needs presence only; damaged records count too. Parsing and
+        // credential dispatch remain in the lazy provider store.
+        const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
+        if (stored !== undefined && stored !== '') {
           return true
         }
       } catch {

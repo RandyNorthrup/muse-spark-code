@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **M95 provider host review repairs.** Stored-key tests and scans refuse an
+  edited origin; panel failures use fixed text, and password-box/OAuth keys
+  remain in host-owned drafts. The panel uses the Models bridge and stylesheet.
+  Save compensates persistence and composer failures, native private-network
+  consent is required, draft scans use the entered key, and concurrent cache
+  writes/removal recovery preserve provider state. Auth recognizes configured
+  local models. Canonical exports retain model options and the default model.
+  Final integration certification and the activation-growth residual remain open.
+
 ### Added
 
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start

@@ -6,7 +6,7 @@
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import type { CredentialStore } from '../auth/credentialStore'
+import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
 import type { AddressPolicy, ProviderEntry, ProvidersStore } from './providerPorts'
 
 /** The wizard's in-memory draft: never written until Save. */
@@ -22,6 +22,7 @@ export interface WizardDraft {
   readonly sessionBudgetUsd?: number | undefined
   /** Save and use now: the conversation's model is set too. */
   readonly useNow: boolean
+  readonly editing?: boolean
 }
 
 export interface WizardSaveDeps {
@@ -30,6 +31,7 @@ export interface WizardSaveDeps {
   readonly policy: AddressPolicy
   /** Asks the conversation to set the composer's model (its own refusal stands). */
   readonly setComposerModel: (modelRef: string) => Promise<void>
+  readonly isPrivateConfirmed?: (address: string) => boolean
 }
 
 export interface WizardSaveOutcome {
@@ -51,7 +53,7 @@ export async function saveWizardDraft(
 ): Promise<WizardSaveOutcome> {
   if (
     draft.provider.id.trim() === '' ||
-    draft.provider.presetId.trim() === '' ||
+    draft.provider.preset.trim() === '' ||
     draft.provider.address.trim() === '' ||
     draft.defaultModel.trim() === ''
   ) {
@@ -64,6 +66,9 @@ export async function saveWizardDraft(
   if (address.kind === 'refused') {
     throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: address.detail }))
   }
+  if (address.kind === 'private' && deps.isPrivateConfirmed?.(draft.provider.address) !== true) {
+    throw new Error(UI_TEXT.providerPrivateConfirm)
+  }
   let origin: string
   try {
     origin = new URL(draft.provider.address).origin
@@ -71,24 +76,48 @@ export async function saveWizardDraft(
     throw new Error(fill(UI_TEXT.providerAddressInvalid, { detail: draft.provider.address }))
   }
   const secret = (draft.credential ?? '').trim()
-  await deps.store.add(draft.provider)
-  if (secret !== '') {
-    await deps.credentials.setProviderCredential(draft.provider.id, {
-      v: 1,
-      auth: draft.credentialAuth,
-      origin,
-      secret,
-    })
+  if (
+    draft.provider.models.every((model) => draft.defaultModel !== `${draft.provider.id}/${model}`)
+  ) {
+    throw new Error(UI_TEXT.actionFailed)
   }
-  await deps.store.setDefaultModel(draft.defaultModel)
+  const previousDefault = await deps.store.defaultModel()
+  const previousSecret = await deps.credentials.getProviderCredential(draft.provider.id)
+  const previousEntries = await deps.store.list()
+  if (draft.editing === true) {
+    if (previousEntries.every((entry) => entry.id !== draft.provider.id)) {
+      throw new Error(UI_TEXT.actionFailed)
+    }
+    await deps.store.replaceAll(
+      previousEntries.map((entry) => (entry.id === draft.provider.id ? draft.provider : entry)),
+    )
+  } else {
+    await deps.store.add(draft.provider)
+  }
   let isComposerSet = false
-  if (draft.useNow) {
-    try {
+  try {
+    if (secret !== '') {
+      await deps.credentials.setProviderCredential(draft.provider.id, {
+        v: 1,
+        auth: draft.credentialAuth === 'oauth' ? 'apiKey' : draft.credentialAuth,
+        origin,
+        secret,
+      })
+    }
+    await deps.store.setDefaultModel(draft.defaultModel)
+    if (draft.useNow) {
       await deps.setComposerModel(draft.defaultModel)
       isComposerSet = true
-    } catch {
-      isComposerSet = false
     }
+  } catch (error) {
+    await deps.store.replaceAll(previousEntries)
+    if (previousSecret === undefined) {
+      await deps.credentials.clearProviderCredential(draft.provider.id)
+    } else {
+      await deps.credentials.setProviderCredential(draft.provider.id, previousSecret)
+    }
+    await deps.store.setDefaultModel(previousDefault)
+    throw error
   }
   return {
     providerId: draft.provider.id,

@@ -124,6 +124,7 @@ export function createModelScanner(deps: ModelScannerDeps): {
   readonly cancelScan: (providerId: string) => boolean
 } {
   const staleMs = deps.staleMs ?? PROVIDER_SCAN_STALE_MS
+  let persistence = Promise.resolve()
   const running = new Map<
     string,
     { readonly promise: Promise<ScanOutcome>; readonly cancel: () => void }
@@ -168,22 +169,36 @@ export function createModelScanner(deps: ModelScannerDeps): {
       if (isScanCancelled(controller.signal)) {
         return { rows: previousRows, diff: undefined, fromCache: true }
       }
-      const kept = await deps.store.load()
-      const scans = kept.filter((scan) => scan.providerId !== entry.id)
       const outcome: ScanOutcome = {
         rows: fetched,
         diff: hasPrevious ? diffScans(previousRows, fetched) : undefined,
         fromCache: false,
       }
-      await deps.store.save([
-        ...scans,
-        {
-          providerId: entry.id,
-          fetchedAt: deps.now(),
-          catalogue: request.catalogue,
-          rows: fetched,
-        },
-      ])
+      const previousPersistence = persistence
+      const saved = (async () => {
+        await previousPersistence
+        if (isScanCancelled(controller.signal)) {
+          return
+        }
+        const kept = await deps.store.load()
+        await deps.store.save([
+          ...kept.filter((scan) => scan.providerId !== entry.id),
+          {
+            providerId: entry.id,
+            fetchedAt: deps.now(),
+            catalogue: request.catalogue,
+            rows: fetched,
+          },
+        ])
+      })()
+      persistence = (async () => {
+        try {
+          await saved
+        } catch {
+          return
+        }
+      })()
+      await saved
       return outcome
     })()
     running.set(entry.id, {

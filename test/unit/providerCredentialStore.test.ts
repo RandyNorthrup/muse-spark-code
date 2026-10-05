@@ -2,10 +2,11 @@
 // credential, beside the Meta key, and lives in its own SecretStorage record.
 
 import { describe, expect, it } from 'vitest'
-import { CredentialStore } from '../../src/host/auth/credentialStore'
+import { ProviderCredentialStore as CredentialStore } from '../../src/host/providers/credentialRecords'
 import { providerSecretKey } from '../../src/host/providers/credentialRecords'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
+import { providerCredentials } from '../../src/host/models/modelsPanelBundle'
 
 const RECORD = {
   v: 1 as const,
@@ -21,6 +22,28 @@ function storeWithIds(ids: readonly string[]): CredentialStore {
 }
 
 describe('provider credentials in the credential store', () => {
+  it('admits a configured local model without a secret', async () => {
+    const store = providerCredentials(
+      memorySecrets(),
+      {
+        trace: () => undefined,
+        info: () => undefined,
+        warn: unexpectedWarning,
+        error: unexpectedWarning,
+      },
+      () =>
+        Promise.resolve([
+          {
+            id: 'ollama',
+            preset: 'ollama',
+            address: 'http://127.0.0.1:11434',
+            auth: 'none',
+            models: ['qwen3:8b'],
+          },
+        ]),
+    )
+    expect(await store.hasModelApiCredential()).toBe(true)
+  })
   it('round-trips a provider record under its own secret', async () => {
     const secrets = memorySecrets()
     const store = new CredentialStore(secrets, unexpectedWarning)

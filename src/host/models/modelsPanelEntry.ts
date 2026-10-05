@@ -6,9 +6,12 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import { GLOBAL_STATE_KEYS, UI_TEXT } from '../../shared/constants'
+import { GLOBAL_STATE_KEYS, PROVIDER_IMPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
+import { parseHostToWebviewMessage } from '../../shared/protocol'
+import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
-import { CredentialStore, type SecretStore } from '../auth/credentialStore'
+import type { SecretStore } from '../auth/credentialStore'
+import { ProviderCredentialStore as CredentialStore } from '../providers/credentialRecords'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import { showPickOne } from '../quickPick'
@@ -54,6 +57,7 @@ export interface ModelsPanelSeam {
 
 export interface ModelsPanelHostDeps {
   readonly secrets: SecretStore
+  readonly credentials?: CredentialStore
   readonly extensionUri: vscode.Uri
   readonly l10n: UiTable
   readonly log: Logger
@@ -68,9 +72,10 @@ export interface ModelsPanelHostDeps {
   /** Asks the conversation to set the composer's model. */
   readonly setComposerModel: (modelRef: string) => Promise<void>
   /** Picks an export file and writes the text; undefined work stays unwritten. */
-  readonly writeExportFile: (text: string) => Promise<void>
+  readonly writeExportFile?: (text: string) => Promise<void>
   /** Picks an import file and reads its text; undefined when dismissed. */
-  readonly readImportFile: () => Promise<string | undefined>
+  readonly readImportFile?: () => Promise<string | undefined>
+  readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
 }
 
 export interface ModelsPanelFeatures {
@@ -119,7 +124,7 @@ function isStoredEntry(value: unknown): value is ProviderEntry {
   return (
     isRecord(value) &&
     typeof value['id'] === 'string' &&
-    typeof value['presetId'] === 'string' &&
+    typeof value['preset'] === 'string' &&
     typeof value['address'] === 'string' &&
     typeof value['auth'] === 'string' &&
     AUTH_KINDS.has(value['auth']) &&
@@ -166,6 +171,76 @@ function removalStoreOver(globalState: ModelsPanelMemento): RemovalStore {
   }
 }
 
+/** Require the controller's observable model receipt; a void refusal is failure. */
+export async function setComposerModelConfirmed(
+  surface: ChatSurface,
+  modelRef: string,
+  run: () => Promise<void>,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- preserve the exact method for restoration; invoke it with its original surface via call. PLAN section 8.
+  const previousPost = surface.post
+  const receipt: { modelRef: string | undefined } = { modelRef: undefined }
+  surface.post = (message) => {
+    if (message.type === 'sessionInfo') {
+      receipt.modelRef = message.modelId
+    }
+    previousPost.call(surface, message)
+  }
+  try {
+    await run()
+    if (receipt.modelRef !== modelRef) {
+      throw new Error(UI_TEXT.actionFailed)
+    }
+  } finally {
+    surface.post = previousPost
+  }
+}
+
+/** The existing chat protocol decides when lane U's setup message is supported. */
+export function publishProviderSetup(
+  outcome: WizardSaveOutcome,
+  surface: Pick<ChatSurface, 'post'>,
+): void {
+  if (!outcome.composerSet) {
+    return
+  }
+  const parsed = parseHostToWebviewMessage({
+    type: 'setupComplete',
+    provider: outcome.providerId,
+    model: outcome.modelRef,
+  })
+  if (parsed.ok) {
+    surface.post(parsed.message)
+  }
+}
+
+async function writeExportFile(text: string): Promise<void> {
+  const target = await vscode.window.showSaveDialog({
+    filters: { JSON: ['json'] },
+    saveLabel: UI_TEXT.providerExport,
+  })
+  if (target?.scheme === 'file') {
+    await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(text))
+  }
+}
+async function readImportFile(): Promise<string | undefined> {
+  const [target] =
+    (await vscode.window.showOpenDialog({ filters: { JSON: ['json'] }, canSelectMany: false })) ??
+    []
+  if (target?.scheme !== 'file') {
+    return undefined
+  }
+  const bytes = await vscode.workspace.fs.readFile(target)
+  if (bytes.length > PROVIDER_IMPORT_MAX_BYTES) {
+    throw new Error(UI_TEXT.textFileTooLarge)
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    throw new Error(UI_TEXT.textFileInvalid)
+  }
+}
+
 /**
  * The panel's features, composed from the VS Code host and the lane-P/T
  * seam. One instance serves the window; the panel it opens is one tab.
@@ -177,17 +252,19 @@ export function createModelsPanelFeatures(
   // Each bundle keeps its own installed-language state (PLAN.md D6): the
   // factory installs the caller's table before use.
   setUiText(host.l10n.table, host.l10n.locale)
-  const credentials = new CredentialStore(
-    host.secrets,
-    (message) => {
-      host.log.warn(message)
-    },
-    undefined,
-    async () => {
-      const entries = await seam.store.list()
-      return entries.map((entry) => entry.id)
-    },
-  )
+  const credentials =
+    host.credentials ??
+    new CredentialStore(
+      host.secrets,
+      (message) => {
+        host.log.warn(message)
+      },
+      undefined,
+      async () => {
+        const entries = await seam.store.list()
+        return entries
+      },
+    )
   const providers: ProvidersHost = createProvidersHost({
     credentials,
     secrets: host.secrets,
@@ -248,8 +325,9 @@ export function createModelsPanelFeatures(
         l10n: host.l10n,
         log: host.log,
         providers,
-        writeExportFile: host.writeExportFile,
-        readImportFile: host.readImportFile,
+        isRemote: host.isRemote,
+        writeExportFile: host.writeExportFile ?? writeExportFile,
+        readImportFile: host.readImportFile ?? readImportFile,
         confirmImport: async (preview) => {
           const lines = preview.rows.map(
             (row) =>
@@ -265,6 +343,12 @@ export function createModelsPanelFeatures(
           )
         },
         onWizardSaved: (outcome: WizardSaveOutcome) => {
+          if (!outcome.composerSet) {
+            return
+          }
+          void Promise.resolve(host.onWizardSaved?.(outcome)).catch(() => {
+            host.log.warn('Provider setup notification failed')
+          })
           void vscode.window
             .showInformationMessage(
               fill(UI_TEXT.setupComplete, {
@@ -292,8 +376,8 @@ export function createModelsPanelFeatures(
 
   return {
     openPanel,
-    runQuickPick: () =>
-      runAddProviderQuickPick({
+    runQuickPick: async () => {
+      const outcome = await runAddProviderQuickPick({
         providers,
         isRemote: host.isRemote,
         ui: {
@@ -340,7 +424,12 @@ export function createModelsPanelFeatures(
             void vscode.window.showInformationMessage(message)
           },
         },
-      }),
+      })
+      if (outcome !== undefined) {
+        await host.onWizardSaved?.({ ...outcome, composerSet: true, sessionBudgetUsd: undefined })
+      }
+      return outcome
+    },
     completePendingRemovals: () => providers.completePendingRemovals(),
     suggestedPreset: () => providers.suggestedPreset(host.suggestedProviderSetting()),
   }
