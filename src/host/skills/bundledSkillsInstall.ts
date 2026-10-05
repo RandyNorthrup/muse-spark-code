@@ -328,17 +328,18 @@ async function linksInto(
 
 /**
  * The new copy renamed in: over nothing, or over the extension's earlier
- * copy, which steps aside first and comes back if the rename fails.
+ * copy, which steps aside first and comes back if the rename fails. Keep
+ * that earlier copy until the links and marker have committed too.
  */
 async function renameIn(
   staging: string,
   folder: string,
   hasEarlier: boolean,
   newId: () => string,
-): Promise<void> {
+): Promise<string | undefined> {
   if (!hasEarlier) {
     await fs.rename(staging, folder)
-    return
+    return undefined
   }
   const retired = path.join(
     path.dirname(folder),
@@ -351,8 +352,7 @@ async function renameIn(
     await fs.rename(retired, folder)
     throw error
   }
-  // The earlier copy holds only files and folders (copyTree made it).
-  await fs.rm(retired, { recursive: true, force: true })
+  return retired
 }
 
 /** What `vendorRoot`'s VENDOR.json says against the copy in the config home. */
@@ -393,8 +393,8 @@ export async function installBundledSkills(
   const installed: string[] = []
   const skipped: string[] = []
   const removed: string[] = []
-  // What this run made, undone in reverse if a later step fails.
-  const made: { readonly path: string; readonly isLink: boolean }[] = []
+  // What this run changed, undone in reverse if a later step fails.
+  const made: { readonly path: string; readonly restore: () => Promise<void> }[] = []
   let at = folder
   try {
     const state = await copyState(folder)
@@ -408,26 +408,27 @@ export async function installBundledSkills(
       `.${BUNDLED_SKILLS_PACKAGE_NAME}.${BUNDLED_SKILLS_STAGING_WORD}-${deps.newId()}`,
     )
     at = staging
+    let retired: string | undefined
     try {
       await copyTree(deps.vendorRoot, staging)
       if (vendor.firstPartyRoot !== undefined) {
         await copyTree(vendor.firstPartyRoot, path.join(staging, FIRST_PARTY_SKILLS_DIR))
       }
-      const marker = { tag: vendor.tag, installedAt: new Date(deps.now()).toISOString() }
-      await fs.writeFile(
-        path.join(staging, BUNDLED_SKILLS_MARKER_FILE),
-        `${JSON.stringify(marker)}\n`,
-        { flag: 'wx' },
-      )
       at = folder
-      await renameIn(staging, folder, state.kind === 'ours', deps.newId)
+      retired = await renameIn(staging, folder, state.kind === 'ours', deps.newId)
     } catch (error: unknown) {
       await fs.rm(staging, { recursive: true, force: true })
       throw error
     }
-    if (state.kind === 'absent') {
-      made.push({ path: folder, isLink: false })
-    }
+    made.push({
+      path: folder,
+      restore: async () => {
+        await fs.rm(folder, { recursive: true, force: true })
+        if (retired !== undefined) {
+          await fs.rename(retired, folder)
+        }
+      },
+    })
     at = deps.skillsRoot
     await fs.mkdir(deps.skillsRoot, { recursive: true })
     for (const id of vendor.skillIds) {
@@ -442,12 +443,23 @@ export async function installBundledSkills(
           throw error
         }
         await makeLink(target, link, linkType)
-        made.push({ path: link, isLink: true })
+        made.push({ path: link, restore: () => fs.unlink(link) })
         installed.push(id)
         continue
       }
       // Ours only when it leads to this very skill of the copy.
       if (existing !== undefined && isSamePath(existing, target)) {
+        installed.push(id)
+      } else if (
+        existing !== undefined &&
+        state.kind === 'ours' &&
+        [copySkills, copyFirstParty].some((root) => isSamePath(existing, path.join(root, id)))
+      ) {
+        // The same id moved between our roots; its old link is still ours.
+        await fs.unlink(link)
+        made.push({ path: link, restore: () => fs.symlink(existing, link, linkType) })
+        await makeLink(target, link, linkType)
+        made.push({ path: link, restore: () => fs.unlink(link) })
         installed.push(id)
       } else {
         skipped.push(id)
@@ -461,8 +473,19 @@ export async function installBundledSkills(
         continue
       }
       at = path.join(deps.skillsRoot, name)
+      const link = at
+      const target = await fs.readlink(link)
       await fs.unlink(at)
+      made.push({ path: link, restore: () => fs.symlink(target, link, linkType) })
       removed.push(name)
+    }
+    // A current tag promises that every non-colliding skill is reachable.
+    at = path.join(folder, BUNDLED_SKILLS_MARKER_FILE)
+    const marker = { tag: vendor.tag, installedAt: new Date(deps.now()).toISOString() }
+    await fs.writeFile(at, `${JSON.stringify(marker)}\n`, { flag: 'wx' })
+    if (retired !== undefined) {
+      at = retired
+      await fs.rm(retired, { recursive: true, force: true })
     }
     return { tag: vendor.tag, installed, skipped, removed, failure: undefined }
   } catch (error: unknown) {
@@ -477,16 +500,14 @@ export async function installBundledSkills(
   }
 }
 
-/** Takes away what a failed install made, newest first; the first step that fails is reported. */
+/** Restores what a failed install changed, newest first; the first failed step is reported. */
 async function undo(
-  made: readonly { readonly path: string; readonly isLink: boolean }[],
+  made: readonly { readonly path: string; readonly restore: () => Promise<void> }[],
 ): Promise<BundledSkillsFailure | undefined> {
   const newestFirst = made.toReversed()
   for (const item of newestFirst) {
     try {
-      await (item.isLink
-        ? fs.unlink(item.path)
-        : fs.rm(item.path, { recursive: true, force: true }))
+      await item.restore()
     } catch (error: unknown) {
       return failed(item.path, error)
     }

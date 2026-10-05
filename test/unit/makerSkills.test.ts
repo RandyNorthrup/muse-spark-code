@@ -59,7 +59,96 @@ const io: ContextIo = {
   realPath: (file) => Promise.resolve(realpathSync(file)),
 }
 
+/** Check prose clauses separately so a refusal cannot bless a later unsafe instruction. */
+function statements(text: string): readonly string[] {
+  return text
+    .replaceAll(/\[[^\]]*\]\(https:\/\/[^)]+\)/g, '')
+    .replaceAll('`', '')
+    .replaceAll(/\s+/g, ' ')
+    .split(/(?<=[.;])\s+/)
+}
+
+const topicSafetyRules = [
+  {
+    name: 'refuses queued M112 through gcode/script as a stop path',
+    check(text: string, file: string) {
+      for (const statement of statements(text)) {
+        if (/\bM112\b/i.test(statement) && /gcode\/script/i.test(statement)) {
+          expect(statement, file).toMatch(
+            /\b(?:never|do not|must not)\s+(?:send|route|use)\s+M112\s+(?:through|via|to)\s+gcode\/script\b/i,
+          )
+        }
+      }
+    },
+  },
+  {
+    name: 'requires ordered GRBL hold, jog-cancel and reset bytes wherever its stop is described',
+    check(text: string, file: string) {
+      for (const paragraph of text.split(/\n\s*\n/)) {
+        if (/\bGRBL\b/i.test(paragraph) && /\bstop\b/i.test(paragraph)) {
+          expect(paragraph, file).toMatch(/![\s\S]*\b0x85\b[\s\S]*\b0x18\b/i)
+        }
+      }
+    },
+  },
+  {
+    name: 'refuses confirm flags and model-readable tokens as approval',
+    check(text: string, file: string) {
+      for (const statement of statements(text)) {
+        const modelValue =
+          /\b(?:token|confirmation|confirm\s+flag)\b|--confirm|confirm\s*[:=]|\bconfirm\b.*\b(?:as|for)\s+approval/i
+        if (
+          modelValue.test(statement) &&
+          /\b(?:approval|approv\w*|authori[sz]\w*|consent|permission|send|actuate|heat|flash|upload)\b/i.test(
+            statement,
+          )
+        ) {
+          expect(statement, file).toMatch(
+            /\b(?:never|not|no)\s+(?:valid\s+)?(?:approval|consent|permission)\b/i,
+          )
+        }
+      }
+    },
+  },
+  {
+    name: 'refuses bypass and Auto suggestions for actuation',
+    check(text: string, file: string) {
+      for (const statement of statements(text)) {
+        if (/\b(?:bypass|auto(?!-)|always allow)\b/i.test(statement)) {
+          expect(statement, file).toMatch(
+            /\b(?:never|do not|must not)\s+(?:suggest|enable|use|choose|select|switch to|allow)\s+(?:the\s+)?(?:bypass|auto|always allow)\b|\b(?:bypass|auto|always allow)\b\s+(?:(?:mode|reviewer)\s+)?(?:is\s+|are\s+)?(?:never|not)\b/i,
+          )
+        }
+      }
+    },
+  },
+  {
+    name: 'refuses irreversible provisioning as a model action',
+    check(text: string, file: string) {
+      for (const statement of statements(text)) {
+        const irreversible =
+          /\b(?:e-?fuses?|fuses?|lock[ -]bits?|read[ -]?out[ -]protection|secure[ -]boot|(?:flash[ -])?encryption keys?|protection (?:bits|settings)|OTP|irreversible provisioning)\b/i
+        const operation =
+          /\b(?:burn\w*|writ\w*|set|enable|disable|program\w*|provision\w*|perform\w*|erase\w*|unlock\w*)\b/i
+        if (irreversible.test(statement) && operation.test(statement)) {
+          expect(statement, file).toMatch(
+            /\b(?:do not|never|must not|refuse)\s+(?:burn|write|set|enable|disable|program|provision|perform|erase|unlock)\b|^(?:the\s+)?user\b.*\bown\s+(?:terminal|tools)\b/i,
+          )
+        }
+      }
+    },
+  },
+]
+
 describe('maker skill pack (M103-S)', () => {
+  it.each(topicSafetyRules)('topic safety: $name', ({ check }) => {
+    const topics = documents().filter(({ file }) => path.basename(file) !== 'SKILL.md')
+    expect(topics.length).toBeGreaterThan(0)
+    for (const { file, text } of topics) {
+      check(text, file)
+    }
+  })
+
   it('ships exactly the planned ids with valid front matter and short on-demand entries', () => {
     expect(
       readdirSync(ROOT)

@@ -15131,6 +15131,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
+installer findings and its P3 topic-safety coverage finding within lane S.
+Updates reconcile owned same-id links across the vendor and first-party
+roots in both directions. Retain the previous copy and journal link changes
+until all links exist and the new content marker is written; failed upgrades
+restore the old copy, links and marker so Update remains available. Add
+safety lint over every maker topic for queued Moonraker M112, the complete
+GRBL stop sequence, model-set approval, bypass/Auto actuation and irreversible
+chip operations. Every regression and rule gets a byte-exact red drill in
+`docs/certification/m103-s.md`. No new dependency, command or wire shape.
+The rig brief forbids aggregate quality and integration merges; the lead
+runs those required gates after integration.
+
 **Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
 authorization: "any recommendation you come up with you are authorized").**
 (a) Plain HTTP on the LAN only for a machine the user registered by command,
@@ -15592,6 +15605,14 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM103S bounded-lane gates (2026-10-05).** The rig brief and shared lane
+rules forbid aggregate quality/full-unit runs and integration merges in this
+worktree. Run the owning suites, typecheck, scoped lint/format, dead-code,
+duplication, localization, host API and production build directly on Kubuntu;
+record results and every red drill in `docs/certification/m103-s.md`. Full
+quality, aggregate coverage and the platform/editor matrix remain mandatory
+lead checks after integration. No gate is weakened.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within

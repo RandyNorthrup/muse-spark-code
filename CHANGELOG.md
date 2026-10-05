@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Bundled-skill updates reconcile owned links when an id moves between the
+  vendor and first-party roots. Failed upgrades restore the previous copy,
+  links and marker, keeping Update available. Maker topic checks now reject
+  unsafe stop paths, model-set approvals, bypass/Auto actuation suggestions
+  and irreversible provisioning instructions.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now
   describes 0.13.0, the Marketplace README carries the same section, and a
