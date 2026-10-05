@@ -82,6 +82,7 @@ The PNGs beside the records are that day's harness renders.
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
 - [MG78b](mg78b.md): current-main integration of M71, conflict resolutions and bounded merge evidence (2026-10-04)
+- [MRG78](mrg78.md): Win11 merge of main's activation diet, CI and panel polish into M71, with bounded checks and the open browser-size gate (2026-10-04)
 - [M71](m71.md): git and pull requests: commit, push that always asks and never forces, pull requests on GitHub linked to their conversation, and someone else's pull request held in its own worktree until trusted (PLAN.md D49)
 - [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
 - [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
@@ -103,4 +104,5 @@ The PNGs beside the records are that day's harness renders.
 - [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
 - [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
 - [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.
+- [M87](m87.md): panel polish: the context meter, steps under one summary, message times, Edit on a queued message, the diff tally, the tasks pane and its tab, menu tips, the joined shell blocks, the working line and one radial menu for the chat; lane records [P](m87-p.md), [A](m87-a.md), [B](m87-b.md), [C](m87-c.md), [D](m87-d.md), [E](m87-e.md), [F](m87-f.md) and [the plural gate](m87-l10ngate.md) (PLAN.md D66)
 - [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)

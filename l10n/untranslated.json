@@ -46,7 +46,9 @@
       "noticeRepeatBadge",
       "reviewItem",
       "execUsage",
-      "execScanUsage"
+      "execScanUsage",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "groupModel",

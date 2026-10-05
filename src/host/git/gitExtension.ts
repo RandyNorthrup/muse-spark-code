@@ -9,14 +9,13 @@
 // force parameter, so no code here can pass one.
 
 import * as vscode from 'vscode'
-import { statSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
 import {
-  GIT_API_VERSION,
-  GIT_EXTENSION_ID,
-  UI_TEXT,
-  WORKSPACE_IDENTITY_ZERO,
-} from '../../shared/constants'
+  fileIdentityKey,
+  sameFile,
+  statIdentity,
+  statIdentitySync,
+} from '../../core/fs/fileIdentity'
+import { GIT_API_VERSION, GIT_EXTENSION_ID, UI_TEXT } from '../../shared/constants'
 import { isSameFolder } from '../../core/worktrees'
 import { canonicalPath } from '../canonicalPath'
 
@@ -84,9 +83,9 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
   check()
   const cwd = await canonicalPath(root)
   check()
-  const identity = await stat(cwd, { bigint: true })
+  const identity = await statIdentity(cwd)
   check()
-  if (!identity.isDirectory() || identity.ino === WORKSPACE_IDENTITY_ZERO) {
+  if (!identity.isDirectory() || fileIdentityKey(identity) === undefined) {
     throw new GitUnavailableError(UI_TEXT.gitOperationChanged)
   }
   let isOwned = true
@@ -99,10 +98,8 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
       try {
         check()
         isOwned = [root, cwd].every((directory) => {
-          const current = statSync(directory, { bigint: true })
-          return (
-            current.isDirectory() && current.dev === identity.dev && current.ino === identity.ino
-          )
+          const current = statIdentitySync(directory)
+          return current.isDirectory() && sameFile(current, identity)
         })
       } catch {
         isOwned = false

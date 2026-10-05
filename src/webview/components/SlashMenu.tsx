@@ -43,6 +43,7 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
             <MenuOption
               key={item.name}
               id={slashOptionId(index)}
+              tip={item.tip}
               isActive={index === activeIndex}
               onHover={() => {
                 onHover(index)

@@ -63,6 +63,7 @@ export interface PaletteKeys {
 export interface PaletteRow {
   readonly id: string
   readonly label: string
+  readonly tip: string | undefined
   readonly detail: string | undefined
   readonly widget: PaletteWidget | undefined
   readonly isCurrent: boolean
@@ -91,6 +92,7 @@ function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): P
     return {
       id: item.id,
       label: item.label,
+      tip: item.tip,
       detail: item.detail,
       widget,
       isCurrent: false,
@@ -104,6 +106,7 @@ function rowFor(item: PaletteItem, onAction: (action: PaletteAction) => void): P
   return {
     id: item.id,
     label: item.label,
+    tip: item.tip,
     detail: item.detail,
     widget: item.widget,
     isCurrent: false,
@@ -143,6 +146,7 @@ export function modelRows(
   return models.map((model) => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
+    tip: UI_TEXT.paletteTips.switchModel,
     detail: model.contextLimit === undefined ? undefined : contextWindowLabel(model.contextLimit),
     widget: undefined,
     isCurrent: model.modelId === currentModelId,
@@ -213,6 +217,8 @@ function RowView({
       id={`${ROW_ID_PREFIX}${row.id}`}
       role="option"
       aria-selected={isActive}
+      title={row.tip}
+      aria-describedby={row.tip === undefined ? undefined : `${ROW_ID_PREFIX}${row.id}-tip`}
       className={isActive ? 'palette-item palette-item-active' : 'palette-item'}
       onMouseEnter={() => {
         onHover(index)
@@ -231,6 +237,11 @@ function RowView({
       </span>
       {row.isCurrent ? <CheckIcon title={UI_TEXT.menuCurrent} /> : null}
       {row.widget === undefined ? null : <Widget widget={row.widget} onStep={row.step} />}
+      {row.tip === undefined ? null : (
+        <span id={`${ROW_ID_PREFIX}${row.id}-tip`} className="sr-only" aria-hidden="true">
+          {row.tip}
+        </span>
+      )}
     </li>
   )
 }
@@ -357,10 +368,14 @@ export function Palette(props: PaletteProps) {
             }
             case 'disabled': {
               return (
+                // A note, not an option: its tip is the pointer's title only.
+                // An ARIA attribute here would void the presentation role and
+                // leave the listbox a child it may not hold (lane W's full a11y run).
                 <li
                   key={entry.key}
                   role="presentation"
                   className="palette-item palette-item-disabled"
+                  title={entry.item.tip}
                 >
                   <span className="palette-item-text">
                     <span className="palette-item-label">{entry.item.label}</span>

@@ -41,7 +41,7 @@ import type { CoreLogger } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
-  MODEL_TEXT,
+  AUTO_REVIEWER_MODEL_TEXT,
   MUSE_CODE_REVIEW_TIMEOUT_MS,
   MUSE_CODE_REVIEWER_TURNS_PER_SESSION,
   THINKING_OFF_EFFORT,
@@ -214,8 +214,8 @@ export class MuseCodeReviewer {
       }
       return 'failed'
     }
-    const text = fill(MODEL_TEXT.museCodeReviewerTurn, {
-      instructions: MODEL_TEXT.autoReviewerInstructions,
+    const text = fill(AUTO_REVIEWER_MODEL_TEXT.museCodeReviewerTurn, {
+      instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
       request: reviewerInput(job.request),
     })
     let submission: TurnSubmission

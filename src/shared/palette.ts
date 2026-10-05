@@ -88,6 +88,8 @@ export type PaletteAction =
 export interface PaletteItem {
   readonly id: string
   readonly label: string
+  /** Absent only on the loading/empty notes and externally supplied rows. */
+  readonly tip?: string | undefined
   readonly detail?: string
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
@@ -413,6 +415,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
   return skills.map((skill) => ({
     id: `skill:${skill.selector}`,
     label: `/${skill.selector}`,
+    tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
     detail:
       skill.argumentHint === undefined
         ? skill.description
@@ -422,7 +425,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
 }
 
 export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
-  return [
+  const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
       title: UI_TEXT.groupContext,
@@ -468,6 +471,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'commit',
           label: UI_TEXT.gitCommitItem,
+          tip: UI_TEXT.gitCommitItemDetail,
           slashName: SLASH_COMMAND_NAMES.commit,
           detail: UI_TEXT.gitCommitItemDetail,
           action: { type: 'gitAction', action: 'openCommit' },
@@ -475,6 +479,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'push',
           label: UI_TEXT.gitPushItem,
+          tip: UI_TEXT.gitPushItemDetail,
           slashName: SLASH_COMMAND_NAMES.push,
           detail: UI_TEXT.gitPushItemDetail,
           action: { type: 'gitAction', action: 'push' },
@@ -482,6 +487,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'pullRequest',
           label: UI_TEXT.gitPullRequestItem,
+          tip: UI_TEXT.gitPullRequestItemDetail,
           slashName: SLASH_COMMAND_NAMES.pullRequest,
           detail: UI_TEXT.gitPullRequestItemDetail,
           action: { type: 'gitAction', action: 'openPullRequest' },
@@ -489,6 +495,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
         {
           id: 'checkoutPullRequest',
           label: UI_TEXT.gitCheckoutItem,
+          tip: UI_TEXT.gitCheckoutItemDetail,
           slashName: SLASH_COMMAND_NAMES.checkoutPullRequest,
           detail: UI_TEXT.gitCheckoutItemDetail,
           action: { type: 'openPullRequestInConversation' },
@@ -686,6 +693,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       ],
     },
   ]
+  const tips = new Map(Object.entries(UI_TEXT.paletteTips))
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      tip: item.tip ?? tips.get(item.id),
+    })),
+  }))
 }
 
 /** Case-insensitive substring filter over label and detail; empty groups drop. */

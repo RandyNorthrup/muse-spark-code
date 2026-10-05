@@ -13,6 +13,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { revertHunks } from '../../src/core/patchApply'
 import {
+  FILE_REFUSAL_MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
   MODEL_TEXT,
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
@@ -400,7 +402,7 @@ describe('write_file and edit_file: retargeted links (M54)', () => {
       '{"path":"link/note.txt","find":"before","replace":"after"}',
       { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() },
     )
-    expect(result.failureReason).toContain(MODEL_TEXT.fileHasUnsavedChanges)
+    expect(result.failureReason).toContain(FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges)
     expect(base.files.get('/ws/safe/note.txt')).toBe('before')
   })
 })
@@ -729,12 +731,12 @@ describe('executeTool: files as they are (D27)', () => {
   it('replaces a file only as the model last saw it (Claude Code’s rule)', async () => {
     const { io, run } = context({ 'a.txt': 'original\n' })
     const unseen = await run('write_file', { path: 'a.txt', content: 'mine\n' })
-    expect(unseen.failureReason).toBe(`a.txt ${MODEL_TEXT.fileChangedSinceRead}`)
+    expect(unseen.failureReason).toBe(`a.txt ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
     expect(io.files.get('/ws/a.txt')).toBe('original\n')
     await run('read_file', { path: 'a.txt' })
     io.files.set('/ws/a.txt', 'the user changed it\n')
     const stale = await run('write_file', { path: 'a.txt', content: 'mine\n' })
-    expect(stale.failureReason).toBe(`a.txt ${MODEL_TEXT.fileChangedSinceRead}`)
+    expect(stale.failureReason).toBe(`a.txt ${MODEL_API_MODEL_TEXT.fileChangedSinceRead}`)
     await run('read_file', { path: 'a.txt' })
     const fresh = await run('write_file', { path: 'a.txt', content: 'mine\n' })
     expect(fresh.failureReason).toBeUndefined()
@@ -749,7 +751,7 @@ describe('executeTool: files as they are (D27)', () => {
       await run('edit_file', { path: 'open.ts', find: 'x', replace: 'y' }),
       await run('write_file', { path: 'open.ts', content: 'y\n' }),
     ]) {
-      expect(outcome.failureReason).toBe(`open.ts ${MODEL_TEXT.fileHasUnsavedChanges}`)
+      expect(outcome.failureReason).toBe(`open.ts ${FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges}`)
     }
     expect(io.files.get('/ws/open.ts')).toBe('x\n')
   })

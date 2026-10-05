@@ -19,8 +19,8 @@ import {
   GOAL_PERCENT_MAX,
   GOAL_PROGRESS_REMINDER_STEPS,
   GOAL_STATUS,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
 } from '../../../shared/constants'
 import type { GoalCommand, GoalRefusal } from '../../agent/agentBackend'
 import type { GoalRecord } from './goalRecord'
@@ -182,26 +182,26 @@ function createGoal(
 ): GoalToolResult {
   const parsed = parsedArgs(newGoalArgs, args)
   if (parsed === undefined) {
-    return { outcome: failure(MODEL_TEXT.goalEmptyObjective), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyObjective), goal }
   }
   if (goal?.status === GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalUnfinishedExists), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalUnfinishedExists), goal }
   }
   if (goal?.status === GOAL_STATUS.paused) {
-    return { outcome: failure(MODEL_TEXT.goalPausedExists), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalPausedExists), goal }
   }
   const problem = objectiveProblem(parsed.objective)
   if (problem !== undefined) {
     const text =
       problem === 'empty'
-        ? MODEL_TEXT.goalEmptyObjective
-        : `${MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
+        ? MODEL_API_MODEL_TEXT.goalEmptyObjective
+        : `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
     return { outcome: failure(text), goal }
   }
   const budget = parsed.token_budget ?? null
   return budget === null || isBudget(budget)
     ? answered(context, freshGoal(parsed.objective, budget, context))
-    : { outcome: failure(MODEL_TEXT.goalBadBudget), goal }
+    : { outcome: failure(MODEL_API_MODEL_TEXT.goalBadBudget), goal }
 }
 
 function updateGoal(
@@ -210,11 +210,11 @@ function updateGoal(
   context: GoalContext,
 ): GoalToolResult {
   if (goal?.status !== GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalNoActive), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalNoActive), goal }
   }
   const parsed = parsedArgs(updateGoalArgs, args)
   if (parsed === undefined || !TERMINAL_UPDATES.includes(parsed.status)) {
-    return { outcome: failure(MODEL_TEXT.goalBadStatus), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalBadStatus), goal }
   }
   // Complete is exactly 100 percent (Muse Code's goal store rule).
   const isComplete = parsed.status === GOAL_STATUS.complete
@@ -232,14 +232,14 @@ function reportProgress(
   context: GoalContext,
 ): GoalToolResult {
   if (goal?.status !== GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalNoActive), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalNoActive), goal }
   }
   const parsed = parsedArgs(reportProgressArgs, args)
   if (parsed === undefined || !isWholePercent(parsed.percent_complete)) {
-    return { outcome: failure(MODEL_TEXT.goalBadPercent), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalBadPercent), goal }
   }
   if (parsed.current_work.trim() === '' || parsed.next_work.trim() === '') {
-    return { outcome: failure(MODEL_TEXT.goalEmptyWork), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyWork), goal }
   }
   // 100 percent is the same as update_goal(status="complete").
   const isComplete = parsed.percent_complete === GOAL_PERCENT_MAX

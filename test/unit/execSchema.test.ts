@@ -419,8 +419,10 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_RAW_TOOL_FIELDS: ['rawInput', 'rawOutput', 'toolCallId'],
       EXEC_WRITE_RETRY_MS: 10,
     })
-    expect(Object.keys(owned)).toHaveLength(43)
-    expect(constants.MODEL_TEXT).toMatchObject({
+    // 43 constants and EXEC_MODEL_TEXT, the run's model text, which only
+    // the ACP agent reads (PLAN.md D6, 2026-10-04).
+    expect(Object.keys(owned)).toHaveLength(44)
+    expect(constants.EXEC_MODEL_TEXT).toMatchObject({
       execUntrustedOpen: '<<<untrusted {marker}>>>',
       execUntrustedClose: '<<<end untrusted {marker}>>>',
     })

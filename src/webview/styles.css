@@ -11,6 +11,27 @@
   --ms-radius: 6px;
   --ms-icon-size: 16px;
   --ms-control-size: 26px;
+
+  /* The painted height of the toolbar's labelled pills: the model pill and
+     the open-file, reference and shell chips. */
+  --ms-chip-height: 20px;
+
+  /* The shortest the model pill gets in a narrow panel. */
+  --ms-pill-min-width: 2.5rem;
+
+  /* A card's text button (the approval choices): one line, one height. */
+  --ms-button-height: 28px;
+
+  /* The chat column (the owner's requests of 2026-10-04): the transcript, the
+     panes and dock above the composer, and the composer share one centred
+     column this wide, side gutters included, as Claude Code's panel does. */
+  --ms-column-max-width: 760px;
+
+  /* The column's distance from each panel edge once the panel is wider. It is
+     taken from the panel (the webview's viewport), not from the transcript's
+     scroller, so the scrollbar never moves the transcript off the composer. */
+  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
+  --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
 }
 
 html,
@@ -242,12 +263,16 @@ body {
 
 /* --- transcript --- */
 
+/* In the chat column: the body's padding is the gutter, and the start inset
+   is fixed so that the scrollbar takes its room from the end side's slack. */
 .transcript {
   display: flex;
   flex-direction: column;
   gap: var(--ms-gap);
-  width: 100%;
-  margin: 0;
+  box-sizing: border-box;
+  max-width: calc(var(--ms-column-max-width) - 2 * var(--ms-gap));
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset) 0;
   padding: 0;
   list-style: none;
 }
@@ -297,6 +322,60 @@ body {
   border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
 }
 
+/* A queued card (M87, PLAN.md D66): its badge and space for the shared opener. */
+.message-queued {
+  padding-right: 32px;
+}
+
+.message-queued-badge {
+  margin-top: 4px;
+  font-size: 0.85em;
+}
+
+/* A message's time (M87): at the card's corner beside its buttons, shown on
+   hover and while focus is inside the card. A card with no button of its
+   own makes the time its keyboard stop (`tabindex`), in the corner itself. */
+.message-time {
+  position: absolute;
+  padding: 0 4px;
+  border-radius: var(--ms-radius);
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.8em;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  background: var(--vscode-input-background);
+  opacity: 0%;
+}
+
+.message-assistant > .message-time {
+  right: 54px;
+  bottom: 4px;
+  background: var(--vscode-editor-background);
+}
+
+.message-user > .message-time {
+  top: 6px;
+  right: 30px;
+}
+
+.message-time:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.message-assistant > .message-time[tabindex],
+.message-user > .message-time[tabindex] {
+  right: 4px;
+}
+
+.message-assistant:hover > .message-time,
+.message-assistant:focus-within > .message-time,
+.message-user:hover > .message-time,
+.message-user:focus-within > .message-time {
+  opacity: 100%;
+}
+
 .cursor {
   display: inline-block;
   width: 0.55em;
@@ -327,9 +406,12 @@ body {
 
 /* --- composer --- */
 
-/* Positioning context for the palette, which sits above the composer. */
+/* Positioning context for the palette, which sits above the composer. In the
+   chat column, so the box, its banners, chips and menus, and the floating
+   palette and popovers move as one; narrower panels keep the full width. */
 .composer-area {
   position: relative;
+  margin-inline: var(--ms-column-inset);
 }
 
 .composer {
@@ -394,8 +476,13 @@ body {
   flex-shrink: 0;
 }
 
+/* A narrow panel (the owner's request of 2026-10-04): every control keeps one
+   row, one height and one centre line. The icon buttons are square, the mode
+   button shows its icon, and the pill takes the room the controls leave. A
+   chip that no longer fits beside the pill moves to a row of its own below
+   it, at the start. Only a panel too narrow for the controls themselves
+   puts the right group on a second row. */
 @container (max-width: 340px) {
-  .context-label,
   .mode-button > span {
     display: none;
   }
@@ -408,14 +495,32 @@ body {
 
   .composer-toolbar {
     flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 4px;
   }
 
+  /* Room for Attach, Commands and the shortest pill decides the wrap, not
+     the pill's or a chip's whole label. */
   .composer-toolbar-group:first-child {
-    flex-basis: 100%;
+    flex: 1 1 0;
+    flex-wrap: wrap;
+    row-gap: 4px;
+    min-width: calc(2 * var(--ms-control-size) + var(--ms-pill-min-width) + 4px);
   }
 
   .composer-toolbar-group:last-child {
     margin-inline-start: auto;
+  }
+
+  .composer-toolbar .icon-button,
+  .composer-toolbar .mode-button,
+  .composer-toolbar .send-button {
+    padding-inline: 0;
+  }
+
+  .composer-toolbar .pill {
+    flex: 1 1 0;
+    max-width: max-content;
   }
 }
 
@@ -440,24 +545,26 @@ body {
   cursor: pointer;
 }
 
-/* Block layout lets the model label ellipsize when squeezed. The minimum
-   height preserves its touch target beside a paid badge in narrow panels. */
+/* The model pill (the owner's request of 2026-10-04). Its target is a whole
+   control (--ms-control-size, over WCAG 2.5.8's 24 px); its fill is painted
+   at the chips' height inside it, inside transparent block borders. Block
+   layout lets the model label ellipsize when squeezed. */
 .pill {
   display: inline-block;
   flex: 0 1 auto;
-  min-width: 3em;
-  min-height: var(--ms-control-size);
-  height: auto;
+  min-width: var(--ms-pill-min-width);
   overflow: hidden;
-  padding: 1px 8px;
+  padding: 0 8px;
+  border-block-width: calc((var(--ms-control-size) - var(--ms-chip-height)) / 2);
   border-radius: 999px;
   color: var(--vscode-badge-foreground);
   font-size: 0.85em;
-  line-height: 1.4;
+  line-height: var(--ms-chip-height);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--vscode-badge-background);
+  background-clip: padding-box;
 }
 
 .mode-button {
@@ -507,10 +614,11 @@ body {
 
 /* --- states: (0,3,0) last --- */
 
+/* The colour alone: the pill's fill keeps its painted height. */
 .icon-button:hover:enabled,
 .pill:hover:enabled,
 .mode-button:hover:enabled {
-  background: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--vscode-toolbar-hoverBackground);
 }
 
 /* The question card's Submit is greyed out until every question has an answer (M16). */
@@ -524,8 +632,31 @@ body {
   background: var(--vscode-button-hoverBackground);
 }
 
+.send-button-stop:hover:enabled,
+.send-button-stop:focus-visible:enabled {
+  background: var(--vscode-charts-red, var(--vscode-errorForeground));
+}
+
+.vscode-high-contrast .send-button-stop:hover:enabled,
+.vscode-high-contrast .send-button-stop:focus-visible:enabled,
+.vscode-high-contrast-light .send-button-stop:hover:enabled,
+.vscode-high-contrast-light .send-button-stop:focus-visible:enabled {
+  border-color: var(--vscode-errorForeground);
+  color: var(--vscode-errorForeground);
+  background: transparent;
+}
+
 .button-secondary:hover:enabled {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Forced colours paint transparent borders: the pill keeps a 1 px one, as
+   the other controls do, and its label stays centred in the control. */
+@media (forced-colors: active) {
+  .pill {
+    border-block-width: 1px;
+    line-height: calc(var(--ms-control-size) - 2px);
+  }
 }
 
 /* --- attachments --- */
@@ -1042,6 +1173,13 @@ body {
   cursor: pointer;
 }
 
+/* The toggle gives way before the chevron does: its summary ellipsizes, so
+   a long summary in a narrow panel never pushes the chevron under the row's
+   ⋯ (lane W's full a11y run, where wider fonts did). */
+.tool-toggle {
+  min-width: 0;
+}
+
 .tool-toggle:disabled {
   cursor: default;
 }
@@ -1153,7 +1291,7 @@ body {
 }
 
 .tool-output,
-.shell-box {
+.shell {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--ms-radius);
   background: var(--vscode-editorWidget-background);
@@ -1166,13 +1304,17 @@ body {
 .shell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
 }
 
 .shell-box {
   display: flex;
   gap: 4px;
   align-items: flex-start;
+}
+
+.shell-box + .shell-box {
+  border-top: 1px solid var(--vscode-panel-border);
 }
 
 .shell-label {
@@ -1196,6 +1338,10 @@ body {
   font-size: 0.85em;
   background: transparent;
   cursor: pointer;
+}
+
+.shell .tool-more {
+  min-height: var(--ms-control-size);
 }
 
 .tool-loading {
@@ -1261,11 +1407,17 @@ body {
   color: var(--vscode-descriptionForeground);
 }
 
-/* Focus view: consecutive steps fold into one row. */
+/* Consecutive steps fold into one summary row (M16, M87): its dot (the
+   failure's when one failed), what the steps did, and the chevron. */
 .steps-toggle {
   width: 100%;
   padding: 2px 0;
   color: var(--vscode-descriptionForeground);
+}
+
+.steps-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .steps-list {
@@ -1275,22 +1427,154 @@ body {
 }
 
 .status-line {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
   gap: var(--ms-gap);
   align-items: center;
+  container-type: inline-size;
   color: var(--vscode-descriptionForeground);
 }
 
-.status-spark {
-  color: var(--vscode-button-background);
-  animation: spin 2s linear infinite;
+.status-verb {
+  display: flex;
+  gap: var(--ms-gap);
+  align-items: center;
+  overflow-wrap: anywhere;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+/* All verbs share one cell; the hidden ones only give it the longest verb's
+   width, so the trace after it stays put while the verb changes. */
+.status-verb-text {
+  display: grid;
+}
+
+.status-verb-text > * {
+  grid-area: 1 / 1;
+}
+
+.status-verb-sizer {
+  visibility: hidden;
+}
+
+/* The beam draws in brand blue on the canvas itself; the canvas keeps the
+   trace's box. The working line's grid puts it right after the verb box. */
+.heartbeat-trace {
+  width: 6em;
+  height: 1.5em;
+}
+
+@container (width < 260px) {
+  .heartbeat-trace {
+    display: none;
   }
 }
+
+/* The working line's mark (M87, D66). After Inclushe's "circle pattern
+   animation lighten" (CodePen OPWreWR, MIT), written fresh: no pointer
+   tracking. Six 3 px circles share a 16 px box on the pen's 4.01 s loop,
+   scaled from its 100 px circles at 150→100 px amplitude. The 100 %
+   keyframe spreads 9 px from the centre, 1 px into the gap beside the mark,
+   so the box keeps `overflow: visible` and clips no edge. `isolate` keeps
+   the circles' `lighten` blend between themselves, off the panel. */
+/* stylelint-disable custom-property-pattern -- the pen's --angle, --offset,
+   --amplitude and --scale names stay as the owner asked, so the keyframes
+   read against the original. */
+@property --amplitude {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.status-mark {
+  --offset: 30deg;
+
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.status-mark-circle {
+  position: absolute;
+  inset: 0;
+  width: 3px;
+  height: 3px;
+  margin: auto;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 0%,
+    oklch(11.86% 0.0248 260.66deg),
+    oklch(31.33% 0.1419 260.73deg),
+    oklch(60.61% 0.2122 260.66deg)
+  );
+  mix-blend-mode: lighten;
+  transform: translate(
+      calc(cos(var(--angle)) * var(--amplitude)),
+      calc(sin(var(--angle)) * var(--amplitude) * -1)
+    )
+    scale(var(--scale)) rotate(calc(-1 * var(--angle) + 17deg));
+  animation: status-mark-expand 4.01s cubic-bezier(0.8, 0, 0.2, 1) infinite alternate;
+}
+
+.status-mark-circle:nth-child(1) {
+  --angle: calc(0 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(2) {
+  --angle: calc(1 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(3) {
+  --angle: calc(2 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(4) {
+  --angle: calc(3 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(5) {
+  --angle: calc(4 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(6) {
+  --angle: calc(5 * 60deg + var(--offset));
+}
+
+@keyframes status-mark-expand {
+  0% {
+    --amplitude: 4.5px;
+    --scale: 1;
+  }
+
+  50% {
+    --amplitude: 3px;
+    --scale: 3;
+  }
+
+  100% {
+    --amplitude: 4.5px;
+    --scale: 3;
+  }
+}
+
+@media (forced-colors: active) {
+  .status-mark-circle {
+    background: CanvasText;
+    mix-blend-mode: normal;
+  }
+}
+/* stylelint-enable custom-property-pattern */
 
 /* --- approval and question cards --- */
 
@@ -1329,7 +1613,9 @@ body {
   flex-direction: column;
   gap: 4px;
   max-height: 45vh;
-  margin: 0 var(--ms-gap);
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset);
+  padding-inline: var(--ms-gap);
   overflow-y: auto;
 }
 
@@ -1390,6 +1676,34 @@ body {
   gap: 6px;
 }
 
+/* The approval choices (the owner's request of 2026-10-04): one height and
+   one line each, so "Always allow …" weighs what "Allow once" does; the fill
+   tells approving from rejecting. A row too short for the next choice takes
+   it whole onto the next row, and a label longer than the card ellipsizes
+   (its full text is the title). A narrow card stacks them, each full width. */
+.approval-choices {
+  container: approval-choices / inline-size;
+  align-items: center;
+}
+
+.approval-choices > button {
+  flex: 0 1 auto;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--ms-button-height);
+  padding-block: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container approval-choices (width < 340px) {
+  .approval-choices > button {
+    flex-basis: 100%;
+  }
+}
+
 .question-header {
   font-weight: 600;
 }
@@ -1444,10 +1758,11 @@ body {
 
 /* --- todo panel --- */
 
-/* The goal strip (M45) is the same box, above the task list. */
+/* The goal strip (M45) is the same box, above the task list; both in the
+   chat column. */
 .todo,
 .goal {
-  margin: 0 var(--ms-gap);
+  margin: 0 var(--ms-column-gutter);
   padding: 6px var(--ms-gap);
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--ms-radius);
@@ -1456,9 +1771,86 @@ body {
 }
 
 .todo-title {
-  margin-bottom: 2px;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: var(--ms-control-size);
+  padding: 0;
+  border: 0;
+  color: var(--vscode-foreground);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.todo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-gap);
+}
+
+.todo-progress {
+  overflow: hidden;
   color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-open {
+  flex-shrink: 0;
+}
+
+.todo-open,
+.todo-window {
+  min-height: var(--ms-control-size);
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-secondaryForeground);
+  font: inherit;
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+}
+
+.todo-title:focus-visible,
+.todo-open:focus-visible,
+.todo-window:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.todo-open:hover:enabled,
+.todo-window:hover:enabled {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.todo-current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-surface {
+  overflow: auto;
+  padding: var(--ms-gap);
+}
+
+.todo-tab-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  margin-bottom: var(--ms-gap);
+}
+
+.todo-tab-header h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1em;
 }
 
 .todo-list {
@@ -1480,6 +1872,51 @@ body {
 .todo-mark {
   width: 1em;
   text-align: center;
+}
+
+/* --- conversation diff tally (M87), above the goal and task panes --- */
+
+/* The rule above it spans the panel, as the header's does; its text sits in
+   the chat column. */
+.diff-tally {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  padding: var(--ms-gap) calc(var(--ms-column-inset) + var(--ms-gap) * 1.5);
+  border-top: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+}
+
+.diff-tally-files {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-lines {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-added {
+  color: var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-foreground));
+}
+
+.diff-tally-removed {
+  color: var(--vscode-gitDecoration-deletedResourceForeground, var(--vscode-foreground));
+}
+
+/* Dark Modern's deleted-resource colour measures 3.87:1 on the panel (the
+   VS Code 1.140.0 capture), under text's 4.5:1: the foreground stands in, as
+   D66 says; the minus sign still marks the number. */
+.vscode-dark .diff-tally-removed {
+  color: var(--vscode-foreground);
+}
+
+.diff-tally-review {
+  min-height: var(--ms-control-size);
+  margin-inline-start: auto;
 }
 
 /* --- goal strip (M45): the session goal above the task list --- */
@@ -1529,9 +1966,10 @@ body {
   flex: 1 1 200px;
 }
 
-/* Session-scoped Model API schedules (M52): wrap on narrow sidebars. */
+/* Session-scoped Model API schedules (M52): wrap on narrow sidebars; in the
+   chat column. */
 .local-schedules {
-  margin: 0 var(--ms-gap) 4px;
+  margin: 0 var(--ms-column-gutter) 4px;
   padding: 6px var(--ms-gap);
   max-height: 35vh;
   border: 1px solid var(--vscode-panel-border);
@@ -1592,7 +2030,8 @@ body {
 .git-panel {
   display: grid;
   gap: 4px;
-  margin: 0 var(--ms-gap) 4px;
+  margin-block: 0 4px;
+  margin-inline: var(--ms-column-gutter);
   max-height: 50vh;
   overflow-y: auto;
   font-size: 0.9em;
@@ -1720,10 +2159,67 @@ body {
 
 /* --- context indicator --- */
 
-.context-label {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
-  white-space: nowrap;
+.context-meter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--ms-control-size);
+  height: var(--ms-control-size);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  color: var(--vscode-progressBar-background);
+  background: transparent;
+  cursor: pointer;
+}
+
+.context-meter-ring {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+  border-radius: 50%;
+  background: var(--vscode-editor-background, var(--vscode-sideBar-background));
+}
+
+.context-meter-ring circle {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.5px;
+}
+
+.context-meter-track {
+  opacity: 25%;
+}
+
+.context-meter-ring text {
+  fill: var(--vscode-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.context-meter-ring .context-meter-number-full {
+  font-size: 9px;
+}
+
+.context-meter-medium {
+  color: var(--vscode-list-warningForeground, var(--vscode-progressBar-background));
+}
+
+.context-meter-high {
+  color: var(--vscode-errorForeground);
+}
+
+.context-meter:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-meter:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 /* --- markdown --- */
@@ -1891,9 +2387,11 @@ body {
   flex: 0 1 auto;
   gap: 4px;
   align-items: center;
+  box-sizing: border-box;
   min-width: 0;
   max-width: 220px;
-  padding: 1px 4px 1px 6px;
+  height: var(--ms-chip-height);
+  padding: 0 4px 0 6px;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 999px;
   color: var(--vscode-foreground);
@@ -1982,86 +2480,13 @@ body {
   visibility: hidden;
 }
 
-/* The rewind button sits in the user card's top-right corner (the card is
-   positioned, see .message-user) and shows on hover or focus, as Claude Code's
-   user-message menu does; its menu opens beneath. */
-.rewind {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-.rewind-button,
-.response-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 50%;
-  color: var(--vscode-descriptionForeground);
-  background: var(--vscode-editor-background);
-  cursor: pointer;
-  visibility: hidden;
-}
-
-.rewind-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-.rewind-menu {
-  position: absolute;
-  top: 26px;
-  right: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  min-width: min(220px, calc(100vw - 32px));
-  max-width: min(32rem, calc(100vw - 32px));
-  padding: 4px;
-  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  background: var(--vscode-menu-background, var(--vscode-editor-background));
-  color: var(--vscode-menu-foreground, var(--vscode-foreground));
-  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
-}
-
-.rewind-menu-item {
-  padding: 6px 10px;
-  border: 0;
-  border-radius: var(--ms-radius);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* Why a row is missing (M72): read, never chosen. */
-.rewind-menu-note {
-  overflow-wrap: anywhere;
-  color: var(--vscode-descriptionForeground);
-  cursor: default;
-}
-
-.rewind-menu-item:hover,
-.rewind-menu-item:focus-visible {
-  color: var(--vscode-menu-selectionForeground, inherit);
-  background: var(--vscode-menu-selectionBackground, var(--vscode-toolbar-hoverBackground));
-  outline: none;
-}
-
-.header-title-button:hover,
-.rewind-button:hover {
+.header-title-button:hover {
   background: var(--vscode-toolbar-hoverBackground);
 }
 
 .header-title-button:focus-visible,
 .header-title-input:focus-visible,
-.history-archive:focus-visible,
-.rewind-button:focus-visible {
+.history-archive:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;
 }
@@ -2069,30 +2494,6 @@ body {
 .history-row:hover .history-archive,
 .history-row.palette-item-active .history-archive {
   visibility: visible;
-}
-
-.message-user:hover .rewind-button,
-.message-user:focus-within .rewind-button,
-.message-assistant:hover .response-copy,
-.message-assistant:focus-within .response-copy,
-.message-assistant:hover .response-menu-button,
-.message-assistant:focus-within .response-menu-button,
-.response-menu-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-/* Copy and the actions menu sit at the foot of a reply (M15, M17); the
-   menu opens beneath the button like the user card's. */
-.response-actions {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  display: flex;
-  gap: 2px;
-}
-
-.response-actions .rewind-menu {
-  top: 24px;
 }
 
 /* A reply's tokens and dollar estimate under it (M82, Model API only). */
@@ -2165,9 +2566,169 @@ body {
   background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
 }
 
-/* The highlighted-text menu sits at a row's top-right (M17). */
-.quote-menu {
+/* M87 F: the highlighted-text anchor stays at its row's top-right. */
+
+/* One opener per row. Opacity keeps it reachable before focus reveals it. */
+.row-with-actions {
+  position: relative;
+  padding-right: 32px;
+}
+
+.row-actions {
+  position: absolute;
   top: 4px;
+  right: 4px;
+}
+
+.message-assistant > .row-actions {
+  top: auto;
+  bottom: 2px;
+}
+
+/* The header is 100 % wide, so its room for the ⋯ is inside that width:
+   otherwise the chevron runs under the button (lane W's full a11y run). */
+.tool:has(> .row-actions) .tool-header {
+  box-sizing: border-box;
+  padding-right: 32px;
+}
+
+.row-actions-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0%;
+}
+
+.row-actions-button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.row-actions-button:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+li:hover > .row-actions .row-actions-button,
+li:focus-within > .row-actions .row-actions-button,
+.row-actions-button[aria-expanded='true'] {
+  opacity: 100%;
+}
+
+@media (hover: none) {
+  .row-actions-button {
+    opacity: 100%;
+  }
+}
+
+.quote-menu {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 0;
+  height: 0;
+}
+
+.gooey-menu {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gooey-menu-pills {
+  position: absolute;
+  inset: 0;
+}
+
+/* Each item is one crisp blue pill, its icon and then its label (the owner,
+   2026-10-04), every pill one size: the layout sets the same width and
+   height inline on each, so a long label ends in an ellipsis and never wraps
+   or grows its pill. Half-circle ends, no filter, no shadow. Each scales in
+   from the menu's origin after the one before it (inline animation-delay),
+   drawn at scale 0 until its turn. */
+.gooey-menu-pill {
+  position: absolute;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  padding: 0 16px 0 12px;
+  overflow: hidden;
+  font: inherit;
+  color: var(--vscode-button-foreground);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 20px;
+  pointer-events: auto;
+  animation: menu-pill-burst 180ms ease-out backwards;
+}
+
+/* A disabled item is a note ("File checkpoints need git on PATH"): the same
+   blue pill (the owner: icon and label in one blue pill), opaque so its text
+   reads and the chat never shows through it. Only its icon is dimmed, and
+   it takes no hover. */
+.gooey-menu-pill[aria-disabled='true'] {
+  cursor: default;
+}
+
+.gooey-menu-pill:not([aria-disabled='true']):hover,
+.gooey-menu-pill:not([aria-disabled='true']):focus-visible {
+  background: var(--vscode-button-hoverBackground);
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.gooey-menu-pill-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.gooey-menu-pill[aria-disabled='true'] .gooey-menu-pill-icon {
+  opacity: 50%;
+}
+
+.gooey-menu-pill-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+}
+
+@keyframes menu-pill-burst {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The pills' burst stops in the closing reduced-motion block: they appear
+   where they rest, all at once. */
+@media (forced-colors: active) {
+  .gooey-menu-colors-safe .gooey-menu-pill {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  .gooey-menu-colors-safe .gooey-menu-pill[aria-disabled='true'] {
+    color: GrayText;
+    border-color: GrayText;
+  }
 }
 
 .tool {
@@ -2728,18 +3289,6 @@ body {
   background: var(--vscode-inputValidation-errorBackground, transparent);
 }
 
-.context-label-button {
-  border: 0;
-  color: inherit;
-  font: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.context-label-button:hover {
-  text-decoration: underline;
-}
-
 /* --- Paid features (M33–M35, PLAN.md D30): loud, never alarming --- */
 
 /* The composer's badge while a paid feature is on: the warning colour marks
@@ -3202,12 +3751,21 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cursor,
   .tool-dot-running,
-  .status-spark,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
-  .agent-dot-running {
+  .agent-dot-running,
+  .status-mark-circle,
+  .gooey-menu-pill {
     animation: none;
   }
+
+  /* The mark's still pose is the loop's middle, so it stays visible. */
+  /* stylelint-disable custom-property-pattern -- same pen names as above. */
+  .status-mark-circle {
+    --amplitude: 3px;
+    --scale: 3;
+  }
+  /* stylelint-enable custom-property-pattern */
 
   .toggle-knob,
   .chevron {

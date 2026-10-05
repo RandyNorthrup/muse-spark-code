@@ -24,6 +24,7 @@ const HOST_BUNDLES = [
   'dist/bundledSkills.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
