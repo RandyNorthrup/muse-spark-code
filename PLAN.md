@@ -14246,6 +14246,20 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
+commands ran directly on the Mac mini. `check:host-api` fails on the review base
+as well as this correction: its generated record says 65 `node:path` importers,
+the scanner finds 66. **P-host-api-baseline:** W/lead must regenerate and review
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`.
+`npm run build` compiles and passes all size caps, then the unchanged split gate
+rejects all eleven unwired adapter modules as on neither list. The same original
+sources reproduce those eleven errors. **P-bundle-map-baseline:** W must register
+the files' actual bundle/type membership while wiring them, then rerun the build.
+Both target files are outside lane P's permitted edits. Neither gate, ignore nor
+cap was changed; neither failing command is claimed green. Certification and
+PLAN §9 name the residuals. Full quality remains the lead's integration gate,
+as the shared lane rules expressly forbid running it in the lane.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -14698,12 +14712,19 @@ before a repaired one loads (2026-09-30).
   Muse's recursive glob operation is not Gemini list_directory. These calls
   and unsupported native argument fields are refused, safe because no guarded
   operation is admitted. Follow-up: capture the missing tool schemas before
-  adding mappings. **P-source-fidelity:** doc-derived vendors' top-level
+  adding mappings; native read-range patches also veto until source-default
+  semantics can be preserved. **P-source-fidelity:** doc-derived vendors' top-level
   fixtures do not certify arbitrary guards on nested arguments; Copilot
   permissionRequest lacks a complete source stdin schema and Kiro IDE/CLI exit
   policies differ. Follow-up: W/I refuse unestablished blocking imports/flavors
   until a capture or authoritative schema establishes them. No generic closure
   or source-fidelity claim is made by lane P's unit suite.
+  **P-host-api-baseline** and **P-bundle-map-baseline** (gate deferrals in §7):
+  the generated host record is stale and eleven unwired adapter modules lack
+  bundle classifications on the review base. Safe for this unshipped lane
+  because adapters remain unwired and the gates continue to reject release;
+  W/lead must update the record and classify/wire the files before integration
+  can be certified. The passing size checks do not close the split gate.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

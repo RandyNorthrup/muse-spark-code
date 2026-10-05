@@ -114,6 +114,14 @@ const TOOL_BY_EVENT: Readonly<Record<string, string>> = {
 
 function payloadFor(event: string): Record<string, unknown> {
   const tool = TOOL_BY_EVENT[event] ?? 'bash'
+  let toolInput: Record<string, unknown> = {
+    command: 'echo hi',
+    path: 'a.py',
+    find: 'a',
+    replace: 'b',
+  }
+  if (tool === 'mcp__srv__tool') toolInput = { owner: 'o' }
+  else if (tool === 'bash') toolInput = { command: 'echo hi' }
   return {
     session_id: 'session-1',
     turn_id: 'turn-1',
@@ -121,12 +129,7 @@ function payloadFor(event: string): Record<string, unknown> {
     timestamp: '2026-10-04T00:00:00.000Z',
     model: 'model-1',
     tool_name: tool,
-    tool_input:
-      tool === 'mcp__srv__tool'
-        ? { owner: 'o' }
-        : tool === 'bash'
-          ? { command: 'echo hi' }
-          : { command: 'echo hi', path: 'a.py', find: 'a', replace: 'b' },
+    tool_input: toolInput,
     tool_response: 'preview',
     content: 'text',
     prompt: 'hello',
@@ -396,8 +399,9 @@ describe('captured stdin (real CLIs, scrubbed)', () => {
             ...(typeof start === 'number' && typeof end === 'number' && { limit: end - start + 1 }),
           }
         } else {
-          payload['tool_name'] =
-            tool === 'run_shell_command' ? 'bash' : tool === 'grep_search' ? 'search' : 'list_files'
+          if (tool === 'run_shell_command') payload['tool_name'] = 'bash'
+          else if (tool === 'grep_search') payload['tool_name'] = 'search'
+          else payload['tool_name'] = 'list_files'
           payload['tool_input'] = toolInput
         }
         const response = value['tool_response']

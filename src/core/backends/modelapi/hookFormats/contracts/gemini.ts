@@ -5,6 +5,7 @@
 // (exit >= 2 blocks; plain stdout is a warning), the observed behaviour wins.
 import * as z from 'zod/mini'
 import {
+  type AdapterOptions,
   type CustomResult,
   type EventRow,
   type FieldSpec,
@@ -12,7 +13,7 @@ import {
   type ResultSpec,
   type VendorContract,
 } from '../contract'
-import { isRecord } from '../core'
+import { isRecord, splitMcpName } from '../core'
 
 const DOC = 'gemini/hooks-reference.md'
 const LABEL = 'gemini hook'
@@ -72,14 +73,14 @@ function gemini(
     invalid: 'fail',
     label: LABEL,
     schema: z.strictObject({
+      // GR:250-258,267-270,282-285,294-297: advisory rows accept but ignore
+      // controls; they must not invalidate the independent observations.
+      continue: z.optional(z.boolean()),
+      stopReason: z.optional(z.string()),
+      decision: z.optional(z.enum(['allow', 'deny', 'block'])),
+      reason: z.optional(z.string()),
       systemMessage: z.optional(z.string()),
       suppressOutput: z.optional(z.boolean()),
-      ...(isBlocking && {
-        continue: z.optional(z.boolean()),
-        stopReason: z.optional(z.string()),
-        decision: z.optional(z.enum(['allow', 'deny', 'block'])),
-        reason: z.optional(z.string()),
-      }),
       hookSpecificOutput: z.optional(
         z.strictObject({
           hookEventName: z.optional(z.literal(event)),
@@ -127,7 +128,8 @@ const SELECTION: ResultSpec = {
   textIsMessage: true,
   otherExit: 'fail',
   stdout: 'json',
-  invalid: 'fail',
+  // An untranslatable restriction must not restore the unrestricted tool set.
+  invalid: 'block',
   label: LABEL,
   schema: z.strictObject({
     hookSpecificOutput: z.optional(
@@ -152,8 +154,94 @@ const TOOL: readonly FieldSpec[] = [
 // The model events need Gemini's own request/response objects. Muse's bounded
 // summaries (modelCallHooks.ts) are not one, so these rows refuse until lane W
 // supplies a source-shaped translation; nothing is fabricated (RVM91P2 #6).
-const LLM_REQUEST: FieldSpec = { to: 'llm_request', required: true }
-const LLM_RESPONSE: FieldSpec = { to: 'llm_response', required: true }
+// BeforeModel.json / BeforeToolSelection.json and AfterModel*.json, from the
+// manifest's Kubuntu capture (37 attempted model calls, 16 successful).
+// GR:305-333 corroborates the stable shape. Loose objects retain future fields;
+// empty candidates/parts are real streamed chunks, not missing responses.
+const LLM_REQUEST: FieldSpec = {
+  to: 'llm_request',
+  required: true,
+  schema: z.looseObject({
+    model: z.string().check(z.minLength(1)),
+    messages: z.array(
+      z.looseObject({
+        role: z.enum(['user', 'model', 'system']),
+        content: z.string(),
+      }),
+    ),
+    config: z.looseObject({
+      temperature: z.optional(z.number()),
+      topP: z.optional(z.number()),
+      topK: z.optional(z.number()),
+    }),
+  }),
+}
+const LLM_RESPONSE: FieldSpec = {
+  to: 'llm_response',
+  required: true,
+  schema: z.looseObject({
+    candidates: z.array(
+      z.looseObject({
+        content: z.looseObject({ role: z.literal('model'), parts: z.array(z.string()) }),
+        finishReason: z.optional(z.string()),
+        index: z.optional(z.int().check(z.nonnegative())),
+      }),
+    ),
+    text: z.optional(z.string()),
+    usageMetadata: z.optional(
+      z.looseObject({
+        totalTokenCount: z.number().check(z.nonnegative()),
+        promptTokenCount: z.optional(z.number().check(z.nonnegative())),
+        candidatesTokenCount: z.optional(z.number().check(z.nonnegative())),
+      }),
+    ),
+  }),
+}
+
+const PATCH_KEYS: Readonly<Record<string, readonly string[]>> = {
+  bash: ['command', 'description'],
+  powershell: ['command', 'description'],
+  read_file: ['file_path'],
+  write_file: ['file_path', 'content'],
+  search: ['pattern'],
+}
+
+/** GR:108-109: patches merge against full execution arguments, never a preview. */
+function mergeToolInput(
+  output: Readonly<Record<string, unknown>>,
+  options: AdapterOptions | undefined,
+): CustomResult {
+  const specific = output['hookSpecificOutput']
+  const patch = isRecord(specific) ? specific['tool_input'] : undefined
+  if (!isRecord(patch)) return { ok: true, answer: {} }
+  const input = options?.input
+  const original = input?.['tool_input']
+  const tool = input?.['tool_name']
+  if (typeof tool !== 'string' || !isRecord(original))
+    return {
+      ok: true,
+      answer: { status: 'blocked', reason: 'tool_input patch needs original execution arguments' },
+    }
+  if (splitMcpName(tool) !== undefined)
+    return { ok: true, answer: { updatedInput: { ...original, ...patch } } }
+  const keys = PATCH_KEYS[tool] ?? []
+  const required = keys.filter((key) => key !== 'description')
+  // Range patches require a fuller source-default contract than these captures
+  // establish. Refuse rather than silently reinterpret start_line/end_line.
+  if (
+    keys.length === 0 ||
+    required.some((key) => typeof original[key === 'file_path' ? 'path' : key] !== 'string') ||
+    Object.entries(patch).some(([key, item]) => typeof item !== 'string' || !keys.includes(key))
+  )
+    return {
+      ok: true,
+      answer: { status: 'blocked', reason: 'unsupported Gemini tool_input patch' },
+    }
+  const updated = { ...original }
+  for (const [key, item] of Object.entries(patch))
+    updated[key === 'file_path' ? 'path' : key] = item
+  return { ok: true, answer: { updatedInput: updated } }
+}
 
 function row(
   muse: EventRow['muse'],
@@ -234,7 +322,7 @@ export const GEMINI_CONTRACT: VendorContract = {
       'BeforeTool',
       TOOL,
       gemini('BeforeTool', true, { tool_input: z.optional(z.record(z.string(), z.unknown())) }, [
-        { kind: 'updatedInput', field: 'hookSpecificOutput.tool_input' },
+        { kind: 'custom', name: 'mergeToolInput', apply: mergeToolInput },
       ]),
       '92-113',
     ),
@@ -269,6 +357,7 @@ export const GEMINI_CONTRACT: VendorContract = {
       [
         { to: 'message', transform: 'text' },
         { to: 'notification_type', transform: 'text' },
+        { to: 'details', schema: z.record(z.string(), z.unknown()) },
       ],
       gemini('Notification', false, {}, []),
       '272-286',

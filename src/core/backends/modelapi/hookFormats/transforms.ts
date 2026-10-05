@@ -215,7 +215,7 @@ function geminiToolInput(candidate: unknown, ctx: TransformContext): TransformRe
     const parsed = GEMINI_READ_INPUT.safeParse(candidate)
     if (!parsed.success) return refused('unsupported read_file arguments')
     const { path: file, offset, limit } = parsed.data
-    const end = limit === undefined ? undefined : (offset ?? 1) + limit - 1
+    const end = limit === undefined ? undefined : (offset ?? 1) + (limit - 1)
     if (end !== undefined && !Number.isSafeInteger(end)) return refused('invalid read range')
     return value({
       file_path: file,

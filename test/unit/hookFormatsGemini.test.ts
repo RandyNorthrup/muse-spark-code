@@ -92,6 +92,15 @@ describe('RVM91P3 tool guards and source scripts', () => {
     ).toMatchObject({ outcome: 'refused', blockOperation: true })
   })
 
+  it('#1 an overflowing captured read range refuses the blocking operation', () => {
+    expect(
+      buildGeminiStdin('PreToolUse', {
+        tool_name: 'read_file',
+        tool_input: { path: 'a.txt', offset: Number.MAX_SAFE_INTEGER, limit: 2 },
+      }),
+    ).toMatchObject({ outcome: 'refused', blockOperation: true })
+  })
+
   it('#1 MCP argument objects keep legitimate path and replace keys untouched', () => {
     const input = { path: 'private', replace: 'secret', arguments: { query: 'x' } }
     expect(
@@ -130,6 +139,19 @@ describe('RVM91P3 tool guards and source scripts', () => {
     ).toMatchObject({ status: 'blocked', allowedToolNames: [] })
   })
 
+  it('#2 malformed selection output cannot erase a guard', () => {
+    const output =
+      '{"hookSpecificOutput":{"toolConfig":{"mode":"ANY","allowedFunctionNames":[42]}}}'
+    expect(parseGeminiResult('BeforeToolSelection', 0, output, '').status).toBe('blocked')
+  })
+
+  it('#2 an untranslatable selection input refuses the guarded operation', () => {
+    expect(buildGeminiStdin('BeforeToolSelection', { llm_request: null })).toMatchObject({
+      outcome: 'refused',
+      blockOperation: true,
+    })
+  })
+
   it('#7 source-script fixtures retain their provenance and data selectors', () => {
     expect(scripts.map((fixture) => fixture.source)).toEqual([
       'gemini/hooks-writing-hooks.md:95-125',
@@ -137,5 +159,166 @@ describe('RVM91P3 tool guards and source scripts', () => {
     ])
     expect(script('block-secrets')).toContain('.tool_input.new_string')
     expect(script('filter-tools')).toContain('llm_request.messages')
+  })
+})
+
+describe('RVM91P3 model and observation contracts', () => {
+  const invalidRequests: readonly unknown[] = [
+    null,
+    false,
+    42,
+    'request',
+    {},
+    [],
+    { model: 'm', messages: [], config: null },
+    { model: 'm', messages: [{ role: 'user', content: 42 }], config: {} },
+    { model: 42, messages: [], config: {} },
+    { model: 'm', messages: [], config: { temperature: 'hot' } },
+  ]
+  it.each(invalidRequests.map((value, index) => ({ value, index })))(
+    '#3 invalid request $index refuses every model event',
+    ({ value }) => {
+      for (const event of ['PreLLMCall', 'PostLLMCall', 'BeforeToolSelection'] as const)
+        expect(
+          buildGeminiStdin(event, { llm_request: value, llm_response: { candidates: [] } }).outcome,
+        ).toBe('refused')
+    },
+  )
+
+  const invalidResponses: readonly unknown[] = [
+    null,
+    false,
+    42,
+    'response',
+    {},
+    [],
+    { candidates: false },
+    { candidates: [null] },
+    { candidates: [{ content: { role: 'model', parts: [42] } }] },
+    { candidates: [], usageMetadata: { totalTokenCount: 'many' } },
+  ]
+  it.each(invalidResponses.map((value, index) => ({ value, index })))(
+    '#3 invalid response $index refuses AfterModel',
+    ({ value }) => {
+      const packet = capture('AfterModel.json')
+      packet['llm_response'] = value
+      expect(buildGeminiStdin('PostLLMCall', packet).outcome).toBe('refused')
+    },
+  )
+
+  it('#3 every captured model chunk remains unchanged, including empty candidates and parts', () => {
+    for (const name of [
+      'AfterModel.json',
+      'AfterModel.empty-candidates-chunk.json',
+      'AfterModel.thought-chunk.json',
+      'AfterModel.tool-call-chunk.json',
+      'AfterModel.finish-chunk.json',
+    ]) {
+      const packet = capture(name)
+      const built = stdin('PostLLMCall', packet)
+      expect(built['llm_request']).toEqual(packet['llm_request'])
+      expect(built['llm_response']).toEqual(packet['llm_response'])
+    }
+  })
+
+  it('#4 a shell patch merges against the full execution input, never the clipped stdin preview', () => {
+    const command = 'echo ' + 'a'.repeat(20_000)
+    const input = {
+      tool_name: 'bash',
+      tool_input: { command, description: 'original', timeout_ms: 1000 },
+    }
+    const output = '{"hookSpecificOutput":{"tool_input":{"description":"safe comment"}}}'
+    const before = structuredClone(input)
+    const answer = parseGeminiResult('PreToolUse', 0, output, '', { input })
+    expect(answer).toMatchObject({
+      status: 'completed',
+      updatedInput: { description: 'safe comment', timeout_ms: 1000 },
+    })
+    expect(answer.updatedInput?.['command'] === command).toBe(true)
+    expect(input).toEqual(before)
+  })
+
+  it('#4 a patch without the original execution input vetoes instead of returning an incomplete call', () => {
+    const output =
+      '{"hookSpecificOutput":{"tool_input":{"description":"safe comment"}},"systemMessage":"review"}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '')).toMatchObject({
+      status: 'blocked',
+      systemMessage: 'review',
+    })
+  })
+
+  it('#4 translated path patches update the Muse execution argument and retain content', () => {
+    const input = { tool_name: 'write_file', tool_input: { path: 'a.txt', content: 'hello' } }
+    const output = '{"hookSpecificOutput":{"tool_input":{"file_path":"b.txt"}}}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '', { input })).toEqual({
+      status: 'completed',
+      updatedInput: { path: 'b.txt', content: 'hello' },
+    })
+  })
+
+  it('#4 a patch with incomplete original arguments vetoes', () => {
+    const input = { tool_name: 'bash', tool_input: { description: 'original' } }
+    const output = '{"hookSpecificOutput":{"tool_input":{"description":"safe comment"}}}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '', { input }).status).toBe('blocked')
+  })
+
+  it('#4 MCP patches merge without translating server-owned file_path keys', () => {
+    const input = {
+      tool_name: 'mcp__srv__tool',
+      tool_input: { file_path: 'a.txt', database: 'test' },
+    }
+    const output = '{"hookSpecificOutput":{"tool_input":{"file_path":"b.txt"}}}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '', { input })).toEqual({
+      status: 'completed',
+      updatedInput: { file_path: 'b.txt', database: 'test' },
+    })
+  })
+
+  it('#4 unsupported patch value types veto', () => {
+    const input = { tool_name: 'bash', tool_input: { command: 'echo hi' } }
+    const output = '{"hookSpecificOutput":{"tool_input":{"command":42}}}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '', { input }).status).toBe('blocked')
+  })
+
+  it('#4 unsupported translated range patches veto rather than silently changing arguments', () => {
+    const input = { tool_name: 'read_file', tool_input: { path: 'a.txt', offset: 1, limit: 10 } }
+    const output = '{"hookSpecificOutput":{"tool_input":{"end_line":42}}}'
+    expect(parseGeminiResult('PreToolUse', 0, output, '', { input }).status).toBe('blocked')
+  })
+
+  it.each([
+    ['SessionStart', 'SessionStart'],
+    ['SessionEnd', 'SessionEnd'],
+    ['Notification', 'Notification'],
+    ['PreCompact', 'PreCompress'],
+  ] as const)(
+    '#5 %s ignores lifecycle controls and retains independent observations',
+    (event, sourceEvent) => {
+      const output = JSON.stringify({
+        continue: false,
+        decision: 'deny',
+        stopReason: 'ignored',
+        reason: 'ignored',
+        systemMessage: 'warning',
+        hookSpecificOutput: { hookEventName: sourceEvent, additionalContext: 'context' },
+      })
+      expect(parseGeminiResult(event, 0, output, '')).toEqual({
+        status: 'completed',
+        systemMessage: 'warning',
+        context: 'context',
+      })
+    },
+  )
+
+  it('#6 Notification retains documented details without inventing missing data (GR:277-281, doc-derived)', () => {
+    const details = {
+      tool_name: 'run_shell_command',
+      file_path: 'private/keys.txt',
+      extra: { event: 'permission' },
+    }
+    const payload = { message: 'permission', notification_type: 'ToolPermission', details }
+    expect(stdin('Notification', payload)['details']).toEqual(details)
+    expect(stdin('Notification', { message: 'permission' })).not.toHaveProperty('details')
+    expect(buildGeminiStdin('Notification', { details: null }).outcome).toBe('refused')
   })
 })

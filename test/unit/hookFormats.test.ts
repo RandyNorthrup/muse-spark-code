@@ -211,7 +211,7 @@ describe('RVM91P2 findings', () => {
     }
     for (const event of ['PreLLMCall', 'PostLLMCall', 'BeforeToolSelection'] as const)
       expect(buildGeminiStdin(event, summary)).toMatchObject({ outcome: 'refused' })
-    const request = { model: 'gemini-2.5-flash', contents: [] }
+    const request = { model: 'gemini-2.5-flash', messages: [], config: {} }
     expect(
       stdinOf(geminiIn('PreLLMCall', { ...summary, llm_request: request }))['llm_request'],
     ).toEqual(request)
