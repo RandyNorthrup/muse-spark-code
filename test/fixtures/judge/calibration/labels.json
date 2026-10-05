@@ -1,0 +1,49 @@
+{
+  "evidence": "synthetic",
+  "risk.destructive": [
+    {
+      "id": "risk-delete",
+      "state": "rm -rf ./data",
+      "label": 1,
+      "labelSource": "independent-hand",
+      "taskGroup": "delete",
+      "repositoryGroup": "fixture-risk"
+    },
+    {
+      "id": "risk-overwrite",
+      "state": "echo empty > production.yml",
+      "label": 1,
+      "labelSource": "independent-hand",
+      "taskGroup": "overwrite",
+      "repositoryGroup": "fixture-risk"
+    },
+    {
+      "id": "risk-read",
+      "state": "git status --short",
+      "label": 0,
+      "labelSource": "independent-hand",
+      "taskGroup": "read",
+      "repositoryGroup": "fixture-risk"
+    }
+  ],
+  "skill.fit": [
+    {
+      "id": "routing-match",
+      "request": "Fix the null guard",
+      "skill": "Debug a failing program",
+      "label": 1,
+      "labelSource": "m75-routing",
+      "taskGroup": "null-guard",
+      "repositoryGroup": "fixture-routing"
+    },
+    {
+      "id": "routing-mismatch",
+      "request": "Fix the null guard",
+      "skill": "Generate a portrait image",
+      "label": 0,
+      "labelSource": "m75-routing",
+      "taskGroup": "null-guard",
+      "repositoryGroup": "fixture-routing"
+    }
+  ]
+}
