@@ -2,12 +2,31 @@
 // rather than a source-import mock. The production build is serial here.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import { removeFolder } from './helpers/temporaryFolders'
+
+const ROOT = path.resolve(import.meta.dirname, '..', '..')
+const TEMP = path.join(ROOT, 'temp')
+mkdirSync(TEMP, { recursive: true })
+const WORK = mkdtempSync(path.join(TEMP, 'deferred-bundles-'))
+const CHECK = path.join(ROOT, 'scripts', 'check-bundle-split.mjs')
+const green: { status: number | null | undefined; stderr: string } = {
+  status: undefined,
+  stderr: '',
+}
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -19,11 +38,29 @@ const metafileSchema = z.looseObject({
 })
 
 beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'build.mjs'), '--production'], {
+    cwd: ROOT,
+    stdio: 'pipe',
+  })
+  // This suite is the sole worktree build producer; its drills own a snapshot
+  // so their writes cannot leak into another suite or a developer's build.
+  cpSync(path.join(ROOT, 'dist'), path.join(WORK, 'dist'), { recursive: true })
+  symlinkSync(path.join(ROOT, 'src'), path.join(WORK, 'src'), 'junction')
+  const checked = spawnSync(process.execPath, [CHECK], { cwd: WORK, encoding: 'utf8' })
+  green.status = checked.status
+  green.stderr = checked.stderr
+  expect(green.status, green.stderr).toBe(0)
+})
+
+afterAll(async () => {
+  rmSync(path.join(WORK, 'src'), { force: true })
+  await removeFolder(WORK)
 })
 
 function inputs(name: string): string[] {
-  const raw: unknown = JSON.parse(readFileSync(`dist/meta/${name}.json`, 'utf8'))
+  const raw: unknown = JSON.parse(
+    readFileSync(path.join(WORK, 'dist', 'meta', `${name}.json`), 'utf8'),
+  )
   if (typeof raw !== 'object' || raw === null || !('inputs' in raw)) {
     throw new Error('Invalid build metafile')
   }
@@ -34,10 +71,28 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('checks its snapshot while a peer rewrites the worktree metafile', () => {
+    const shared = path.join(ROOT, 'dist', 'meta', 'extension.json')
+    const original = readFileSync(shared)
+    const hash = createHash('sha256').update(original).digest('hex')
+    try {
+      // A real rebuild truncates a metafile before writing its replacement.
+      writeFileSync(shared, '')
+      const checked = spawnSync(process.execPath, [CHECK], {
+        cwd: WORK,
+        encoding: 'utf8',
+      })
+      expect(checked.status, checked.stderr).toBe(0)
+    } finally {
+      writeFileSync(shared, original)
+    }
+    expect(createHash('sha256').update(readFileSync(shared)).digest('hex')).toBe(hash)
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
-    const entry = path.resolve('dist/extension.js')
+    const entry = path.join(WORK, 'dist', 'extension.js')
     expect(readFileSync(entry, 'utf8')).toContain('./sessionBoard.js')
-    expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./reviewer.js')
+    expect(readFileSync(path.join(WORK, 'dist', 'modelApi.js'), 'utf8')).toContain('./reviewer.js')
     const nativeRequire = createRequire(entry)
     const loaded: string[] = []
     const module: { exports: unknown } = { exports: {} }
@@ -139,7 +194,7 @@ describe('deferred cohort bundles', () => {
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`
+      const file = path.join(WORK, 'dist', name === 'acp' ? 'meta-acp' : 'meta', `${name}.json`)
       const original = readFileSync(file)
       const hash = createHash('sha256').update(original).digest('hex')
       const meta = metafileSchema.parse(JSON.parse(original.toString('utf8')))
@@ -149,7 +204,8 @@ describe('deferred cohort bundles', () => {
         if (name === 'providers') Reflect.deleteProperty(output.inputs, source)
         else output.inputs[source] = { bytesInOutput: 1 }
         writeFileSync(file, JSON.stringify(meta))
-        const red = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+        const red = spawnSync(process.execPath, [CHECK], {
+          cwd: WORK,
           encoding: 'utf8',
         })
         expect(red.status).toBe(1)
@@ -168,9 +224,8 @@ describe('deferred cohort bundles', () => {
         writeFileSync(file, original)
       }
       expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
-      const green = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
-        encoding: 'utf8',
-      })
+      // Every other artifact is immutable. Restoring the original bytes above
+      // returns this fixture to the real green check performed once in setup.
       expect(green.status, green.stderr).toBe(0)
     },
   )

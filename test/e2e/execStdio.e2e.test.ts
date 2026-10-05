@@ -13,6 +13,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -27,6 +28,7 @@ const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
 mkdirSync(TEMP, { recursive: true })
 const WORK = mkdtempSync(path.join(TEMP, 'm80d-stdio-'))
+const BUILD_ROOT = path.join(WORK, 'build')
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
@@ -70,6 +72,8 @@ const children: ChildProcessWithoutNullStreams[] = []
 
 afterAll(async () => {
   for (const child of children) child.kill()
+  // Remove only the test-owned link before recursive cleanup of its tree.
+  rmSync(path.join(BUILD_ROOT, 'node_modules'), { force: true })
   await removeFolder(WORK)
 })
 
@@ -479,23 +483,45 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      // The bundle-split suite mutates its metafiles. Rebuilding its dist/
+      // here can delete chunks or truncate those files during a guard check.
+      mkdirSync(BUILD_ROOT, { recursive: true })
+      for (const folder of [
+        'src',
+        'scripts',
+        'vendor',
+        'native',
+        'l10n',
+        'docs',
+        'test/integration',
+      ]) {
+        cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
+      }
+      for (const file of ['package.json', 'tsconfig.json', 'LICENSE']) {
+        cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
+      }
+      symlinkSync(
+        path.join(ROOT, 'node_modules'),
+        path.join(BUILD_ROOT, 'node_modules'),
+        'junction',
+      )
       const built = command(
-        path.join(ROOT, 'scripts', 'build.mjs'),
-        ROOT,
+        path.join(BUILD_ROOT, 'scripts', 'build.mjs'),
+        BUILD_ROOT,
         ['--production'],
         {},
         BUILD_TIMEOUT,
       )
       expect(built.status, built.stderr).toBe(0)
       const packed = command(
-        path.join(ROOT, 'scripts', 'package-acp.mjs'),
-        ROOT,
+        path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
+        BUILD_ROOT,
         [],
         {},
         BUILD_TIMEOUT,
       )
       expect(packed.status, packed.stderr).toBe(0)
-      cpSync(path.join(ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
+      cpSync(path.join(BUILD_ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
     }
     await build({
       stdin: {

@@ -14359,6 +14359,33 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**DEFLAKE5 scope (2026-10-05, kubuntu).** Audit the five failures in
+M95INT's recorded full unit sweep against `ad13e83a`, including the fixture
+repairs already committed at `e9c3d21d`. Run the complete V8 coverage suite
+twice at the recorded three-worker setting, then probe ten workers and
+additional CPU load if the failures do not recur. Fix only demonstrated
+causes, preserving every test, timeout, isolation setting and coverage gate.
+Require three consecutive green complete runs at three workers and a green
+loaded run if load reproduces a failure. Prove meaningful fixes with red
+drills and byte-exact restoration; record errors, causes and run receipts in
+`docs/certification/deflake5.md`. The 90-minute rig brief authorizes these
+full unit runs and only typecheck, lint, formatting, deadcode and duplication
+gates, overriding the common lane's full-unit prohibition and the ordinary
+whole-quality prerequisite. No merge, push, rebase, live/paid call or retry.
+The second three-worker run reproduces two split-guard failures: the built
+exec suite rebuilds shared `dist/` while deferred-bundle drills read and
+rewrite it, exposing deleted browser chunks and truncated JSON. Build and
+package exec in its existing private tree, with copied source inputs and a
+dependency link used only for reads. Snapshot the deferred suite's sole production
+build into its own temporary tree before its drills, so every mutation and
+guard check uses owned artifacts. Keep production scripts and guards intact.
+The ten-worker/four-CPU-process probe then exposes 15 five-second drill
+timeouts: each case spawns the same complete source-parsing guard twice.
+Share one real green check of the owned immutable fixture in setup. Every
+negative case still invokes the real guard, requires its precise failure,
+restores the original metafile and proves SHA-256 equality before asserting
+that shared green result. No assertions, guards or deadlines are removed.
+
 **M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
 ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
 and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve
