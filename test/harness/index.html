@@ -3379,13 +3379,15 @@
           })
           send({
             type: 'reportDraft',
+            session: 1,
+            revision: 0,
             description: '',
             includeFacts: true,
             includeEvents: true,
             items: [
               { kind: 'facts', label: 'Support facts' },
-              { kind: 'event', eventIndex: 2, label: 'toolCallFailed · 45s ago' },
-              { kind: 'event', eventIndex: 3, label: 'backendExit · 2m ago' },
+              { kind: 'event', eventIndex: 2, label: 'toolCallFailed · 45 seconds ago' },
+              { kind: 'event', eventIndex: 3, label: 'backendExit · 2 minutes ago' },
             ],
             title: 'Problem report: Muse Spark 0.12.1 on linux',
             text: [
@@ -3403,22 +3405,30 @@
               'settings (names only): museSpark.backend',
               '',
               'Recent events (2):',
-              '- 45s ago toolCallFailed exit1',
-              '  src/host/conversation/conversationController.ts:7420:8',
-              '- 2m ago backendExit unknown',
+              '- 45s ago toolCallFailed TypeError',
+              '  dist/extension.js:2:41723',
+              '- 2m ago backendExit exited',
             ].join('\n'),
             hash: '0'.repeat(64),
             canUseVscodeReporter: true,
             recordingUnavailable: false,
           })
         },
+        // The runners open this one in a real 320 px viewport (the dialog's
+        // backdrop is fixed to the viewport, so a narrow body would not test it).
         'report-narrow': () => {
-          document.body.style.maxWidth = '300px'
           steps['report']()
           // A refused clipboard, stated on the dialog: the preview stays, so
           // its text can still be copied by hand.
           later(200, () =>
-            send({ type: 'reportExported', via: 'copy', ok: false, reason: 'copyFailed' }),
+            send({
+              type: 'reportExported',
+              session: 1,
+              hash: '0'.repeat(64),
+              via: 'copy',
+              ok: false,
+              reason: 'copyFailed',
+            }),
           )
         },
         // --- M84: a share file open read-only: Copy on its code, no Insert or Apply ---

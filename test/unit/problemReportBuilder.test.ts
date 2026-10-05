@@ -1,5 +1,5 @@
 // Report a problem, lane P (M93, PLAN.md D72): the scrubbed report builder
-// in src/core/support/report.ts. Allowlist-only inputs, the second scrub over
+// in src/core/support/problemReport.ts. Allowlist-only inputs, the second scrub over
 // the final draft, the preview/export seal, and the issue-URL fallback bound.
 
 import { createHash } from 'node:crypto'
@@ -14,10 +14,11 @@ import {
   ReportBuildError,
   scrubFinalDraft,
   sealReportDraft,
+  selectProblemReportEvents,
   type ProblemReportFacts,
   type ProblemReportInput,
   type ReportScrubContext,
-} from '../../src/core/support/report'
+} from '../../src/core/support/problemReport'
 import {
   REDACTED_MARK,
   REPORT_DESCRIPTION_MAX_CHARS,
@@ -49,8 +50,8 @@ const FACTS: ProblemReportFacts = {
 
 const EVENT = {
   kind: 'backendExit',
-  code: 'exit1',
-  frames: [{ path: 'src/host/backend/manager.ts', line: 12, column: 4 }],
+  code: 'ECONNRESET',
+  frames: [{ path: 'dist/extension.js', line: 12, column: 4 }],
   ageMs: 180_000,
 }
 
@@ -84,28 +85,47 @@ describe('allowlist refusal', () => {
     ['an unknown sandbox posture', { ...FACTS, sandbox: 'unsandboxed' }],
     ['a version with a newline', { ...FACTS, extensionVersion: '0.12.1\npassword: x' }],
     ['a version that is a sentence', { ...FACTS, nodeVersion: 'fast and new' }],
-    ['a bad CLI version', { ...FACTS, cliVersion: '1.4.2 (owned)' }],
     ['a setting value riding along', { ...FACTS, settingNames: ['museSpark.backend=auto'] }],
     ['a path as a setting name', { ...FACTS, settingNames: ['/etc/passwd'] }],
     ['a missing facts object', undefined],
     ['facts of the wrong shape', ['extensionVersion']],
-  ])('refuses %s without repeating the value', (label, facts) => {
-    void label
+  ])('refuses %s without repeating the value', (_label, facts) => {
     let caught: unknown
     try {
       buildProblemReportDraft(input({ facts }))
     } catch (error: unknown) {
       caught = error
     }
-    expect(caught).toBeInstanceOf(ReportBuildError)
-    const failure = caught as ReportBuildError
+    if (!(caught instanceof ReportBuildError)) {
+      throw new TypeError('expected a ReportBuildError')
+    }
+    const failure = caught
     expect(failure.field.length).toBeGreaterThan(0)
     expect(failure.message).not.toContain('evil')
     expect(failure.message).not.toContain('secret.ts')
   })
 
+  it('leaves out a CLI version that is not a version instead of trusting it', () => {
+    const draft = buildProblemReportDraft(
+      input({ facts: { ...FACTS, cliVersion: '1.4.2 (owned)' } }),
+    )
+    expect(draft.text).toContain('cli: found; signed in: yes')
+    expect(draft.text).not.toContain('owned')
+  })
+
+  it('makes a description cut mid-pair well formed, so the issue link never throws', () => {
+    // A lone high surrogate, as a field cut between the two halves of an emoji leaves it.
+    const lone = String.fromCodePoint(0xd8_3d)
+    const draft = buildProblemReportDraft(
+      input({ description: `broken ${lone}`, includeFacts: false, includeEvents: false }),
+    )
+    expect(draft.text).toContain(`broken ${String.fromCodePoint(0xff_fd)}`)
+    expect(draft.text).not.toContain(lone)
+    expect(issueLinkForDraft(draft.title, draft.text).kind).toBe('open')
+  })
+
   it('refuses a non-finite clock', () => {
-    expect(() => buildProblemReportDraft(input({ nowMs: Number.NaN }))).toThrowError(ReportBuildError)
+    expect(() => buildProblemReportDraft(input({ nowMs: NaN }))).toThrow(ReportBuildError)
   })
 
   it('names the offending scalar field', () => {
@@ -113,8 +133,10 @@ describe('allowlist refusal', () => {
       buildProblemReportDraft(input({ facts: { ...FACTS, extensionVersion: 'nope' } }))
       expect.unreachable()
     } catch (error: unknown) {
-      expect(error).toBeInstanceOf(ReportBuildError)
-      expect((error as ReportBuildError).field).toBe('extensionVersion')
+      if (!(error instanceof ReportBuildError)) {
+        throw new TypeError('expected a ReportBuildError', { cause: error })
+      }
+      expect(error.field).toBe('extensionVersion')
     }
   })
 })
@@ -125,16 +147,39 @@ describe('stored records, validated again', () => {
     ['a raw message field', { ...EVENT, message: 'boom' }],
     ['a session id field', { ...EVENT, sessionId: 's1' }],
     ['a traversal frame', { ...EVENT, frames: [{ path: '../outside.ts', line: 1, column: 0 }] }],
+    [
+      'a source file outside the package',
+      { ...EVENT, frames: [{ path: 'src/host/backend/manager.ts', line: 1, column: 0 }] },
+    ],
+    [
+      'a dot segment into the package',
+      { ...EVENT, frames: [{ path: 'dist/./extension.js', line: 1, column: 0 }] },
+    ],
     ['an absolute frame', { ...EVENT, frames: [{ path: '/etc/secret.ts', line: 1, column: 0 }] }],
-    ['a Windows-absolute frame', { ...EVENT, frames: [{ path: 'C:\\x\\y.ts', line: 1, column: 0 }] }],
+    [
+      'a Windows-absolute frame',
+      { ...EVENT, frames: [{ path: String.raw`C:\x\y.ts`, line: 1, column: 0 }] },
+    ],
     ['a URL frame', { ...EVENT, frames: [{ path: 'https://x/y.ts', line: 1, column: 0 }] }],
-    ['a multiline frame', { ...EVENT, frames: [{ path: 'a.ts\npassword: x', line: 1, column: 0 }] }],
+    [
+      'a multiline frame',
+      { ...EVENT, frames: [{ path: 'a.ts\npassword: x', line: 1, column: 0 }] },
+    ],
     ['an over-long code', { ...EVENT, code: 'x'.repeat(65) }],
-    ['too many frames', { ...EVENT, frames: Array.from({ length: 17 }, () => ({ path: 'a.ts', line: 1, column: 0 })) }],
+    [
+      'too many frames',
+      {
+        ...EVENT,
+        frames: Array.from({ length: 17 }, () => ({
+          path: 'dist/extension.js',
+          line: 1,
+          column: 0,
+        })),
+      },
+    ],
     ['a negative age', { ...EVENT, ageMs: -1 }],
     ['an age past retention', { ...EVENT, ageMs: 8 * 24 * 60 * 60 * 1000 }],
-  ])('skips a record with %s', (label, event) => {
-    void label
+  ])('skips a record with %s', (_label, event) => {
     const draft = buildProblemReportDraft(input({ events: [event] }))
     expect(draft.text).toContain('Recent events (0):')
     expect(draft.text).not.toContain('hearsay')
@@ -143,11 +188,27 @@ describe('stored records, validated again', () => {
 
   it('keeps valid records and turns an off-vocabulary code into the fixed word', () => {
     const draft = buildProblemReportDraft(
-      input({ events: [{ ...EVENT, code: 'what even is this?!' }, EVENT] }),
+      input({
+        events: [{ ...EVENT, code: 'what even is this?!' }, { ...EVENT, code: 'exit1' }, EVENT],
+      }),
     )
-    expect(draft.text).toContain('Recent events (2):')
-    expect(draft.text).toContain('unknown')
+    expect(draft.text).toContain('Recent events (3):')
+    expect(draft.text).toContain('backendExit unknown')
     expect(draft.text).not.toContain('what even is this?!')
+    expect(draft.text).not.toContain('exit1')
+  })
+
+  it('selects the carried records with their input indexes', () => {
+    const selected = selectProblemReportEvents([
+      { ...EVENT, kind: 'hearsay' },
+      EVENT,
+      { ...EVENT, ageMs: -1 },
+      EVENT,
+    ])
+    expect(selected.map((entry) => entry.index)).toEqual([1, 3])
+    expect(selected[0]?.event).toEqual(EVENT)
+    const many = Array.from({ length: REPORT_RECENT_EVENT_COUNT + 2 }, () => EVENT)
+    expect(selectProblemReportEvents(many)[0]?.index).toBe(2)
   })
 
   it('keeps only the last fifty valid records', () => {
@@ -167,7 +228,7 @@ describe('second scrub over the final draft', () => {
       'Authorization: Bearer abcdefghij1234567890',
       'write to alice@example.com or 10.0.0.8 or fe80::1',
       'open /home/alice/work/main.ts then /home/bob/other.ts',
-      'see D:\\Users\\carol\\notes\\x.md',
+      String.raw`see D:\Users\carol\notes\x.md`,
       'at https://user:hunter2@example.com/docs?a=b#frag',
       'from alice-pc as alice',
       'home is /home/alice after all',
@@ -181,7 +242,7 @@ describe('second scrub over the final draft', () => {
     expect(scrubbed).not.toContain('10.0.0.8')
     expect(scrubbed).not.toContain('fe80::1')
     expect(scrubbed).not.toContain('/home/bob/other.ts')
-    expect(scrubbed).not.toContain('D:\\Users\\carol')
+    expect(scrubbed).not.toContain(String.raw`D:\Users\carol`)
     expect(scrubbed).not.toContain('?a=b')
     expect(scrubbed).not.toContain('#frag')
     expect(scrubbed).toContain('<workspace>')
@@ -201,7 +262,11 @@ describe('second scrub over the final draft', () => {
 
   it('redacts a secret smuggled in the user description at build time', () => {
     const draft = buildProblemReportDraft(
-      input({ description: 'fails with LLM_abcdefghijklmnop set', includeFacts: false, includeEvents: false }),
+      input({
+        description: 'fails with LLM_abcdefghijklmnop set',
+        includeFacts: false,
+        includeEvents: false,
+      }),
     )
     expect(draft.text).not.toContain('LLM_abcdefghijklmnop')
     expect(draft.text).toContain(REDACTED_MARK)
@@ -231,15 +296,32 @@ describe('rendering', () => {
         'settings (names only): museSpark.backend, museSpark.shellSandbox',
         '',
         'Recent events (1):',
-        '- 3m ago backendExit exit1',
-        '  src/host/backend/manager.ts:12:4',
+        '- 3m ago backendExit ECONNRESET',
+        '  dist/extension.js:12:4',
       ].join('\n'),
     )
   })
 
+  it('names no VS Code version for the standalone agent', () => {
+    const standalone: ProblemReportFacts = {
+      extensionVersion: '0.12.1',
+      nodeVersion: '22.20.4',
+      platform: 'linux',
+      backend: 'auto',
+      sandbox: 'auto',
+      cliFound: false,
+      cliSignIn: false,
+      hasStoredApiKey: false,
+      hasEnvironmentApiKey: false,
+      settingNames: [],
+    }
+    const draft = buildProblemReportDraft(input({ facts: standalone }))
+    expect(draft.text).toContain('vscode: none (standalone agent)')
+  })
+
   it('omits removed sections and empty text', () => {
     const draft = buildProblemReportDraft(
-      input({ description: '   ', includeFacts: false, includeEvents: false }),
+      input({ description: ' '.repeat(3), includeFacts: false, includeEvents: false }),
     )
     expect(draft.text).toBe('Muse Spark problem report')
   })
@@ -252,7 +334,9 @@ describe('rendering', () => {
   })
 
   it('caps a long description with an ellipsis', () => {
-    const draft = buildProblemReportDraft(input({ description: ` ${'w'.repeat(REPORT_DESCRIPTION_MAX_CHARS + 10)} ` }))
+    const draft = buildProblemReportDraft(
+      input({ description: ` ${'w'.repeat(REPORT_DESCRIPTION_MAX_CHARS + 10)} ` }),
+    )
     expect(draft.text).toContain(`${'w'.repeat(REPORT_DESCRIPTION_MAX_CHARS)}…`)
     expect(draft.text).not.toContain('w'.repeat(REPORT_DESCRIPTION_MAX_CHARS + 1))
   })
@@ -319,9 +403,7 @@ describe('issue link', () => {
 
 describe('no network', () => {
   it('builds, scrubs and links without touching fetch', () => {
-    const fetchSpy = vi.fn(async () => {
-      throw new Error('network is forbidden here')
-    })
+    const fetchSpy = vi.fn(() => Promise.reject(new Error('network is forbidden here')))
     vi.stubGlobal('fetch', fetchSpy)
     const draft = buildProblemReportDraft(input())
     scrubFinalDraft(draft.text, SCRUB)

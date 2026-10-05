@@ -11,10 +11,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import type { ReportEventRef } from '../../src/shared/protocol'
+import type { HostToWebviewMessage, ReportEventRef } from '../../src/shared/protocol'
 import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
 import { Transcript } from '../../src/webview/components/Transcript'
-import { initialUiState, uiReducer } from '../../src/webview/state/uiState'
+import { initialUiState, uiReducer, type UiState } from '../../src/webview/state/uiState'
 import type { TranscriptEntry } from '../../src/webview/state/transcriptEntries'
 import { renderTranscript } from './helpers/transcriptFixtures'
 
@@ -146,22 +146,46 @@ describe('report on the crash screen', () => {
 
 describe('report dialog state', () => {
   const HASH = '0'.repeat(64)
+  type Draft = Extract<HostToWebviewMessage, { type: 'reportDraft' }>
+
+  function draft(overrides: Partial<Draft> = {}): Draft {
+    return {
+      type: 'reportDraft',
+      session: 1,
+      revision: 0,
+      description: '',
+      includeFacts: true,
+      includeEvents: true,
+      items: [{ kind: 'facts', label: 'Support facts' }],
+      title: 'Problem report',
+      text: 'Muse Spark problem report',
+      hash: HASH,
+      canUseVscodeReporter: false,
+      recordingUnavailable: false,
+      ...overrides,
+    }
+  }
+
+  function apply(state: UiState, message: HostToWebviewMessage): UiState {
+    return uiReducer(state, { type: 'hostMessage', message, at: 0 })
+  }
 
   it('keeps the row reference from a recorded notice', () => {
-    const noticed = uiReducer(initialUiState, {
-      type: 'hostMessage',
-      message: { type: 'notice', level: 'error', text: 'Muse Code exited.', reportRef: REF },
-      at: 0,
+    const noticed = apply(initialUiState, {
+      type: 'notice',
+      level: 'error',
+      text: 'Muse Code exited.',
+      reportRef: REF,
     })
     const entry = noticed.transcript.at(-1)
     expect(entry?.kind).toBe('notice')
     if (entry?.kind === 'notice') {
       expect(entry.reportRef).toEqual(REF)
     }
-    const plain = uiReducer(initialUiState, {
-      type: 'hostMessage',
-      message: { type: 'notice', level: 'error', text: 'Muse Code exited.' },
-      at: 0,
+    const plain = apply(initialUiState, {
+      type: 'notice',
+      level: 'error',
+      text: 'Muse Code exited.',
     })
     const plainEntry = plain.transcript.at(-1)
     if (plainEntry?.kind === 'notice') {
@@ -170,79 +194,98 @@ describe('report dialog state', () => {
   })
 
   it('opens, answers and closes the dialog', () => {
-    const opened = uiReducer(initialUiState, {
-      type: 'hostMessage',
-      message: {
-        type: 'reportDraft',
-        description: 'The panel went blank.',
-        includeFacts: true,
-        includeEvents: true,
-        items: [{ kind: 'facts', label: 'Support facts' }],
-        title: 'Problem report',
-        text: 'Muse Spark problem report',
-        hash: HASH,
-        canUseVscodeReporter: false,
-        recordingUnavailable: true,
-      },
-      at: 0,
+    const opened = apply(initialUiState, draft({ recordingUnavailable: true }))
+    expect(opened.report).toMatchObject({
+      session: 1,
+      revision: 0,
+      text: 'Muse Spark problem report',
     })
-    expect(opened.report?.text).toBe('Muse Spark problem report')
     expect(opened.report?.exportStatus).toBeUndefined()
-    const answered = uiReducer(opened, {
-      type: 'hostMessage',
-      message: { type: 'reportExported', via: 'copy', ok: false, reason: 'copyFailed' },
-      at: 0,
+    const answered = apply(opened, {
+      type: 'reportExported',
+      session: 1,
+      hash: HASH,
+      via: 'copy',
+      ok: false,
+      reason: 'copyFailed',
     })
     expect(answered.report?.exportStatus).toEqual({ via: 'copy', ok: false, reason: 'copyFailed' })
     // An answer for a closed dialog is dropped, never resurrected.
     const closed = uiReducer(answered, { type: 'reportClosed' })
     expect(closed.report).toBeUndefined()
-    const late = uiReducer(closed, {
-      type: 'hostMessage',
-      message: { type: 'reportExported', via: 'copy', ok: true },
-      at: 0,
+    expect(closed.closedReportSession).toBe(1)
+    const late = apply(closed, {
+      type: 'reportExported',
+      session: 1,
+      hash: HASH,
+      via: 'copy',
+      ok: true,
     })
     expect(late.report).toBeUndefined()
   })
 
+  it('never reopens a cancelled dialog for its late draft (RVM93W 4)', () => {
+    const opened = apply(initialUiState, draft())
+    const closed = uiReducer(opened, { type: 'reportClosed' })
+    // The rebuilt preview for a description typed before Cancel arrives late.
+    const late = apply(closed, draft({ revision: 3, text: 'late', hash: '1'.repeat(64) }))
+    expect(late.report).toBeUndefined()
+    // A new open is a new session, and it opens.
+    const reopened = apply(late, draft({ session: 2 }))
+    expect(reopened.report?.session).toBe(2)
+    // An older session's draft never replaces the newer one's.
+    expect(apply(reopened, draft({ session: 1, revision: 9 })).report?.session).toBe(2)
+  })
+
+  it('keeps the newest choice when an older reply arrives late (RVM93W 2)', () => {
+    const newer = apply(initialUiState, draft({ revision: 2, text: 'AB', hash: '2'.repeat(64) }))
+    const stale = apply(newer, draft({ revision: 1, text: 'A', hash: '1'.repeat(64) }))
+    expect(stale.report?.text).toBe('AB')
+    expect(stale.report?.revision).toBe(2)
+  })
+
+  it('shows an export answer only beside the draft it exported (RVM93W 7)', () => {
+    const first = apply(initialUiState, draft())
+    const second = apply(first, draft({ revision: 1, text: 'second', hash: '1'.repeat(64) }))
+    // The copy of the first draft finishes after the second is on screen.
+    const copiedFirst = apply(second, {
+      type: 'reportExported',
+      session: 1,
+      hash: HASH,
+      via: 'copy',
+      ok: true,
+    })
+    expect(copiedFirst.report?.exportStatus).toBeUndefined()
+    // An answer from another session with the same text is not this one's either.
+    const otherSession = apply(second, {
+      type: 'reportExported',
+      session: 2,
+      hash: '1'.repeat(64),
+      via: 'copy',
+      ok: true,
+    })
+    expect(otherSession.report?.exportStatus).toBeUndefined()
+    const copiedSecond = apply(second, {
+      type: 'reportExported',
+      session: 1,
+      hash: '1'.repeat(64),
+      via: 'copy',
+      ok: true,
+    })
+    expect(copiedSecond.report?.exportStatus).toEqual({ via: 'copy', ok: true })
+  })
+
   it('clears the last export answer on a fresh draft', () => {
-    const opened = uiReducer(initialUiState, {
-      type: 'hostMessage',
-      message: {
-        type: 'reportDraft',
-        description: '',
-        includeFacts: true,
-        includeEvents: true,
-        items: [],
-        title: 'Problem report',
-        text: 'first',
-        hash: HASH,
-        canUseVscodeReporter: false,
-        recordingUnavailable: false,
-      },
-      at: 0,
+    const opened = apply(initialUiState, draft({ text: 'first' }))
+    const answered = apply(opened, {
+      type: 'reportExported',
+      session: 1,
+      hash: HASH,
+      via: 'copy',
+      ok: true,
     })
-    const answered = uiReducer(opened, {
-      type: 'hostMessage',
-      message: { type: 'reportExported', via: 'copy', ok: true },
-      at: 0,
-    })
-    const refreshed = uiReducer(answered, {
-      type: 'hostMessage',
-      message: {
-        type: 'reportDraft',
-        description: '',
-        includeFacts: true,
-        includeEvents: true,
-        items: [],
-        title: 'Problem report',
-        text: 'second',
-        hash: '1'.repeat(64),
-        canUseVscodeReporter: false,
-        recordingUnavailable: false,
-      },
-      at: 0,
-    })
+    expect(answered.report?.exportStatus).toEqual({ via: 'copy', ok: true })
+    const refreshed = apply(answered, draft({ revision: 1, text: 'second', hash: '1'.repeat(64) }))
     expect(refreshed.report?.text).toBe('second')
     expect(refreshed.report?.exportStatus).toBeUndefined()
   })

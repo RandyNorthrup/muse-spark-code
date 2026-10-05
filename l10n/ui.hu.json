@@ -395,6 +395,7 @@
   "reportUpdating": "Előnézet frissítése…",
   "reportStaleDraft": "A jelentés exportálás közben megváltozott. Az alábbi előnézet aktuális — exportálja újra.",
   "reportIssueOpened": "A hibajegy oldala megnyílt a böngészőben.",
+  "reportIssueOpenFailed": "A hibajegy oldalát nem sikerült megnyitni. Másolja ki inkább a jelentést.",
   "reportVscodeReporterOpened": "A VS Code hibabejelentő megnyílt.",
   "reportVscodeReporterFailed": "A VS Code hibabejelentőt nem sikerült megnyitni.",
   "openDocs": "Muse Code-dokumentáció",

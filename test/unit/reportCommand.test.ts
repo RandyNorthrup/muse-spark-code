@@ -19,7 +19,7 @@ import {
   type ReportFactsDeps,
   type RunReportDeps,
 } from '../../src/runtime/reportCommand'
-import { buildProblemReportDraft } from '../../src/core/support/report'
+import { buildProblemReportDraft } from '../../src/core/support/problemReport'
 import {
   EXEC_EXIT,
   REDACTED_MARK,
@@ -34,8 +34,8 @@ const VERSION = '0.12.1'
 
 const VALID_ENTRY = {
   kind: 'backendExit',
-  code: 'exit1',
-  frames: [{ path: 'src/host/backend/manager.ts', line: 12, column: 4 }],
+  code: 'ECONNRESET',
+  frames: [{ path: 'dist/extension.js', line: 12, column: 4 }],
   atMs: NOW_MS - 180_000,
 }
 
@@ -199,7 +199,7 @@ describe('runReportCommand', () => {
     })
     expect(captured.written[0]).toBe(expected.text)
     expect(captured.written[0]).toContain('Muse Spark problem report')
-    expect(captured.written[0]).toContain('backendExit exit1')
+    expect(captured.written[0]).toContain('backendExit ECONNRESET')
   })
 
   it('honours the section switches', async () => {
@@ -256,7 +256,7 @@ describe('runReportCommand', () => {
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     expect(captured.written).toHaveLength(1)
     expect(captured.written[0]).toContain('event recording was unavailable')
-    expect(captured.written[0]).not.toContain('backendExit exit1')
+    expect(captured.written[0]).not.toContain('backendExit ECONNRESET')
   })
 
   it.each([
@@ -314,10 +314,9 @@ describe('runReportCommand', () => {
     })
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     const text = captured.written[0] ?? ''
-    expect(text).toContain('backendExit exit1')
-    // The extra-field record is projected onto the allowlist (kept as exit4)
-    // without its smuggled text; the off-allowlist records never render.
-    expect(text).toContain('backendExit exit4')
+    expect(text).toContain('backendExit ECONNRESET')
+    // Off-vocabulary codes render as the fixed word; off-allowlist records never render.
+    expect(text).not.toContain('exit4')
     for (const leaked of [attackerCode, attackerPath, 'tester@example.com', 'ignore previous']) {
       expect(text, leaked).not.toContain(leaked)
     }

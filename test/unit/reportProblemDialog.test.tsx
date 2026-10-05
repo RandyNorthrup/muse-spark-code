@@ -10,17 +10,19 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { ReportDraftItem } from '../../src/shared/protocol'
+import type { WebviewToHostMessage } from '../../src/shared/protocol'
 import {
   reportDialogStatusText,
   ReportDialog,
+  ReportDialogHost,
   type ReportDialogProps,
 } from '../../src/webview/components/ReportDialog'
-import type { ReportExportStatus } from '../../src/webview/state/uiState'
+import type { ReportDialogState, ReportExportStatus } from '../../src/webview/state/uiState'
 
 const ITEMS: readonly ReportDraftItem[] = [
   { kind: 'facts', label: 'Support facts' },
-  { kind: 'event', eventIndex: 0, label: 'toolCallFailed · 45s ago' },
-  { kind: 'event', eventIndex: 1, label: 'backendExit · 2m ago' },
+  { kind: 'event', eventIndex: 0, label: 'toolCallFailed · 45 sec. ago' },
+  { kind: 'event', eventIndex: 1, label: 'backendExit · 2 min. ago' },
 ]
 
 const DRAFT_TEXT = [
@@ -30,7 +32,7 @@ const DRAFT_TEXT = [
   'extension: 0.12.1',
   '',
   'Recent events (2):',
-  '- 45s ago toolCallFailed exit1',
+  '- 45s ago toolCallFailed TypeError',
   '- 2m ago backendExit unknown',
 ].join('\n')
 
@@ -83,7 +85,7 @@ describe('ReportDialog', () => {
     render(<ReportDialog {...props} />)
     fireEvent.click(screen.getByRole('button', { name: 'Remove Support facts' }))
     expect(props.onRemoveItem).toHaveBeenCalledWith(ITEMS[0])
-    fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2m ago' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2 min. ago' }))
     expect(props.onRemoveItem).toHaveBeenCalledWith(ITEMS[2])
   })
 
@@ -175,6 +177,10 @@ describe('reportDialogStatusText', () => {
       text: 'The report could not be saved.',
     },
     {
+      status: { via: 'issue', ok: false, reason: 'openFailed' },
+      text: 'The issue page could not be opened. Copy the report instead.',
+    },
+    {
       status: { via: 'vscodeReporter', ok: false, reason: 'reporterFailed' },
       text: 'The VS Code issue reporter could not be opened.',
     },
@@ -189,5 +195,110 @@ describe('reportDialogStatusText', () => {
 
   it('reads the updating state while a rebuilt preview is on its way', () => {
     expect(reportDialogStatusText({ via: 'copy', ok: true }, true)).toBe('Updating the preview…')
+  })
+})
+
+function reportState(overrides: Partial<ReportDialogState> = {}): ReportDialogState {
+  return {
+    session: 1,
+    revision: 0,
+    description: '',
+    includeFacts: true,
+    includeEvents: true,
+    items: ITEMS,
+    title: 'Problem report',
+    text: DRAFT_TEXT,
+    hash: '0'.repeat(64),
+    canUseVscodeReporter: false,
+    recordingUnavailable: false,
+    exportStatus: undefined,
+    ...overrides,
+  }
+}
+
+type Update = Extract<WebviewToHostMessage, { type: 'updateReport' }>
+
+function updatesOf(calls: readonly (readonly [WebviewToHostMessage])[]): Update[] {
+  return calls
+    .map(([message]) => message)
+    .filter((message): message is Update => message.type === 'updateReport')
+}
+
+function description() {
+  return screen.getByRole('textbox', { name: 'What were you doing when it happened?' })
+}
+
+describe('ReportDialogHost', () => {
+  it('keeps newer typing and the exports locked while an older reply arrives (RVM93W 2)', () => {
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    const onClose = vi.fn()
+    const view = render(
+      <ReportDialogHost report={reportState()} postMessage={postMessage} onClose={onClose} />,
+    )
+    fireEvent.change(description(), { target: { value: 'A' } })
+    fireEvent.change(description(), { target: { value: 'AB' } })
+    expect(
+      updatesOf(postMessage.mock.calls).map((message) => [message.revision, message.description]),
+    ).toEqual([
+      [1, 'A'],
+      [2, 'AB'],
+    ])
+    // The reply to "A" arrives: the field keeps "AB" and Copy stays locked.
+    view.rerender(
+      <ReportDialogHost
+        report={reportState({
+          revision: 1,
+          description: 'A',
+          text: 'draft A',
+          hash: '1'.repeat(64),
+        })}
+        postMessage={postMessage}
+        onClose={onClose}
+      />,
+    )
+    expect(description()).toHaveValue('AB')
+    expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Updating the preview…')
+    // The reply to "AB" settles it; nothing was posted again.
+    view.rerender(
+      <ReportDialogHost
+        report={reportState({
+          revision: 2,
+          description: 'AB',
+          text: 'draft AB',
+          hash: '2'.repeat(64),
+        })}
+        postMessage={postMessage}
+        onClose={onClose}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
+    expect(updatesOf(postMessage.mock.calls)).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy report' }))
+    expect(postMessage).toHaveBeenLastCalledWith({
+      type: 'exportReport',
+      via: 'copy',
+      hash: '2'.repeat(64),
+    })
+  })
+
+  it('settles a reply that changed neither the draft nor the description (RVM93W 3)', () => {
+    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+    const onClose = vi.fn()
+    const view = render(
+      <ReportDialogHost report={reportState()} postMessage={postMessage} onClose={onClose} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2 min. ago' }))
+    expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
+    // Same hash, same description: only the revision says it answered.
+    view.rerender(
+      <ReportDialogHost
+        report={reportState({ revision: 1, items: ITEMS.slice(0, 2) })}
+        postMessage={postMessage}
+        onClose={onClose}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
+    expect(screen.queryByText('Updating the preview…')).not.toBeInTheDocument()
   })
 })

@@ -404,6 +404,7 @@
   "reportUpdating": "Actualizando la vista previa…",
   "reportStaleDraft": "El informe cambió durante la exportación. La vista previa siguiente está actualizada — exporte de nuevo.",
   "reportIssueOpened": "La página del problema se abrió en el explorador.",
+  "reportIssueOpenFailed": "No se pudo abrir la página del problema. Copie el informe en su lugar.",
   "reportVscodeReporterOpened": "Se abrió el notificador de problemas de VS Code.",
   "reportVscodeReporterFailed": "No se pudo abrir el notificador de problemas de VS Code.",
   "openDocs": "Documentación de Muse Code",

@@ -560,6 +560,7 @@ export const EN = {
   reportStaleDraft:
     'The report changed while exporting. The preview below is current — export again.',
   reportIssueOpened: 'The issue page was opened in the browser.',
+  reportIssueOpenFailed: 'The issue page could not be opened. Copy the report instead.',
   reportVscodeReporterOpened: 'The VS Code issue reporter was opened.',
   reportVscodeReporterFailed: 'The VS Code issue reporter could not be opened.',
   openDocs: 'Muse Code documentation',

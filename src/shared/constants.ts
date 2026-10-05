@@ -3156,7 +3156,9 @@ export const REPORT_STORAGE_DIR = 'reports'
 // Journal/marker bytes are private to the operating-system user.
 export const REPORT_STORAGE_FILE_MODE = 0o600
 // A storage inode has only its owned name; hard links can redirect appends.
-export const REPORT_STORAGE_LINK_COUNT = 1n
+// A number, compared as BigInt where it is read: an exported BigInt here
+// breaks vitest's shared module cache for every suite that imports this file.
+export const REPORT_STORAGE_LINK_COUNT = 1
 // A version string is a dotted triple, never a sentence.
 export const REPORT_VERSION_MAX_CHARS = 32
 // Local diagnostic vocabulary, never arbitrary caller or backend text.

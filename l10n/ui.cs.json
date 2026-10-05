@@ -413,6 +413,7 @@
   "reportUpdating": "Aktualizace náhledu…",
   "reportStaleDraft": "Zpráva se během exportu změnila. Náhled níže je aktuální — exportujte znovu.",
   "reportIssueOpened": "Stránka problému byla otevřena v prohlížeči.",
+  "reportIssueOpenFailed": "Stránku problému se nepodařilo otevřít. Zkopírujte místo toho hlášení.",
   "reportVscodeReporterOpened": "Ohlašovač problémů VS Code byl otevřen.",
   "reportVscodeReporterFailed": "Ohlašovač problémů VS Code se nepodařilo otevřít.",
   "openDocs": "Dokumentace Muse Code",

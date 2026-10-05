@@ -5,83 +5,85 @@
 // Opening the prefilled issue page hands the draft to the user's browser and
 // GitHub account; the extension never sends anything over the network itself
 // and needs no GitHub access.
+//
+// The outcome is the caller's to state: the report dialog's status line says
+// it in fixed words. Nothing here waits on a notification, which resolves
+// only when the user closes it and would hold the answer back until then.
 
 import * as vscode from 'vscode'
 import {
   isSealedDraftCurrent,
   issueLinkForDraft,
   type SealedReportDraft,
-} from '../../core/support/report'
-import { REPORT_ISSUE_NEW_URL, UI_TEXT } from '../../shared/constants'
+} from '../../core/support/problemReport'
+import { REPORT_ISSUE_NEW_URL } from '../../shared/constants'
 
-/** What an export attempt answers; `message`, when present, is already shown. */
+/** What an export attempt answers, in fixed words the dialog states. */
 export type ReportExportOutcome =
-  | { readonly ok: true }
+  | { readonly ok: true; readonly isIssueFallback?: boolean }
   | {
       readonly ok: false
-      readonly reason: 'stale' | 'cancelled' | 'copyFailed' | 'saveFailed'
-      /** The notice shown for the failure; absent when nothing is shown. */
-      readonly message: string | undefined
+      readonly reason: 'stale' | 'cancelled' | 'copyFailed' | 'saveFailed' | 'openFailed'
     }
 
 const MARKDOWN_FILTER = 'Markdown'
 const REPORT_FILE_EXTENSION = 'md'
 
 /**
- * A broken seal: the draft changed after its preview. Nothing is shown on
- * purpose — the preview on screen already holds the current text, so the
- * caller rebuilds from it instead of telling the user what they can see.
+ * A broken seal: the draft changed after its preview. The caller rebuilds
+ * from the preview on screen instead of exporting stale words.
  */
-function staleDraft(): ReportExportOutcome {
-  return { ok: false, reason: 'stale', message: undefined }
+const STALE_DRAFT: ReportExportOutcome = { ok: false, reason: 'stale' }
+
+/** Opens `url` in the user's browser; a refusal or a throw reads as not opened. */
+async function isOpenedInBrowser(url: string): Promise<boolean> {
+  try {
+    return await vscode.env.openExternal(vscode.Uri.parse(url))
+  } catch {
+    return false
+  }
 }
 
 /** Copies the sealed draft to the clipboard, exactly as previewed. */
 export async function copyProblemReport(draft: SealedReportDraft): Promise<ReportExportOutcome> {
   if (!isSealedDraftCurrent(draft)) {
-    return staleDraft()
+    return STALE_DRAFT
   }
   try {
     await vscode.env.clipboard.writeText(draft.text)
   } catch {
-    const message = UI_TEXT.reportCopyFailed
-    await vscode.window.showErrorMessage(message)
-    return { ok: false, reason: 'copyFailed', message }
+    return { ok: false, reason: 'copyFailed' }
   }
-  const message = UI_TEXT.reportCopied
-  await vscode.window.showInformationMessage(message)
   return { ok: true }
 }
 
 /**
  * Opens the prefilled new-issue page for a short draft. Past the encoded-URL
  * cap it copies the same draft and opens the unfilled form with the paste
- * instruction instead; a failed copy still opens the form but says so, and
- * never pretends the draft was copied.
+ * instruction instead (`isIssueFallback`). A failed copy opens nothing and
+ * says so, never pretending the draft was copied; a browser that would not
+ * open says so too.
  */
 export async function openProblemReportIssue(
   draft: SealedReportDraft,
 ): Promise<ReportExportOutcome> {
   if (!isSealedDraftCurrent(draft)) {
-    return staleDraft()
+    return STALE_DRAFT
   }
   const link = issueLinkForDraft(draft.title, draft.text)
   if (link.kind === 'open') {
-    await vscode.env.openExternal(vscode.Uri.parse(link.url))
-    return { ok: true }
+    return (await isOpenedInBrowser(link.url))
+      ? { ok: true, isIssueFallback: false }
+      : { ok: false, reason: 'openFailed' }
   }
   try {
     await vscode.env.clipboard.writeText(draft.text)
   } catch {
-    await vscode.env.openExternal(vscode.Uri.parse(REPORT_ISSUE_NEW_URL))
-    const message = UI_TEXT.reportCopyFailed
-    await vscode.window.showErrorMessage(message)
-    return { ok: false, reason: 'copyFailed', message }
+    return { ok: false, reason: 'copyFailed' }
   }
-  await vscode.env.openExternal(vscode.Uri.parse(REPORT_ISSUE_NEW_URL))
-  const message = UI_TEXT.reportUrlTooLong
-  await vscode.window.showInformationMessage(message)
-  return { ok: true }
+  return (await isOpenedInBrowser(REPORT_ISSUE_NEW_URL))
+    ? { ok: true, isIssueFallback: true }
+    : { ok: false, reason: 'openFailed' }
 }
 
 /**
@@ -90,7 +92,7 @@ export async function openProblemReportIssue(
  */
 export async function saveProblemReport(draft: SealedReportDraft): Promise<ReportExportOutcome> {
   if (!isSealedDraftCurrent(draft)) {
-    return staleDraft()
+    return STALE_DRAFT
   }
   let target: vscode.Uri | undefined
   try {
@@ -98,21 +100,15 @@ export async function saveProblemReport(draft: SealedReportDraft): Promise<Repor
       filters: { [MARKDOWN_FILTER]: [REPORT_FILE_EXTENSION] },
     })
   } catch {
-    const message = UI_TEXT.reportSaveFailed
-    await vscode.window.showErrorMessage(message)
-    return { ok: false, reason: 'saveFailed', message }
+    return { ok: false, reason: 'saveFailed' }
   }
   if (target === undefined) {
-    return { ok: false, reason: 'cancelled', message: undefined }
+    return { ok: false, reason: 'cancelled' }
   }
   try {
     await vscode.workspace.fs.writeFile(target, new TextEncoder().encode(draft.text))
   } catch {
-    const message = UI_TEXT.reportSaveFailed
-    await vscode.window.showErrorMessage(message)
-    return { ok: false, reason: 'saveFailed', message }
+    return { ok: false, reason: 'saveFailed' }
   }
-  const message = UI_TEXT.reportSaved
-  await vscode.window.showInformationMessage(message)
   return { ok: true }
 }

@@ -21,6 +21,10 @@ import { createUiStore, listenToHost, persistStore, type UiStore } from './state
 import './styles.css'
 
 const host = vsCodeHostBridge(window)
+// This bundle's own resolved URL, read while it runs (M93): the report's
+// frames name only locations inside it, as the package path, never the URL.
+const ownScriptUrl =
+  document.currentScript instanceof HTMLScriptElement ? document.currentScript.src : undefined
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (rootElement === null) {
   throw new Error(`Webview root element #${WEBVIEW_ROOT_ELEMENT_ID} is missing`)
@@ -37,12 +41,12 @@ const report: ErrorReporter = (source, error) => {
 window.addEventListener('error', (event) => {
   const error: unknown = event.error ?? event.message
   report('window', error)
-  host.post(reportWebviewErrorMessage('windowError', 'window', error))
+  host.post(reportWebviewErrorMessage('windowError', 'window', error, ownScriptUrl))
 })
 window.addEventListener('unhandledrejection', (event) => {
   const reason: unknown = event.reason
   report('promise', reason)
-  host.post(reportWebviewErrorMessage('unhandledRejection', 'promise', reason))
+  host.post(reportWebviewErrorMessage('unhandledRejection', 'promise', reason, ownScriptUrl))
 })
 
 // The table came from the host, so a refused one is logged as a host message's.
@@ -104,6 +108,7 @@ function CrashReportDialog({
   }
   return (
     <ReportDialogHost
+      key={report.session}
       report={report}
       postMessage={postMessage}
       onClose={() => {
@@ -118,7 +123,7 @@ createRoot(rootElement).render(
     <ErrorBoundary
       onError={(error) => {
         report('render', error)
-        host.post(reportWebviewErrorMessage('reactBoundary', 'render', error))
+        host.post(reportWebviewErrorMessage('reactBoundary', 'render', error, ownScriptUrl))
         noteTreeCrashed()
       }}
       onReportProblem={() => {

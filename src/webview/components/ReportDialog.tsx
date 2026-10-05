@@ -67,6 +67,9 @@ export function reportDialogStatusText(
     case 'saveFailed': {
       return UI_TEXT.reportSaveFailed
     }
+    case 'openFailed': {
+      return UI_TEXT.reportIssueOpenFailed
+    }
     case 'reporterFailed': {
       return UI_TEXT.reportVscodeReporterFailed
     }
@@ -258,9 +261,12 @@ interface ReportUpdate {
 
 /**
  * The dialog above the panel (M93 lane W): posts the user's choices for the
- * host to rebuild lane P's sealed draft, and exports with the seal of the
- * draft on screen. Mounted while `report` is defined (in the app, or over
- * the crash screen); closing returns focus to whatever opened it.
+ * host to rebuild the sealed draft, and exports with the seal of the draft on
+ * screen. Each choice carries the dialog's own count (its revision); the
+ * preview counts as updating until the host's draft answers the newest one,
+ * so an older reply never settles a newer choice or unlocks the exports.
+ * Mounted while `report` is defined (in the app, or over the crash screen),
+ * once per host session; closing returns focus to whatever opened it.
  */
 export function ReportDialogHost({
   report,
@@ -285,14 +291,12 @@ export function ReportDialogHost({
     includeEvents: report.includeEvents,
     removed: [],
   }))
-  const [isUpdating, setIsUpdating] = useState(false)
-  // What the host has seen: mirrors of the last post, so a fresh draft only
-  // resends when the user moved on while it was on its way.
+  // The newest choice posted: the preview is current once the host's draft
+  // answers it (`report.revision`), whatever arrived before.
+  const [sentRevision, setSentRevision] = useState(report.revision)
+  // Mirrors for the handlers: two changes before a render each build on the last.
   const updateRef = useRef(update)
-  useEffect(() => {
-    updateRef.current = update
-  })
-  const lastSent = useRef<ReportUpdate>(update)
+  const revisionRef = useRef(report.revision)
   useEffect(() => {
     return () => {
       if (opener?.isConnected === true) {
@@ -300,39 +304,16 @@ export function ReportDialogHost({
       }
     }
   }, [opener])
-  // A fresh draft settles the update in flight — unless the user moved on
-  // meanwhile, in which case their newer choice is posted at once, so the
-  // preview always converges on what the dialog shows.
-  useEffect(() => {
-    const current = updateRef.current
-    const sent = lastSent.current
-    if (
-      current.description !== sent.description ||
-      current.includeFacts !== sent.includeFacts ||
-      current.includeEvents !== sent.includeEvents ||
-      current.removed !== sent.removed
-    ) {
-      lastSent.current = current
-      postMessage({
-        type: 'updateReport',
-        description: current.description.slice(0, REPORT_DESCRIPTION_MAX_CHARS),
-        includeFacts: current.includeFacts,
-        includeEvents: current.includeEvents,
-        removedEventIndexes: [...current.removed],
-      })
-      return
-    }
-    setIsUpdating(false)
-    if (current.description !== report.description) {
-      setUpdate({ ...current, description: report.description })
-    }
-  }, [report.hash, report.description, postMessage])
+  const isUpdating = report.revision < sentRevision
   const sendUpdate = (next: ReportUpdate) => {
-    lastSent.current = next
+    revisionRef.current += 1
+    const revision = revisionRef.current
+    updateRef.current = next
     setUpdate(next)
-    setIsUpdating(true)
+    setSentRevision(revision)
     postMessage({
       type: 'updateReport',
+      revision,
       description: next.description.slice(0, REPORT_DESCRIPTION_MAX_CHARS),
       includeFacts: next.includeFacts,
       includeEvents: next.includeEvents,

@@ -1,8 +1,9 @@
-// Report a problem, lane P (M93, PLAN.md D72): the export paths in
+// Report a problem (M93, PLAN.md D72): the export paths in
 // src/host/support/reportProblem.ts. The sealed draft is byte-identical to
 // the preview on every path; a broken seal, a refused clipboard, a refused
-// save and the over-long URL fallback each answer clearly, and nothing here
-// touches the network itself.
+// save, a browser that would not open and the over-long URL fallback each
+// answer in a fixed word (the dialog states it), no notification is awaited,
+// and nothing here touches the network itself.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { env, Uri, window, workspace } from 'vscode'
@@ -11,8 +12,8 @@ import {
   sealReportDraft,
   type ProblemReportInput,
   type SealedReportDraft,
-} from '../../src/core/support/report'
-import { REPORT_ISSUE_NEW_URL, UI_TEXT } from '../../src/shared/constants'
+} from '../../src/core/support/problemReport'
+import { REPORT_ISSUE_NEW_URL } from '../../src/shared/constants'
 import {
   copyProblemReport,
   openProblemReportIssue,
@@ -68,55 +69,67 @@ function openedUrl(): string {
   return uri?.toString() ?? ''
 }
 
+/** No path shows (or waits on) a notification: the dialog's status line says the outcome. */
+function expectNoNotification(): void {
+  expect(vi.mocked(window.showInformationMessage)).not.toHaveBeenCalled()
+  expect(vi.mocked(window.showErrorMessage)).not.toHaveBeenCalled()
+}
+
 describe('copy to clipboard', () => {
-  it('writes the sealed text exactly and says so', async () => {
+  it('writes the sealed text exactly', async () => {
     const draft = buildProblemReportDraft(INPUT)
     const outcome = await copyProblemReport(draft)
     expect(outcome).toEqual({ ok: true })
     expect(vi.mocked(env.clipboard.writeText).mock.calls).toEqual([[draft.text]])
-    expect(vi.mocked(window.showInformationMessage).mock.calls).toEqual([[UI_TEXT.reportCopied]])
-    expect(UI_TEXT.reportCopied).toBe('The report was copied to the clipboard.')
+    expectNoNotification()
   })
 
   it('reports a refused clipboard without pretending', async () => {
     vi.mocked(env.clipboard.writeText).mockRejectedValue(new Error('denied'))
     const outcome = await copyProblemReport(SHORT)
-    expect(outcome).toEqual({ ok: false, reason: 'copyFailed', message: UI_TEXT.reportCopyFailed })
-    expect(vi.mocked(window.showErrorMessage).mock.calls).toEqual([[UI_TEXT.reportCopyFailed]])
-    expect(vi.mocked(window.showInformationMessage)).not.toHaveBeenCalled()
+    expect(outcome).toEqual({ ok: false, reason: 'copyFailed' })
+    expectNoNotification()
   })
 })
 
 describe('open issue page', () => {
-  it('opens the prefilled page for a short draft with no clipboard or notice', async () => {
+  it('opens the prefilled page for a short draft with no clipboard', async () => {
     const outcome = await openProblemReportIssue(SHORT)
-    expect(outcome).toEqual({ ok: true })
+    expect(outcome).toEqual({ ok: true, isIssueFallback: false })
     const url = openedUrl()
     expect(url).toContain(`${REPORT_ISSUE_NEW_URL}?title=`)
     expect(url).toContain(`body=${encodeURIComponent('short body')}`)
-    expect(decodeURIComponent(url.split('body=')[1] ?? '')).toBe('short body')
+    expect(decodeURIComponent(url.split('body=', 2)[1] ?? '')).toBe('short body')
     expect(vi.mocked(env.clipboard.writeText)).not.toHaveBeenCalled()
-    expect(vi.mocked(window.showInformationMessage)).not.toHaveBeenCalled()
+    expectNoNotification()
   })
 
   it('copies the same draft then opens the unfilled form past the cap', async () => {
     const outcome = await openProblemReportIssue(LONG)
-    expect(outcome).toEqual({ ok: true })
+    expect(outcome).toEqual({ ok: true, isIssueFallback: true })
     expect(vi.mocked(env.clipboard.writeText).mock.calls).toEqual([[LONG.text]])
     expect(openedUrl()).toContain(REPORT_ISSUE_NEW_URL)
     expect(openedUrl()).not.toContain('body=')
     const clipboardOrder = vi.mocked(env.clipboard.writeText).mock.invocationCallOrder[0] ?? 0
     const openOrder = vi.mocked(env.openExternal).mock.invocationCallOrder[0] ?? 0
     expect(clipboardOrder).toBeLessThan(openOrder)
-    expect(vi.mocked(window.showInformationMessage).mock.calls).toEqual([[UI_TEXT.reportUrlTooLong]])
+    expectNoNotification()
   })
 
-  it('still opens the form but reports the failed fallback copy', async () => {
+  it('opens nothing and says so when the fallback copy fails', async () => {
     vi.mocked(env.clipboard.writeText).mockRejectedValue(new Error('denied'))
     const outcome = await openProblemReportIssue(LONG)
-    expect(outcome).toEqual({ ok: false, reason: 'copyFailed', message: UI_TEXT.reportCopyFailed })
-    expect(openedUrl()).toContain(REPORT_ISSUE_NEW_URL)
-    expect(vi.mocked(window.showErrorMessage).mock.calls).toEqual([[UI_TEXT.reportCopyFailed]])
+    expect(outcome).toEqual({ ok: false, reason: 'copyFailed' })
+    expect(vi.mocked(env.openExternal)).not.toHaveBeenCalled()
+  })
+
+  it('says a browser that refused or threw did not open', async () => {
+    vi.mocked(env.openExternal).mockResolvedValueOnce(false)
+    expect(await openProblemReportIssue(SHORT)).toEqual({ ok: false, reason: 'openFailed' })
+    vi.mocked(env.openExternal).mockRejectedValueOnce(new Error('no browser'))
+    expect(await openProblemReportIssue(SHORT)).toEqual({ ok: false, reason: 'openFailed' })
+    vi.mocked(env.openExternal).mockResolvedValueOnce(false)
+    expect(await openProblemReportIssue(LONG)).toEqual({ ok: false, reason: 'openFailed' })
   })
 })
 
@@ -129,30 +142,28 @@ describe('save to a file', () => {
     const written = vi.mocked(workspace.fs.writeFile).mock.calls[0]?.[1]
     expect(written).toBeInstanceOf(Uint8Array)
     expect(new TextDecoder().decode(written)).toBe(draft.text)
-    expect(vi.mocked(window.showInformationMessage).mock.calls).toEqual([[UI_TEXT.reportSaved]])
+    expectNoNotification()
   })
 
   it('ends quietly when the picker is dismissed', async () => {
     vi.mocked(window.showSaveDialog).mockResolvedValue(undefined)
     const outcome = await saveProblemReport(SHORT)
-    expect(outcome).toEqual({ ok: false, reason: 'cancelled', message: undefined })
+    expect(outcome).toEqual({ ok: false, reason: 'cancelled' })
     expect(vi.mocked(workspace.fs.writeFile)).not.toHaveBeenCalled()
-    expect(vi.mocked(window.showInformationMessage)).not.toHaveBeenCalled()
-    expect(vi.mocked(window.showErrorMessage)).not.toHaveBeenCalled()
+    expectNoNotification()
   })
 
   it('reports a refused write', async () => {
     vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
     vi.mocked(workspace.fs.writeFile).mockRejectedValue(new Error('EACCES'))
     const outcome = await saveProblemReport(SHORT)
-    expect(outcome).toEqual({ ok: false, reason: 'saveFailed', message: UI_TEXT.reportSaveFailed })
-    expect(vi.mocked(window.showErrorMessage).mock.calls).toEqual([[UI_TEXT.reportSaveFailed]])
+    expect(outcome).toEqual({ ok: false, reason: 'saveFailed' })
   })
 
   it('reports a picker that throws instead of answering', async () => {
     vi.mocked(window.showSaveDialog).mockRejectedValue(new Error('no dialog'))
     const outcome = await saveProblemReport(SHORT)
-    expect(outcome).toEqual({ ok: false, reason: 'saveFailed', message: UI_TEXT.reportSaveFailed })
+    expect(outcome).toEqual({ ok: false, reason: 'saveFailed' })
   })
 })
 
@@ -164,22 +175,19 @@ describe('draft identity across exports', () => {
       await openProblemReportIssue(tampered),
       await saveProblemReport(tampered),
     ]) {
-      expect(outcome).toEqual({ ok: false, reason: 'stale', message: undefined })
+      expect(outcome).toEqual({ ok: false, reason: 'stale' })
     }
     expect(vi.mocked(env.clipboard.writeText)).not.toHaveBeenCalled()
     expect(vi.mocked(env.openExternal)).not.toHaveBeenCalled()
     expect(vi.mocked(workspace.fs.writeFile)).not.toHaveBeenCalled()
     expect(vi.mocked(window.showSaveDialog)).not.toHaveBeenCalled()
-    expect(vi.mocked(window.showInformationMessage)).not.toHaveBeenCalled()
-    expect(vi.mocked(window.showErrorMessage)).not.toHaveBeenCalled()
+    expectNoNotification()
   })
 })
 
 describe('no network', () => {
   it('exports without touching fetch', async () => {
-    const fetchSpy = vi.fn(async () => {
-      throw new Error('network is forbidden here')
-    })
+    const fetchSpy = vi.fn(() => Promise.reject(new Error('network is forbidden here')))
     vi.stubGlobal('fetch', fetchSpy)
     vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
     await copyProblemReport(SHORT)

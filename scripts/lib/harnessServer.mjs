@@ -163,7 +163,14 @@ export function serveRepo(repoRoot) {
   })
 }
 
-/** Chrome's CLI clamps windows to 500 px: the narrow share check needs a real 320 px viewport. */
+/**
+ * The scenarios whose modal sizes itself to the viewport (a fixed backdrop),
+ * so only a real 320 px viewport tests them narrow: the share file (M84) and
+ * the report dialog (M93).
+ */
+export const NARROW_VIEWPORT_SCENARIOS = new Set(['share-narrow', 'report-narrow'])
+
+/** Chrome's CLI clamps windows to 500 px: the narrow modal checks need a real 320 px viewport. */
 export async function withNarrowPage(chrome, profileDir, url, run) {
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),

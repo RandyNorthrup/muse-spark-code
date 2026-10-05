@@ -386,6 +386,7 @@
   "reportUpdating": "プレビューを更新しています…",
   "reportStaleDraft": "エクスポート中にレポートが変更されました。以下のプレビューが最新です — もう一度エクスポートしてください。",
   "reportIssueOpened": "問題ページをブラウザーで開きました。",
+  "reportIssueOpenFailed": "問題ページを開けませんでした。代わりにレポートをコピーしてください。",
   "reportVscodeReporterOpened": "VS Code の問題レポーターを開きました。",
   "reportVscodeReporterFailed": "VS Code の問題レポーターを開けませんでした。",
   "openDocs": "Muse Code のドキュメント",

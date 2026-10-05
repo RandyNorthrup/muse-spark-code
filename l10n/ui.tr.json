@@ -395,6 +395,7 @@
   "reportUpdating": "Önizleme güncelleniyor…",
   "reportStaleDraft": "Rapor dışa aktarma sırasında değişti. Aşağıdaki önizleme güncel — yeniden dışa aktarın.",
   "reportIssueOpened": "Sorun sayfası tarayıcıda açıldı.",
+  "reportIssueOpenFailed": "Sorun sayfası açılamadı. Bunun yerine raporu kopyalayın.",
   "reportVscodeReporterOpened": "VS Code sorun bildiricisi açıldı.",
   "reportVscodeReporterFailed": "VS Code sorun bildiricisi açılamadı.",
   "openDocs": "Muse Code belgeleri",

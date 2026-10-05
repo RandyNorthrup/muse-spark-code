@@ -3,15 +3,15 @@
 // limits. Nothing else is added: no draft, no transcript.
 
 import {
-  REPORT_FRAME_PATH_MAX_CHARS,
-  REPORT_STACK_MAX_FRAMES,
-  REPORT_UNKNOWN_ERROR_CODE,
+  WEBVIEW_DIST_SEGMENTS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
+  WEBVIEW_SCRIPT_FILE,
   type ReportWebviewErrorKind,
   type WebviewErrorSource,
 } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
+import { packageFramesOf, reportCodeOf, stackOf } from '../shared/stackFrames'
 
 export type ErrorReporter = (source: WebviewErrorSource, error: unknown) => void
 
@@ -28,53 +28,38 @@ export function webviewErrorReport(
   return { type: 'webviewError', source, message, ...(stack !== undefined && { stack }) }
 }
 
-const STACK_FRAME = /\(?([^()\s]+?):(\d+):(\d+)\)?$/
+/** The webview bundle as the package ships it: the only file its frames may name. */
+const WEBVIEW_FRAME_PATH = [...WEBVIEW_DIST_SEGMENTS, WEBVIEW_SCRIPT_FILE].join('/')
 
 /**
- * The scrubbed failure for the report workflow (M93 lane W, PLAN.md D72):
- * the event kind, where it came from, a fixed code and bounded structural
- * frames — never the error's message, stack text, or anything the user
- * typed. The webview claims no code it cannot vouch for (always the fixed
- * unknown word) and no path shape: package-relative verification, code
- * vocabulary and traversal/URL rejection are the recorder's semantic
- * validation (lane R), not transport bounds. A `hostMessage` failure has no
- * journal kind, so callers do not send one for it.
+ * The scrubbed failure for the report workflow (M93, PLAN.md D72): the event
+ * kind, where it came from, the error's class when it is a known one (the
+ * fixed unknown word otherwise) and the frames inside this webview's own
+ * bundle — never the error's message, stack text, a function name, an
+ * absolute URL or anything the user typed. A frame counts only when its
+ * location is exactly `ownScriptUrl` (the bundle's resolved URL, read once at
+ * load); it is then named by the package path, so the URL (which holds the
+ * install folder) never leaves. Without a known script URL no frame is kept.
+ * The recorder checks code and path vocabularies again on the host. A
+ * `hostMessage` failure has no journal kind, so callers do not send one.
  */
 export function reportWebviewErrorMessage(
   kind: ReportWebviewErrorKind,
   source: WebviewErrorSource,
   error: unknown,
+  ownScriptUrl: string | undefined,
 ): Extract<WebviewToHostMessage, { type: 'reportWebviewError' }> {
-  const lines =
-    error instanceof Error && typeof error.stack === 'string' ? error.stack.split('\n') : []
-  const frames: { readonly path: string; readonly line: number; readonly column: number }[] = []
-  for (const line of lines) {
-    if (frames.length >= REPORT_STACK_MAX_FRAMES) {
-      break
-    }
-    const match = STACK_FRAME.exec(line.trim())
-    if (match === null) {
-      continue
-    }
-    const path = (match[1] ?? '').slice(0, REPORT_FRAME_PATH_MAX_CHARS)
-    const lineNumber = Number(match[2])
-    const column = Number(match[3])
-    if (
-      path === '' ||
-      !Number.isSafeInteger(lineNumber) ||
-      !Number.isSafeInteger(column) ||
-      lineNumber < 1 ||
-      column < 0
-    ) {
-      continue
-    }
-    frames.push({ path, line: lineNumber, column })
-  }
+  const frames =
+    ownScriptUrl === undefined || ownScriptUrl === ''
+      ? []
+      : packageFramesOf(stackOf(error), (location) =>
+          location === ownScriptUrl ? WEBVIEW_FRAME_PATH : undefined,
+        )
   return {
     type: 'reportWebviewError',
     kind,
     source,
-    code: REPORT_UNKNOWN_ERROR_CODE,
-    frames,
+    code: reportCodeOf(error),
+    frames: [...frames],
   }
 }

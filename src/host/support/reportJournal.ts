@@ -109,7 +109,7 @@ async function checkedStorageHandle(file: string, handle: FileHandle): Promise<B
   const info = await handleIdentity(handle)
   if (
     !info.isFile() ||
-    info.nlink !== REPORT_STORAGE_LINK_COUNT ||
+    info.nlink !== BigInt(REPORT_STORAGE_LINK_COUNT) ||
     !sameFile(info, await lstatIdentity(file))
   )
     throw new Error('Report file changed')

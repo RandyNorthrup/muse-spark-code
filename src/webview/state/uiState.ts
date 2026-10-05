@@ -138,6 +138,10 @@ export interface ReportExportStatus {
 
 /** The report-a-problem preview dialog's state (M93 lane W). */
 export interface ReportDialogState {
+  /** The host's dialog session this draft belongs to (one per open). */
+  readonly session: number
+  /** Which of the dialog's choices the draft answers; 0 is the opening draft. */
+  readonly revision: number
   /** The description the draft was built with, echoed by the host. */
   readonly description: string
   readonly includeFacts: boolean
@@ -378,10 +382,15 @@ export interface UiState {
   /**
    * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
    * host built it, with the removable items it contains. Undefined while
-   * the dialog is closed; never saved (a reload re-offers through the crash
-   * offer, whose journal indexes are current).
+   * the dialog is closed; never saved (the journal outlives the panel, and
+   * the command reads it again after a reload).
    */
   readonly report: ReportDialogState | undefined
+  /**
+   * The newest report session the user closed (0 for none): a draft still on
+   * its way for it, or for an older one, never reopens the dialog.
+   */
+  readonly closedReportSession: number
   /**
    * The conversation in the transcript holds imported history (M84, the
    * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
@@ -547,6 +556,7 @@ export const initialUiState: UiState = {
   pendingClearEchoes: 0,
   share: undefined,
   report: undefined,
+  closedReportSession: 0,
   isImported: false,
 }
 
@@ -2647,10 +2657,23 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // fresh draft clears the last export's answer. Opening moves focus
       // into the dialog (the app watches `report`); an update while typing
       // must not steal it, so nothing is announced here — the dialog's own
-      // status line reads export outcomes out.
+      // status line reads export outcomes out. A draft for a session the user
+      // closed (or an older one), or for an older choice than the one shown,
+      // arrived late: it is dropped, never reopening or rewinding the dialog.
+      const shown = state.report
+      if (
+        message.session <= state.closedReportSession ||
+        (shown !== undefined &&
+          (message.session < shown.session ||
+            (message.session === shown.session && message.revision < shown.revision)))
+      ) {
+        return state
+      }
       return {
         ...state,
         report: {
+          session: message.session,
+          revision: message.revision,
           description: message.description,
           includeFacts: message.includeFacts,
           includeEvents: message.includeEvents,
@@ -2666,8 +2689,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'reportExported': {
       // An export attempt's answer in fixed words (M93 lane W): shown on
-      // the dialog's status line. An answer for a closed dialog is dropped.
-      if (state.report === undefined) {
+      // the dialog's status line. An answer for a closed dialog, another
+      // session or a draft no longer on screen is dropped: it is not about
+      // what the dialog shows.
+      if (state.report?.session !== message.session || state.report.hash !== message.hash) {
         return state
       }
       return {
@@ -2942,7 +2967,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return { ...state, share: undefined }
     }
     case 'reportClosed': {
-      return { ...state, report: undefined }
+      return {
+        ...state,
+        report: undefined,
+        closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
+      }
     }
     case 'conversationCleared': {
       return {

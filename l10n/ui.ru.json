@@ -413,6 +413,7 @@
   "reportUpdating": "Обновление предпросмотра…",
   "reportStaleDraft": "Отчёт изменился во время экспорта. Предпросмотр ниже актуален — экспортируйте снова.",
   "reportIssueOpened": "Страница проблемы открыта в браузере.",
+  "reportIssueOpenFailed": "Не удалось открыть страницу проблемы. Скопируйте отчёт вместо этого.",
   "reportVscodeReporterOpened": "Средство сообщения о проблемах VS Code открыто.",
   "reportVscodeReporterFailed": "Не удалось открыть средство сообщения о проблемах VS Code.",
   "openDocs": "Документация Muse Code",

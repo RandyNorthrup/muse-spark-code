@@ -413,6 +413,7 @@
   "reportUpdating": "Aktualizowanie podglądu…",
   "reportStaleDraft": "Zgłoszenie zmieniło się podczas eksportowania. Podgląd poniżej jest aktualny — wyeksportuj ponownie.",
   "reportIssueOpened": "Strona zgłoszenia została otwarta w przeglądarce.",
+  "reportIssueOpenFailed": "Nie można otworzyć strony zgłoszenia. Zamiast tego skopiuj zgłoszenie.",
   "reportVscodeReporterOpened": "Narzędzie zgłaszania problemów VS Code zostało otwarte.",
   "reportVscodeReporterFailed": "Nie można otworzyć narzędzia zgłaszania problemów VS Code.",
   "openDocs": "Dokumentacja Muse Code",

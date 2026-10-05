@@ -21,7 +21,7 @@ import {
   buildProblemReportDraft,
   type ProblemReportFacts,
   ReportBuildError,
-} from '../core/support/report'
+} from '../core/support/problemReport'
 import {
   ACP_REPORT_JOURNAL_FILE,
   EXEC_EXIT,

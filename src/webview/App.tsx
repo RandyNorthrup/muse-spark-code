@@ -1984,8 +1984,11 @@ export function App({
     reviewPane !== null ||
     isInstallConfirmOpen ||
     state.share !== undefined
+  // The report dialog (M93) keeps the same policy: it waits for those, and a
+  // brief that arrives while it is open waits for it in turn, so two modals
+  // never share the panel and the open one keeps focus.
   const handoffDialog =
-    isOtherModalOpen || state.handoff === undefined ? null : (
+    isOtherModalOpen || state.report !== undefined || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
         todos={state.handoff.todos}
@@ -1997,12 +2000,18 @@ export function App({
       />
     )
   // The report-a-problem preview (M93 lane W): the sealed draft the host
-  // built, shown byte-identical. Beside the other modals (never under one:
-  // `isModalOpen` covers it), and over the crash screen too (main.tsx
-  // renders the same host there, so a render failure keeps its way on).
+  // built, shown byte-identical, one modal at a time (above), and over the
+  // crash screen too (main.tsx renders the same host there, so a render
+  // failure keeps its way on). Keyed by the host's session: a new dialog
+  // starts its own count of choices.
   const reportDialog =
-    state.report === undefined ? null : (
-      <ReportDialogHost report={state.report} postMessage={postMessage} onClose={onReportClosed} />
+    isOtherModalOpen || state.report === undefined ? null : (
+      <ReportDialogHost
+        key={state.report.session}
+        report={state.report}
+        postMessage={postMessage}
+        onClose={onReportClosed}
+      />
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.

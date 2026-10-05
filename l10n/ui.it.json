@@ -404,6 +404,7 @@
   "reportUpdating": "Aggiornamento dell’anteprima…",
   "reportStaleDraft": "La segnalazione è cambiata durante l’esportazione. L’anteprima qui sotto è aggiornata — esporta di nuovo.",
   "reportIssueOpened": "La pagina del problema è stata aperta nel browser.",
+  "reportIssueOpenFailed": "Impossibile aprire la pagina del problema. Copia invece il resoconto.",
   "reportVscodeReporterOpened": "Lo strumento di segnalazione problemi di VS Code è stato aperto.",
   "reportVscodeReporterFailed": "Lo strumento di segnalazione problemi di VS Code non può essere aperto.",
   "openDocs": "Documentazione di Muse Code",

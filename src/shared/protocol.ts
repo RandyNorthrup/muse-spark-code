@@ -277,7 +277,11 @@ const planReplyFields = {
 export const reportEventRefSchema = z.strictObject({
   /** Which recorded event this handoff names. */
   kind: z.enum(REPORT_EVENT_KINDS),
-  /** The event's place in the journal the report reads. */
+  /**
+   * The event's place in this window's recording order (its sequence
+   * number, from 0): which failure the row means, never its text. The
+   * report itself always reads the whole retained journal.
+   */
   entryIndex: z.int().check(z.gte(0)),
 })
 export type ReportEventRef = z.infer<typeof reportEventRefSchema>
@@ -320,6 +324,7 @@ export const REPORT_EXPORT_REASONS = [
   'cancelled',
   'copyFailed',
   'saveFailed',
+  'openFailed',
   'reporterFailed',
 ] as const
 export type ReportExportReason = (typeof REPORT_EXPORT_REASONS)[number]
@@ -655,6 +660,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // rebuilds lane P's sealed draft and answers with a fresh `reportDraft`.
   z.strictObject({
     type: z.literal('updateReport'),
+    // The dialog's own count of the choices it sent (1, 2, …): the host
+    // echoes it on the rebuilt draft, so an older reply never settles a
+    // newer choice.
+    revision: z.int().check(z.gte(1)),
     description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
     includeFacts: z.boolean(),
     includeEvents: z.boolean(),
@@ -982,6 +991,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // and text are unbounded: the preview scrolls, and the host built them.
   z.object({
     type: z.literal('reportDraft'),
+    // Which dialog session (one per open, counted by the host from 1) and
+    // which of its choices (the dialog's `revision`, 0 for the opening
+    // draft) this draft answers: a late draft for a closed or older dialog,
+    // or for an older choice, is told apart instead of reopening or
+    // overwriting it.
+    session: z.int().check(z.gte(1)),
+    revision: z.int().check(z.gte(0)),
     description: z.string().check(z.maxLength(REPORT_DESCRIPTION_MAX_CHARS)),
     includeFacts: z.boolean(),
     includeEvents: z.boolean(),
@@ -998,6 +1014,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // rides only on an opened issue page.
   z.object({
     type: z.literal('reportExported'),
+    // The session and the seal of the draft this answer is about: an answer
+    // for another draft (edited since, or a dialog closed and reopened) is
+    // never shown beside the current one.
+    session: z.int().check(z.gte(1)),
+    hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
     via: z.enum(REPORT_EXPORT_CHANNELS),
     ok: z.boolean(),
     issueFallback: z.optional(z.boolean()),

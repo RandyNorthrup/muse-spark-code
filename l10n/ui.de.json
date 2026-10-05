@@ -395,6 +395,7 @@
   "reportUpdating": "Vorschau wird aktualisiert…",
   "reportStaleDraft": "Der Bericht hat sich beim Exportieren geändert. Die Vorschau unten ist aktuell — erneut exportieren.",
   "reportIssueOpened": "Die Issue-Seite wurde im Browser geöffnet.",
+  "reportIssueOpenFailed": "Die Issue-Seite konnte nicht geöffnet werden. Kopieren Sie stattdessen den Bericht.",
   "reportVscodeReporterOpened": "Der VS-Code-Problemreporter wurde geöffnet.",
   "reportVscodeReporterFailed": "Der VS-Code-Problemreporter konnte nicht geöffnet werden.",
   "openDocs": "Muse Code-Dokumentation",

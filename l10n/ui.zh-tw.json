@@ -386,6 +386,7 @@
   "reportUpdating": "正在更新預覽…",
   "reportStaleDraft": "報告在匯出過程中發生了變化。下面的預覽是最新的 — 請重新匯出。",
   "reportIssueOpened": "已在瀏覽器中開啟問題頁面。",
+  "reportIssueOpenFailed": "無法開啟問題頁面。請改為複製報告。",
   "reportVscodeReporterOpened": "已開啟 VS Code 問題回報程式。",
   "reportVscodeReporterFailed": "無法開啟 VS Code 問題回報程式。",
   "openDocs": "Muse Code 說明文件",

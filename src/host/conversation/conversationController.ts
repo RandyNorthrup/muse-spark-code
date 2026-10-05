@@ -146,6 +146,8 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportEventRef,
+  ReportWebviewError,
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
@@ -180,12 +182,21 @@ import {
   readTransferDocument,
   type SessionTransferFiles,
 } from './sessionImport'
-import {
-  createReportProblemHandler,
-  logReportWebviewError,
-  type ReportDataSource,
-  type ReportProblemMessage,
-} from './reportProblemHandler'
+import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
+import type * as ReportBundle from '../support/reportEntry'
+
+/**
+ * Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
+ * facts and journal, and the recorder's two ways in. Recording writes facts
+ * (a fixed kind, a known code, package frames), never the text a row shows.
+ */
+export interface ConversationReports {
+  readonly source: ReportDataSource
+  /** Journals the webview's scrubbed failure (the recorder bounds how many). */
+  readonly recordWebviewError: (error: ReportWebviewError) => void
+  /** Journals an error the panel shows; the sanitized reference its row then carries. */
+  readonly recordErrorNotice: () => ReportEventRef | undefined
+}
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -380,11 +391,11 @@ export interface ConversationDeps {
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
   readonly transferFiles: SessionTransferFiles
   /**
-   * Report a problem (M93 lane W, PLAN.md D72): the dialog's facts, journal
-   * and scrub context. Undefined until lane I wires the recorder and the
-   * activation's facts; the dialog then says plainly that it did not work.
+   * Report a problem (M93, PLAN.md D72): the flight recorder's side for this
+   * surface. Undefined where no recorder could start; the dialog then says
+   * plainly that it did not work, and failures go unrecorded.
    */
-  readonly reportSource?: ReportDataSource | undefined
+  readonly reports?: ConversationReports | undefined
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
@@ -1142,8 +1153,9 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
-  /** Report a problem (M93 lane W): the dialog's report-only handler, one per surface. */
-  private reportHandler: { handle: (message: ReportProblemMessage) => Promise<void> } | undefined
+  /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
+  private reportHandler:
+    Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -1237,14 +1249,18 @@ export class ConversationController {
 
   /**
    * Says `text` in the panel only: for a failure already logged in more
-   * detail. A file restore's notice carries its Redo (M72).
+   * detail. A file restore's notice carries its Redo (M72). An error is
+   * journalled as a fact (M93, D72), never its text, and its row offers
+   * "Report this" with the sanitized reference.
    */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+    const reportRef = level === 'error' ? this.deps.reports?.recordErrorNotice() : undefined
     this.post({
       type: 'notice',
       level,
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
+      ...(reportRef !== undefined && { reportRef }),
     })
   }
 
@@ -6987,32 +7003,62 @@ export class ConversationController {
   }
 
   /**
+   * Report a problem (M93, PLAN.md D72): the preview dialog's messages. They
+   * need no sign-in and start no session: the dialog builds from the journal
+   * and local facts alone. A webview failure is journalled here directly;
+   * the dialog's handler loads with dist/report.js on first use.
+   */
+  private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
+    if (message.type === 'reportWebviewError') {
+      this.deps.reports?.recordWebviewError(message)
+      return
+    }
+    let handler: { handle: (message: ReportProblemMessage) => Promise<void> }
+    try {
+      handler = await this.reportProblemHandler()
+    } catch (error: unknown) {
+      this.reportHandler = undefined
+      this.deps.log.error(`The report bundle could not be loaded: ${describe(error)}`)
+      this.notice('error', UI_TEXT.actionFailed)
+      return
+    }
+    await handler.handle(message)
+  }
+
+  private reportProblemHandler(): Promise<{
+    handle: (message: ReportProblemMessage) => Promise<void>
+  }> {
+    this.reportHandler ??= (async () => {
+      const bundle: typeof ReportBundle = await import('../support/reportEntry')
+      if (typeof bundle.createReportProblemHandler !== 'function') {
+        throw new TypeError('The report bundle does not export its handler factory')
+      }
+      return bundle.createReportProblemHandler(
+        {
+          post: (posted) => {
+            this.post(posted)
+          },
+          noticeError: (text) => {
+            this.notice('error', text)
+          },
+          log: this.deps.log,
+          source: this.deps.reports?.source,
+          onReportWebviewError: (error) => {
+            this.deps.reports?.recordWebviewError(error)
+          },
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    })()
+    return this.reportHandler
+  }
+
+  /**
    * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
    * new conversation on the Model API backend, on the user's own model, in a
    * mode that asks (`adopt` applies it, as on every later opening).
    */
-  /**
-   * Report a problem (M93 lane W): the preview dialog's report-only
-   * messages. Needs no sign-in and starts no session (D72): the dialog
-   * builds from the journal and local facts alone.
-   */
-  private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
-    this.reportHandler ??= createReportProblemHandler({
-      post: (posted) => {
-        this.post(posted)
-      },
-      noticeError: (text) => {
-        this.notice('error', text)
-      },
-      log: this.deps.log,
-      source: this.deps.reportSource,
-      onReportWebviewError: (error) => {
-        logReportWebviewError(this.deps.log, error)
-      },
-    })
-    await this.reportHandler.handle(message)
-  }
-
   private async importSession(): Promise<void> {
     if (this.deps.surface.isSideChat === true) {
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
