@@ -194,7 +194,13 @@ describe('Muse Code backend against a real child process', { timeout: TEST_TIMEO
     // M46 asks for `userShell` too: the panel's `!` commands.
     expect(host.info.grantedCapabilities).toEqual(['sessionMcp', 'sessionListStream', 'userShell'])
     expect(backend.isRunning).toBe(true)
-    expect(log.warn).not.toHaveBeenCalled()
+    // The harness runs `off` (no OS sandbox), so the one warning is the
+    // sandbox-off line (musecode-write-asks); a clean start warns of nothing else.
+    expect(log.warn.mock.calls).toEqual([
+      [
+        'Without the sandbox, Muse Code’s file tools can write outside the workspace without asking',
+      ],
+    ])
     expect(await backend.ensureHost()).toBe(host)
   })
 

@@ -259,3 +259,24 @@ Upstream draft (not filed; the lead files it):
 The lead filed it the same day as
 [meta-models/muse-code-sdk#86](https://github.com/meta-models/muse-code-sdk/issues/86)
 (open at integration).
+
+### Integration into the hardening branch (2026-10-04)
+
+Merged into `docs/truth-audit-0120` with main and `fix/protect-agent-folders`.
+The full `npm run quality` on the Kubuntu rig (label
+`integ-hardening-aaa2d146`, the merge's tree `65d1acbc`) found what this
+branch's targeted runs had not: `test/e2e/museCode.e2e.test.ts` ("spawns
+the configured binary…") asserted that a clean start logs no warning, and
+its harness runs `off`, so the backend manager's new sandbox-off warning
+failed it (1 failed, 7101 passed). The test now pins that one warning and
+nothing else (`log.warn.mock.calls` equals the single sandbox-off line),
+which also gives the warning a test of its own. The same merge updated
+`test/e2e/modelApi.live.e2e.test.ts` to the new `ConversationDeps` (no
+`userProfileDir`) and `ShellSandboxPosture` (`isUnsupportedWorkspace`)
+shapes for `typecheck:e2e`.
+
+| Run (Kubuntu, `rig-test.sh`)                                                        | Result                                    |
+| ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| `integ-hard`, snapshot `7e4c3294`: `museCode.e2e`, `museCodeBackendManager`         | 2 files, 32 passed, exit 0                |
+| Drill `integ-hard-drill`, snapshot `a54cb3e4`: the warning's `if` made `false && …` | 1 failed, 15 passed, exit 1 (`[]` vs one) |
+| Restored from a copy, SHA-256 `7e6bfa45…a67e7` before and after                     | byte-exact                                |
