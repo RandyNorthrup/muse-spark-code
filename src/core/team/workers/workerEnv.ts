@@ -8,45 +8,33 @@
 // module is lane W's use of it for the engine worker's shell and the ACP
 // agent's process, kept in one place so integration picks one.
 
-import { EXEC_CHILD_ENV_DROP, HOOK_FORBIDDEN_ENV_NAMES } from '../../../shared/constants'
+/** Only the process search path, user home and OS runtime directories are inherited. */
+const WORKER_ENV_ALLOWLIST = [
+  'PATH',
+  'HOME',
+  'USERPROFILE',
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'SystemRoot',
+  'WINDIR',
+  'COMSPEC',
+  'PATHEXT',
+  'TMP',
+  'TEMP',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+] as const
 
-/** The git askpass names a worker never inherits. */
-const WORKER_GIT_PROMPT_NAMES = ['GIT_ASKPASS', 'SSH_ASKPASS', 'SSH_AUTH_SOCK'] as const
-
-/**
- * A name that plausibly holds a credential: the exact names hooks never
- * get, the exec child's drop list, and any `*_API_KEY`-shaped name. The
- * suffix match is deliberate: a new `FOO_API_KEY` tomorrow is still a
- * credential, so an enumeration gap cannot leak it.
- */
-function isCredentialName(name: string): boolean {
+/** Profile passthrough cannot restore Git configuration or credential transports. */
+function isForbiddenPassthrough(name: string): boolean {
   const upper = name.toUpperCase()
-  return (
-    HOOK_FORBIDDEN_ENV_NAMES.has(name) ||
-    HOOK_FORBIDDEN_ENV_NAMES.has(upper) ||
-    (EXEC_CHILD_ENV_DROP as readonly string[]).includes(name) ||
-    (EXEC_CHILD_ENV_DROP as readonly string[]).includes(upper) ||
-    /_(API_KEY|APIKEY|SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE_KEY|ACCESS_KEY|CREDENTIALS?)$/.test(
-      upper,
-    )
-  )
+  return upper.startsWith('GIT_') || upper.startsWith('SSH_') || upper.endsWith('ASKPASS')
 }
 
 function isSameEnvName(platform: NodeJS.Platform, left: string, right: string): boolean {
   return platform === 'win32' ? left.toUpperCase() === right.toUpperCase() : left === right
-}
-
-function deleteName(
-  env: NodeJS.ProcessEnv,
-  names: readonly string[],
-  platform: NodeJS.Platform,
-  name: string,
-): void {
-  for (const key of names) {
-    if (isSameEnvName(platform, key, name)) {
-      Reflect.deleteProperty(env, key)
-    }
-  }
 }
 
 export interface ScrubWorkerEnvInput {
@@ -60,42 +48,28 @@ export interface ScrubWorkerEnvInput {
 }
 
 /**
- * Copies `baseEnv`, drops every credential variable, removes git's
- * credential paths, and pins git to no prompt and a refusing ssh. Names in
- * `passthrough` are restored from the base afterwards, so a declared name
- * is the only way a credential reaches a worker.
+ * Starts empty, copies only the safe runtime names and explicit profile
+ * passthrough, then pins Git isolation. A profile cannot override the fence.
+ * Shared contract for lane I: integrate this helper as `scrubWorkerEnv`.
  */
 export function scrubWorkerEnv(input: ScrubWorkerEnvInput): NodeJS.ProcessEnv {
-  const { platform } = input
-  const env: NodeJS.ProcessEnv = { ...input.baseEnv }
-  const names = Object.keys(env)
-  for (const key of names) {
-    if (isCredentialName(key)) {
-      Reflect.deleteProperty(env, key)
+  const env: NodeJS.ProcessEnv = {}
+  const names = Object.keys(input.baseEnv)
+  for (const name of [...WORKER_ENV_ALLOWLIST, ...(input.passthrough ?? [])]) {
+    if (isForbiddenPassthrough(name)) {
+      continue
+    }
+    const found = names.find((key) => isSameEnvName(input.platform, key, name))
+    if (found !== undefined && input.baseEnv[found] !== undefined) {
+      env[found] = input.baseEnv[found]
     }
   }
-  for (const name of WORKER_GIT_PROMPT_NAMES) {
-    deleteName(env, names, platform, name)
-  }
-  // No credential helper: an empty `credential.helper` clears every
-  // configured one, and nothing else in the environment may set git config.
-  deleteName(env, names, platform, 'GIT_CONFIG_COUNT')
-  for (const key of names) {
-    if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/i.test(key)) {
-      Reflect.deleteProperty(env, key)
-    }
-  }
+  env['GIT_CONFIG_NOSYSTEM'] = '1'
+  env['GIT_CONFIG_GLOBAL'] = input.platform === 'win32' ? 'NUL' : '/dev/null'
   env['GIT_TERMINAL_PROMPT'] = '0'
   env['GIT_CONFIG_COUNT'] = '1'
   env['GIT_CONFIG_KEY_0'] = 'credential.helper'
   env['GIT_CONFIG_VALUE_0'] = ''
-  env['GIT_SSH_COMMAND'] = platform === 'win32' ? 'cmd /c exit 1' : 'false'
-  const passthrough = input.passthrough ?? []
-  for (const name of passthrough) {
-    const found = names.find((key) => isSameEnvName(platform, key, name))
-    if (found !== undefined) {
-      env[name] = input.baseEnv[found]
-    }
-  }
+  env['GIT_SSH_COMMAND'] = input.platform === 'win32' ? 'cmd /c exit 1' : 'false'
   return env
 }

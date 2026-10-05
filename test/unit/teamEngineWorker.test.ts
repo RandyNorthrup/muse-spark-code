@@ -28,6 +28,7 @@ import type {
   WorkerTask,
 } from '../../src/core/team/workers/workerTypes'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { WORKER_BRIEF_FILES_MAX_BYTES } from '../../src/shared/constants'
 
 const ROLE: WorkerRolePolicy = {
   roleId: 'engineering',
@@ -168,10 +169,67 @@ describe('buildWorkerPrompt', () => {
     expect(prompt).toContain('export const a = 1')
   })
 
-  it('skips a file that escapes the folder', async () => {
+  it('names an escaped file without reading its contents', async () => {
     const task: WorkerTask = { ...TASK, files: ['../secret.txt'] }
     const prompt = await buildWorkerPrompt(PARTS, task, fileIo(), 'linux')
-    expect(prompt).not.toContain('secret')
+    expect(prompt).toContain('Files: ../secret.txt')
+    expect(prompt).not.toContain('File data')
+  })
+
+  it('RVM96A-3 refuses private and protected prompt reads including aliases', async () => {
+    const readTextFile = vi.fn(() => Promise.resolve('synthetic-private-sentinel'))
+    const io: WorkerFileIo = {
+      realPath: (given) =>
+        Promise.resolve(given.endsWith('/alias.txt') ? `${TASK.folder}/.env` : given),
+      readTextFile,
+    }
+    const files = [
+      '.env',
+      '.env.production',
+      'key.pem',
+      '.muse/config.json',
+      '.git/config',
+      'AGENTS.md',
+      'alias.txt',
+    ]
+    const prompt = await buildWorkerPrompt(PARTS, { ...TASK, files }, io, 'linux')
+    expect(readTextFile).not.toHaveBeenCalled()
+    expect(prompt).not.toContain('synthetic-private-sentinel')
+    for (const file of files) expect(prompt).toContain(file)
+  })
+
+  it('RVM96A-21 bounds aggregate UTF-8 data and always names unreadable files', async () => {
+    const content = '漢'.repeat(20_000)
+    const readTextFile = vi.fn((given: string, maxBytes: number) =>
+      Promise.resolve(
+        given.endsWith('/missing.txt') ? undefined : content.slice(0, Math.floor(maxBytes / 3)),
+      ),
+    )
+    const files = ['first.txt', 'second.txt', 'missing.txt', 'after-cap.txt']
+    const prompt = await buildWorkerPrompt(
+      PARTS,
+      { ...TASK, files },
+      { realPath: resolveRealPath, readTextFile },
+      'linux',
+    )
+    const data = (prompt.match(/漢/g) ?? []).join('')
+    expect(Buffer.byteLength(data, 'utf8')).toBeLessThanOrEqual(WORKER_BRIEF_FILES_MAX_BYTES)
+    for (const file of files) expect(prompt).toContain(file)
+    expect(readTextFile.mock.calls[1]?.[1]).toBe(
+      WORKER_BRIEF_FILES_MAX_BYTES - Buffer.byteLength(content, 'utf8'),
+    )
+  })
+
+  it('refuses oversized text from a faulty bounded reader', async () => {
+    const prompt = await buildWorkerPrompt(
+      PARTS,
+      { ...TASK, files: ['large.txt'] },
+      fileIo({
+        [`${TASK.folder}/large.txt`]: '漢'.repeat(WORKER_BRIEF_FILES_MAX_BYTES),
+      }),
+      'linux',
+    )
+    expect(prompt).not.toContain('漢')
   })
 })
 

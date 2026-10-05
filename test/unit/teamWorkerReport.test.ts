@@ -54,6 +54,25 @@ describe('extractTeamReport', () => {
     })
   })
 
+  it('RVM96A-22 refuses empty summaries', () => {
+    for (const report of [
+      { status: 'done', summary: '' },
+      { status: 'done', summary: ' '.repeat(3) },
+    ]) {
+      expect(extractTeamReport(block(JSON.stringify(report))).ok).toBe(false)
+    }
+  })
+
+  it('RVM96A-22 refuses blocked reports without real questions', () => {
+    for (const report of [
+      { status: 'blocked', summary: 'Stuck.' },
+      { status: 'blocked', summary: 'Stuck.', questions: [] },
+      { status: 'blocked', summary: 'Stuck.', questions: [' '.repeat(3)] },
+    ]) {
+      expect(extractTeamReport(block(JSON.stringify(report))).ok).toBe(false)
+    }
+  })
+
   it('takes the last block when the message holds two', () => {
     const text = [
       block(JSON.stringify({ status: 'partial', summary: 'Draft.' })),

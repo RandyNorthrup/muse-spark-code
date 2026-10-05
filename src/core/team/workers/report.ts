@@ -13,15 +13,17 @@ import { WORKER_REPORT_FENCE, WORKER_REVIEW_FENCE } from './workerTypes'
 export const WORKER_REPORT_STATUSES = ['done', 'partial', 'blocked', 'failed', 'capped'] as const
 export type WorkerReportStatus = (typeof WORKER_REPORT_STATUSES)[number]
 
-const reportSchema = z.object({
-  status: z.enum(WORKER_REPORT_STATUSES),
-  summary: z.string(),
-  files: z.optional(z.array(z.string())),
-  checks: z.optional(z.array(z.string())),
-  sources: z.optional(z.array(z.string())),
-  questions: z.optional(z.array(z.string())),
-  next: z.optional(z.string()),
-})
+const reportSchema = z
+  .object({
+    status: z.enum(WORKER_REPORT_STATUSES),
+    summary: z.string().check(z.refine((text) => text.trim().length > 0)),
+    files: z.optional(z.array(z.string())),
+    checks: z.optional(z.array(z.string())),
+    sources: z.optional(z.array(z.string())),
+    questions: z.optional(z.array(z.string().check(z.refine((text) => text.trim().length > 0)))),
+    next: z.optional(z.string()),
+  })
+  .check(z.refine((report) => report.status !== 'blocked' || (report.questions?.length ?? 0) > 0))
 
 /** A parsed `muse-team-report` block, exactly D75's shape. */
 export type WorkerReport = z.infer<typeof reportSchema>

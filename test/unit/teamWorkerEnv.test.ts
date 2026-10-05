@@ -35,11 +35,12 @@ describe('scrubWorkerEnv', () => {
     }
   })
 
-  it('keeps ordinary variables and non-credential suffixes', () => {
+  it('starts empty and inherits only the safe runtime allowlist', () => {
     const env = scrubWorkerEnv({ platform: 'linux', baseEnv: BASE })
     expect(env['PATH']).toBe('/usr/bin')
-    expect(env['FOO_TOKENS_TOTAL']).toBe('100')
-    expect(env['TEAM_NAME']).toBe('engineering')
+    expect(env['HOME']).toBe('/home/user')
+    expect(env['FOO_TOKENS_TOTAL']).toBeUndefined()
+    expect(env['TEAM_NAME']).toBeUndefined()
   })
 
   it('pins git to no prompt, no helper and a refusing ssh', () => {
@@ -49,6 +50,42 @@ describe('scrubWorkerEnv', () => {
     expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
     expect(env['GIT_CONFIG_VALUE_0']).toBe('')
     expect(env['GIT_SSH_COMMAND']).toBe('false')
+    expect(env['GIT_CONFIG_NOSYSTEM']).toBe('1')
+    expect(env['GIT_CONFIG_GLOBAL']).toBe('/dev/null')
+  })
+
+  it('RVM96A-5 cannot restore Git config or credential transports through passthrough', () => {
+    const dangerous = {
+      GIT_CONFIG_PARAMETERS: "'credential.helper=synthetic-helper'",
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'credential.helper',
+      GIT_CONFIG_VALUE_0: 'synthetic-helper',
+      GIT_CONFIG_SYSTEM: '/fake/config',
+      GIT_CONFIG_GLOBAL: '/fake/config',
+      GIT_SSH_COMMAND: 'synthetic-ssh',
+      GIT_ASKPASS: '/fake/askpass',
+      SSH_AUTH_SOCK: '/fake/socket',
+      SSH_ASKPASS: '/fake/askpass',
+      NODE_OPTIONS: '--require=/fake/module',
+    }
+    for (const platform of ['linux', 'darwin', 'win32'] as const) {
+      const env = scrubWorkerEnv({
+        platform,
+        baseEnv: { ...BASE, ...dangerous },
+        passthrough: Object.keys(dangerous).filter((name) => name !== 'NODE_OPTIONS'),
+      })
+      expect(env['GIT_CONFIG_PARAMETERS']).toBeUndefined()
+      expect(env['GIT_CONFIG_SYSTEM']).toBeUndefined()
+      expect(env['GIT_CONFIG_COUNT']).toBe('1')
+      expect(env['GIT_CONFIG_KEY_0']).toBe('credential.helper')
+      expect(env['GIT_CONFIG_VALUE_0']).toBe('')
+      expect(env['GIT_CONFIG_GLOBAL']).toBe(platform === 'win32' ? 'NUL' : '/dev/null')
+      expect(env['GIT_SSH_COMMAND']).toBe(platform === 'win32' ? 'cmd /c exit 1' : 'false')
+      expect(env['GIT_ASKPASS']).toBeUndefined()
+      expect(env['SSH_ASKPASS']).toBeUndefined()
+      expect(env['SSH_AUTH_SOCK']).toBeUndefined()
+      expect(env['NODE_OPTIONS']).toBeUndefined()
+    }
   })
 
   it('restores only the profile-declared passthrough names', () => {

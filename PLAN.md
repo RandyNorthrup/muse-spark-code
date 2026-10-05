@@ -16985,6 +16985,18 @@ next`, the exhausted policy and the queue, the meters, reservations and
   8. **Lane W:** the engine worker (Meta's models now, M95's clients when
      D74 is on main), the Muse Code worker, and the ACP client with its
      process.
+     - **RVM96A repair (2026-10-05, FIXM96W):** findings 3–8 and 15–22
+       bind prompt reads to M54's checks and UTF-8 byte bounds; prove worker
+       roots disjoint by real path before startup; start child environments
+       empty with a safe allowlist and pinned Git isolation; deny unresolved
+       or out-of-role admissions; parse Git global options and worktree
+       operations; require native-server exclusion before startup; correct
+       ACP chunks, auth and capabilities; prove the selected model; allow
+       cancellation during startup/turns and clean up failures; consume full
+       role shell commands; and reject dishonest reports. Finding 37's
+       capture limits, regression tests and byte-exact red drills are recorded
+       in `docs/certification/m96-w.md`. No live/paid calls or dependency
+       changes are authorized in this repair lane.
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
      step 1.
@@ -20221,6 +20233,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M96 W37-live-captures (RVM96A finding 37, 2026-10-05):** the worker
+  repair lane has no authorization for live/paid calls. Its synthetic ACP
+  fixtures prove regression behavior, not vendor certification. Muse Code
+  and external worker admission refuse without captured native-server
+  exclusion proof. Safe for now because uncaptured presets cannot start.
+  Follow-up: the lead runs M96 step 1 in a throwaway workspace and records
+  the capture name, workspace and counted attempts in
+  `docs/certification/m96-w.md` before enabling those presets.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
