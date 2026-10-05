@@ -7,6 +7,22 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Provider endpoint checks classify equivalent IPv6 spellings consistently and
+  restrict plain HTTP to literal loopback or localhost. Budget admission reserves
+  full input cost; settlement counts fresh, cached and cache-written input once.
+  Concurrent provider saves use unique temporary files beside the destination
+  and clean up failed writes. OpenRouter routing keeps order and fallback
+  restrictions together, Fireworks keys use the correct prefix, custom model
+  limits survive reload, scan summaries track price availability accurately,
+  and recommendations exclude non-callable models. The provider wizard requires
+  endpoint validation and private-network consent before saving, and connection
+  edits clear dependent credentials, tests and consent.
+- Provider descriptions, key hints, privacy explanations, wizard and validation
+  messages, suggestions and scan summaries follow the installed display language
+  in all fourteen translations, including localized counts and currency.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

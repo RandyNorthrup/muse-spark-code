@@ -2094,5 +2094,115 @@
   "acpProvidersNone": "Nie skonfigurowano dostawców.",
   "acpProviderAdded": "Dodano dostawcę {id}.",
   "acpProviderRemoved": "Usunięto dostawcę {id}.",
-  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany."
+  "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "Kreator został anulowany.",
+      "pick": "Najpierw wybierz dostawcę.",
+      "address": "Wpisz adres serwera.",
+      "credential": "Najpierw wpisz klucz lub połącz konto.",
+      "keyShape": "Klucz nie ma formatu tego dostawcy.",
+      "test": "Najpierw przetestuj połączenie.",
+      "models": "Zaznacz co najmniej jeden model.",
+      "validate": "Najpierw sprawdź adres serwera.",
+      "refused": "Adres serwera został odrzucony: {reason}",
+      "private": "Najpierw potwierdź dostęp do tej sieci prywatnej.",
+      "pickStep": "Wybierz dostawcę w odpowiednim kroku.",
+      "keyStep": "Wpisz klucz w odpowiednim kroku.",
+      "badKey": "Ten klucz nie ma formatu używanego przez dostawcę.",
+      "oauthStep": "Połącz konto w odpowiednim kroku.",
+      "costStep": "Zaakceptuj koszt testu w odpowiednim kroku.",
+      "testStep": "Uruchom test w odpowiednim kroku.",
+      "costConsent": "Najpierw podaj koszt testu i zapytaj: nie został zaakceptowany.",
+      "modelsStep": "Zaznacz modele w odpowiednim kroku.",
+      "privacyStep": "Wybierz prywatność w odpowiednim kroku.",
+      "passedTest": "Test musi się powieść przed wyborem modeli.",
+      "finish": "Potwierdź, aby zakończyć.",
+      "confirmStep": "Potwierdź w kroku podsumowania."
+    },
+    "summary": {
+      "provider": "Dostawca: {value}",
+      "destination": "Kod jest wysyłany do: {value}",
+      "models": "Modele: {value}",
+      "defaultSuggested": "Model domyślny: sugerowany",
+      "defaultModel": "Model domyślny: {value}"
+    },
+    "schema": {
+      "id": "Identyfikator dostawcy, nigdy \"meta\"",
+      "modelRef": "Odwołanie do modelu",
+      "outputCap": "Limit wyjścia przekracza okno kontekstu",
+      "customLimits": "Modele niestandardowe wymagają okien kontekstu i limitów wyjścia"
+    },
+    "descriptions": {
+      "openai": "API Responses OpenAI z modelami GPT",
+      "azure": "API Azure OpenAI v1 we własnym zasobie i wdrożeniu",
+      "xai": "Modele Grok w API Responses xAI",
+      "anthropic": "Modele Claude w API Messages Anthropic",
+      "gemini": "Modele Gemini w API generateContent",
+      "openrouter": "Setki modeli z jednym kluczem i trasowaniem prywatności",
+      "groq": "Szybkie wnioskowanie na sprzęcie Groq, zgodne z OpenAI",
+      "deepseek": "Modele czatu DeepSeek z domyślnie włączonym myśleniem",
+      "mistral": "Modele czatu Mistral z buforowaniem instrukcji",
+      "together": "Otwarte modele w Together, wyceniane osobno",
+      "fireworks": "Szybkie wnioskowanie otwartych modeli w Fireworks",
+      "huggingface": "Router Hugging Face dla wielu dostawców",
+      "zai": "Modele GLM w Z.ai z opłatą za użycie",
+      "ollama": "Modele na tym komputerze przez Ollama",
+      "lmstudio": "Modele na tym komputerze przez LM Studio",
+      "vllm": "Serwer vLLM tutaj lub w Twojej sieci przez HTTPS",
+      "llamacpp": "Serwer llama.cpp tutaj lub w Twojej sieci przez HTTPS",
+      "custom": "Dowolny serwer Chat Completions, Responses lub Messages"
+    },
+    "hints": {
+      "prefix": "Klucz zaczynający się od {prefix}… ({site})",
+      "site": "Klucz z {site}",
+      "azure": "Klucz zasobu z portalu Azure",
+      "router": "Klucz zaczynający się od {prefix}… ({site}) lub połącz konto OpenRouter",
+      "custom": "Klucz wymagany przez serwer"
+    },
+    "privacy": {
+      "zdr": "Bez przechowywania danych: odpowiadają tylko punkty końcowe, które nie zapisują żadnych danych.",
+      "no-training": "Bez trenowania: odpowiadają tylko dostawcy, którzy nie trenują na Twoich danych.",
+      "any": "Dowolny dostawca: wygrywa najtańsza lub najszybsza odpowiedź, także od dostawców mogących przechowywać dane."
+    },
+    "suggest": {
+      "recommended": "Polecany i najtańszy model wywołujący narzędzia z miejscem na środowisko wykonawcze ({ref}).",
+      "cheapest": "Najtańszy model wywołujący narzędzia z miejscem na środowisko wykonawcze ({ref}).",
+      "last": "{reason} To także Twój ostatni model domyślny.",
+      "history": "Mediana ostatnich sesji: {amount} na sesję.",
+      "reference": "Brak historii: sesja odniesienia według cen modelu domyślnego ({amount})."
+    },
+    "scan": {
+      "empty": "Pierwsze wyszukiwanie: brak modeli.",
+      "first": {
+        "one": "Pierwsze wyszukiwanie: {count} model.",
+        "few": "Pierwsze wyszukiwanie: {count} modele.",
+        "many": "Pierwsze wyszukiwanie: {count} modeli.",
+        "other": "Pierwsze wyszukiwanie: {count} modelu."
+      },
+      "new": {
+        "one": "{count} nowy model",
+        "few": "{count} nowe modele",
+        "many": "{count} nowych modeli",
+        "other": "{count} nowego modelu"
+      },
+      "removed": {
+        "one": "{count} usunięty model",
+        "few": "{count} usunięte modele",
+        "many": "{count} usuniętych modeli",
+        "other": "{count} usuniętego modelu"
+      },
+      "repriced": {
+        "one": "{count} model ze zmienioną ceną",
+        "few": "{count} modele ze zmienioną ceną",
+        "many": "{count} modeli ze zmienioną ceną",
+        "other": "{count} modelu ze zmienioną ceną"
+      },
+      "unchanged": "Brak zmian od ostatniego wyszukiwania.",
+      "since": "{changes} od ostatniego wyszukiwania."
+    },
+    "labels": {
+      "custom": "Serwer niestandardowy"
+    }
+  }
 }

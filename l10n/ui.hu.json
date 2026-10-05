@@ -1954,5 +1954,107 @@
   "acpProvidersNone": "Nincs beállítva szolgáltató.",
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
-  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva."
+  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "A varázsló megszakadt.",
+      "pick": "Először válasszon szolgáltatót.",
+      "address": "Adja meg a kiszolgáló címét.",
+      "credential": "Először adja meg a kulcsot vagy csatlakoztassa a fiókot.",
+      "keyShape": "A kulcs formátuma nem egyezik a szolgáltatóéval.",
+      "test": "Először tesztelje a kapcsolatot.",
+      "models": "Jelöljön be legalább egy modellt.",
+      "validate": "Először ellenőrizze a kiszolgáló címét.",
+      "refused": "A kiszolgáló címe el lett utasítva: {reason}",
+      "private": "Először erősítse meg a hozzáférést ehhez a magánhálózathoz.",
+      "pickStep": "Válassza ki a szolgáltatót a megfelelő lépésben.",
+      "keyStep": "Adja meg a kulcsot a megfelelő lépésben.",
+      "badKey": "Ez a kulcs nem a szolgáltató által használt formátumú.",
+      "oauthStep": "Csatlakoztassa a fiókot a megfelelő lépésben.",
+      "costStep": "Fogadja el a teszt költségét a megfelelő lépésben.",
+      "testStep": "Futtassa a tesztet a megfelelő lépésben.",
+      "costConsent": "Először közölje a teszt költségét és kérjen engedélyt: a költséget nem fogadták el.",
+      "modelsStep": "Jelölje be a modelleket a megfelelő lépésben.",
+      "privacyStep": "Válassza ki az adatvédelmet a megfelelő lépésben.",
+      "passedTest": "A modellek kiválasztása előtt a tesztnek sikerülnie kell.",
+      "finish": "A befejezéshez erősítse meg.",
+      "confirmStep": "Az összegző lépésben erősítse meg."
+    },
+    "summary": {
+      "provider": "Szolgáltató: {value}",
+      "destination": "A kód címzettje: {value}",
+      "models": "Modellek: {value}",
+      "defaultSuggested": "Alapértelmezett modell: javasolt",
+      "defaultModel": "Alapértelmezett modell: {value}"
+    },
+    "schema": {
+      "id": "Szolgáltatóazonosító, soha nem \"meta\"",
+      "modelRef": "Modellhivatkozás",
+      "outputCap": "A kimeneti korlát meghaladja a kontextusablakot",
+      "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges"
+    },
+    "descriptions": {
+      "openai": "OpenAI Responses API GPT-modellekkel",
+      "azure": "Azure OpenAI v1 API a saját erőforráson és üzembe helyezésen",
+      "xai": "Grok-modellek az xAI Responses API-val",
+      "anthropic": "Claude-modellek az Anthropic Messages API-val",
+      "gemini": "Gemini-modellek a generateContent API-val",
+      "openrouter": "Több száz modell egy kulccsal és adatvédelmi útválasztással",
+      "groq": "Gyors következtetés Groq-hardveren, OpenAI-kompatibilis",
+      "deepseek": "DeepSeek csevegőmodellek alapból bekapcsolt gondolkodással",
+      "mistral": "Mistral csevegőmodellek utasítás-gyorsítótárral",
+      "together": "Nyílt modellek a Togetheren, modellenkénti árazással",
+      "fireworks": "Nyílt modellek gyors következtetése a Fireworksön",
+      "huggingface": "A Hugging Face útválasztója sok szolgáltatóhoz",
+      "zai": "GLM-modellek a Z.ai szolgáltatáson használatalapú fizetéssel",
+      "ollama": "Modellek ezen a számítógépen az Ollamával",
+      "lmstudio": "Modellek ezen a számítógépen az LM Studióval",
+      "vllm": "vLLM-kiszolgáló itt vagy a hálózaton HTTPS-en keresztül",
+      "llamacpp": "llama.cpp-kiszolgáló itt vagy a hálózaton HTTPS-en keresztül",
+      "custom": "Bármilyen Chat Completions-, Responses- vagy Messages-kiszolgáló"
+    },
+    "hints": {
+      "prefix": "{prefix}… kezdetű kulcs ({site})",
+      "site": "A(z) {site} kulcsa",
+      "azure": "Az erőforrás kulcsa az Azure-portálról",
+      "router": "{prefix}… kezdetű kulcs ({site}) vagy OpenRouter-fiók csatlakoztatása",
+      "custom": "A kiszolgáló által várt kulcs"
+    },
+    "privacy": {
+      "zdr": "Nincs adatmegőrzés: csak adatot egyáltalán nem tároló végpontok válaszolhatnak.",
+      "no-training": "Nincs betanítás: csak olyan szolgáltatók válaszolhatnak, amelyek nem tanítanak az adataival.",
+      "any": "Bármely szolgáltató: a legolcsóbb vagy leggyorsabb válasz nyer, beleértve az adatot esetleg megőrző szolgáltatókat."
+    },
+    "suggest": {
+      "recommended": "Ajánlott, és a legolcsóbb eszközhívó modell, elegendő hellyel a futtatókörnyezethez ({ref}).",
+      "cheapest": "A legolcsóbb eszközhívó modell, elegendő hellyel a futtatókörnyezethez ({ref}).",
+      "last": "{reason} Ez az utolsó alapértelmezett modellje is.",
+      "history": "A legutóbbi munkamenetek mediánja: {amount} munkamenetenként.",
+      "reference": "Még nincs előzmény: referenciamunkamenet az alapértelmezett modell áraival ({amount})."
+    },
+    "scan": {
+      "empty": "Első keresés: nincs felsorolt modell.",
+      "first": {
+        "one": "Első keresés: {count} modell.",
+        "other": "Első keresés: {count} modell."
+      },
+      "new": {
+        "one": "{count} új modell",
+        "other": "{count} új modell"
+      },
+      "removed": {
+        "one": "{count} eltávolított modell",
+        "other": "{count} eltávolított modell"
+      },
+      "repriced": {
+        "one": "{count} módosult árú modell",
+        "other": "{count} módosult árú modell"
+      },
+      "unchanged": "Nincs változás az utolsó keresés óta.",
+      "since": "{changes} az utolsó keresés óta."
+    },
+    "labels": {
+      "custom": "Egyéni kiszolgáló"
+    }
+  }
 }

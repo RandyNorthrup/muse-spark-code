@@ -2094,5 +2094,115 @@
   "acpProvidersNone": "Nejsou nastaveni žádní poskytovatelé.",
   "acpProviderAdded": "Poskytovatel {id} přidán.",
   "acpProviderRemoved": "Poskytovatel {id} odebrán.",
-  "execProviderNotConfigured": "Poskytovatel {id} není nastaven."
+  "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "Průvodce byl zrušen.",
+      "pick": "Nejprve vyberte poskytovatele.",
+      "address": "Zadejte adresu serveru.",
+      "credential": "Nejprve zadejte klíč nebo připojte účet.",
+      "keyShape": "Klíč neodpovídá formátu tohoto poskytovatele.",
+      "test": "Nejprve otestujte připojení.",
+      "models": "Zaškrtněte alespoň jeden model.",
+      "validate": "Nejprve ověřte adresu serveru.",
+      "refused": "Adresa serveru byla odmítnuta: {reason}",
+      "private": "Nejprve potvrďte přístup k této soukromé síti.",
+      "pickStep": "Vyberte poskytovatele v příslušném kroku.",
+      "keyStep": "Zadejte klíč v příslušném kroku.",
+      "badKey": "Tento klíč neodpovídá formátu poskytovatele.",
+      "oauthStep": "Připojte účet v příslušném kroku.",
+      "costStep": "Přijměte cenu testu v příslušném kroku.",
+      "testStep": "Spusťte test v příslušném kroku.",
+      "costConsent": "Nejprve sdělte cenu testu a vyžádejte souhlas: cena nebyla přijata.",
+      "modelsStep": "Zaškrtněte modely v příslušném kroku.",
+      "privacyStep": "Vyberte soukromí v příslušném kroku.",
+      "passedTest": "Před výběrem modelů musí test uspět.",
+      "finish": "Dokončete potvrzením.",
+      "confirmStep": "Potvrďte v kroku se souhrnem."
+    },
+    "summary": {
+      "provider": "Poskytovatel: {value}",
+      "destination": "Kód se odesílá na: {value}",
+      "models": "Modely: {value}",
+      "defaultSuggested": "Výchozí model: navržený",
+      "defaultModel": "Výchozí model: {value}"
+    },
+    "schema": {
+      "id": "ID poskytovatele, nikdy \"meta\"",
+      "modelRef": "Odkaz na model",
+      "outputCap": "Limit výstupu překračuje kontextové okno",
+      "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu"
+    },
+    "descriptions": {
+      "openai": "OpenAI Responses API s modely GPT",
+      "azure": "Azure OpenAI v1 API na vašem prostředku a nasazení",
+      "xai": "Modely Grok přes xAI Responses API",
+      "anthropic": "Modely Claude přes Anthropic Messages API",
+      "gemini": "Modely Gemini přes generateContent API",
+      "openrouter": "Stovky modelů s jedním klíčem a směrováním podle soukromí",
+      "groq": "Rychlá inference na hardwaru Groq, kompatibilní s OpenAI",
+      "deepseek": "Chatové modely DeepSeek s výchozím zapnutým uvažováním",
+      "mistral": "Chatové modely Mistral s mezipamětí instrukcí",
+      "together": "Otevřené modely na Together s cenou podle modelu",
+      "fireworks": "Rychlá inference otevřených modelů na Fireworks",
+      "huggingface": "Směrovač Hugging Face pro mnoho poskytovatelů",
+      "zai": "Modely GLM na Z.ai s platbou podle využití",
+      "ollama": "Modely na tomto počítači přes Ollama",
+      "lmstudio": "Modely na tomto počítači přes LM Studio",
+      "vllm": "Server vLLM zde nebo ve vaší síti přes HTTPS",
+      "llamacpp": "Server llama.cpp zde nebo ve vaší síti přes HTTPS",
+      "custom": "Libovolný server Chat Completions, Responses nebo Messages"
+    },
+    "hints": {
+      "prefix": "Klíč začínající na {prefix}… ({site})",
+      "site": "Klíč ze služby {site}",
+      "azure": "Klíč prostředku z portálu Azure",
+      "router": "Klíč začínající na {prefix}… ({site}) nebo připojte účet OpenRouter",
+      "custom": "Klíč očekávaný serverem"
+    },
+    "privacy": {
+      "zdr": "Žádné uchovávání dat: odpovídat smějí pouze koncové body, které neukládají žádná data.",
+      "no-training": "Žádné trénování: odpovídat smějí pouze poskytovatelé, kteří netrénují na vašich datech.",
+      "any": "Libovolný poskytovatel: vyhrává nejlevnější nebo nejrychlejší odpověď, včetně poskytovatelů, kteří mohou uchovávat data."
+    },
+    "suggest": {
+      "recommended": "Doporučený a nejlevnější model s voláním nástrojů a dostatečným prostorem pro běhové prostředí ({ref}).",
+      "cheapest": "Nejlevnější model s voláním nástrojů a dostatečným prostorem pro běhové prostředí ({ref}).",
+      "last": "{reason} Je to také váš poslední výchozí model.",
+      "history": "Medián vašich nedávných relací: {amount} za relaci.",
+      "reference": "Zatím žádná historie: referenční relace za ceny výchozího modelu ({amount})."
+    },
+    "scan": {
+      "empty": "První hledání: žádné uvedené modely.",
+      "first": {
+        "one": "První hledání: {count} model.",
+        "few": "První hledání: {count} modely.",
+        "many": "První hledání: {count} modelu.",
+        "other": "První hledání: {count} modelů."
+      },
+      "new": {
+        "one": "{count} nový model",
+        "few": "{count} nové modely",
+        "many": "{count} nového modelu",
+        "other": "{count} nových modelů"
+      },
+      "removed": {
+        "one": "{count} odebraný model",
+        "few": "{count} odebrané modely",
+        "many": "{count} odebraného modelu",
+        "other": "{count} odebraných modelů"
+      },
+      "repriced": {
+        "one": "{count} model se změněnou cenou",
+        "few": "{count} modely se změněnou cenou",
+        "many": "{count} modelu se změněnou cenou",
+        "other": "{count} modelů se změněnou cenou"
+      },
+      "unchanged": "Žádné změny od posledního hledání.",
+      "since": "{changes} od posledního hledání."
+    },
+    "labels": {
+      "custom": "Vlastní server"
+    }
+  }
 }

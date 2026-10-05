@@ -1954,5 +1954,107 @@
   "acpProvidersNone": "Yapılandırılmış sağlayıcı yok.",
   "acpProviderAdded": "{id} sağlayıcısı eklendi.",
   "acpProviderRemoved": "{id} sağlayıcısı kaldırıldı.",
-  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı."
+  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "Sihirbaz iptal edildi.",
+      "pick": "Önce bir sağlayıcı seçin.",
+      "address": "Sunucu adresini girin.",
+      "credential": "Önce anahtarı girin veya hesabı bağlayın.",
+      "keyShape": "Anahtar bu sağlayıcının biçimine uymuyor.",
+      "test": "Önce bağlantıyı test edin.",
+      "models": "En az bir model seçin.",
+      "validate": "Önce sunucu adresini doğrulayın.",
+      "refused": "Sunucu adresi reddedildi: {reason}",
+      "private": "Önce bu özel ağa erişimi onaylayın.",
+      "pickStep": "Sağlayıcıyı ilgili adımda seçin.",
+      "keyStep": "Anahtarı ilgili adımda girin.",
+      "badKey": "Bu anahtar sağlayıcının biçimine uymuyor.",
+      "oauthStep": "Hesabı ilgili adımda bağlayın.",
+      "costStep": "Test maliyetini ilgili adımda kabul edin.",
+      "testStep": "Testi ilgili adımda çalıştırın.",
+      "costConsent": "Önce test maliyetini belirtip izin isteyin: kabul edilmedi.",
+      "modelsStep": "Modelleri ilgili adımda seçin.",
+      "privacyStep": "Gizliliği ilgili adımda seçin.",
+      "passedTest": "Model seçiminden önce test başarılı olmalıdır.",
+      "finish": "Bitirmek için onaylayın.",
+      "confirmStep": "Özet adımında onaylayın."
+    },
+    "summary": {
+      "provider": "Sağlayıcı: {value}",
+      "destination": "Kodun gönderildiği yer: {value}",
+      "models": "Modeller: {value}",
+      "defaultSuggested": "Varsayılan model: önerilen",
+      "defaultModel": "Varsayılan model: {value}"
+    },
+    "schema": {
+      "id": "Sağlayıcı kimliği, \"meta\" olamaz",
+      "modelRef": "Model başvurusu",
+      "outputCap": "Çıktı sınırı bağlam penceresini aşıyor",
+      "customLimits": "Özel modeller için bağlam pencereleri ve çıktı sınırları gereklidir"
+    },
+    "descriptions": {
+      "openai": "GPT modelleriyle OpenAI Responses API",
+      "azure": "Kendi kaynağınız ve dağıtımınız üzerinde Azure OpenAI v1 API",
+      "xai": "xAI Responses API üzerinde Grok modelleri",
+      "anthropic": "Anthropic Messages API üzerinde Claude modelleri",
+      "gemini": "generateContent API üzerinde Gemini modelleri",
+      "openrouter": "Tek anahtar ve gizlilik yönlendirmesiyle yüzlerce model",
+      "groq": "Groq donanımında hızlı çıkarım, OpenAI uyumlu",
+      "deepseek": "Düşünmenin varsayılan olarak açık olduğu DeepSeek sohbet modelleri",
+      "mistral": "İstem önbelleğine sahip Mistral sohbet modelleri",
+      "together": "Together üzerinde model başına fiyatlanan açık modeller",
+      "fireworks": "Fireworks üzerinde açık modellerle hızlı çıkarım",
+      "huggingface": "Birçok sağlayıcı için Hugging Face yönlendiricisi",
+      "zai": "Z.ai üzerinde kullandıkça ödemeli GLM modelleri",
+      "ollama": "Ollama aracılığıyla bu bilgisayardaki modeller",
+      "lmstudio": "LM Studio aracılığıyla bu bilgisayardaki modeller",
+      "vllm": "Burada veya ağınızda HTTPS üzerinden çalışan vLLM sunucusu",
+      "llamacpp": "Burada veya ağınızda HTTPS üzerinden çalışan llama.cpp sunucusu",
+      "custom": "Herhangi bir Chat Completions, Responses veya Messages sunucusu"
+    },
+    "hints": {
+      "prefix": "{prefix}… ile başlayan anahtar ({site})",
+      "site": "{site} üzerinden alınan anahtar",
+      "azure": "Azure portalından alınan kaynak anahtarı",
+      "router": "{prefix}… ile başlayan anahtar ({site}) veya OpenRouter hesabını bağlayın",
+      "custom": "Sunucunun beklediği anahtar"
+    },
+    "privacy": {
+      "zdr": "Veri saklama yok: yalnızca hiçbir veri saklamayan uç noktalar yanıt verebilir.",
+      "no-training": "Eğitim yok: yalnızca verilerinizle eğitim yapmayan sağlayıcılar yanıt verebilir.",
+      "any": "Herhangi bir sağlayıcı: veri saklayabilecek sağlayıcılar dahil en ucuz veya hızlı yanıt kazanır."
+    },
+    "suggest": {
+      "recommended": "Önerilen ve çalışma ortamına yetecek bağlamı olan en ucuz araç çağıran model ({ref}).",
+      "cheapest": "Çalışma ortamına yetecek bağlamı olan en ucuz araç çağıran model ({ref}).",
+      "last": "{reason} Bu aynı zamanda son varsayılan modelinizdir.",
+      "history": "Son oturumlarınızın medyanı: oturum başına {amount}.",
+      "reference": "Henüz geçmiş yok: varsayılan modelin fiyatlarıyla bir referans oturum ({amount})."
+    },
+    "scan": {
+      "empty": "İlk tarama: listelenen model yok.",
+      "first": {
+        "one": "İlk tarama: {count} model.",
+        "other": "İlk tarama: {count} model."
+      },
+      "new": {
+        "one": "{count} yeni model",
+        "other": "{count} yeni model"
+      },
+      "removed": {
+        "one": "{count} kaldırılan model",
+        "other": "{count} kaldırılan model"
+      },
+      "repriced": {
+        "one": "{count} fiyatı değişen model",
+        "other": "{count} fiyatı değişen model"
+      },
+      "unchanged": "Son taramadan bu yana değişiklik yok.",
+      "since": "Son taramadan bu yana {changes}."
+    },
+    "labels": {
+      "custom": "Özel sunucu"
+    }
+  }
 }

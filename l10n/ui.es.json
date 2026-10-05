@@ -2024,5 +2024,111 @@
   "acpProvidersNone": "No hay proveedores configurados.",
   "acpProviderAdded": "Proveedor {id} añadido.",
   "acpProviderRemoved": "Proveedor {id} quitado.",
-  "execProviderNotConfigured": "El proveedor {id} no está configurado."
+  "execProviderNotConfigured": "El proveedor {id} no está configurado.",
+  "providerText": {
+    "wizard": {
+      "cancelled": "Se canceló el asistente.",
+      "pick": "Elige primero un proveedor.",
+      "address": "Introduce la dirección del servidor.",
+      "credential": "Introduce la clave o conecta la cuenta primero.",
+      "keyShape": "La clave no tiene el formato de este proveedor.",
+      "test": "Prueba primero la conexión.",
+      "models": "Marca al menos un modelo.",
+      "validate": "Valida primero la dirección del servidor.",
+      "refused": "Se rechazó la dirección del servidor: {reason}",
+      "private": "Confirma primero el acceso a esta red privada.",
+      "pickStep": "Elige el proveedor en su paso correspondiente.",
+      "keyStep": "Introduce la clave en su paso correspondiente.",
+      "badKey": "Esa clave no tiene el formato de este proveedor.",
+      "oauthStep": "Conecta la cuenta en su paso correspondiente.",
+      "costStep": "Acepta el coste de la prueba en su paso correspondiente.",
+      "testStep": "Ejecuta la prueba en su paso correspondiente.",
+      "costConsent": "Indica el coste de la prueba y pregunta primero: no se aceptó.",
+      "modelsStep": "Marca los modelos en su paso correspondiente.",
+      "privacyStep": "Elige la privacidad en su paso correspondiente.",
+      "passedTest": "La prueba debe superarse antes de elegir modelos.",
+      "finish": "Confirma para terminar.",
+      "confirmStep": "Confirma desde el paso de resumen."
+    },
+    "summary": {
+      "provider": "Proveedor: {value}",
+      "destination": "El código se envía a: {value}",
+      "models": "Modelos: {value}",
+      "defaultSuggested": "Modelo predeterminado: sugerido",
+      "defaultModel": "Modelo predeterminado: {value}"
+    },
+    "schema": {
+      "id": "Un identificador de proveedor, nunca \"meta\"",
+      "modelRef": "Una referencia de modelo",
+      "outputCap": "El límite de salida supera la ventana de contexto",
+      "customLimits": "Los modelos personalizados requieren ventanas de contexto y límites de salida"
+    },
+    "descriptions": {
+      "openai": "API Responses de OpenAI con modelos GPT",
+      "azure": "API Azure OpenAI v1 en tu propio recurso e implementación",
+      "xai": "Modelos Grok en la API Responses de xAI",
+      "anthropic": "Modelos Claude en la API Messages de Anthropic",
+      "gemini": "Modelos Gemini en la API generateContent",
+      "openrouter": "Cientos de modelos con una clave y enrutamiento de privacidad",
+      "groq": "Inferencia rápida en hardware Groq, compatible con OpenAI",
+      "deepseek": "Modelos de chat DeepSeek con razonamiento activado por defecto",
+      "mistral": "Modelos de chat Mistral con caché de instrucciones",
+      "together": "Modelos abiertos en Together, con precios por modelo",
+      "fireworks": "Inferencia rápida de modelos abiertos en Fireworks",
+      "huggingface": "El enrutador Hugging Face para muchos proveedores",
+      "zai": "Modelos GLM en Z.ai con pago por uso",
+      "ollama": "Modelos en este equipo mediante Ollama",
+      "lmstudio": "Modelos en este equipo mediante LM Studio",
+      "vllm": "Un servidor vLLM aquí o en tu red mediante HTTPS",
+      "llamacpp": "Un servidor llama.cpp aquí o en tu red mediante HTTPS",
+      "custom": "Cualquier servidor Chat Completions, Responses o Messages"
+    },
+    "hints": {
+      "prefix": "Clave que empieza por {prefix}… ({site})",
+      "site": "La clave de {site}",
+      "azure": "La clave del recurso del portal de Azure",
+      "router": "Clave que empieza por {prefix}… ({site}) o conectar la cuenta de OpenRouter",
+      "custom": "La clave que espera el servidor"
+    },
+    "privacy": {
+      "zdr": "Sin retención de datos: solo pueden responder los puntos de conexión que no almacenan ningún dato.",
+      "no-training": "Sin entrenamiento: solo pueden responder los proveedores que no entrenan con tus datos.",
+      "any": "Cualquier proveedor: gana la respuesta más barata o rápida, incluidos los proveedores que pueden guardar datos."
+    },
+    "suggest": {
+      "recommended": "Recomendado y el modelo más barato con llamadas a herramientas y espacio para el entorno de ejecución ({ref}).",
+      "cheapest": "El modelo más barato con llamadas a herramientas y espacio para el entorno de ejecución ({ref}).",
+      "last": "{reason} También es tu último modelo predeterminado.",
+      "history": "Mediana de tus sesiones recientes: {amount} por sesión.",
+      "reference": "Aún no hay historial: una sesión de referencia a los precios del modelo predeterminado ({amount})."
+    },
+    "scan": {
+      "empty": "Primera búsqueda: no hay modelos.",
+      "first": {
+        "one": "Primera búsqueda: {count} modelo.",
+        "many": "Primera búsqueda: {count} modelos.",
+        "other": "Primera búsqueda: {count} modelos."
+      },
+      "new": {
+        "one": "{count} modelo nuevo",
+        "many": "{count} modelos nuevos",
+        "other": "{count} modelos nuevos"
+      },
+      "removed": {
+        "one": "{count} modelo eliminado",
+        "many": "{count} modelos eliminados",
+        "other": "{count} modelos eliminados"
+      },
+      "repriced": {
+        "one": "{count} modelo con precio cambiado",
+        "many": "{count} modelos con precio cambiado",
+        "other": "{count} modelos con precio cambiado"
+      },
+      "unchanged": "Sin cambios desde la última búsqueda.",
+      "since": "{changes} desde la última búsqueda."
+    },
+    "labels": {
+      "custom": "Servidor personalizado"
+    }
+  }
 }
