@@ -272,7 +272,7 @@ describe('M96 K advisory hints', () => {
     await reader.hints.dispose()
   })
 
-  for (const unsafe of ['owner', 'write', 'links', 'symlink', 'directory'] as const) {
+  for (const unsafe of ['owner', 'write', 'links', 'symlink', 'directory', 'fifo'] as const) {
     it(`disables hints for an unsafe opened file: ${unsafe}`, async () => {
       const f = await publishedHintFixture()
       const { reader, file } = f
@@ -300,6 +300,14 @@ describe('M96 K advisory hints', () => {
         case 'directory': {
           await rm(file)
           await mkdir(file)
+          break
+        }
+        case 'fifo': {
+          await rm(file)
+          await runProgram('/usr/bin/mkfifo', [file], {})
+          // A FIFO has one link; only the regular-file guard rejects it.
+          const information = await stat(file)
+          expect(information.nlink).toBe(1)
           break
         }
       }
