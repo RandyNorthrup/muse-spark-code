@@ -6790,6 +6790,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
+
+- [x] Resolve Windows workspace roots and shell-reported directories to the
+      native long form before containment, relative tails and command cwd use.
+      Keep POSIX path handling unchanged and retain link/junction confinement.
+- [x] Reproduce with a real 8.3 directory on the Windows 11 rig; assert the
+      canonical tracked directory, the `sub` tail, root silence and escape reset.
+      Exercise both short/long input directions with injected path functions.
+- [x] Remove canonicalization, observe the complete owning file fail, restore
+      byte-exact and collect the shell suites with default CLI timeouts and
+      three workers. Run the shared lane's static/build checks and commit locally
+      with hooks; no push, merge, rebase or paid/live calls. Time box: 60 minutes.
+
+Evidence belongs in `docs/certification/cifix14-shortpath.md`. Shared lane
+rules reserve the integrated full quality run for the lead; all existing
+gates and timeouts remain unchanged.
+
 ### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
 
 - [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
@@ -18168,6 +18185,14 @@ joined with M57, M58 and PR #49's sign-in
         commit-writing path exists
 
 ## 7. Gates
+
+**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
+requires complete directory-tracking and shell files with default CLI timeouts,
+three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
+`npm run quality`; focused regressions, static checks and the production build
+run locally with hooks on. The lead retains the integrated full quality gate.
+No threshold, timeout, retry, skip policy or gate is changed; evidence is in
+`docs/certification/cifix14-shortpath.md`.
 
 **CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
 requires all four unit/process-e2e coverage shards and two complete green runs.
