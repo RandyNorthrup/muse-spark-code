@@ -162,3 +162,88 @@ billing bounds before offering either transport under a finite daily cap.
 - ACP/headless flags and budgets, Muse Code subscription/explicit paid opt-ins,
   and confidential-workspace policy remain unchanged. Aggregate certification
   and public publication are not claimed by scoped fake-only tests.
+
+## FIXDEF — RVDEF follow-up (2026-10-04)
+
+Started from the reviewed `401eb14f9e0054b0409c6df4874c0adf4bb37090`, clean
+`feat/defaults-on` worktree. Read FIXDEF.md, common.md and RVDEF.report.md.
+D78 now records the repair scope. No dependency, external wire field, model
+text, translation key, golden fixture or gate threshold changes are needed.
+
+| Finding                                           | Repair                                                                                                                                                                                                                                                                         | Regression                                                                                                                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1: a held raise clears a later Stop              | Separate monotonic day marker; raises never remove it. The marker and final admission dominate even a numeric replacement already handed to the OS.                                                                                                                            | Real disk, two windows: hold raise, commit Stop, actually land the late numeric write, retain Stop; tomorrow resets.                                                                                          |
+| P2: unused packing changes the tools/cache prefix | `recall_output` is offered only with placeholders in this request's projected input. Replay and sticky packing remain unchanged.                                                                                                                                               | Real host/fake transport compares whole JSON across packing false/true with hooks and paid features off. Packing suite checks recall appears with the first packed output.                                    |
+| P2: daily admission ignores cancellation          | Image and token callers pass their signal; image deadline also covers admission. Dialog waits and pending policy writes lose authority on abort, nonsends refund, final publication checks ownership. The numeric rename and its cancellation check share one event-loop step. | Held warning, held input and held policy write reject promptly, send nothing, refund known nonsends and cannot publish late answers.                                                                          |
+| P2: backend changes withdraw grants               | Configuration and backend availability are separate gate ports. Review revokes only when the configured setting is off.                                                                                                                                                        | Startup unavailable, Model API Always, Muse Code/focus review, Model API again: availability changes, accepted price/generation and Always remain intact. Existing explicit-OFF and tariff tests still apply. |
+| P3: Best-of-N overview says off by default        | README overview now says available by default and retains the explicit action/consent contract.                                                                                                                                                                                | README assertion agrees with manifest/fallback behavior and rejects the stale claim.                                                                                                                          |
+
+Kubuntu baseline snapshot `265690e2` exited 1: all seven new scenarios failed
+for the intended reasons, with the original 42 tests passing. No test-name
+filter, skipped test, live call or local Vitest run was used. Restored candidate
+`819cc91c` passed 67 tests in four whole owning files. A stronger in-flight
+rename race and held-policy-write cancellation case were then added;
+candidate `bdd5548d` passed all 68 tests in those same files.
+
+The warning-message API has no dismissal token. Cancellation ends its
+operation and removes its authority immediately; a late answer is ignored.
+This is fake-only lifecycle evidence, not a claim of a real VS Code UI run.
+
+### FIXDEF guard-fire record
+
+All seven mutants ran on Kubuntu through rig-test.sh, using whole owning
+files. Every red run exited 1 for the intended assertions; every restored run
+exited 0. The local source was restored in finally and its full SHA-256
+compared with its saved bytes before the restored snapshot. Logs and the
+runner remain in this worktree's ignored `temp/fixdef-*` artifacts.
+
+| Guard                             | Red / restored snapshots | Red failure                                                     | Restored tests | Source SHA-256 prefix |
+| --------------------------------- | ------------------------ | --------------------------------------------------------------- | -------------- | --------------------- |
+| Stop marker                       | `e1bf628e` / `6a50b04c`  | Stop no longer refuses cap read                                 | 17             | `1f44b8826b8e8bc5`    |
+| Unused packing prefix             | `2086719b` / `8fcadc55`  | Whole request differs; recall offered without a placeholder     | 35             | `5d48944cff5dc75b`    |
+| Image admission signal            | `646b6dd1` / `2f4fff88`  | Held warning/input/write do not settle on abort                 | 17             | `d55cf3153a76f00c`    |
+| Token admission signal            | `c8c3b138` / `b73fe254`  | Held token admission does not settle on abort                   | 17             | `d55cf3153a76f00c`    |
+| Policy ownership                  | `8625a2d7` / `bd017f68`  | Cancelled dialogs/write can publish Stop or a raise             | 17             | `1f44b8826b8e8bc5`    |
+| Configuration versus availability | `a195bac4` / `52f3e5f3`  | Backend review removes acceptance and advances grant generation | 20             | `05cd144303a803ef`    |
+| Best-of-N docs                    | `387aaa51` / `cb7c6f7e`  | Default-availability claim no longer matches                    | 13             | `3c45767e867582a4`    |
+
+Pre-merge static snapshot `8b7188e6` passed all five typecheck projects,
+then scoped lint reported fourteen test-style errors (promise chaining,
+boolean names and void resolver types). Repaired without suppressions and
+shared the ordinary-turn/claim-reading setup in this same test file. The
+guarded product files remain byte-identical to the drilled versions.
+
+Snapshot `a923c9c0` passed all five typechecks, scoped ESLint and knip; jscpd
+caught three repeated raise-fixture blocks. Shared that fixture without
+changing behavior or thresholds. Snapshot `787e98f7` then passed the revised
+test's lint, jscpd (0 clones), localization (14 tables, 0 problems), host API
+(275 APIs, 0 problems), and the production build including all size/split/
+global/notices checks. Sizes: extension 558.5/600 KiB, Model API 428.1/475,
+checkpoint store 109.1/225, webview 860.8/900, ACP 786.8/850. Final pre-commit
+snapshot `057f3566` passed 68 tests in four whole owning files after the
+fixture cleanup. Windows scoped Prettier check exited 0.
+
+### Proposed search and voice bounds: external evidence still required
+
+The report proposes search `Smax=1`: reserve worst-case input/output token
+cost plus USD 0.0025, and retain the full reservation after ambiguous dispatch.
+It also requires a **server-enforced bound covering internal billed searches**.
+The captured request is still only `{type:'web_search'}`; this tree has no
+captured hard query limit. An output-token ceiling or displayed event count
+cannot establish it. No invented field or unsupported search cap is shipped.
+
+For voice, the report proposes `Dmax=180` seconds: USD 0.009 at USD 0.18/hour
+under whole-second billing, a 5,760,000-byte bound across buffered/sent 16 kHz
+mono PCM, a capture/socket deadline and fresh admission for every connection.
+The existing protocol counts locally sent audio and supplies no billing
+receipt. Accepted-audio billing, rounding/minimums and connection-time or
+other overhead are still unverified. A recorder timer alone cannot establish
+the proposed worst-case cost. Once the contract is verified, keep the full
+worst-case reservation without a trustworthy settlement receipt; a missing
+receipt by itself is not a reason to refuse a proven bounded feature.
+
+Common.md forbids live/paid calls and unrelated network calls in this lane.
+Enabling either transport safely therefore requires lead-supplied captured
+contracts or separately authorized research/live evidence. Existing explicit
+refusal and the free system dictation choice remain visible in README; these
+two paid transports are an external blocker, not certified usable features.

@@ -705,9 +705,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) =>
-      currentSettings()[PAID_FEATURE_SETTINGS[feature]] &&
-      (paidBackend === 'modelApi' || !isDefaultPaidOn(feature)),
+    isSettingOn: (feature) => currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isAvailable: (feature) => paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
     dailyBudgetUsd: () => (paidBackend === 'modelApi' ? dailyPaid.capUsd() : undefined),
     isKeyStored: () => isKeyStored,

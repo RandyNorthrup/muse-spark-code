@@ -51,6 +51,7 @@ export interface PaidFeaturesDeps {
   readonly workspaceState: MementoLike
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  readonly isAvailable?: (feature: PaidFeature) => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
   readonly dailyBudgetUsd?: () => number | undefined
   /** Whether a Model API key is stored, as last read (M44). */
@@ -159,6 +160,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   }
   const gate = new PaidFeatureGate({
     isSettingOn: deps.isSettingOn,
+    ...(deps.isAvailable !== undefined && { isAvailable: deps.isAvailable }),
     ...(deps.isDefaultOn !== undefined && { isDefaultOn: deps.isDefaultOn }),
     setSetting: async (feature, isOn) => {
       await vscode.workspace

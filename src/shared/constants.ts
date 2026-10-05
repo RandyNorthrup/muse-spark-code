@@ -365,6 +365,8 @@ export const PAID_DAILY_BUDGET = {
   // One machine-wide scope, independent of the selected key and workspace.
   accountId: '0000000000000000000000000000000000000000000000000000000000000000',
   overrideFile: 'limit.json',
+  // Monotonic for this day: a delayed numeric override cannot clear Stop.
+  stopDirectory: 'stopped',
 } as const
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md

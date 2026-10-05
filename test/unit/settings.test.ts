@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from '../../src/host/settings'
 import { SETTING_DEFAULTS } from '../../src/shared/constants'
@@ -10,6 +11,13 @@ function retentionOf(value: unknown): number {
 }
 
 describe('readSettings', () => {
+  it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
+    const readme = readFileSync('README.md', 'utf8')
+    expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)
+    expect(/Best-of-N \(Model API, paid, available by\s+default\)/.test(readme)).toBe(true)
+    expect(/Best-of-N \(Model API, paid, off by\s+default/.test(readme)).toBe(false)
+  })
+
   it('enables D78 enhancements and respects each explicit false', () => {
     const keys = [
       'modelApiObservationPacking',

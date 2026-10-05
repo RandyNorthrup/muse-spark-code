@@ -2494,7 +2494,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The agent's own instructions and tools, or the Reviewer's. */
-  private promptAndTools(today: string): {
+  private promptAndTools(
+    today: string,
+    hasPackedRecall: boolean,
+  ): {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
@@ -2550,7 +2553,7 @@ export class ModelApiSession implements AgentSession {
         // A custom agent's own prompt runs as the child's role (M76).
         ...(role !== undefined && { agent: role }),
       }),
-      tools: this.tools(hasShell, flags.hasSkills, hasMemory),
+      tools: this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, hasPackedRecall),
     }
   }
 
@@ -2569,7 +2572,10 @@ export class ModelApiSession implements AgentSession {
     return this.keyed({
       model: this.modelId,
       input,
-      ...this.promptAndTools(today),
+      ...this.promptAndTools(
+        today,
+        input.some((item) => this.packing?.isPlaceholder(item) === true),
+      ),
       tool_choice: 'auto',
       reasoning: {
         effort: this.effort === THINKING_OFF_EFFORT ? MODEL_API_EFFORT_OFF : this.effort,
@@ -2664,6 +2670,7 @@ export class ModelApiSession implements AgentSession {
     hasSkills: boolean,
     hasMemory: boolean,
     isSubagent = this.isSubagent,
+    hasPackedRecall = false,
   ): readonly ToolDefinition[] {
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
@@ -2674,7 +2681,7 @@ export class ModelApiSession implements AgentSession {
       hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
       isSubagent,
       hasMemory,
-      hasPackedRecall: this.packing !== undefined,
+      hasPackedRecall,
       checks: this.checkCommands(),
       // Trusted workspaces only, as the shell (M69).
       hasWebFetch: this.isWebFetchOffered(hasShell),

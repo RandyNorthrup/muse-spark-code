@@ -105,8 +105,8 @@ two.
   [Session board and best-of-N](#session-board-and-best-of-n)): the
   header's board button lists the window's open conversations on either
   backend and this backend's saved ones, with state, branch, changed files
-  in its worktree and waiting approvals. Best-of-N (Model API, paid, off by
-  default: `museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
+  in its worktree and waiting approvals. Best-of-N (Model API, paid, available by default)
+  (`museSpark.modelApiBestOfN`; a trusted folder) runs one prompt in
   2 to 5 worktrees, asks once per run with the prices unless you allow it
   always in the workspace, and applies and stages the attempt you take onto
   your unchanged checkout, without committing.
@@ -370,6 +370,12 @@ calendar day owns each durable reservation. Known usage settles its estimate;
 unknown sent usage keeps its full reservation. Corrupt or incomplete storage
 counts as budget reached and refuses paid requests. At the limit choose
 **Raise for today** or **Stop until tomorrow**; both choices are shared on disk.
+Stop remains in force even if another window's pending raise finishes later.
+Cancelling admission refunds an unsent request; late budget-dialog answers
+cannot change today's policy. Switching backends preserves accepted prices
+and workspace **Allow always** grants; explicitly turning a feature off
+withdraws them. Packing adds recall only when a request carries packed output,
+so enabling unused packing keeps the ordinary request and cache key unchanged.
 Tab's $1/day cap is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.

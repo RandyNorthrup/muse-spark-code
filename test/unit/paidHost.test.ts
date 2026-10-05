@@ -199,6 +199,45 @@ describe('the paid-use popup (M58)', () => {
 })
 
 describe('Allow always in this workspace (M58)', () => {
+  it('preserves default-on price acceptance and Always through backend unavailability and startup', async () => {
+    const data = new Map<string, unknown>()
+    const workspace = new Map<string, unknown>()
+    let backend: 'modelApi' | 'museCode' | undefined
+    const paid = createPaidFeatures({
+      globalState: memento(data),
+      workspaceState: memento(workspace),
+      isSettingOn: (feature) => feature === 'imageGeneration',
+      isDefaultOn: () => true,
+      isAvailable: () => backend === 'modelApi',
+      isKeyStored: () => true,
+      canRememberPaidUse: () => true,
+      log: new FakeLogOutputChannel(),
+    })
+    await paid.gate.review()
+    expect(confirmModal).not.toHaveBeenCalled()
+    expect(paid.gate.isOn('imageGeneration')).toBe(false)
+    backend = 'modelApi'
+    const image = {
+      feature: 'imageGeneration',
+      kind: 'generate',
+      path: 'art.png',
+      sources: [],
+      prompt: 'A tree',
+    } as const
+    answerWith(UI_TEXT.paidAllowAlways)
+    await expect(paid.consent.allows(image)).resolves.toBe(true)
+    const acceptance = structuredClone(data)
+    backend = 'museCode'
+    await paid.gate.review()
+    expect(paid.gate.isOn('imageGeneration')).toBe(false)
+    expect(data).toEqual(acceptance)
+    backend = 'modelApi'
+    await paid.gate.review()
+    expect(paid.consent.isRemembered('imageGeneration')).toBe(true)
+    await expect(paid.consent.allows(image)).resolves.toBe(true)
+    expect(confirmModal).toHaveBeenCalledOnce()
+  })
+
   it('withdraws a default-on feature grant after OFF, even if the default is restored later', async () => {
     const { paid, settings } = paidWithSettings(new Map(), ['imageGeneration'], { defaultOn: true })
     const image = {

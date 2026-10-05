@@ -55,6 +55,7 @@ export interface ModelApiClientDeps {
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
     estimatedInputTokens?: number,
+    signal?: AbortSignal,
   ) => Promise<SessionBudgetClaim | undefined>
   readonly fetch: typeof fetch
   readonly baseUrl: string
@@ -407,7 +408,8 @@ export class ModelApiClient {
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration')
+    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
       const response = await this.request(
@@ -419,7 +421,7 @@ export class ModelApiClient {
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
         },
-        AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
+        active,
         undefined,
         undefined,
         admitAttempt,
@@ -546,6 +548,7 @@ export class ModelApiClient {
             body,
             feature,
             admitAttempt?.paidEstimatedInputTokens,
+            signal,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {

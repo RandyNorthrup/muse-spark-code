@@ -1,10 +1,11 @@
 // D78: daily interactive extras share M82's durable claims across windows.
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import { estimateCostUsd } from '../../core/usage/insights'
+import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
 import { modelApiPaidTier } from '../../shared/paid'
@@ -37,7 +38,18 @@ export function createPaidDailyBudget(deps: {
   })
   const limitPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
+  const stopPath = (scope: string) =>
+    path.join(deps.directory, scope, PAID_DAILY_BUDGET.stopDirectory)
   const readLimit = (scope: string) => {
+    let isStopped = false
+    try {
+      statSync(stopPath(scope))
+      isStopped = true
+    } catch (error: unknown) {
+      if (storeErrorCode(error) !== 'ENOENT')
+        throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+    }
+    if (isStopped) throw new Error(UI_TEXT.paidDailyStopped)
     let limit: z.infer<typeof limitSchema>
     try {
       limit = limitSchema.parse(JSON.parse(readFileSync(limitPath(scope), 'utf8')))
@@ -50,59 +62,84 @@ export function createPaidDailyBudget(deps: {
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
-  const raise = async (scope: string, neededUsd: number): Promise<void> => {
-    const raiseTitle = UI_TEXT.paidDailyRaise
-    const stop: vscode.MessageItem = { title: UI_TEXT.paidDailyStop, isCloseAffordance: true }
-    const answer = await vscode.window.showWarningMessage(
-      UI_TEXT.paidDailyReached,
-      {
-        modal: true,
-        detail: fill(UI_TEXT.paidDailyReachedDetail, {
-          budget: formatUsd(readLimit(scope), 2),
-          needed: formatUsd(neededUsd, 2),
-        }),
-      },
-      { title: raiseTitle },
-      stop,
-    )
-    if (answer?.title !== raiseTitle) {
-      await writeFileAtomically(
-        limitPath(scope),
-        JSON.stringify({ limitUsd: readLimit(scope), stopped: true }),
-        { sleep: deps.sleep },
-      )
+  const raise = async (scope: string, neededUsd: number, signal: AbortSignal): Promise<void> => {
+    const assertActive = () => {
+      signal.throwIfAborted()
+      if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      readLimit(scope)
+    }
+    const stop = (): never => {
+      assertActive()
+      // Synchronous publication owns cancellation; this marker is never
+      // removed or overwritten by a raise, even one already in rename().
+      mkdirSync(stopPath(scope), { recursive: true })
       throw new Error(UI_TEXT.paidDailyStopped)
     }
-    const entered = await vscode.window.showInputBox({
-      title: raiseTitle,
-      prompt: UI_TEXT.paidDailyRaisePrompt,
-      value: String(
-        Math.min(PAID_DAILY_BUDGET.maximumUsd, Math.max(readLimit(scope) * 2, neededUsd)),
+    assertActive()
+    const raiseTitle = UI_TEXT.paidDailyRaise
+    const stopItem: vscode.MessageItem = { title: UI_TEXT.paidDailyStop, isCloseAffordance: true }
+    const answer = await unlessAborted(
+      Promise.resolve(
+        vscode.window.showWarningMessage(
+          UI_TEXT.paidDailyReached,
+          {
+            modal: true,
+            detail: fill(UI_TEXT.paidDailyReachedDetail, {
+              budget: formatUsd(readLimit(scope), 2),
+              needed: formatUsd(neededUsd, 2),
+            }),
+          },
+          { title: raiseTitle },
+          stopItem,
+        ),
       ),
-      validateInput: (value) => {
-        const parsed = limitSchema.safeParse({ limitUsd: Number(value), stopped: false })
-        if (!parsed.success || parsed.data.limitUsd < neededUsd) return UI_TEXT.paidDailyRaisePrompt
-        return
-      },
-    })
-    if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      signal,
+    )
+    assertActive()
+    if (answer?.title !== raiseTitle) stop()
+    const entered = await unlessAborted(
+      Promise.resolve(
+        vscode.window.showInputBox({
+          title: raiseTitle,
+          prompt: UI_TEXT.paidDailyRaisePrompt,
+          value: String(
+            Math.min(PAID_DAILY_BUDGET.maximumUsd, Math.max(readLimit(scope) * 2, neededUsd)),
+          ),
+          validateInput: (value) => {
+            const parsed = limitSchema.safeParse({ limitUsd: Number(value), stopped: false })
+            if (!parsed.success || parsed.data.limitUsd < neededUsd)
+              return UI_TEXT.paidDailyRaisePrompt
+            return
+          },
+        }),
+      ),
+      signal,
+    )
+    assertActive()
     const parsed = limitSchema.safeParse({ limitUsd: Number(entered), stopped: false })
     if (entered === undefined || !parsed.success || parsed.data.limitUsd < neededUsd) {
-      await writeFileAtomically(
-        limitPath(scope),
-        JSON.stringify({ limitUsd: readLimit(scope), stopped: true }),
-        { sleep: deps.sleep },
-      )
-      throw new Error(UI_TEXT.paidDailyStopped)
+      stop()
     }
-    readLimit(scope)
-    await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), { sleep: deps.sleep })
+    await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {
+      sleep: deps.sleep,
+      assertCanWrite: assertActive,
+      // Couple this request's last cancellation check to publication in
+      // one event-loop step; another window's Stop still wins via its marker.
+      rename: (from, to) => {
+        assertActive()
+        renameSync(from, to)
+        return Promise.resolve()
+      },
+    })
+    assertActive()
   }
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
     body,
     feature,
     estimatedInputTokens,
+    signal = new AbortController().signal,
   ) => {
+    signal.throwIfAborted()
     if (!deps.isModelApi()) return
     if (
       feature === 'webSearch' ||
@@ -129,15 +166,21 @@ export function createPaidDailyBudget(deps: {
       }
       claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
     } catch (error: unknown) {
+      signal.throwIfAborted()
       if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) throw error
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
     try {
+      signal.throwIfAborted()
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
-      if (total.spentUsd > readLimit(scope)) await raise(scope, total.spentUsd)
+      signal.throwIfAborted()
+      if (total.spentUsd > readLimit(scope))
+        await unlessAborted(raise(scope, total.spentUsd, signal), signal)
+      signal.throwIfAborted()
       return {
         ...claim,
         check: () => {
+          signal.throwIfAborted()
           if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
           try {
             return claim.check(readLimit(scope))

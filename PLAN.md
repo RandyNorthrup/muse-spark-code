@@ -4245,6 +4245,19 @@ cap are localized; request bodies and single-model turns remain unchanged.
 Reuse `paidFeatures`, `paidConsent`, `sessionBudgetJournal` and the final
 HTTP admission guard. Evidence: `docs/certification/defaults.md`.
 
+FIXDEF review follow-up (2026-10-04): a committed daily Stop must survive
+every pending raise, including a delayed atomic replacement. Use a separate
+monotonic day marker; never remove it when raising the numeric cap. Pass the
+request's cancellation through daily admission, refund nonsends, and reject
+late dialog answers/publications. Offer packed recall only when the request
+contains a packed observation, preserving unused packing's whole request and
+cache key. Keep setting state separate from backend availability so changing
+backends cannot withdraw accepted prices or workspace grants. Correct the
+Best-of-N overview. Each finding needs a Kubuntu regression/red drill.
+Search's proposed one-search bound and voice's proposed 180-second bound
+require verified server/billing contracts, not invented wire fields or a
+recorder timer alone; live calls remain outside this lane's authorization.
+
 ### D69 — Auto on Muse Code: an extension-side reviewer (M90, 2026-10-03)
 
 The owner reported clicking as many approvals in Auto as in Manual on the

@@ -27,6 +27,8 @@ import { estimateCostUsd } from '../usage/insights'
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Backend availability never changes the user's setting or accepted price. */
+  readonly isAvailable?: (feature: PaidFeature) => boolean
   /** D78: an unconfigured default offers the feature; use still requires consent. */
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
   /** Writes the feature's setting in the user's settings. */
@@ -90,6 +92,7 @@ export class PaidFeatureGate {
   public isOn(feature: PaidFeature): boolean {
     return (
       this.deps.isSettingOn(feature) &&
+      this.deps.isAvailable?.(feature) !== false &&
       (this.deps.isDefaultOn?.(feature) === true || this.deps.readAccepted().has(feature))
     )
   }

@@ -7,6 +7,7 @@ import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import * as atomicFiles from '../../src/host/fsAtomic'
 import { PAID_DAILY_BUDGET, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
@@ -48,6 +49,7 @@ beforeEach(async () => {
   vi.mocked(window.showInputBox).mockReset()
 })
 afterEach(async () => {
+  vi.restoreAllMocks()
   await removeFolder(state.directory)
 })
 
@@ -87,34 +89,252 @@ function defaultImagePaid() {
   })
 }
 
+async function failureOf(work: Promise<unknown>, state?: { isSettled: boolean }): Promise<unknown> {
+  try {
+    await work
+    return undefined
+  } catch (error: unknown) {
+    return error
+  } finally {
+    if (state !== undefined) state.isSettled = true
+  }
+}
+
+async function ordinaryRequest(isPacking: boolean, isCapped: boolean, hasPaidFeatures: boolean) {
+  const { api, instance } = client(isCapped && budget())
+  const log = new FakeLogOutputChannel()
+  const host = new ModelApiHost({
+    ...fakeModelApiHostDeps({
+      client: instance,
+      workspaceRoot: '/ws',
+      io: memoryToolIo({}, '/ws'),
+      log,
+    }),
+    observationPacking: () => isPacking,
+    isPaidFeatureOn: () => hasPaidFeatures,
+  })
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+  })
+  const watched = watchSessionTurns(session)
+  try {
+    await session.sendTurn([{ type: 'text', text: 'Reply OK' }])
+    await watched.turnDone()
+    expect(api.responseBodies()).toHaveLength(1)
+    return JSON.stringify(api.responseBodies()[0])
+  } finally {
+    await host.close()
+  }
+}
+
+async function claimEntries(): Promise<unknown[]> {
+  const directory = path.join(
+    state.directory,
+    'budget-journal',
+    PAID_DAILY_BUDGET.accountId,
+    '2026-10-4',
+    'claims',
+  )
+  const names = await readdir(directory)
+  return await Promise.all(
+    names.map(async (name): Promise<unknown> =>
+      JSON.parse(await readFile(path.join(directory, name, 'claim.json'), 'utf8')),
+    ),
+  )
+}
+
+async function raiseAtCap() {
+  const daily = budget(0.5)
+  await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+  vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
+    Promise.resolve(items[0]),
+  )
+  return daily
+}
+
 describe('D78 interactive paid daily budget', () => {
-  it('keeps an ordinary single-model turn and its request prefix unchanged by daily admission', async () => {
-    const bodies: unknown[] = []
-    for (const isCapped of [false, true]) {
-      const { api, instance } = client(isCapped && budget())
-      const log = new FakeLogOutputChannel()
-      const io = memoryToolIo({}, '/ws')
-      const host = new ModelApiHost({
-        ...fakeModelApiHostDeps({ client: instance, workspaceRoot: '/ws', io, log }),
-        observationPacking: () => true,
-        isPaidFeatureOn: () => true,
-      })
-      const session = await host.startSession({
-        workspaceRoot: '/ws',
-        modelId: 'muse-spark-1.3',
-        approvalMode: 'allowAll',
-      })
-      const watched = watchSessionTurns(session)
-      try {
-        await session.sendTurn([{ type: 'text', text: 'Reply OK' }])
-        await watched.turnDone()
-        expect(api.responseBodies()).toHaveLength(1)
-        bodies.push(api.responseBodies()[0])
-      } finally {
-        await host.close()
-      }
+  it('keeps the unused packing default flip byte-exact, including tools and cache key', async () => {
+    const plain = await ordinaryRequest(false, false, false)
+    expect(await ordinaryRequest(true, false, false)).toBe(plain)
+  })
+
+  it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
+    const daily = budget(0.5)
+    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const originalWrite = atomicFiles.writeFileAtomically
+    vi.spyOn(atomicFiles, 'writeFileAtomically').mockImplementation(
+      async (target, content, options) => {
+        if (
+          target.endsWith(PAID_DAILY_BUDGET.overrideFile) &&
+          String(content).includes('"stopped":false')
+        ) {
+          entered.resolve(undefined)
+          await released.promise
+          // Simulate a rename already handed to the OS: its final guard
+          // cannot be rerun, and the numeric override really lands late.
+          await originalWrite(target, content, { sleep: options.sleep })
+          return
+        }
+        await originalWrite(target, content, options)
+      },
+    )
+    vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
+      Promise.resolve(items[0]),
+    )
+    vi.mocked(window.showInputBox).mockResolvedValueOnce('1')
+    const raising = failureOf(daily.reserve(IMAGE, 'imageGeneration'))
+    try {
+      await entered.promise
+      await expect(budget(0.5).reserve(IMAGE, 'imageGeneration')).rejects.toThrow(
+        UI_TEXT.paidDailyStopped,
+      )
+      expect(() => daily.capUsd()).toThrow(UI_TEXT.paidDailyStopped)
+    } finally {
+      released.resolve(undefined)
     }
-    expect(JSON.stringify(bodies[0])).toBe(JSON.stringify(bodies[1]))
+    const outcome = await raising
+    expect(() => budget(0.5).capUsd()).toThrow(UI_TEXT.paidDailyStopped)
+    expect(outcome).toBeInstanceOf(Error)
+    state.now = new Date(2026, 9, 5, 12).getTime()
+    expect(daily.capUsd()).toBe(0.5)
+  })
+
+  it.each(['image', 'tokens'] as const)(
+    'cancels %s daily admission while its budget popup waits, refunds and ignores the late answer',
+    async (kind) => {
+      const daily = budget(0.5)
+      await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
+      const popup = Promise.withResolvers<string | undefined>()
+      let raiseTitle: string | undefined
+      vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) => {
+        raiseTitle = items[0]
+        return popup.promise
+      })
+      vi.mocked(window.showInputBox).mockResolvedValueOnce('1')
+      const { api, instance } = client(daily)
+      const abort = new AbortController()
+      const guard = Object.assign(() => undefined, {
+        paidFeature: 'subagents' as const,
+        paidEstimatedInputTokens: 100,
+      })
+      const settlement = { isSettled: false }
+      const pending = failureOf(
+        kind === 'image'
+          ? instance.createImage(IMAGE, abort.signal)
+          : Array.fromAsync(
+              instance.streamResponse(BODY, abort.signal, undefined, undefined, guard),
+            ),
+        settlement,
+      )
+      try {
+        await vi.waitFor(() => {
+          expect(confirmModal).toHaveBeenCalledOnce()
+        })
+        abort.abort()
+        await vi.waitFor(() => {
+          expect(settlement.isSettled).toBe(true)
+        })
+        expect(await pending).toMatchObject({ name: 'AbortError' })
+        const entries = await claimEntries()
+        expect(entries).toHaveLength(2)
+        expect(entries).toContainEqual(expect.objectContaining({ settledUsd: 0 }))
+      } finally {
+        abort.abort()
+        popup.resolve(raiseTitle)
+        await pending
+      }
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve)
+      })
+      expect(window.showInputBox).not.toHaveBeenCalled()
+      expect(daily.capUsd()).toBe(0.5)
+      expect(api.imageBodies()).toEqual([])
+      expect(api.responseBodies()).toEqual([])
+    },
+  )
+
+  it('cancels a held raise input without publishing a late limit or Stop', async () => {
+    const daily = await raiseAtCap()
+    const input = Promise.withResolvers<string | undefined>()
+    vi.mocked(window.showInputBox).mockReturnValueOnce(input.promise)
+    const { api, instance } = client(daily)
+    const abort = new AbortController()
+    const settlement = { isSettled: false }
+    const pending = failureOf(instance.createImage(IMAGE, abort.signal), settlement)
+    try {
+      await vi.waitFor(() => {
+        expect(window.showInputBox).toHaveBeenCalledOnce()
+      })
+      abort.abort()
+      await vi.waitFor(() => {
+        expect(settlement.isSettled).toBe(true)
+      })
+      expect(await pending).toMatchObject({ name: 'AbortError' })
+    } finally {
+      abort.abort()
+      input.resolve('1')
+      await pending
+    }
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(daily.capUsd()).toBe(0.5)
+    expect(api.imageBodies()).toEqual([])
+  })
+
+  it('refunds cancellation during a held policy write and refuses its late publication', async () => {
+    const daily = await raiseAtCap()
+    vi.mocked(window.showInputBox).mockResolvedValueOnce('1')
+    const entered = Promise.withResolvers<undefined>()
+    const released = Promise.withResolvers<undefined>()
+    const finished = Promise.withResolvers<undefined>()
+    const originalWrite = atomicFiles.writeFileAtomically
+    vi.spyOn(atomicFiles, 'writeFileAtomically').mockImplementation(
+      async (target, content, options) => {
+        if (target.endsWith(PAID_DAILY_BUDGET.overrideFile)) {
+          entered.resolve(undefined)
+          await released.promise
+          try {
+            await originalWrite(target, content, options)
+          } finally {
+            finished.resolve(undefined)
+          }
+        } else {
+          await originalWrite(target, content, options)
+        }
+      },
+    )
+    const { api, instance } = client(daily)
+    const abort = new AbortController()
+    const settlement = { isSettled: false }
+    const pending = failureOf(instance.createImage(IMAGE, abort.signal), settlement)
+    try {
+      await entered.promise
+      abort.abort()
+      await vi.waitFor(() => {
+        expect(settlement.isSettled).toBe(true)
+      })
+      expect(await pending).toMatchObject({ name: 'AbortError' })
+    } finally {
+      abort.abort()
+      released.resolve(undefined)
+      await pending
+      await finished.promise
+    }
+    expect(daily.capUsd()).toBe(0.5)
+    expect(api.imageBodies()).toEqual([])
+    await expect(readdir(path.join(state.directory, '2026-10-4'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+  })
+
+  it('keeps an ordinary single-model turn and its request prefix unchanged by daily admission', async () => {
+    const plain = await ordinaryRequest(true, false, true)
+    expect(await ordinaryRequest(true, true, true)).toBe(plain)
     await expect(readdir(state.directory)).resolves.toEqual([])
   })
   it('drives the real host image path: default availability asks before fetch and remains usable after Allow once', async () => {
@@ -252,11 +472,7 @@ describe('D78 interactive paid daily budget', () => {
   })
 
   it('shares a raise for today, and resets that override tomorrow', async () => {
-    const daily = budget(0.5)
-    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.5)
-    vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
-      Promise.resolve(items[0]),
-    )
+    const daily = await raiseAtCap()
     vi.mocked(window.showInputBox).mockResolvedValueOnce('1')
     requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).check(0)
     expect(budget(0.5).capUsd()).toBe(1)
@@ -275,19 +491,7 @@ describe('D78 interactive paid daily budget', () => {
       instance.streamResponse(BODY, new AbortController().signal, undefined, undefined, guard),
     )
     expect(JSON.stringify(api.responseBodies()[0])).toBe(JSON.stringify(BODY))
-    const claims = path.join(
-      state.directory,
-      'budget-journal',
-      PAID_DAILY_BUDGET.accountId,
-      '2026-10-4',
-      'claims',
-    )
-    const names = await readdir(claims)
-    expect(names).toHaveLength(1)
-    const json: unknown = JSON.parse(
-      await readFile(path.join(claims, names[0] ?? '', 'claim.json'), 'utf8'),
-    )
-    expect(json).toMatchObject({ settledUsd: 0.000155 })
+    expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: 0.000155 })])
   })
 
   it('refunds final nonsends and retains an ambiguous sent image fee', async () => {
@@ -300,19 +504,7 @@ describe('D78 interactive paid daily budget', () => {
     expect(api.imageBodies()).toEqual([])
     api.images.push({ networkError: 'connection lost' })
     await expect(instance.createImage(IMAGE, new AbortController().signal)).rejects.toThrow()
-    const claims = path.join(
-      state.directory,
-      'budget-journal',
-      PAID_DAILY_BUDGET.accountId,
-      '2026-10-4',
-      'claims',
-    )
-    const names = await readdir(claims)
-    const entries = await Promise.all(
-      names.map(async (name): Promise<unknown> =>
-        JSON.parse(await readFile(path.join(claims, name, 'claim.json'), 'utf8')),
-      ),
-    )
+    const entries = await claimEntries()
     expect(entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ reservedUsd: 0.01, settledUsd: 0 }),

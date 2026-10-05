@@ -71,6 +71,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Interactive extras preserve consent and daily Stop (D78, FIXDEF).** A
+  delayed raise cannot clear another window's Stop until tomorrow. Cancelling
+  budget admission refunds unsent requests and rejects late dialog answers
+  and limit publication. Backend switches preserve accepted prices and
+  workspace Always grants. Unused observation packing keeps the original
+  request tools and cache key; recall is offered with packed observations.
+  The Best-of-N overview now agrees with its default availability.
+
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
