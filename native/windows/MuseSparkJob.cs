@@ -30,6 +30,13 @@ public static class MuseSparkJob {
   static extern bool SetInformationJobObject(IntPtr job, int kind, IntPtr info, uint length);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool QueryInformationJobObject(IntPtr job, int kind, IntPtr info, uint length, IntPtr returned);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool GetProcessTimes(IntPtr process, out long creation, out long exit, out long kernel, out long user);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool DuplicateHandle(IntPtr sourceProcess, IntPtr source, IntPtr targetProcess,
+    out IntPtr target, uint access, bool inherit, uint options);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool TerminateProcess(IntPtr process, uint exitCode);
 
   // Basic-and-extended limits have platform-specific alignment. Marshal the
   // same layout used by the shared suspended-child launcher, not byte offsets.
@@ -106,40 +113,49 @@ public static class MuseSparkJob {
         status.Connect(5000);
         var writer = new StreamWriter(status, new UTF8Encoding(false));
         writer.AutoFlush = true;
-        var monitor = System.Threading.Tasks.Task.Factory.StartNew(() => {
-          int self = System.Diagnostics.Process.GetCurrentProcess().Id;
-          while (true) {
-            foreach (int pid in TeamMembers(job)) {
-              if (pid == self) continue;
-              try {
-                using (var child = System.Diagnostics.Process.GetProcessById(pid)) {
-                  // The OS start identity and job membership, not a PID liveness lease.
-                  writer.WriteLine("CONFIRMED " + pid + " " + child.StartTime.ToUniversalTime().ToString("O"));
-                  using (var reader = new StreamReader(status, Encoding.UTF8, true, 1024, true)) {
-                    if (reader.ReadLine() == "STOP " + nonce) child.Kill();
+        System.Threading.Tasks.Task monitor = null;
+        using (var reader = new StreamReader(status, Encoding.UTF8, true, 1024, true)) {
+          int code = MuseSparkMcpJob.Run(executable, arguments, cwd, parentPid,
+            environment, false, ownerPipe, nonce, (pid, process) => {
+              long creation, exit, kernel, user;
+              if (!GetProcessTimes(process, out creation, out exit, out kernel, out user))
+                throw new Win32Exception();
+              lock (writer) writer.WriteLine("CONFIRMED " + pid + " " + DateTime.FromFileTimeUtc(creation).ToString("O"));
+              // Still suspended and assigned. EOF/STOP cancels without running the command.
+              if (reader.ReadLine() != "GO " + nonce)
+                throw new IOException("team launch was not released");
+              IntPtr pinned;
+              if (!DuplicateHandle(GetCurrentProcess(), process, GetCurrentProcess(),
+                out pinned, 0, false, 2)) throw new Win32Exception();
+              monitor = System.Threading.Tasks.Task.Factory.StartNew(() => {
+                try {
+                  string command;
+                  while ((command = reader.ReadLine()) != null) {
+                    if (command != "STOP " + nonce) continue;
+                    // This stable process handle cannot be redirected by PID reuse.
+                    // Ending the primary makes Run close its inner kill-on-close job.
+                    if (TerminateProcess(pinned, 1)) return;
+                    lock (writer) writer.WriteLine("STOP_FAILED");
                   }
+                } finally {
+                  CloseHandle(pinned);
                 }
-              } catch (ArgumentException) { }
-              return;
-            }
+              });
+            });
+          // The shared launcher's inner job has closed. Its active members may
+          // still be ending; only the outer job count (minus this helper) proves it.
+          var clock = System.Diagnostics.Stopwatch.StartNew();
+          while (TeamMembers(job).Length != 1) {
+            if (clock.Elapsed >= TimeSpan.FromSeconds(5)) throw new TimeoutException("team job retirement uncertain");
             System.Threading.Thread.Sleep(10);
           }
-        });
-        int code = MuseSparkMcpJob.Run(executable, arguments, cwd, parentPid,
-          environment, false, ownerPipe, nonce);
-        // The shared launcher's inner job has closed. Its active members may
-        // still be ending; only the outer job count (minus this helper) proves it.
-        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
-        while (TeamMembers(job).Length != 1) {
-          if (DateTime.UtcNow >= deadline) throw new TimeoutException("team job retirement uncertain");
-          System.Threading.Thread.Sleep(10);
+          lock (writer) writer.WriteLine("END proved");
+          // Node closes its pipe after END, releasing the monitor before its reader is disposed.
+          if (monitor != null && !monitor.Wait(5000))
+            throw new TimeoutException("team control reader did not close");
+          completed = true;
+          return code;
         }
-        writer.WriteLine("END proved");
-        // Closing the status stream releases the blocked control reader. No
-        // background task is consulted to establish process-tree retirement.
-        GC.KeepAlive(monitor);
-        completed = true;
-        return code;
       }
     } finally {
       if (limitsBuffer != IntPtr.Zero) Marshal.FreeHGlobal(limitsBuffer);

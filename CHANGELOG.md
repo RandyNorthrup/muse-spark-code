@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- M96 team launcher foundations now prove process ownership at each signal,
+  use stable Linux pidfds, cancel held launches during disposal, retry failed
+  retirement, and use monotonic deadlines. Advisory hints validate the opened
+  inode; damaged recovery records warn without hiding valid launches. Product
+  wiring and Windows runtime certification remain part of M96 integration.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

@@ -2,6 +2,12 @@ import type { LaunchConfirmation, TeamLaunchRecord } from './processLifetime'
 import { readFile, readdir } from 'node:fs/promises'
 import process from 'node:process'
 import { runProgram } from '../processTree'
+import {
+  createProcessOwnership,
+  isProcessOwned,
+  didSignalLinuxProcess,
+  type OwnershipDriver,
+} from './processOwnership'
 
 const LAUNCH_MARKER = /(?:^|[\s\0])MUSE_SPARK_LAUNCH_ID=([a-f0-9-]{36})(?=$|[\s\0])/
 const PROC_START_FIELD = 19
@@ -129,12 +135,22 @@ export function createNativeOrphanDriver(): OrphanRecoveryDriver {
       }
       return found
     },
-    async signalGroup(group) {
-      const pid = Number(group)
+    async signal(identity, signal, isGroup) {
+      if (process.platform === 'linux') {
+        if (isGroup) throw new Error('TEAM_PIDFD_GROUP_INVALID')
+        return await didSignalLinuxProcess(identity, signal)
+      }
       const mine = await observe(process.pid)
-      if (!Number.isSafeInteger(pid) || pid <= 1 || group === mine?.group)
+      if (
+        !Number.isSafeInteger(identity.pid) ||
+        identity.pid <= 1 ||
+        (isGroup && identity.group === mine?.group)
+      )
         throw new Error('TEAM_ORPHAN_GROUP_INVALID')
-      process.kill(-pid, 'SIGTERM')
+      // Ownership is re-read after the self-group check, immediately before kill.
+      if (!(await isProcessOwned(observe, identity))) return false
+      process.kill(isGroup ? -identity.pid : identity.pid, signal)
+      return true
     },
   }
 }
@@ -153,12 +169,11 @@ export interface OrphanProcess extends OrphanObservation {
   readonly match: 'matched' | 'uncertain'
 }
 
-export interface OrphanRecoveryDriver {
+export interface OrphanRecoveryDriver extends OwnershipDriver {
   /** Only processes owned by the current OS user may be returned. */
   scan(launchIds: readonly string[]): Promise<readonly OrphanObservation[]>
   /** Exact current sample immediately before the signal, or undefined if gone. */
   observe(pid: number): Promise<OrphanObservation | undefined>
-  signalGroup(group: string): Promise<void>
 }
 
 function isSameConfirmation(observation: OrphanObservation, confirmation: LaunchConfirmation) {
@@ -167,6 +182,7 @@ function isSameConfirmation(observation: OrphanObservation, confirmation: Launch
 
 /** Recovery reads foreign records, never mutates their journal, copy, branch or refs. */
 export function createOrphanRecovery(driver: OrphanRecoveryDriver) {
+  const ownership = createProcessOwnership(driver)
   return {
     async find(records: readonly TeamLaunchRecord[]): Promise<readonly OrphanProcess[]> {
       const open = records.filter((record) => record.end?.descendants !== 'proved')
@@ -194,19 +210,21 @@ export function createOrphanRecovery(driver: OrphanRecoveryDriver) {
     async stop(
       orphan: OrphanProcess,
       isUserConfirmed: boolean,
-    ): Promise<'stopped' | 'changed' | 'kept'> {
+    ): Promise<
+      | 'stopped'
+      | 'changed'
+      | 'kept'
+      | { readonly kind: 'partiallyStopped'; readonly notOwned: readonly number[] }
+    > {
       if (!isUserConfirmed) return 'kept'
-      const current = await driver.observe(orphan.pid)
-      if (
-        current?.pid !== orphan.pid ||
-        current.group !== orphan.group ||
-        current.startTime !== orphan.startTime ||
-        (orphan.match === 'matched' && current.launchId !== orphan.launchId)
+      const result = await ownership.signal(
+        { ...orphan, launchId: orphan.match === 'matched' ? orphan.launchId : undefined },
+        'SIGTERM',
       )
-        return 'changed'
-      // PID reuse between this final check and signal remains the documented kill residual.
-      await driver.signalGroup(current.group)
-      return 'stopped'
+      if (!result.signalled.includes(orphan.pid)) return 'changed'
+      return result.notOwned.length === 0
+        ? 'stopped'
+        : { kind: 'partiallyStopped', notOwned: result.notOwned }
     },
   }
 }

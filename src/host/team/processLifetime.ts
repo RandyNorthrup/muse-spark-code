@@ -16,6 +16,7 @@ import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { createNativeOrphanDriver, createOrphanRecovery } from './orphanRecovery'
+import { createProcessOwnership } from './processOwnership'
 import { MuseCodeHost } from '../../core/backends/musecode/MuseCodeHost'
 import type { CoreLogger } from '../../core/logging'
 import { withDeadline } from '../../core/timeouts'
@@ -152,15 +153,28 @@ const confirmationSchema = z.strictObject({
 const endSchema = z.strictObject({
   childExited: z.boolean(),
   descendants: z.enum(['proved', 'uncertain']),
+  notOwned: z.optional(z.array(z.number().check(z.int(), z.positive()))),
 })
-const launchSchema = z.strictObject({
-  id: z.uuid(),
-  command: z.string().check(z.minLength(1)),
-  cwd: z.string().check(z.minLength(1)),
-  taskId: z.string().check(z.minLength(1)),
-  confirmation: z.optional(confirmationSchema),
-  end: z.optional(endSchema),
-})
+const launchSchema = z
+  .strictObject({
+    id: z.uuid(),
+    command: z.string().check(z.minLength(1)),
+    cwd: z.string().check(z.minLength(1)),
+    taskId: z.string().check(z.minLength(1)),
+    confirmation: z.optional(confirmationSchema),
+    end: z.optional(endSchema),
+  })
+  .check(
+    z.refine(
+      (record) =>
+        record.end?.descendants !== 'proved' ||
+        (record.end.childExited &&
+          record.confirmation !== undefined &&
+          record.confirmation.container !== 'processGroup' &&
+          (record.end.notOwned?.length ?? 0) === 0),
+      { message: 'TEAM_RETIREMENT_PROOF_INVALID' },
+    ),
+  )
 
 export type TeamLaunchRecord = z.infer<typeof launchSchema>
 export type LaunchConfirmation = z.infer<typeof confirmationSchema>
@@ -188,7 +202,48 @@ export interface ContainedTeamChild {
 
 /** Explicit OS seam. No uncontained spawn or taskkill fallback is accepted here. */
 export interface TeamProcessDriver {
-  launch(request: TeamLaunchRequest, launchId: string): ContainedTeamChild
+  launch(
+    request: TeamLaunchRequest,
+    launchId: string,
+    lifecycle?: TeamLaunchLifecycle,
+  ): ContainedTeamChild
+}
+
+/** One owner for launch transitions, including synchronous cancellation at dispose. */
+class TeamLaunchLifecycle {
+  private cancelHeld: (() => void) | undefined
+  phase: 'spawning' | 'confirming' | 'released' | 'retiring' | 'ended' = 'spawning'
+
+  hold(cancel: () => void) {
+    this.cancelHeld = cancel
+    if (this.phase === 'retiring' || this.phase === 'ended') cancel()
+  }
+
+  confirm() {
+    if (this.phase !== 'spawning') throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
+    this.phase = 'confirming'
+  }
+
+  release() {
+    if (this.phase !== 'confirming') throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
+    this.phase = 'released'
+    this.cancelHeld = undefined
+  }
+
+  releaseIfHeld() {
+    if (this.phase === 'confirming') this.release()
+    if (this.phase !== 'released') throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
+  }
+
+  retire() {
+    if (this.phase !== 'ended') this.phase = 'retiring'
+    this.cancelHeld?.()
+  }
+
+  end() {
+    this.phase = 'ended'
+    this.cancelHeld = undefined
+  }
 }
 
 export interface TeamProcessLifetime {
@@ -205,6 +260,7 @@ export function createTeamProcessLifetime(options: {
 }): TeamProcessLifetime {
   const active = new Set<Promise<ContainedTeamChild>>()
   const failedChildren = new Set<ContainedTeamChild>()
+  const launches = new Set<TeamLaunchLifecycle>()
   const state = { isDisposed: false }
   const save = (record: TeamLaunchRecord) =>
     options.journal.write(`launch-${record.id}`, record, launchSchema)
@@ -218,6 +274,8 @@ export function createTeamProcessLifetime(options: {
         cwd: request.cwd,
         taskId: request.taskId,
       })
+      const lifecycle = new TeamLaunchLifecycle()
+      launches.add(lifecycle)
       // Register pending work synchronously, so dispose cannot miss a launch awaiting its intent.
       const pending = (async () => {
         await save(record)
@@ -229,24 +287,29 @@ export function createTeamProcessLifetime(options: {
             env: { ...request.env, MUSE_SPARK_LAUNCH_ID: record.id },
           },
           record.id,
+          lifecycle,
         )
         try {
           const confirmation = confirmationSchema.parse(await launched.confirmation)
+          lifecycle.confirm()
           await save({ ...record, confirmation })
-          await launched.resume?.(confirmation)
+          if (lifecycle.phase !== 'confirming') throw new Error('TEAM_PROCESS_LIFETIME_DISPOSED')
+          if (launched.resume === undefined) lifecycle.release()
+          else await launched.resume(confirmation)
+          lifecycle.releaseIfHeld()
           let endTail = Promise.resolve<Retirement | undefined>(undefined)
           const recordEnd = (raw: Retirement): Promise<Retirement> => {
             const previousTail = endTail
             const saved = (async () => {
               const previous = await previousTail
-              const end = endSchema.parse(raw)
-              if (
-                end.descendants === 'proved' &&
-                (!end.childExited || confirmation.container === 'processGroup')
-              )
-                throw new Error('TEAM_RETIREMENT_PROOF_INVALID')
+              const end = launchSchema.parse({ ...record, confirmation, end: raw }).end
+              if (end === undefined) throw new Error('TEAM_RETIREMENT_MISSING')
               if (previous?.descendants === 'proved') return previous
               await save({ ...record, confirmation, end })
+              if (end.descendants === 'proved') {
+                lifecycle.end()
+                launches.delete(lifecycle)
+              }
               return end
             })()
             // Preserve a successful outcome, but let persistence retry after a rejected write.
@@ -266,11 +329,15 @@ export function createTeamProcessLifetime(options: {
           return {
             ...launched,
             ended,
-            retire: async () => await recordEnd(await launched.retire()),
+            retire: async () => {
+              lifecycle.retire()
+              return await recordEnd(await launched.retire())
+            },
           }
         } catch (error: unknown) {
           // Confirmation/journal failure must not hide a child whose retirement is uncertain.
           failedChildren.add(launched)
+          lifecycle.retire()
           await launched.retire()
           throw error
         }
@@ -287,11 +354,13 @@ export function createTeamProcessLifetime(options: {
         return { ...launched, launchId: record.id }
       } catch (error: unknown) {
         active.delete(pending)
+        if (lifecycle.phase === 'spawning') launches.delete(lifecycle)
         throw error
       }
     },
     async dispose() {
       state.isDisposed = true
+      for (const lifecycle of launches) lifecycle.retire()
       const outcomes = await Promise.allSettled([
         ...[...active].map(async (pending) => {
           const launched = await pending
@@ -367,7 +436,7 @@ export async function createNativeTeamProcessDriver(options: {
   }
   const observer = createNativeOrphanDriver()
   return {
-    launch(request, launchId) {
+    launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const unit = `muse-spark-${launchId}.scope`
       // The shell remains the group leader until exec, preserving PID and start identity.
       // Its private fd is closed before the command runs; stdin remains the command's pipe.
@@ -417,6 +486,7 @@ export async function createNativeTeamProcessDriver(options: {
       gate.on('error', () => {
         // resume's write callback reports pipe failure; retirement can also close the gate.
       })
+      lifecycle.hold(() => gate.end())
       const exited = new Promise<boolean>((resolve, reject) => {
         child.once('exit', () => {
           resolve(true)
@@ -435,8 +505,8 @@ export async function createNativeTeamProcessDriver(options: {
           state.isExited = true
         })
       const confirmation = (async (): Promise<LaunchConfirmation> => {
-        const deadline = Date.now() + NATIVE_CONFIRM_MS
-        while (Date.now() < deadline) {
+        const deadline = performance.now() + NATIVE_CONFIRM_MS
+        while (performance.now() < deadline) {
           if (child.pid === undefined) {
             await exited
             throw new Error('TEAM_PROCESS_NOT_STARTED')
@@ -493,44 +563,43 @@ export async function createNativeTeamProcessDriver(options: {
         /* The caller receives this failure; no retirement proof is invented. */
       })
       let recorded: LaunchConfirmation | undefined
+      const ownership = createProcessOwnership(observer)
+      const notOwned = new Set<number>()
+      const uncertain = (): Retirement => ({
+        childExited: state.isExited,
+        descendants: 'uncertain',
+        ...(notOwned.size > 0 && { notOwned: [...notOwned] }),
+      })
       const didSignal = async (name: 'SIGTERM' | 'SIGKILL'): Promise<boolean> => {
         if (recorded === undefined) return false
+        let canSignalScope = hasScope
         try {
-          if (process.platform === 'linux') {
+          if (hasScope && process.platform === 'linux') {
             if (
               recorded.cgroup === undefined ||
               (await readFile(`/proc/${String(recorded.pid)}/cgroup`, 'utf8')) !== recorded.cgroup
             )
-              return false
-            if (hasScope) {
-              const rawGroup = await runProgram(
-                'systemctl',
-                ['--user', 'show', unit, '--property=ControlGroup', '--value'],
-                probeEnv,
-              )
-              const group = rawGroup.trim()
-              if (
-                `/sys/fs/cgroup${group}/cgroup.events` !== state.cgroup ||
-                !recorded.cgroup.split('\n').includes(`0::${group}`)
-              )
-                return false
-            }
+              canSignalScope = false
+            const rawGroup = await runProgram(
+              'systemctl',
+              ['--user', 'show', unit, '--property=ControlGroup', '--value'],
+              probeEnv,
+            )
+            const group = rawGroup.trim()
+            if (
+              `/sys/fs/cgroup${group}/cgroup.events` !== state.cgroup ||
+              !recorded.cgroup?.split('\n').includes(`0::${group}`)
+            )
+              canSignalScope = false
           }
-          // No intervening await on the process-group path after the final leader sample.
-          const current = await observer.observe(recorded.pid)
-          if (
-            current?.pid !== recorded.pid ||
-            current.group !== String(recorded.pid) ||
-            current.startTime !== recorded.startTime ||
-            current.launchId !== launchId ||
-            (!hasScope && current.group !== recorded.group)
-          )
-            return false
         } catch {
-          // Unavailable identity/membership is not authority to signal. Keep recovery open.
-          return false
+          // Missing membership never authorizes the scope; members still need their own proof.
+          canSignalScope = false
         }
-        if (hasScope) {
+        if (
+          canSignalScope &&
+          (await ownership.isOwned({ ...recorded, group: String(recorded.pid), launchId }))
+        ) {
           try {
             await runProgram(
               'systemctl',
@@ -548,32 +617,41 @@ export async function createNativeTeamProcessDriver(options: {
             }
             throw error
           }
-        } else if (child.pid !== undefined) {
-          try {
-            process.kill(-child.pid, name)
-          } catch (error: unknown) {
-            if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH')) throw error
-          }
+        } else {
+          const result = await ownership.signalLaunch(
+            {
+              ...recorded,
+              group: hasScope ? String(recorded.pid) : recorded.group,
+              launchId,
+            },
+            name,
+          )
+          for (const pid of result.notOwned) notOwned.add(pid)
+          return result.signalled.length > 0
         }
         return true
       }
-      let retiring: Promise<Retirement> | undefined
       const retire = async (): Promise<Retirement> => {
+        lifecycle.retire()
+        notOwned.clear()
         if (recorded === undefined) {
           // EOF cancels the held launcher without sending any PID/group signal.
           gate.end()
           await exited
           return { childExited: true, descendants: 'uncertain' }
         }
-        if (!(await isEmpty()) && !(await didSignal('SIGTERM')))
-          return { childExited: state.isExited, descendants: 'uncertain' }
-        const deadline = Date.now() + options.killGraceMs
-        while (Date.now() < deadline && !(await isEmpty())) await delay(NATIVE_POLL_MS)
+        if (!(await isEmpty()) && !(await didSignal('SIGTERM'))) return uncertain()
+        const deadline = performance.now() + options.killGraceMs
+        while (performance.now() < deadline && !(await isEmpty())) await delay(NATIVE_POLL_MS)
         // A direct child's exit is never evidence that a group has no descendants.
-        if (!(await isEmpty()) && !(await didSignal('SIGKILL')))
-          return { childExited: state.isExited, descendants: 'uncertain' }
+        if (!(await isEmpty()) && !(await didSignal('SIGKILL'))) return uncertain()
         await exited
-        return { childExited: true, descendants: (await isEmpty()) ? 'proved' : 'uncertain' }
+        const descendants = (await isEmpty()) ? 'proved' : 'uncertain'
+        return {
+          childExited: true,
+          descendants,
+          ...(notOwned.size > 0 && descendants === 'uncertain' && { notOwned: [...notOwned] }),
+        }
       }
       return {
         child,
@@ -584,6 +662,8 @@ export async function createNativeTeamProcessDriver(options: {
           const parsed = confirmationSchema.parse(value)
           if (JSON.stringify(parsed) !== JSON.stringify(observed))
             throw new Error('TEAM_LAUNCH_CONFIRMATION_CHANGED')
+          if (lifecycle.phase === 'spawning') lifecycle.confirm()
+          lifecycle.release()
           recorded = parsed
           await new Promise<void>((resolve, reject) => {
             gate.write(`${launchId}\n`, 'utf8', (error) => {
@@ -593,7 +673,7 @@ export async function createNativeTeamProcessDriver(options: {
             })
           })
         },
-        retire: () => (retiring ??= retire()),
+        retire,
       }
     },
   }
@@ -601,12 +681,12 @@ export async function createNativeTeamProcessDriver(options: {
 
 function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDriver {
   return {
-    launch(request, launchId) {
+    launch(request, launchId, lifecycle = new TeamLaunchLifecycle()) {
       const nonce = randomBytes(MCP_JOB_NONCE_BYTES).toString('hex')
       const ownerPipe = `muse-team-owner-${launchId}`
       const statusPipe = `muse-team-status-${launchId}`
       const group = String.raw`Local\MuseSparkTeam-${launchId}`
-      let stop: (() => void) | undefined
+      let send: ((command: 'GO' | 'STOP') => Promise<void>) | undefined
       // Node 20 (the VS Code floor) has no Promise.withResolvers. Subscribe
       // in the executor instead of extracting resolvers into mutable variables.
       const events = new EventTarget()
@@ -653,15 +733,24 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         let text = ''
         socket.on('data', (bytes: Buffer) => {
           text += bytes.toString('utf8')
-          if (text === `READY ${nonce}\n`) socket.end(`GO ${nonce}\n`)
-          else if (text.length > MCP_JOB_HANDSHAKE_MAX_CHARS) socket.destroy()
+          if (text === `READY ${nonce}\n`) {
+            if (lifecycle.phase === 'retiring') socket.end()
+            else socket.end(`GO ${nonce}\n`)
+          } else if (text.length > MCP_JOB_HANDSHAKE_MAX_CHARS) socket.destroy()
         })
       })
       const status = createServer((socket) => {
         socket.on('error', () => socket.destroy())
-        stop = () => {
-          socket.write(`STOP ${nonce}\n`)
-        }
+        send = (command) =>
+          new Promise<void>((resolve, reject) => {
+            socket.write(`${command} ${nonce}\n`, 'utf8', (error) => {
+              if (error == null) resolve()
+              else reject(error)
+            })
+          })
+        lifecycle.hold(() => {
+          void send?.('STOP').catch(fail)
+        })
         let text = ''
         socket.on('data', (bytes: Buffer) => {
           text += bytes.toString('utf8')
@@ -683,6 +772,8 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
               })
               if (parsed.success) confirm(parsed.data)
               else fail(new Error('TEAM_WINDOWS_CONFIRMATION_INVALID'))
+            } else if (line === 'STOP_FAILED') {
+              events.dispatchEvent(new Event('retirementFailed'))
             } else if (line === 'END proved') {
               result.end = { childExited: true, descendants: 'proved' }
               // Release the native control reader on natural command exit.
@@ -746,15 +837,43 @@ function windowsTeamDriver(assembly: string, systemRoot: string): TeamProcessDri
         child,
         confirmation,
         ended,
+        async resume(value) {
+          const observed = await confirmation
+          if (JSON.stringify(confirmationSchema.parse(value)) !== JSON.stringify(observed))
+            throw new Error('TEAM_LAUNCH_CONFIRMATION_CHANGED')
+          if (lifecycle.phase === 'spawning') lifecycle.confirm()
+          if (send === undefined) throw new Error('TEAM_WINDOWS_CONTROL_UNAVAILABLE')
+          lifecycle.release()
+          await send('GO')
+        },
         async retire() {
-          if (stop === undefined)
+          lifecycle.retire()
+          if (send === undefined)
             // No native control channel: keep uncertainty rather than signal an unverified PID.
             return {
               childExited: child.exitCode !== null || child.signalCode !== null,
               descendants: 'uncertain',
             }
-          stop()
-          await closed
+          const failure = new AbortController()
+          try {
+            await withDeadline(
+              new Promise<void>((resolve, reject) => {
+                events.addEventListener(
+                  'retirementFailed',
+                  () => {
+                    reject(new Error('TEAM_WINDOWS_RETIREMENT_FAILED'))
+                  },
+                  { once: true, signal: failure.signal },
+                )
+                void closed.then(resolve)
+                void send?.('STOP').catch(reject)
+              }),
+              NATIVE_CONFIRM_MS,
+              'TEAM_WINDOWS_RETIREMENT_TIMEOUT',
+            )
+          } finally {
+            failure.abort()
+          }
           return await ended
         },
       }

@@ -20284,12 +20284,15 @@ before a repaired one loads (2026-09-30).
   must surface these retained records through U2's existing recovery actions;
   the native certification lead owns control-loss/platform receipts.
 - **M96 K, `K-signal-final-interval`.** The required live identity and Linux
-  membership checks now run immediately before every retirement signal.
-  Sampling and signaling remain separate OS calls, as the existing D75
-  PID-reuse residual states; the fix removes signaling of arbitrarily old
-  cached identifiers. Follow-up: evaluate stable OS process/container handles
-  with the native certification lead. Unproved ownership refuses signaling
-  and keeps recovery open.
+  membership checks run immediately before every retirement signal. REDM96K
+  replaces Linux PID signals with pidfds opened before the final identity
+  sample; absence of the kernel/Python facility fails closed. Windows STOP
+  uses a duplicated kernel process handle. macOS process/group signals and
+  Linux named-scope control still have the documented interval between proof
+  and the separate control syscall. The native certification lead owns those
+  remaining platform receipts. Unproved ownership refuses group/container
+  signaling; individually proved marked survivors may still be retired and
+  the uncertain launch remains recoverable.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

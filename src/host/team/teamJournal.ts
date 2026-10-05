@@ -189,14 +189,28 @@ export function createTeamJournal(options: {
     },
     async read(name, schema) {
       return await serialize(async () => {
+        // A damaged leaf is evidence, not a traversal and not a fatal startup error.
+        if (!recordNameSchema.safeParse(name).success) {
+          return {
+            kind: 'broken',
+            file: path.join(directory, `${path.basename(name)}.json`),
+            wasMovedAside: false,
+          }
+        }
         const target = targetFor(name)
-        await assertPath(target)
+        try {
+          await assertPath(target)
+        } catch {
+          // A linked/unavailable record is unreadable evidence; do not follow or move it.
+          return { kind: 'broken', file: target, wasMovedAside: false }
+        }
         let content: string
         try {
           content = await readFile(target, 'utf8')
         } catch (error: unknown) {
-          if (storeErrorCode(error) === 'ENOENT') return { kind: 'missing' }
-          throw error
+          return storeErrorCode(error) === 'ENOENT'
+            ? { kind: 'missing' }
+            : { kind: 'broken', file: target, wasMovedAside: false }
         }
         try {
           if (Buffer.byteLength(content) > options.maxRecordBytes) {
@@ -256,8 +270,10 @@ export function createTeamJournal(options: {
         for (const name of names) {
           if (!name.endsWith('.json')) continue
           const file = path.join(foreignDirectory, name)
-          await assertPath(file)
           try {
+            if (!recordNameSchema.safeParse(name.slice(0, -'.json'.length)).success)
+              throw new Error('TEAM_JOURNAL_NAME_INVALID')
+            await assertPath(file)
             const content = await readFile(file, 'utf8')
             if (Buffer.byteLength(content) > options.maxRecordBytes)
               throw new Error('TEAM_JOURNAL_RECORD_TOO_LARGE')

@@ -1,10 +1,13 @@
-import { chmod, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises'
+import { constants as fsConstants, type Stats } from 'node:fs'
+import { chmod, mkdir, open, readdir, rm, stat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import process from 'node:process'
 import path from 'node:path'
 import { homedir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { canonicalPath } from '../canonicalPath'
-import { writeFileAtomically } from '../fsAtomic'
+import { renameReplacing } from '../fsAtomic'
 import { storeErrorCode } from '../backend/storeErrors'
 import { runProgram, windowsPowerShell } from '../processTree'
 import { powerShellQuoted } from '../../core/shellQuote'
@@ -38,8 +41,36 @@ async function secureNativeWindowsDirectory(directory: string): Promise<void> {
   if (result.trim() !== 'secured') throw new Error('TEAM_HINT_ACL_UNVERIFIED')
 }
 
+async function assertNativeWindowsHintFile(target: string): Promise<void> {
+  const systemRoot = process.env['SystemRoot']
+  if (systemRoot === undefined) throw new Error('TEAM_HINT_ACL_UNAVAILABLE')
+  const powershell = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+  const script = `$ErrorActionPreference='Stop'; $file = New-Object IO.FileInfo(${powerShellQuoted(target)}); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $acl = $file.GetAccessControl(); $rules = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); if (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value -or $rules.Count -ne 1 -or $rules[0].IdentityReference.Value -ne $sid.Value -or $rules[0].AccessControlType -ne 'Allow' -or $rules[0].FileSystemRights -ne 'FullControl') { throw 'TEAM_HINT_FILE_UNSAFE' }; 'verified'`
+  const result = await runProgram(
+    powershell.file,
+    [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+    powershell.env,
+  )
+  if (result.trim() !== 'verified') throw new Error('TEAM_HINT_FILE_UNSAFE')
+}
+
 const OWNER_DIRECTORY_MODE = 0o700
+const OWNER_FILE_MODE = 0o600
 const DIRECTORY_PERMISSION_MASK = 0o777
+const UNSAFE_FILE_WRITE_MASK = 0o022
+function assertSafeHintFile(
+  information: Stats,
+  platform: NodeJS.Platform,
+  shouldBePrivate: boolean,
+) {
+  if (!information.isFile() || information.nlink !== 1) throw new Error('TEAM_HINT_FILE_UNSAFE')
+  if (platform === 'win32') return
+  const hasUnsafeMode = shouldBePrivate
+    ? (information.mode & DIRECTORY_PERMISSION_MASK) !== OWNER_FILE_MODE
+    : (information.mode & UNSAFE_FILE_WRITE_MASK) !== 0
+  if (hasUnsafeMode || information.uid !== process.getuid?.())
+    throw new Error('TEAM_HINT_FILE_UNSAFE')
+}
 const countSchema = z.number().check(z.int(), z.nonnegative())
 const hintSchema = z.strictObject({
   instanceId: z.uuid(),
@@ -146,8 +177,27 @@ export function createWindowHints(options: {
         if (!name.endsWith('.json')) continue
         const target = path.join(directory, name)
         try {
-          await assertHintPath(target)
-          const text = await readFile(target, 'utf8')
+          if (options.platform === 'win32') await assertHintPath(target)
+          const handle = await open(
+            target,
+            fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
+          )
+          let text: string
+          try {
+            const information = await handle.stat()
+            assertSafeHintFile(information, options.platform, false)
+            if (information.size > options.maxHintBytes) continue
+            if (options.platform === 'win32') {
+              try {
+                await assertNativeWindowsHintFile(target)
+              } catch (error: unknown) {
+                throw new Error('TEAM_HINT_FILE_UNSAFE', { cause: error })
+              }
+            }
+            text = await handle.readFile('utf8')
+          } finally {
+            await handle.close()
+          }
           if (Buffer.byteLength(text) > options.maxHintBytes) continue
           const parsed = hintSchema.safeParse(JSON.parse(text))
           if (!parsed.success || name !== `${parsed.data.instanceId}.json`) continue
@@ -155,7 +205,14 @@ export function createWindowHints(options: {
           if (age >= 0 && age < options.freshMs) hints.push(parsed.data)
         } catch (error: unknown) {
           // A torn, malformed, linked or concurrently removed hint carries no authority.
-          if (storeErrorCode(error) === 'EACCES') throw error
+          if (
+            storeErrorCode(error) === 'EACCES' ||
+            storeErrorCode(error) === 'ELOOP' ||
+            (error instanceof Error &&
+              (error.message === 'TEAM_HINT_FILE_UNSAFE' ||
+                error.message === 'TEAM_HINT_PATH_CHANGED'))
+          )
+            throw error
         }
       }
       return hints
@@ -174,9 +231,36 @@ export function createWindowHints(options: {
         const hint = hintSchema.parse({ ...state, instanceId, at: options.now() })
         const text = JSON.stringify(hint)
         if (Buffer.byteLength(text) > options.maxHintBytes) throw new Error('TEAM_HINT_TOO_LARGE')
-        await assertHintPath(file)
         if (isUnavailable()) return
-        await writeFileAtomically(file, text, { sleep: delay, expectedCanonicalPath: file })
+        // Do not inherit an unsafe destination's mode, links, owner or ACL.
+        // A fresh exclusive inode is checked before it receives any metadata.
+        const temporary = path.join(directory, `.${instanceId}.${randomUUID()}.tmp`)
+        try {
+          const handle = await open(temporary, 'wx', OWNER_FILE_MODE)
+          try {
+            const information = await handle.stat()
+            assertSafeHintFile(information, options.platform, true)
+            await handle.writeFile(text, 'utf8')
+          } finally {
+            await handle.close()
+          }
+          await renameReplacing(
+            temporary,
+            file,
+            {
+              sleep: delay,
+              beforeCommit: () => {
+                if (isUnavailable()) throw new Error('TEAM_HINT_CLOSED')
+              },
+            },
+            async () => {
+              await assertHintPath(directory)
+            },
+          )
+        } finally {
+          await assertHintPath(directory)
+          await rm(temporary, { force: true })
+        }
       } catch {
         disable()
       }

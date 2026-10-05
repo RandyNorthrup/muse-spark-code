@@ -1,4 +1,15 @@
-import { chmod, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises'
+import {
+  chmod,
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -16,16 +27,29 @@ import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
 
 const directories: string[] = []
-const permissionState = vi.hoisted(() => ({ ignoresChmod: false }))
+const permissionState = vi.hoisted(() => ({ ignoresChmod: false, foreignUid: false }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof fsPromises>()
   const chmod: typeof actual.chmod = async (target, mode) => {
     if (!permissionState.ignoresChmod) await actual.chmod(target, mode)
   }
-  return { ...actual, chmod }
+  const open: typeof actual.open = async (target, flags, mode) => {
+    const file = await actual.open(target, flags, mode)
+    if (permissionState.foreignUid) {
+      vi.spyOn(file, 'stat').mockImplementation(async () => {
+        const information = await actual.stat(target)
+        Object.defineProperty(information, 'uid', { value: information.uid + 1 })
+        return information
+      })
+    }
+    return file
+  }
+  return { ...actual, chmod, open }
 })
 afterEach(async () => {
   permissionState.ignoresChmod = false
+  permissionState.foreignUid = false
+  vi.restoreAllMocks()
   vi.useRealTimers()
   for (const directory of directories.splice(0))
     await rm(directory, { recursive: true, force: true })
@@ -82,6 +106,14 @@ const hintState: Omit<WindowHint, 'at' | 'instanceId'> = {
   heavyCommands: 1,
 }
 const intent = { repository: '/repo/.git', paths: ['src/a.ts'], exclusiveServers: [] }
+
+async function publishedHintFixture() {
+  const f = await hintFixture()
+  const writer = f.make()
+  const reader = f.make()
+  await writer.hints.publish(hintState)
+  return { ...f, writer, reader, file: path.join(f.directory, `${writer.id}.json`) }
+}
 
 describe('M96 K advisory hints', () => {
   it('uses state home and secures a real native owner-only hints folder', async () => {
@@ -217,30 +249,89 @@ describe('M96 K advisory hints', () => {
     expect(disabled).toHaveBeenCalledTimes(1)
   })
 
-  if (process.platform !== 'win32') {
-    it('refuses forged hints and publication when successful chmod leaves permissive bits', async () => {
-      const f = await hintFixture()
-      const other = f.make()
-      const mine = f.make()
-      const forged = path.join(f.directory, `${other.id}.json`)
-      await writeFile(forged, JSON.stringify({ ...hintState, instanceId: other.id, at: 100_000 }))
-      await chmod(f.directory, 0o777)
-      permissionState.ignoresChmod = true
-      expect(await mine.hints.check({ ...intent, exclusiveServers: ['browser'] })).toBe('continue')
+  if (process.platform === 'win32') {
+    return
+  }
+
+  it('rejects a two-link other-uid hint despite a verified owner-only directory', async () => {
+    const f = await publishedHintFixture()
+    const { writer, reader, file } = f
+    const retained = path.join(f.directory, 'retained-link')
+    await link(file, retained)
+    await chmod(file, 0o666)
+    permissionState.foreignUid = true
+    expect(await reader.hints.check(intent)).toBe('continue')
+    expect(f.question).not.toHaveBeenCalled()
+    expect(f.disabled).toHaveBeenCalledTimes(1)
+    permissionState.foreignUid = false
+    await writer.hints.publish({ ...hintState, workers: 1 })
+    const information = await stat(file)
+    expect(information.nlink).toBe(1)
+    expect(JSON.parse(await readFile(retained, 'utf8'))).toMatchObject({ workers: 4 })
+    await writer.hints.dispose()
+    await reader.hints.dispose()
+  })
+
+  for (const unsafe of ['owner', 'write', 'links', 'symlink', 'directory'] as const) {
+    it(`disables hints for an unsafe opened file: ${unsafe}`, async () => {
+      const f = await publishedHintFixture()
+      const { reader, file } = f
+      switch (unsafe) {
+        case 'owner': {
+          permissionState.foreignUid = true
+          break
+        }
+        case 'write': {
+          await chmod(file, 0o666)
+          break
+        }
+        case 'links': {
+          await link(file, path.join(f.directory, 'retained'))
+          break
+        }
+        case 'symlink': {
+          const text = await readFile(file)
+          await rm(file)
+          const target = path.join(f.directory, 'target')
+          await writeFile(target, text, { mode: 0o600 })
+          await symlink(target, file)
+          break
+        }
+        case 'directory': {
+          await rm(file)
+          await mkdir(file)
+          break
+        }
+      }
+      expect(await reader.hints.check(intent)).toBe('continue')
       expect(f.question).not.toHaveBeenCalled()
       expect(f.disabled).toHaveBeenCalledTimes(1)
-      const publisher = f.make()
-      await publisher.hints.publish(hintState)
-      await expect(readFile(path.join(f.directory, `${publisher.id}.json`))).rejects.toMatchObject({
-        code: 'ENOENT',
-      })
-      expect(f.disabled).toHaveBeenCalledTimes(2)
-      const information = await stat(f.directory)
-      expect(information.mode & 0o777).toBe(0o777)
-      await mine.hints.dispose()
-      await publisher.hints.dispose()
+      permissionState.foreignUid = false
     })
   }
+
+  it('refuses forged hints and publication when successful chmod leaves permissive bits', async () => {
+    const f = await hintFixture()
+    const other = f.make()
+    const mine = f.make()
+    const forged = path.join(f.directory, `${other.id}.json`)
+    await writeFile(forged, JSON.stringify({ ...hintState, instanceId: other.id, at: 100_000 }))
+    await chmod(f.directory, 0o777)
+    permissionState.ignoresChmod = true
+    expect(await mine.hints.check({ ...intent, exclusiveServers: ['browser'] })).toBe('continue')
+    expect(f.question).not.toHaveBeenCalled()
+    expect(f.disabled).toHaveBeenCalledTimes(1)
+    const publisher = f.make()
+    await publisher.hints.publish(hintState)
+    await expect(readFile(path.join(f.directory, `${publisher.id}.json`))).rejects.toMatchObject({
+      code: 'ENOENT',
+    })
+    expect(f.disabled).toHaveBeenCalledTimes(2)
+    const information = await stat(f.directory)
+    expect(information.mode & 0o777).toBe(0o777)
+    await mine.hints.dispose()
+    await publisher.hints.dispose()
+  })
 })
 
 describe('M96 K load sampler', () => {
@@ -353,33 +444,35 @@ describe('M96 K orphan decisions', () => {
         { ...observation, pid: 43, group: '43', startTime: 'boot:124' },
       ]),
     )
-    const signalGroup = vi.fn(() => Promise.resolve())
+    const signal = vi.fn(() => Promise.resolve(true))
     const observe = vi.fn(() => Promise.resolve(observation))
-    const recovery = createOrphanRecovery({ scan, signalGroup, observe })
+    const recovery = createOrphanRecovery({ scan, signal, observe })
     const found = await recovery.find([record])
     expect(found).toHaveLength(2)
     expect(found[1]).toMatchObject({ pid: 43, match: 'matched' })
     expect(await recovery.stop(found[0]!, false)).toBe('kept')
-    expect(signalGroup).not.toHaveBeenCalled()
+    expect(signal).not.toHaveBeenCalled()
     expect(observe).not.toHaveBeenCalled()
     expect(await recovery.stop(found[0]!, true)).toBe('stopped')
-    expect(observe.mock.invocationCallOrder[0]).toBeLessThan(
-      signalGroup.mock.invocationCallOrder[0]!,
+    expect(observe.mock.invocationCallOrder[0]).toBeLessThan(signal.mock.invocationCallOrder[0]!)
+    expect(signal).toHaveBeenCalledWith(
+      expect.objectContaining(observation),
+      'SIGTERM',
+      process.platform === 'darwin',
     )
-    expect(signalGroup).toHaveBeenCalledWith('42')
   })
 
   it('refuses changed PID or marker after second check, and labels PID-only match uncertain', async () => {
-    const signalGroup = vi.fn(() => Promise.resolve())
+    const signal = vi.fn(() => Promise.resolve(true))
     const observe = vi.fn(() => Promise.resolve({ ...observation, startTime: 'boot:999' }))
     const recovery = createOrphanRecovery({
       scan: () => Promise.resolve([{ ...observation, launchId: undefined }]),
       observe,
-      signalGroup,
+      signal,
     })
     const found = await recovery.find([record])
     expect(found[0]).toMatchObject({ match: 'uncertain' })
     expect(await recovery.stop(found[0]!, true)).toBe('changed')
-    expect(signalGroup).not.toHaveBeenCalled()
+    expect(signal).not.toHaveBeenCalled()
   })
 })

@@ -329,6 +329,48 @@ describe('M96 K real native lifetime', () => {
     if (process.platform === 'win32') expect(outcome.descendants).toBe('proved')
   })
 
+  it('aborts a held confirmation on dispose without releasing the real command', async () => {
+    const f = await fixture()
+    const barrier = new EventTarget()
+    const saved = new Promise<void>((resolve) => {
+      barrier.addEventListener(
+        'saved',
+        () => {
+          resolve()
+        },
+        { once: true },
+      )
+    })
+    const release = new Promise<void>((resolve) => {
+      barrier.addEventListener(
+        'release',
+        () => {
+          resolve()
+        },
+        { once: true },
+      )
+    })
+    const write = f.journal.write
+    vi.spyOn(f.journal, 'write').mockImplementation(async (name, value, schema) => {
+      await write(name, value, schema)
+      const record = z.object({ confirmation: z.optional(z.unknown()) }).parse(value)
+      if (record.confirmation === undefined) return
+      barrier.dispatchEvent(new Event('saved'))
+      await release
+    })
+    const output = path.join(f.directory, 'executed-after-dispose')
+    const pending = f.lifetime.launch(
+      f.request(`require('node:fs').writeFileSync(${JSON.stringify(output)},'executed')`),
+    )
+    const rejected = expect(pending).rejects.toThrow('DISPOSED')
+    await saved
+    const disposing = f.lifetime.dispose()
+    barrier.dispatchEvent(new Event('release'))
+    await rejected
+    await disposing
+    await expect(readFile(output)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   if (process.platform !== 'win32') {
     async function fallbackDriver() {
       const runProgram = processTree.runProgram
@@ -343,7 +385,7 @@ describe('M96 K real native lifetime', () => {
       return { driver, observer }
     }
 
-    it('signals nothing on disposal after PID and process-group reuse', async () => {
+    async function fallbackFixture() {
       const f = await fixture()
       const { driver, observer } = await fallbackDriver()
       const lifetime = createTeamProcessLifetime({
@@ -351,8 +393,19 @@ describe('M96 K real native lifetime', () => {
         driver,
         isHostBusy: () => false,
       })
-      stops.push(() => lifetime.dispose())
-      const child = await lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+      return { ...f, lifetime, observer }
+    }
+
+    async function runningFallbackFixture() {
+      const f = await fallbackFixture()
+      const child = await f.lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+      stops.push(() => f.lifetime.dispose())
+      return { ...f, child }
+    }
+
+    it('signals nothing on disposal after PID and process-group reuse', async () => {
+      const f = await runningFallbackFixture()
+      const { lifetime, observer, child } = f
       const confirmation = await child.confirmation
       child.child.kill()
       await child.ended
@@ -364,19 +417,18 @@ describe('M96 K real native lifetime', () => {
         command: 'unrelated-process',
       })
       const signal = vi.spyOn(process, 'kill').mockReturnValue(true)
-      expect(await lifetime.dispose()).toEqual([{ childExited: true, descendants: 'uncertain' }])
+      const ownedSignal = vi.spyOn(observer, 'signal')
+      expect(await lifetime.dispose()).toMatchObject([
+        { childExited: true, descendants: 'uncertain' },
+      ])
       expect(signal).not.toHaveBeenCalled()
+      expect(ownedSignal).not.toHaveBeenCalled()
       expect(await lifetime.recoveryRecords(f.journal)).toMatchObject([{ id: child.launchId }])
     })
 
     it('rechecks the leader identity before KILL after TERM', async () => {
-      const f = await fixture()
-      const { driver, observer } = await fallbackDriver()
-      const lifetime = createTeamProcessLifetime({
-        journal: f.journal,
-        driver,
-        isHostBusy: () => false,
-      })
+      const f = await fallbackFixture()
+      const { lifetime, observer } = f
       const child = await lifetime.launch(f.request('setTimeout(()=>{},20000)'))
       stops.push(async () => {
         const closed = new Promise<void>((resolve) => {
@@ -396,13 +448,213 @@ describe('M96 K real native lifetime', () => {
           ? { ...current, startTime: 'reused-start' }
           : current
       })
-      const signal = vi.spyOn(process, 'kill').mockImplementation(() => {
+      const signal = vi.spyOn(observer, 'signal').mockImplementation(() => {
         wasTermSent = true
-        return true
+        return Promise.resolve(true)
       })
-      expect(await lifetime.dispose()).toEqual([{ childExited: false, descendants: 'uncertain' }])
-      expect(signal.mock.calls).toEqual([[-confirmation.pid, 'SIGTERM']])
+      expect(await lifetime.dispose()).toMatchObject([
+        { childExited: false, descendants: 'uncertain' },
+      ])
+      expect(signal.mock.calls).toEqual([
+        [expect.objectContaining({ pid: confirmation.pid }), 'SIGTERM', false],
+      ])
     })
+
+    if (process.platform === 'linux') {
+      it('retires real marked group members individually after their leader exits', async () => {
+        const f = await fallbackFixture()
+        const { lifetime, observer } = f
+        stops.push(() => lifetime.dispose())
+        const output = path.join(f.directory, 'survivor')
+        const child = await lifetime.launch(
+          f.request(
+            `const child=require('node:child_process').spawn('/usr/bin/sleep',['20'],{stdio:'ignore'});child.unref();require('node:fs').writeFileSync(${JSON.stringify(output)},String(child.pid))`,
+          ),
+        )
+        await child.ended
+        const pid = Number(await readFile(output, 'utf8'))
+        const survivor = await observer.observe(pid)
+        if (survivor === undefined) throw new Error('survivor fixture missing')
+        stops.push(async () => {
+          await createNativeOrphanDriver().signal(survivor, 'SIGKILL', false)
+        })
+        const signal = vi.spyOn(observer, 'signal')
+        const outcome = await child.retire()
+        const confirmation = await child.confirmation
+        expect(outcome).toMatchObject({
+          childExited: true,
+          descendants: 'uncertain',
+          notOwned: [confirmation.pid],
+        })
+        expect(signal.mock.calls).toEqual([[expect.objectContaining({ pid }), 'SIGTERM', false]])
+        await until(async () => (await observer.observe(pid)) === undefined)
+      })
+
+      it('signals Linux through a stable pidfd and rejects a changed final identity', async () => {
+        const f = await fixture()
+        const child = await f.lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+        const observer = createNativeOrphanDriver()
+        const confirmation = await child.confirmation
+        const identity = await observer.observe(confirmation.pid)
+        if (identity === undefined) throw new Error('pidfd fixture missing')
+        expect(await observer.signal({ ...identity, startTime: 'reused' }, 'SIGKILL', false)).toBe(
+          false,
+        )
+        expect(await observer.observe(identity.pid)).toBeDefined()
+        const run = processTree.runProgram
+        const helper = vi
+          .spyOn(processTree, 'runProgram')
+          .mockImplementation(async (file, args, env) => {
+            if (file !== '/usr/bin/python3') return await run(file, args, env)
+            expect(env).toEqual({})
+            const code = args[2]
+            if (code === undefined) throw new Error('pidfd helper missing')
+            const instrumented = code.replace(
+              'fd=None',
+              () => String.raw`
+def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+os.kill=forbidden
+original_send=signal.pidfd_send_signal
+def checked_send(fd,signum):
+    with open('/proc/self/fdinfo/'+str(fd)) as file: information=file.read()
+    assert re.search(r'^Pid:\s+'+str(expected['pid'])+r'$',information,re.M)
+    original_send(fd,signum)
+signal.pidfd_send_signal=checked_send
+fd=None`,
+            )
+            return await run(file, [...args.slice(0, 2), instrumented, ...args.slice(3)], env)
+          })
+        expect(await observer.signal(identity, 'SIGKILL', false)).toBe(true)
+        expect(await child.ended).toMatchObject({ childExited: true })
+        expect(helper).toHaveBeenCalledTimes(1)
+      })
+
+      it('uses a monotonic confirmation deadline through a backward wall-clock jump', async () => {
+        const f = await fixture()
+        const { driver, observer } = await fallbackDriver()
+        const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+        const wall = Date.now()
+        vi.spyOn(observer, 'observe').mockImplementation(() => {
+          vi.spyOn(Date, 'now').mockReturnValue(wall - 86_400_000)
+          clock.mockReturnValue(6000)
+          return Promise.resolve(undefined)
+        })
+        const child = driver.launch(f.request('setTimeout(()=>{},20000)'), randomUUID())
+        const outcome = (async () => {
+          try {
+            await child.confirmation
+            return 'confirmed'
+          } catch (error: unknown) {
+            return error instanceof Error ? error.message : 'unknown'
+          }
+        })()
+        const result = await Promise.race([outcome, delay(100, 'pending')])
+        await child.retire()
+        await outcome
+        expect(result).toBe('TEAM_CONFIRMATION_TIMEOUT')
+      })
+
+      it('never signals a foreign Python-led group containing a marked child', async () => {
+        const f = await fixture()
+        const id = randomUUID()
+        const parent = spawn(
+          '/usr/bin/python3',
+          [
+            '-I',
+            '-c',
+            'import os,subprocess,sys,time; child=subprocess.Popen(["/usr/bin/sleep","20"],env={"MUSE_SPARK_LAUNCH_ID":sys.argv[1]}); print(child.pid,flush=True); time.sleep(20)',
+            id,
+          ],
+          { cwd: f.directory, env: {}, detached: true, stdio: ['pipe', 'pipe', 'pipe'] },
+        )
+        const pid = await new Promise<number>((resolve, reject) => {
+          parent.stdout.once('data', (bytes: Buffer) => {
+            resolve(Number(bytes.toString('utf8').trim()))
+          })
+          parent.once('error', reject)
+        })
+        const observer = createNativeOrphanDriver()
+        const leader = await observer.observe(parent.pid ?? 0)
+        const member = await observer.observe(pid)
+        if (leader === undefined || member === undefined) throw new Error('foreign fixture missing')
+        stops.push(async () => {
+          const cleanup = createNativeOrphanDriver()
+          await cleanup.signal(member, 'SIGKILL', false)
+          await cleanup.signal(leader, 'SIGKILL', false)
+        })
+        const recovery = createOrphanRecovery(observer)
+        const found = await recovery.find([
+          { id, command: 'fixture', cwd: f.directory, taskId: 'foreign-group' },
+        ])
+        const orphan = found.find((row) => row.pid === pid)
+        if (orphan === undefined) throw new Error('marked foreign-group member missing')
+        const signal = vi.spyOn(observer, 'signal').mockResolvedValue(true)
+        const rawKill = vi.spyOn(process, 'kill').mockReturnValue(true)
+        expect(await recovery.stop(orphan, true)).toEqual({
+          kind: 'partiallyStopped',
+          notOwned: [leader.pid],
+        })
+        expect(signal.mock.calls).toEqual([[expect.objectContaining({ pid }), 'SIGTERM', false]])
+        expect(rawKill).not.toHaveBeenCalled()
+        expect(await observer.observe(leader.pid)).toMatchObject({ startTime: leader.startTime })
+      })
+
+      it('reproves ownership and retries native retirement after transient EPERM', async () => {
+        const f = await runningFallbackFixture()
+        const { observer, child } = f
+        const identity = { ...(await child.confirmation), launchId: child.launchId }
+        stops.push(async () => {
+          await createNativeOrphanDriver().signal(identity, 'SIGKILL', false)
+        })
+        const original = observer.signal
+        const signal = vi
+          .spyOn(observer, 'signal')
+          .mockRejectedValueOnce(Object.assign(new Error('transient EPERM'), { code: 'EPERM' }))
+          .mockImplementation(original)
+        const observed = vi.spyOn(observer, 'observe')
+        await expect(child.retire()).rejects.toThrow('EPERM')
+        const samples = observed.mock.calls.length
+        expect(await child.retire()).toMatchObject({ childExited: true, descendants: 'uncertain' })
+        expect(signal).toHaveBeenCalledTimes(2)
+        expect(observed.mock.calls.length).toBeGreaterThan(samples)
+      })
+
+      it('uses a monotonic kill grace through a backward wall-clock jump', async () => {
+        const f = await fallbackFixture()
+        const { lifetime, observer } = f
+        const child = await lifetime.launch(f.request('setTimeout(()=>{},20000)'))
+        const confirmation = await child.confirmation
+        // This deadline fixture scans only the process it created; the real
+        // process-table scanner is exercised by the foreign-group regressions.
+        vi.spyOn(observer, 'scan').mockImplementation(async () => {
+          const current = await observer.observe(confirmation.pid)
+          return current === undefined ? [] : [current]
+        })
+        const original = observer.signal
+        const wall = Date.now()
+        const signal = vi
+          .spyOn(observer, 'signal')
+          .mockImplementation(async (identity, name, group) => {
+            if (name === 'SIGTERM') {
+              setTimeout(() => vi.spyOn(Date, 'now').mockReturnValue(wall - 86_400_000), 1)
+              return true
+            }
+            return await original(identity, name, group)
+          })
+        const retiring = child.retire()
+        const finished = (async () => {
+          await retiring
+          return 'finished'
+        })()
+        const result = await Promise.race([finished, delay(1000, 'pending')])
+        vi.spyOn(Date, 'now').mockRestore()
+        if (result === 'pending') child.child.kill()
+        await retiring
+        expect(result).toBe('finished')
+        expect(signal.mock.calls.map((call) => call[1])).toEqual(['SIGTERM', 'SIGKILL'])
+        await lifetime.dispose()
+      })
+    }
 
     it('holds short commands until their OS confirmation is durable', async () => {
       const f = await fixture()

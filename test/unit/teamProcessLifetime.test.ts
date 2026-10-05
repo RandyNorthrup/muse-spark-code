@@ -1,5 +1,14 @@
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -88,6 +97,18 @@ function driver(
   return { launch }
 }
 
+async function endedFixture(container: LaunchConfirmation['container']) {
+  const f = await fixture()
+  const lifetime = createTeamProcessLifetime({
+    journal: f.journal,
+    driver: driver('uncertain', container),
+    isHostBusy: () => false,
+  })
+  const child = await lifetime.launch(request)
+  await child.ended
+  return { ...f, lifetime, child }
+}
+
 describe('M96 K window ownership and journal', () => {
   it('never treats a duplicate window or a newer start as permission', async () => {
     const f = await fixture()
@@ -167,7 +188,14 @@ describe('M96 K window ownership and journal', () => {
       wasMovedAside: false,
     })
     expect(await readFile(file, 'utf8')).toBe('{broken')
-    expect(await readdir(f.journalDirectory)).toEqual(['board.json'])
+    const unreadable = path.join(f.journalDirectory, 'unreadable.json')
+    await mkdir(unreadable)
+    expect(await foreign.read('unreadable', z.string())).toEqual({
+      kind: 'broken',
+      file: unreadable,
+      wasMovedAside: false,
+    })
+    expect(await readdir(f.journalDirectory)).toEqual(['board.json', 'unreadable.json'])
   })
 })
 
@@ -184,6 +212,11 @@ describe('M96 K launcher contract', () => {
       platform: process.platform,
     })
     await expect(linked.write('board', 'unsafe', z.string())).rejects.toThrow('PATH_CHANGED')
+    expect(await linked.read('board', z.string())).toEqual({
+      kind: 'broken',
+      file: path.join(alias, 'team', 'journal', f.owner.instanceId, 'board.json'),
+      wasMovedAside: false,
+    })
     expect(await f.journal.names()).toEqual([])
   })
 
@@ -220,6 +253,7 @@ describe('M96 K launcher contract', () => {
     expect(launch).toHaveBeenCalledWith(
       expect.objectContaining({ priority: 'belowNormal' }),
       child.launchId,
+      expect.anything(),
     )
     expect(saved.mock.calls[0]![1]).not.toHaveProperty('confirmation')
     await child.ended
@@ -287,6 +321,82 @@ describe('M96 K launcher contract', () => {
       { id: child.launchId, end: { childExited: true, descendants: 'uncertain' } },
     ])
     expect(await lifetime.dispose()).toEqual([{ childExited: true, descendants: 'uncertain' }])
+  })
+
+  for (const damage of ['processGroup', 'childRunning', 'noConfirmation', 'unowned'] as const) {
+    it(`warns about a damaged proved-end record and recovers other launches: ${damage}`, async () => {
+      const f = await endedFixture('linuxScope')
+      const { lifetime, child } = f
+      const file = path.join(f.journalDirectory, `launch-${child.launchId}.json`)
+      const original = await readFile(file, 'utf8')
+      const confirmation = await child.confirmation
+      const damaged = path.join(f.journalDirectory, 'launch-damaged.json')
+      const damagedBytes = JSON.stringify({
+        version: 1,
+        owner: f.owner,
+        value: {
+          id: child.launchId,
+          command: request.command,
+          cwd: request.cwd,
+          taskId: request.taskId,
+          ...(damage !== 'noConfirmation' && {
+            confirmation: {
+              ...confirmation,
+              container: damage === 'processGroup' ? 'processGroup' : 'linuxScope',
+            },
+          }),
+          end: {
+            childExited: damage !== 'childRunning',
+            descendants: 'proved',
+            ...(damage === 'unowned' && { notOwned: [42] }),
+          },
+        },
+      })
+      await writeFile(damaged, damagedBytes)
+      const foreign = createTeamJournal({
+        storageDirectory: f.directory,
+        owner: f.owner,
+        authority: createWindowAuthority(createWindowIdentity(456), () => Promise.resolve()),
+        maxRecordBytes: 4096,
+        platform: process.platform,
+      })
+      const unreadable: string[] = []
+      expect(await lifetime.recoveryRecords(foreign, unreadable)).toMatchObject([
+        { id: child.launchId },
+      ])
+      expect(unreadable).toEqual([damaged])
+      expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+      expect(await readFile(file, 'utf8')).toBe(original)
+      await lifetime.dispose()
+    })
+  }
+
+  it('reports a bad launch filename without losing the valid foreign launch', async () => {
+    const f = await endedFixture('windowsJob')
+    const { lifetime, child } = f
+    const original = await readFile(
+      path.join(f.journalDirectory, `launch-${child.launchId}.json`),
+      'utf8',
+    )
+    const bad = path.join(f.journalDirectory, 'launch-bad name.json')
+    await writeFile(bad, original)
+    const stranger = createWindowIdentity(456)
+    const discovery = createTeamJournal({
+      storageDirectory: f.directory,
+      owner: stranger,
+      authority: createWindowAuthority(stranger, () => Promise.resolve()),
+      maxRecordBytes: 4096,
+      platform: process.platform,
+    })
+    const other = await discovery.otherWindows()
+    const unreadable = [...other.unreadable]
+    const records = []
+    for (const journal of other.journals)
+      records.push(...(await lifetime.recoveryRecords(journal, unreadable)))
+    expect(records).toMatchObject([{ id: child.launchId }])
+    expect(new Set(unreadable)).toEqual(new Set([bad]))
+    expect(await readFile(bad, 'utf8')).toBe(original)
+    await lifetime.dispose()
   })
 
   it('rejects descendant proof from a process group', async () => {
