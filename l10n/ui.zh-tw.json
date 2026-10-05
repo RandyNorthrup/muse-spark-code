@@ -1722,6 +1722,7 @@
   },
   "thenRunLabel": "隨後執行",
   "thenRunNotRun": "未執行：{reason}",
+  "thenRunNotString": "then_run 必須是字串形式的單條命令列",
   "hookInputNoCommand": "鉤子更新後的輸入未指定命令。",
   "thenRunTimedOut": "已在時間限制處停止",
   "checksStoppedNotice": {

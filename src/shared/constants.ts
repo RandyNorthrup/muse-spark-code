@@ -1905,6 +1905,19 @@ export const OBS_PACK_MARKER_BYTES = 8
 // The ledger's tokens-avoided estimate (the ~4-characters-per-token rule of
 // thumb): an estimate, never a bill.
 export const OBS_PACK_CHARS_PER_TOKEN = 4
+// A placeholder that must fall back to a single-line excerpt (M101): about
+// this many characters of the first line beside the metadata, so one long
+// line packs to roughly a kilobyte, never to a threshold-sized placeholder.
+export const OBS_PACK_SINGLE_LINE_EXCERPT_CHARS = 1024
+// One search hit carried past this many characters (M101, Pi's truncate):
+// the worker cuts the line there, saying so, so a minified line cannot fill
+// the whole search budget.
+export const SEARCH_HIT_MAX_CHARS = 500
+// A shell or then_run result kept whole for observation packing (M101):
+// about 250k tokens, under the context window minus the text reserve, so a
+// packed send's first whole sends still fit. Past it the middle is elided
+// as before, and only the kept ends are recallable.
+export const SHELL_PACKED_MAX_CHARS = 1_000_000
 // PLAN.md D27: a clipped shell stream keeps its beginning and its end, with
 // this between them; the exit line is never clipped.
 export const TOOL_OUTPUT_ELIDED_MARKER = '\n[… output elided …]\n'
@@ -3811,6 +3824,11 @@ export const MODEL_API_MODEL_TEXT = {
   thenRunLead: '[then_run]',
   thenRunNotRun: 'then_run was not run: {reason}',
   thenRunEditFailed: 'then_run was not run, because the edit did not happen.',
+  thenRunNotString: 'then_run must be one shell command line as a string',
+  // A reply cut short by the output limit (M101, Pi 1b2aa0c): a call the
+  // reply left uncompleted is never run; its arguments may be half-formed.
+  incompleteCallNotRun:
+    'The reply was cut short by the output limit before this call completed, so it was not run; its arguments may be half-formed. Split the work into smaller calls and try again.',
   // M69 (PLAN.md D49): web fetch's refusals and its result, the same on both
   // backends, so they name "this tool", never a backend's own tool name.
   webFetchRestrictedMode:

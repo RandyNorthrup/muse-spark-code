@@ -6,6 +6,7 @@
 // the Model API's tool harness so the activation bundle can confine a path
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
+import { fileURLToPath } from 'node:url'
 import { pathModule } from './workspaceRoot'
 
 export type PathResolution =
@@ -69,14 +70,56 @@ function windowsSegmentProblem(segment: string): string | undefined {
     : undefined
 }
 
+/**
+ * One shared normalisation for every model-given path (M101, Pi's
+ * utils/paths and SoL-Pi's `6f74efcf23`, `8c46b7631b`, `7d7f082eea`): the
+ * permission check and the write resolve the same text, so a path the check
+ * lets through is the path the tool touches. Unicode spaces become spaces,
+ * a leading `@` (a mention, not the name) is dropped, `file://` URLs become
+ * paths, and `/c/…`, `/mnt/c/…` and `/cygdrive/c/…` become `C:/…` on
+ * Windows. `~` is refused: it would otherwise create a literal `~` folder.
+ */
+export function normalizeModelPath(
+  given: string,
+  platform: NodeJS.Platform,
+): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string } {
+  let path = given.replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+  if (path.startsWith('@')) {
+    path = path.slice(1)
+  }
+  if (path === '~' || path.startsWith('~/') || (platform === 'win32' && path.startsWith('~\\'))) {
+    return {
+      ok: false,
+      reason: `path ${given} starts at the home directory, which is outside the workspace`,
+    }
+  }
+  if (path.startsWith('file://')) {
+    try {
+      path = fileURLToPath(path)
+    } catch {
+      return { ok: false, reason: `path ${given} is not a valid file URL` }
+    }
+  } else if (platform === 'win32') {
+    const drive = /^\/(?:mnt\/|cygdrive\/)?([a-zA-Z])\//.exec(path)
+    if (drive !== undefined) {
+      path = `${drive[1]}:/${path.slice(drive[0].length)}`
+    }
+  }
+  return { ok: true, path }
+}
+
 /** Resolves a model-given path inside the workspace by its text, refusing escapes. */
 export function resolveWorkspacePath(
   workspaceRoot: string,
   given: string,
   platform: NodeJS.Platform,
 ): PathResolution {
+  const normalized = normalizeModelPath(given, platform)
+  if (!normalized.ok) {
+    return normalized
+  }
   const p = pathModule(platform)
-  const absolute = p.resolve(workspaceRoot, given)
+  const absolute = p.resolve(workspaceRoot, normalized.path)
   const relative = p.relative(workspaceRoot, absolute)
   if (!isBelow(relative, p)) {
     return { ok: false, reason: `path ${given} is outside the workspace` }

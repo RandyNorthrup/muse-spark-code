@@ -1923,6 +1923,7 @@
   },
   "thenRunLabel": "Poté spuštěno",
   "thenRunNotRun": "Nespuštěno: {reason}",
+  "thenRunNotString": "then_run musí být jeden příkazový řádek jako řetězec",
   "hookInputNoCommand": "Upravený vstup háčku neuvádí žádný příkaz.",
   "thenRunTimedOut": "Zastaveno po vypršení časového limitu",
   "checksStoppedNotice": {

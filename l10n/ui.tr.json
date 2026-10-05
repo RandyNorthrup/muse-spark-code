@@ -1789,6 +1789,7 @@
   },
   "thenRunLabel": "Ardından çalıştırıldı",
   "thenRunNotRun": "Çalıştırılmadı: {reason}",
+  "thenRunNotString": "then_run dize olarak tek bir komut satırı olmalıdır",
   "hookInputNoCommand": "Hook’un güncellenmiş girdisi bir komut belirtmiyor.",
   "thenRunTimedOut": "Süre sınırında durduruldu",
   "checksStoppedNotice": {

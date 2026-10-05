@@ -1789,6 +1789,7 @@
   },
   "thenRunLabel": "Danach ausgeführt",
   "thenRunNotRun": "Nicht ausgeführt: {reason}",
+  "thenRunNotString": "then_run muss eine Befehlszeile als Zeichenkette sein",
   "hookInputNoCommand": "Die geänderte Eingabe des Hooks nennt keinen Befehl.",
   "thenRunTimedOut": "Beim Zeitlimit angehalten",
   "checksStoppedNotice": {

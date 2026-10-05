@@ -1789,6 +1789,7 @@
   },
   "thenRunLabel": "Utána futtatva",
   "thenRunNotRun": "Nem futott: {reason}",
+  "thenRunNotString": "then_run csak egyetlen parancssor lehet, karakterláncként",
   "hookInputNoCommand": "A hook frissített bemenete nem nevez meg parancsot.",
   "thenRunTimedOut": "Az időkorlátnál leállítva",
   "checksStoppedNotice": {

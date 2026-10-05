@@ -99,6 +99,7 @@ import {
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
   THINKING_OFF_EFFORT,
+  THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
   TOOL_STATUS_INTERRUPTED,
@@ -313,6 +314,7 @@ import {
 } from './schemas'
 import {
   classifyTool,
+  codePointBoundary,
   type EditFormatter,
   type FormatTarget,
   executeTool,
@@ -1571,8 +1573,9 @@ function ideFunctionName(tool: McpTool): string {
 }
 
 function clipOutput(text: string): string {
+  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
   return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, TOOL_OUTPUT_MAX_CHARS)}${TOOL_OUTPUT_CLIP_MARKER}`
+    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
 }
 
@@ -3728,7 +3731,22 @@ export class ModelApiSession implements AgentSession {
       } else if (isFunctionCallItem(item)) {
         isReasoningLast = false
         this.replay.push({ turnId, item })
-        calls.push(item)
+        // A reply cut short by the output limit (M101): a call it left
+        // uncompleted is answered with an error, never run — its arguments
+        // may be half-formed. Every codec maps its cut-short stop to this
+        // canonical incomplete status; a completed call still runs.
+        if (response.status === 'incomplete' && item.status !== COMPLETED) {
+          this.replay.push({
+            turnId,
+            item: {
+              type: 'function_call_output',
+              call_id: item.call_id,
+              output: `Error: ${MODEL_API_MODEL_TEXT.incompleteCallNotRun}`,
+            },
+          })
+        } else {
+          calls.push(item)
+        }
       }
     }
     // A reply that was reasoning alone gets a minimal assistant message after
@@ -4648,6 +4666,9 @@ export class ModelApiSession implements AgentSession {
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
+        // Kept whole for observation packing (M101): a packed shell result
+        // stays recoverable through `recall_output`.
+        wholeShellOutput: this.packing !== undefined,
         assertCanRun: () => {
           if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
             throw new AbortedError()
@@ -5748,6 +5769,7 @@ export class ModelApiSession implements AgentSession {
             io: this.toolWrites()?.io ?? this.deps.io,
             signal,
             seen: this.seenFiles,
+            wholeShellOutput: this.packing !== undefined,
             files: this.policy().files,
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
@@ -7209,10 +7231,28 @@ export class ModelApiSession implements AgentSession {
     if (isEdited) {
       this.noteEdited(target)
     }
-    const command = thenRunOf(call.arguments)
-    if (command === undefined) {
+    const thenRunRequest = thenRunOf(call.arguments)
+    if (thenRunRequest.kind === 'absent') {
       return { ...performed, isRejected: false }
     }
+    // Present but not a command line: reported as not run, never silently
+    // dropped (M101).
+    if (thenRunRequest.kind === 'invalid') {
+      return {
+        outcome: {
+          ...performed.outcome,
+          output: `${performed.outcome.output}\n\n${fill(MODEL_API_MODEL_TEXT.thenRunNotRun, { reason: MODEL_API_MODEL_TEXT.thenRunNotString })}`,
+          thenRun: {
+            command: THEN_RUN_ARGUMENT,
+            outcome: 'notRun',
+            detail: UI_TEXT.thenRunNotString,
+            output: '',
+          },
+        },
+        isRejected: false,
+      }
+    }
+    const command = thenRunRequest.command
     if (!isEdited) {
       return {
         outcome: {
@@ -7374,7 +7414,14 @@ export class ModelApiSession implements AgentSession {
     }
     const { line, result } = ran
     if (isAllowed()) this.noteCheckCommandRun(line, result, startedOn)
-    const finished = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+    // Kept whole for observation packing (M101): a packed then_run result
+    // stays recoverable through `recall_output`.
+    const finished = shellOutcome(
+      result,
+      SHELL_DEFAULT_TIMEOUT_MS,
+      TOOL_OUTPUT_MAX_CHARS,
+      this.packing !== undefined,
+    )
     return {
       outcome: {
         ...edit,

@@ -1856,6 +1856,7 @@
   },
   "thenRunLabel": "Después se ejecutó",
   "thenRunNotRun": "No se ejecutó: {reason}",
+  "thenRunNotString": "then_run debe ser una línea de comandos como cadena",
   "hookInputNoCommand": "La entrada actualizada del hook no indica ningún comando.",
   "thenRunTimedOut": "Detenido al llegar a su límite de tiempo",
   "checksStoppedNotice": {

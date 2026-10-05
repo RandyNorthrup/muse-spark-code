@@ -2401,6 +2401,8 @@ export const EN = {
   thenRunLabel: 'Then ran',
   // {reason}: one of checkSkips, with the user's or the hook's words after it.
   thenRunNotRun: 'Not run: {reason}',
+  // A then_run value that is present but not a command line.
+  thenRunNotString: 'then_run must be one command line as a string',
   // After "a hook denied it": the hook rewrote the command into none.
   hookInputNoCommand: 'The hook’s updated input names no command.',
   thenRunTimedOut: 'Stopped at its time limit',

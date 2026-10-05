@@ -1722,6 +1722,7 @@
   },
   "thenRunLabel": "随后运行",
   "thenRunNotRun": "未运行：{reason}",
+  "thenRunNotString": "then_run 必须是字符串形式的单条命令行",
   "hookInputNoCommand": "钩子更新后的输入未指定命令。",
   "thenRunTimedOut": "已在时间限制处停止",
   "checksStoppedNotice": {

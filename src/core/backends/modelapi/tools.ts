@@ -31,6 +31,7 @@ import {
   PDF_MEDIA_TYPE,
   READ_FILE_DEFAULT_LIMIT,
   READ_FILE_MAX_LINE_CHARS,
+  SEARCH_HIT_MAX_CHARS,
   SEARCH_MAX_CANDIDATES,
   SEARCH_MAX_FILE_BYTES,
   SEARCH_MAX_HITS,
@@ -39,6 +40,7 @@ import {
   SEARCH_TIMEOUT_MS,
   SHELL_DEFAULT_TIMEOUT_MS,
   SHELL_MAX_TIMEOUT_MS,
+  SHELL_PACKED_MAX_CHARS,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_ELIDED_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
@@ -112,6 +114,8 @@ export interface SearchJob {
   /** The canonical limits travel with the job so the worker stays small. */
   readonly maxFileBytes: number
   readonly maxHits: number
+  /** One hit is cut here (M101): a minified line cannot fill the whole budget. */
+  readonly maxHitChars: number
   /**
    * The deny-read globs of the permission settings (M78), lower case: a
    * file whose canonical path one covers is skipped, as a link to it is.
@@ -333,6 +337,13 @@ export interface ToolContext {
   /** The shell's time limit, lifted when the command moves to the background (M46). */
   readonly limit?: ShellTimeLimit
   /**
+   * Keep shell output whole instead of eliding its middle (M101): set while
+   * the session packs observations, so a packed shell result stays
+   * recoverable through `recall_output`. Past SHELL_PACKED_MAX_CHARS it is
+   * elided as before.
+   */
+  readonly wholeShellOutput?: boolean
+  /**
    * The session's record of each file as the model last read or wrote it
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
@@ -492,7 +503,13 @@ const readFileArgs = z.object({
   limit: z.optional(z.number()),
 })
 const writeFileArgs = z.object({ path: z.string(), content: z.string() })
-const editFileArgs = z.object({ path: z.string(), find: z.string(), replace: z.string() })
+const editEntryArgs = z.object({ find: z.string(), replace: z.string() })
+const editFileArgs = z.object({
+  path: z.string(),
+  find: z.optional(z.string()),
+  replace: z.optional(z.string()),
+  edits: z.optional(z.array(editEntryArgs)),
+})
 const OUTPUT_MODES = ['content', 'files_with_matches', 'count'] as const
 const searchArgs = z.object({
   pattern: z.string(),
@@ -584,11 +601,23 @@ export function toolDefinitions(
     ),
     define(
       MODEL_API_TOOLS.editFile,
-      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique.',
+      'Replace one exact occurrence of `find` with `replace` in a file. `find` must match exactly once; include enough surrounding lines to make it unique. Pass `edits` (a list of `find`/`replace` pairs) instead for several replacements in one call: every entry must match exactly once, entries must not overlap, and either all of them are applied or none is.',
       {
         path: PATH_PROPERTY,
         find: { type: 'string', description: 'The exact text to replace' },
         replace: { type: 'string', description: 'The replacement text' },
+        edits: {
+          type: 'array',
+          description: 'Several replacements, applied together or not at all',
+          items: {
+            type: 'object',
+            properties: {
+              find: { type: 'string', description: 'The exact text to replace' },
+              replace: { type: 'string', description: 'The replacement text' },
+            },
+            required: ['find', 'replace'],
+          },
+        },
         ...thenRun,
       },
       ['path', 'find', 'replace'],
@@ -756,8 +785,9 @@ export function toolDefinitions(
 // --- helpers ---
 
 function clip(text: string): string {
+  // Cut on a code point boundary, so the clip never splits a surrogate pair (M101).
   return text.length > TOOL_OUTPUT_MAX_CHARS
-    ? `${text.slice(0, TOOL_OUTPUT_MAX_CHARS)}${TOOL_OUTPUT_CLIP_MARKER}`
+    ? `${text.slice(0, codePointBoundary(text, TOOL_OUTPUT_MAX_CHARS))}${TOOL_OUTPUT_CLIP_MARKER}`
     : text
 }
 
@@ -768,7 +798,7 @@ const SHELL_STREAMS = 2
 const HALVES = 2
 
 /** `index` moved back off the middle of a surrogate pair, so no character is split. */
-function codePointBoundary(text: string, index: number): number {
+export function codePointBoundary(text: string, index: number): number {
   // A code point past the Basic Multilingual Plane starts at `index - 1` and
   // ends after `index`: cutting at `index` would split it.
   return (text.codePointAt(index - 1) ?? 0) > LAST_BMP_CODE_POINT ? index - 1 : index
@@ -1139,6 +1169,16 @@ async function readFile(
   context.seen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
+  // An offset past the last line is an error, not an empty read (M101): the
+  // model otherwise pages past the end without noticing.
+  if (lines.length > 0 && start >= lines.length) {
+    return {
+      ...failure(
+        `offset ${String(start + 1)} is past the end of ${resolved.relative}: it has ${String(lines.length)} lines`,
+      ),
+      touched,
+    }
+  }
   const limit = Math.max(args.limit ?? READ_FILE_DEFAULT_LIMIT, 1)
   const shown = lines.slice(start, start + limit).map((line, index) => {
     const number = String(start + index + 1)
@@ -1147,7 +1187,11 @@ async function readFile(
     return `${number}|${body}`
   })
   const remaining = lines.length - (start + shown.length)
-  const tail = remaining > 0 ? `\n[${String(remaining)} more lines]` : ''
+  // A truncated read names what it showed and the offset that reads on (M101).
+  const tail =
+    remaining > 0
+      ? `\n[lines ${String(start + 1)}-${String(start + shown.length)} of ${String(lines.length)}; offset=${String(start + shown.length + 1)}]`
+      : ''
   const body = `Read text file \`${resolved.relative}\`.\n${shown.join('\n')}${tail}`
   // A refused read leaves no trace: the host forgets `seen` with the outcome.
   return {
@@ -1305,6 +1349,73 @@ async function writeFile(
   }
 }
 
+/**
+ * One line for fuzzy matching (M101, Pi's edit-diff): NFKC, Unicode spaces
+ * as spaces, curly quotes and dashes as their plain forms, no trailing
+ * whitespace.
+ */
+function fuzzyLine(line: string): string {
+  return line
+    .normalize('NFKC')
+    .replace(/[\u00a0\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+    .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
+    .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
+    .replace(/[\u2013\u2014\u2212]/g, '-')
+    .trimEnd()
+}
+
+/**
+ * The character range a `find` uniquely matches, exact first, then the
+ * normalised line fallback (M101): at most one run of normalised lines may
+ * match, and the untouched lines are copied back from the original, so only
+ * the matched range changes. Undefined with the refusal when it does not.
+ */
+function matchRange(
+  current: string,
+  find: string,
+  relative: string,
+  label: string,
+): { readonly start: number; readonly end: number } | { readonly refusal: string } {
+  const prefix = label === '' ? '' : `${label}: `
+  const first = current.indexOf(find)
+  if (first !== -1 && !current.includes(find, first + find.length)) {
+    return { start: first, end: first + find.length }
+  }
+  const lines = current.split('\n')
+  const starts: number[] = []
+  for (const [index] of lines.entries()) {
+    starts.push(
+      index === 0 ? 0 : (starts[index - 1] ?? 0) + (lines[index - 1]?.length ?? 0) + 1,
+    )
+  }
+  const want = find.split('\n').map(fuzzyLine)
+  if (want.length > 0 && want[want.length - 1] === '') {
+    want.pop()
+  }
+  const matches: number[] = []
+  if (want.length > 0 && want.some((line) => line !== '')) {
+    for (let at = 0; at + want.length <= lines.length; at += 1) {
+      if (want.every((line, offset) => fuzzyLine(lines[at + offset] ?? '') === line)) {
+        matches.push(at)
+      }
+    }
+  }
+  if (matches.length === 1) {
+    const at = matches[0] ?? 0
+    const end = at + want.length
+    return {
+      start: starts[at] ?? 0,
+      end: end < lines.length ? (starts[end] ?? current.length) - 1 : current.length,
+    }
+  }
+  return {
+    refusal:
+      matches.length === 0
+        ? `${prefix}find text not found in ${relative}`
+        : `${prefix}find text occurs more than once in ${relative}; include more context`,
+  }
+}
+
 async function editFile(
   args: z.infer<typeof editFileArgs>,
   context: ToolContext,
@@ -1321,23 +1432,66 @@ async function editFile(
   if (refusal !== undefined) {
     return refusal
   }
-  if (args.find === '') {
-    return failure('find must not be empty')
+  // One call edits once (`find`/`replace`) or several times (`edits`),
+  // never both; an empty `edits` edits nothing and is refused outright.
+  if (args.edits !== undefined && args.edits.length === 0) {
+    return failure('edits must hold at least one edit')
+  }
+  const multi = args.edits !== undefined
+  if (multi && (args.find !== undefined || args.replace !== undefined)) {
+    return failure('pass either find and replace, or edits, not both')
+  }
+  const singles =
+    args.edits ??
+    (args.find !== undefined && args.replace !== undefined
+      ? [{ find: args.find, replace: args.replace }]
+      : undefined)
+  if (singles === undefined) {
+    return failure('invalid arguments: find and replace are required without edits')
+  }
+  for (const entry of singles) {
+    if (entry.find === '') {
+      return failure('find must not be empty')
+    }
+    // A no-op edit writes the file for nothing; refuse it (M101).
+    if (entry.find === entry.replace) {
+      return failure('find and replace are identical; nothing would change')
+    }
   }
   // The model reads LF lines without the BOM: the match runs on that text,
   // and the file gets its own BOM and line breaks back (D27).
   const shape = shapeOf(before)
   const current = modelText(before, shape)
-  const find = shape.isCrlf ? toLf(args.find) : args.find
-  const replace = shape.isCrlf ? toLf(args.replace) : args.replace
-  const first = current.indexOf(find)
-  if (first === -1) {
-    return failure(`find text not found in ${relative}`)
+  // Every entry resolved against the original text first (M101): overlaps
+  // are refused and one write applies all of them, so either all land or
+  // none does.
+  const ranges: { readonly start: number; readonly end: number; readonly replace: string }[] = []
+  for (const [index, entry] of singles.entries()) {
+    const find = shape.isCrlf ? toLf(entry.find) : entry.find
+    const matched = matchRange(current, find, relative, multi ? `edits[${String(index)}]` : '')
+    if ('refusal' in matched) {
+      return failure(matched.refusal)
+    }
+    ranges.push({
+      start: matched.start,
+      end: matched.end,
+      replace: shape.isCrlf ? toLf(entry.replace) : entry.replace,
+    })
   }
-  if (current.includes(find, first + find.length)) {
-    return failure(`find text occurs more than once in ${relative}; include more context`)
+  const ordered = [...ranges].sort((a, b) => a.start - b.start)
+  for (const [index, range] of ordered.entries()) {
+    const previous = ordered[index - 1]
+    if (previous !== undefined && range.start < previous.end) {
+      return failure('edits overlap; split them so no two entries touch the same text')
+    }
   }
-  const updated = `${current.slice(0, first)}${replace}${current.slice(first + find.length)}`
+  let updated = ''
+  let at = 0
+  for (const range of ordered) {
+    updated += `${current.slice(at, range.start)}${range.replace}`
+    at = range.end
+  }
+  updated += current.slice(at)
   const after = fileText(updated, shape)
   const final = await publishText(file, after, context)
   return {
@@ -1345,8 +1499,11 @@ async function editFile(
       relative,
       current,
       final === after ? updated : modelText(final, shapeOf(final)),
-      'edited',
-      editedLine(`edited ${relative}`, final !== after),
+      multi ? `edited ${relative} (${String(singles.length)} edits)` : 'edited',
+      editedLine(
+        multi ? `edited ${relative} (${String(singles.length)} edits)` : `edited ${relative}`,
+        final !== after,
+      ),
     ),
     touched: touchedBy(file),
   }
@@ -1407,6 +1564,7 @@ async function search(
     root: context.workspaceRoot,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    maxHitChars: SEARCH_HIT_MAX_CHARS,
     denyRead: context.files?.denyGlobs ?? [],
     globLimits: GLOB_LIMITS,
     files: searched.map((relative) => ({
@@ -1473,19 +1631,30 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
     context.limit,
     context.assertCanRun,
   )
-  return shellOutcome(result, timeoutMs)
+  return shellOutcome(result, timeoutMs, TOOL_OUTPUT_MAX_CHARS, context.wholeShellOutput === true)
 }
 
 /**
  * What a finished command printed: each stream keeps its beginning and its
  * end within its share of the output budget (D27).
  */
-export function shellText(result: ShellResult, maxChars: number = TOOL_OUTPUT_MAX_CHARS): string {
+export function shellText(
+  result: ShellResult,
+  maxChars: number = TOOL_OUTPUT_MAX_CHARS,
+  keepWhole = false,
+): string {
+  const parts = [result.stdout.trimEnd(), result.stderr.trimEnd()].filter((part) => part !== '')
+  // Kept whole for observation packing (M101): the output rides whole while
+  // new, then packs with its placeholder naming the recall id. Past the
+  // bound it is elided as before, and only the kept ends are recallable.
+  if (keepWhole) {
+    const whole = parts.join('\n')
+    if (whole.length <= SHELL_PACKED_MAX_CHARS) {
+      return whole
+    }
+  }
   const streamBudget = Math.floor(maxChars / SHELL_STREAMS)
-  return [result.stdout.trimEnd(), result.stderr.trimEnd()]
-    .filter((part) => part !== '')
-    .map((part) => clipMiddle(part, streamBudget))
-    .join('\n')
+  return parts.map((part) => clipMiddle(part, streamBudget)).join('\n')
 }
 
 /**
@@ -1498,6 +1667,7 @@ export function shellOutcome(
   result: ShellResult,
   timeoutMs: number,
   maxChars: number = TOOL_OUTPUT_MAX_CHARS,
+  keepWhole = false,
 ): ToolOutcome {
   let exit = `exit code ${String(result.exitCode ?? 'unknown')}`
   if (result.isCancelled) {
@@ -1505,10 +1675,13 @@ export function shellOutcome(
   } else if (result.isTimedOut) {
     exit = `stopped after ${String(timeoutMs)} ms`
   }
-  const body = `${shellText(result, maxChars)}\n[${exit}]`.trim()
+  const body = `${shellText(result, maxChars, keepWhole)}\n[${exit}]`.trim()
+  // The row keeps the elided text it always showed; only what the model
+  // receives rides whole into the packed replay.
+  const shown = keepWhole ? `${shellText(result, maxChars)}\n[${exit}]`.trim() : body
   return {
     output: body,
-    visibleOutput: body,
+    visibleOutput: shown,
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }

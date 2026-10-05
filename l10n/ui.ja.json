@@ -1722,6 +1722,7 @@
   },
   "thenRunLabel": "続けて実行",
   "thenRunNotRun": "実行されませんでした: {reason}",
+  "thenRunNotString": "then_runは文字列である1つのコマンドラインでなければなりません",
   "hookInputNoCommand": "フックが更新した入力にコマンドが指定されていません。",
   "thenRunTimedOut": "制限時間で停止しました",
   "checksStoppedNotice": {

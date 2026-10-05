@@ -27,6 +27,7 @@ import {
   OBS_PACK_MARKER_BYTES,
   OBS_PACK_PAGE_CHARS,
   OBS_PACK_RECALL_ID_LIMIT,
+  OBS_PACK_SINGLE_LINE_EXCERPT_CHARS,
   OBS_PACK_TAIL_LINES,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
@@ -152,25 +153,36 @@ export class ObservationPack {
     // Past the head, never overlapping it.
     let tail = all.slice(Math.max(head.length, all.length - OBS_PACK_TAIL_LINES))
     let text = this.render(callId, entry, head, tail)
-    while (text.length > OBS_PACK_THRESHOLD_CHARS && (head.length > 1 || tail.length > 0)) {
-      if (tail.length > 0) {
-        tail = tail.slice(0, -1)
+    // Trim the tail from its front, then the head from its back: the final
+    // lines (a shell result's `[exit code N]`) stay while they fit (M101).
+    // The final line is never trimmed here; the fallback below keeps it.
+    while (
+      text.length > OBS_PACK_THRESHOLD_CHARS &&
+      (head.length > 1 || tail.length > 1)
+    ) {
+      if (tail.length > 1) {
+        tail = tail.slice(1)
       } else {
         head = head.slice(0, -1)
       }
       text = this.render(callId, entry, head, tail)
     }
     if (text.length > OBS_PACK_THRESHOLD_CHARS) {
-      // Bound the complete placeholder, including its metadata and elision.
-      const metadata = this.render(callId, entry, ['…'], [])
-      const available = Math.max(0, OBS_PACK_THRESHOLD_CHARS - metadata.length)
+      // Still too long (one long line, or a long final one): an excerpt of
+      // about OBS_PACK_SINGLE_LINE_EXCERPT_CHARS, keeping the final line
+      // beside the first when they differ and it fits (M101).
+      const last = all[all.length - 1] ?? ''
+      const tailKept = all.length > 1 && last !== '' ? [last] : []
+      const metadata = this.render(callId, entry, ['…'], tailKept)
+      const available = Math.max(0, OBS_PACK_SINGLE_LINE_EXCERPT_CHARS - metadata.length)
       const first = head[0] ?? ''
       const cut = first.slice(0, packBoundary(first, Math.min(available, first.length)))
       head = [`${cut}…`]
-      tail = []
+      tail = tailKept
       text = this.render(callId, entry, head, tail)
     }
-    if (text.length > OBS_PACK_THRESHOLD_CHARS || text.length >= entry.text.length) {
+    // Packing that saves under half is not worth the recall round trip.
+    if (text.length > OBS_PACK_THRESHOLD_CHARS || text.length * 2 > entry.text.length) {
       return original
     }
     const item: InputItem = { type: 'function_call_output', call_id: callId, output: text }

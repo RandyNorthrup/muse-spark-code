@@ -1923,6 +1923,7 @@
   },
   "thenRunLabel": "Затем выполнено",
   "thenRunNotRun": "Не выполнено: {reason}",
+  "thenRunNotString": "then_run должен быть одной командной строкой",
   "hookInputNoCommand": "В обновлённых входных данных хука не указана команда.",
   "thenRunTimedOut": "Остановлено по лимиту времени",
   "checksStoppedNotice": {

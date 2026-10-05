@@ -1722,6 +1722,7 @@
   },
   "thenRunLabel": "이어서 실행함",
   "thenRunNotRun": "실행 안 됨: {reason}",
+  "thenRunNotString": "then_run은 문자열인 하나의 명령줄이어야 합니다",
   "hookInputNoCommand": "훅이 업데이트한 입력에 명령이 없습니다.",
   "thenRunTimedOut": "시간 제한에서 중지됨",
   "checksStoppedNotice": {

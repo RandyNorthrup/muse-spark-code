@@ -1923,6 +1923,7 @@
   },
   "thenRunLabel": "Następnie uruchomiono",
   "thenRunNotRun": "Nie uruchomiono: {reason}",
+  "thenRunNotString": "then_run musi być jedną linią poleceń jako ciąg znaków",
   "hookInputNoCommand": "Zaktualizowane dane wejściowe hooka nie podają żadnego polecenia.",
   "thenRunTimedOut": "Zatrzymano po upływie limitu czasu",
   "checksStoppedNotice": {
