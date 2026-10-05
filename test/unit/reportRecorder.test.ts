@@ -83,6 +83,36 @@ describe('hostPackagePath', () => {
     expect(hostPackagePath(pathToFileURL(file).href, INSTALLED)).toBe('dist/extension.js')
   })
 
+  it('keeps drive-letter case variants and CRLF stack frames inside the package', () => {
+    const file = path.join(INSTALLED, 'dist', 'extension.js')
+    const variant = file.replace(/^[a-z]:/i, (drive) => drive.toLowerCase())
+    expect(hostPackagePath(variant, INSTALLED)).toBe('dist/extension.js')
+    const error = new Error('PRIVATE Windows path')
+    Object.defineProperty(error, 'stack', {
+      value: `Error: PRIVATE Windows path\r\n    at activate (${variant}:12:4)\r\n    at outside (C:\\Users\\Other\\secret.js:1:2)`,
+    })
+    expect(hostFramesOf(error, INSTALLED)).toEqual([
+      { path: 'dist/extension.js', line: 12, column: 4 },
+    ])
+  })
+
+  it('maps extended native paths to the same package frame', () => {
+    const file = path.join(INSTALLED, 'dist', 'extension.js')
+    expect(hostPackagePath(path.toNamespacedPath(file), INSTALLED)).toBe('dist/extension.js')
+    expect(hostPackagePath(file, path.toNamespacedPath(INSTALLED))).toBe('dist/extension.js')
+  })
+
+  it('maps UNC package frames and rejects external UNC and extended frames', () => {
+    const root = process.platform === 'win32' ? String.raw`\\server\share\installed` : '/installed'
+    const file = path.join(root, 'dist', 'extension.js')
+    expect(hostPackagePath(file, root)).toBe('dist/extension.js')
+    expect(hostPackagePath(path.toNamespacedPath(file), root)).toBe('dist/extension.js')
+    expect(hostPackagePath(String.raw`\\other\share\dist\extension.js`, INSTALLED)).toBeUndefined()
+    expect(
+      hostPackagePath(path.toNamespacedPath(path.join(ROOT, 'dist', 'extension.js')), INSTALLED),
+    ).toBeUndefined()
+  })
+
   it('drops everything else: other files, other folders, relative and odd locations', () => {
     for (const location of [
       path.join(INSTALLED, 'dist', 'notShipped.js'),

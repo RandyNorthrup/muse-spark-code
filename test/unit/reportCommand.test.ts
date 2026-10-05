@@ -412,7 +412,7 @@ describe('the agent journal, through the extension recorder (M93 regressions)', 
     expect(text).toContain('skillsUnavailable')
   })
 
-  it.skipIf(process.platform === 'win32')('never reads a journal through a link', async () => {
+  it('never reads a journal through a link', async () => {
     const dir = await dataFolder()
     const reports = path.join(dir, REPORT_STORAGE_DIR)
     await mkdir(reports)

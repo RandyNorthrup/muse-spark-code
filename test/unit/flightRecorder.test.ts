@@ -3,7 +3,7 @@
 // src/host/support/reportJournal.ts. Every guard below has a red drill in
 // docs/certification/m93-r.md: the passing receipt here means nothing until
 // the break was seen to fail.
-import { link, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { link, mkdir, mkdtemp, open, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -40,6 +40,7 @@ import {
   REPORT_JOURNAL_ENTRY_MAX_BYTES,
   REPORT_PACKAGE_FRAME_PATHS,
   REPORT_JOURNAL_MAX_BYTES,
+  REPORT_JOURNAL_MAX_AGE_MS,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_STORAGE_DIR,
   REPORT_VERSION_MAX_CHARS,
@@ -556,6 +557,56 @@ describe('flight markers', () => {
 })
 
 describe('ReportJournal recording', () => {
+  it('records and expires entries under storage with spaces and Unicode', async () => {
+    const dir = path.join(await storage(), 'profile with spaces café 雪')
+    const clock = { now: 1000 }
+    const { recorder, log } = journal(dir, 'unicode', { now: () => clock.now })
+    await recorder.startup()
+    await recorder.record(event({ code: 'EIO' }))
+    const file = path.join(dir, REPORT_STORAGE_DIR, 'journal-unicode.jsonl')
+    const first = await readFile(file, 'utf8')
+    expect(first.trim().split('\n')).toHaveLength(1)
+    const initial = await recorder.readMerged()
+    expect(initial.entries).toHaveLength(1)
+    clock.now += REPORT_JOURNAL_MAX_AGE_MS + 1
+    const expired = await recorder.readMerged()
+    expect(expired.entries).toEqual([])
+    await expect(readFile(file, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await recorder.record(event({ code: 'ENOENT' }))
+    const pruned = await recorder.readMerged()
+    expect(pruned.entries.map((record) => record.code)).toEqual(['ENOENT'])
+    expect(await readFile(file, 'utf8')).not.toContain('EIO')
+    expect(recorder.isAvailable).toBe(true)
+    expect(warnings(log)).toEqual([])
+    await recorder.shutdown()
+  })
+
+  it('appends and atomically prunes while a journal reader holds the old file open', async () => {
+    const dir = await storage()
+    const clock = { now: 1000 }
+    const { recorder, log } = journal(dir, 'held', { now: () => clock.now })
+    await recorder.startup()
+    await recorder.record(event({ code: 'EIO' }))
+    const file = path.join(dir, REPORT_STORAGE_DIR, 'journal-held.jsonl')
+    const reader = await open(file, 'r')
+    try {
+      await recorder.record(event({ code: 'ECONNRESET' }))
+      const appended = await recorder.readMerged()
+      expect(appended.entries).toHaveLength(2)
+      clock.now += REPORT_JOURNAL_MAX_AGE_MS + 1
+      await recorder.record(event({ code: 'ENOENT' }))
+      const pruned = await recorder.readMerged()
+      expect(pruned.entries.map((record) => record.code)).toEqual(['ENOENT'])
+      expect(await readFile(file, 'utf8')).not.toContain('ECONNRESET')
+      expect(await reader.readFile('utf8')).toContain('ECONNRESET')
+      expect(recorder.isAvailable).toBe(true)
+      expect(warnings(log)).toEqual([])
+    } finally {
+      await reader.close()
+      await recorder.shutdown()
+    }
+  })
+
   it('appends scrubbed records under global storage and reads them back', async () => {
     const dir = await storage()
     const { recorder } = journal(dir, 'window-a')

@@ -27,7 +27,7 @@ export function hostPackagePath(location: string, extensionRoot: string): string
   if (!path.isAbsolute(file)) {
     return undefined
   }
-  const relative = path.relative(extensionRoot, file)
+  const relative = path.relative(path.toNamespacedPath(extensionRoot), path.toNamespacedPath(file))
   if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
     return undefined
   }

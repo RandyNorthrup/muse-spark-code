@@ -169,6 +169,24 @@ describe('save to a file', () => {
 })
 
 describe('draft identity across exports', () => {
+  it('preserves a Windows CRLF description in Copy, Save and the decoded issue body', async () => {
+    const draft = buildProblemReportDraft({
+      ...INPUT,
+      description: 'The panel failed.\r\nAfter Reload Window.\r\nUnicode: café 雪.',
+      includeFacts: false,
+    })
+    expect(draft.text).toContain('failed.\r\nAfter Reload Window.\r\nUnicode: café 雪.')
+    vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
+    expect(await copyProblemReport(draft, io)).toEqual({ ok: true })
+    expect(await saveProblemReport(draft, io)).toEqual({ ok: true })
+    expect(await openProblemReportIssue(draft, io)).toEqual({ ok: true, isIssueFallback: false })
+    expect(vi.mocked(env.clipboard.writeText).mock.calls).toEqual([[draft.text]])
+    expect(vi.mocked(workspace.fs.writeFile).mock.calls[0]?.[1]).toEqual(
+      new TextEncoder().encode(draft.text),
+    )
+    expect(decodeURIComponent(openedUrl().split('body=', 2)[1] ?? '')).toBe(draft.text)
+  })
+
   it('invalidates every path after a post-preview change, silently', async () => {
     const tampered: SealedReportDraft = { ...SHORT, text: `${SHORT.text} (edited)` }
     for (const outcome of [
