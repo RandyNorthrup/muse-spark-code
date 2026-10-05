@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { serialIdentitySchema, type SerialIdentity } from './identity'
 
 function json(text: string, maxBytes: number): unknown {
@@ -59,20 +59,20 @@ const arduinoPort = z.object({
   port: z.object({
     address: z.string(),
     protocol: z.string(),
-    label: z.string().optional(),
-    properties: z
-      .object({
-        vid: z.string().optional(),
-        pid: z.string().optional(),
-        serialNumber: z.string().optional(),
-      })
-      .optional(),
+    label: z.optional(z.string()),
+    properties: z.optional(
+      z.object({
+        vid: z.optional(z.string()),
+        pid: z.optional(z.string()),
+        serialNumber: z.optional(z.string()),
+      }),
+    ),
   }),
 })
 
 export function parseArduinoPorts(text: string, maxBytes: number): SerialIdentity[] {
   const rows = z
-    .object({ detected_ports: z.array(arduinoPort).optional() })
+    .object({ detected_ports: z.optional(z.array(arduinoPort)) })
     .parse(json(text, maxBytes))
   return (rows.detected_ports ?? [])
     .filter((row) => row.port.protocol === 'serial')

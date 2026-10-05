@@ -1,22 +1,22 @@
-import { z } from 'zod'
+import * as z from 'zod/mini'
 
-const usbId = z
-  .string()
-  .regex(/^[\da-f]{4}$/i)
-  .transform((value) => value.toLowerCase())
+const usbId = z.pipe(
+  z.string().check(z.regex(/^[\da-f]{4}$/i)),
+  z.transform((value) => value.toLowerCase()),
+)
 
 /** Discovery is metadata only; an identity never proves that opening is safe. */
 export const serialIdentitySchema = z.object({
-  port: z.string().min(1),
-  vid: usbId.optional(),
-  pid: usbId.optional(),
-  serialNumber: z.string().min(1).optional(),
-  description: z.string().optional(),
-  stablePath: z.string().optional(),
+  port: z.string().check(z.minLength(1)),
+  vid: z.optional(usbId),
+  pid: z.optional(usbId),
+  serialNumber: z.optional(z.string().check(z.minLength(1))),
+  description: z.optional(z.string()),
+  stablePath: z.optional(z.string()),
 })
 
 export type SerialIdentity = z.infer<typeof serialIdentitySchema>
-export type BoardFamily = 'esp32' | 'rp2040' | 'rp2350' | 'avr'
+export type BoardFamily = 'esp32' | 'rp2040' | 'rp2350' | 'rp2' | 'avr'
 
 // USB ID facts from makers-2026-10-05.md §2.2. UART bridges do not identify
 // the attached microcontroller: never infer an ESP32 merely from a CP210x.
@@ -54,6 +54,11 @@ export function identifyBoard(identity: SerialIdentity): {
     }
     case '2e8a:000f': {
       family = 'rp2350'
+      break
+    }
+    case '2e8a:0005':
+    case '2e8a:000a': {
+      family = 'rp2'
       break
     }
     case '2341:0043':

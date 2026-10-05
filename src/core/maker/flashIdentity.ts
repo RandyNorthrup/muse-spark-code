@@ -33,6 +33,9 @@ export function checkFlashIdentity(
   let status: 'match' | 'mismatch' | 'unknown' = 'unknown'
   if (deviceFamily !== undefined && targetFamily !== undefined) {
     status = deviceFamily === targetFamily ? 'match' : 'mismatch'
+    // Shared Pico firmware IDs prove a non-ESP board, but not its chip generation.
+    if (deviceFamily === 'rp2' && (targetFamily === 'rp2040' || targetFamily === 'rp2350'))
+      status = 'unknown'
   }
   return {
     status,

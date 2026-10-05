@@ -138,6 +138,39 @@ describe('serial metadata parsers', () => {
     const snapshot = await linuxSerialSnapshot(LIMITS)
     expect(snapshot.rows.every((row) => /^(?:ttyUSB|ttyACM)\d+$/.test(row.name))).toBe(true)
   })
+
+  it('bounds the list and refuses unavailable discovery without opening a device', async () => {
+    const run = vi.fn().mockResolvedValue('{"detected_ports":[]}')
+    await listSerialPorts({
+      ...LIMITS,
+      platform: 'linux',
+      tool: { kind: 'arduino-cli', executable: '/user/arduino-cli' },
+      run,
+    })
+    expect(run).toHaveBeenCalledExactlyOnceWith('/user/arduino-cli', ['board', 'list', '--json'])
+    run.mockResolvedValue('null')
+    await listSerialPorts({ ...LIMITS, platform: 'win32', powershell: 'powershell.exe', run })
+    expect(run.mock.calls.at(-1)?.[1]).toContain('-NonInteractive')
+    await expect(listSerialPorts({ ...LIMITS, platform: 'win32', run })).rejects.toThrow(
+      'serial-powershell-unavailable',
+    )
+    await expect(listSerialPorts({ ...LIMITS, platform: 'freebsd', run })).rejects.toThrow(
+      'serial-platform-unavailable',
+    )
+    run.mockResolvedValue('')
+    await listSerialPorts({ ...LIMITS, platform: 'darwin', run })
+    expect(run.mock.calls.at(-1)).toEqual(['/usr/sbin/ioreg', ['-l', '-w', '0']])
+    run.mockResolvedValue('[{"port":"port","description":"Bridge","hwid":""}]')
+    await expect(
+      listSerialPorts({
+        ...LIMITS,
+        maxPorts: 0,
+        platform: 'linux',
+        tool: { kind: 'pio', executable: '/user/pio' },
+        run,
+      }),
+    ).rejects.toThrow('serial-list-too-many')
+  })
 })
 
 describe('flash target identity', () => {
@@ -165,7 +198,6 @@ describe('flash target identity', () => {
       ['10c4', 'ea60'],
       ['0403', '6001'],
       ['2e8a', '000c'],
-      ['2e8a', '0005'],
     ]) {
       expect(checkFlashIdentity({ port: 'COM7', vid, pid }, { idfTarget: 'esp32' }).status).toBe(
         'unknown',
@@ -184,5 +216,16 @@ describe('flash target identity', () => {
         { port: 'COM7', serialNumber: 'two' },
       ),
     ).toBe(false)
+  })
+
+  it('refuses ESP32 flashing on a Pico firmware ID without guessing the Pico chip generation', () => {
+    for (const pid of ['0005', '000a']) {
+      expect(
+        checkFlashIdentity({ port: 'COM7', vid: '2e8a', pid }, { idfTarget: 'esp32' }).status,
+      ).toBe('mismatch')
+      expect(
+        checkFlashIdentity({ port: 'COM7', vid: '2e8a', pid }, { family: 'rp2350' }).status,
+      ).toBe('unknown')
+    }
   })
 })
