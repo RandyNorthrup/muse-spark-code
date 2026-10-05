@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Tab completions' pure core (M94 lane C).** `src/core/tab/` holds the
+  request windows with their cache-stable anchor, the Model API request body
+  with its own cache key, the reply tags and filters, the typing-through
+  cache, the debounce/cap scheduler that never aborts a sent request, and
+  the worst-case/settlement/day spend arithmetic — all against fakes, with
+  one unit test file per module and a red drill per guard
+  (`docs/certification/m94-c.md`). `CreateResponseBody`'s
+  `reasoning.summary` is optional (types only; existing requests unchanged),
+  and the key client gains `isModelApiError`/`isMissingApiKeyError` guards
+  for the Tab bundle boundary.
+
 ### Fixed
 
 - Secret-file checks now refuse a basename equal to a private suffix,
