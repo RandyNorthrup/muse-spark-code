@@ -113,6 +113,8 @@ import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
+import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
+import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
@@ -181,6 +183,7 @@ import {
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
+  EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
@@ -213,7 +216,7 @@ import {
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
-import { fill, uiLocale } from './shared/l10n/text'
+import { fill, plural, uiLocale } from './shared/l10n/text'
 import type { HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
@@ -1932,6 +1935,121 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     log,
   })
 
+  // Extension hooks on both backends (M91 lane E, PLAN.md D70): FileChanged,
+  // ConfigChange, Setup, Manual and DirectoryAdded fire from the window, so
+  // the backend in use does not matter. The runner loads lazily from
+  // dist/extensionHooks.js the first time one fires; activation never pays
+  // for it, and a window that never fires one never loads it.
+  const hookBundle = extensionHooksBundle(
+    vscode.Uri.joinPath(context.extensionUri, 'dist', EXTENSION_HOOKS_BUNDLE_FILE).fsPath,
+    log,
+  )
+  const hookChannel = vscode.window.createOutputChannel(`${PRODUCT_NAME} Hooks`)
+  let hookRunner: ExtensionHookRunner | undefined
+  let hookRunnerLoading: Promise<ExtensionHookRunner | undefined> | undefined
+  const createHookRunnerFor = async (
+    shouldAnnounceFailure: boolean,
+  ): Promise<ExtensionHookRunner | undefined> => {
+    if (hookRunner !== undefined) {
+      return hookRunner
+    }
+    let loaded: ExtensionHooksModule
+    try {
+      loaded = await hookBundle.loadBundle()
+    } catch (error: unknown) {
+      log.warn(
+        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      if (shouldAnnounceFailure) {
+        void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
+      }
+      return undefined
+    }
+    const runner = loaded.createExtensionHookRunner(
+      {
+        io: fileContextIo,
+        runHook: (command, payload, cwd, timeoutMs, signal, extraEnvNames) => {
+          const run = toolIo.runHook?.bind(toolIo)
+          if (run === undefined) throw new Error(UI_TEXT.hooksNotRunnable)
+          return run(command, payload, cwd, timeoutMs, signal, extraEnvNames)
+        },
+        platform: process.platform,
+        workspaceRoot: workspaceRoot ?? '',
+        settingsPath: museSettingsPath(museConfig()),
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        isHooksEnabled: () => currentSettings().modelApiHooks,
+        now: () => Date.now(),
+        isIndexed: (relativePath) => mentions.contains(relativePath),
+        notice: (level, text) => {
+          registry.broadcast({ type: 'notice', level, text })
+        },
+        showOutput: (title, text) => {
+          hookChannel.appendLine(`--- ${title} ---`)
+          hookChannel.append(text.endsWith('\n') ? text : `${text}\n`)
+          hookChannel.show(true)
+        },
+        warn: (message) => {
+          log.warn(message)
+        },
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    await runner.reload()
+    hookRunner = runner
+    return runner
+  }
+  const hookRunnerFor = async (
+    shouldAnnounceFailure: boolean,
+  ): Promise<ExtensionHookRunner | undefined> => {
+    // One in-flight factory preserves the window-wide debounce and process cap.
+    hookRunnerLoading ??= createHookRunnerFor(shouldAnnounceFailure)
+    const loading = hookRunnerLoading
+    try {
+      return await loading
+    } finally {
+      if (hookRunnerLoading === loading) hookRunnerLoading = undefined
+    }
+  }
+  /** The gates before the bundle even loads: untrusted or opted out, nothing fires. */
+  const areHooksArmed = (): boolean =>
+    workspaceRoot !== undefined && vscode.workspace.isTrusted && currentSettings().modelApiHooks
+  /** Run with the window's hook runner; failures stay in the log unless announced. */
+  const withHookRunner = async (
+    run: (runner: ExtensionHookRunner) => Promise<void>,
+    shouldAnnounceFailure: boolean,
+  ): Promise<void> => {
+    if (!areHooksArmed()) {
+      return
+    }
+    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    if (runner === undefined) {
+      return
+    }
+    await run(runner)
+  }
+  /** Run one Manual hook by command or description; false when no hook matches. */
+  const runManualHookByName = async (name: string): Promise<{ matched: boolean }> => {
+    if (!areHooksArmed()) {
+      void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+      return { matched: false }
+    }
+    let outcome: { matched: boolean } = { matched: false }
+    await withHookRunner(async (runner) => {
+      outcome = await runner.runManual(name)
+      if (!outcome.matched) {
+        void vscode.window.showWarningMessage(fill(UI_TEXT.manualHookNoneNamed, { name }))
+      } else if ('failedReason' in outcome && typeof outcome.failedReason === 'string') {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.manualHookFailed, { name, reason: outcome.failedReason }),
+        )
+      } else {
+        void vscode.window.showInformationMessage(fill(UI_TEXT.manualHookDone, { name }))
+      }
+    }, true)
+    return outcome
+  }
+
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -1950,6 +2068,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       )
       tasksTabs.set(surface.id, tasksTab)
       controller = new ConversationController({
+        runManualHook: runManualHookByName,
+        rewriteMessage: async (text) => {
+          const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+          return await runner?.rewriteMessage(text)
+        },
         surface,
         tasksTab,
         auth,
@@ -2299,6 +2422,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const personalSkillsWatcher = vscode.workspace.createFileSystemWatcher(
     new vscode.RelativePattern(vscode.Uri.file(skillsHome), PERSONAL_SKILLS_GLOB),
   )
+  // Extension hooks on both backends (M91 lane E): every workspace file for
+  // FileChanged, the three project config files for ConfigChange, the user's
+  // own spark-hooks.json for a silent snapshot reload (it has no
+  // workspace-relative path, so it never fires ConfigChange).
+  const hookFileWatcher = vscode.workspace.createFileSystemWatcher('**/*')
+  const hookConfigWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{.muse/hooks.json,.muse/spark-hooks.json}',
+  )
+  const hookUserWatcher = vscode.workspace.createFileSystemWatcher(
+    new vscode.RelativePattern(
+      vscode.Uri.file(path.dirname(museSettingsPath(museConfig()))),
+      'spark-hooks.json',
+    ),
+  )
+  const onHookWorkspaceFile = (uri: vscode.Uri): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    void withHookRunner((runner) => runner.noteWorkspaceFile(uri.fsPath), false).catch(
+      logRejection(log, 'FileChanged hook'),
+    )
+  }
+  const onHookConfigFile = (uri: vscode.Uri): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    let reason: 'settings' | 'hooks' | 'spark-hooks' = 'settings'
+    if (uri.path.endsWith('.muse/spark-hooks.json')) {
+      reason = 'spark-hooks'
+    } else if (uri.path.endsWith('.muse/hooks.json')) {
+      reason = 'hooks'
+    }
+    void withHookRunner((runner) => runner.noteConfigFile(uri.fsPath, reason), false).catch(
+      logRejection(log, 'ConfigChange hook'),
+    )
+  }
+  const onHookUserFile = (): void => {
+    if (!areHooksArmed()) {
+      return
+    }
+    void withHookRunner((runner) => runner.reload(), false).catch(logRejection(log, 'hook reload'))
+  }
 
   editorContext.update(editorSnapshot)
   // A setting turned on while VS Code was closed, or in another window, is
@@ -2323,6 +2488,31 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     personalSkillsWatcher.onDidChange(onSkillFilesChanged),
     personalSkillsWatcher.onDidCreate(onSkillFilesChanged),
     personalSkillsWatcher.onDidDelete(onSkillFilesChanged),
+    // Extension hooks on both backends (M91 lane E): the workspace watcher
+    // feeds FileChanged, the config files ConfigChange, folder changes
+    // DirectoryAdded. The index refreshes first so the runner's
+    // gitignored/excluded check answers for the file as it is now; the
+    // runner drops the rest before any process starts.
+    hookFileWatcher,
+    hookChannel,
+    hookFileWatcher.onDidChange(onHookWorkspaceFile),
+    hookFileWatcher.onDidCreate(onHookWorkspaceFile),
+    hookFileWatcher.onDidDelete(onHookWorkspaceFile),
+    hookConfigWatcher,
+    hookConfigWatcher.onDidChange(onHookConfigFile),
+    hookConfigWatcher.onDidCreate(onHookConfigFile),
+    hookConfigWatcher.onDidDelete(onHookConfigFile),
+    hookUserWatcher,
+    hookUserWatcher.onDidChange(onHookUserFile),
+    hookUserWatcher.onDidCreate(onHookUserFile),
+    hookUserWatcher.onDidDelete(onHookUserFile),
+    vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+      for (const folder of event.added) {
+        void withHookRunner((runner) => runner.noteDirectoryAdded(folder.uri.fsPath), false).catch(
+          logRejection(log, 'DirectoryAdded hook'),
+        )
+      }
+    }),
     editorContext,
     {
       dispose: () => {
@@ -2350,6 +2540,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(SETTINGS_SECTION)) {
+        void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
+          logRejection(log, 'ConfigChange hook'),
+        )
+      }
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })
         for (const controller of controllers.values()) {
@@ -2419,6 +2614,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       for (const controller of controllers.values()) {
         controller.checkpointsChanged()
       }
+      // A trusted workspace activates (M91 lane E): its root reads as a
+      // DirectoryAdded, on both backends.
+      void withHookRunner((runner) => runner.noteDirectoryAdded(workspaceRoot ?? ''), false).catch(
+        logRejection(log, 'DirectoryAdded hook'),
+      )
     }),
     // Editor-tab conversations come back after a window reload (D15).
     vscode.window.registerWebviewPanelSerializer(CHAT_PANEL_VIEW_TYPE, {
@@ -2662,6 +2862,71 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       COMMAND_IDS.openShareFile,
       forActiveConversation((controller) => controller.handle({ type: 'openShareFile' })),
     ),
+    // Setup and Manual hooks (M91 lane E): the user starts them, on both
+    // backends. Observation; the bounded output is shown in the hooks
+    // channel, a failure as a warning with the hook's reason.
+    registerLoggedCommand(log, COMMAND_IDS.runSetupHooks, async () => {
+      if (!areHooksArmed()) {
+        void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+        return
+      }
+      const runner = await hookRunnerFor(true)
+      if (runner === undefined) {
+        return
+      }
+      const result = await runner.runSetup('init')
+      if (result.ran === 0) {
+        void vscode.window.showInformationMessage(UI_TEXT.setupHooksNone)
+      } else if (result.failedReason === undefined) {
+        void vscode.window.showInformationMessage(plural(UI_TEXT.setupHooksRan, result.ran))
+      } else {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.setupHooksFailed, { reason: result.failedReason }),
+        )
+      }
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.runHook, async () => {
+      if (!areHooksArmed()) {
+        void vscode.window.showInformationMessage(UI_TEXT.hooksNotRunnable)
+        return
+      }
+      const runner = await hookRunnerFor(true)
+      if (runner === undefined) {
+        return
+      }
+      await runner.reload()
+      const hooks = runner.listManual()
+      if (hooks.length === 0) {
+        void vscode.window.showInformationMessage(UI_TEXT.manualHookNone)
+        return
+      }
+      const picked = await vscode.window.showQuickPick(
+        hooks.map((hook) => ({
+          label: hook.description ?? hook.command,
+          description: hook.description === undefined ? hook.source : hook.command,
+          detail: hook.source,
+          command: hook.command,
+        })),
+        { placeHolder: UI_TEXT.manualHookPick },
+      )
+      if (picked === undefined) {
+        return
+      }
+      const name = picked.label
+      const result = await runner.runManual(picked.command)
+      if (!result.matched) {
+        void vscode.window.showInformationMessage(UI_TEXT.manualHookNone)
+      } else if (result.failedReason === undefined) {
+        void vscode.window.showInformationMessage(fill(UI_TEXT.manualHookDone, { name }))
+      } else {
+        void vscode.window.showWarningMessage(
+          fill(UI_TEXT.manualHookFailed, { name, reason: result.failedReason }),
+        )
+      }
+    }),
+  )
+  void withHookRunner((runner) => runner.noteDirectoryAdded(workspaceRoot ?? ''), false).catch(
+    logRejection(log, 'DirectoryAdded hook'),
   )
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
 }

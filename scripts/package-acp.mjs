@@ -34,6 +34,7 @@ const BUNDLES = [
   'reviewer.js',
   'foreignHooks.js',
   'uiText.js',
+  'extensionHooks.js',
   'searchWorker.js',
   'pageWorker.js',
 ]

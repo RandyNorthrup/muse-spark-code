@@ -59,6 +59,8 @@ const BUDGETS = [
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
+  { path: 'dist/extensionHooks.js', budgetKiB: 75 },
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },

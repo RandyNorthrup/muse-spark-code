@@ -137,6 +137,7 @@ const LAZY_ONLY = [
   'goals.ts',
   'hooks.ts',
   'hookHandlers.ts',
+  'extensionHooks.ts',
   'instructions.ts',
   'mediaBudget.ts',
   'memoryTools.ts',
@@ -221,6 +222,20 @@ for (const name of [
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+const extensionHooks = inputsOf({
+  output: 'dist/extensionHooks.js',
+  metafile: 'dist/meta/extensionHooks.json',
+})
+for (const file of ['src/host/extensionHooksEntry.ts', 'src/host/extensionHooksRunner.ts']) {
+  for (const [output, inputs] of [
+    [BUNDLES.activation.output, activation],
+    [BUNDLES.modelApi.output, modelApi],
+    [BUNDLES.acp.output, acp],
+  ]) {
+    if (inputs.has(file)) problems.push(`${output} carries the lazy extension hook runner ${file}`)
+  }
+  if (!extensionHooks.has(file)) problems.push(`dist/extensionHooks.js no longer carries ${file}`)
+}
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {

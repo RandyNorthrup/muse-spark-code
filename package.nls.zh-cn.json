@@ -29,6 +29,8 @@
   "command.openShareFile.title": "打开共享文件",
   "command.mcpServers.title": "MCP 服务器",
   "command.hooks.title": "钩子",
+  "command.runSetupHooks.title": "运行设置钩子",
+  "command.runHook.title": "运行钩子…",
   "command.memory.title": "记忆",
   "command.newWorktree.title": "新建工作树…",
   "command.removeWorktree.title": "删除工作树…",

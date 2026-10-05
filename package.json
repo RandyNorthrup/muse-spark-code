@@ -198,6 +198,16 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.runSetupHooks",
+        "title": "%command.runSetupHooks.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.runHook",
+        "title": "%command.runHook.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.memory",
         "title": "%command.memory.title%",
         "category": "%command.category%"

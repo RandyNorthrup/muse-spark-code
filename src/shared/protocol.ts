@@ -310,6 +310,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
   // The user pressed Stop.
+  z.object({ type: z.literal('runManualHook'), name: z.string().check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),
   z.object({ type: z.literal('signIn'), method: z.enum(SIGN_IN_METHODS) }),
   z.object({ type: z.literal('installMuseCode') }),

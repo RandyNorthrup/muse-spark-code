@@ -29,6 +29,8 @@
   "command.openShareFile.title": "Freigabedatei öffnen",
   "command.mcpServers.title": "MCP-Server",
   "command.hooks.title": "Hooks",
+  "command.runSetupHooks.title": "Setup-Hooks ausführen",
+  "command.runHook.title": "Hook ausführen…",
   "command.memory.title": "Gedächtnis",
   "command.newWorktree.title": "Neuer Worktree…",
   "command.removeWorktree.title": "Worktree entfernen…",

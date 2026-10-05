@@ -29,6 +29,8 @@
   "command.openShareFile.title": "Otevřít sdílený soubor",
   "command.mcpServers.title": "Servery MCP",
   "command.hooks.title": "Hooky",
+  "command.runSetupHooks.title": "Spustit instalační hooky",
+  "command.runHook.title": "Spustit hook…",
   "command.memory.title": "Paměť",
   "command.newWorktree.title": "Nový pracovní strom…",
   "command.removeWorktree.title": "Odebrat pracovní strom…",

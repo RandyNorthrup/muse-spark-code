@@ -382,6 +382,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     reasoningTokens: z.optional(z.number()),
     modelId: z.optional(z.string()),
     packedTokensAvoided: z.optional(z.number()),
+    hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
   }),
   z.object({
     type: z.literal('contextUsage'),

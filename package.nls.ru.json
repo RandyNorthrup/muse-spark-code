@@ -29,6 +29,8 @@
   "command.openShareFile.title": "Открыть общий файл",
   "command.mcpServers.title": "Серверы MCP",
   "command.hooks.title": "Хуки",
+  "command.runSetupHooks.title": "Запустить хуки настройки",
+  "command.runHook.title": "Запустить хук…",
   "command.memory.title": "Память",
   "command.newWorktree.title": "Новое рабочее дерево…",
   "command.removeWorktree.title": "Удалить рабочее дерево…",

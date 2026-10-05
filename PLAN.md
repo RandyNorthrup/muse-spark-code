@@ -238,6 +238,7 @@ quality`) and as a CI job.
 | `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                     |
 | `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                       |
 | `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                     |
+| `dist/extensionHooks.js`   | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                |
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX

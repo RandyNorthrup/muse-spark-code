@@ -31,6 +31,10 @@ import {
   type ModelApiHostDeps,
   ModelApiSession,
 } from '../../src/core/backends/modelapi/ModelApiHost'
+import {
+  parseSparkHooksConfig,
+  type ExtensionHookDefinition,
+} from '../../src/core/backends/modelapi/extensionHooks'
 import { type CommandTimeouts, MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { ShellSandboxPosture } from '../../src/core/backends/musecode/sandbox'
 import type { EditorContext } from '../../src/core/editorContext'
@@ -121,7 +125,13 @@ import {
 } from './helpers/fakeModelApi'
 import { disabledPaidFeatures } from './helpers/fakePaidFeatures'
 import { memoryContextIo } from './helpers/fakeContextIo'
-import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './helpers/fakeToolIo'
+import {
+  heldShellToolIo,
+  hookResult,
+  memoryToolIo,
+  type MemoryToolIo,
+  noopToolIo,
+} from './helpers/fakeToolIo'
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
 import { readPickedFile } from '../../src/host/backend/toolIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
@@ -1113,6 +1123,47 @@ describe('ConversationController.surfaceReady', () => {
 })
 
 describe('ConversationController.sendMessage', () => {
+  it('runs Manual hooks without creating a session or a model turn', async () => {
+    const t = setup()
+    t.controller.dispose()
+    const runManualHook = vi.fn(() => Promise.resolve({ matched: true }))
+    const controller = new ConversationController({ ...t.deps, runManualHook })
+    try {
+      await controller.handle({ type: 'runManualHook', name: 'check' })
+      expect(runManualHook).toHaveBeenCalledWith('check')
+      expect(t.server.requestsFor('session/start')).toEqual([])
+      expect(t.server.requestsFor('turn/start')).toEqual([])
+    } finally {
+      controller.dispose()
+    }
+  })
+
+  it('dispatches MessageDisplay on Muse Code and keeps the captured original text', async () => {
+    const t = setup()
+    t.controller.dispose()
+    const rewriteMessage = vi.fn(() => Promise.resolve('display version'))
+    const controller = new ConversationController({ ...t.deps, rewriteMessage })
+    try {
+      await controller.handle({ type: 'sendMessage', localId: 'm1', text: 'hi', attachmentIds: [] })
+      // Reuse the M79 capture's completed message shape; displayText is our own field.
+      t.server.notify('item/completed', { ...PLAN_REPLY_COMPLETED, sessionId: 's1' })
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'agentEvent',
+          event: expect.objectContaining({
+            type: 'itemCompleted',
+            item: expect.objectContaining({
+              text: PLAN_REPLY_COMPLETED.item.text,
+              displayText: 'display version',
+            }),
+          }),
+        })
+      })
+      expect(rewriteMessage).toHaveBeenCalledWith(PLAN_REPLY_COMPLETED.item.text)
+    } finally {
+      controller.dispose()
+    }
+  })
   it('starts a session on first send, applies effort, submits, confirms, loads skills', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -1354,6 +1405,42 @@ describe('ConversationController.sendMessage', () => {
 })
 
 describe('ConversationController: composer controls', () => {
+  it('keeps the composer model and effort when an extension hook refuses a switch', async () => {
+    const t = setup()
+    const io = memoryToolIo({}, '/ws')
+    io.runHook = () => Promise.resolve(hookResult('', { exitCode: 2, stderr: 'keep this model' }))
+    const hooks = parseSparkHooksConfig(
+      JSON.stringify({
+        hooks: { PreModelSwitch: [{ hooks: [{ type: 'command', command: 'freeze' }] }] },
+      }),
+      'project',
+      'linux',
+    ).hooks
+    const { api, host, controller } = modelApiController(t, { io, extensionHooks: hooks })
+    try {
+      api.script({ text: 'done' })
+      await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: [] })
+      await vi.waitFor(() => {
+        expect(agentEvents(t)).toContainEqual(expect.objectContaining({ type: 'turnCompleted' }))
+      })
+      await controller.handle({ type: 'setEffort', effort: 'max' })
+      await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'sessionInfo',
+        modelId: 'muse-spark-1.3',
+      })
+      expect(
+        t.surface.posted.findLast((message) => message.type === 'composerState'),
+      ).toMatchObject({ effort: 'max' })
+      expect(notices(t)).toContainEqual(
+        expect.objectContaining({ text: expect.stringContaining('keep this model') }),
+      )
+    } finally {
+      controller.dispose()
+      await host.close()
+    }
+  })
+
   it('stores a model choice before a session and applies it live afterwards', async () => {
     const t = setup()
     await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
@@ -5977,6 +6064,7 @@ function modelApiController(
     readonly workspaceRoot?: string
     readonly platform?: NodeJS.Platform
     readonly io?: ModelApiHostDeps['io']
+    readonly extensionHooks?: readonly ExtensionHookDefinition[]
     readonly contextIo?: ModelApiHostDeps['contextIo']
     readonly newId?: () => string
     readonly beforeEnsureHost?: () => Promise<void>
@@ -6002,6 +6090,10 @@ function modelApiController(
     promptCacheRetention: () => 'in_memory',
     sessionBudgetUsd: () => 0,
     showReplyUsage: () => false,
+    ...(options.extensionHooks !== undefined && {
+      loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
+      isHooksEnabled: () => true,
+    }),
     memory: undefined,
     ...(options.store !== undefined && { store: options.store }),
   })

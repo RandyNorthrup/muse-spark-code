@@ -83,6 +83,8 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
+const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
+const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
@@ -252,6 +254,13 @@ const museCodeReviewerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const extensionHooksOptions = {
+  ...modelApiOptions,
+  entryPoints: [EXTENSION_HOOKS_ENTRY],
+  outfile: EXTENSION_HOOKS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [sharedUiText],
@@ -378,6 +387,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(extensionHooksOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -401,6 +411,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    extensionHooks: esbuild.build(extensionHooksOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -437,6 +448,7 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

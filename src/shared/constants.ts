@@ -64,6 +64,8 @@ export const COMMAND_IDS = {
   openShareFile: 'museSpark.openShareFile',
   mcpServers: 'museSpark.mcpServers',
   hooks: 'museSpark.hooks',
+  runSetupHooks: 'museSpark.runSetupHooks',
+  runHook: 'museSpark.runHook',
   memory: 'museSpark.memory',
   newWorktree: 'museSpark.newWorktree',
   removeWorktree: 'museSpark.removeWorktree',
@@ -590,6 +592,14 @@ export const HOOK_FILE_CHANGED_MAX_PER_MINUTE = 30
 // timeout or a stopped turn settles it as a cancel, never as an accept. It
 // runs inside the tool call's own deadline, which still bounds the call.
 export const MCP_ELICITATION_TIMEOUT_MS = 300_000
+// Extension hook payload bounds (M91 lane E, PLAN.md D70): payloads carry a
+// workspace-relative path and a reason, never content; task, thought, display
+// and expansion text is clipped with `[truncated]` (toolHookPayload.ts).
+export const HOOK_TASK_SUBJECT_MAX_CHARS = 256
+export const HOOK_TASK_DESCRIPTION_MAX_CHARS = 1024
+export const HOOK_THOUGHT_MAX_CHARS = 2048
+export const HOOK_DISPLAY_MESSAGE_MAX_CHARS = 4096
+export const HOOK_EXPANSION_MAX_CHARS = 2048
 
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 
@@ -1134,6 +1144,9 @@ export const GOAL_STATUS = {
 // `/goal edit <objective>`, `/goal pause`, `/goal resume`, `/goal clear`.
 export const GOAL_SLASH_COMMAND = 'goal'
 export const LOOP_SLASH_COMMAND = 'loop'
+// `/hook run <name>` runs one Manual hook from spark-hooks.json (M91); the
+// command reads the same in every language.
+export const HOOK_RUN_SLASH_COMMAND = 'hook run'
 // `/handoff <goal>` distils the conversation into a brief for a fresh one
 // (M74, PLAN.md D49); the goal is optional.
 export const HANDOFF_SLASH_COMMAND = 'handoff'
@@ -2429,6 +2442,10 @@ export const WEB_FETCH_BUNDLE_FILE = 'webFetch.js'
 // The Auto reviewer on Muse Code (M90, PLAN.md D69, D6): its side session and
 // queue, loaded on the first review.
 export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
+// The both-backend extension hooks' bundle (M91, PLAN.md D70, D6): the
+// window's hook runner, loaded the first time a both-backend hook event
+// fires (a watched file, a folder, Run Setup Hooks, Run Hook).
+export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -4058,6 +4075,9 @@ export const CODE_INTEL_MODEL_TEXT = {
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
 export const MODEL_API_MODEL_TEXT = {
+  // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
+  hookToolsUnavailable: 'Tools unavailable for this turn:',
+  hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
   // packed output's id, size and first and last lines; recall_output pages
   // the original back. Placeholders never reach the transcript: only the

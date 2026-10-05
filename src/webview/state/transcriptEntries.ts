@@ -393,6 +393,7 @@ export const usageSummarySchema = z.object({
   cachedTokens: z.optional(z.number()),
   // The packing ledger's estimate (M73): absent unless packing runs.
   packedTokensAvoided: z.optional(z.number()),
+  hookTokensAdded: z.optional(z.number()),
 })
 export type UsageSummary = z.infer<typeof usageSummarySchema>
 
