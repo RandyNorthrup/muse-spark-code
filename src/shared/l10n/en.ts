@@ -2282,6 +2282,27 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // M96 lane R (PLAN.md D75): agent roles. {role}: the role id.
+  teamCapabilityNoTools: 'This model cannot call tools, so it cannot run the {role} role.',
+  // {tokens}: the model's window; {minimum}: what every role needs.
+  teamCapabilitySmallWindow:
+    'This model’s context window ({tokens} tokens) is below the {minimum} tokens every role needs.',
+  // {tokens}: the model's window; {recommended}: the role's recommendation; {role}: the role id.
+  teamCapabilityWarnWindow:
+    'This model’s context window ({tokens} tokens) is below the {recommended} tokens recommended for the {role} role.',
+  // {role}: the role id.
+  teamCapabilityWarnImages: 'This model takes no image input, which the {role} role works better with.',
+  teamCapabilityWarnReasoning:
+    'This model has no reasoning tier, which the {role} role works better with.',
+  // {model}: the model id; {role}: the role id.
+  teamCapabilityUnknown:
+    'The capabilities of {model} are unknown; it was not checked for the {role} role.',
+  // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
+  teamRoleFileRefused: '{file}: {detail}',
+  teamJsonRefused: '{file}: {detail}',
+  // {id}: the project role; {detail}: the wider asks.
+  teamRoleNeedsAllowance:
+    'The project role {id} asks for {detail}; it runs read-only until allowed for this workspace.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
