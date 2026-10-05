@@ -63,7 +63,8 @@ dist/webview/main.js and
 dist/webview/main.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
-high-quality-projects-skill workflow package is also included below.
+high-quality-projects-skill workflow package and the vendored models.dev
+provider catalogue are also included below.
 The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
@@ -191,12 +192,23 @@ const metafiles =
 const problems = []
 const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
-  packages.push({
-    name: 'high-quality-projects-skill',
-    licence: 'MIT',
-    url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
-    text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
-  })
+  packages.push(
+    {
+      name: 'high-quality-projects-skill',
+      licence: 'MIT',
+      url: 'https://github.com/RandyNorthrup/high-quality-projects-skill',
+      text: normalise(readFileSync('vendor/high-quality-projects-skill/LICENSE', 'utf8')),
+    },
+    // M95 (PLAN.md D74): the provider catalogue is models.dev data, vendored
+    // with its MIT notice. Whether the ACP agent's package ships the catalogue
+    // is lane X's decision; until it does, only the extension's notices name it.
+    {
+      name: 'models.dev',
+      licence: 'MIT',
+      url: 'https://models.dev',
+      text: normalise(readFileSync('vendor/models-dev/LICENSE', 'utf8')),
+    },
+  )
 }
 if (problems.length > 0) {
   console.error(`third-party notices: ${String(problems.length)} package(s) need a review:`)

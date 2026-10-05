@@ -43,6 +43,7 @@
 import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
+import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -87,6 +88,8 @@ const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
+// M95 (PLAN.md D74): the vendored provider catalogue ships as data, not code.
+const PROVIDER_CATALOG_OUTFILE = 'dist/providerCatalog.json'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
 const HOST_NODE_TARGET = 'node20.18'
@@ -331,6 +334,8 @@ function reportSize(path) {
   console.log(`  ${path}  ${kib} KiB`)
 }
 
+// Validate the sealed data before starting any bundle build or watcher.
+copyCatalogToDist()
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
@@ -405,5 +410,6 @@ if (isWatch) {
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(ACP_OUTFILE)
 }
