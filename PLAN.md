@@ -18461,7 +18461,7 @@ through S's event boundary and T2's roster/state notes; integration-state
 predictions still have no second attempt. Add no provider wire shape or X2
 runtime binding.
 
-**M96CINT partial integration (2026-10-05).** Merge reviewed S/Q, T2 and V
+**M96CINT round-1 partial integration (historical, 2026-10-05).** Merge reviewed S/Q, T2 and V
 in that order, keeping their contracts and fixes. Run their complete owned
 test files and the scoped rig gates. Make Q's cumulative-batch fixture use
 candidate paths distinct from its base paths even on case-insensitive
@@ -19844,7 +19844,25 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**M96CINT partial merged-source proof (2026-10-05).** Macmini passes all
+**M96CINT round-2 merged-source proof (2026-10-05).** Reviewed C
+(`52d04b69`) and O (`19bb0703`) are merged, in order, with normal hooked
+`--no-ff` commits. Real C predictions now retain both attempt identities
+through the shared strict event schema, S's event boundary and T2's live
+answers/notes. The pre-fix regression and two guard mutations fail, then
+restore SHA-256-exactly and pass. Macmini passes 384 tests in 32 complete
+files; only O's two unchanged native PowerShell/Windows guards skip. All
+five compiler projects, harness typecheck, full lint/Prettier, plain knip,
+duplication (0 clones), localization (0 problems), production and merged-team
+cycles, regenerated host API, build, all 17 unchanged caps and regenerated
+notices pass. The prior inventory mismatch is resolved. S's 261-line
+`teamPool.ts` remains byte-identical; the lane-A reconciliation note records
+C/O's concrete ports and unchanged scheduler region. See
+`docs/certification/m96c-int.md`, `m96c-int-round2-drills.json` and
+`m96c-int-round2-gates.json`. Full quality, native Windows/editor/live checks
+and X2 runtime wiring/public docs/package remain assigned to the M96
+integration under the rig brief; no source/gate is weakened.
+
+**M96CINT round-1 partial merged-source proof (historical, 2026-10-05).** Macmini passes all
 239 S/Q/T2/V tests plus 29 shared schema/text tests, in 21 complete files
 and invocations of at most three files. All five compiler projects, the
 harness compiler, full lint/Prettier, deadcode, duplication (0 clones),
@@ -20348,13 +20366,13 @@ before a repaired one loads (2026-09-30).
   or claims of product support. The three RVM96CV findings are fixed, with
   regressions and byte-exact restored drills recorded
   in `docs/certification/m96c-v.md`.
-- **M96c-V/X2 stylesheet record (RVM96CV, 2026-10-05).** The host API gate
-  fails because its generated theme-source list omits the existing Traffic
-  stylesheet. After S/Q integration it also has five stale Node import
-  counts, recorded in `docs/certification/m96c-int.md`. API/theme totals are
-  unchanged; X2 owns regeneration and the full gate before integration.
-  The partial integration preserves that ownership and records the failing
-  check without weakening it.
+- **M96c generated inventory resolved (M96CINT round 2, 2026-10-05).**
+  The partial integration's stale Node import counts and omitted Traffic
+  stylesheet source are regenerated through `check-host-api --write` and
+  reviewed in `docs/certification/m96c-int.md`. The gate reports 0 problems;
+  its totals remain 271 VS Code APIs, 18 importing files, 23 Node built-in
+  kinds and 59 theme variables. X2 still owns inventory changes from its
+  later runtime wiring and the full gate at the M96 merge.
 
 **FIXM96CC / RVM96CC (2026-10-05).** The seven P2 findings and the P3
 real-Git fixture deadline are repaired, with no review finding deferred.

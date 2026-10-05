@@ -353,29 +353,29 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 27    |
+| `node:buffer`          | 29    |
 | `node:child_process`   | 9     |
-| `node:crypto`          | 32    |
+| `node:crypto`          | 36    |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 1     |
-| `node:fs`              | 24    |
-| `node:fs/promises`     | 34    |
+| `node:fs`              | 25    |
+| `node:fs/promises`     | 40    |
 | `node:http`            | 2     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 3     |
 | `node:os`              | 6     |
-| `node:path`            | 65    |
+| `node:path`            | 73    |
 | `node:process`         | 1     |
 | `node:stream`          | 9     |
 | `node:string_decoder`  | 1     |
-| `node:timers/promises` | 3     |
+| `node:timers/promises` | 5     |
 | `node:tls`             | 1     |
 | `node:url`             | 3     |
 | `node:util`            | 4     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
-| `node:zlib`            | 1     |
+| `node:zlib`            | 2     |
 
 ## The webview's host
 
@@ -383,6 +383,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | --------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts` |
 
-Theme variables the styles read (59), from `src/webview/styles.css`:
+Theme variables the styles read (59), from `src/webview/components/traffic/traffic.css`, `src/webview/styles.css`:
 
 `--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-red`, `--vscode-checkbox-border`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-editor-background`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-menu-background`, `--vscode-menu-border`, `--vscode-menu-foreground`, `--vscode-menu-selectionBackground`, `--vscode-menu-selectionForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textCodeBlock-background`, `--vscode-textLink-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`
