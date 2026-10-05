@@ -2229,5 +2229,15 @@
   "acpProvidersNone": "Nejsou nastaveni žádní poskytovatelé.",
   "acpProviderAdded": "Poskytovatel {id} přidán.",
   "acpProviderRemoved": "Poskytovatel {id} odebrán.",
-  "execProviderNotConfigured": "Poskytovatel {id} není nastaven."
+  "execProviderNotConfigured": "Poskytovatel {id} není nastaven.",
+  "ollamaModelRequired": "Ollama vyžaduje ID modelu.",
+  "ollamaContextRequired": "Ollama vyžaduje kladné celé číslo num_ctx.",
+  "ollamaPdfUnsupported": "Ollama nepřijímá vstup ve formátu PDF.",
+  "ollamaToolImageUnsupported": "Ollama nepřijímá obrázky ve výsledcích nástrojů.",
+  "ollamaDuplicateCall": "Historie Ollama obsahuje duplicitní ID volání nástroje.",
+  "ollamaResponseIdRequired": "Ollama vyžaduje jedinečné ID odpovědi pro tento požadavek.",
+  "ollamaMissingFinal": "Ollama ukončila stream bez konečné odpovědi.",
+  "ollamaMalformedFrame": "Neplatný rámec streamu Ollama.",
+  "ollamaStreamLimit": "Ollama překročila limit velikosti streamu nebo počtu položek.",
+  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“."
 }

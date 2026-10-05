@@ -2075,5 +2075,15 @@
   "acpProvidersNone": "Yapılandırılmış sağlayıcı yok.",
   "acpProviderAdded": "{id} sağlayıcısı eklendi.",
   "acpProviderRemoved": "{id} sağlayıcısı kaldırıldı.",
-  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı."
+  "execProviderNotConfigured": "{id} sağlayıcısı yapılandırılmadı.",
+  "ollamaModelRequired": "Ollama bir model kimliği gerektirir.",
+  "ollamaContextRequired": "Ollama, num_ctx için pozitif bir tam sayı gerektirir.",
+  "ollamaPdfUnsupported": "Ollama PDF girdisini kabul etmez.",
+  "ollamaToolImageUnsupported": "Ollama araç sonuçlarında görselleri kabul etmez.",
+  "ollamaDuplicateCall": "Ollama geçmişinde yinelenen bir araç çağrısı kimliği var.",
+  "ollamaResponseIdRequired": "Ollama bu istek için benzersiz bir yanıt kimliği gerektirir.",
+  "ollamaMissingFinal": "Ollama son yanıt olmadan akışı kapattı.",
+  "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
+  "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
+  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi."
 }

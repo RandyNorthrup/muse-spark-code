@@ -3892,3 +3892,12 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+// M95 native Ollama bounds, enforced before parsing or retaining output.
+export const OLLAMA_FRAME_MAX_BYTES = 1_048_576
+export const OLLAMA_ARGUMENT_MAX_BYTES = 262_144
+export const OLLAMA_ITEM_MAX_BYTES = 2_097_152
+export const OLLAMA_OUTPUT_MAX_ITEMS = 128
+export const OLLAMA_STREAM_MAX_BYTES = 16_777_216
+export const OLLAMA_LINE_FEED = 10
+export const OLLAMA_CARRIAGE_RETURN = 13

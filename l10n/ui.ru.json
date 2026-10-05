@@ -2229,5 +2229,15 @@
   "acpProvidersNone": "Поставщики не настроены.",
   "acpProviderAdded": "Поставщик {id} добавлен.",
   "acpProviderRemoved": "Поставщик {id} удалён.",
-  "execProviderNotConfigured": "Поставщик {id} не настроен."
+  "execProviderNotConfigured": "Поставщик {id} не настроен.",
+  "ollamaModelRequired": "Ollama требуется идентификатор модели.",
+  "ollamaContextRequired": "Ollama требуется положительное целое значение num_ctx.",
+  "ollamaPdfUnsupported": "Ollama не принимает PDF на входе.",
+  "ollamaToolImageUnsupported": "Ollama не принимает изображения в результатах инструментов.",
+  "ollamaDuplicateCall": "В истории Ollama повторяется идентификатор вызова инструмента.",
+  "ollamaResponseIdRequired": "Ollama требуется уникальный идентификатор ответа для этого запроса.",
+  "ollamaMissingFinal": "Ollama закрыла поток без окончательного ответа.",
+  "ollamaMalformedFrame": "Некорректный кадр потока Ollama.",
+  "ollamaStreamLimit": "Ollama превысила предел размера потока или числа элементов.",
+  "ollamaFinishReason": "Ollama завершилась с причиной «{reason}»."
 }

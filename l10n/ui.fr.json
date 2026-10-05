@@ -2152,5 +2152,15 @@
   "acpProvidersNone": "Aucun fournisseur configuré.",
   "acpProviderAdded": "Fournisseur {id} ajouté.",
   "acpProviderRemoved": "Fournisseur {id} supprimé.",
-  "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré."
+  "execProviderNotConfigured": "Le fournisseur {id} n’est pas configuré.",
+  "ollamaModelRequired": "Ollama nécessite un identifiant de modèle.",
+  "ollamaContextRequired": "Ollama nécessite un entier positif pour num_ctx.",
+  "ollamaPdfUnsupported": "Ollama ne prend pas en charge les entrées PDF.",
+  "ollamaToolImageUnsupported": "Ollama ne prend pas en charge les images dans les résultats des outils.",
+  "ollamaDuplicateCall": "L’historique Ollama contient un identifiant d’appel d’outil en double.",
+  "ollamaResponseIdRequired": "Ollama nécessite un identifiant de réponse unique pour cette requête.",
+  "ollamaMissingFinal": "Ollama a fermé le flux sans réponse finale.",
+  "ollamaMalformedFrame": "Trame du flux Ollama mal formée.",
+  "ollamaStreamLimit": "Ollama a dépassé la limite de taille du flux ou du nombre d’éléments.",
+  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} »."
 }

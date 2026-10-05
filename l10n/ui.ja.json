@@ -1998,5 +1998,15 @@
   "acpProvidersNone": "プロバイダーが設定されていません。",
   "acpProviderAdded": "プロバイダー {id} を追加しました。",
   "acpProviderRemoved": "プロバイダー {id} を削除しました。",
-  "execProviderNotConfigured": "プロバイダー {id} は設定されていません。"
+  "execProviderNotConfigured": "プロバイダー {id} は設定されていません。",
+  "ollamaModelRequired": "OllamaにはモデルIDが必要です。",
+  "ollamaContextRequired": "Ollamaのnum_ctxには正の整数が必要です。",
+  "ollamaPdfUnsupported": "OllamaはPDF入力に対応していません。",
+  "ollamaToolImageUnsupported": "Ollamaはツール結果内の画像に対応していません。",
+  "ollamaDuplicateCall": "Ollamaの履歴に重複したツール呼び出しIDがあります。",
+  "ollamaResponseIdRequired": "Ollamaにはこのリクエスト専用の一意な応答IDが必要です。",
+  "ollamaMissingFinal": "Ollamaが最終回答なしでストリームを閉じました。",
+  "ollamaMalformedFrame": "Ollamaのストリームフレームが不正です。",
+  "ollamaStreamLimit": "Ollamaがストリームサイズまたは項目数の上限を超えました。",
+  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。"
 }

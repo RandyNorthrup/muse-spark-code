@@ -15841,6 +15841,27 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M95 Ollama review repair (FIXM95O, 2026-10-05).** Rebuild the native
+  codec against nine counted local Ollama 0.35.1 receipts before changing
+  its parser: native tool index/id matching, caller-supplied session-unique
+  response identities, model-bound reasoning, bounded frames/arguments/items/
+  total streams, terminal-line closure, five byte goldens and translated
+  codec errors. No dependency, model pull, cloud call or paid call. Proof and
+  any remaining acceptance limits live in `docs/certification/m95-o.md`.
+  **O-INTEGRATION** remains an integration acceptance limit: the codec is
+  currently imported only by its owned test, so these changes cannot affect
+  existing Meta turns. Follow-up: lane T/I must inject a stable, session-unique
+  response ID, wire the lazy codec bundle, and the lead must prove the complete
+  provider turn/reload/resume flow and full quality on the final joined tree.
+  No Ollama review finding is intentionally deferred.
+  **O-SPLIT**: the existing split gate rejects the dormant codec as on neither
+  membership list. Safe for current Meta turns because it is not imported;
+  follow-up: lane W must enforce the planned separate codec bundle, without
+  exemptions or weakened guards. **O-HOST-API**: the inherited M95 manifest
+  has 34 commands while the generated host record has 31. Safe only as an
+  unmerged scaffold; follow-up: lane W regenerates/reviews the record before
+  milestone certification. Both are observed gate failures, not green gates.
+
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only
   there is held back, but a language service also infers: a workspace

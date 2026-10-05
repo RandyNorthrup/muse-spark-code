@@ -2569,6 +2569,17 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   execProviderNotConfigured: 'Provider {id} is not configured.',
+  // Native Ollama codec failures (M95).
+  ollamaModelRequired: 'Ollama needs a model id.',
+  ollamaContextRequired: 'Ollama needs a positive integer num_ctx.',
+  ollamaPdfUnsupported: 'Ollama does not accept PDF input.',
+  ollamaToolImageUnsupported: 'Ollama does not accept images in tool results.',
+  ollamaDuplicateCall: 'Ollama history contains a duplicate tool call id.',
+  ollamaResponseIdRequired: 'Ollama needs a unique response id for this request.',
+  ollamaMissingFinal: 'Ollama closed the stream without a final answer.',
+  ollamaMalformedFrame: 'Malformed Ollama stream frame.',
+  ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
+  ollamaFinishReason: 'Ollama finished with reason "{reason}".',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

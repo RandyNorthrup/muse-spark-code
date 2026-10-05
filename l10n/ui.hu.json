@@ -2075,5 +2075,15 @@
   "acpProvidersNone": "Nincs beállítva szolgáltató.",
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
-  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva."
+  "execProviderNotConfigured": "{id} szolgáltató nincs beállítva.",
+  "ollamaModelRequired": "Az Ollama modellazonosítót igényel.",
+  "ollamaContextRequired": "Az Ollama pozitív egész num_ctx értéket igényel.",
+  "ollamaPdfUnsupported": "Az Ollama nem fogad el PDF-bemenetet.",
+  "ollamaToolImageUnsupported": "Az Ollama nem fogad el képeket az eszközök eredményeiben.",
+  "ollamaDuplicateCall": "Az Ollama előzményeiben ismétlődő eszközhívás-azonosító található.",
+  "ollamaResponseIdRequired": "Az Ollama egyedi válaszazonosítót igényel ehhez a kéréshez.",
+  "ollamaMissingFinal": "Az Ollama végső válasz nélkül lezárta az adatfolyamot.",
+  "ollamaMalformedFrame": "Hibás Ollama-adatfolyamkeret.",
+  "ollamaStreamLimit": "Az Ollama túllépte az adatfolyam méret- vagy elemszámkorlátját.",
+  "ollamaFinishReason": "Az Ollama ezzel az indokkal fejeződött be: „{reason}”."
 }

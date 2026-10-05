@@ -22,7 +22,17 @@
 
 import * as z from 'zod/mini'
 
-import { HTTP_TOO_MANY_REQUESTS } from '../../../../shared/constants'
+import {
+  HTTP_TOO_MANY_REQUESTS,
+  OLLAMA_ARGUMENT_MAX_BYTES,
+  OLLAMA_CARRIAGE_RETURN,
+  OLLAMA_FRAME_MAX_BYTES,
+  OLLAMA_ITEM_MAX_BYTES,
+  OLLAMA_LINE_FEED,
+  OLLAMA_OUTPUT_MAX_ITEMS,
+  OLLAMA_STREAM_MAX_BYTES,
+} from '../../../../shared/constants'
+import { UI_TEXT, fill } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../client'
 import type {
   CreateResponseBody,
@@ -42,9 +52,6 @@ export const OLLAMA_CHAT_PATH = '/api/chat'
 
 /** What `think` takes on the native request: a switch or a level [OL-chat]. */
 export type OllamaThink = boolean | 'low' | 'medium' | 'high'
-
-/** The levels `think` accepts, for callers that validate before injecting. */
-export const OLLAMA_THINK_LEVELS = ['low', 'medium', 'high'] as const
 
 /**
  * The `think` level for a canonical effort tier. `none` (the Thinking
@@ -73,26 +80,42 @@ export function thinkForEffort(effort: string): OllamaThink {
   }
 }
 
-// Reasoning crosses the canonical boundary as an opaque string only this
-// codec reads (research §4): the raw `thinking` text under a marker, so a
-// foreign provider's payload is never replayed as Ollama thinking.
-const OLLAMA_THINKING_MARKER = 'ollama-thinking-v1:'
+// Our opaque reasoning envelope binds native thinking to its producing model.
+// Legacy unbound envelopes and foreign providers/models are never replayed.
+const OLLAMA_THINKING_MARKER = 'ollama-thinking-v2:'
+const thinkingEnvelopeSchema = z.object({ model: z.string(), thinking: z.string() })
 
-function packThinking(thinking: string): string {
-  return `${OLLAMA_THINKING_MARKER}${thinking}`
+function packThinking(thinking: string, model: string): string {
+  return `${OLLAMA_THINKING_MARKER}${JSON.stringify({ model, thinking })}`
 }
 
-function unpackThinking(encrypted: string | undefined): string | undefined {
-  return encrypted?.startsWith(OLLAMA_THINKING_MARKER) === true
-    ? encrypted.slice(OLLAMA_THINKING_MARKER.length)
-    : undefined
+function unpackThinking(encrypted: string | undefined, model: string): string | undefined {
+  if (encrypted?.startsWith(OLLAMA_THINKING_MARKER) !== true) return undefined
+  try {
+    const parsed = thinkingEnvelopeSchema.safeParse(
+      JSON.parse(encrypted.slice(OLLAMA_THINKING_MARKER.length)) as unknown,
+    )
+    return parsed.success && parsed.data.model === model ? parsed.data.thinking : undefined
+  } catch {
+    return undefined
+  }
 }
+
+function enforceLimit(size: number, maximum: number): void {
+  if (size > maximum) throw new Error(UI_TEXT.ollamaStreamLimit)
+}
+
+const utf8 = new TextEncoder()
 
 // --- native request shapes (what we send; validated on the way back) ---
 
 const ollamaToolCallSchema = z.object({
   id: z.optional(z.string()),
-  function: z.object({ name: z.string(), arguments: z.unknown() }),
+  function: z.object({
+    index: z.optional(z.number()),
+    name: z.string(),
+    arguments: z.record(z.string(), z.unknown()),
+  }),
 })
 
 const ollamaMessageSchema = z.object({
@@ -103,6 +126,7 @@ const ollamaMessageSchema = z.object({
 })
 
 const ollamaLineSchema = z.object({
+  model: z.optional(z.string()),
   message: z.optional(ollamaMessageSchema),
   done: z.optional(z.boolean()),
   done_reason: z.optional(z.string()),
@@ -169,7 +193,7 @@ function textOf(parts: readonly InputContentPart[]): string {
 function toolOutputText(output: readonly FunctionOutputPart[]): string {
   for (const part of output) {
     if (part.type === 'input_image') {
-      throw new Error('Ollama does not take pictures in tool results')
+      throw new Error(UI_TEXT.ollamaToolImageUnsupported)
     }
   }
   return textOf(output)
@@ -202,10 +226,10 @@ export function encodeOllamaRequest(
   options: OllamaEncodeOptions,
 ): { readonly path: string; readonly body: string } {
   if (options.model === '') {
-    throw new Error('Ollama needs a model id')
+    throw new Error(UI_TEXT.ollamaModelRequired)
   }
   if (!Number.isSafeInteger(options.numCtx) || options.numCtx <= 0) {
-    throw new Error(`Ollama needs a positive integer num_ctx, got ${String(options.numCtx)}`)
+    throw new Error(UI_TEXT.ollamaContextRequired)
   }
   const messages: OllamaRequestMessage[] = []
   if (body.instructions !== '') {
@@ -215,14 +239,17 @@ export function encodeOllamaRequest(
   // result only its id.
   const callNames = new Map<string, string>()
   for (const item of body.input) {
-    if (item.type === 'function_call') {
-      callNames.set(item.call_id, item.name)
+    if (item.type !== 'function_call') {
+      continue
     }
+
+    if (callNames.has(item.call_id)) throw new Error(UI_TEXT.ollamaDuplicateCall)
+    callNames.set(item.call_id, item.name)
   }
   const pushMessage = (item: Extract<InputItem, { type: 'message' }>): void => {
     for (const part of item.content) {
       if (part.type === 'input_file') {
-        throw new Error(`Ollama does not take PDFs (file "${part.filename}")`)
+        throw new Error(UI_TEXT.ollamaPdfUnsupported)
       }
     }
     const images = imagesOf(item.content)
@@ -233,7 +260,7 @@ export function encodeOllamaRequest(
     })
   }
   const pushThinking = (item: ReasoningItem): void => {
-    const thinking = unpackThinking(item.encrypted_content ?? undefined)
+    const thinking = unpackThinking(item.encrypted_content ?? undefined, options.model)
     // Another provider's reasoning: dropped, never replayed (D74).
     if (thinking === undefined) {
       return
@@ -316,34 +343,41 @@ export function encodeOllamaRequest(
 
 // --- NDJSON (the native stream is newline-delimited JSON, [OL-chat]) ---
 
-const LINE_BREAK = /\r\n|\r|\n/
-
 /**
- * One non-blank line at a time over byte chunks. Blank lines are the
- * keep-alives (research §4 table) and carry nothing. A chunk may split a
- * line anywhere, including inside a multi-byte character.
+ * Native NDJSON over byte chunks, with caps before decoding/concatenating.
+ * Closing this iterator closes its byte source, including at native done.
  */
 export async function* readOllamaLines(chunks: AsyncIterable<Uint8Array>): AsyncGenerator<string> {
   const decoder = new TextDecoder()
   let buffered = ''
+  let frameBytes = 0
+  let streamBytes = 0
+  const append = (bytes: Uint8Array): void => {
+    frameBytes += bytes.byteLength
+    enforceLimit(frameBytes, OLLAMA_FRAME_MAX_BYTES)
+    buffered += decoder.decode(bytes, { stream: true })
+  }
   for await (const chunk of chunks) {
-    buffered += decoder.decode(chunk, { stream: true })
-    const lines = buffered.split(LINE_BREAK)
-    buffered = lines.pop() ?? ''
-    for (const line of lines) {
-      if (line === '') {
+    streamBytes += chunk.byteLength
+    enforceLimit(streamBytes, OLLAMA_STREAM_MAX_BYTES)
+    let start = 0
+    for (let index = 0; index < chunk.length; index++) {
+      if (chunk[index] !== OLLAMA_LINE_FEED && chunk[index] !== OLLAMA_CARRIAGE_RETURN) continue
+      if (start === index && frameBytes === 0) {
+        start = index + 1
         continue
       }
-      yield line
+      append(chunk.subarray(start, index))
+      const line = buffered + decoder.decode()
+      buffered = ''
+      frameBytes = 0
+      start = index + 1
+      if (line !== '') yield line
     }
+    append(chunk.subarray(start))
   }
   buffered += decoder.decode()
-  for (const line of buffered.split(LINE_BREAK)) {
-    if (line === '') {
-      continue
-    }
-    yield line
-  }
+  if (buffered !== '') yield buffered
 }
 
 // --- decode: native lines to canonical events ---
@@ -352,17 +386,13 @@ export async function* readOllamaLines(chunks: AsyncIterable<Uint8Array>): Async
 export interface OllamaDecodeOptions {
   readonly model: string
   readonly status: number
+  /** Stable, session-unique request identity supplied by the caller; never a clock/random value here. */
+  readonly responseId: string
 }
 
-function malformedFrame(line: string, status: number): ModelApiError {
-  // Its length, not its text: the frame is model output, and this message
-  // becomes the failed turn's reason in the log (as in client.ts).
-  return new ModelApiError(
-    `Malformed stream frame (${String(line.length)} characters)`,
-    status,
-    undefined,
-    undefined,
-  )
+function malformedFrame(status: number): ModelApiError {
+  // Never include model-authored frame text in the locally authored failure.
+  return new ModelApiError(UI_TEXT.ollamaMalformedFrame, status, undefined, undefined)
 }
 
 function isValidCount(value: number | undefined): value is number {
@@ -396,53 +426,59 @@ interface PendingCall {
   readonly itemId: string
   readonly callId: string
   readonly name: string
-  argumentsText: string
-  announced: boolean
-  itemIndex: number
+  readonly argumentsText: string
+  readonly itemIndex: number
 }
 
 /**
- * Decodes a native NDJSON stream into canonical events ending in one
- * canonical response. Item ids are fixed per response (`ollama-message`,
- * `ollama-reasoning`, `ollama-tool-<index>`): no clock, no random value,
- * so a recorded stream replays to the same events.
- *
- * A `{"error": "…"}` line, including mid-stream under HTTP 200 (research
- * §4 table), fails the turn with the server's own message. A stream that
- * closes without a final (`done`) line fails too: usage lives on that
- * line, and ending complete without it would hide a truncation.
+ * Decodes counted Ollama 0.35.1 frames. Native index/id identifies a whole
+ * call across lines; native arguments are objects, not invented JSON deltas.
+ * The caller supplies a session-unique responseId, which namespaces item
+ * and fallback call ids without rewriting any previous request's history.
+ * Native done is the terminal boundary; EOF without it is truncation.
  */
 export async function* decodeOllamaStream(
   chunks: AsyncIterable<Uint8Array>,
   options: OllamaDecodeOptions,
 ): AsyncGenerator<StreamEvent> {
+  if (options.responseId === '') throw new Error(UI_TEXT.ollamaResponseIdRequired)
   const output: OutputItem[] = []
+  const addItem = (item: OutputItem): void => {
+    enforceLimit(output.length + 1, OLLAMA_OUTPUT_MAX_ITEMS)
+    output.push(item)
+  }
+  let messageBytes = 0
+  let reasoningBytes = 0
   let messageId = 0
   let messageText = ''
   let hasMessage = false
   let reasoningId = 0
   let reasoningText = ''
   let hasReasoning = false
-  const calls: PendingCall[] = []
+  const calls = new Map<string, PendingCall>()
+  const nativeIds = new Set<string>()
   let hasDone = false
   let doneReason: string | undefined
   let usage: Usage | undefined
 
-  const messageItemId = 'ollama-message'
-  const reasoningItemId = 'ollama-reasoning'
+  const messageItemId = `${options.responseId}:message`
+  const reasoningItemId = `${options.responseId}:reasoning`
 
   for await (const line of readOllamaLines(chunks)) {
     let json: unknown
     try {
       json = JSON.parse(line) as unknown
     } catch {
-      throw malformedFrame(line, options.status)
+      throw malformedFrame(options.status)
     }
     const parsed = ollamaLineSchema.safeParse(json)
     if (!parsed.success) {
-      throw malformedFrame(line, options.status)
+      throw malformedFrame(options.status)
     }
     const frame = parsed.data
+    if (frame.model !== undefined && frame.model !== options.model) {
+      throw malformedFrame(options.status)
+    }
     if (frame.error !== undefined && frame.error !== '') {
       throw new ModelApiError(frame.error, options.status, undefined, undefined)
     }
@@ -457,9 +493,11 @@ export async function* decodeOllamaStream(
           role: 'assistant',
           content: [],
         }
-        output.push(item)
+        addItem(item)
         yield { type: 'response.output_item.added', output_index: messageId, item }
       }
+      messageBytes += utf8.encode(message.content).byteLength
+      enforceLimit(messageBytes, OLLAMA_ITEM_MAX_BYTES)
       messageText += message.content
       yield { type: 'response.output_text.delta', item_id: messageItemId, delta: message.content }
     }
@@ -468,9 +506,11 @@ export async function* decodeOllamaStream(
         hasReasoning = true
         reasoningId = output.length
         const item: OutputItem = { type: 'reasoning', id: reasoningItemId }
-        output.push(item)
+        addItem(item)
         yield { type: 'response.output_item.added', output_index: reasoningId, item }
       }
+      reasoningBytes += utf8.encode(message.thinking).byteLength
+      enforceLimit(reasoningBytes, OLLAMA_ITEM_MAX_BYTES)
       reasoningText += message.thinking
       yield {
         type: 'response.reasoning_summary_text.delta',
@@ -480,38 +520,39 @@ export async function* decodeOllamaStream(
       }
     }
     const toolCalls = message?.tool_calls ?? []
-    for (const [index, call] of toolCalls.entries()) {
-      let pending = calls[index]
-      if (pending === undefined) {
-        const created: PendingCall = {
-          itemId: `ollama-tool-${String(index)}`,
-          callId: call.id ?? `ollama-call-${String(index)}`,
-          name: call.function.name,
-          argumentsText: '',
-          announced: false,
-          itemIndex: -1,
-        }
-        calls[index] = created
-        pending = created
+    for (const call of toolCalls) {
+      const index = call.function.index
+      if (
+        (index !== undefined && (!Number.isSafeInteger(index) || index < 0)) ||
+        call.id === '' ||
+        (index === undefined && call.id === undefined)
+      )
+        throw malformedFrame(options.status)
+      const key = index === undefined ? `id:${call.id ?? ''}` : `index:${String(index)}`
+      // Captured whole calls cannot be concatenated or repeated under a new identity.
+      if (calls.has(key) || (call.id !== undefined && nativeIds.has(call.id))) {
+        throw malformedFrame(options.status)
       }
-      const fragment =
-        typeof call.function.arguments === 'string'
-          ? call.function.arguments
-          : JSON.stringify(call.function.arguments)
-      if (!pending.announced) {
-        pending.announced = true
-        pending.itemIndex = output.length
-        const item: OutputItem = {
-          type: 'function_call',
-          id: pending.itemId,
-          call_id: pending.callId,
-          name: pending.name,
-          arguments: '',
-        }
-        output.push(item)
-        yield { type: 'response.output_item.added', output_index: pending.itemIndex, item }
+      const fragment = JSON.stringify(call.function.arguments)
+      enforceLimit(utf8.encode(fragment).byteLength, OLLAMA_ARGUMENT_MAX_BYTES)
+      const pending: PendingCall = {
+        itemId: `${options.responseId}:tool:${String(calls.size)}`,
+        callId: call.id ?? `${options.responseId}:call:${String(index)}`,
+        name: call.function.name,
+        argumentsText: fragment,
+        itemIndex: output.length,
       }
-      pending.argumentsText += fragment
+      const item: OutputItem = {
+        type: 'function_call',
+        id: pending.itemId,
+        call_id: pending.callId,
+        name: pending.name,
+        arguments: '',
+      }
+      addItem(item)
+      calls.set(key, pending)
+      if (call.id !== undefined) nativeIds.add(call.id)
+      yield { type: 'response.output_item.added', output_index: pending.itemIndex, item }
       yield {
         type: 'response.function_call_arguments.delta',
         item_id: pending.itemId,
@@ -524,14 +565,10 @@ export async function* decodeOllamaStream(
     hasDone = true
     doneReason = frame.done_reason
     usage = usageOf(frame)
+    break
   }
   if (!hasDone) {
-    throw new ModelApiError(
-      'Ollama closed the stream without a final answer',
-      options.status,
-      undefined,
-      undefined,
-    )
+    throw new ModelApiError(UI_TEXT.ollamaMissingFinal, options.status, undefined, undefined)
   }
   let doneItem: OutputItem
   if (hasMessage) {
@@ -545,7 +582,7 @@ export async function* decodeOllamaStream(
   } else {
     messageId = output.length
     doneItem = { type: 'message', id: messageItemId, role: 'assistant', content: [] }
-    output.push(doneItem)
+    addItem(doneItem)
     yield { type: 'response.output_item.added', output_index: messageId, item: doneItem }
   }
   yield { type: 'response.output_item.done', output_index: messageId, item: doneItem }
@@ -554,15 +591,12 @@ export async function* decodeOllamaStream(
       type: 'reasoning',
       id: reasoningItemId,
       summary: [{ type: 'summary_text', text: reasoningText }],
-      encrypted_content: packThinking(reasoningText),
+      encrypted_content: packThinking(reasoningText, options.model),
     }
     output[reasoningId] = item
     yield { type: 'response.output_item.done', output_index: reasoningId, item }
   }
-  for (const call of calls) {
-    if (call.itemIndex === -1) {
-      continue
-    }
+  for (const call of calls.values()) {
     const item: OutputItem = {
       type: 'function_call',
       id: call.itemId,
@@ -585,14 +619,14 @@ export async function* decodeOllamaStream(
     status = 'incomplete'
   }
   const response: ResponseObject = {
-    id: 'ollama-response',
+    id: options.responseId,
     status,
     model: options.model,
     output,
     ...(usage !== undefined && { usage }),
     ...(status === 'failed' &&
       doneReason !== undefined && {
-        error: { message: `Ollama finished with reason "${doneReason}"` },
+        error: { message: fill(UI_TEXT.ollamaFinishReason, { reason: doneReason }) },
       }),
     ...(status === 'incomplete' && { incomplete_details: { reason: 'length' } }),
   }

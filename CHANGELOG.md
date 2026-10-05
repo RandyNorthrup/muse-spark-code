@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **M95 Ollama codec review repairs.** Native tool identities preserve
+  growing-session history, reasoning replays only to its producing model,
+  stream buffers and output retention are bounded, and the native terminal
+  line closes the source. Nine local Ollama 0.35.1 receipts replace invented
+  decode fixtures; five byte goldens and translated codec errors cover the
+  repaired seam. Provider integration and full milestone certification remain
+  separate gates.
+
 ### Added
 
 - **A live receipt workflow for the GitHub Action (M80 LA).**

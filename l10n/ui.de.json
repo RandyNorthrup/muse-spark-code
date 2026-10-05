@@ -2075,5 +2075,15 @@
   "acpProvidersNone": "Keine Anbieter konfiguriert.",
   "acpProviderAdded": "Anbieter {id} hinzugefügt.",
   "acpProviderRemoved": "Anbieter {id} entfernt.",
-  "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert."
+  "execProviderNotConfigured": "Anbieter {id} ist nicht konfiguriert.",
+  "ollamaModelRequired": "Ollama benötigt eine Modell-ID.",
+  "ollamaContextRequired": "Ollama benötigt eine positive ganze Zahl für num_ctx.",
+  "ollamaPdfUnsupported": "Ollama akzeptiert keine PDF-Eingaben.",
+  "ollamaToolImageUnsupported": "Ollama akzeptiert keine Bilder in Werkzeugergebnissen.",
+  "ollamaDuplicateCall": "Der Ollama-Verlauf enthält eine doppelte Werkzeugaufruf-ID.",
+  "ollamaResponseIdRequired": "Ollama benötigt eine eindeutige Antwort-ID für diese Anfrage.",
+  "ollamaMissingFinal": "Ollama hat den Stream ohne abschließende Antwort geschlossen.",
+  "ollamaMalformedFrame": "Fehlerhaftes Ollama-Stream-Frame.",
+  "ollamaStreamLimit": "Ollama hat das Limit für Streamgröße oder Elemente überschritten.",
+  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet."
 }

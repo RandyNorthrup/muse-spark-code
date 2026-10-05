@@ -1998,5 +1998,15 @@
   "acpProvidersNone": "구성된 공급자가 없습니다.",
   "acpProviderAdded": "공급자 {id} 추가됨.",
   "acpProviderRemoved": "공급자 {id} 제거됨.",
-  "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다."
+  "execProviderNotConfigured": "공급자 {id}가 구성되지 않았습니다.",
+  "ollamaModelRequired": "Ollama에 모델 ID가 필요합니다.",
+  "ollamaContextRequired": "Ollama의 num_ctx에는 양의 정수가 필요합니다.",
+  "ollamaPdfUnsupported": "Ollama는 PDF 입력을 지원하지 않습니다.",
+  "ollamaToolImageUnsupported": "Ollama는 도구 결과의 이미지를 지원하지 않습니다.",
+  "ollamaDuplicateCall": "Ollama 기록에 중복된 도구 호출 ID가 있습니다.",
+  "ollamaResponseIdRequired": "Ollama에 이 요청의 고유한 응답 ID가 필요합니다.",
+  "ollamaMissingFinal": "Ollama가 최종 답변 없이 스트림을 닫았습니다.",
+  "ollamaMalformedFrame": "잘못된 Ollama 스트림 프레임입니다.",
+  "ollamaStreamLimit": "Ollama가 스트림 크기 또는 항목 수 제한을 초과했습니다.",
+  "ollamaFinishReason": "Ollama가 \"{reason}\" 사유로 종료되었습니다."
 }

@@ -1998,5 +1998,15 @@
   "acpProvidersNone": "未配置提供方。",
   "acpProviderAdded": "已添加提供方 {id}。",
   "acpProviderRemoved": "已移除提供方 {id}。",
-  "execProviderNotConfigured": "提供方 {id} 未配置。"
+  "execProviderNotConfigured": "提供方 {id} 未配置。",
+  "ollamaModelRequired": "Ollama需要模型ID。",
+  "ollamaContextRequired": "Ollama的num_ctx必须为正整数。",
+  "ollamaPdfUnsupported": "Ollama不接受PDF输入。",
+  "ollamaToolImageUnsupported": "Ollama不接受工具结果中的图片。",
+  "ollamaDuplicateCall": "Ollama历史记录包含重复的工具调用ID。",
+  "ollamaResponseIdRequired": "Ollama需要此请求的唯一响应ID。",
+  "ollamaMissingFinal": "Ollama在没有最终回答的情况下关闭了数据流。",
+  "ollamaMalformedFrame": "Ollama数据流帧格式错误。",
+  "ollamaStreamLimit": "Ollama超出了数据流大小或条目数量限制。",
+  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。"
 }
