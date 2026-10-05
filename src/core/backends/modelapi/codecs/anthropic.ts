@@ -47,14 +47,18 @@ import {
   ANTHROPIC_MAX_ITEM_BYTES,
   ANTHROPIC_MAX_ITEMS,
   ANTHROPIC_MAX_STREAM_BYTES,
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
   HTTP_TOO_MANY_REQUESTS,
   THINKING_OFF_EFFORT,
 } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../client'
+import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
 import {
   type CreateResponseBody,
   type FunctionCallItem,
+  type FunctionOutputPart,
   type InputItem,
   type OutputItem,
   type ReasoningItem,
@@ -102,6 +106,14 @@ export interface AnthropicEncodeOptions {
    * they came (rule 13) rather than dropped.
    */
   readonly toolExtras?: Readonly<Record<string, Readonly<Record<string, unknown>>>>
+  /**
+   * M101 lane P1 (BYO item 1): the model's image input, read from
+   * `capabilities.vision` (lane P fills it from the model record; lane N
+   * will own the normalized field). `false` sends the image-omitted
+   * placeholder so the turn keeps its shape; unknown keeps today's bytes
+   * and sends the image.
+   */
+  readonly capabilities?: { readonly vision: boolean } | undefined
 }
 
 export interface AnthropicNativeRequest {
@@ -176,9 +188,21 @@ export interface AnthropicToolResultBlock {
   readonly cache_control?: AnthropicCacheControl
 }
 
+/** M101 lane P1 (BYO item 1): a PDF sent inline, as the Messages API's `document` block. */
+export interface AnthropicDocumentBlock {
+  readonly type: 'document'
+  readonly source: {
+    readonly type: 'base64'
+    readonly media_type: string
+    readonly data: string
+  }
+  readonly cache_control?: AnthropicCacheControl
+}
+
 export type AnthropicMessageBlock =
   | AnthropicTextBlock
   | AnthropicImageBlock
+  | AnthropicDocumentBlock
   | AnthropicToolUseBlock
   | AnthropicThinkingBlock
   | AnthropicRedactedBlock
@@ -199,6 +223,8 @@ export interface AnthropicRequestBody {
   readonly stream: true
   readonly thinking?: {
     readonly type: 'adaptive'
+    /** M101 lane P1 (BYO item 9): `summarized`, so newer models stream thinking text (Pi). */
+    readonly display: 'summarized'
     readonly block_binding?: { readonly prefix_mismatch_behavior: 'drop_block' }
   }
   readonly output_config?: { readonly effort: AnthropicEffort }
@@ -284,44 +310,109 @@ function imageBlock(imageUrl: string): AnthropicImageBlock {
   return { type: 'image', source: { type: 'base64', media_type: mediaType, data: match[2] } }
 }
 
+/** A canonical message's parts as this codec stages them: text, an image URL, or a parsed document. */
+type StagedMessagePart =
+  | { readonly text: string; readonly imageUrl?: undefined; readonly document?: undefined }
+  | { readonly text?: undefined; readonly imageUrl: string; readonly document?: undefined }
+  | {
+      readonly text?: undefined
+      readonly imageUrl?: undefined
+      readonly document: AnthropicDocumentBlock
+    }
+
 /**
- * One user message's blocks from its canonical parts; text-only stays a
- * string (capture 03). Callers pass text parts with text and image parts
- * with a URL, so this never yields an empty message.
+ * One staged part as its native block. Callers pass text parts with text
+ * and image parts with a URL, so a user message built from these never
+ * comes out empty (text-only stays a string, capture 03).
  */
+function stagedBlock(part: StagedMessagePart, vision: boolean | undefined): AnthropicMessageBlock {
+  // Image and document parts never read `text` (their branch wins below).
+  const text: AnthropicTextBlock = { type: 'text', text: part.text ?? '' }
+  const withoutImage = part.document ?? text
+  return part.imageUrl === undefined ? withoutImage : imageOrPlaceholder(part.imageUrl, vision)
+}
+
 function userContent(
-  parts: readonly (
-    | { readonly text: string; readonly imageUrl?: undefined }
-    | { readonly text?: undefined; readonly imageUrl: string }
-  )[],
+  parts: readonly StagedMessagePart[],
+  vision: boolean | undefined,
 ): string | AnthropicMessageBlock[] {
-  const blocks: AnthropicMessageBlock[] = Array.from(parts, (part): AnthropicMessageBlock =>
-    part.imageUrl === undefined ? { type: 'text', text: part.text } : imageBlock(part.imageUrl),
-  )
+  const blocks: AnthropicMessageBlock[] = Array.from(parts, (part) => stagedBlock(part, vision))
   return blocks.every((block): block is AnthropicTextBlock => block.type === 'text')
     ? blocks.map((block) => block.text).join('')
     : blocks
+}
+
+/** M101 lane P1 (BYO item 1): tool-result parts with blank text dropped and empty results marked. */
+function toolResultContent(
+  output: readonly FunctionOutputPart[],
+  vision: boolean | undefined,
+): string | readonly (AnthropicTextBlock | AnthropicImageBlock)[] {
+  const blocks: (AnthropicTextBlock | AnthropicImageBlock)[] = []
+  for (const part of output) {
+    if (part.type === 'input_image') {
+      blocks.push(imageOrPlaceholder(part.image_url, vision))
+    } else if (!isBlankWireText(part.text)) {
+      blocks.push({ type: 'text', text: cleanWireText(part.text) })
+    }
+  }
+  return blocks.length === 0 ? CODEC_EMPTY_TOOL_OUTPUT : blocks
+}
+
+/**
+ * M101 lane P1 (BYO item 1): an image, or the image-omitted placeholder
+ * when the model takes no image input (`capabilities.vision === false`), so
+ * the turn keeps its shape instead of breaking the request.
+ */
+function imageOrPlaceholder(
+  imageUrl: string,
+  vision: boolean | undefined,
+): AnthropicTextBlock | AnthropicImageBlock {
+  return vision === false
+    ? { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+    : imageBlock(imageUrl)
+}
+
+/** M101 lane P1 (BYO item 1): a PDF sent inline, as a `document` block. */
+function documentBlock(fileData: string): AnthropicDocumentBlock {
+  const match = DATA_URL_PATTERN.exec(fileData)
+  const mediaType = match?.[1]
+  const data = match?.[2]
+  if (match === null || mediaType === undefined || mediaType === '' || data === undefined) {
+    throw codecError('invalid_file_url')
+  }
+  return { type: 'document', source: { type: 'base64', media_type: mediaType, data } }
+}
+
+/** M101 lane P1 (BYO item 1): an empty tool result rides as an explicit marker. */
+function toolResultText(output: string): string {
+  return isBlankWireText(output) ? CODEC_EMPTY_TOOL_OUTPUT : cleanWireText(output)
 }
 
 function toolUseBlock(
   call: FunctionCallItem,
   toolExtras: Readonly<Record<string, Readonly<Record<string, unknown>>>> | undefined,
 ): AnthropicToolUseBlock {
-  let input: unknown
+  // M101 lane P1 (BYO item 1): non-JSON arguments ride as `{}`, and lone
+  // surrogates are removed (BYO 13); the call still runs instead of breaking
+  // every later request (Pi `transform-messages.ts`).
+  let parsed: unknown
   try {
-    input = JSON.parse(call.arguments) as unknown
+    parsed = JSON.parse(cleanWireText(call.arguments))
   } catch {
-    throw codecError('invalid_tool_arguments_json', UI_TEXT.anthropicCodecToolArgumentsInvalid)
+    parsed = {}
   }
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw codecError('invalid_tool_arguments_object', UI_TEXT.anthropicCodecToolArgumentsInvalid)
+  const record = isRecord(parsed) ? parsed : {}
+  const cleaned: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(record)) {
+    cleaned[key] = cleanJsonStrings(value)
   }
   const extras = toolExtras?.[call.call_id]
   return {
     type: 'tool_use',
-    id: call.call_id,
+    // M101 lane P1 (BYO 3): the id the format accepts, mapped deterministically.
+    id: nativeCallId(call.call_id, 'anthropic'),
     name: call.name,
-    input: input as Readonly<Record<string, unknown>>,
+    input: cleaned,
     ...extras,
   }
 }
@@ -382,23 +473,24 @@ export function encodeAnthropicRequest(
     assistantBlocks.length = 0
   }
 
+  const vision = options.capabilities?.vision
   const encodeItem = (item: InputItem): void => {
     switch (item.type) {
       case 'message': {
-        type MessagePart =
-          | { readonly text: string; readonly imageUrl?: undefined }
-          | { readonly text?: undefined; readonly imageUrl: string }
-        const parts: MessagePart[] = item.content.flatMap((part): MessagePart[] => {
+        // M101 lane P1 (BYO items 1, 13): blank text is dropped, lone
+        // surrogates are removed, and a PDF rides as a `document` block
+        // instead of breaking the request (Pi `transform-messages.ts`).
+        const parts: StagedMessagePart[] = item.content.flatMap((part): StagedMessagePart[] => {
           switch (part.type) {
             case 'input_text':
             case 'output_text': {
-              return part.text === '' ? [] : [{ text: part.text }]
+              return isBlankWireText(part.text) ? [] : [{ text: cleanWireText(part.text) }]
             }
             case 'input_image': {
               return [{ imageUrl: part.image_url }]
             }
             case 'input_file': {
-              throw codecError('unsupported_pdf_input', UI_TEXT.anthropicCodecPdfUnsupported)
+              return [{ document: documentBlock(part.file_data) }]
             }
           }
         })
@@ -407,17 +499,13 @@ export function encodeAnthropicRequest(
         }
         if (item.role === 'assistant') {
           for (const part of parts) {
-            assistantBlocks.push(
-              part.imageUrl === undefined
-                ? { type: 'text', text: part.text }
-                : imageBlock(part.imageUrl),
-            )
+            assistantBlocks.push(stagedBlock(part, vision))
           }
           return
         }
         // `developer` has no Anthropic role; it reads as the user's words.
         flushAssistant()
-        pushUser(userContent(parts))
+        pushUser(userContent(parts, vision))
         return
       }
       case 'function_call': {
@@ -426,18 +514,17 @@ export function encodeAnthropicRequest(
       }
       case 'function_call_output': {
         flushAssistant()
-        const result: AnthropicToolResultBlock =
-          typeof item.output === 'string'
-            ? { type: 'tool_result', tool_use_id: item.call_id, content: item.output }
-            : {
-                type: 'tool_result',
-                tool_use_id: item.call_id,
-                content: item.output.map((part) =>
-                  part.type === 'input_image'
-                    ? imageBlock(part.image_url)
-                    : { type: 'text' as const, text: part.text },
-                ),
-              }
+        // The result names the mapped call id (BYO 3): the same mapping the
+        // `tool_use` block above used, so the pair still matches.
+        const toolUseId = nativeCallId(item.call_id, 'anthropic')
+        const result: AnthropicToolResultBlock = {
+          type: 'tool_result',
+          tool_use_id: toolUseId,
+          content:
+            typeof item.output === 'string'
+              ? toolResultText(item.output)
+              : toolResultContent(item.output, vision),
+        }
         pushUser([result])
         return
       }
@@ -471,7 +558,13 @@ export function encodeAnthropicRequest(
   const system =
     body.instructions === ''
       ? undefined
-      : [{ type: 'text' as const, text: body.instructions, cache_control: breakpoint }]
+      : [
+          {
+            type: 'text' as const,
+            text: cleanWireText(body.instructions),
+            cache_control: breakpoint,
+          },
+        ]
   const nativeTools =
     tools.length === 0
       ? undefined
@@ -517,6 +610,10 @@ export function encodeAnthropicRequest(
       ...(effort !== undefined && {
         thinking: {
           type: 'adaptive' as const,
+          // M101 lane P1 (BYO item 9): newer models default the display to
+          // `omitted` and stream empty thinking; `summarized` streams the
+          // summary text (Pi `anthropic-messages.ts`).
+          display: 'summarized' as const,
           ...(isThinkingReplayed && {
             block_binding: { prefix_mismatch_behavior: 'drop_block' as const },
           }),
@@ -530,18 +627,20 @@ export function encodeAnthropicRequest(
 // --- decode: Anthropic SSE to canonical events (every frame zod-parsed) ---
 
 const anthropicUsageSchema = z.object({
-  input_tokens: z.number(),
-  cache_creation_input_tokens: z.optional(z.number()),
-  cache_read_input_tokens: z.optional(z.number()),
+  input_tokens: z.nullable(z.number()),
+  cache_creation_input_tokens: z.optional(z.nullable(z.number())),
+  cache_read_input_tokens: z.optional(z.nullable(z.number())),
   cache_creation: z.optional(
-    z.object({
-      ephemeral_5m_input_tokens: z.number(),
-      ephemeral_1h_input_tokens: z.number(),
-    }),
+    z.nullable(
+      z.object({
+        ephemeral_5m_input_tokens: z.nullable(z.number()),
+        ephemeral_1h_input_tokens: z.nullable(z.number()),
+      }),
+    ),
   ),
-  output_tokens: z.number(),
+  output_tokens: z.nullable(z.number()),
   output_tokens_details: z.optional(
-    z.nullable(z.object({ thinking_tokens: z.optional(z.number()) })),
+    z.nullable(z.object({ thinking_tokens: z.optional(z.nullable(z.number())) })),
   ),
 })
 type AnthropicUsage = z.infer<typeof anthropicUsageSchema>
@@ -551,7 +650,7 @@ const messageStartSchema = z.object({
   message: z.object({
     id: z.string(),
     model: z.optional(z.string()),
-    usage: z.optional(anthropicUsageSchema),
+    usage: z.optional(z.nullable(anthropicUsageSchema)),
   }),
 })
 
@@ -608,7 +707,7 @@ const contentBlockStopSchema = z.object({
 const messageDeltaSchema = z.object({
   type: z.literal('message_delta'),
   delta: z.object({ stop_reason: z.optional(z.nullable(z.string())) }),
-  usage: z.optional(anthropicUsageSchema),
+  usage: z.optional(z.nullable(anthropicUsageSchema)),
 })
 
 const streamErrorSchema = z.object({
@@ -619,40 +718,40 @@ const streamErrorSchema = z.object({
 const frameTypeSchema = z.object({ type: z.string() })
 
 /** Usage totals: total input is the sum of the three counters (research §1.5). */
-function toUsage(usage: AnthropicUsage): Usage {
-  for (const value of [
-    usage.input_tokens,
-    usage.output_tokens,
-    usage.cache_creation_input_tokens ?? 0,
-    usage.cache_read_input_tokens ?? 0,
-    usage.cache_creation?.ephemeral_5m_input_tokens ?? 0,
-    usage.cache_creation?.ephemeral_1h_input_tokens ?? 0,
-    usage.output_tokens_details?.thinking_tokens ?? 0,
-  ]) {
+function toUsage(usage: AnthropicUsage): Usage | undefined {
+  // M101 lane P1 (BYO item 8): a proxy may null any counter it does not
+  // report (Pi `anthropic-messages.ts`). Null headline counters leave the
+  // usage unknown rather than counted wrong; null breakdowns count as zero.
+  const input = usage.input_tokens
+  const output = usage.output_tokens
+  if (input === null || output === null) {
+    return undefined
+  }
+  const created = usage.cache_creation_input_tokens ?? 0
+  const read = usage.cache_read_input_tokens ?? 0
+  const split = usage.cache_creation ?? undefined
+  const fiveMinute = split?.ephemeral_5m_input_tokens ?? 0
+  const oneHour = split?.ephemeral_1h_input_tokens ?? 0
+  const thinking = usage.output_tokens_details?.thinking_tokens ?? undefined
+  for (const value of [input, output, created, read, fiveMinute, oneHour, thinking ?? 0]) {
     if (!Number.isFinite(value) || value < 0) {
       throw codecError('invalid_usage_counters')
     }
   }
-  const created = usage.cache_creation_input_tokens ?? 0
-  const read = usage.cache_read_input_tokens ?? 0
-  const split = usage.cache_creation
-  if (
-    split !== undefined &&
-    split.ephemeral_5m_input_tokens + split.ephemeral_1h_input_tokens !== created
-  ) {
+  if (split !== undefined && fiveMinute + oneHour !== created) {
     throw codecError('invalid_cache_write_split')
   }
   return {
-    input_tokens: usage.input_tokens + created + read,
-    output_tokens: usage.output_tokens,
-    total_tokens: usage.input_tokens + created + read + usage.output_tokens,
+    input_tokens: input + created + read,
+    output_tokens: output,
+    total_tokens: input + created + read + output,
     input_tokens_details: {
       ...(read !== 0 && { cached_tokens: read }),
       ...(usage.cache_creation_input_tokens !== undefined && { cache_write_tokens: created }),
-      ...(split !== undefined && { cache_write_tokens_1h: split.ephemeral_1h_input_tokens }),
+      ...(split !== undefined && { cache_write_tokens_1h: oneHour }),
     },
-    ...(usage.output_tokens_details?.thinking_tokens !== undefined && {
-      output_tokens_details: { reasoning_tokens: usage.output_tokens_details.thinking_tokens },
+    ...(thinking !== undefined && {
+      output_tokens_details: { reasoning_tokens: thinking },
     }),
   }
 }
@@ -942,12 +1041,11 @@ export async function* decodeAnthropicStream(
         break
       }
       case 'tool_use': {
+        // M101 lane P1 (BYO item 8): a tool payload cut off at `max_tokens`
+        // (or mangled by a proxy) still decodes with its partial arguments;
+        // the host answers the incomplete call with an error instead of
+        // running half-formed arguments (Pi `anthropic-messages.ts`).
         const source = pending.toolInput === '' ? '{}' : pending.toolInput
-        try {
-          JSON.parse(source)
-        } catch {
-          throw codecError('invalid_tool_json')
-        }
         const item: FunctionCallItem = {
           type: 'function_call',
           id: pending.toolId,
@@ -1001,8 +1099,10 @@ export async function* decodeAnthropicStream(
           throw codecError('malformed_message_start')
         }
         messageId = parsed.data.message.id
-        if (parsed.data.message.usage !== undefined) {
-          latestUsage = parsed.data.message.usage
+        // M101 lane P1 (BYO item 8): a proxy may send `"usage": null`.
+        const startUsage = parsed.data.message.usage ?? undefined
+        if (startUsage !== undefined) {
+          latestUsage = startUsage
         }
         yield {
           type: 'response.created',
@@ -1056,8 +1156,9 @@ export async function* decodeAnthropicStream(
           throw codecError('malformed_message_delta')
         }
         stop = stopOutcome(parsed.data.delta.stop_reason)
-        if (parsed.data.usage !== undefined) {
-          latestUsage = { ...latestUsage, ...parsed.data.usage }
+        const deltaUsage = parsed.data.usage ?? undefined
+        if (deltaUsage !== undefined) {
+          latestUsage = { ...latestUsage, ...deltaUsage }
         }
         continue
       }

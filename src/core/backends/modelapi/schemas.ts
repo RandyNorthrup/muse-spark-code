@@ -22,6 +22,12 @@ export const outputTextPartSchema = z.object({
   type: z.literal('output_text'),
   text: z.string(),
   annotations: z.optional(z.array(z.union([urlCitationSchema, otherAnnotationSchema]))),
+  /**
+   * M101 lane P1 (BYO item 4): a thought signature Gemini attached to this
+   * text part. Only the Gemini codec reads it; every other reader renders
+   * the text and ignores the signature.
+   */
+  thoughtSignature: z.optional(z.string()),
 })
 
 const refusalPartSchema = z.object({ type: z.literal('refusal'), refusal: z.string() })
@@ -293,7 +299,17 @@ export type InputContentPart =
   | InputFilePart
   | { readonly type: 'input_text'; readonly text: string }
   | { readonly type: 'input_image'; readonly image_url: string; readonly detail: 'auto' }
-  | { readonly type: 'output_text'; readonly text: string }
+  | {
+      readonly type: 'output_text'
+      readonly text: string
+      /**
+       * M101 lane P1 (BYO item 4): a thought signature Gemini attached to
+       * this text part, empty parts included (Pi #7356). Only the Gemini
+       * codec reads it, replaying the part with its signature; every other
+       * codec renders the text and ignores the signature.
+       */
+      readonly thoughtSignature?: string | undefined
+    }
 
 /**
  * A part of a function's output given as content (the Responses schema's

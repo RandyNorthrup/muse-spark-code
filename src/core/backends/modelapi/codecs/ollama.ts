@@ -23,6 +23,8 @@
 import * as z from 'zod/mini'
 
 import {
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
   HTTP_TOO_MANY_REQUESTS,
   OLLAMA_ARGUMENT_MAX_BYTES,
   OLLAMA_CARRIAGE_RETURN,
@@ -34,6 +36,7 @@ import {
 } from '../../../../shared/constants'
 import { UI_TEXT, fill } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../client'
+import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
   FunctionCallItem,
@@ -144,6 +147,13 @@ export interface OllamaEncodeOptions {
   readonly numCtx: number
   /** Explicit `think`; derived from the body's effort tier when absent. */
   readonly think?: OllamaThink | undefined
+  /**
+   * M101 lane P1 (BYO item 1): the model's image input, read from
+   * `capabilities.vision`. `false` sends the image-omitted placeholder so
+   * the turn keeps its shape; unknown keeps today's bytes and sends the
+   * image.
+   */
+  readonly capabilities?: { readonly vision: boolean } | undefined
 }
 
 /** One native chat message, in the request's fixed key order. */
@@ -166,12 +176,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** A function call's arguments for the native request: an object [OL-chat]. */
 function argumentsForWire(argumentsText: string): unknown {
+  // M101 lane P1 (BYO 13): lone surrogates are removed before parsing.
+  const cleaned = cleanWireText(argumentsText)
   try {
-    return JSON.parse(argumentsText) as unknown
+    return cleanJsonStrings(JSON.parse(cleaned))
   } catch {
     // Not JSON the model wrote: the server decides, and its error names
     // the call. Never an empty object, which would run a different call.
-    return argumentsText
+    return cleaned
   }
 }
 
@@ -181,22 +193,60 @@ function imagePayload(imageUrl: string): string {
   return comma === -1 ? imageUrl : imageUrl.slice(comma + 1)
 }
 
-function textOf(parts: readonly InputContentPart[]): string {
-  return parts
-    .flatMap((part) =>
-      part.type === 'input_text' || part.type === 'output_text' ? [part.text] : [],
-    )
-    .join('')
+/** Kept text of one part: blank text is dropped and lone surrogates removed. */
+function keptTextItems(text: string): string[] {
+  return isBlankWireText(text) ? [] : [cleanWireText(text)]
 }
 
-/** A tool result's text; pictures have no native field and fail loudly. */
-function toolOutputText(output: readonly FunctionOutputPart[]): string {
+/** The text items of one part (BYO items 1, 13); media carries no text. */
+function textItemsOf(part: InputContentPart): string[] {
+  return part.type === 'input_text' || part.type === 'output_text' ? keptTextItems(part.text) : []
+}
+
+function textOf(parts: readonly InputContentPart[]): string {
+  return parts.flatMap((part) => textItemsOf(part)).join('')
+}
+
+/** Text with the image-omitted placeholder appended (BYO item 1). */
+function placeholderAppended(text: string): string {
+  return text === '' ? CODEC_IMAGE_WITHOUT_VISION : `${text}\n${CODEC_IMAGE_WITHOUT_VISION}`
+}
+
+/** A string tool result: an empty one rides as an explicit marker (BYO item 1). */
+function stringOutputText(output: string): string {
+  return isBlankWireText(output) ? CODEC_EMPTY_TOOL_OUTPUT : cleanWireText(output)
+}
+
+/**
+ * A tool result's text. M101 lane P1 (BYO item 1): pictures have no native
+ * field and fail loudly, unless the model takes no images, when they ride
+ * as the image-omitted placeholder; an empty result rides as an explicit
+ * marker instead of an empty string.
+ */
+function toolOutputText(
+  output: readonly FunctionOutputPart[],
+  vision: boolean | undefined,
+): string {
+  const texts: string[] = []
+  let isOmittedImage = false
   for (const part of output) {
     if (part.type === 'input_image') {
-      throw new Error(UI_TEXT.ollamaToolImageUnsupported)
+      if (vision === false) {
+        isOmittedImage = true
+      } else {
+        throw new Error(UI_TEXT.ollamaToolImageUnsupported)
+      }
+    } else {
+      texts.push(part.text)
     }
   }
-  return textOf(output)
+  const text = texts.join('')
+  if (isBlankWireText(text)) {
+    return isOmittedImage ? CODEC_IMAGE_WITHOUT_VISION : CODEC_EMPTY_TOOL_OUTPUT
+  }
+  return isOmittedImage
+    ? `${cleanWireText(text)}\n${CODEC_IMAGE_WITHOUT_VISION}`
+    : cleanWireText(text)
 }
 
 function imagesOf(parts: readonly InputContentPart[]): readonly string[] {
@@ -233,8 +283,9 @@ export function encodeOllamaRequest(
   }
   const messages: OllamaRequestMessage[] = []
   if (body.instructions !== '') {
-    messages.push({ role: 'system', content: body.instructions })
+    messages.push({ role: 'system', content: cleanWireText(body.instructions) })
   }
+  const vision = options.capabilities?.vision
   // Tool names for results: the call's own item carries the name, the
   // result only its id.
   const callNames = new Map<string, string>()
@@ -253,10 +304,14 @@ export function encodeOllamaRequest(
       }
     }
     const images = imagesOf(item.content)
+    // M101 lane P1 (BYO item 1): images for a model without image input
+    // ride as the image-omitted placeholder, keeping the turn's shape.
+    const text = textOf(item.content)
+    const content = vision === false && images.length > 0 ? placeholderAppended(text) : text
     messages.push({
       role: item.role === 'developer' ? 'system' : item.role,
-      content: textOf(item.content),
-      ...(images.length > 0 && { images }),
+      content,
+      ...(images.length > 0 && vision !== false && { images }),
     })
   }
   const pushThinking = (item: ReasoningItem): void => {
@@ -280,7 +335,10 @@ export function encodeOllamaRequest(
     })
   }
   const pushCallOutput = (item: Extract<InputItem, { type: 'function_call_output' }>): void => {
-    const content = typeof item.output === 'string' ? item.output : toolOutputText(item.output)
+    const content =
+      typeof item.output === 'string'
+        ? stringOutputText(item.output)
+        : toolOutputText(item.output, vision)
     const toolName = callNames.get(item.call_id)
     messages.push({
       role: 'tool',

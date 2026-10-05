@@ -16,10 +16,12 @@ import {
   GEMINI_MODELS_PATH,
   GEMINI_SKIP_THOUGHT_SIGNATURE,
   GEMINI_THINKING_LEVELS,
+  geminiGeneration,
   geminiStreamPath,
   geminiThinkingLevelForEffort,
   parseGeminiError,
   parseGeminiModelsList,
+  toGeminiFullSchema,
   toGeminiSchemaSubset,
 } from '../../src/core/backends/modelapi/codecs/gemini'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
@@ -343,7 +345,7 @@ describe('encodeGeminiRequest history', () => {
   })
 
   it.each([false, true])(
-    'explicitly refuses tool-result images instead of dropping them (text: %s)',
+    'sends tool-result images as sibling inlineData on Gemini 3 (text: %s)',
     (hasText) => {
       const body: CreateResponseBody = {
         ...replay,
@@ -361,7 +363,34 @@ describe('encodeGeminiRequest history', () => {
             : item,
         ),
       }
-      expect(() => encodeGeminiRequest(body, 'gemini-3.5-flash-lite')).toThrow(
+      const request = encodeGeminiRequest(body, 'gemini-3.5-flash-lite')
+      const contents = JSON.stringify(request.body['contents'])
+      expect(contents).toContain('"functionResponse":{"id":"call_3117260"')
+      expect(contents).toContain('"inlineData":{"mimeType":"image/png","data":"iVBOR"}')
+      expect(JSON.stringify(request.body)).not.toContain('gemini_tool_result_image_unsupported')
+    },
+  )
+
+  it.each([false, true])(
+    'still refuses tool-result images before Gemini 3 (text: %s)',
+    (hasText) => {
+      const body: CreateResponseBody = {
+        ...replay,
+        input: replay.input.map((item) =>
+          item.type === 'function_call_output'
+            ? {
+                ...item,
+                output: [
+                  ...(hasText
+                    ? [{ type: 'input_text' as const, text: 'picture from view_image' }]
+                    : []),
+                  { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+                ],
+              }
+            : item,
+        ),
+      }
+      expect(() => encodeGeminiRequest(body, 'gemini-2.5-flash')).toThrow(
         expect.objectContaining({
           name: 'ModelApiError',
           kind: 'unsupported_content',
@@ -447,7 +476,7 @@ describe('encodeGeminiRequest history', () => {
     )
   })
 
-  it('refuses a result whose call is missing, and non-JSON arguments', () => {
+  it('refuses a result whose call is missing, and sends non-JSON arguments as {}', () => {
     expect(() =>
       encodeGeminiRequest(
         {
@@ -463,22 +492,23 @@ describe('encodeGeminiRequest history', () => {
         'gemini-3.5-flash-lite',
       ),
     ).toThrow(/no function call 'call_missing'/)
-    expect(() =>
-      encodeGeminiRequest(
-        {
-          ...TOOL_BODY,
-          input: [
-            {
-              type: 'function_call',
-              call_id: 'call_1',
-              name: 'get_time',
-              arguments: 'not json',
-            },
-          ],
-        },
-        'gemini-3.5-flash-lite',
-      ),
-    ).toThrow(/non-JSON arguments/)
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        input: [
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'get_time',
+            arguments: 'not json',
+          },
+        ],
+      },
+      'gemini-3.5-flash-lite',
+    )
+    expect(JSON.stringify(request.body)).toContain(
+      '"functionCall":{"name":"get_time","args":{},"id":"call_1"}',
+    )
   })
 
   it('sends images as inlineData and refuses non-data URLs', () => {
@@ -577,7 +607,20 @@ describe('decodeGeminiStream from the captures', () => {
     expect(messageTextOf(message)).toBe(
       'The current time in UTC is 2026-10-04T12:00:00Z, as provided by the get_time tool.',
     )
-    // The final empty text part's thought signature is dropped, not replayed.
+    // BYO item 4: the final empty text part keeps its thought signature for
+    // the replay, beside the merged answer text.
+    expect(message.content).toEqual([
+      {
+        type: 'output_text',
+        text: 'The current time in UTC is 2026-10-04T12:00:00Z, as provided by the get_time tool.',
+      },
+      {
+        type: 'output_text',
+        text: '',
+        thoughtSignature:
+          'EmAKXgFpFH0TjXKBkvWsF+yT7dzPeRi3mDUibOc9+LDdEMckPBsiwmNtFI6LJ1I46l9fGeuE2emYKshQx0aUSVs2d7eSJZURulMFR2P2aaaPXGrN34miwqR9eneZjPvHnD0=',
+      },
+    ])
     expect(last.response.output.some((item) => isReasoningItem(item))).toBe(false)
     expect(last.response.usage).toEqual({
       input_tokens: 1632,
@@ -845,8 +888,34 @@ describe('decodeGeminiStream turns', () => {
     }
     expect(summary.summary).toEqual([{ type: 'summary_text', text: 'working' }])
     expect(message.phase).toBe('commentary')
+    // BYO item 4: the signed non-empty text part keeps its own signature.
+    expect(message.content).toEqual([
+      { type: 'output_text', text: 'Checking', thoughtSignature: 'sig-text' },
+    ])
     expect(signed.encrypted_content).toBe('sig-call')
     expect(call.call_id).toBe('call_1')
+  })
+
+  it('replays a signed text part with its thought signature (BYO item 4)', () => {
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        input: [
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [
+              { type: 'output_text', text: 'Checking', thoughtSignature: 'sig-text' },
+              { type: 'output_text', text: '' },
+            ],
+          },
+        ],
+      },
+      'gemini-3.5-flash-lite',
+    )
+    expect(JSON.stringify(request.body)).toContain(
+      '"parts":[{"text":"Checking","thoughtSignature":"sig-text"}]',
+    )
   })
 
   it('ends MAX_TOKENS incomplete and other reasons failed', async () => {
@@ -975,5 +1044,172 @@ describe('toGeminiSchemaSubset', () => {
         properties: { loop: { $ref: '#/properties/loop' } },
       }),
     ).toThrow(/circular \$ref/)
+  })
+})
+
+function usageChunk(usage: unknown): unknown {
+  return {
+    candidates: [{ content: { parts: [], role: 'model' }, finishReason: 'STOP', index: 0 }],
+    usageMetadata: usage,
+    modelVersion: 'gemini-3.5-flash-lite',
+    responseId: 'resp_2',
+  }
+}
+
+function textOnlyChunk(text: string): unknown {
+  return {
+    candidates: [{ content: { parts: [{ text }], role: 'model' }, index: 0 }],
+    modelVersion: 'gemini-3.5-flash-lite',
+    responseId: 'resp_2',
+  }
+}
+
+describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
+  it('reads the Gemini generation from the native model id (BYO item 11)', () => {
+    expect(geminiGeneration('gemini-3.5-flash-lite')).toBe(3)
+    expect(geminiGeneration('models/gemini-2.5-pro')).toBe(2)
+    expect(geminiGeneration('gemini/gemini-3-pro-preview')).toBe(3)
+    expect(geminiGeneration('something-else')).toBeUndefined()
+  })
+
+  it('sends full tool schemas on Gemini 3 and the subset before it (BYO item 11)', () => {
+    const parameters = {
+      type: 'object',
+      properties: { timezone: { type: 'string' } },
+      required: ['timezone'],
+      additionalProperties: false,
+      $schema: 'https://json-schema.org/draft-07/schema#',
+    }
+    expect(toGeminiFullSchema(parameters)).toEqual(parameters)
+    expect(() => toGeminiFullSchema({ $ref: 'https://example.com/s.json' })).toThrow(
+      /external \$ref/,
+    )
+    const timeTool = TOOL_BODY.tools[0]
+    if (timeTool?.type !== 'function') {
+      throw new Error('expected the function tool first')
+    }
+    const old = encodeGeminiRequest(
+      { ...TOOL_BODY, tools: [{ ...timeTool, parameters }] },
+      'gemini-2.5-flash',
+    )
+    expect(JSON.stringify(old.body)).not.toContain('additionalProperties')
+    const current = encodeGeminiRequest(
+      { ...TOOL_BODY, tools: [{ ...timeTool, parameters }] },
+      'gemini-3.5-flash-lite',
+    )
+    expect(JSON.stringify(current.body)).toContain('"additionalProperties":false')
+  })
+
+  it('counts omitted usage as zero but keeps an empty usageMetadata silent (BYO item 7)', async () => {
+    const partial = await collect(
+      sseOf([chunk([{ text: 'hi' }]), usageChunk({ promptTokenCount: 12 }), usageChunk({})]),
+    )
+    const last = partial.at(-1)
+    if (last?.type !== 'response.completed') {
+      throw new Error('expected the stream to end completed')
+    }
+    expect(last.response.usage).toMatchObject({
+      input_tokens: 12,
+      output_tokens: 0,
+      total_tokens: 12,
+    })
+    const silent = await collect(sseOf([textOnlyChunk('hi'), usageChunk({})]))
+    const silentLast = silent.at(-1)
+    if (silentLast?.type !== 'response.completed') {
+      throw new Error('expected the stream to end completed')
+    }
+    expect(silentLast.response.usage).toBeUndefined()
+  })
+
+  it('names unnamed calls per response so two turns never share one (BYO item 3)', async () => {
+    const first = await collect(
+      sseOf([
+        {
+          candidates: [
+            { content: { role: 'model', parts: [{ functionCall: { name: 'get_time' } }] } },
+          ],
+          responseId: 'resp_a',
+        },
+        chunk([], 'STOP'),
+      ]),
+    )
+    const firstLast = first.at(-1)
+    if (firstLast?.type !== 'response.completed') {
+      throw new Error('expected the first stream to end completed')
+    }
+    const second = await collect(
+      sseOf([
+        {
+          candidates: [
+            { content: { role: 'model', parts: [{ functionCall: { name: 'get_time' } }] } },
+          ],
+          responseId: 'resp_b',
+        },
+        chunk([], 'STOP'),
+      ]),
+    )
+    const secondLast = second.at(-1)
+    if (secondLast?.type !== 'response.completed') {
+      throw new Error('expected the second stream to end completed')
+    }
+    const firstCall = firstLast.response.output.find(isFunctionCallItem)
+    const secondCall = secondLast.response.output.find(isFunctionCallItem)
+    expect(firstCall?.call_id).toBe('call_resp_a_0')
+    expect(secondCall?.call_id).toBe('call_resp_b_0')
+    expect(firstCall?.call_id).not.toBe(secondCall?.call_id)
+  })
+
+  it('drops blank text, marks empty results and stands in for images without vision (BYO item 1)', () => {
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: ' '.repeat(3) },
+              { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+            ],
+          },
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'get_time',
+            arguments: '{"timezone":"UTC"}',
+          },
+          { type: 'function_call_output', call_id: 'call_1', output: '' },
+        ],
+      },
+      'gemini-2.5-flash',
+      { capabilities: { vision: false } },
+    )
+    const contents = JSON.stringify(request.body['contents'])
+    expect(contents).not.toContain('"text":"   "')
+    expect(contents).toContain('[image omitted: this model takes no images]')
+    expect(contents).toContain('(no tool output)')
+  })
+
+  it('removes lone surrogates from instructions and arguments (BYO item 13)', () => {
+    const request = encodeGeminiRequest(
+      {
+        ...TOOL_BODY,
+        instructions: 'be brie\u{D800}f',
+        input: [
+          {
+            type: 'function_call',
+            call_id: 'call_1',
+            name: 'get_time',
+            arguments: '{"timezone":"U\u{DC00}TC"}',
+          },
+        ],
+      },
+      'gemini-2.5-flash',
+    )
+    const text = JSON.stringify(request.body)
+    expect(text).toContain('be brie�f')
+    expect(text).toContain('U�TC')
+    expect(text).not.toContain(String.raw`\ud800`)
+    expect(text).not.toContain(String.raw`\udc00`)
   })
 })

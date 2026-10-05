@@ -15699,6 +15699,13 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
   `thinking.display: "summarized"`; Gemini 3 images in tool results and full
   schemas; lone surrogates removed. Files: `codecs/*`.
+  Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
+  golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
+  Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
+  provider x item table, byte diffs, and residuals (session-store signature
+  stripping for lane A, replay origins for lane I, id-heuristic generation
+  for lane N). Gates, red drills, bundle measurement and commit are pending:
+  the session had no working shell.
 - **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
   16; item 24's per-model strict schemas and the llama.cpp grammar check).
   Retry classification moves into `FormatQuirks`; price cards read long

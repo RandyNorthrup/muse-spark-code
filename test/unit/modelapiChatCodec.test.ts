@@ -377,11 +377,11 @@ function imageBody(isToolOutput: boolean): CreateResponseBody {
       ? [
           {
             type: 'function_call',
-            call_id: 'image-1',
+            call_id: 'image0001',
             name: 'read_file',
             arguments: '{"path":"shot.png"}',
           },
-          { type: 'function_call_output', call_id: 'image-1', output: parts },
+          { type: 'function_call_output', call_id: 'image0001', output: parts },
         ]
       : [{ type: 'message', role: 'user', content: parts }],
   })
@@ -403,11 +403,11 @@ function retainedToolBody(output: string): CreateResponseBody {
       },
       {
         type: 'function_call',
-        call_id: 'time-1',
+        call_id: 'time00001',
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: 'time-1', output },
+      { type: 'function_call_output', call_id: 'time00001', output },
     ],
     tools: [
       {
@@ -493,7 +493,12 @@ describe('chat codec retained-history scenario goldens', () => {
     const encoded = encodeChatRequest(
       {
         ...body,
-        input: [call, { ...call, call_id: 'image-2' }, output, { ...output, call_id: 'image-2' }],
+        input: [
+          call,
+          { ...call, call_id: 'image0002' },
+          output,
+          { ...output, call_id: 'image0002' },
+        ],
       },
       'm',
       MISTRAL,
@@ -507,8 +512,8 @@ describe('chat codec retained-history scenario goldens', () => {
       'user',
       'user',
     ])
-    expect(encoded.body.messages[2]).toMatchObject({ tool_call_id: 'image-1' })
-    expect(encoded.body.messages[3]).toMatchObject({ tool_call_id: 'image-2' })
+    expect(encoded.body.messages[2]).toMatchObject({ tool_call_id: 'image0001' })
+    expect(encoded.body.messages[3]).toMatchObject({ tool_call_id: 'image0002' })
     expect(encoded.body.messages.at(-1)).toEqual(encoded.body.messages.at(-2))
   })
 
@@ -1534,15 +1539,17 @@ describe('chat codec guards', () => {
     )
   })
 
-  it('refuses images without verified vision using the installed translated reason', () => {
+  it('refuses images with unknown vision and stands in without it (BYO item 1)', () => {
     const modelUnavailable = 'Dieses Modell ist für diesen Lauf nicht verfügbar.'
     setUiText({ ...EN, execUnknownModel: modelUnavailable }, 'de')
     try {
       expect(UI_TEXT.execUnknownModel).toBe(modelUnavailable)
       for (const body of [imageBody(false), imageBody(true)]) {
-        for (const options of [undefined, { capabilities: { vision: false } }]) {
-          expect(() => encodeChatRequest(body, 'm', GROQ, options)).toThrow(modelUnavailable)
-        }
+        expect(() => encodeChatRequest(body, 'm', GROQ, undefined)).toThrow(modelUnavailable)
+        const stoodIn = encodeChatRequest(body, 'm', GROQ, { capabilities: { vision: false } })
+        expect(JSON.stringify(stoodIn.body.messages)).toContain(
+          '[image omitted: this model takes no images]',
+        )
       }
     } finally {
       setUiText(EN, 'en')
@@ -1847,5 +1854,131 @@ describe('chat codec guards', () => {
     const done = decoder.finish()
     expect(done.response.id).toBe('chat-response')
     expect(done.response.model).toBe('fallback-model')
+  })
+})
+
+function callBody(callId: string, output: string): CreateResponseBody {
+  return {
+    ...tinyBody(),
+    input: [
+      {
+        type: 'function_call',
+        call_id: callId,
+        name: 'get_time',
+        arguments: '{"timezone":"UTC"}',
+      },
+      { type: 'function_call_output', call_id: callId, output },
+    ],
+  }
+}
+
+describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
+  it('rewrites hostile ids per target format, pairing calls with results (BYO item 3)', () => {
+    const mistral = encodeChatRequest(callBody('image-1', 'noon'), 'mistral-medium', MISTRAL)
+    const mistralText = JSON.stringify(mistral.body.messages)
+    expect(mistralText).not.toContain('image-1')
+    const mistralIds = Array.from(
+      mistralText.matchAll(/"id":"([A-Za-z0-9]{9})"/g),
+      (match) => match[1],
+    )
+    expect(mistralIds.length).toBeGreaterThan(0)
+    // The call and its result carry the same mapped id.
+    const toolIds = Array.from(
+      mistralText.matchAll(/"tool_call_id":"([A-Za-z0-9]{9})"/g),
+      (match) => match[1],
+    )
+    expect(toolIds).toEqual(mistralIds)
+    const openrouter = encodeChatRequest(callBody('image-1', 'noon'), 'm', OPENROUTER)
+    const openrouterText = JSON.stringify(openrouter.body.messages)
+    expect(openrouterText).toContain('"id":"image-1"')
+    // The captured 41-character Together id replays verbatim; only a
+    // pathological id is remapped.
+    const captured = encodeChatRequest(
+      callBody('call_01a10910-a000-7d83-9b27-efc1bb3e764b', 'noon'),
+      'm',
+      OPENROUTER,
+    )
+    expect(JSON.stringify(captured.body.messages)).toContain(
+      '"id":"call_01a10910-a000-7d83-9b27-efc1bb3e764b"',
+    )
+    const long = encodeChatRequest(
+      callBody(`chat-call-4c7dca83f54445e19b3e16281105748c-0-${'x'.repeat(60)}`, 'noon'),
+      'm',
+      OPENROUTER,
+    )
+    const longText = JSON.stringify(long.body.messages)
+    expect(longText).not.toContain('chat-call-4c7dca83')
+    expect(longText).toMatch(/"id":"chat-[0-9a-f]{8}"/)
+  })
+
+  it('drops blank text and marks empty results (BYO item 1)', () => {
+    const encoded = encodeChatRequest(
+      {
+        ...tinyBody(),
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: ' '.repeat(3) },
+              { type: 'input_text', text: 'hi' },
+            ],
+          },
+          { type: 'function_call', call_id: 'call-1', name: 'get_time', arguments: '{}' },
+          { type: 'function_call_output', call_id: 'call-1', output: '' },
+        ],
+      },
+      'm',
+      OPENROUTER,
+    )
+    const text = JSON.stringify(encoded.body.messages)
+    expect(text).not.toContain('"content":"   "')
+    expect(text).toContain('"content":"hi"')
+    expect(text).toContain('(no tool output)')
+  })
+
+  it('stands in for images without vision but refuses unknown vision (BYO item 1)', () => {
+    const body: CreateResponseBody = {
+      ...tinyBody(),
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+          ],
+        },
+      ],
+    }
+    const without = encodeChatRequest(body, 'm', OPENROUTER, {
+      capabilities: { vision: false },
+    })
+    expect(JSON.stringify(without.body.messages)).toContain(
+      '[image omitted: this model takes no images]',
+    )
+    expect(() => encodeChatRequest(body, 'm', OPENROUTER)).toThrow(UI_TEXT.execUnknownModel)
+  })
+
+  it('removes lone surrogates from text crossing the wire (BYO item 13)', () => {
+    const encoded = encodeChatRequest(
+      {
+        ...tinyBody(),
+        instructions: 'be brie\u{D800}f',
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'a\u{DC00}b' }],
+          },
+        ],
+      },
+      'm',
+      OPENROUTER,
+    )
+    const text = JSON.stringify(encoded.body)
+    expect(text).toContain('be brie�f')
+    expect(text).toContain('a�b')
+    expect(text).not.toContain(String.raw`\ud800`)
+    expect(text).not.toContain(String.raw`\udc00`)
   })
 })

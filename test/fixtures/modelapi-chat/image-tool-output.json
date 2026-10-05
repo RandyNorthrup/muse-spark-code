@@ -10,7 +10,7 @@
       "content": null,
       "tool_calls": [
         {
-          "id": "image-1",
+          "id": "image0001",
           "type": "function",
           "function": {
             "name": "read_file",
@@ -21,7 +21,7 @@
     },
     {
       "role": "tool",
-      "tool_call_id": "image-1",
+      "tool_call_id": "image0001",
       "content": "Describe this image.Be brief.",
       "name": "read_file"
     },

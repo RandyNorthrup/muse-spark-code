@@ -4,10 +4,15 @@
 // ResponsesWireCodec is the explicit seam for its transport adapter.
 
 import * as z from 'zod/mini'
+import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
 import {
   type CreateResponseBody,
   eventTypeSchema,
+  type FunctionCallItem,
   functionCallItemSchema,
+  type FunctionOutputPart,
+  type InputContentPart,
+  type InputItem,
   messageItemSchema,
   outputTextPartSchema,
   reasoningItemSchema,
@@ -18,10 +23,30 @@ import {
   webSearchCallItemSchema,
 } from '../schemas'
 import { parseSse } from '../sse'
+import { cleanWireText, isBlankWireText } from './shared'
 
 export interface ResponsesCodecQuirks {
   readonly sendPromptCacheRetention: boolean
   readonly sendPromptCacheKey: boolean
+  /**
+   * M101 lane P1 (BYO item 1): the model's image input. `false` sends the
+   * image-omitted placeholder so the turn keeps its shape; unknown keeps
+   * today's bytes and sends the image. Lane P fills this per model.
+   */
+  readonly vision?: boolean | undefined
+}
+
+/**
+ * M101 lane P1 (BYO item 2): per-request replay provenance. Replayed call
+ * ids resolve only against the model that produced them (Pi
+ * `openai-responses-shared.ts`): `replayOrigins` names that model per
+ * `call_id`, defaulting to the request's own model. Lane I fills it from
+ * each replay entry's provider and model; until it does, every replay reads
+ * as same-model.
+ */
+export interface ResponsesEncodeOptions {
+  readonly model?: string | undefined
+  readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
 
 /** Technical diagnostics contain no provider-controlled text or schema errors. */
@@ -42,11 +67,140 @@ export interface ResponsesDecodeSink {
 
 export interface ResponsesWireCodec {
   readonly format: 'responses'
-  encodeRequest(body: CreateResponseBody): Record<string, unknown>
+  encodeRequest(body: CreateResponseBody, options?: ResponsesEncodeOptions): Record<string, unknown>
   decodeStream(
     chunks: AsyncIterable<Uint8Array>,
     sink?: ResponsesDecodeSink,
   ): AsyncGenerator<StreamEvent>
+}
+
+/** A server-minted Responses call id; only these resolve on replay. */
+const RESPONSES_CALL_ID_PREFIX = 'fc_'
+
+/**
+ * M101 lane P1 (BYO item 2): whether a replayed `function_call` keeps its
+ * `id`. Only a server-minted `fc_…` id from the request's own model replays;
+ * a foreign id (another format's, a synthetic one) or another model's id is
+ * dropped while `call_id` still pairs the result (Pi #886).
+ */
+function shouldKeepReplayCallId(
+  item: FunctionCallItem,
+  model: string,
+  origins: Readonly<Record<string, string>> | undefined,
+): boolean {
+  const id = item.id
+  return id?.startsWith(RESPONSES_CALL_ID_PREFIX)
+    ? (origins?.[item.call_id] ?? model) === model
+    : false
+}
+
+function replayTextPart(text: string): { readonly text: string } | undefined {
+  return isBlankWireText(text) ? undefined : { text: cleanWireText(text) }
+}
+
+/**
+ * One message content part replayed (BYO items 1, 13): blank text drops
+ * (as `undefined`), images ride as the image-omitted placeholder where the
+ * model takes no images, and files ride with a cleaned name. Inputs
+ * without any of these map back byte-identical.
+ */
+function replayContentPart(
+  part: InputContentPart,
+  quirks: ResponsesCodecQuirks,
+): InputContentPart | undefined {
+  switch (part.type) {
+    case 'input_text':
+    case 'output_text': {
+      const text = replayTextPart(part.text)
+      return text === undefined ? undefined : { ...part, text: text.text }
+    }
+    case 'input_image': {
+      return quirks.vision === false
+        ? { type: 'input_text', text: CODEC_IMAGE_WITHOUT_VISION }
+        : part
+    }
+    case 'input_file': {
+      return { ...part, filename: cleanWireText(part.filename) }
+    }
+  }
+}
+
+/**
+ * M101 lane P1 (BYO items 1, 13): the replay-safe input. Blank text is
+ * dropped (an item left with no content is dropped with it), empty results
+ * ride as an explicit marker, lone surrogates are removed, and images ride
+ * as the image-omitted placeholder where the model takes no images. Inputs
+ * without any of these map back byte-identical (the copies below keep every
+ * key in order).
+ */
+function replayInput(
+  input: readonly InputItem[],
+  quirks: ResponsesCodecQuirks,
+  model: string,
+  origins: Readonly<Record<string, string>> | undefined,
+): InputItem[] {
+  const mapped: InputItem[] = []
+  for (const item of input) {
+    switch (item.type) {
+      case 'message': {
+        const content: InputContentPart[] = []
+        for (const part of item.content) {
+          const replayed = replayContentPart(part, quirks)
+          if (replayed !== undefined) {
+            content.push(replayed)
+          }
+        }
+        if (content.length > 0) {
+          mapped.push({ ...item, content })
+        }
+        continue
+      }
+      case 'function_call': {
+        // M101 lane P1 (BYO item 2): the `id` replays only per
+        // `shouldKeepReplayCallId`; `call_id` still pairs the result.
+        const replayed: FunctionCallItem = { ...item, arguments: cleanWireText(item.arguments) }
+        if (!shouldKeepReplayCallId(item, model, origins)) {
+          delete replayed.id
+        }
+        mapped.push(replayed)
+        continue
+      }
+      case 'function_call_output': {
+        if (typeof item.output === 'string') {
+          mapped.push(
+            isBlankWireText(item.output)
+              ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT }
+              : { ...item, output: cleanWireText(item.output) },
+          )
+          continue
+        }
+        const output: FunctionOutputPart[] = []
+        for (const part of item.output) {
+          if (part.type === 'input_image') {
+            output.push(
+              quirks.vision === false
+                ? { type: 'input_text', text: CODEC_IMAGE_WITHOUT_VISION }
+                : part,
+            )
+          } else {
+            const text = replayTextPart(part.text)
+            if (text !== undefined) {
+              output.push({ ...part, text: text.text })
+            }
+          }
+        }
+        mapped.push(
+          output.length === 0 ? { ...item, output: CODEC_EMPTY_TOOL_OUTPUT } : { ...item, output },
+        )
+        continue
+      }
+      default: {
+        mapped.push(item)
+        continue
+      }
+    }
+  }
+  return mapped
 }
 
 const DONE_SENTINEL = '[DONE]'
@@ -143,11 +297,22 @@ function settledCostOf(usage: unknown): number | undefined {
 export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWireCodec {
   return {
     format: 'responses',
-    encodeRequest(body: CreateResponseBody): Record<string, unknown> {
+    encodeRequest(
+      body: CreateResponseBody,
+      options?: ResponsesEncodeOptions,
+    ): Record<string, unknown> {
+      // M101 lane P1 (BYO items 1, 2, 13): the input replays replay-safe.
+      // An input left with nothing after the mapping is refused outright
+      // instead of sent as a guaranteed 400.
+      const model = options?.model ?? body.model
+      const mapped = replayInput(body.input, quirks, model, options?.replayOrigins)
+      if (mapped.length === 0) {
+        throw new Error('responses codec: the request keeps no replayable input')
+      }
       return {
         model: body.model,
-        input: body.input,
-        instructions: body.instructions,
+        input: mapped,
+        instructions: cleanWireText(body.instructions),
         tools: body.tools,
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,

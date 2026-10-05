@@ -596,6 +596,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
     expect(native.headers['anthropic-beta']).toBe('thinking-binding-controls-2026-08-01')
     expect(native.body.thinking).toEqual({
       type: 'adaptive',
+      display: 'summarized',
       block_binding: { prefix_mismatch_behavior: 'drop_block' },
     })
     expect(native.body.messages[1]?.content).toEqual([
@@ -618,7 +619,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
       BASE_OPTIONS,
     )
     expect(native.headers['anthropic-beta']).toBeUndefined()
-    expect(native.body.thinking).toEqual({ type: 'adaptive' })
+    expect(native.body.thinking).toEqual({ type: 'adaptive', display: 'summarized' })
     expect(native.body.messages[1]?.content).toEqual([rollingToolUse])
   })
 
@@ -768,25 +769,32 @@ describe('breakpoints and effort', () => {
 })
 
 describe('encode guards', () => {
-  it('refuses tool arguments that are not a JSON object', () => {
+  it('sends non-JSON tool arguments as an empty object (BYO item 1)', () => {
     for (const args of ['{broken', '"just-a-string"', '[1,2]']) {
-      expect(() =>
-        encodeAnthropicRequest(
-          canonicalBody({
-            instructions: '',
-            input: [
-              {
-                type: 'function_call',
-                id: 'toolu_01b',
-                call_id: 'toolu_01b',
-                name: 'get_time',
-                arguments: args,
-              },
-            ],
-          }),
-          BASE_OPTIONS,
-        ),
-      ).toThrow(/invalid_tool_arguments/)
+      const native = encodeAnthropicRequest(
+        canonicalBody({
+          instructions: '',
+          input: [
+            {
+              type: 'function_call',
+              id: 'toolu_01b',
+              call_id: 'toolu_01b',
+              name: 'get_time',
+              arguments: args,
+            },
+          ],
+        }),
+        BASE_OPTIONS,
+      )
+      expect(native.body.messages[0]?.content).toEqual([
+        {
+          type: 'tool_use',
+          id: 'toolu_01b',
+          name: 'get_time',
+          input: {},
+          cache_control: { type: 'ephemeral', ttl: '5m' },
+        },
+      ])
     }
   })
 
@@ -814,28 +822,36 @@ describe('encode guards', () => {
     }
   })
 
-  it('refuses PDF input and empty turns', () => {
-    expect(() =>
-      encodeAnthropicRequest(
-        canonicalBody({
-          instructions: '',
-          input: [
-            {
-              type: 'message',
-              role: 'user',
-              content: [
-                {
-                  type: 'input_file',
-                  filename: 'doc.pdf',
-                  file_data: 'data:application/pdf;base64,AAAA',
-                },
-              ],
-            },
-          ],
-        }),
-        BASE_OPTIONS,
-      ),
-    ).toThrow(/unsupported_pdf_input/)
+  it('sends PDF input as a document block (BYO item 1)', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: '',
+        input: [
+          {
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_file',
+                filename: 'doc.pdf',
+                file_data: 'data:application/pdf;base64,AAAA',
+              },
+            ],
+          },
+        ],
+      }),
+      { ...BASE_OPTIONS, effort: 'none' },
+    )
+    expect(native.body.messages[0]?.content).toEqual([
+      {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: 'AAAA' },
+        cache_control: { type: 'ephemeral', ttl: '5m' },
+      },
+    ])
+  })
+
+  it('refuses empty turns', () => {
     expect(() => encodeAnthropicRequest(canonicalBody({ instructions: '' }), BASE_OPTIONS)).toThrow(
       /empty_turn/,
     )
@@ -932,6 +948,207 @@ describe('encode guards', () => {
         ],
       },
     ])
+  })
+})
+
+function userMessage(text: string): CreateResponseBody {
+  return canonicalBody({
+    instructions: '',
+    input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text }] }],
+  })
+}
+
+describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
+  it('drops whitespace-only text (BYO item 1)', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: '',
+        input: [
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: ' '.repeat(3) }] },
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+        ],
+      }),
+      { ...BASE_OPTIONS, effort: 'none' },
+    )
+    expect(native.body.messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'hi', cache_control: { type: 'ephemeral', ttl: '5m' } }],
+      },
+    ])
+  })
+
+  it('marks empty tool results instead of sending empty content (BYO item 1)', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: '',
+        input: [
+          { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
+          { type: 'function_call_output', call_id: 'toolu_01e', output: '' },
+        ],
+      }),
+      { ...BASE_OPTIONS, effort: 'none' },
+    )
+    const content = native.body.messages[0]?.content
+    expect(JSON.stringify(content)).toContain('(no tool output)')
+  })
+
+  it('sends the image-omitted placeholder without vision (BYO item 1)', () => {
+    const body = canonicalBody({
+      instructions: '',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            {
+              type: 'input_image',
+              image_url: 'data:image/png;base64,iVBORw0KGgo=',
+              detail: 'auto',
+            },
+          ],
+        },
+      ],
+    })
+    const native = encodeAnthropicRequest(body, {
+      ...BASE_OPTIONS,
+      effort: 'none',
+      capabilities: { vision: false },
+    })
+    expect(JSON.stringify(native.body.messages)).toContain(
+      '[image omitted: this model takes no images]',
+    )
+    expect(JSON.stringify(native.body.messages)).not.toContain('iVBORw0KGgo=')
+    const sent = encodeAnthropicRequest(body, { ...BASE_OPTIONS, effort: 'none' })
+    expect(JSON.stringify(sent.body.messages)).toContain('iVBORw0KGgo=')
+  })
+
+  it('maps hostile call ids into the accepted charset (BYO item 3)', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: '',
+        input: [
+          {
+            type: 'function_call',
+            id: 'call:1/abc',
+            call_id: 'call:1/abc',
+            name: 'get_time',
+            arguments: '{}',
+          },
+          { type: 'function_call_output', call_id: 'call:1/abc', output: 'noon' },
+        ],
+      }),
+      { ...BASE_OPTIONS, effort: 'none' },
+    )
+    const text = JSON.stringify(native.body.messages)
+    expect(text).not.toContain('call:1/abc')
+    const ids = Array.from(text.matchAll(/"tool_use_id":"([^"]+)"/g), (match) => match[1])
+    expect(ids).toHaveLength(1)
+    const [only] = ids
+    if (only === undefined) {
+      throw new Error('expected one mapped tool id')
+    }
+    expect(only).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(text).toContain(`"id":"${only}"`)
+  })
+
+  it('removes lone surrogates from instructions and text (BYO item 13)', () => {
+    const native = encodeAnthropicRequest(userMessage('a\u{D800}b'), {
+      ...BASE_OPTIONS,
+      effort: 'none',
+    })
+    expect(JSON.stringify(native.body.messages)).toContain('a�b')
+    expect(JSON.stringify(native.body.messages)).not.toContain(String.raw`\ud800`)
+  })
+
+  it('tolerates a proxy-null usage object (BYO item 8)', async () => {
+    const frames: SseEvent[] = [
+      {
+        event: 'message_start',
+        data: JSON.stringify({ type: 'message_start', message: { id: 'mnull', usage: null } }),
+      },
+      {
+        event: 'content_block_start',
+        data: JSON.stringify({
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' },
+        }),
+      },
+      {
+        event: 'content_block_delta',
+        data: JSON.stringify({
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'tail' },
+        }),
+      },
+      {
+        event: 'content_block_stop',
+        data: JSON.stringify({ type: 'content_block_stop', index: 0 }),
+      },
+      {
+        event: 'message_delta',
+        data: JSON.stringify({
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn' },
+          usage: { input_tokens: 7, output_tokens: 2 },
+        }),
+      },
+      { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
+    ]
+    const { terminal } = await decodeCompleted(frames)
+    expect(terminal.response.usage?.input_tokens).toBe(7)
+  })
+
+  it('keeps a tool payload cut off at max_tokens with its partial arguments (BYO item 8)', async () => {
+    const frames: SseEvent[] = [
+      {
+        event: 'message_start',
+        data: JSON.stringify({
+          type: 'message_start',
+          message: { id: 'mcut', usage: { input_tokens: 5, output_tokens: 1 } },
+        }),
+      },
+      {
+        event: 'content_block_start',
+        data: JSON.stringify({
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 'toolu_01cut', name: 'get_time' },
+        }),
+      },
+      {
+        event: 'content_block_delta',
+        data: JSON.stringify({
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: '{"timezone":' },
+        }),
+      },
+      {
+        event: 'content_block_stop',
+        data: JSON.stringify({ type: 'content_block_stop', index: 0 }),
+      },
+      {
+        event: 'message_delta',
+        data: JSON.stringify({
+          type: 'message_delta',
+          delta: { stop_reason: 'max_tokens' },
+          usage: { input_tokens: 5, output_tokens: 1 },
+        }),
+      },
+      { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) },
+    ]
+    const events = await decodeAll(frames, { model: MODEL })
+    const terminal = events.at(-1)
+    expect(terminal?.type).toBe('response.incomplete')
+    if (terminal?.type !== 'response.incomplete') {
+      throw new Error('expected an incomplete response')
+    }
+    expect(terminal.response.incomplete_details).toEqual({ reason: 'max_tokens' })
+    const call = terminal.response.output.find((item) => item.type === 'function_call')
+    expect(call).toMatchObject({ call_id: 'toolu_01cut', arguments: '{"timezone":' })
   })
 })
 

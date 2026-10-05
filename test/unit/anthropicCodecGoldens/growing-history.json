@@ -53,7 +53,8 @@
       },
       "stream": true,
       "thinking": {
-        "type": "adaptive"
+        "type": "adaptive",
+        "display": "summarized"
       },
       "output_config": {
         "effort": "high"
@@ -135,7 +136,8 @@
       },
       "stream": true,
       "thinking": {
-        "type": "adaptive"
+        "type": "adaptive",
+        "display": "summarized"
       },
       "output_config": {
         "effort": "high"
@@ -235,7 +237,8 @@
       },
       "stream": true,
       "thinking": {
-        "type": "adaptive"
+        "type": "adaptive",
+        "display": "summarized"
       },
       "output_config": {
         "effort": "high"

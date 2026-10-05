@@ -14,7 +14,9 @@
 
 import * as z from 'zod/mini'
 
+import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
 import { ModelApiError } from '../client'
+import { cleanJsonStrings, cleanWireText, isBlankWireText } from './shared'
 import type {
   CreateResponseBody,
   FunctionCallOutputItem,
@@ -48,6 +50,12 @@ export const GEMINI_SKIP_THOUGHT_SIGNATURE = 'skip_thought_signature_validator'
 
 /** `thinkingConfig.thinkingLevel` on 3.x models (research §1.6). */
 export const GEMINI_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const
+
+/**
+ * M101 lane P1 (BYO item 11): the first generation with images in tool
+ * results and full tool schemas (Pi `google-shared.ts`).
+ */
+const GEMINI_FULL_SCHEMA_GENERATION = 3
 export type GeminiThinkingLevel = (typeof GEMINI_THINKING_LEVELS)[number]
 
 function isThinkingLevel(value: string): value is GeminiThinkingLevel {
@@ -65,6 +73,36 @@ export function geminiThinkingLevelForEffort(effort: string): GeminiThinkingLeve
     return effort
   }
   return effort === 'xhigh' || effort === 'max' ? 'high' : undefined
+}
+
+/**
+ * M101 lane P1 (BYO item 11): per-request encode options. Lane P fills
+ * these from the model record; lane N will own the normalized catalog
+ * fields (`capabilities.vision`, a generation marker). Absent means
+ * today's behavior.
+ */
+export interface GeminiEncodeOptions {
+  /** The model's image input; `false` sends the image-omitted placeholder (BYO item 1). */
+  readonly capabilities?: { readonly vision: boolean } | undefined
+  /**
+   * The model's Gemini generation, overriding the id heuristic below.
+   * Generation 3 and later sends tool-result images and full tool schemas.
+   */
+  readonly generation?: number | undefined
+}
+
+/**
+ * M101 lane P1 (BYO item 11): the Gemini generation of a native model id
+ * (`gemini-3.5-flash-lite` → 3), or undefined when the id names none. The
+ * item-11 capabilities ride on this until the catalog carries them.
+ */
+export function geminiGeneration(nativeModelId: string): number | undefined {
+  const match = /(?:^|\/)gemini-(\d+)/.exec(nativeModelId)
+  if (match?.[1] === undefined) {
+    return undefined
+  }
+  const major = Number(match[1])
+  return Number.isSafeInteger(major) ? major : undefined
 }
 
 // --- native response schemas (validated before use, AGENTS.md rule 7) --------
@@ -253,6 +291,61 @@ export function toGeminiSchemaSubset(parameters: Record<string, unknown>): Recor
   return rewritten
 }
 
+function rewriteFullSchemaNode(
+  node: unknown,
+  root: unknown,
+  resolving: readonly string[],
+): unknown {
+  // The same `$ref` handling as the subset walker above: a `$ref` continues
+  // with its target (external and circular references throw), while every
+  // other key rides verbatim, in order.
+  let current: unknown = node
+  let seen = resolving
+  for (;;) {
+    if (Array.isArray(current)) {
+      return current.map((entry) => rewriteFullSchemaNode(entry, root, seen))
+    }
+    if (!isRecord(current)) {
+      return current
+    }
+    const ref: unknown = current['$ref']
+    if (ref === undefined) {
+      break
+    }
+    if (typeof ref !== 'string') {
+      throw new TypeError('Gemini codec: $ref must be a string')
+    }
+    if (!ref.startsWith('#/')) {
+      throw new Error(`Gemini codec: external $ref '${ref}' has no Gemini form`)
+    }
+    if (seen.includes(ref)) {
+      throw new Error(`Gemini codec: circular $ref '${ref}'`)
+    }
+    seen = [...seen, ref]
+    current = resolvePointer(root, ref.slice(1))
+  }
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(current)) {
+    out[key] = rewriteFullSchemaNode(value, root, seen)
+  }
+  return out
+}
+
+/**
+ * M101 lane P1 (BYO item 11): a tool's `parameters` for Gemini 3 and later,
+ * which take the full JSON Schema (Pi `google-shared.ts`). Local `$ref`s
+ * still resolve inline (a reference has no Gemini form); external and
+ * circular references throw, as in the subset. Key order and values are
+ * otherwise untouched.
+ */
+export function toGeminiFullSchema(parameters: Record<string, unknown>): Record<string, unknown> {
+  const rewritten = rewriteFullSchemaNode(parameters, parameters, [])
+  if (!isRecord(rewritten)) {
+    throw new Error('Gemini codec: tool parameters must be a schema object')
+  }
+  return rewritten
+}
+
 // --- encode: canonical body to a native request -------------------------------
 
 /** What the transport sends: the path below the preset's origin, and the JSON body. */
@@ -287,14 +380,25 @@ function toInlineData(part: InputContentPart): unknown {
   return { inlineData: { ...(mimeType !== undefined && { mimeType }), data: data ?? '' } }
 }
 
-/** A message's content parts as native parts (`output_text` is replayed assistant text). */
-function toNativeParts(content: readonly InputContentPart[]): unknown[] {
+/**
+ * A message's content parts as native parts (`output_text` is replayed
+ * assistant text). M101 lane P1 (BYO items 1, 4, 13): blank text is
+ * dropped, lone surrogates are removed, media rides as the image-omitted
+ * placeholder where the model takes no images, and a replayed text part
+ * carries back its thought signature, empty parts included (Pi #7356).
+ */
+function toNativeParts(content: readonly InputContentPart[], build: ContentsBuild): unknown[] {
   const parts: unknown[] = []
   for (const part of content) {
     if (part.type === 'input_image' || part.type === 'input_file') {
-      parts.push(toInlineData(part))
-    } else {
-      parts.push({ text: part.text })
+      parts.push(build.vision === false ? { text: CODEC_IMAGE_WITHOUT_VISION } : toInlineData(part))
+    } else if (!isBlankWireText(part.text)) {
+      const text = cleanWireText(part.text)
+      if (part.type === 'output_text' && part.thoughtSignature !== undefined) {
+        parts.push({ text, thoughtSignature: part.thoughtSignature })
+      } else {
+        parts.push({ text })
+      }
     }
   }
   return parts
@@ -304,35 +408,51 @@ function toNativeParts(content: readonly InputContentPart[]): unknown[] {
  * A tool result as the `functionResponse.response` object (research §1.6):
  * a JSON-object string goes back as that object (the capture replays
  * `{"timezone": …, "time": …}` verbatim); anything else, including text
- * joined from content parts, as `{result}`. No tool-result image form was
- * captured or recorded in research §1.6, so media refuses the whole request
- * with a named error before any text-only representation can be sent.
+ * joined from content parts, as `{result}`. M101 lane P1 (BYO items 1,
+ * 11, 13): blank results ride as the empty-output marker, and on Gemini 3
+ * and later the result's images ride as sibling `inlineData` parts after
+ * the `functionResponse` (Pi `google-shared.ts`); older models keep the
+ * named refusal instead of a silently text-only representation.
  */
-function toFunctionResponseBody(output: FunctionCallOutputItem['output']): Record<string, unknown> {
-  if (typeof output !== 'string' && output.some((part) => part.type === 'input_image')) {
-    throw new ModelApiError(
-      'GeminiToolResultImageUnsupported',
-      0,
-      'unsupported_content',
-      'gemini_tool_result_image_unsupported',
-    )
+function toFunctionResponseParts(
+  output: FunctionCallOutputItem['output'],
+  build: ContentsBuild,
+): { readonly response: Record<string, unknown>; readonly images: readonly unknown[] } {
+  const images: unknown[] = []
+  const texts: string[] = []
+  if (typeof output === 'string') {
+    texts.push(output)
+  } else {
+    for (const part of output) {
+      if (part.type === 'input_image') {
+        if (!build.isGemini3) {
+          throw new ModelApiError(
+            'GeminiToolResultImageUnsupported',
+            0,
+            'unsupported_content',
+            'gemini_tool_result_image_unsupported',
+          )
+        }
+        images.push(toInlineData(part))
+      } else {
+        texts.push(part.text)
+      }
+    }
   }
-  const text =
-    typeof output === 'string'
-      ? output
-      : output
-          .filter((part) => part.type === 'input_text')
-          .map((part) => part.text)
-          .join('\n')
+  const text = texts.join('\n')
+  if (isBlankWireText(text)) {
+    return { response: { result: CODEC_EMPTY_TOOL_OUTPUT }, images }
+  }
   try {
     const parsed: unknown = JSON.parse(text)
-    if (isRecord(parsed)) {
-      return parsed
+    const cleaned = cleanJsonStrings(parsed)
+    if (isRecord(cleaned)) {
+      return { response: cleaned, images }
     }
   } catch {
     // Not a JSON object: wrapped below.
   }
-  return { result: text }
+  return { response: { result: cleanWireText(text) }, images }
 }
 
 /**
@@ -348,6 +468,10 @@ interface ContentsBuild {
   readonly contents: { role: 'user' | 'model'; parts: unknown[] }[]
   readonly callNames: Map<string, string>
   pendingSignature: string | undefined
+  /** The model's image input; unknown sends media as today. */
+  readonly vision: boolean | undefined
+  /** Whether the target model is Gemini 3 or later (BYO item 11). */
+  readonly isGemini3: boolean
 }
 
 function pushParts(build: ContentsBuild, role: 'user' | 'model', parts: unknown[]): void {
@@ -364,7 +488,7 @@ function pushParts(build: ContentsBuild, role: 'user' | 'model', parts: unknown[
 
 function convertItem(build: ContentsBuild, item: InputItem): void {
   if (item.type === 'message') {
-    pushParts(build, item.role === 'user' ? 'user' : 'model', toNativeParts(item.content))
+    pushParts(build, item.role === 'user' ? 'user' : 'model', toNativeParts(item.content, build))
     return
   }
   if (item.type === 'function_call_output') {
@@ -372,23 +496,30 @@ function convertItem(build: ContentsBuild, item: InputItem): void {
     if (name === undefined) {
       throw new Error(`Gemini codec: no function call '${item.call_id}' for its output`)
     }
+    const { response, images } = toFunctionResponseParts(item.output, build)
     pushParts(build, 'user', [
       {
         functionResponse: {
           id: item.call_id,
           name,
-          response: toFunctionResponseBody(item.output),
+          response,
         },
       },
+      ...images,
     ])
     return
   }
   if (item.type === 'function_call') {
+    // M101 lane P1 (BYO item 1): non-JSON arguments ride as `{}`, so one
+    // bad history item never breaks a later request (Pi).
     let args: unknown
     try {
-      args = JSON.parse(item.arguments)
+      args = cleanJsonStrings(JSON.parse(cleanWireText(item.arguments)))
     } catch {
-      throw new Error(`Gemini codec: function call '${item.name}' has non-JSON arguments`)
+      args = {}
+    }
+    if (!isRecord(args)) {
+      args = {}
     }
     // The signature goes back in the exact part it came in, unmerged
     // (research §1.6); an unsigned call takes the documented dummy so a
@@ -412,8 +543,18 @@ function convertItem(build: ContentsBuild, item: InputItem): void {
   }
 }
 
-function toContents(input: readonly InputItem[]): GeminiContent[] {
-  const build: ContentsBuild = { contents: [], callNames: new Map(), pendingSignature: undefined }
+function toContents(
+  input: readonly InputItem[],
+  vision: boolean | undefined,
+  isGemini3: boolean,
+): GeminiContent[] {
+  const build: ContentsBuild = {
+    contents: [],
+    callNames: new Map(),
+    pendingSignature: undefined,
+    vision,
+    isGemini3,
+  }
   for (const item of input) {
     if (item.type === 'function_call') {
       build.callNames.set(item.call_id, item.name)
@@ -435,20 +576,28 @@ function toContents(input: readonly InputItem[]): GeminiContent[] {
 export function encodeGeminiRequest(
   body: CreateResponseBody,
   nativeModelId: string,
+  options?: GeminiEncodeOptions,
 ): GeminiNativeRequest {
+  // M101 lane P1 (BYO item 11): Gemini 3 and later take the full tool
+  // schema; older models keep the OpenAPI 3.0 subset. The generation comes
+  // from the catalog override when lane P supplies one, else the model id.
+  const generation = options?.generation ?? geminiGeneration(nativeModelId)
+  const isGemini3 = generation !== undefined && generation >= GEMINI_FULL_SCHEMA_GENERATION
   const declarations = body.tools
     .filter((tool): tool is FunctionToolDefinition => tool.type === 'function')
     .map((tool) => ({
       name: tool.name,
       description: tool.description,
-      parameters: toGeminiSchemaSubset(tool.parameters),
+      parameters: isGemini3
+        ? toGeminiFullSchema(tool.parameters)
+        : toGeminiSchemaSubset(tool.parameters),
     }))
   const thinkingLevel = geminiThinkingLevelForEffort(body.reasoning.effort)
   const request: Record<string, unknown> = {
     ...(body.instructions !== '' && {
-      systemInstruction: { parts: [{ text: body.instructions }] },
+      systemInstruction: { parts: [{ text: cleanWireText(body.instructions) }] },
     }),
-    contents: toContents(body.input),
+    contents: toContents(body.input, options?.capabilities?.vision, isGemini3),
   }
   if (declarations.length > 0) {
     request['tools'] = [{ functionDeclarations: declarations }]
@@ -494,21 +643,37 @@ interface DecodedCall {
 }
 
 /**
- * `usageMetadata` to canonical usage. `cachedContentTokenCount` stays out
- * while absent: implicit caching never appeared in the captures, so the
- * cached count is unknown, not zero (captures § Gemini, item 11).
+ * `usageMetadata` to canonical usage. M101 lane P1 (BYO item 7): Gemini
+ * omits zero counts, so an absent count is zero, not unknown (Pi
+ * `google-generative-ai.ts`). An all-absent `usageMetadata` carries no
+ * information and keeps the previous chunk's usage instead of zeroing it.
  */
 function toUsage(usage: z.infer<typeof geminiUsageSchema>): Usage | undefined {
   const { promptTokenCount, candidatesTokenCount, cachedContentTokenCount, thoughtsTokenCount } =
     usage
-  if (promptTokenCount === undefined || candidatesTokenCount === undefined) {
+  const counts = [
+    promptTokenCount,
+    candidatesTokenCount,
+    cachedContentTokenCount,
+    thoughtsTokenCount,
+    usage.totalTokenCount,
+  ]
+  if (counts.every((count) => count === undefined)) {
     return undefined
   }
+  for (const count of counts) {
+    if (count !== undefined && (!Number.isFinite(count) || count < 0)) {
+      return undefined
+    }
+  }
+  const prompt = promptTokenCount ?? 0
+  const candidates = candidatesTokenCount ?? 0
+  const thoughts = thoughtsTokenCount ?? 0
   return {
-    input_tokens: promptTokenCount,
+    input_tokens: prompt,
     // Thinking is billed as output (research §1.6; captures 04 and 05).
-    output_tokens: candidatesTokenCount + (thoughtsTokenCount ?? 0),
-    ...(usage.totalTokenCount !== undefined && { total_tokens: usage.totalTokenCount }),
+    output_tokens: candidates + thoughts,
+    total_tokens: usage.totalTokenCount ?? prompt + candidates + thoughts,
     ...(cachedContentTokenCount !== undefined && {
       input_tokens_details: { cached_tokens: cachedContentTokenCount },
     }),
@@ -522,6 +687,33 @@ const GEMINI_MAX_TOKENS = 'MAX_TOKENS'
 const GEMINI_MESSAGE_ID = 'msg_1'
 const GEMINI_REASONING_ID = 'rs_1'
 
+/** A decoded text segment: Gemini signs arbitrary text parts, empty ones included. */
+interface TextSegment {
+  text: string
+  signature: string | undefined
+}
+
+/** Segments as canonical `output_text` parts, each keeping its own signature. */
+function textPartsOf(segments: readonly TextSegment[]): {
+  readonly type: 'output_text'
+  readonly text: string
+  readonly thoughtSignature?: string
+}[] {
+  // No segments means no text at all: the single empty part below is the
+  // long-standing shape of that message, kept byte-identical.
+  return segments.length === 0
+    ? [{ type: 'output_text' as const, text: '' }]
+    : segments.map((segment) =>
+        segment.signature === undefined
+          ? { type: 'output_text' as const, text: segment.text }
+          : {
+              type: 'output_text' as const,
+              text: segment.text,
+              thoughtSignature: segment.signature,
+            },
+      )
+}
+
 /**
  * Only `STOP` completes a turn (including calls, capture 02). A missing
  * terminal reason is an interrupted stream; calls never override a cut or
@@ -530,7 +722,7 @@ const GEMINI_REASONING_ID = 'rs_1'
 function terminalEvent(
   responseId: string,
   model: string,
-  text: string,
+  segments: readonly TextSegment[],
   thoughtText: string,
   calls: readonly DecodedCall[],
   finishReason: string | undefined,
@@ -544,13 +736,20 @@ function terminalEvent(
       summary: [{ type: 'summary_text', text: thoughtText }],
     })
   }
-  if (text !== '' || calls.length === 0) {
+  // M101 lane P1 (BYO item 4): a signed part keeps its message visible,
+  // even when its text is empty, so the signature replays (Pi #7356).
+  const text = segments.map((segment) => segment.text).join('')
+  if (
+    text !== '' ||
+    segments.some((segment) => segment.signature !== undefined) ||
+    calls.length === 0
+  ) {
     output.push({
       type: 'message',
       id: GEMINI_MESSAGE_ID,
       role: 'assistant',
       ...(calls.length > 0 && text !== '' && { phase: 'commentary' }),
-      content: [{ type: 'output_text', text }],
+      content: textPartsOf(segments),
     })
   }
   for (const call of calls) {
@@ -604,10 +803,11 @@ function terminalEvent(
 /**
  * One native SSE stream as canonical events ending in a canonical response,
  * for the qualified model reference `model`. Chunks stream whole candidates
- * (text accumulates across them); only the last `usageMetadata` counts.
- * A `thoughtSignature` on a text part is dropped: the captured replay
- * without it was accepted, so it is not needed to validate the next request
- * (capture 03). An empty stream, or one with no response id, throws: there
+ * (unsigned text accumulates across them); only the last `usageMetadata`
+ * counts. M101 lane P1 (BYO item 4): a `thoughtSignature` on a text part
+ * is kept on that part, empty parts included, so the replay validates the
+ * next request (Pi #7356; capture 03's trailing empty part).
+ * An empty stream, or one with no response id, throws: there
  * is no canonical response to end in.
  */
 export async function* decodeGeminiStream(
@@ -617,7 +817,7 @@ export async function* decodeGeminiStream(
   let responseId: string | undefined
   let usage: Usage | undefined
   let finishReason: string | undefined
-  let text = ''
+  const segments: TextSegment[] = []
   let thoughtText = ''
   const calls: DecodedCall[] = []
   let isMessageOpen = false
@@ -681,7 +881,14 @@ export async function* decodeGeminiStream(
             delta: part.text,
           }
         } else if (part.functionCall !== undefined) {
-          const callId = part.functionCall.id ?? `call_${String(calls.length)}`
+          // M101 lane P1 (BYO 3): a call the wire left unnamed takes a
+          // fallback id unique to this response, so two turns never share
+          // one (`call_${n}` repeated across turns would collide in history).
+          const callId =
+            part.functionCall.id ??
+            (responseId !== undefined && responseId !== ''
+              ? `call_${responseId}_${String(calls.length)}`
+              : `call_${String(calls.length)}`)
           const call: DecodedCall = {
             id: callId,
             name: part.functionCall.name,
@@ -704,22 +911,54 @@ export async function* decodeGeminiStream(
             item_id: call.id,
             delta: call.args,
           }
-        } else if (part.text !== undefined && part.text !== '') {
-          if (!isMessageOpen) {
-            isMessageOpen = true
-            yield {
-              type: 'response.output_item.added',
-              item: { type: 'message', id: GEMINI_MESSAGE_ID, role: 'assistant', content: [] },
+        } else if (part.text !== undefined) {
+          // Unsigned text merges into one segment; a signed part (empty or
+          // not) stands alone with its signature (BYO item 4).
+          const signature = part.thoughtSignature
+          if (signature === undefined && part.text === '') {
+            continue
+          }
+          if (signature !== undefined) {
+            segments.push({ text: part.text, signature })
+          } else if (part.text !== '') {
+            const last = segments.at(-1)
+            if (last !== undefined && last.signature === undefined) {
+              last.text += part.text
+            } else {
+              segments.push({ text: part.text, signature: undefined })
             }
           }
-          text += part.text
-          yield { type: 'response.output_text.delta', item_id: GEMINI_MESSAGE_ID, delta: part.text }
+          if (part.text !== '') {
+            if (!isMessageOpen) {
+              isMessageOpen = true
+              yield {
+                type: 'response.output_item.added',
+                item: { type: 'message', id: GEMINI_MESSAGE_ID, role: 'assistant', content: [] },
+              }
+            }
+            yield {
+              type: 'response.output_text.delta',
+              item_id: GEMINI_MESSAGE_ID,
+              delta: part.text,
+            }
+          }
         }
       }
     }
   }
   if (!isSeenFrame || responseId === undefined) {
     throw new ModelApiError('Gemini returned an empty stream', 0, undefined, undefined)
+  }
+  const messageParts = textPartsOf(segments)
+  const isShowsMessage =
+    segments.some((segment) => segment.text !== '' || segment.signature !== undefined) ||
+    calls.length === 0
+  if (isShowsMessage && !isMessageOpen) {
+    isMessageOpen = true
+    yield {
+      type: 'response.output_item.added',
+      item: { type: 'message', id: GEMINI_MESSAGE_ID, role: 'assistant', content: [] },
+    }
   }
   if (isMessageOpen) {
     yield {
@@ -728,7 +967,7 @@ export async function* decodeGeminiStream(
         type: 'message',
         id: GEMINI_MESSAGE_ID,
         role: 'assistant',
-        content: [{ type: 'output_text', text }],
+        content: messageParts,
       },
     }
   }
@@ -754,7 +993,7 @@ export async function* decodeGeminiStream(
       },
     }
   }
-  yield terminalEvent(responseId, model, text, thoughtText, calls, finishReason, usage)
+  yield terminalEvent(responseId, model, segments, thoughtText, calls, finishReason, usage)
 }
 
 // --- errors and the models list --------------------------------------------------
