@@ -54,14 +54,10 @@ describe('judge hook native advisory formats', () => {
       )
       const result = await invoke(payload, { format })
       expect(result.code).toBe(0)
-      const answer = parseForeignResult(
-        format === 'claude' ? 'copilot' : format,
-        'PreToolUse',
-        0,
-        result.output(),
-        '',
-        { flavor: format === 'claude' ? 'vscode' : undefined },
-      )
+      const answer =
+        format === 'claude'
+          ? parseHookAnswer('PreToolUse', 0, result.output(), '')
+          : parseForeignResult(format, 'PreToolUse', 0, result.output(), '')
       expect(answer).toMatchObject({ status: 'completed', systemMessage: CAUTION })
       expect(answer.approvalDecision).toBeUndefined()
       expect(result.output()).not.toMatch(/"(?:allow|deny|block)"|updatedInput|tool_input/)
@@ -85,32 +81,33 @@ describe('judge hook native advisory formats', () => {
     ['copilot', 'PreToolUse', 'PreToolUse'],
     ['cline', 'PreToolUse', 'PreToolUse'],
     ['kiro', 'UserPromptSubmit', 'UserPromptSubmit'],
-  ] as const)(
-    'builds only %s advisory fields on %s from the existing contract',
-    async (format, event, muse) => {
-      const built = buildForeignStdin(
-        format,
-        muse,
-        { ...PAYLOAD, cwd: '/workspace', prompt: 'review this action' },
-        { sourceEvent: event },
-      )
-      if (built.outcome !== 'run') throw new Error('fixture build refused')
-      const result = await invoke(JSON.parse(built.stdin), { format, event })
-      expect(result.code).toBe(0)
-      const answer = parseForeignResult(format, muse, 0, result.output(), '', {
-        sourceEvent: event,
-      })
-      expect(answer.status).toBe('completed')
-      expect(
-        answer.permissionDecision === 'ask' ||
-          answer.context === CAUTION ||
-          answer.systemMessage === CAUTION,
-      ).toBe(true)
-      expect(result.output()).not.toMatch(
-        /"(?:allow|deny|block)"|updated_input|modifiedArgs|cancel/,
-      )
-    },
-  )
+  ] as const)('honors the existing %s advisory contract on %s', async (format, event, muse) => {
+    const built = buildForeignStdin(
+      format,
+      muse,
+      { ...PAYLOAD, cwd: '/workspace', prompt: 'review this action' },
+      { sourceEvent: event },
+    )
+    if (built.outcome !== 'run') throw new Error('fixture build refused')
+    const result = await invoke(JSON.parse(built.stdin), { format, event })
+    if (format === 'cursor') {
+      expect(result.code).toBe(4)
+      expect(result.output()).toBe('')
+      expect(result.deps.resolveSource).not.toHaveBeenCalled()
+      return
+    }
+    expect(result.code).toBe(0)
+    const answer = parseForeignResult(format, muse, 0, result.output(), '', {
+      sourceEvent: event,
+    })
+    expect(answer.status).toBe('completed')
+    expect(
+      answer.permissionDecision === 'ask' ||
+        answer.context === CAUTION ||
+        answer.systemMessage === CAUTION,
+    ).toBe(true)
+    expect(result.output()).not.toMatch(/"(?:allow|deny|block)"|updated_input|modifiedArgs|cancel/)
+  })
   it.each([
     ['windsurf', 'pre_run_command', 'PreToolUse'],
     ['kiro', 'PreToolUse', 'PreToolUse'],
@@ -136,8 +133,8 @@ describe('judge hook native advisory formats', () => {
       if (built.outcome !== 'run') throw new Error('fixture build refused')
       const deps = hookDeps()
       const result = await invoke(JSON.parse(built.stdin), { format, event }, deps)
-      expect(result.code).toBe(4)
-      expect(result.output()).toBe('')
+      expect(result.code).toBe(format === 'cursor' && event === 'beforeReadFile' ? 4 : 0)
+      expect(result.output()).toBe(format === 'cursor' && event === 'stop' ? '{}\n' : '')
       expect(deps.resolveSource).not.toHaveBeenCalled()
     },
   )
@@ -150,9 +147,7 @@ describe('judge hook native advisory formats', () => {
       const fake = source()
       fake.judge.mockResolvedValue(outcome)
       const result = await invoke(PAYLOAD, { format: 'muse' }, hookDeps(fake.value))
-      expect(result.code).toBe(
-        outcome.outcome === 'answered' && outcome.result.muse['risk']?.partial === true ? 4 : 0,
-      )
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
     }
     const fake = source()
@@ -160,11 +155,11 @@ describe('judge hook native advisory formats', () => {
     const boundary = await invoke(PAYLOAD, { format: 'muse' }, hookDeps(fake.value))
     expect(boundary.output()).toContain(CAUTION)
   })
-  it('keeps no-answer explicit at exit 4 with no stdout verdict', async () => {
+  it('abstains on no-answer at native exit 0 with no stdout verdict', async () => {
     const fake = source()
     fake.judge.mockResolvedValue({ outcome: 'no-answer', reason: 'consent-needed' })
     const result = await invoke(PAYLOAD, { format: 'muse' }, hookDeps(fake.value))
-    expect(result.code).toBe(4)
+    expect(result.code).toBe(0)
     expect(result.output()).toBe('')
     expect(result.error()).toBe('')
   })
@@ -203,12 +198,12 @@ describe('judge hook native advisory formats', () => {
         return Promise.resolve(0)
       })
       const result = await invoke()
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
       expect(result.error()).toBe('')
     }
   })
-  it('drops a borrowed result after cancellation and fails a stalled native flush', async () => {
+  it('drops a borrowed result after cancellation and abstains on a stalled native flush', async () => {
     const borrowed = vi.spyOn(commands, 'runJudgeCommand')
     const controller = new AbortController()
     borrowed.mockImplementationOnce((_command, streams) => {
@@ -223,7 +218,7 @@ describe('judge hook native advisory formats', () => {
       command().options,
       controller.signal,
     )
-    expect(cancelled.code).toBe(4)
+    expect(cancelled.code).toBe(0)
     expect(cancelled.output()).toBe('')
     borrowed.mockImplementationOnce((_command, streams) => {
       streams.stdout.write(JSON.stringify(riskOutcome(0)))
@@ -233,7 +228,7 @@ describe('judge hook native advisory formats', () => {
     vi.mocked(streams.stdout.flush).mockResolvedValue(false)
     expect(
       await runJudgeHookCommand(command().options, { format: 'muse' }, streams, hookDeps()),
-    ).toBe(4)
+    ).toBe(0)
   })
   it('requires a native event and rejects conflicting or unknown explicit events', async () => {
     for (const [payload, settings] of [
@@ -263,7 +258,7 @@ describe('judge hook native advisory formats', () => {
     for (const event of ['PreToolUse', 'FileChanged']) {
       const deps = hookDeps()
       const result = await invoke({ ...PAYLOAD, hook_event_name: event }, { format: 'muse' }, deps)
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
       expect(deps.resolveSource).not.toHaveBeenCalled()
     }
@@ -280,7 +275,7 @@ describe('judge hook native advisory formats', () => {
       },
       deps,
     )
-    expect(foreign.code).toBe(4)
+    expect(foreign.code).toBe(0)
     expect(foreign.output()).toBe('')
     expect(deps.resolveSource).not.toHaveBeenCalled()
   })

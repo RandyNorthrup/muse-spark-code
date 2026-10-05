@@ -47,34 +47,50 @@ const payloadSchema = z.looseObject({
   toolArgs: z.optional(z.string()),
 })
 const nativeEventSchema = z.enum([...HOOK_EVENTS, ...EXTENSION_HOOK_EVENTS])
+// Claude 2.1.288: captured/manifest.json, Windows C:\workspace, three turns.
+// Its events and object tool inputs are independent of VS Code Local's table.
+const claudeEventSchema = z.enum([
+  'SessionStart',
+  'SessionEnd',
+  'UserPromptSubmit',
+  'PreToolUse',
+  'PostToolUse',
+  'Stop',
+])
+const toolFieldsSchema = z.strictObject({
+  tool_name: z.string().check(z.minLength(1)),
+  tool_input: z.record(z.string(), z.unknown()),
+})
+const toolArgumentsSchema = z.record(z.string(), z.unknown())
 
 /** Preflight a caution through M91's existing schema/parser, never a new wire. */
 function prepareOutput(
   settings: JudgeHookCliSettings,
   payload: z.infer<typeof payloadSchema>,
   text: string,
-): string | undefined {
+): { caution?: string; neutral: string } | undefined {
   const format = settings.format
   let eventField = 'hook_event_name'
   if (format === 'windsurf') eventField = 'agent_action_name'
   else if (format === 'cline') eventField = 'hookName'
   const supplied = pathValue(payload, eventField)
   if (
-    format === 'muse' &&
     supplied !== undefined &&
     settings.event !== undefined &&
+    (format === 'muse' || format === 'claude') &&
     supplied !== settings.event
   )
     throw new Error(UI_TEXT.execRequestShape)
   const event = supplied ?? settings.event
   if (typeof event !== 'string') throw new Error(UI_TEXT.execRequestShape)
-  if (format === 'muse') {
-    const name = nativeEventSchema.parse(event)
-    if (
-      ['PreToolUse', 'PermissionRequest', 'PostToolUse', 'PostToolUseFailure'].includes(name) &&
-      (payload.tool_name === undefined || typeof payload.tool_input !== 'object')
-    )
-      throw new Error(UI_TEXT.execRequestShape)
+  if (format === 'muse' || format === 'claude') {
+    const name =
+      format === 'claude' ? claudeEventSchema.parse(event) : nativeEventSchema.parse(event)
+    if (['PreToolUse', 'PermissionRequest', 'PostToolUse', 'PostToolUseFailure'].includes(name))
+      toolFieldsSchema.parse({ tool_name: payload.tool_name, tool_input: payload.tool_input })
+    // raw-claude.md SessionEnd: JSON output is discarded, including systemMessage.
+    // Recognized capture, but no advisory delivery: do not initialize a source.
+    if (format === 'claude' && name === 'SessionEnd') return { neutral: '' }
     const output = JSON.stringify({
       systemMessage: text,
       ...(name === 'PreToolUse' && {
@@ -92,11 +108,11 @@ function prepareOutput(
       isAccepted = parseHookAnswer(museEvent, 0, output, '').status === 'completed'
     else if (extensionEvent !== undefined)
       isAccepted = parseExtensionHookAnswer(extensionEvent, 0, output, '').status === 'completed'
-    return isAccepted ? output : undefined
+    return { ...(isAccepted && { caution: output }), neutral: '' }
   }
-  const vendor = format === 'claude' || format === 'vscode' ? 'copilot' : format
+  const vendor = format === 'vscode' ? 'copilot' : format
   const contract = HOOK_FORMAT_CONTRACTS[vendor]
-  const flavor = format === 'claude' || format === 'vscode' ? 'vscode' : contract.defaultFlavor
+  const flavor = format === 'vscode' ? 'vscode' : contract.defaultFlavor
   const row = contract.rows.find(
     (candidate) =>
       (candidate.flavor ?? contract.defaultFlavor) === flavor &&
@@ -109,6 +125,10 @@ function prepareOutput(
     row.aliases?.includes(settings.event) !== true
   )
     throw new Error(UI_TEXT.execRequestShape)
+  // Validate the known tool slice strictly; preserve unknown envelope additions
+  // as state. Cursor MCP/Copilot camelCase intentionally carry JSON strings.
+  if (row.fields.some((field) => field.to === 'tool_input' && field.transform !== 'json'))
+    toolFieldsSchema.parse({ tool_name: payload.tool_name, tool_input: payload.tool_input })
   for (const field of row.fields) {
     const value = pathValue(payload, field.to)
     if (
@@ -122,9 +142,23 @@ function prepareOutput(
       ['text', 'toolName', 'json'].includes(field.transform ?? '')
     )
       throw new Error(UI_TEXT.execRequestShape)
-    if (typeof value === 'string' && field.transform === 'json') JSON.parse(value)
+    if (typeof value !== 'string' || field.transform !== 'json') continue
+    const decoded: unknown = JSON.parse(value)
+    if (field.to === 'tool_input' || field.to === 'toolArgs') toolArgumentsSchema.parse(decoded)
   }
   const result = row.result
+  // Cursor permission rows reject absent output. An empty object is neutral
+  // only where its own schema accepts it. Rows requiring a decision remain
+  // unavailable before inference, never filled with ALLOW.
+  const neutral = format === 'cursor' ? '{}' : ''
+  if (
+    parseForeignResult(vendor, row.muse, 0, neutral, '', {
+      sourceEvent: row.vendor,
+      flavor,
+      failClosed: true,
+    }).status !== 'completed'
+  )
+    return undefined
   const output: Record<string, unknown> = {}
   for (const rule of result.rules) {
     if (rule.kind === 'ask') {
@@ -145,14 +179,15 @@ function prepareOutput(
     (answer.permissionDecision === 'ask' ||
       answer.context !== undefined ||
       answer.systemMessage !== undefined)
-    ? serialized
-    : undefined
+    ? { caution: serialized, neutral }
+    : { neutral }
 }
 
 /**
- * Answered safe/unsure verdicts emit nothing, never ALLOW. Refusals retain CLI
- * exit 4 under the CLI contract; native delivery limits are recorded in
- * docs/certification/m98-gh.md.
+ * Safe/absent verdicts use each supported host's preflighted neutral response,
+ * never ALLOW. Hook abstention exits 0; the borrowed ask surface retains exit 4.
+ * Cursor rows without advisory abstention stay unavailable before inference
+ * (docs/certification/m98p2-gh.md), rather than blocking a safe judge result.
  */
 export async function runJudgeHookCommand(
   options: JudgeCliOptions,
@@ -164,55 +199,70 @@ export async function runJudgeHookCommand(
   const deadline = AbortSignal.timeout(options.timeoutMs)
   const signal = parentSignal === undefined ? deadline : AbortSignal.any([parentSignal, deadline])
   let code: number
+  let neutral: string | undefined
+  const outcomeState = { hasCaution: false }
   try {
-    if (io.stdout.isClosed || io.stderr.isClosed) return EXEC_EXIT.failed
     const settings = settingsSchema.parse(rawSettings)
+    neutral = settings.format === 'cursor' ? undefined : ''
+    if (io.stdout.isClosed || io.stderr.isClosed)
+      return neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok
     const raw: unknown = JSON.parse(await readPromptStdin(io.stdin, JUDGE_MAX_BODY_BYTES, signal))
     const payload = payloadSchema.parse(raw)
     const text = deps.cautionText()
     if (text.trim() === '' || text.length > HOOK_SYSTEM_MESSAGE_MAX_CHARS)
       throw new Error(UI_TEXT.execRequestShape)
     const output = prepareOutput(settings, payload, text)
-    if (output === undefined) return EXEC_EXIT.failed
-    // Complete, redacted state; no transcript/file reads or implicit model choice.
-    const request = judgeRequestSchema.parse({
-      state: redactSecrets(JSON.stringify(payload)),
-      questions: { risk: deps.question },
-    })
-    if (request.questions['risk']?.type !== 'noul') throw new Error(UI_TEXT.execRequestShape)
-    const outcomeState = { isValid: false }
-    const stdout: FdWriter = {
-      get isClosed() {
-        return io.stdout.isClosed
-      },
-      get queuedBytes() {
-        return io.stdout.queuedBytes
-      },
-      flush: (withinMs) => io.stdout.flush(withinMs),
-      write(chunk) {
-        let rawOutcome: unknown
-        try {
-          rawOutcome = JSON.parse(chunk)
-        } catch {
-          return
-        }
-        const outcome = judgeOutcomeSchema.safeParse(rawOutcome)
-        if (!outcome.success || outcome.data.outcome === 'no-answer') return
-        const answer = outcome.data.result.answers['risk']
-        const meta = outcome.data.result.muse['risk']
-        if (meta === undefined || answer?.type !== 'noul' || meta.partial) return
-        outcomeState.isValid = true
-        if (!signal.aborted && !io.stdout.isClosed && answer.noul >= JUDGE_ADVISORY_THRESHOLD)
-          io.stdout.write(`${output}\n`)
-      },
+    if (output === undefined) return neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok
+    neutral = output.neutral
+    const caution = output.caution
+    if (caution === undefined) {
+      code = EXEC_EXIT.ok
+    } else {
+      // Complete, redacted state; no transcript/file reads or implicit model choice.
+      const request = judgeRequestSchema.parse({
+        state: redactSecrets(JSON.stringify(payload)),
+        questions: { risk: deps.question },
+      })
+      if (request.questions['risk']?.type !== 'noul') throw new Error(UI_TEXT.execRequestShape)
+      const stdout: FdWriter = {
+        get isClosed() {
+          return io.stdout.isClosed
+        },
+        get queuedBytes() {
+          return io.stdout.queuedBytes
+        },
+        flush: (withinMs) => io.stdout.flush(withinMs),
+        write(chunk) {
+          let rawOutcome: unknown
+          try {
+            rawOutcome = JSON.parse(chunk)
+          } catch {
+            return
+          }
+          const outcome = judgeOutcomeSchema.safeParse(rawOutcome)
+          if (!outcome.success || outcome.data.outcome === 'no-answer') return
+          const answer = outcome.data.result.answers['risk']
+          const meta = outcome.data.result.muse['risk']
+          if (
+            meta === undefined ||
+            answer?.type !== 'noul' ||
+            meta.partial ||
+            signal.aborted ||
+            io.stdout.isClosed ||
+            answer.noul < JUDGE_ADVISORY_THRESHOLD
+          )
+            return
+          outcomeState.hasCaution = true
+          io.stdout.write(`${caution}\n`)
+        },
+      }
+      code = await runJudgeCommand(
+        { command: 'judge', action: 'ask', options, surfaceArgs: [] },
+        { ...io, stdin: Readable.from([JSON.stringify(request)]), stdout },
+        deps,
+        signal,
+      )
     }
-    code = await runJudgeCommand(
-      { command: 'judge', action: 'ask', options, surfaceArgs: [] },
-      { ...io, stdin: Readable.from([JSON.stringify(request)]), stdout },
-      deps,
-      signal,
-    )
-    if (code === EXEC_EXIT.ok && !outcomeState.isValid) code = EXEC_EXIT.failed
   } catch {
     // Fixed words only: never private stdin, question, provider error or argv.
     code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage
@@ -220,10 +270,18 @@ export async function runJudgeHookCommand(
   } finally {
     io.stdin.destroy()
   }
+  // A source refusal/failure is no opinion to the hook consumer, not the
+  // generic CLI's exit-4 outcome (Gemini/Copilot/worktree would veto on it).
+  if (neutral !== undefined && code !== EXEC_EXIT.usage) {
+    if (neutral !== '' && !outcomeState.hasCaution && !io.stdout.isClosed)
+      io.stdout.write(`${neutral}\n`)
+    if (code === EXEC_EXIT.failed) code = EXEC_EXIT.ok
+  }
   const flushed = await Promise.all(
     [io.stdout, io.stderr].map((stream) => stream.flush(EXEC_FORCE_WRITE_MS)),
   )
+  const noAnswerExit = neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok
   return !signal.aborted && flushed.every(Boolean) && !io.stdout.isClosed && !io.stderr.isClosed
     ? code
-    : EXEC_EXIT.failed
+    : noAnswerExit
 }

@@ -4,6 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { parseForeignResult } from '../../src/core/backends/modelapi/hookFormats'
 import { JUDGE_REQUEST_TIMEOUT_MS } from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 import { CAUTION, PAYLOAD, QUESTION, capture, riskOutcome } from './judgeHookCliFixtures'
@@ -117,23 +118,47 @@ describe('judge hook built fake-only stdio assembly', () => {
     expect(gemini.code).toBe(0)
     expect(JSON.parse(gemini.stdout)).toMatchObject({ systemMessage: CAUTION })
   })
-  it('keeps input/config errors and missing paid admission explicit without protocol output', async () => {
+  it('keeps input errors explicit and paid-admission refusal neutral without protocol output', async () => {
     for (const args of [[], ['--budget-usd', '1']]) {
       const result = await run('muse', JSON.stringify(PAYLOAD), ['--separate', 'paid', ...args])
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.stdout).toBe('')
     }
     const unavailable = await run('muse', JSON.stringify(PAYLOAD), ['--separate', 'unavailable'])
-    expect(unavailable.code).toBe(4)
+    expect(unavailable.code).toBe(0)
     expect(unavailable.stdout).toBe('')
     const malformed = await run('muse', '{private-input')
     expect(malformed.code).toBe(2)
     expect(malformed.stdout).toBe('')
     expect(malformed.stderr).not.toContain('private-input')
   })
+  it('keeps Gemini and Copilot no-answer nonblocking on real pipes', async () => {
+    for (const format of ['gemini', 'copilot'] as const) {
+      const payload =
+        format === 'gemini'
+          ? capture('gemini/BeforeTool.run_shell_command.json')
+          : { ...PAYLOAD, tool_name: 'Bash' }
+      for (const source of ['paid', 'unavailable']) {
+        const result = await run(format, JSON.stringify(payload), ['--separate', source])
+        expect(result.code).toBe(0)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toBe('')
+        expect(
+          parseForeignResult(
+            format,
+            'PreToolUse',
+            result.code ?? -1,
+            result.stdout,
+            result.stderr,
+            { sourceEvent: format === 'gemini' ? 'BeforeTool' : 'PreToolUse' },
+          ).status,
+        ).toBe('completed')
+      }
+    }
+  })
   it('bounds a real stdin pipe which never reaches EOF', async () => {
     const result = await run('muse', '', ['--timeout-ms', '20'], false)
-    expect(result.code).toBe(4)
+    expect(result.code).toBe(0)
     expect(result.stdout).toBe('')
     expect(result.stderr).not.toMatch(/jsonrpc|session\//)
   })

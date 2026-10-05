@@ -16733,6 +16733,19 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2g — `judge` CLI and MCP, hook after M91
 
+**FIXM98GH review repair (2026-10-05).** Repair RVM98GH within the hook
+adapter and its owning tests: bind Claude to its six captured event names
+and native answer contract, strictly validate the known tool-field slice
+before initialization/admission while retaining unknown envelope additions,
+and preflight both caution and abstention against each host's own contract.
+The hook surface uses host-neutral exit 0 for no opinion; generic `judge ask`
+retains exit 4. Rows that cannot consume a neutral answer without a grant
+remain unavailable before source resolution. This includes Cursor permission
+rows; their required decision cannot be manufactured from an absent answer.
+The named delivery limitation is in §9 and `docs/certification/m98p2-gh.md`.
+G/Z retain dispatcher, strings, README/CHANGELOG and shipping certification.
+No dependency, host contract, paid guard or bundle cap changes.
+
 - **Scope.** Reserve `judge` before ordinary prompt parsing, as M97's
   `exec legal-scan` does. `ask`, `calibrate`, `report`, `mcp`, and later
   `hook` use the pure engine; `serve` and `lint` dispatch their owning
@@ -16914,6 +16927,21 @@ its hundreds-label evidence exists. Z closes each small delivery separately;
 do not wait for all ten surfaces to ship a certified one.
 
 ## 7. Gates
+
+**FIXM98GH bounded-lane gate delegation (2026-10-05).** The rig/shared
+brief forbids aggregate quality and edits outside GH. Owning whole-file
+regressions, 15 byte-exact red/restore drills, typechecks, scoped lint/format,
+localization, knip, duplication and dpdm pass; `docs/certification/m98p2-gh.md`
+holds the results. `check:host-api` still fails on the inherited generated
+snapshot mismatch (paid-host 11→12; crypto 37→38, stream 12→14, util 5→6).
+`npm run build` emits the bundles and passes every unchanged size cap, then
+fails on the inherited `src/runtime/judge/mcp.ts` use of `zod/mini.toJSONSchema`,
+which `src/shared/validationEntry.ts` does not export. These are the same
+failures recorded before the repair in `m98-gh.md` and RVM98GH, in G/Z-owned
+files. **GH-host-api-baseline** and **GH-validation-export-baseline** remain
+integration follow-ups: regenerate/review the snapshot, repair/review the
+shared schema export or G's schema assembly, then rerun the unchanged gates
+and full quality. No gate, threshold, ignore or cap is altered or claimed green.
 
 **FIXM91P4 lane-scope deferrals (2026-10-04, not gate exceptions).** The required
 commands ran directly on the Mac mini. `check:host-api` fails on the review base
@@ -17550,6 +17578,30 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **GH-host-api-baseline / GH-validation-export-baseline (FIXM98GH).** The
+  inherited generated host record and shared `toJSONSchema` export failures
+  remain outside GH ownership (§7). Safe for a private, unwired repair lane
+  only; no installed-command or full-quality claim is made. G/Z must repair
+  the owned assembly/snapshot, review the generated diff, and run the unchanged
+  integration gates before shipping. Dispatcher/source/consent wiring and the
+  six inherited activation-fixture failures remain integration work already
+  recorded in `docs/certification/m98-gh.md`.
+
+- **GH-Cursor-permission-abstention (FIXM98GH, RVM98GH P2).** Cursor's
+  `preToolUse`, `beforeShellExecution` and `beforeMCPExecution` require a
+  `permission` decision even on exit 0; empty output blocks, and `failClosed`
+  also blocks nonzero exits. No advisory-only abstention exists in the pinned
+  contract. These rows are unavailable before source initialization or paid
+  admission, so no safe judge result is emitted into the invalid-empty path.
+  Direct invocation of an unavailable row still reports failure and can veto
+  under a foreign `failClosed` configuration. `beforeReadFile` and
+  `beforeSubmitPrompt` likewise require a control decision and stay unavailable.
+  Safe for this unwired lane only: G/Z must not register these rows. Follow-up: settle a host-specific policy
+  with the owner and capture/prove native neutral delivery before enabling
+  them; never substitute an ALLOW grant for a missing answer. Cursor
+  observation rows preflight an empty JSON object against their own schema;
+  M91 applies `failClosed` only on the contract's blocking rows.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

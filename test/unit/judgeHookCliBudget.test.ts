@@ -1,16 +1,30 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
 import { runJudgeHookCommand } from '../../src/runtime/judge/hook'
-import type { JudgeCliSource } from '../../src/runtime/judge/commands'
+import { runJudgeCommand, type JudgeCliSource } from '../../src/runtime/judge/commands'
 import { JUDGE_MAX_BODY_BYTES } from '../../src/shared/constants'
-import { command, io, source, writer } from './judgeCliFixtures'
+import { REQUEST, command, io, source, writer } from './judgeCliFixtures'
 import { CAUTION, PAYLOAD, hookDeps, invoke, riskOutcome } from './judgeHookCliFixtures'
 
 describe('judge hook shared CLI admission and lifecycle', () => {
+  it('keeps generic judge ask no-answer at exit 4 while the hook abstains at exit 0', async () => {
+    const fake = source('paid', 0.01)
+    const streams = io(JSON.stringify(REQUEST))
+    const deps = hookDeps(fake.value)
+    expect(await runJudgeCommand(command(), streams, deps)).toBe(4)
+    expect(JSON.parse(streams.output())).toMatchObject({
+      outcome: 'no-answer',
+      reason: 'over-budget',
+    })
+    const hook = await invoke(PAYLOAD, { format: 'muse' }, deps)
+    expect(hook.code).toBe(0)
+    expect(hook.output()).toBe('')
+    expect(fake.judge).not.toHaveBeenCalled()
+  })
   it('requires explicit available same-model context without spawning or switching a model', async () => {
     const deps = hookDeps()
     const absent = await invoke(PAYLOAD, { format: 'muse' }, deps, command('ask', []).options)
-    expect(absent.code).toBe(4)
+    expect(absent.code).toBe(0)
     expect(absent.output()).toBe('')
     expect(deps.resolveSource).not.toHaveBeenCalled()
     for (const model of ['another-model', 'unavailable']) {
@@ -24,7 +38,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
             Promise.resolve(model === 'unavailable' ? undefined : { ...fake.value, model }),
         },
       )
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(fake.judge).not.toHaveBeenCalled()
       expect(result.output()).toBe('')
     }
@@ -39,7 +53,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
         { ...hookDeps(fake.value), admitPaid },
         command('ask', ['--model', 'chosen', ...args]).options,
       )
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
       expect(fake.judge).not.toHaveBeenCalled()
       expect(admitPaid).not.toHaveBeenCalled()
@@ -54,7 +68,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
         hookDeps(fake.value),
         command('ask', ['--model', 'chosen', '--budget-usd', '1']).options,
       )
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
       expect(fake.judge).not.toHaveBeenCalled()
     }
@@ -73,7 +87,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
         { ...hookDeps(fake.value), admitPaid },
         command('ask', ['--model', 'chosen', '--budget-usd', '1']).options,
       )
-      expect(result.code).toBe(outcome.outcome === 'answered' ? 0 : 4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe(
         outcome.outcome === 'answered'
           ? `${JSON.stringify({ systemMessage: CAUTION, hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: CAUTION } })}\n`
@@ -124,7 +138,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       // Simulate a malformed result crossing the runtime boundary without a cast.
       Reflect.set(fake.value.runtime, 'judge', () => Promise.resolve(invalid))
       const result = await invoke(PAYLOAD, { format: 'muse' }, hookDeps(fake.value))
-      expect(result.code).toBe(4)
+      expect(result.code).toBe(0)
       expect(result.output()).toBe('')
     }
   })
@@ -132,7 +146,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
     const fake = source()
     fake.judge.mockRejectedValue(new Error('private provider state and account'))
     const result = await invoke(PAYLOAD, { format: 'muse' }, hookDeps(fake.value))
-    expect(result.code).toBe(4)
+    expect(result.code).toBe(0)
     expect(result.output() + result.error()).toBe('')
   })
   it('bounds stalled stdin and destroys it without invoking a source', async () => {
@@ -146,7 +160,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
         streams,
         deps,
       ),
-    ).toBe(4)
+    ).toBe(0)
     expect(stdin.destroyed).toBe(true)
     expect(deps.resolveSource).not.toHaveBeenCalled()
   })
@@ -173,7 +187,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
           streams,
           hookDeps(fake.value),
         ),
-      ).toBe(4)
+      ).toBe(0)
       expect(fake.judge).toHaveBeenCalledOnce()
       expect(hasCompleted).toBe(false)
     } finally {
@@ -206,7 +220,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       hookDeps(fake.value),
       command('ask', ['--model', 'chosen', '--timeout-ms', '20']).options,
     )
-    expect(result.code).toBe(4)
+    expect(result.code).toBe(0)
     expect(result.output()).toBe('')
     deferred.resolve(riskOutcome())
     await Promise.resolve()
@@ -224,7 +238,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       deps,
       command('ask', ['--model', 'chosen', '--timeout-ms', '20']).options,
     )
-    expect(stuck.code).toBe(4)
+    expect(stuck.code).toBe(0)
     expect(deps.resolveSource).not.toHaveBeenCalled()
   })
   it('honors parent cancellation before dispatch and during admission without leaking the reason', async () => {
@@ -238,7 +252,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       command().options,
       stopped.signal,
     )
-    expect(result.code).toBe(4)
+    expect(result.code).toBe(0)
     expect(deps.resolveSource).not.toHaveBeenCalled()
     expect(result.output() + result.error()).not.toContain('private')
     const pending = new AbortController()
@@ -254,11 +268,11 @@ describe('judge hook shared CLI admission and lifecycle', () => {
       command('ask', ['--model', 'chosen', '--budget-usd', '1']).options,
       pending.signal,
     )
-    expect(paid.code).toBe(4)
+    expect(paid.code).toBe(0)
     expect(paid.output()).toBe('')
     expect(paid.error()).not.toContain('private')
   })
-  it('refuses closed pipes before dispatch and reports stalled delivery as exit 4', async () => {
+  it('abstains on closed pipes before dispatch and stalled delivery', async () => {
     for (const closed of ['stdout', 'stderr'] as const) {
       const deps = hookDeps()
       const cautionText = vi.fn(() => CAUTION)
@@ -269,7 +283,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
           ...deps,
           cautionText,
         }),
-      ).toBe(4)
+      ).toBe(0)
       expect(deps.resolveSource).not.toHaveBeenCalled()
       expect(streams.stdin.destroyed).toBe(true)
       expect(cautionText).not.toHaveBeenCalled()
@@ -278,7 +292,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
     streams.stdout = writer(false).value
     expect(
       await runJudgeHookCommand(command().options, { format: 'muse' }, streams, hookDeps()),
-    ).toBe(4)
+    ).toBe(0)
   })
   it('does not deliver a result to a pipe closed while the source was resolving', async () => {
     const streams = io(JSON.stringify(PAYLOAD))
@@ -295,7 +309,7 @@ describe('judge hook shared CLI admission and lifecycle', () => {
         ...hookDeps(),
         resolveSource,
       }),
-    ).toBe(4)
+    ).toBe(0)
     expect(streams.output()).toBe('')
   })
 })

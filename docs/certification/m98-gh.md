@@ -1,5 +1,9 @@
 # M98 GH — hook CLI boundary (2026-10-05, Kubuntu)
 
+Historical receipt for `919b316c`. [FIXM98GH repairs](m98p2-gh.md) supersede
+its safe/no-answer exit policy and Claude's borrowed VS Code event table;
+the 46 drills below retain their original source hash and provenance.
+
 Rig brief: `/home/randy/lanes/_ctx/M98GH.rig.md`; shared rules:
 `/home/randy/lanes/_ctx/codex/common.md`. Base `813fdebd` (`m98/g2`).
 Read AGENTS, PLAN D77/M98, M98 research, planning/P0/G receipts, and
