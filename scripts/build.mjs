@@ -50,15 +50,12 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { Buffer } from 'node:buffer'
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { runInNewContext } from 'node:vm'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
-  uiTextProperties,
+  compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -452,47 +449,13 @@ const acpOptions = {
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
-/** @type {import('esbuild').Plugin} */
-const compressedEnglish = (file) => ({
-  name: 'compressed-english',
-  setup(build) {
-    build.onEnd((result) => {
-      if (!isProduction || result.errors.length > 0) return
-      const module = { exports: {} }
-      runInNewContext(readFileSync(file, 'utf8'), { module, exports: module.exports })
-      // Read data descriptors only: observing regional getters would load all
-      // regions while building and destroy their first-value boundary.
-      const data = Object.fromEntries(
-        Object.entries(Object.getOwnPropertyDescriptors(Reflect.get(module.exports, 'EN')))
-          .filter(([, property]) => Object.hasOwn(property, 'value'))
-          .map(([key, property]) => [key, property.value]),
-      )
-      const packed = brotliCompressSync(JSON.stringify(data), {
-        params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
-      }).toString('base64')
-      const getters =
-        file === UI_TEXT_OUTFILE
-          ? UI_TEXT_REGIONS.map((region) => {
-              const keys = uiTextProperties()
-                .filter((property) => property.region === region.name)
-                .map((property) => property.key)
-              return `for(const key of ${JSON.stringify(keys)})Object.defineProperty(exports.EN,key,{enumerable:true,configurable:true,get(){return require('./${path.basename(region.output)}').EN[key]}});`
-            }).join('\n')
-          : ''
-      const code = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from("${packed}","base64")).toString("utf8"));\n${getters}\n`
-      writeFileSync(file, code)
-      const output = result.metafile?.outputs[file]
-      if (output === undefined) return
-      output.bytes = Buffer.byteLength(code)
-      output.imports.push({ path: 'node:zlib', kind: 'require-call', external: true })
-    })
-  },
-})
-
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
-  plugins: [regionalUiText(), compressedEnglish(UI_TEXT_OUTFILE)],
+  plugins: [
+    regionalUiText(),
+    compressedEnglish(UI_TEXT_OUTFILE, isProduction, L10N_COMPRESSION_QUALITY),
+  ],
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
   platform: 'node',
@@ -502,7 +465,10 @@ const uiTextOptions = {
 
 const uiTextRegionOptions = UI_TEXT_REGIONS.map((region) => ({
   ...uiTextOptions,
-  plugins: [regionalUiText(region.name), compressedEnglish(region.output)],
+  plugins: [
+    regionalUiText(region.name),
+    compressedEnglish(region.output, isProduction, L10N_COMPRESSION_QUALITY),
+  ],
   outfile: region.output,
 }))
 
