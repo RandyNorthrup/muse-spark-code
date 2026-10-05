@@ -3638,3 +3638,64 @@ describe('uiReducer: share files read-only (M84)', () => {
     expect(uiReducer(reduceAll([imported]), { type: 'conversationCleared' }).isImported).toBe(false)
   })
 })
+
+describe('uiReducer: finished provider setup (M95)', () => {
+  const finished = host({
+    type: 'setupComplete',
+    provider: 'OpenRouter',
+    model: 'openrouter/deepseek/deepseek-v3',
+  })
+
+  it('confirms once with the provider and model, announces it, and dismisses', () => {
+    const state = reduceAll([finished])
+    expect(state.setupComplete).toEqual({
+      provider: 'OpenRouter',
+      model: 'openrouter/deepseek/deepseek-v3',
+    })
+    expect(state.announcement?.text).toContain('OpenRouter')
+    expect(state.announcement?.text).toContain('openrouter/deepseek/deepseek-v3')
+    const dismissed = uiReducer(state, { type: 'setupCompleteDismissed' })
+    expect(dismissed.setupComplete).toBeUndefined()
+  })
+
+  it('drops the confirmation with the account', () => {
+    const state = reduceAll([
+      host({ type: 'authState', status: 'signedIn', backend: 'modelApi' }),
+      finished,
+    ])
+    expect(state.setupComplete).toBeDefined()
+    expect(
+      uiReducer(state, host({ type: 'authState', status: 'signedOut' })).setupComplete,
+    ).toBeUndefined()
+  })
+
+  it('keeps per-provider tallies from the usage report', () => {
+    const providers = [
+      {
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        inputTokens: 1200,
+        outputTokens: 300,
+        costUsd: 0.001,
+      },
+    ]
+    const state = reduceAll([host({ type: 'usageReport', backend: 'modelApi', providers })])
+    expect(state.usageReport?.providers).toEqual(providers)
+  })
+
+  it('stores provider fields on the listed models', () => {
+    const models = [
+      {
+        modelId: 'openrouter/deepseek/deepseek-v3',
+        displayLabel: 'DeepSeek V3',
+        isDefault: true,
+        providerId: 'openrouter',
+        providerLabel: 'OpenRouter',
+        pricing: 'priced' as const,
+        isPinned: true,
+      },
+    ]
+    expect(reduceAll([host({ type: 'modelList', models })]).models).toEqual(models)
+  })
+})

@@ -13,6 +13,7 @@ import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
+  type ModelPricing,
   PAID_PRICES_VERIFIED_ON,
   type PaidFeature,
   UI_TEXT,
@@ -37,6 +38,7 @@ import {
   formatWindowLength,
   planLabel,
   type AccountFacts,
+  type ProviderUsageRow,
   type SubscriptionUsage,
   type UsageInsights,
 } from '../../shared/usage'
@@ -53,6 +55,8 @@ export interface UsageDialogProps {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly modelId: string | undefined
+  /** The current model's price kind (M95): unpriced counts tokens only. */
+  readonly modelPricing: ModelPricing | undefined
   /** The paid features that are on and this window's tally (M33, PLAN.md D30). */
   readonly paid: PaidState
   readonly auth: UiState['auth']
@@ -184,19 +188,24 @@ function TokensSection({
   context,
   costUsd,
   modelId,
+  pricing,
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   readonly costUsd: number | undefined
   readonly modelId: string | undefined
+  /** The current model lost its price card (M95): tokens only, said so. */
+  readonly pricing: ModelPricing | undefined
 }) {
   if (usage === undefined && context === undefined) {
     return <p className="usage-row-meta">{UI_TEXT.usageNoSession}</p>
   }
+  // A local model shows cost 0; an unpriced one counts tokens only (M95).
+  const cost = costUsd ?? (pricing === 'local' ? 0 : undefined)
   const contextValue = contextValueOf(context)
   const savings =
-    usage !== undefined && costUsd !== undefined && modelId !== undefined
-      ? cacheSavings(usage, costUsd, modelId)
+    usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
+      ? cacheSavings(usage, cost, modelId)
       : undefined
   return (
     <>
@@ -229,10 +238,10 @@ function TokensSection({
             <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
           </>
         )}
-        {costUsd !== undefined && (
+        {cost !== undefined && (
           <>
             <dt>{UI_TEXT.usageCost}</dt>
-            <dd>{formatUsd(costUsd)}</dd>
+            <dd>{formatUsd(cost)}</dd>
           </>
         )}
         {savings !== undefined && (
@@ -252,6 +261,9 @@ function TokensSection({
           {fill(UI_TEXT.usageCostNote, { date: MODEL_API_PRICES_VERIFIED_ON })}
         </p>
       )}
+      {cost === undefined && pricing === 'unpriced' ? (
+        <p className="usage-row-meta">{UI_TEXT.usageUnpricedDetail}</p>
+      ) : null}
     </>
   )
 }
@@ -410,6 +422,85 @@ function planFor(report: UsageReport): string {
   return report.backend === 'modelApi' ? UI_TEXT.usagePlanPayAsYouGo : UI_TEXT.usagePlanUnknown
 }
 
+/**
+ * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
+ * `plan`, or nothing yet for a priced model the host has not settled (M95).
+ */
+function providerCost(row: ProviderUsageRow): string | undefined {
+  if (row.costUsd !== undefined) {
+    return formatUsd(row.costUsd)
+  }
+  switch (row.pricing) {
+    case 'priced': {
+      return undefined
+    }
+    case 'unpriced': {
+      return UI_TEXT.modelUnpriced
+    }
+    case 'local': {
+      // A local model shows cost 0 (M95 acceptance 10).
+      return formatUsd(0)
+    }
+    case 'plan': {
+      return UI_TEXT.modelPlan
+    }
+  }
+}
+
+/**
+ * This window's tallies per BYO provider (M95): tokens with their settled
+ * cost, and an account-connected key's own usage, limit and remainder where
+ * the provider reports them (today only OpenRouter's `/key`, in USD). Each
+ * metric is its own row, so no language's word order is assumed.
+ */
+function ProvidersSection({ providers }: { readonly providers: readonly ProviderUsageRow[] }) {
+  return (
+    <>
+      <h3 className="usage-heading">{UI_TEXT.providersSectionTitle}</h3>
+      <dl className="usage-facts">
+        {providers.map((row) => {
+          const cost = providerCost(row)
+          return (
+            <div key={row.providerId}>
+              <dt>{row.providerLabel}</dt>
+              <dd>
+                {cost === undefined
+                  ? `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
+                  : `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)} · ${cost}`}
+              </dd>
+              {row.keyUsage === undefined ? null : (
+                <>
+                  <dt>{UI_TEXT.usageKeyUsage}</dt>
+                  <dd>
+                    <dl className="usage-facts">
+                      <dt>{UI_TEXT.usageToday}</dt>
+                      <dd>{formatUsd(row.keyUsage.todayUsd)}</dd>
+                      <dt>{UI_TEXT.usageThisMonth}</dt>
+                      <dd>{formatUsd(row.keyUsage.monthUsd)}</dd>
+                      {row.keyUsage.limitUsd === undefined ? null : (
+                        <>
+                          <dt>{UI_TEXT.usageLimit}</dt>
+                          <dd>{formatUsd(row.keyUsage.limitUsd)}</dd>
+                        </>
+                      )}
+                      {row.keyUsage.remainingUsd === undefined ? null : (
+                        <>
+                          <dt>{UI_TEXT.usageRemaining}</dt>
+                          <dd>{formatUsd(row.keyUsage.remainingUsd)}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </dd>
+                </>
+              )}
+            </div>
+          )
+        })}
+      </dl>
+    </>
+  )
+}
+
 function AccountSection({
   report,
   modelId,
@@ -526,6 +617,7 @@ export function UsageDialog({
   usage,
   context,
   modelId,
+  modelPricing,
   paid,
   auth,
   onInstallMuseCode,
@@ -581,7 +673,16 @@ export function UsageDialog({
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
         <h3 className="usage-heading">{UI_TEXT.usageSessionTokens}</h3>
-        <TokensSection usage={usage} context={context} costUsd={costUsd} modelId={modelId} />
+        <TokensSection
+          usage={usage}
+          context={context}
+          costUsd={costUsd}
+          modelId={modelId}
+          pricing={modelPricing}
+        />
+        {report.providers !== undefined && report.providers.length > 0 ? (
+          <ProvidersSection providers={report.providers} />
+        ) : null}
         {paidFeatures.length > 0 ? (
           <>
             <h3 className="usage-heading">{UI_TEXT.usagePaidHeading}</h3>
@@ -684,6 +785,16 @@ export function UsageDialog({
             {paid.isKeyStored ? UI_TEXT.usageReplaceModelApiKey : UI_TEXT.usageAddModelApiKey}
           </button>
           <p className="usage-row-meta">{UI_TEXT.signInApiKeyDetail}</p>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => {
+              onSetupSignIn('byo')
+            }}
+          >
+            {UI_TEXT.startWithOwnModel}
+          </button>
+          <p className="usage-row-meta">{UI_TEXT.startWithOwnModelDetail}</p>
         </div>
       ) : null}
     </Modal>

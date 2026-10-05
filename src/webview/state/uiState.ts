@@ -57,7 +57,12 @@ import type { ScheduleView } from '../../shared/schedule'
 import type { BestOfNRun } from '../../shared/bestOfN'
 import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
-import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
+import type {
+  AccountFacts,
+  ProviderUsageRow,
+  SubscriptionUsage,
+  UsageInsights,
+} from '../../shared/usage'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import { backgroundRun } from '../toolDetails'
 import type {
@@ -88,6 +93,8 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** This window's tallies per BYO provider (M95); undefined until one is used. */
+  readonly providers: readonly ProviderUsageRow[] | undefined
 }
 
 /**
@@ -343,6 +350,11 @@ export interface UiState {
   /** A local share file open read-only (M84); undefined when none is open. */
   readonly share: SharePreview | undefined
   /**
+   * The finished provider setup (M95): the wizard saved a provider and set
+   * the composer's model. Shown once above the composer, until dismissed.
+   */
+  readonly setupComplete: { readonly provider: string; readonly model: string } | undefined
+  /**
    * The conversation in the transcript holds imported history (M84, the
    * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
    */
@@ -428,6 +440,8 @@ export type UiAction =
   | { readonly type: 'reviewHunkReverting'; readonly key: string }
   /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
   | { readonly type: 'shareClosed' }
+  /** The × on the post-wizard confirmation (M95). */
+  | { readonly type: 'setupCompleteDismissed' }
 
 export const initialUiState: UiState = {
   pendingApprovalResolutions: [],
@@ -504,6 +518,7 @@ export const initialUiState: UiState = {
   pendingRestore: undefined,
   pendingClearEchoes: 0,
   share: undefined,
+  setupComplete: undefined,
   isImported: false,
 }
 
@@ -2008,6 +2023,7 @@ function clearedAccountView(state: UiState): UiState {
     announcement: undefined,
     pendingRestore: undefined,
     pendingClearEchoes: 0,
+    setupComplete: undefined,
   }
 }
 
@@ -2301,8 +2317,18 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           subscription: message.subscription,
           account: message.account,
           insights: message.insights,
+          providers: message.providers === undefined ? undefined : [...message.providers],
         },
       }
+    }
+    case 'setupComplete': {
+      return announce(
+        {
+          ...state,
+          setupComplete: { provider: message.provider, model: message.model },
+        },
+        fill(UI_TEXT.setupComplete, { provider: message.provider, model: message.model }),
+      )
     }
     case 'sharePreview': {
       return {
@@ -2853,6 +2879,9 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
     }
     case 'shareClosed': {
       return { ...state, share: undefined }
+    }
+    case 'setupCompleteDismissed': {
+      return { ...state, setupComplete: undefined }
     }
     case 'conversationCleared': {
       return {

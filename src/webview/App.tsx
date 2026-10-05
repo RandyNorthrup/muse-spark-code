@@ -64,6 +64,7 @@ import { HistoryDialog } from './components/HistoryDialog'
 import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
+import { SetupBanner } from './components/SetupBanner'
 import { UsageDialog } from './components/UsageDialog'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
@@ -202,7 +203,20 @@ export function modelLabelFor(state: UiState): string {
     return UI_TEXT.hostStarting
   }
   const effort = state.isThinkingEnabled ? effortLabel(state.effort) : UI_TEXT.thinkingOff
-  return `${state.model.modelId} ${effort}`
+  // A BYO model names its provider beside its model (M95): the listing's
+  // label, else the reference's provider, so a bare id reads as it did.
+  const option = state.models.find((model) => model.modelId === state.model?.modelId)
+  const provider = option?.providerLabel ?? providerOf(state.model.modelId)
+  if (provider === undefined) {
+    return `${state.model.modelId} ${effort}`
+  }
+  return `${provider} · ${option?.displayLabel ?? state.model.modelId} ${effort}`
+}
+
+/** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
+function providerOf(modelId: string): string | undefined {
+  const slash = modelId.indexOf('/')
+  return slash === -1 ? undefined : modelId.slice(0, slash)
 }
 
 /** "12% context" once the host has reported usage against a known window. */
@@ -1447,7 +1461,11 @@ export function App({
         case 'showHooks':
         case 'showMemory':
         case 'newWorktree':
-        case 'removeWorktree': {
+        case 'removeWorktree':
+        // The models view's footer rows (M95): the host runs lane K's
+        // commands through the matching host actions.
+        case 'addModelProvider':
+        case 'manageModels': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
@@ -1955,6 +1973,9 @@ export function App({
         usage={state.usage}
         context={state.context}
         modelId={state.model?.modelId}
+        modelPricing={
+          state.models.find((model) => model.modelId === state.model?.modelId)?.pricing
+        }
         paid={state.paid}
         now={now}
         onOpenExternal={onOpenExternal}
@@ -2079,6 +2100,18 @@ export function App({
       )}
       <div className="composer-area" inert={isModalOpen}>
         {floating}
+        {state.setupComplete === undefined || isBodyGated ? null : (
+          <SetupBanner
+            provider={state.setupComplete.provider}
+            model={state.setupComplete.model}
+            onManageProviders={() => {
+              postMessage({ type: 'hostAction', action: 'manageModels' })
+            }}
+            onDismiss={() => {
+              dispatch({ type: 'setupCompleteDismissed' })
+            }}
+          />
+        )}
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}

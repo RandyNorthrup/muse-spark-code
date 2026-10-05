@@ -20,15 +20,18 @@ import {
 } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
+import { fill } from '../../shared/l10n/text'
 import {
   contextWindowLabel,
   filterPalette,
+  formatTokenWindow,
   type PaletteAction,
   type PaletteGroup,
   type PaletteItem,
   type PaletteWidget,
 } from '../../shared/palette'
 import type { ModelOption } from '../../shared/protocol'
+import { formatUsd } from '../../core/usage/insights'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
@@ -135,22 +138,129 @@ export function layoutActions(
   return { entries, rows }
 }
 
-export function modelRows(
+/** How a price reads in the picker: the pair, `unpriced`, `local` or `plan`. */
+function priceText(model: ModelOption): string | undefined {
+  switch (model.pricing) {
+    case 'priced': {
+      return model.inputUsdPerMTokens === undefined || model.outputUsdPerMTokens === undefined
+        ? undefined
+        : fill(UI_TEXT.pickerPricePair, {
+            input: formatUsd(model.inputUsdPerMTokens),
+            output: formatUsd(model.outputUsdPerMTokens),
+          })
+    }
+    case 'unpriced': {
+      return UI_TEXT.modelUnpriced
+    }
+    case 'local': {
+      return UI_TEXT.modelLocal
+    }
+    case 'plan': {
+      return UI_TEXT.modelPlan
+    }
+    case undefined: {
+      return undefined
+    }
+  }
+}
+
+/** "{window} context · {price}", either half alone, or nothing to say. */
+function modelDetail(model: ModelOption): string | undefined {
+  const { contextLimit } = model
+  const price = priceText(model)
+  if (contextLimit === undefined) {
+    return price
+  }
+  if (price === undefined) {
+    return contextWindowLabel(contextLimit)
+  }
+  // The template names the unit itself, so the window goes in bare (M95).
+  return fill(UI_TEXT.pickerModelDetail, { window: formatTokenWindow(contextLimit), price })
+}
+
+/** One provider's models in the picker's models view, in first-seen order. */
+export interface ModelSection {
+  readonly key: string
+  readonly title: string
+  readonly rows: readonly PaletteRow[]
+}
+
+/**
+ * The models view's sections (M95): pinned favourites first, then one group
+ * per provider (Meta's own models under their own name). Pure, so the panel
+ * and its tests share it.
+ */
+export function modelSections(
   models: readonly ModelOption[],
   currentModelId: string | undefined,
   onSelectModel: (modelId: string) => void,
-): readonly PaletteRow[] {
-  return models.map((model) => ({
+): readonly ModelSection[] {
+  const rowFor = (model: ModelOption): PaletteRow => ({
     id: `model:${model.modelId}`,
     label: model.displayLabel,
-    detail: model.contextLimit === undefined ? undefined : contextWindowLabel(model.contextLimit),
+    detail: modelDetail(model),
     widget: undefined,
     isCurrent: model.modelId === currentModelId,
     activate: () => {
       onSelectModel(model.modelId)
     },
     step: undefined,
-  }))
+  })
+  const pinned = models.filter((model) => model.isPinned === true)
+  const rest = models.filter((model) => model.isPinned !== true)
+  const sections: ModelSection[] = []
+  if (pinned.length > 0) {
+    sections.push({
+      key: 'pinned',
+      title: UI_TEXT.pickerPinnedGroup,
+      rows: pinned.map(rowFor),
+    })
+  }
+  const groups = new Map<string, { readonly title: string; readonly rows: PaletteRow[] }>()
+  for (const model of rest) {
+    const key = model.providerId ?? 'meta'
+    const group = groups.get(key)
+    if (group === undefined) {
+      groups.set(key, {
+        title: model.providerLabel ?? UI_TEXT.pickerMetaGroup,
+        rows: [rowFor(model)],
+      })
+    } else {
+      group.rows.push(rowFor(model))
+    }
+  }
+  for (const [key, group] of groups) {
+    sections.push({ key, title: group.title, rows: group.rows })
+  }
+  return sections
+}
+
+/** The models view's footer: the provider quick-pick and the panel (M95). */
+export function providerRows(onAction: (action: PaletteAction) => void): readonly PaletteRow[] {
+  return [
+    {
+      id: 'addModelProvider',
+      label: UI_TEXT.addModelProviderRow,
+      detail: undefined,
+      widget: undefined,
+      isCurrent: false,
+      activate: () => {
+        onAction({ type: 'addModelProvider' })
+      },
+      step: undefined,
+    },
+    {
+      id: 'manageModels',
+      label: UI_TEXT.manageModelsRow,
+      detail: undefined,
+      widget: undefined,
+      isCurrent: false,
+      activate: () => {
+        onAction({ type: 'manageModels' })
+      },
+      step: undefined,
+    },
+  ]
 }
 
 function Widget({
@@ -235,6 +345,45 @@ function RowView({
   )
 }
 
+/** The models view's layout: grouped rows, then the provider rows (M95). */
+function layoutModels(
+  models: readonly ModelOption[],
+  filter: string,
+  currentModelId: string | undefined,
+  onSelectModel: (modelId: string) => void,
+  onAction: (action: PaletteAction) => void,
+): { readonly entries: readonly PaletteEntry[]; readonly rows: readonly PaletteRow[] } {
+  const needle = filter.toLowerCase()
+  const matches = (text: string | undefined): boolean =>
+    text !== undefined && text.toLowerCase().includes(needle)
+  const matching = models.filter(
+    (model) =>
+      matches(model.displayLabel) || matches(model.providerLabel) || matches(model.modelId),
+  )
+  const sections = modelSections(matching, currentModelId, onSelectModel)
+  // One group keeps today's flat list; titles name groups only past that.
+  const showsTitles = sections.length > 1
+  const rows: PaletteRow[] = []
+  const entries: PaletteEntry[] = []
+  for (const section of sections) {
+    if (showsTitles) {
+      entries.push({ kind: 'title', key: `title:${section.key}`, title: section.title })
+    }
+    for (const row of section.rows) {
+      entries.push({ kind: 'row', key: row.id, index: rows.length })
+      rows.push(row)
+    }
+  }
+  for (const row of providerRows(onAction)) {
+    if (needle !== '' && !matches(row.label)) {
+      continue
+    }
+    entries.push({ kind: 'row', key: row.id, index: rows.length })
+    rows.push(row)
+  }
+  return { entries, rows }
+}
+
 export function Palette(props: PaletteProps) {
   const { view, groups, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
   const { isAttached = false, keys, onActiveRowChange } = props
@@ -244,9 +393,7 @@ export function Palette(props: PaletteProps) {
 
   const layout = useMemo(() => {
     if (view === 'models') {
-      const needle = filter.toLowerCase()
-      const matching = models.filter((model) => model.displayLabel.toLowerCase().includes(needle))
-      return { entries: [], rows: modelRows(matching, currentModelId, onSelectModel) }
+      return layoutModels(models, filter, currentModelId, onSelectModel, onAction)
     }
     return layoutActions(filterPalette(groups, filter), onAction)
   }, [view, filter, models, currentModelId, onSelectModel, groups, onAction])
@@ -335,7 +482,23 @@ export function Palette(props: PaletteProps) {
         aria-label={UI_TEXT.modelListLabel}
         className="palette-list"
       >
-        {rows.map((_, index) => renderRow(index))}
+        {entries.map((entry) => {
+          switch (entry.kind) {
+            case 'title': {
+              return (
+                <li key={entry.key} role="presentation" className="palette-group-title">
+                  {entry.title}
+                </li>
+              )
+            }
+            case 'disabled': {
+              return null
+            }
+            case 'row': {
+              return renderRow(entry.index)
+            }
+          }
+        })}
       </ul>
     )
   } else {

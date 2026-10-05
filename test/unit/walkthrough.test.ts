@@ -57,4 +57,20 @@ describe('walkthrough resources', () => {
       expect(step.media.markdown.startsWith('resources/walkthrough/'), step.id).toBe(true)
     }
   })
+
+  it('opens the wizard from the own-model step and its page (M95)', () => {
+    const own = steps.find((step) => step.id === 'ownModel')
+    expect(own?.completionEvents).toContain('onCommand:museSpark.startWithOwnModel')
+    const nls = JSON.parse(
+      readFileSync(path.join(root, 'package.nls.json'), 'utf8'),
+    ) as Record<string, string>
+    const description = nls['walkthrough.gettingStarted.step.ownModel.description']
+    expect(description).toContain('[Start with your own model](command:museSpark.startWithOwnModel)')
+    const page = readFileSync(path.join(root, 'resources', 'walkthrough', 'own-model.md'), 'utf8')
+    expect(page).toContain('[Start with your own model](command:museSpark.startWithOwnModel)')
+    const start = manifest.contributes.commands.find(
+      (entry) => entry.command === 'museSpark.startWithOwnModel',
+    )
+    expect(start?.command).toBe('museSpark.startWithOwnModel')
+  })
 })
