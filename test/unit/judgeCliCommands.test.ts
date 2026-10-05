@@ -193,12 +193,14 @@ describe('judge CLI bounded advisory commands', () => {
     const fake = source()
     fake.judge.mockRejectedValue(new Error('private upstream text'))
     const streams = io()
-    expect(
-      await runJudgeCommand(command(), streams, {
-        resolveSource: () => Promise.resolve(fake.value),
-      }),
-    ).toBe(4)
-    expect(streams.output()).toContain('engine-failure')
+    const code = await runJudgeCommand(command(), streams, {
+      resolveSource: () => Promise.resolve(fake.value),
+    })
+    expect(code).toBe(4)
+    expect(JSON.parse(streams.output())).toEqual({
+      outcome: 'no-answer',
+      reason: 'engine-failure',
+    })
     expect(streams.output() + streams.error()).not.toContain('private upstream text')
   })
   it('rejects options not offered and scores beyond the requested legend', async () => {

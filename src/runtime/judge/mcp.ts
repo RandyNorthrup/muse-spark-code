@@ -68,7 +68,14 @@ export async function runJudgeMcp(
   const fail = (next: number) => {
     code = next
   }
-  const tools = [judgeTool(judge, fail)]
+  const toolFailure = { hasFailed: false }
+  const hasToolFailed = () => toolFailure.hasFailed
+  const tools = [
+    judgeTool(judge, (next) => {
+      toolFailure.hasFailed = true
+      fail(next)
+    }),
+  ]
   const active = new Map<string, Set<AbortController>>()
   let pending = Buffer.alloc(0)
   let queuedBytes = 0
@@ -96,6 +103,7 @@ export async function runJudgeMcp(
       try {
         if (hasOutputFailed()) return
         signal.throwIfAborted()
+        toolFailure.hasFailed = false
         const result = await handleMcpMessage(
           line,
           tools,
@@ -116,7 +124,7 @@ export async function runJudgeMcp(
             }
           }
           const toolResult = toolErrorSchema.safeParse(body['result'])
-          if (toolResult.success && code === EXEC_EXIT.ok) {
+          if (toolResult.success && !hasToolFailed()) {
             fail(EXEC_EXIT.usage)
             body = {
               ...body,

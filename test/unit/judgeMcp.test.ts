@@ -108,6 +108,13 @@ describe('judge MCP stdio', () => {
       expect(streams.output()).not.toMatch(/private-method|private-tool/)
     }
   })
+  it('sanitizes unknown tool failures after an earlier refusal', async () => {
+    const streams = io(
+      call(1) + frame('tools/call', 2, { name: 'private-tool', arguments: REQUEST }),
+    )
+    expect(await runJudgeCommand(command('mcp'), streams, {})).toBe(2)
+    expect(streams.output()).not.toContain('private-tool')
+  })
   it('never forwards private provider failures as MCP tool text', async () => {
     const fake = source()
     fake.judge.mockRejectedValue(new Error('private provider text'))
