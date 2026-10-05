@@ -1673,6 +1673,7 @@ function completeTurn(
   state: UiState,
   event: Extract<AgentEvent, { type: 'turnCompleted' }>,
   at: number,
+  reportRef: ReportEventRef | undefined,
 ): UiState {
   const child = childOwnerOf(state, event.turnId)
   if (child?.childSessionId !== undefined) {
@@ -1686,6 +1687,7 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            ...(reportRef !== undefined && { reportRef }),
           },
         ]
       : []
@@ -1707,7 +1709,12 @@ function completeTurn(
   )
 }
 
-function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
+function applyAgentEvent(
+  state: UiState,
+  event: AgentEvent,
+  at: number,
+  reportRef?: ReportEventRef,
+): UiState {
   switch (event.type) {
     case 'turnStarted': {
       return childOwnerOf(state, event.turnId) === undefined
@@ -1739,7 +1746,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return transcript === state.transcript ? state : { ...state, transcript }
     }
     case 'turnCompleted': {
-      return completeTurn(state, event, at)
+      return completeTurn(state, event, at, reportRef)
     }
     case 'userMessageTurnChanged': {
       const card = state.transcript.findLast(
@@ -2766,7 +2773,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       return announce(withNotice(state, 'warning', message.reason), message.reason)
     }
     case 'agentEvent': {
-      return applyAgentEvent(state, message.event, at)
+      return applyAgentEvent(state, message.event, at, message.reportRef)
     }
     case 'modelList': {
       return { ...state, models: message.models }
@@ -2852,23 +2859,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       ) {
         return state
       }
-      return {
-        ...state,
-        report: {
-          session: message.session,
-          revision: message.revision,
-          description: message.description,
-          includeFacts: message.includeFacts,
-          includeEvents: message.includeEvents,
-          items: message.items,
-          title: message.title,
-          text: message.text,
-          hash: message.hash,
-          canUseVscodeReporter: message.canUseVscodeReporter,
-          recordingUnavailable: message.recordingUnavailable,
-          exportStatus: undefined,
-        },
-      }
+      const { type: _draft, ...draft } = message
+      return { ...state, report: { ...draft, exportStatus: undefined } }
     }
     case 'reportExported': {
       // An export attempt's answer in fixed words (M93 lane W): shown on
@@ -2885,8 +2877,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           exportStatus: {
             via: message.via,
             ok: message.ok,
-            ...(message.issueFallback !== undefined && { issueFallback: message.issueFallback }),
-            ...(message.reason !== undefined && { reason: message.reason }),
+            issueFallback: message.issueFallback,
+            reason: message.reason,
           },
         },
       }

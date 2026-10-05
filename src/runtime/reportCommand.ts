@@ -1,104 +1,34 @@
-// `muse-spark-code-acp report` (M93 lane A, PLAN.md D72): the standalone
-// problem report. It starts no backend, signs in nowhere, opens no browser
-// and makes no network or model call: it reads only the local, capped
-// recorder journal, gathers allowlisted local facts, and prints lane P's
-// scrubbed draft as text (or writes it to a file with --out). stdout carries
-// only the report in this mode; usage errors and failures go to stderr.
-//
-// The journal file below is the write contract lane R's flight recorder
-// shares: `{ version: 1, entries: [{ kind, code, frames, atMs }] }`, where
-// `atMs` is the entry's epoch milliseconds. Entries already carrying an
-// `ageMs` read the same way. Anything else fails validation at build time
-// and is skipped, never exported — a tampered journal cannot become an
-// arbitrary text attachment. This module never imports a backend, auth,
-// keystore, model client, child process or fetch; the owning test guards
-// those imports.
+// `muse-spark-code-acp report` (M93, PLAN.md D72): the standalone problem
+// report. It starts no backend, signs in nowhere, opens no browser and makes
+// no network or model call: it reads only the agent's own flight-recorder
+// journals (the extension's recorder, ReportJournal, under the agent's data
+// folder, with the same policy: strict records, links refused, pruned at
+// append and read), gathers allowlisted local facts, and prints the scrubbed
+// draft as text (or writes it to a file with --out). stdout carries only the
+// report in this mode; usage errors and failures go to stderr. Reading
+// creates no activation marker and consumes none. This module never imports
+// a backend, auth, keystore, model client, child process or fetch; the
+// owning test guards those imports.
 
-import path from 'node:path'
-import { credentialFileVerdict } from '../core/backends/musecode/credentialFile'
+import {
+  credentialFileVerdict,
+  isSignedInByStructure,
+} from '../core/backends/musecode/credentialFile'
 import { credentialFilePath, resolveMuseLaunch } from '../core/backends/musecode/launch'
 import {
   buildProblemReportDraft,
   type ProblemReportFacts,
   ReportBuildError,
 } from '../core/support/problemReport'
-import {
-  ACP_REPORT_JOURNAL_FILE,
-  EXEC_EXIT,
-  REPORT_EVENT_KINDS,
-  REPORT_JOURNAL_MAX_BYTES,
-  REPORT_JOURNAL_VERSION,
-  REPORT_RECENT_EVENT_COUNT,
-  type ReportEventKind,
-  UI_TEXT,
-} from '../shared/constants'
-import { agentDataFolder, type DataFolderInput } from './dataFolder'
+import { EXEC_EXIT, UI_TEXT } from '../shared/constants'
 import type { ReportOptions } from './cliArgs'
 
-/** What the journal read answers: the records for the builder, or that reading failed. */
+/** What the journal read answers: the records for the builder, or that recording was unavailable. */
 export interface ReportJournalRead {
   /** Records for `buildProblemReportDraft` (validated again there); empty when unavailable. */
-  readonly events: readonly unknown[]
-  /** The journal was missing nothing — it could not be read, so the report says so. */
+  readonly entries: readonly unknown[]
+  /** The journal could not be read, so the report says so instead of carrying events. */
   readonly recordingUnavailable: boolean
-}
-
-/**
- * The journal bytes as records with relative ages. Oversize, undecodable,
- * unparseable or off-contract content reads unavailable rather than guessing:
- * the report then states that recording was unavailable instead of carrying
- * events. A missing file is not a failure — it only means nothing was recorded.
- */
-export function parseReportJournalBytes(bytes: Uint8Array, nowMs: number): ReportJournalRead {
-  const unavailable: ReportJournalRead = { events: [], recordingUnavailable: true }
-  if (bytes.length > REPORT_JOURNAL_MAX_BYTES) {
-    return unavailable
-  }
-  let text: string
-  try {
-    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    return unavailable
-  }
-  let root: unknown
-  try {
-    root = JSON.parse(text)
-  } catch {
-    return unavailable
-  }
-  if (
-    typeof root !== 'object' ||
-    root === null ||
-    Array.isArray(root) ||
-    !('version' in root) ||
-    !('entries' in root)
-  ) {
-    return unavailable
-  }
-  if (root.version !== REPORT_JOURNAL_VERSION || !Array.isArray(root.entries)) {
-    return unavailable
-  }
-  const stored: readonly unknown[] = root.entries
-  const events: unknown[] = []
-  for (const candidate of stored) {
-    if (typeof candidate !== 'object' || candidate === null || Array.isArray(candidate)) {
-      events.push(candidate)
-      continue
-    }
-    const kind: unknown = 'kind' in candidate ? candidate.kind : undefined
-    const code: unknown = 'code' in candidate ? candidate.code : undefined
-    const frames: unknown = 'frames' in candidate ? candidate.frames : undefined
-    const atMs: unknown = 'atMs' in candidate ? candidate.atMs : undefined
-    if (typeof atMs === 'number' && Number.isFinite(atMs)) {
-      // The stored absolute time becomes the builder's relative age; the
-      // absolute stamp itself never enters the draft. `atMs` is dropped
-      // because the builder's strict shape refuses unknown fields.
-      events.push({ kind, code, frames, ageMs: nowMs - atMs })
-    } else {
-      events.push(candidate)
-    }
-  }
-  return { events, recordingUnavailable: false }
 }
 
 /** The local facts the standalone report may gather; nothing here starts anything. */
@@ -122,7 +52,12 @@ export interface ReportFactsDeps {
   readonly readTextFile: (filePath: string) => string | undefined
   /** The directory's file names; empty when it cannot be read. */
   readonly listDirectory: (directory: string) => readonly string[]
-  /** `META_API_KEY` is present in the environment (presence only; the value is never read). */
+  /**
+   * `META_API_KEY` was in the agent's environment when it started (presence
+   * only). The agent takes credential variables out of its own environment
+   * at start, so the caller answers from what it took, never from
+   * `process.env` afterwards.
+   */
   readonly hasEnvironmentApiKey: boolean
   /** The OS credential store holds a Model API key (presence only; a store that cannot be read reads no). */
   readonly hasStoredApiKey: boolean
@@ -132,13 +67,13 @@ export interface ReportFactsDeps {
  * The allowlisted facts for the standalone report. Every value is local and
  * already public-safe: versions, platform, defaults for the backend and
  * sandbox the report never starts, CLI presence from file discovery, and
- * sign-in/key booleans. Outside VS Code there is no editor version to name,
- * so the `vscode` fact carries the agent's own version and keeps the draft's
- * allowlisted shape (flagged as an open question for lane I in
- * docs/certification/m93-a.md). Throws ReportBuildError for off-allowlist input.
+ * sign-in/key booleans. Outside VS Code there is no VS Code version, so the
+ * fact is left out and the draft says "none (standalone agent)". Throws
+ * ReportBuildError (from the builder) for off-allowlist input.
  */
 export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
-  if (deps.platform !== 'win32' && deps.platform !== 'darwin' && deps.platform !== 'linux') {
+  const { platform } = deps
+  if (platform !== 'win32' && platform !== 'darwin' && platform !== 'linux') {
     throw new ReportBuildError('platform', 'not a named platform')
   }
   const nodeVersion = deps.nodeVersion.startsWith('v')
@@ -155,8 +90,6 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
     listDirectory: deps.listDirectory,
     serveArgs: [],
   })
-  const isCliFound = launch.ok
-  let isCliSignedIn = false
   const credentialText = deps.readTextFile(
     credentialFilePath({
       platform: deps.platform,
@@ -164,22 +97,17 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
       xdgConfigHome: deps.xdgConfigHome,
     }),
   )
-  if (credentialText !== undefined) {
-    const verdict = credentialFileVerdict(credentialText, deps.platform)
-    // Only the file's structure speaks here: `inline` holds the credential,
-    // `keychain` points at the macOS login Keychain. An unreadable shape is
-    // the CLI's to place, so it reads no — documented in docs/acp.md.
-    isCliSignedIn = verdict === 'inline' || (verdict === 'keychain' && deps.platform === 'darwin')
-  }
+  // Only the file's structure speaks here; a shape the CLI must place reads no.
+  const isCliSignedIn = isSignedInByStructure(
+    credentialText === undefined ? undefined : credentialFileVerdict(credentialText, deps.platform),
+  )
   return {
     extensionVersion: deps.version,
-    vscodeVersion: deps.version,
     nodeVersion,
-    platform: deps.platform,
+    platform,
     backend: 'auto',
     sandbox: 'auto',
-    cliFound: isCliFound,
-    cliVersion: undefined,
+    cliFound: launch.ok,
     cliSignIn: isCliSignedIn,
     hasStoredApiKey: deps.hasStoredApiKey,
     hasEnvironmentApiKey: deps.hasEnvironmentApiKey,
@@ -198,9 +126,8 @@ export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> 
   readonly readStoredKeyPresence: () => Promise<boolean>
   /** Renders the relative ages; a non-finite value refuses the report. */
   readonly nowMs: number
-  readonly journalPath: string
-  /** The journal's bytes, or undefined when no journal was ever written. Rejects on read failure. */
-  readonly readJournal: (filePath: string) => Promise<Uint8Array | undefined>
+  /** The agent's retained journal records as report events (ReportJournal.readMerged). */
+  readonly readJournal: () => Promise<ReportJournalRead>
   /** Called exactly once with the draft text in stdout mode, never in `--out` mode. */
   readonly writeStdout: (text: string) => void
   /** Writes the draft's exact bytes in `--out` mode. */
@@ -216,132 +143,41 @@ export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> 
 export async function runReportCommand(
   deps: RunReportDeps,
 ): Promise<typeof EXEC_EXIT.ok | typeof EXEC_EXIT.internal> {
-  let journal: ReportJournalRead = { events: [], recordingUnavailable: false }
+  let journal: ReportJournalRead
   try {
-    const bytes = await deps.readJournal(deps.journalPath)
-    journal = bytes === undefined ? journal : parseReportJournalBytes(bytes, deps.nowMs)
+    journal = await deps.readJournal()
   } catch {
-    journal = { events: [], recordingUnavailable: true }
-  }
-  let facts: ProblemReportFacts
-  try {
-    facts = collectReportFacts({ ...deps, hasStoredApiKey: await deps.readStoredKeyPresence() })
-  } catch {
-    deps.printError(UI_TEXT.reportSaveFailed)
-    return EXEC_EXIT.internal
+    journal = { entries: [], recordingUnavailable: true }
   }
   let text: string
   try {
-    const draft = buildProblemReportDraft({
+    const facts = collectReportFacts({
+      ...deps,
+      hasStoredApiKey: await deps.readStoredKeyPresence(),
+    })
+    text = buildProblemReportDraft({
       description: deps.options.description,
       includeFacts: deps.options.includeFacts,
       includeEvents: deps.options.includeEvents,
       facts,
-      events: journal.events,
+      events: journal.entries,
       recordingUnavailable: journal.recordingUnavailable,
       nowMs: deps.nowMs,
       scrub: { workspaceRoots: [], homeDir: deps.homeDir, extraLiterals: [] },
-    })
-    text = draft.text
+    }).text
   } catch {
-    deps.printError(UI_TEXT.reportSaveFailed)
+    deps.printError(UI_TEXT.reportBuildFailed)
     return EXEC_EXIT.internal
   }
-  if (deps.options.out !== undefined) {
-    try {
-      await deps.writeOutFile(deps.options.out, text)
-    } catch {
-      deps.printError(UI_TEXT.reportSaveFailed)
-      return EXEC_EXIT.internal
-    }
-    return EXEC_EXIT.ok
-  }
   try {
-    deps.writeStdout(text)
+    if (deps.options.out === undefined) {
+      deps.writeStdout(text)
+    } else {
+      await deps.writeOutFile(deps.options.out, text)
+    }
   } catch {
     deps.printError(UI_TEXT.reportSaveFailed)
     return EXEC_EXIT.internal
   }
   return EXEC_EXIT.ok
-}
-
-/** Where the standalone report reads the journal: the agent's data folder, no workspace needed. */
-export function reportJournalPath(input: DataFolderInput): string {
-  return path.join(agentDataFolder(input), ACP_REPORT_JOURNAL_FILE)
-}
-
-/** Everything `appendReportJournalEntry` touches; all storage is a parameter. */
-export interface AppendReportJournalDeps {
-  readonly journalPath: string
-  readonly entry: { readonly kind: ReportEventKind; readonly code: string }
-  readonly nowMs: number
-  /** The journal's bytes, or undefined when none was ever written. */
-  readonly readBytes: (filePath: string) => Promise<Uint8Array | undefined>
-  /** A whole-file write; the caller makes it atomic (temporary file plus rename). */
-  readonly writeBytes: (filePath: string, bytes: Uint8Array) => Promise<void>
-  readonly ensureDir: (directory: string) => Promise<void>
-}
-
-/**
- * Records one facts-only entry for the standalone report to read later. The
- * observer attaches no frames: a stack could carry absolute paths the scrub
- * would have to remove, and fixed kind-plus-code diagnoses the failure. The
- * journal stays capped at REPORT_JOURNAL_MAX_BYTES, oldest first; an entry
- * that alone exceeds the cap is dropped rather than evicting everything.
- * Never throws: observing must not break the session it watches.
- */
-export async function appendReportJournalEntry(deps: AppendReportJournalDeps): Promise<void> {
-  try {
-    await appendReportJournalEntryInner(deps)
-  } catch {
-    // Observing never breaks the session it watches.
-  }
-}
-
-async function appendReportJournalEntryInner(deps: AppendReportJournalDeps): Promise<void> {
-  if (!REPORT_EVENT_KINDS.includes(deps.entry.kind)) {
-    return
-  }
-  let entries: unknown[] = []
-  try {
-    const existing = await deps.readBytes(deps.journalPath)
-    if (existing !== undefined && existing.length <= REPORT_JOURNAL_MAX_BYTES) {
-      const text = new TextDecoder('utf-8', { fatal: true }).decode(existing)
-      const root: unknown = JSON.parse(text)
-      if (
-        typeof root === 'object' &&
-        root !== null &&
-        !Array.isArray(root) &&
-        'version' in root &&
-        'entries' in root &&
-        root.version === REPORT_JOURNAL_VERSION &&
-        Array.isArray(root.entries)
-      ) {
-        entries = root.entries
-      }
-    }
-  } catch {
-    entries = []
-  }
-  entries = [
-    ...entries.slice(-REPORT_RECENT_EVENT_COUNT),
-    {
-      kind: deps.entry.kind,
-      code: deps.entry.code,
-      frames: [],
-      atMs: deps.nowMs,
-    },
-  ]
-  let encoded = new TextEncoder().encode(
-    JSON.stringify({ version: REPORT_JOURNAL_VERSION, entries }),
-  )
-  while (entries.length > 0 && encoded.length > REPORT_JOURNAL_MAX_BYTES) {
-    entries = entries.slice(1)
-    encoded = new TextEncoder().encode(JSON.stringify({ version: REPORT_JOURNAL_VERSION, entries }))
-  }
-  if (encoded.length > REPORT_JOURNAL_MAX_BYTES) {
-    return
-  }
-  await deps.ensureDir(path.dirname(deps.journalPath))
-  await deps.writeBytes(deps.journalPath, encoded)
 }

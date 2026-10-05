@@ -11,25 +11,14 @@ import { AcpPaidUse } from '../../src/acp/paid'
 import type { AgentEvent, ApprovalChoice } from '../../src/shared/agentEvents'
 import { FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+import { commandApproval, until } from './helpers/acpWaits'
 
 const CWD = process.platform === 'win32' ? String.raw`C:\\work\\app` : '/work/app'
-const POLL_MS = 5
-const WAIT_MS = 2000
 
 const CHOICES: ApprovalChoice[] = [
   { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
   { choiceId: 'abort', label: 'Reject', decision: 'abort', scope: 'once' },
 ]
-
-async function until(isMet: () => boolean): Promise<void> {
-  const deadline = Date.now() + WAIT_MS
-  while (!isMet()) {
-    if (Date.now() > deadline) {
-      throw new Error('condition not met in time')
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
-  }
-}
 
 interface ObserverHarness {
   readonly host: FakeAgentHost
@@ -139,18 +128,7 @@ async function promptedTurn(
 }
 
 function approval(): Extract<AgentEvent, { type: 'approvalRequested' }> {
-  return {
-    type: 'approvalRequested',
-    approvalId: 'approval-1',
-    itemId: 'tool-1',
-    toolName: 'powershell',
-    rawArgs: JSON.stringify({ command: 'npm test' }),
-    requirementId: { approvalId: 'approval-1', sourceIndex: 0 },
-    subject: { kind: 'command', command: 'npm test' },
-    availableChoices: CHOICES,
-    isJudgeEscalated: false,
-    isProtectedWrite: false,
-  }
+  return commandApproval(CHOICES)
 }
 
 describe('the ACP error observer (M93 lane A)', () => {

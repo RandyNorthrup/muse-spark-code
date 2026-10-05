@@ -445,6 +445,7 @@
   "reportCopyFailed": "レポートをコピーできませんでした。プレビューからコピーしてください。",
   "reportSaved": "レポートを保存しました。",
   "reportSaveFailed": "レポートを保存できませんでした。",
+  "reportBuildFailed": "レポートを作成できませんでした。",
   "reportUrlTooLong": "レポートが長すぎてブラウザーのアドレスで開けません。コピーして、新規 issue フォームに貼り付けてください。",
   "reportRecordingUnavailable": "イベント記録が利用できなかったため、このレポートに最近のイベントは含まれません。",
   "reportDescriptionWarning": "共有する前に、機密データを除去したプレビューを確認してください。説明には機密情報が残る可能性があります。パスワードやキーを含めないでください。",

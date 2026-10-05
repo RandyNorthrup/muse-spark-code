@@ -454,6 +454,7 @@
   "reportCopyFailed": "A jelentést nem sikerült másolni. Másolja ki inkább az előnézetből.",
   "reportSaved": "A jelentés mentve.",
   "reportSaveFailed": "A jelentést nem sikerült menteni.",
+  "reportBuildFailed": "A jelentést nem sikerült összeállítani.",
   "reportUrlTooLong": "A jelentés túl hosszú ahhoz, hogy böngészőcímben megnyíljon. Másolja ki, majd illessze be az új hiba űrlapjába.",
   "reportRecordingUnavailable": "Az eseményrögzítés nem volt elérhető, ezért ez a jelentés nem tartalmaz legutóbbi eseményeket.",
   "reportDescriptionWarning": "Megosztás előtt ellenőrizze az érzékeny adatoktól megtisztított előnézetet. A leírás továbbra is felfedhet bizalmas információkat; ne adjon meg jelszavakat vagy kulcsokat.",

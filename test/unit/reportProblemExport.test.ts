@@ -19,6 +19,7 @@ import {
   openProblemReportIssue,
   saveProblemReport,
 } from '../../src/host/support/reportProblem'
+import { vscodeReportEditorIo as io } from '../../src/host/support/reportEditorIo'
 
 const FACTS = {
   extensionVersion: '0.12.1',
@@ -78,7 +79,7 @@ function expectNoNotification(): void {
 describe('copy to clipboard', () => {
   it('writes the sealed text exactly', async () => {
     const draft = buildProblemReportDraft(INPUT)
-    const outcome = await copyProblemReport(draft)
+    const outcome = await copyProblemReport(draft, io)
     expect(outcome).toEqual({ ok: true })
     expect(vi.mocked(env.clipboard.writeText).mock.calls).toEqual([[draft.text]])
     expectNoNotification()
@@ -86,7 +87,7 @@ describe('copy to clipboard', () => {
 
   it('reports a refused clipboard without pretending', async () => {
     vi.mocked(env.clipboard.writeText).mockRejectedValue(new Error('denied'))
-    const outcome = await copyProblemReport(SHORT)
+    const outcome = await copyProblemReport(SHORT, io)
     expect(outcome).toEqual({ ok: false, reason: 'copyFailed' })
     expectNoNotification()
   })
@@ -94,7 +95,7 @@ describe('copy to clipboard', () => {
 
 describe('open issue page', () => {
   it('opens the prefilled page for a short draft with no clipboard', async () => {
-    const outcome = await openProblemReportIssue(SHORT)
+    const outcome = await openProblemReportIssue(SHORT, io)
     expect(outcome).toEqual({ ok: true, isIssueFallback: false })
     const url = openedUrl()
     expect(url).toContain(`${REPORT_ISSUE_NEW_URL}?title=`)
@@ -105,7 +106,7 @@ describe('open issue page', () => {
   })
 
   it('copies the same draft then opens the unfilled form past the cap', async () => {
-    const outcome = await openProblemReportIssue(LONG)
+    const outcome = await openProblemReportIssue(LONG, io)
     expect(outcome).toEqual({ ok: true, isIssueFallback: true })
     expect(vi.mocked(env.clipboard.writeText).mock.calls).toEqual([[LONG.text]])
     expect(openedUrl()).toContain(REPORT_ISSUE_NEW_URL)
@@ -118,18 +119,18 @@ describe('open issue page', () => {
 
   it('opens nothing and says so when the fallback copy fails', async () => {
     vi.mocked(env.clipboard.writeText).mockRejectedValue(new Error('denied'))
-    const outcome = await openProblemReportIssue(LONG)
+    const outcome = await openProblemReportIssue(LONG, io)
     expect(outcome).toEqual({ ok: false, reason: 'copyFailed' })
     expect(vi.mocked(env.openExternal)).not.toHaveBeenCalled()
   })
 
   it('says a browser that refused or threw did not open', async () => {
     vi.mocked(env.openExternal).mockResolvedValueOnce(false)
-    expect(await openProblemReportIssue(SHORT)).toEqual({ ok: false, reason: 'openFailed' })
+    expect(await openProblemReportIssue(SHORT, io)).toEqual({ ok: false, reason: 'openFailed' })
     vi.mocked(env.openExternal).mockRejectedValueOnce(new Error('no browser'))
-    expect(await openProblemReportIssue(SHORT)).toEqual({ ok: false, reason: 'openFailed' })
+    expect(await openProblemReportIssue(SHORT, io)).toEqual({ ok: false, reason: 'openFailed' })
     vi.mocked(env.openExternal).mockResolvedValueOnce(false)
-    expect(await openProblemReportIssue(LONG)).toEqual({ ok: false, reason: 'openFailed' })
+    expect(await openProblemReportIssue(LONG, io)).toEqual({ ok: false, reason: 'openFailed' })
   })
 })
 
@@ -137,7 +138,7 @@ describe('save to a file', () => {
   it('writes the sealed bytes to the picked file', async () => {
     const draft = buildProblemReportDraft(INPUT)
     vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
-    const outcome = await saveProblemReport(draft)
+    const outcome = await saveProblemReport(draft, io)
     expect(outcome).toEqual({ ok: true })
     const written = vi.mocked(workspace.fs.writeFile).mock.calls[0]?.[1]
     expect(written).toBeInstanceOf(Uint8Array)
@@ -147,7 +148,7 @@ describe('save to a file', () => {
 
   it('ends quietly when the picker is dismissed', async () => {
     vi.mocked(window.showSaveDialog).mockResolvedValue(undefined)
-    const outcome = await saveProblemReport(SHORT)
+    const outcome = await saveProblemReport(SHORT, io)
     expect(outcome).toEqual({ ok: false, reason: 'cancelled' })
     expect(vi.mocked(workspace.fs.writeFile)).not.toHaveBeenCalled()
     expectNoNotification()
@@ -156,13 +157,13 @@ describe('save to a file', () => {
   it('reports a refused write', async () => {
     vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
     vi.mocked(workspace.fs.writeFile).mockRejectedValue(new Error('EACCES'))
-    const outcome = await saveProblemReport(SHORT)
+    const outcome = await saveProblemReport(SHORT, io)
     expect(outcome).toEqual({ ok: false, reason: 'saveFailed' })
   })
 
   it('reports a picker that throws instead of answering', async () => {
     vi.mocked(window.showSaveDialog).mockRejectedValue(new Error('no dialog'))
-    const outcome = await saveProblemReport(SHORT)
+    const outcome = await saveProblemReport(SHORT, io)
     expect(outcome).toEqual({ ok: false, reason: 'saveFailed' })
   })
 })
@@ -171,9 +172,9 @@ describe('draft identity across exports', () => {
   it('invalidates every path after a post-preview change, silently', async () => {
     const tampered: SealedReportDraft = { ...SHORT, text: `${SHORT.text} (edited)` }
     for (const outcome of [
-      await copyProblemReport(tampered),
-      await openProblemReportIssue(tampered),
-      await saveProblemReport(tampered),
+      await copyProblemReport(tampered, io),
+      await openProblemReportIssue(tampered, io),
+      await saveProblemReport(tampered, io),
     ]) {
       expect(outcome).toEqual({ ok: false, reason: 'stale' })
     }
@@ -190,10 +191,10 @@ describe('no network', () => {
     const fetchSpy = vi.fn(() => Promise.reject(new Error('network is forbidden here')))
     vi.stubGlobal('fetch', fetchSpy)
     vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file('C:/reports/problem.md'))
-    await copyProblemReport(SHORT)
-    await openProblemReportIssue(SHORT)
-    await openProblemReportIssue(LONG)
-    await saveProblemReport(SHORT)
+    await copyProblemReport(SHORT, io)
+    await openProblemReportIssue(SHORT, io)
+    await openProblemReportIssue(LONG, io)
+    await saveProblemReport(SHORT, io)
     expect(fetchSpy).not.toHaveBeenCalled()
     expect(vi.mocked(env.openExternal).mock.calls.length).toBeGreaterThan(0)
   })

@@ -16,6 +16,8 @@ export interface ErrorBoundaryProps {
    * offers only the reload.
    */
   readonly onReportProblem?: (() => void) | undefined
+  /** What the crash screen shows above itself (M93: the report dialog, while it is open). */
+  readonly crashOverlay?: ReactNode
   readonly children: ReactNode
 }
 
@@ -68,6 +70,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
           </section>
         </main>
+        {this.props.crashOverlay}
       </div>
     )
   }

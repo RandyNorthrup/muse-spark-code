@@ -12,6 +12,7 @@ import { fill } from '../../shared/l10n/text'
 import type {
   ReportDraftItem,
   ReportExportChannel,
+  ReportExportReason,
   WebviewToHostMessage,
 } from '../../shared/protocol'
 import type { ReportDialogState, ReportExportStatus } from '../state/uiState'
@@ -20,8 +21,23 @@ import { Modal } from './Modal'
 const DESCRIPTION_ROWS = 3
 const PREVIEW_ROWS = 12
 
+/** The export buttons in order, Copy first: the VS Code reporter only while its command exists. */
+function exportActions(
+  canUseVscodeReporter: boolean,
+): readonly (readonly [ReportExportChannel, string])[] {
+  const actions: (readonly [ReportExportChannel, string])[] = [
+    ['copy', UI_TEXT.reportCopyAction],
+    ['issue', UI_TEXT.reportOpenIssueAction],
+    ['save', UI_TEXT.reportSaveAction],
+  ]
+  if (canUseVscodeReporter) {
+    actions.push(['vscodeReporter', UI_TEXT.reportVscodeReporterAction])
+  }
+  return actions
+}
+
 function itemKey(item: ReportDraftItem): string {
-  return item.kind === 'facts' ? 'facts' : `event:${String(item.eventIndex ?? -1)}:${item.label}`
+  return item.kind === 'facts' ? item.kind : String(item.eventIndex)
 }
 
 /**
@@ -40,44 +56,25 @@ export function reportDialogStatusText(
     return undefined
   }
   if (exportStatus.ok) {
-    switch (exportStatus.via) {
-      case 'copy': {
-        return UI_TEXT.reportCopied
-      }
-      case 'save': {
-        return UI_TEXT.reportSaved
-      }
-      case 'issue': {
-        return exportStatus.issueFallback === true
-          ? UI_TEXT.reportUrlTooLong
-          : UI_TEXT.reportIssueOpened
-      }
-      case 'vscodeReporter': {
-        return UI_TEXT.reportVscodeReporterOpened
-      }
+    const done: Readonly<Record<ReportExportChannel, string>> = {
+      copy: UI_TEXT.reportCopied,
+      save: UI_TEXT.reportSaved,
+      issue:
+        exportStatus.issueFallback === true ? UI_TEXT.reportUrlTooLong : UI_TEXT.reportIssueOpened,
+      vscodeReporter: UI_TEXT.reportVscodeReporterOpened,
     }
+    return done[exportStatus.via]
   }
-  switch (exportStatus.reason) {
-    case 'stale': {
-      return UI_TEXT.reportStaleDraft
-    }
-    case 'copyFailed': {
-      return UI_TEXT.reportCopyFailed
-    }
-    case 'saveFailed': {
-      return UI_TEXT.reportSaveFailed
-    }
-    case 'openFailed': {
-      return UI_TEXT.reportIssueOpenFailed
-    }
-    case 'reporterFailed': {
-      return UI_TEXT.reportVscodeReporterFailed
-    }
-    case 'cancelled':
-    case undefined: {
-      return undefined
-    }
+  // A quiet cancellation (a dismissed save picker) says nothing.
+  const failed: Readonly<Record<ReportExportReason, string | undefined>> = {
+    stale: UI_TEXT.reportStaleDraft,
+    cancelled: undefined,
+    copyFailed: UI_TEXT.reportCopyFailed,
+    saveFailed: UI_TEXT.reportSaveFailed,
+    openFailed: UI_TEXT.reportIssueOpenFailed,
+    reporterFailed: UI_TEXT.reportVscodeReporterFailed,
   }
+  return exportStatus.reason === undefined ? undefined : failed[exportStatus.reason]
 }
 
 export interface ReportDialogProps {
@@ -197,48 +194,19 @@ export function ReportDialog({
           </p>
         )}
         <div className="report-actions">
-          <button
-            type="button"
-            className="button-primary"
-            disabled={isUpdating}
-            onClick={() => {
-              onExport('copy')
-            }}
-          >
-            {UI_TEXT.reportCopyAction}
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={isUpdating}
-            onClick={() => {
-              onExport('issue')
-            }}
-          >
-            {UI_TEXT.reportOpenIssueAction}
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={isUpdating}
-            onClick={() => {
-              onExport('save')
-            }}
-          >
-            {UI_TEXT.reportSaveAction}
-          </button>
-          {canUseVscodeReporter ? (
+          {exportActions(canUseVscodeReporter).map(([via, label], index) => (
             <button
+              key={via}
               type="button"
-              className="button-secondary"
+              className={index === 0 ? 'button-primary' : 'button-secondary'}
               disabled={isUpdating}
               onClick={() => {
-                onExport('vscodeReporter')
+                onExport(via)
               }}
             >
-              {UI_TEXT.reportVscodeReporterAction}
+              {label}
             </button>
-          ) : null}
+          ))}
           <button type="button" className="button-secondary" onClick={onClose}>
             {UI_TEXT.reportCancelAction}
           </button>

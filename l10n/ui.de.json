@@ -454,6 +454,7 @@
   "reportCopyFailed": "Der Bericht konnte nicht kopiert werden. Kopieren Sie ihn stattdessen aus der Vorschau.",
   "reportSaved": "Der Bericht wurde gespeichert.",
   "reportSaveFailed": "Der Bericht konnte nicht gespeichert werden.",
+  "reportBuildFailed": "Der Bericht konnte nicht erstellt werden.",
   "reportUrlTooLong": "Der Bericht ist zu lang, um ihn in einer Browseradresse zu öffnen. Kopieren Sie ihn stattdessen und fügen Sie ihn in das neue Issue-Formular ein.",
   "reportRecordingUnavailable": "Die Ereignisaufzeichnung war nicht verfügbar, daher enthält dieser Bericht keine letzten Ereignisse.",
   "reportDescriptionWarning": "Prüfen Sie vor dem Teilen die bereinigte Vorschau. Ihre Beschreibung kann weiterhin vertrauliche Informationen offenlegen; geben Sie keine Passwörter oder Schlüssel an.",

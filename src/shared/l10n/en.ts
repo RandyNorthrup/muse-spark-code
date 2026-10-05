@@ -614,6 +614,7 @@ export const EN = {
   reportCopyFailed: 'The report could not be copied. Copy it from the preview instead.',
   reportSaved: 'The report was saved.',
   reportSaveFailed: 'The report could not be saved.',
+  reportBuildFailed: 'The report could not be built.',
   reportUrlTooLong:
     'The report is too long to open in a browser address. Copy it instead, then paste it into the new-issue form.',
   reportRecordingUnavailable:

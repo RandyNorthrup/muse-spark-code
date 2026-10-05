@@ -53,6 +53,10 @@ const BUDGETS = [
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
+  // The report dialog (M93): the builder, its second scrub, the export paths
+  // and the handler, loaded on the first open. 63.6 KiB when split out (its
+  // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/report.js', budgetKiB: 75 },
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },

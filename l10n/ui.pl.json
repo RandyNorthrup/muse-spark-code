@@ -472,6 +472,7 @@
   "reportCopyFailed": "Nie można skopiować zgłoszenia. Skopiuj je z podglądu.",
   "reportSaved": "Zgłoszenie zapisano.",
   "reportSaveFailed": "Nie można zapisać zgłoszenia.",
+  "reportBuildFailed": "Nie można utworzyć zgłoszenia.",
   "reportUrlTooLong": "Zgłoszenie jest zbyt długie, aby otworzyć je w adresie przeglądarki. Skopiuj je i wklej do formularza nowego problemu.",
   "reportRecordingUnavailable": "Rejestrowanie zdarzeń było niedostępne, więc to zgłoszenie nie zawiera ostatnich zdarzeń.",
   "reportDescriptionWarning": "Przed udostępnieniem sprawdź podgląd po usunięciu danych wrażliwych. Opis nadal może ujawniać poufne informacje; nie podawaj haseł ani kluczy.",

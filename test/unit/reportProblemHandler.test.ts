@@ -34,21 +34,10 @@ import {
 } from '../../src/shared/protocol'
 import { reportWebviewErrorMessage } from '../../src/webview/errorReport'
 import type { Logger } from '../../src/host/logger'
+import { vscodeReportEditorIo } from '../../src/host/support/reportEditorIo'
+import { REPORT_FACTS } from './helpers/reportFacts'
 
-const FACTS = {
-  extensionVersion: '0.12.1',
-  vscodeVersion: '1.99.0',
-  nodeVersion: '22.20.4',
-  platform: 'linux',
-  backend: 'auto',
-  sandbox: 'auto',
-  cliFound: true,
-  cliVersion: '1.4.2',
-  cliSignIn: true,
-  hasStoredApiKey: false,
-  hasEnvironmentApiKey: false,
-  settingNames: ['museSpark.backend'],
-} as const
+const FACTS = REPORT_FACTS
 
 const EVENTS: readonly unknown[] = [
   {
@@ -85,7 +74,7 @@ function sourceWith(overrides: Partial<ReportDataSource> = {}): ReportDataSource
   }
 }
 
-function depsWith(source: ReportDataSource | undefined): {
+function depsWith(source: ReportDataSource): {
   deps: ReportProblemHandlerDeps
   posted: HostToWebviewMessage[]
   log: Logger & { errors: string[]; warnings: string[]; infos: string[] }
@@ -119,6 +108,7 @@ function depsWith(source: ReportDataSource | undefined): {
       noticeError: vi.fn(),
       log,
       source,
+      io: vscodeReportEditorIo,
       onReportWebviewError: vi.fn(),
     },
   }
@@ -287,14 +277,6 @@ describe('reportProblemHandler', () => {
     )
     expect(draft?.items[1]?.label).not.toContain('45s ago')
     expect(draft?.text).toContain('- 45s ago toolCallFailed TypeError')
-  })
-
-  it('says plainly that it did not work with no wired source', async () => {
-    const { deps, posted } = depsWith(undefined)
-    const { handle } = createReportProblemHandler(deps)
-    await handle({ type: 'openReport' })
-    expect(posted).toEqual([])
-    expect(vi.mocked(deps.noticeError)).toHaveBeenCalledWith(UI_TEXT.actionFailed)
   })
 
   it('says a failed fact read plainly, logging its class only', async () => {

@@ -472,6 +472,7 @@
   "reportCopyFailed": "Hlášení se nepodařilo zkopírovat. Zkopírujte je z náhledu.",
   "reportSaved": "Hlášení bylo uloženo.",
   "reportSaveFailed": "Hlášení se nepodařilo uložit.",
+  "reportBuildFailed": "Hlášení se nepodařilo sestavit.",
   "reportUrlTooLong": "Hlášení je příliš dlouhé na otevření v adrese prohlížeče. Zkopírujte je a vložte do formuláře nového problému.",
   "reportRecordingUnavailable": "Záznam událostí nebyl k dispozici, takže toto hlášení neobsahuje žádné nedávné události.",
   "reportDescriptionWarning": "Před sdílením zkontrolujte náhled po odstranění citlivých údajů. Váš popis může stále odhalit důvěrné informace; neuvádějte hesla ani klíče.",

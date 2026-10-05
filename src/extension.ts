@@ -3,7 +3,7 @@
 
 import { execFile, type ExecFileException } from 'node:child_process'
 import { readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, hostname, userInfo } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -79,11 +79,13 @@ import { toggleFocusView } from './host/commands/toggleFocusView'
 import {
   ConversationController,
   restartConversationBackends,
+  type ConversationReports,
   type FileAccess,
   type PickedFile,
   type SessionMemory,
 } from './host/conversation/conversationController'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
+import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
 import { ModelApiClient } from './core/backends/modelapi/client'
@@ -126,6 +128,15 @@ import {
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
 import { isProcessAlive } from './host/checkpoints/windowPresence'
+import { ReportJournal } from './host/support/reportJournal'
+import { ReportRecorder } from './host/support/reportRecorder'
+import { vscodeReportEditorIo } from './host/support/reportEditorIo'
+import {
+  changedSettingNames,
+  extensionReportFacts,
+  manifestSettingNames,
+  reportScrubContext,
+} from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
   liveFetch,
@@ -207,6 +218,8 @@ import {
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
   SHELL_SANDBOX_SETTING,
+  REPORT_ERROR_CODES,
+  REPORT_EXIT_CODE,
   UI_TEXT,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
@@ -474,17 +487,27 @@ function windowsJobHelper(
     : undefined
 }
 
-/** Set by `activate`: stops the hosts, their turns and their processes. */
-const lifecycle: { shutdown: (() => Promise<void>) | undefined } = { shutdown: undefined }
+/**
+ * Set by `activate`: stops the hosts, their turns and their processes; and
+ * the window's flight recorder (M93), whose marker a normal exit clears.
+ */
+const lifecycle: {
+  shutdown: (() => Promise<void>) | undefined
+  reports: ReportRecorder | undefined
+} = { shutdown: undefined, reports: undefined }
 
 /**
  * VS Code awaits this before the extension host exits (PLAN.md D25): running
  * turns are cancelled and `muse serve` is closed rather than left to the
- * process teardown, while the log channel is still open to say so.
+ * process teardown, while the log channel is still open to say so. Last, the
+ * flight recorder clears this activation's marker: only a window that never
+ * got here leaves one behind (M93, D72).
  */
 export async function deactivate(): Promise<void> {
   await lifecycle.shutdown?.()
   lifecycle.shutdown = undefined
+  await lifecycle.reports?.shutdown()
+  lifecycle.reports = undefined
 }
 
 /**
@@ -505,12 +528,74 @@ function registerLoggedCommand(log: Logger, id: string, run: () => unknown): vsc
   })
 }
 
+/** A signal that ends a process, as the recorder's vocabulary names it. */
+const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
+
+/**
+ * How Muse Code's process ended, as one word of the recorder's vocabulary
+ * (M93, D72): the signal named in the exit's description, or `exited`.
+ * The description itself (which can name a path) is never recorded.
+ */
+function exitCodeWord(description: string): string {
+  const signal = EXIT_SIGNAL.exec(description)?.[0]
+  return signal !== undefined && REPORT_ERROR_CODES.has(signal) ? signal : REPORT_EXIT_CODE
+}
+
+/** What activation made before anything else could fail: the log and the flight recorder. */
+interface EarlyActivation {
+  readonly activationStartedAt: number
+  readonly channel: vscode.LogOutputChannel
+  readonly log: Logger
+  readonly version: string
+  readonly reports: ReportRecorder
+  /** The recorder's startup: its marker set, and whether to offer a crash report. */
+  readonly reportStartup: Promise<boolean>
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   // How long activation takes, for the log (M39).
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
+  // The flight recorder (M93, PLAN.md D72): this window's journal and
+  // activation marker under global storage, set before normal startup, so a
+  // failure from here on is recorded and a crash is offered next time.
+  const reports = new ReportRecorder({
+    journal: new ReportJournal({
+      globalStorageDir: context.globalStorageUri.fsPath,
+      instance: crypto.randomUUID(),
+      ext: version,
+      host: vscode.version,
+      pid: process.pid,
+      log,
+      isAlive: isProcessAlive,
+    }),
+    extensionRoot: context.extensionPath,
+    now: () => Date.now(),
+  })
+  lifecycle.reports = reports
+  const reportStartup = reports.startup()
+  try {
+    await activateWindow(context, {
+      activationStartedAt,
+      channel,
+      log,
+      version,
+      reports,
+      reportStartup,
+    })
+  } catch (error: unknown) {
+    reports.recordError('activationFailed', error)
+    throw error
+  }
+}
+
+async function activateWindow(
+  context: vscode.ExtensionContext,
+  early: EarlyActivation,
+): Promise<void> {
+  const { activationStartedAt, channel, log, version, reports, reportStartup } = early
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
@@ -1717,6 +1802,60 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   const watchedHosts = new WeakSet<AgentHost>()
   let chosenBackend: BackendKind | undefined
+  // `Report a Problem` with no conversation open (M93): the dialog opens
+  // once the surface it opened is ready to show it.
+  let isReportPending = false
+  // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
+  // local reads only. The CLI's sign-in comes from its credential file's
+  // structure (no `account/read`), the key's presence from the secret store.
+  const reportSource: ReportDataSource = {
+    readFacts: async () => {
+      const settings = currentSettings()
+      const resolution = backend.resolveLaunch()
+      const configuration = vscode.workspace.getConfiguration()
+      return extensionReportFacts({
+        extensionVersion: version,
+        vscodeVersion: vscode.version,
+        nodeVersion: process.versions.node,
+        platform: process.platform,
+        backend: settings.backend,
+        sandbox: settings.shellSandbox,
+        cli: resolution.ok
+          ? { isFound: true, version: backend.installedVersion(resolution.launch.installDir) }
+          : { isFound: false, version: undefined },
+        credentialFileVerdict: backend.credentialFileVerdict(),
+        hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
+        hasEnvironmentApiKey: backend.hasEnvironmentKey(),
+        changedSettingNames: changedSettingNames(
+          manifestSettingNames(context.extension.packageJSON),
+          (name) => configuration.inspect(name),
+        ),
+      })
+    },
+    readJournal: () => reports.readJournal(),
+    readScrub: () =>
+      reportScrubContext({
+        workspaceRoots: (vscode.workspace.workspaceFolders ?? []).map(
+          (folder) => folder.uri.fsPath,
+        ),
+        homeDir: homedir(),
+        userName: () => userInfo().username,
+        hostName: () => hostname(),
+      }),
+    nowMs: () => Date.now(),
+    canUseVscodeReporter: async () => {
+      const commands = await vscode.commands.getCommands(true)
+      return commands.includes(VSCODE_COMMANDS.openIssueReporter)
+    },
+  }
+  const conversationReports: ConversationReports = {
+    source: reportSource,
+    io: vscodeReportEditorIo,
+    recordWebviewError: (error) => {
+      reports.recordWebviewError(error)
+    },
+    record: (kind, code) => reports.record(kind, code),
+  }
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
     const host = await chooseAuthorizedHost(
@@ -1742,6 +1881,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (host.info.kind === 'museCode' && !watchedHosts.has(host)) {
       watchedHosts.add(host)
       host.onExit((exit) => {
+        if (!exit.isExpected) {
+          // A fixed word, never the description itself (M93, D72).
+          reports.record('backendExit', exitCodeWord(exit.description), { backend: 'museCode' })
+        }
         for (const active of controllers.values()) {
           active.hostExited(exit)
         }
@@ -2100,6 +2243,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         },
         exports: cliFeatures.exports,
         transferFiles: createSessionTransferFiles(),
+        reports: conversationReports,
         plans,
         // The palette's paid-feature toggles (M33): on goes through the price confirmation.
         setPaidFeature: async (feature, isOn) => {
@@ -2228,6 +2372,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     onSurfaceReady: (surface, attachmentEpoch) => {
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
+      if (isReportPending) {
+        isReportPending = false
+        void controller.openReport().catch(logRejection(log, 'the problem report'))
+      }
       surface.post({ type: 'editorContext', context: editorContext.summary })
       surface.post({ type: 'paidState', state: paid.state() })
       // A rebuilt panel resumes the session it held (D15); the sidebar
@@ -2496,6 +2645,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
     }),
+    // Report a problem (M93, PLAN.md D72): the dialog over the journal and
+    // local facts, in the conversation in view or one opened for it.
+    registerLoggedCommand(log, COMMAND_IDS.reportProblem, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isReportPending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      await controllerFor(surface).openReport()
+    }),
     // The support report (PLAN.md D14): facts only, credentials as booleans.
     registerLoggedCommand(log, COMMAND_IDS.diagnostics, async () => {
       const settings = currentSettings()
@@ -2656,4 +2817,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
   )
   log.info(`Activated in ${String(Math.round(performance.now() - activationStartedAt))} ms`)
+  // The last activation of some window ended without its deactivate (M93,
+  // D72): offered once, here, now that the command can answer. Its marker is
+  // already consumed, so dismissing it is remembered across reloads.
+  void reportStartup
+    .then(async (shouldOffer) => {
+      if (!shouldOffer) {
+        return
+      }
+      const choice = await vscode.window.showWarningMessage(
+        UI_TEXT.reportCrashOffer,
+        UI_TEXT.reportCrashAction,
+        UI_TEXT.reportCrashDismiss,
+      )
+      if (choice === UI_TEXT.reportCrashAction) {
+        await vscode.commands.executeCommand(COMMAND_IDS.reportProblem)
+      }
+    })
+    .catch(logRejection(log, 'the crash report offer'))
 }

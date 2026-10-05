@@ -1430,6 +1430,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'openReport': {
+          // The same dialog every entry point opens (M93): the host builds it.
+          closeOverlay()
+          postMessage({ type: 'openReport' })
+          break
+        }
         case 'signOut': {
           postMessage({ type: 'signOut' })
           closeOverlay()

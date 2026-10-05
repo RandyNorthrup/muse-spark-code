@@ -15,13 +15,13 @@ import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
+import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
 // process, against a scripted backend.
 
 const CWD = process.platform === 'win32' ? String.raw`C:\work\app` : '/work/app'
-const POLL_MS = 5
 const WAIT_MS = 2000
 
 const CHOICES: ApprovalChoice[] = [
@@ -243,16 +243,6 @@ function retainOnResume(h: Harness, shared: FakeAgentSession): void {
   }))
 }
 
-async function until(isMet: () => boolean): Promise<void> {
-  const deadline = Date.now() + WAIT_MS
-  while (!isMet()) {
-    if (Date.now() > deadline) {
-      throw new Error('condition not met in time')
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_MS))
-  }
-}
-
 async function start(
   client: acp.ClientContext,
   capabilities: acp.ClientCapabilities = {},
@@ -278,19 +268,7 @@ function message(itemId: string, text: string, status = 'inProgress'): ItemSnaps
 }
 
 function approval(overrides: Partial<Extract<AgentEvent, { type: 'approvalRequested' }>> = {}) {
-  return {
-    type: 'approvalRequested' as const,
-    approvalId: 'approval-1',
-    itemId: 'tool-1',
-    toolName: 'powershell',
-    rawArgs: JSON.stringify({ command: 'npm test' }),
-    requirementId: { approvalId: 'approval-1', sourceIndex: 0 },
-    subject: { kind: 'command', command: 'npm test' },
-    availableChoices: CHOICES,
-    isJudgeEscalated: false,
-    isProtectedWrite: false,
-    ...overrides,
-  }
+  return commandApproval(CHOICES, overrides)
 }
 
 /** Asks one question in a session whose client has forms, until it is answered or declined. */

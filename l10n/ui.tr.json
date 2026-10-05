@@ -454,6 +454,7 @@
   "reportCopyFailed": "Rapor kopyalanamadı. Önizlemeden kopyalayın.",
   "reportSaved": "Rapor kaydedildi.",
   "reportSaveFailed": "Rapor kaydedilemedi.",
+  "reportBuildFailed": "Rapor oluşturulamadı.",
   "reportUrlTooLong": "Rapor, tarayıcı adresinde açılamayacak kadar uzun. Kopyalayın ve yeni sorun formuna yapıştırın.",
   "reportRecordingUnavailable": "Olay kaydı kullanılamıyordu, bu nedenle bu raporda son olaylar yok.",
   "reportDescriptionWarning": "Paylaşmadan önce hassas verilerden arındırılmış önizlemeyi inceleyin. Açıklamanız hâlâ gizli bilgileri açığa çıkarabilir; parola veya anahtar eklemeyin.",

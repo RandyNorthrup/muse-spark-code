@@ -34,7 +34,10 @@
 //   the failures) or the Auto reviewer on Muse Code (M90: its side session,
 //   with M78's reviewer core) are in dist/extension.js, or missing from
 //   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
-//   dist/museCodeReviewer.js.
+//   dist/museCodeReviewer.js; or the report dialog (M93: the builder, its
+//   second scrub, the export paths and the handler) is in dist/extension.js,
+//   or missing from dist/report.js. The flight recorder that writes the
+//   journal stays in activation; the ACP agent bundles the builder itself.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
@@ -349,6 +352,18 @@ const ON_FIRST_USE = [
       'src/host/review/museCodeReviewerEntry.ts',
       'src/host/review/museCodeReviewer.ts',
       'src/core/backends/modelapi/autoReviewer.ts',
+    ],
+  },
+  // The report dialog (M93, PLAN.md D72), split out from the start.
+  {
+    output: 'dist/report.js',
+    metafile: 'dist/meta/report.json',
+    use: 'the first report dialog',
+    files: [
+      'src/host/support/reportEntry.ts',
+      'src/host/conversation/reportProblemHandler.ts',
+      'src/host/support/reportProblem.ts',
+      'src/core/support/problemReport.ts',
     ],
   },
 ]

@@ -445,6 +445,7 @@
   "reportCopyFailed": "無法複製報告。請改為從預覽中複製。",
   "reportSaved": "報告已儲存。",
   "reportSaveFailed": "無法儲存報告。",
+  "reportBuildFailed": "無法產生報告。",
   "reportUrlTooLong": "報告太長，無法在瀏覽器網址中開啟。請複製報告，然後貼到新增問題表單中。",
   "reportRecordingUnavailable": "事件記錄無法使用，因此此報告沒有最近的事件。",
   "reportDescriptionWarning": "分享前請檢查已去除敏感資料的預覽。您的描述仍可能洩露機密資訊；請勿包含密碼或金鑰。",

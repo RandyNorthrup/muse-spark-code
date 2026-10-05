@@ -33,25 +33,10 @@ if (rootElement === null) {
 }
 
 /**
- * Whether the app tree is showing the crash screen (M93): the report dialog
- * then renders beside the boundary (which unmounted the app's own), so a
- * render failure keeps its "Report a problem" way on. A reload starts a fresh
- * document, which resets this with it.
- */
-const treeCrash: { isCrashed: boolean } = { isCrashed: false }
-const crashListeners = new Set<() => void>()
-function noteTreeCrashed(): void {
-  treeCrash.isCrashed = true
-  for (const listener of crashListeners) {
-    listener()
-  }
-}
-
-/**
  * The report dialog over the crash screen (M93): the store outlives the
  * crashed tree and keeps reducing the host's `reportDraft` answers, so the
- * dialog renders here while the app's copy is gone with the tree. While the
- * app renders, this stays empty (its copy owns the dialog instead).
+ * boundary's crash screen renders the dialog itself while the app's copy is
+ * gone with the tree, and a render failure keeps its "Report a problem" way on.
  */
 function CrashReportDialog({
   store,
@@ -60,17 +45,8 @@ function CrashReportDialog({
   readonly store: UiStore
   readonly postMessage: (message: WebviewToHostMessage) => void
 }) {
-  const isCrashed = useSyncExternalStore(
-    (listener) => {
-      crashListeners.add(listener)
-      return () => {
-        crashListeners.delete(listener)
-      }
-    },
-    () => treeCrash.isCrashed,
-  )
   const report = useSyncExternalStore(store.subscribe, () => store.getState().report)
-  if (!isCrashed || report === undefined) {
+  if (report === undefined) {
     return null
   }
   return (
@@ -149,8 +125,8 @@ function mountChat(element: Element): void {
         onError={(error) => {
           report('render', error)
           host.post(reportWebviewErrorMessage('reactBoundary', 'render', error, ownScriptUrl))
-          noteTreeCrashed()
         }}
+        crashOverlay={<CrashReportDialog store={store} postMessage={postMessage} />}
         onReportProblem={() => {
           // No row text exists here: the handoff carries no reference, and
           // the host builds the report from its journal alone.
@@ -165,7 +141,6 @@ function mountChat(element: Element): void {
       >
         <App store={store} postMessage={postMessage} />
       </ErrorBoundary>
-      <CrashReportDialog store={store} postMessage={postMessage} />
     </>,
   )
 }

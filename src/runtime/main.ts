@@ -5,9 +5,9 @@
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
 import { spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { mkdir, open, readFile, rename, writeFile } from 'node:fs/promises'
+import { open, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
@@ -31,8 +31,11 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
-import { storeErrorCode } from '../host/backend/storeErrors'
-import { appendReportJournalEntry, reportJournalPath, runReportCommand } from './reportCommand'
+import { isProcessAlive } from '../host/checkpoints/windowPresence'
+import { ReportJournal } from '../host/support/reportJournal'
+import { reportEventsOf } from '../core/support/journalEvents'
+import { agentDataFolder } from './dataFolder'
+import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
@@ -48,6 +51,8 @@ import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
 
 const EXIT_FAILED = 1
+// The Model API key variable Muse Code reads; the report says only whether it was set.
+const META_API_KEY_VARIABLE = 'META_API_KEY'
 // Credential variables leave the agent's own environment before anything
 // starts a process; only Muse Code's processes get them back (rule 8).
 const museCodeCredentials = takeCredentials(process.env)
@@ -143,28 +148,26 @@ async function readBoundedFile(
   }
 }
 
-/** The report journal's bytes, or undefined when none was ever written. Other failures throw. */
-async function readJournalBytes(file: string): Promise<Uint8Array | undefined> {
-  try {
-    return await readFile(file)
-  } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') {
-      return undefined
-    }
-    throw error
-  }
-}
-
-/** A whole-file write through a temporary file plus rename, beside the target. */
-async function writeJournalBytes(file: string, bytes: Uint8Array): Promise<void> {
-  const temporary = `${file}.tmp-${String(process.pid)}`
-  await writeFile(temporary, bytes)
-  await rename(temporary, file)
-}
-
-/** Where this agent's ACP error observer records facts-only entries (M93 lane A, D72). */
-function journalPath(): string {
-  return reportJournalPath({ platform: process.platform, env: process.env, homeDir: homedir() })
+/**
+ * This agent process's flight recorder (M93, PLAN.md D72): the extension's
+ * own ReportJournal, with the same policy, under the agent's data folder
+ * (no workspace needed). Each process writes only its own journal; `report`
+ * reads them all.
+ */
+function reportJournal(log: Logger): ReportJournal {
+  return new ReportJournal({
+    globalStorageDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    instance: randomUUID(),
+    ext: packageVersion(),
+    host: process.versions.node,
+    pid: process.pid,
+    log,
+    isAlive: isProcessAlive,
+  })
 }
 
 function authDeps(): AuthCommandDeps {
@@ -234,6 +237,11 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   }
   // "Allow always" lapses for a paid feature started without its flag (M58).
   await runtime.forgetUnflaggedGrants()
+  // The agent records its own failures for `report` (M93): an activation
+  // marker shields this process's journal from a peer's cleanup while it
+  // runs; there is no crash offer outside the editor, so startup's is unused.
+  const journal = reportJournal(log)
+  await journal.startup()
   const agent = createAcpAgent({
     backend: runtime.backend,
     version: packageVersion(),
@@ -247,18 +255,9 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     paid: runtime.paid,
     log,
     reportError: (fact) => {
-      // Facts-only observation for `report` (M93 lane A, D72): it never
-      // touches ACP stdout, and a failed journal write never reaches the session.
-      void appendReportJournalEntry({
-        journalPath: journalPath(),
-        entry: fact,
-        nowMs: Date.now(),
-        readBytes: readJournalBytes,
-        writeBytes: writeJournalBytes,
-        ensureDir: async (directory) => {
-          await mkdir(directory, { recursive: true })
-        },
-      })
+      // Facts only (a fixed kind and code): it never touches ACP stdout, and
+      // the recorder never throws into the session it watches.
+      void journal.record(fact)
     },
   })
   const connection = agent.connect(
@@ -267,6 +266,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
   await runtime.close()
+  await journal.shutdown()
   return 0
 }
 
@@ -431,8 +431,9 @@ async function main(): Promise<number> {
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped
-      // recorder data and allowlisted local facts (M93 lane A, D72).
+      // recorder data and allowlisted local facts (M93, D72).
       const homeDir = homedir()
+      const nowMs = Date.now()
       return await runReportCommand({
         options: command.options,
         version: packageVersion(),
@@ -464,7 +465,11 @@ async function main(): Promise<number> {
             return []
           }
         },
-        hasEnvironmentApiKey: 'META_API_KEY' in process.env,
+        // The agent took its credential variables out of its environment at
+        // start (rule 8): presence is read from what it took.
+        hasEnvironmentApiKey: museCodeCredentials.some(
+          (variable) => variable.name === META_API_KEY_VARIABLE,
+        ),
         readStoredKeyPresence: async () => {
           try {
             const stored = await secrets.get(SECRET_KEYS.modelApiKey)
@@ -474,9 +479,16 @@ async function main(): Promise<number> {
             return false
           }
         },
-        nowMs: Date.now(),
-        journalPath: journalPath(),
-        readJournal: readJournalBytes,
+        nowMs,
+        // Reading prunes expired records but sets and consumes no marker.
+        readJournal: async () => {
+          const journal = reportJournal(log)
+          const merged = await journal.readMerged()
+          return {
+            entries: reportEventsOf(merged.entries, nowMs),
+            recordingUnavailable: !journal.isAvailable,
+          }
+        },
         writeStdout: (text) => {
           writeLine(process.stdout, text)
         },

@@ -463,6 +463,7 @@
   "reportCopyFailed": "Impossibile copiare il resoconto. Copialo dall’anteprima.",
   "reportSaved": "Il resoconto è stato salvato.",
   "reportSaveFailed": "Impossibile salvare il resoconto.",
+  "reportBuildFailed": "Impossibile generare il resoconto.",
   "reportUrlTooLong": "Il resoconto è troppo lungo per essere aperto in un indirizzo del browser. Copialo e incollalo nel modulo per un nuovo problema.",
   "reportRecordingUnavailable": "La registrazione degli eventi non era disponibile, quindi questo resoconto non contiene eventi recenti.",
   "reportDescriptionWarning": "Controlla l’anteprima dopo la rimozione dei dati sensibili prima di condividerla. La descrizione può ancora rivelare informazioni riservate; non includere password o chiavi.",

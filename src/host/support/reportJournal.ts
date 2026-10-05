@@ -503,6 +503,9 @@ export class ReportJournal {
       try {
         dirEntries = await this.store.readDir(this.dir)
       } catch (error: unknown) {
+        // Nothing was ever recorded here (the agent's report before any
+        // session): no events, and recording is not unavailable for it.
+        if (isMissingPath(error)) return empty
         this.disable(error)
         return empty
       }

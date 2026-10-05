@@ -7,7 +7,11 @@
 // for are dropped, so raw text cannot ride along as a "path": a forged line
 // can at most name a package file and two numbers.
 
-import { REPORT_ERROR_CODES, REPORT_STACK_MAX_FRAMES, REPORT_UNKNOWN_ERROR_CODE } from './constants'
+import {
+  REPORT_ERROR_CLASSES,
+  REPORT_STACK_MAX_FRAMES,
+  REPORT_UNKNOWN_ERROR_CODE,
+} from './constants'
 
 /** One verified frame: a package file and its line and column. */
 export interface PackageFrame {
@@ -74,9 +78,9 @@ export function packageFramesOf(
   return frames
 }
 
-/** A failure's class as the recorder's code: a known name, or the fixed unknown word. */
+/** A failure's class as the recorder's code: a known JavaScript error class, or the fixed unknown word. */
 export function reportCodeOf(error: unknown): string {
-  return error instanceof Error && REPORT_ERROR_CODES.has(error.name)
+  return error instanceof Error && REPORT_ERROR_CLASSES.has(error.name)
     ? error.name
     : REPORT_UNKNOWN_ERROR_CODE
 }

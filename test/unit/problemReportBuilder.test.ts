@@ -26,6 +26,7 @@ import {
   REPORT_ISSUE_URL_MAX_CHARS,
   REPORT_RECENT_EVENT_COUNT,
 } from '../../src/shared/constants'
+import { REPORT_FACTS } from './helpers/reportFacts'
 
 const SCRUB: ReportScrubContext = {
   workspaceRoots: ['/home/alice/work'],
@@ -33,20 +34,7 @@ const SCRUB: ReportScrubContext = {
   extraLiterals: ['alice', 'alice-pc'],
 }
 
-const FACTS: ProblemReportFacts = {
-  extensionVersion: '0.12.1',
-  vscodeVersion: '1.99.0',
-  nodeVersion: '22.20.4',
-  platform: 'linux',
-  backend: 'auto',
-  sandbox: 'auto',
-  cliFound: true,
-  cliVersion: '1.4.2',
-  cliSignIn: true,
-  hasStoredApiKey: false,
-  hasEnvironmentApiKey: false,
-  settingNames: ['museSpark.backend', 'museSpark.shellSandbox'],
-}
+const FACTS = REPORT_FACTS
 
 const EVENT = {
   kind: 'backendExit',

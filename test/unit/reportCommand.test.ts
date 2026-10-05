@@ -1,46 +1,44 @@
-// Report a problem, lane A (M93, PLAN.md D72): the headless `report`
-// subcommand and its recorder adapter in src/runtime/reportCommand.ts.
-// No backend, auth or model ever starts here: every side effect is an
-// injected fake, the network is a throwing stub, and a source guard pins
-// the module's imports.
+// Report a problem headless (M93, PLAN.md D72): the `report` subcommand in
+// src/runtime/reportCommand.ts, reading the agent's journals through the
+// extension's own recorder (ReportJournal) and its policy. No backend, auth or
+// model ever starts here: every side effect is an injected fake or a temp
+// folder, the network is a throwing stub, and a source guard pins the
+// module's imports. Each journal-policy test below names its red drill in
+// docs/certification/m93.md.
 
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { reportEventsOf } from '../../src/core/support/journalEvents'
+import { buildProblemReportDraft } from '../../src/core/support/problemReport'
+import { ReportJournal } from '../../src/host/support/reportJournal'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
-  appendReportJournalEntry,
   collectReportFacts,
-  parseReportJournalBytes,
-  reportJournalPath,
   runReportCommand,
   type ReportFactsDeps,
+  type ReportJournalRead,
   type RunReportDeps,
 } from '../../src/runtime/reportCommand'
-import { buildProblemReportDraft } from '../../src/core/support/problemReport'
 import {
   EXEC_EXIT,
   REDACTED_MARK,
-  REPORT_JOURNAL_MAX_BYTES,
-  type ReportEventKind,
+  REPORT_JOURNAL_MAX_AGE_MS,
+  REPORT_STORAGE_DIR,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { FakeLogOutputChannel } from './helpers/fakes'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const NOW_MS = 1_769_000_000_000
 const VERSION = '0.12.1'
 
-const VALID_ENTRY = {
+const VALID_EVENT = {
   kind: 'backendExit',
   code: 'ECONNRESET',
   frames: [{ path: 'dist/extension.js', line: 12, column: 4 }],
-  atMs: NOW_MS - 180_000,
-}
-
-function journalBytes(entries: readonly unknown[]): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify({ version: 1, entries }))
+  ageMs: 180_000,
 }
 
 function factsDeps(overrides: Partial<ReportFactsDeps> = {}): ReportFactsDeps {
@@ -64,31 +62,23 @@ function factsDeps(overrides: Partial<ReportFactsDeps> = {}): ReportFactsDeps {
 interface Captured {
   readonly written: string[]
   readonly errors: string[]
-  readonly files: Map<string, string>
 }
 
 function runDeps(
-  journal: Uint8Array | undefined,
+  journal: ReportJournalRead,
   overrides: Partial<RunReportDeps> = {},
-): {
-  deps: RunReportDeps
-  captured: Captured
-} {
-  const captured: Captured = { written: [], errors: [], files: new Map() }
+): { deps: RunReportDeps; captured: Captured } {
+  const captured: Captured = { written: [], errors: [] }
   const deps: RunReportDeps = {
     ...factsDeps(),
     options: { out: undefined, description: '', includeFacts: true, includeEvents: true },
     readStoredKeyPresence: () => Promise.resolve(false),
     nowMs: NOW_MS,
-    journalPath: '/data/problem-report-journal.json',
     readJournal: () => Promise.resolve(journal),
     writeStdout: (text) => {
       captured.written.push(text)
     },
-    writeOutFile: (file, text) => {
-      captured.files.set(file, text)
-      return Promise.resolve()
-    },
+    writeOutFile: () => Promise.resolve(),
     printError: (line) => {
       captured.errors.push(line)
     },
@@ -97,37 +87,61 @@ function runDeps(
   return { deps, captured }
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals()
-})
-
-interface MemoryJournal {
-  readonly files: Map<string, Uint8Array>
-  readonly readBytes: (file: string) => Promise<Uint8Array | undefined>
-  readonly writeBytes: (file: string, bytes: Uint8Array) => Promise<void>
-  readonly ensureDir: (directory: string) => Promise<void>
-  readonly dirs: string[]
+function events(...entries: readonly unknown[]): ReportJournalRead {
+  return { entries, recordingUnavailable: false }
 }
 
-function memory(initial?: Uint8Array): MemoryJournal {
-  const files = new Map<string, Uint8Array>()
-  if (initial !== undefined) {
-    files.set('/data/problem-report-journal.json', initial)
-  }
-  const dirs: string[] = []
+const dirs: string[] = []
+afterEach(async () => {
+  vi.unstubAllGlobals()
+  await Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+})
+
+/** A data folder of the agent's own, under the repository's ignored temp/. */
+async function dataFolder(): Promise<string> {
+  const root = path.join(ROOT, 'temp', 'report-command')
+  await mkdir(root, { recursive: true })
+  const dir = await mkdtemp(path.join(root, 'acp-'))
+  dirs.push(dir)
+  return dir
+}
+
+/** One agent process's recorder over `dir`, as `serve` and `report` make it. */
+function agentJournal(dir: string, instance: string, now = NOW_MS): ReportJournal {
+  return new ReportJournal({
+    globalStorageDir: dir,
+    instance,
+    ext: VERSION,
+    host: '22.20.4',
+    pid: 4242,
+    log: new FakeLogOutputChannel(),
+    now: () => now,
+    isAlive: () => false,
+  })
+}
+
+/** What `report` reads, as main.ts wires it: every journal, pruned, as events. */
+async function readAsReport(dir: string, now = NOW_MS): Promise<ReportJournalRead> {
+  const journal = agentJournal(dir, 'reader', now)
+  const merged = await journal.readMerged()
   return {
-    files,
-    readBytes: (file) => Promise.resolve(files.get(file)),
-    writeBytes: (file, bytes) => {
-      files.set(file, bytes)
-      return Promise.resolve()
-    },
-    ensureDir: (directory) => {
-      dirs.push(directory)
-      return Promise.resolve()
-    },
-    dirs,
+    entries: reportEventsOf(merged.entries, now),
+    recordingUnavailable: !journal.isAvailable,
   }
+}
+
+/** A stored record line as the recorder writes it, with overrides for tampering. */
+function recordLine(overrides: Record<string, unknown> = {}): string {
+  return `${JSON.stringify({
+    v: 1,
+    kind: 'errorNotice',
+    at: NOW_MS - 1000,
+    code: 'updateNotSent',
+    ext: VERSION,
+    host: '22.20.4',
+    frames: [],
+    ...overrides,
+  })}\n`
 }
 
 describe('report argument parsing', () => {
@@ -182,151 +196,71 @@ describe('report argument parsing', () => {
 
 describe('runReportCommand', () => {
   it('prints the sealed draft and nothing else on stdout, exit 0', async () => {
-    const { deps, captured } = runDeps(journalBytes([VALID_ENTRY]))
-    const code = await runReportCommand(deps)
-    expect(code).toBe(EXEC_EXIT.ok)
+    const { deps, captured } = runDeps(events(VALID_EVENT))
+    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     expect(captured.errors).toEqual([])
-    expect(captured.written).toHaveLength(1)
     const expected = buildProblemReportDraft({
       description: '',
       includeFacts: true,
       includeEvents: true,
       facts: collectReportFacts({ ...deps, hasStoredApiKey: false }),
-      events: parseReportJournalBytes(journalBytes([VALID_ENTRY]), NOW_MS).events,
+      events: [VALID_EVENT],
       recordingUnavailable: false,
       nowMs: NOW_MS,
       scrub: { workspaceRoots: [], homeDir: '/home/tester', extraLiterals: [] },
     })
-    expect(captured.written[0]).toBe(expected.text)
-    expect(captured.written[0]).toContain('Muse Spark problem report')
-    expect(captured.written[0]).toContain('backendExit ECONNRESET')
+    expect(captured.written).toEqual([expected.text])
+    expect(captured.written[0]).toContain('- 3m ago backendExit ECONNRESET')
+  })
+
+  it('names no VS Code version outside VS Code (M93 regression)', async () => {
+    const { deps, captured } = runDeps(events())
+    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
+    expect(captured.written[0]).toContain('vscode: none (standalone agent)')
+    expect(captured.written[0]).not.toContain(`vscode: ${VERSION}`)
   })
 
   it('honours the section switches', async () => {
-    const { deps, captured } = runDeps(journalBytes([VALID_ENTRY]), {
+    const { deps, captured } = runDeps(events(VALID_EVENT), {
       options: { out: undefined, description: '', includeFacts: false, includeEvents: false },
     })
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written).toHaveLength(1)
     expect(captured.written[0]).not.toContain('Support facts:')
     expect(captured.written[0]).not.toContain('Recent events')
   })
 
   it('--out writes the exact bytes to the file and nothing to stdout', async () => {
-    const folder = mkdtempSync(path.join(tmpdir(), 'm93a-report-'))
-    const file = path.join(folder, 'report.md')
-    let saved = ''
-    const { deps, captured } = runDeps(journalBytes([VALID_ENTRY]), {
-      options: { out: file, description: 'blank panel', includeFacts: true, includeEvents: true },
+    const files = new Map<string, string>()
+    const { deps, captured } = runDeps(events(VALID_EVENT), {
+      options: {
+        out: 'report.md',
+        description: 'blank panel',
+        includeFacts: true,
+        includeEvents: true,
+      },
       writeOutFile: (target, text) => {
-        saved = text
-        writeFileSync(target, text, 'utf8')
+        files.set(target, text)
         return Promise.resolve()
       },
     })
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     expect(captured.written).toEqual([])
     expect(captured.errors).toEqual([])
-    expect(readFileSync(file, 'utf8')).toBe(saved)
-    expect(saved).toContain('What was happening:\nblank panel')
-    expect(saved).toContain('Muse Spark problem report')
+    expect(files.get('report.md')).toContain('What was happening:\nblank panel')
   })
 
-  it('a missing journal reads as no events, not unavailable', async () => {
-    const { deps, captured } = runDeps(undefined)
-    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written[0]).toContain('Recent events (0):')
-    expect(captured.written[0]).not.toContain('was unavailable')
-  })
-
-  it('an oversize journal reads unavailable, exit 0', async () => {
-    // Valid JSON past the cap: only the size gate refuses it (a drill that
-    // removes the gate sees these events instead of the unavailable line).
-    const entries: unknown[] = []
-    while (
-      new TextEncoder().encode(JSON.stringify({ version: 1, entries })).length <=
-      REPORT_JOURNAL_MAX_BYTES
-    ) {
-      entries.push({ ...VALID_ENTRY, atMs: NOW_MS - entries.length })
-    }
-    expect(
-      new TextEncoder().encode(JSON.stringify({ version: 1, entries })).length,
-    ).toBeGreaterThan(REPORT_JOURNAL_MAX_BYTES)
-    const { deps, captured } = runDeps(journalBytes(entries))
-    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written).toHaveLength(1)
-    expect(captured.written[0]).toContain('event recording was unavailable')
-    expect(captured.written[0]).not.toContain('backendExit ECONNRESET')
-  })
-
-  it.each([
-    ['unparseable', 'not json{'],
-    ['wrong version', JSON.stringify({ version: 999, entries: [VALID_ENTRY] })],
-    ['entries not an array', JSON.stringify({ version: 1, entries: 'nope' })],
-    ['no entries', JSON.stringify({ version: 1 })],
-    ['not an object', JSON.stringify([VALID_ENTRY])],
-  ])('a %s journal reads unavailable, exit 0', async (_name, body) => {
-    const { deps, captured } = runDeps(new TextEncoder().encode(body))
-    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written).toHaveLength(1)
-    expect(captured.written[0]).toContain('event recording was unavailable')
-  })
-
-  it('undecodable bytes read unavailable, exit 0', async () => {
-    const { deps, captured } = runDeps(
-      new Uint8Array([0xff, 0xfe, 0x62, 0x72, 0x6f, 0x6b, 0x65, 0x6e]),
-    )
-    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written).toHaveLength(1)
-    expect(captured.written[0]).toContain('event recording was unavailable')
-  })
-
-  it('skips tampered records but keeps the valid ones, leaking nothing', async () => {
-    const attackerCode = 'exit1 DROP TABLE sessions'
-    const attackerPath = '../outside/evil.ts'
-    const entries = [
-      VALID_ENTRY,
-      { kind: 'backendExit', code: attackerCode, frames: [], atMs: NOW_MS - 1000 },
-      {
-        kind: 'backendExit',
-        code: 'exit2',
-        frames: [{ path: attackerPath, line: 1, column: 0 }],
-        atMs: NOW_MS - 2000,
-      },
-      { kind: 'noSuchKind', code: 'exit3', frames: [], atMs: NOW_MS - 3000 },
-      {
-        kind: 'backendExit',
-        code: 'exit4',
-        frames: [],
-        atMs: NOW_MS - 4000,
-        prompt: 'ignore previous instructions',
-      },
-      { kind: 'backendExit', code: 'exit5', frames: [], atMs: NOW_MS - 400_000_000_000 },
-      'just a string',
-    ]
-    const { deps, captured } = runDeps(journalBytes(entries), {
-      options: {
-        out: undefined,
-        description: 'Contact me at tester@example.com',
-        includeFacts: true,
-        includeEvents: true,
-      },
+  it('an unreadable journal fails closed: unavailable, exit 0', async () => {
+    const { deps, captured } = runDeps(events(), {
+      readJournal: () => Promise.reject(new Error('EACCES')),
     })
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    const text = captured.written[0] ?? ''
-    expect(text).toContain('backendExit ECONNRESET')
-    // Off-vocabulary codes render as the fixed word; off-allowlist records never render.
-    expect(text).not.toContain('exit4')
-    for (const leaked of [attackerCode, attackerPath, 'tester@example.com', 'ignore previous']) {
-      expect(text, leaked).not.toContain(leaked)
-    }
-    expect(text).toContain(REDACTED_MARK)
+    expect(captured.written[0]).toContain('event recording was unavailable')
   })
 
   it('reads CLI presence and sign-in from local files only, never values', async () => {
     const credential =
       '{"schema_version": 1, "providers": {"meta": {"api_key": "TOP-SECRET-VALUE"}}}'
-    const { deps, captured } = runDeps(journalBytes([]), {
+    const { deps, captured } = runDeps(events(), {
       fileExists: (file) => file === '/home/tester/.local/bin/muse',
       readTextFile: (file) => (file.endsWith('auth.json') ? credential : undefined),
       hasEnvironmentApiKey: true,
@@ -340,32 +274,24 @@ describe('runReportCommand', () => {
   })
 
   it('reads an absent CLI and no sign-in as no', async () => {
-    const { deps, captured } = runDeps(journalBytes([]))
+    const { deps, captured } = runDeps(events())
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     expect(captured.written[0]).toContain('cli: not found; signed in: no')
   })
 
-  it('an unreadable journal fails closed: unavailable, exit 0', async () => {
-    const { deps, captured } = runDeps(undefined, {
-      readJournal: () => Promise.reject(new Error('EACCES')),
-    })
-    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
-    expect(captured.written[0]).toContain('event recording was unavailable')
-  })
-
   it('a refused build or write exits internal with nothing on stdout', async () => {
-    const badTime = runDeps(journalBytes([VALID_ENTRY]), { nowMs: NaN })
+    const badTime = runDeps(events(VALID_EVENT), { nowMs: NaN })
     expect(await runReportCommand(badTime.deps)).toBe(EXEC_EXIT.internal)
     expect(badTime.captured.written).toEqual([])
-    expect(badTime.captured.errors).toEqual([UI_TEXT.reportSaveFailed])
+    expect(badTime.captured.errors).toEqual([UI_TEXT.reportBuildFailed])
 
-    const badVersion = runDeps(journalBytes([VALID_ENTRY]), { nodeVersion: 'not a version' })
+    const badVersion = runDeps(events(VALID_EVENT), { nodeVersion: 'not a version' })
     expect(await runReportCommand(badVersion.deps)).toBe(EXEC_EXIT.internal)
     expect(badVersion.captured.written).toEqual([])
 
-    const badWrite = runDeps(journalBytes([VALID_ENTRY]), {
+    const badWrite = runDeps(events(VALID_EVENT), {
       options: {
-        out: '/no/such/dir/report.md',
+        out: '/no/such/report.md',
         description: '',
         includeFacts: true,
         includeEvents: true,
@@ -378,17 +304,15 @@ describe('runReportCommand', () => {
   })
 
   it('makes no network call: a throwing fetch stays uncalled', async () => {
-    const fetch = vi.fn(() => {
-      throw new Error('network is forbidden here')
-    })
+    const fetch = vi.fn(() => Promise.reject(new Error('network is forbidden here')))
     vi.stubGlobal('fetch', fetch)
-    const { deps } = runDeps(journalBytes([VALID_ENTRY]))
+    const { deps } = runDeps(events(VALID_EVENT))
     expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('starts no backend, auth, model, process or network: the module imports none', () => {
-    const source = readFileSync(path.join(ROOT, 'src', 'runtime', 'reportCommand.ts'), 'utf8')
+  it('starts no backend, auth, model, process or network: the module imports none', async () => {
+    const source = await readFile(path.join(ROOT, 'src', 'runtime', 'reportCommand.ts'), 'utf8')
     for (const forbidden of [
       './backends',
       './authCommands',
@@ -415,93 +339,88 @@ describe('collectReportFacts', () => {
   })
 })
 
-describe('reportJournalPath', () => {
-  it('lives in the agent data folder beside the sessions', () => {
-    expect(
-      reportJournalPath({
-        platform: 'linux',
-        env: { XDG_DATA_HOME: '/data/home' },
-        homeDir: '/home/tester',
-      }),
-    ).toBe('/data/home/muse-spark-code/problem-report-journal.json')
-  })
-})
-
-describe('appendReportJournalEntry', () => {
-  it('round-trips one facts-only entry with a relative age', async () => {
-    const store = memory()
-    await appendReportJournalEntry({
-      journalPath: '/data/problem-report-journal.json',
-      entry: { kind: 'errorNotice', code: 'skillsUnavailable' },
-      nowMs: NOW_MS,
-      ...store,
-    })
-    const written = store.files.get('/data/problem-report-journal.json')
-    expect(written).toBeDefined()
-    const read = parseReportJournalBytes(written ?? new Uint8Array(), NOW_MS + 60_000)
+describe('the agent journal, through the extension recorder (M93 regressions)', () => {
+  it('reads what an ACP process recorded, with no events for a folder never written', async () => {
+    const dir = await dataFolder()
+    expect(await readAsReport(dir)).toEqual({ entries: [], recordingUnavailable: false })
+    const serving = agentJournal(dir, 'serve-1')
+    await serving.startup()
+    await serving.record({ kind: 'errorNotice', code: 'permissionRequestFailed' })
+    await serving.shutdown()
+    const read = await readAsReport(dir)
     expect(read.recordingUnavailable).toBe(false)
-    expect(read.events).toEqual([
-      { kind: 'errorNotice', code: 'skillsUnavailable', frames: [], ageMs: 60_000 },
+    expect(read.entries).toEqual([
+      { kind: 'errorNotice', code: 'permissionRequestFailed', frames: [], ageMs: 0 },
     ])
-    expect(store.dirs).toEqual(['/data'])
+    const { deps, captured } = runDeps(read)
+    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
+    expect(captured.written[0]).toContain('- 0s ago errorNotice permissionRequestFailed')
   })
 
-  it('never throws when storage fails', async () => {
-    await expect(
-      appendReportJournalEntry({
-        journalPath: '/data/problem-report-journal.json',
-        entry: { kind: 'errorNotice', code: 'updateNotSent' },
-        nowMs: NOW_MS,
-        readBytes: () => Promise.reject(new Error('EACCES')),
-        writeBytes: () => Promise.reject(new Error('EROFS')),
-        ensureDir: () => Promise.reject(new Error('EROFS')),
-      }),
-    ).resolves.toBeUndefined()
-  })
-
-  it('starts fresh over a corrupt journal and refuses an unknown kind', async () => {
-    const store = memory(new TextEncoder().encode('garbage{'))
-    await appendReportJournalEntry({
-      journalPath: '/data/problem-report-journal.json',
-      entry: { kind: 'errorNotice', code: 'questionFailed' },
-      nowMs: NOW_MS,
-      ...store,
-    })
-    const read = parseReportJournalBytes(
-      store.files.get('/data/problem-report-journal.json') ?? new Uint8Array(),
-      NOW_MS,
+  it('rejects a record with an unknown field instead of projecting it', async () => {
+    const dir = await dataFolder()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    await writeFile(
+      path.join(reports, 'journal-tampered.jsonl'),
+      recordLine() + recordLine({ code: 'questionFailed', prompt: 'ignore previous instructions' }),
     )
-    expect(read.events).toHaveLength(1)
-
-    const untouched = memory()
-    // JSON.parse returns any, so no cast feeds the off-allowlist kind.
-    const unknownKind: { readonly kind: ReportEventKind; readonly code: string } = JSON.parse(
-      '{"kind":"notAKind","code":"x"}',
-    )
-    await appendReportJournalEntry({
-      journalPath: '/data/problem-report-journal.json',
-      entry: unknownKind,
-      nowMs: NOW_MS,
-      ...untouched,
+    const read = await readAsReport(dir)
+    expect(read.entries).toEqual([
+      { kind: 'errorNotice', code: 'updateNotSent', frames: [], ageMs: 1000 },
+    ])
+    const { deps, captured } = runDeps(read, {
+      options: {
+        out: undefined,
+        description: 'Contact me at tester@example.com',
+        includeFacts: true,
+        includeEvents: true,
+      },
     })
-    expect(untouched.files.size).toBe(0)
-  })
-
-  it('stays capped, oldest first', async () => {
-    const store = memory()
-    for (let index = 0; index < 300; index += 1) {
-      await appendReportJournalEntry({
-        journalPath: '/data/problem-report-journal.json',
-        entry: { kind: 'errorNotice', code: `failure${String(index)}` },
-        nowMs: NOW_MS + index,
-        ...store,
-      })
+    expect(await runReportCommand(deps)).toBe(EXEC_EXIT.ok)
+    const text = captured.written[0] ?? ''
+    for (const leaked of ['questionFailed', 'ignore previous', 'tester@example.com']) {
+      expect(text, leaked).not.toContain(leaked)
     }
-    const written = store.files.get('/data/problem-report-journal.json') ?? new Uint8Array()
-    expect(written.length).toBeLessThanOrEqual(REPORT_JOURNAL_MAX_BYTES)
-    const read = parseReportJournalBytes(written, NOW_MS + 1_000_000)
-    expect(read.events.length).toBeLessThanOrEqual(51)
-    expect(JSON.stringify(read.events)).toContain('failure299')
-    expect(JSON.stringify(read.events)).not.toContain('failure0')
+    expect(text).toContain(REDACTED_MARK)
+  })
+
+  it('prunes an expired record when the report reads it', async () => {
+    const dir = await dataFolder()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    const file = path.join(reports, 'journal-old.jsonl')
+    await writeFile(file, recordLine({ at: NOW_MS - REPORT_JOURNAL_MAX_AGE_MS - 1 }) + recordLine())
+    const read = await readAsReport(dir)
+    expect(read.entries).toHaveLength(1)
+    const rewritten = await readFile(file, 'utf8')
+    const kept = rewritten.trim().split('\n')
+    expect(kept).toHaveLength(1)
+    expect(kept[0]).toContain(`"at":${String(NOW_MS - 1000)}`)
+  })
+
+  it('prunes an expired record when the agent appends', async () => {
+    const dir = await dataFolder()
+    const serving = agentJournal(dir, 'serve-2')
+    await serving.startup()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    const file = path.join(reports, 'journal-serve-2.jsonl')
+    await writeFile(file, recordLine({ at: NOW_MS - REPORT_JOURNAL_MAX_AGE_MS - 1 }))
+    await serving.record({ kind: 'errorNotice', code: 'skillsUnavailable' })
+    const text = await readFile(file, 'utf8')
+    expect(text.split('\n').filter((line) => line !== '')).toHaveLength(1)
+    expect(text).toContain('skillsUnavailable')
+  })
+
+  it.skipIf(process.platform === 'win32')('never reads a journal through a link', async () => {
+    const dir = await dataFolder()
+    const reports = path.join(dir, REPORT_STORAGE_DIR)
+    await mkdir(reports)
+    const outside = path.join(dir, 'outside.jsonl')
+    await writeFile(outside, recordLine({ code: 'questionFailed' }))
+    await symlink(outside, path.join(reports, 'journal-linked.jsonl'))
+    const read = await readAsReport(dir)
+    expect(read.entries).toEqual([])
+    expect(await readFile(outside, 'utf8')).toBe(recordLine({ code: 'questionFailed' }))
   })
 })

@@ -463,6 +463,7 @@
   "reportCopyFailed": "No se pudo copiar el informe. Cópielo desde la vista previa.",
   "reportSaved": "El informe se guardó.",
   "reportSaveFailed": "No se pudo guardar el informe.",
+  "reportBuildFailed": "No se pudo generar el informe.",
   "reportUrlTooLong": "El informe es demasiado largo para abrirlo en una dirección del navegador. Cópielo y péguelo en el formulario de nuevo problema.",
   "reportRecordingUnavailable": "La grabación de eventos no estaba disponible, por lo que este informe no incluye eventos recientes.",
   "reportDescriptionWarning": "Revise la vista previa con los datos sensibles eliminados antes de compartirla. Su descripción aún puede revelar información confidencial; no incluya contraseñas ni claves.",

@@ -922,7 +922,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     accepted: z.boolean(),
   }),
   // One backend-agnostic conversation event (see agentEvents.ts).
-  z.object({ type: z.literal('agentEvent'), event: agentEventSchema }),
+  // `reportRef` (M93): a failed turn the host recorded; its error row
+  // offers "Report this" with it, never with the row's text.
+  z.object({
+    type: z.literal('agentEvent'),
+    event: agentEventSchema,
+    reportRef: z.optional(reportEventRefSchema),
+  }),
   // The host's model catalogue (for the picker and context-limit lookups).
   z.object({ type: z.literal('modelList'), models: z.array(modelOptionSchema) }),
   // The session's user-invocable skills (palette "Skills" group).

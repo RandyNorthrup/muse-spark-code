@@ -8,7 +8,9 @@
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
 // voice's drivers (M9/M35, loaded on the first recording), the window's web
 // fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
-// (M90, loaded on the first review), the webview, and
+// (M90, loaded on the first review), the report dialog (M93: the builder,
+// its second scrub, the export paths and the handler, loaded on the first
+// open; dist/report.js), the webview, and
 // (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
@@ -81,6 +83,8 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
+const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
+const REPORT_OUTFILE = 'dist/report.js'
 const PAGE_WORKER_ENTRY = 'src/host/web/pageWorker.ts'
 const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
@@ -113,21 +117,30 @@ const sharedUiText = {
   },
 }
 
+// Each deferred entry's bundle: the board and best-of-N (M77), the paid Auto
+// reviewer (M78), the report dialog (M93).
+const DEFERRED_OUTPUTS = new Map([
+  [path.resolve(SESSION_BOARD_ENTRY), SESSION_BOARD_OUTFILE],
+  [path.resolve(REVIEWER_ENTRY), REVIEWER_OUTFILE],
+  [path.resolve(REPORT_ENTRY), REPORT_OUTFILE],
+])
+
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
-    build.onResolve({ filter: /\/(?:sessionBoardEntry|reviewerEntry)(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind !== 'dynamic-import') return
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
-      let output
-      if (source === path.resolve(SESSION_BOARD_ENTRY)) output = SESSION_BOARD_OUTFILE
-      else if (source === path.resolve(REVIEWER_ENTRY)) output = REVIEWER_OUTFILE
-      return output === undefined
-        ? undefined
-        : { path: `./${path.basename(output)}`, external: true }
-    })
+    build.onResolve(
+      { filter: /\/(?:sessionBoardEntry|reviewerEntry|reportEntry)(?:\.[jt]s)?$/ },
+      (args) => {
+        if (args.kind !== 'dynamic-import') return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        const output = DEFERRED_OUTPUTS.get(source)
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
   },
 }
 
@@ -184,6 +197,20 @@ const reviewOptions = {
   plugins: [sharedUiText],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+// The report dialog's bundle (M93) takes the editor's clipboard, browser and
+// save picker as a parameter: it imports no `vscode`, which is not external
+// there, so a stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const reportOptions = {
+  ...common,
+  plugins: [sharedUiText],
+  entryPoints: [REPORT_ENTRY],
+  outfile: REPORT_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -356,6 +383,7 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(reportOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
@@ -378,6 +406,7 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    report: esbuild.build(reportOptions),
     uiText: esbuild.build(uiTextOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
@@ -413,6 +442,7 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(REPORT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)

@@ -766,30 +766,30 @@ const WorkflowRow = memo(function WorkflowRow({
 })
 
 /**
- * "Report this" on a recorded failure (M93 lane W): posts the row's
- * sanitized event reference — which journal event it means, never its text.
+ * "Report this" on a recorded failure (M93): posts the row's sanitized event
+ * reference — which journal event it means, never its text. Nothing renders
+ * for a row without one, or without a handler.
  */
-const ReportThisButton = memo(function ReportThisButton({
-  entryId,
-  reportRef,
+function ReportThisButton({
+  entry,
   onReportProblem,
 }: {
-  readonly entryId: string
-  readonly reportRef: ReportEventRef
-  readonly onReportProblem: (entryId: string, ref: ReportEventRef) => void
+  readonly entry: { readonly id: string; readonly reportRef?: ReportEventRef | undefined }
+  readonly onReportProblem: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
-  return (
+  const { reportRef } = entry
+  return onReportProblem === undefined || reportRef === undefined ? null : (
     <button
       type="button"
       className="notice-action"
       onClick={() => {
-        onReportProblem(entryId, reportRef)
+        onReportProblem(entry.id, reportRef)
       }}
     >
       {UI_TEXT.reportThisAction}
     </button>
   )
-})
+}
 
 function OtherRow({
   entry,
@@ -835,13 +835,7 @@ function OtherRow({
       return (
         <li className="message message-error-card">
           {entry.text}
-          {onReportProblem !== undefined && entry.reportRef !== undefined ? (
-            <ReportThisButton
-              entryId={entry.id}
-              reportRef={entry.reportRef}
-              onReportProblem={onReportProblem}
-            />
-          ) : null}
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
     }
@@ -850,13 +844,7 @@ function OtherRow({
         <li className={`notice notice-${entry.level}`}>
           {entry.text}
           <RepeatCount count={entry.repeatCount} />
-          {onReportProblem !== undefined && entry.reportRef !== undefined ? (
-            <ReportThisButton
-              entryId={entry.id}
-              reportRef={entry.reportRef}
-              onReportProblem={onReportProblem}
-            />
-          ) : null}
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
     }
@@ -981,13 +969,7 @@ const ActionNotice = memo(function ActionNotice({
           {noticeActionLabel(action)}
         </button>
       ))}
-      {onReportProblem !== undefined && entry.reportRef !== undefined ? (
-        <ReportThisButton
-          entryId={entry.id}
-          reportRef={entry.reportRef}
-          onReportProblem={onReportProblem}
-        />
-      ) : null}
+      <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
     </li>
   )
 })

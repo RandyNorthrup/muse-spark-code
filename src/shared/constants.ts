@@ -51,6 +51,7 @@ export const COMMAND_IDS = {
   setUpSandbox: 'museSpark.setUpSandbox',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
+  reportProblem: 'museSpark.reportProblem',
   newConversation: 'museSpark.newConversation',
   signOut: 'museSpark.signOut',
   openInTerminal: 'museSpark.openInTerminal',
@@ -122,6 +123,9 @@ export const VSCODE_COMMANDS = {
   openKeybindings: 'workbench.action.openGlobalKeybindings',
   diff: 'vscode.diff',
   openWalkthrough: 'workbench.action.openWalkthrough',
+  // VS Code's own issue reporter (M93, D72): offered after our preview, with
+  // the supported title and body prefill only.
+  openIssueReporter: 'workbench.action.openIssueReporter',
   // A folder in a window of its own (M32's new worktree).
   openFolder: 'vscode.openFolder',
   // The document's formatter's edits (M68, format on edit).
@@ -2097,11 +2101,6 @@ export const ACP_WORKSPACE_HASH_CHARS = 16
 // "Allow always in this workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
-// The standalone report's journal under the agent's data folder (M93 lane A,
-// PLAN.md D72): the ACP error observer appends facts-only entries here, and
-// `muse-spark-code-acp report` reads them back. One file beside the folders'
-// own; a crash before any session still leaves earlier entries readable.
-export const ACP_REPORT_JOURNAL_FILE = 'problem-report-journal.json'
 // The file walk that stands in for VS Code's file search when git cannot
 // list a folder: what it never descends into.
 export const FILE_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
@@ -3162,7 +3161,7 @@ export const REPORT_RECENT_EVENT_COUNT = 50
 // The encoded new-issue URL past this falls back to copy plus a paste note.
 export const REPORT_ISSUE_URL_MAX_CHARS = 2000
 // The unfilled page the over-long fallback opens; the extension never posts to it itself.
-export const REPORT_ISSUE_NEW_URL = 'https://github.com/RandyNorthrup/muse-spark-code/issues/new'
+export const REPORT_ISSUE_NEW_URL = `${ISSUES_URL}/new`
 // A user-written description past this is cut with an ellipsis: it rides the
 // encoded URL, so an unbounded one always takes the fallback path.
 export const REPORT_DESCRIPTION_MAX_CHARS = 2000
@@ -3186,6 +3185,8 @@ export const REPORT_WEBVIEW_ERROR_KINDS = [
 export type ReportWebviewErrorKind = (typeof REPORT_WEBVIEW_ERROR_KINDS)[number]
 // A short known code, or this fixed word when the code is not known.
 export const REPORT_UNKNOWN_ERROR_CODE = 'unknown'
+// Muse Code's process ended by itself, with no signal named (M93).
+export const REPORT_EXIT_CODE = 'exited'
 // An error code is a short token (an errno, an exit word), never a sentence.
 export const REPORT_ERROR_CODE_MAX_CHARS = 64
 // A verified package-relative frame path; absolute roots never enter the file.
@@ -3206,7 +3207,24 @@ export const REPORT_STORAGE_FILE_MODE = 0o600
 export const REPORT_STORAGE_LINK_COUNT = 1
 // A version string is a dotted triple, never a sentence.
 export const REPORT_VERSION_MAX_CHARS = 32
-// Local diagnostic vocabulary, never arbitrary caller or backend text.
+// The JavaScript error classes a failure may be named by: all the webview
+// can vouch for, so its bundle carries only these (PLAN.md D6).
+export const REPORT_ERROR_CLASSES: ReadonlySet<string> = new Set([
+  'Error',
+  'TypeError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'URIError',
+  'EvalError',
+  'AggregateError',
+  'AbortError',
+  'TimeoutError',
+])
+// Local diagnostic vocabulary, never arbitrary caller or backend text. It
+// repeats REPORT_ERROR_CLASSES rather than spreading it: a spread would keep
+// this whole set in every bundle that reads the classes (the owning test
+// checks that every class is here).
 export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
   REPORT_UNKNOWN_ERROR_CODE,
   'Error',
@@ -3256,6 +3274,23 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
   'ETIMEDOUT',
   'EXDEV',
   'E2BIG',
+  // The ACP agent's own failure sites (M93): fixed words, one per site.
+  'updateNotSent',
+  'skillsUnavailable',
+  'permissionRequestFailed',
+  'approvalWithoutDenial',
+  'questionFailed',
+  // How Muse Code's process ended when nobody asked it to (M93): a non-zero
+  // exit, or the signal that ended it.
+  REPORT_EXIT_CODE,
+  'SIGTERM',
+  'SIGKILL',
+  'SIGINT',
+  'SIGHUP',
+  'SIGABRT',
+  'SIGSEGV',
+  'SIGBUS',
+  'SIGILL',
 ])
 // Exact JavaScript files shipped in the VSIX (.vscodeignore), verified by the
 // owning test. Register new bundles before retaining their stack frames.
@@ -3277,7 +3312,16 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/searchWorker.js',
   'dist/pageWorker.js',
   'dist/webview/main.js',
+  'dist/report.js',
 ])
+// One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
+// (M93): a render or reconnect loop cannot turn every frame into a disk
+// write. Past it, failures go unrecorded until the window moves on.
+export const REPORT_RECORD_LIMIT = 20
+export const REPORT_RECORD_WINDOW_MS = 60_000
+// dist/report.js (M93, PLAN.md D6): the report dialog's builder, scrub,
+// export paths and handler, loaded on the first open.
+export const REPORT_BUNDLE_FILE = 'report.js'
 // The panel keeps its conversation in VS Code's webview state so the crash
 // screen's Reload, or a panel moved to another window, comes back with it:
 // saved at most this often while it changes, and at once before a reload.

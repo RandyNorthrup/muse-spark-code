@@ -15,7 +15,6 @@
 // one of the dialog's choices (its revision), so a late reply is told apart
 // from the current one on the webview's side.
 
-import * as vscode from 'vscode'
 import {
   buildProblemReportDraft,
   isSealedDraftCurrent,
@@ -42,6 +41,7 @@ import {
   copyProblemReport,
   openProblemReportIssue,
   saveProblemReport,
+  type ReportEditorIo,
   type ReportExportOutcome,
 } from '../support/reportProblem'
 
@@ -71,8 +71,9 @@ export interface ReportProblemHandlerDeps {
   /** Says a build failure in the panel (the log already has the detail). */
   readonly noticeError: (text: string) => void
   readonly log: Logger
-  /** Absent where no recorder could be wired; opening then says it did not work. */
-  readonly source: ReportDataSource | undefined
+  readonly source: ReportDataSource
+  /** The editor's clipboard, browser, save picker and issue reporter (reportEditorIo.ts in VS Code). */
+  readonly io: ReportEditorIo
   /** The scrubbed webview failure goes here: the flight recorder's journal. */
   readonly onReportWebviewError: (error: ReportWebviewError) => void
 }
@@ -84,11 +85,6 @@ export type ReportProblemMessage = Extract<
   | { type: 'exportReport' }
   | { type: 'reportWebviewError' }
 >
-
-// VS Code 1.99's prefill for its own issue reporter (D72): the supported
-// body/title fields only. `data` is deliberately never passed: it is absent
-// from the documented option schema.
-const VSCODE_ISSUE_REPORTER_COMMAND = 'workbench.action.openIssueReporter'
 
 /** What an export that threw reads as, per channel: a fixed word, never the error. */
 const THROWN_EXPORT_REASON: Readonly<Record<ReportExportChannel, ReportExportReason>> = {
@@ -102,9 +98,12 @@ type ExportAnswer =
   ReportExportOutcome | { readonly ok: false; readonly reason: ReportExportReason }
 
 /** The VS Code issue reporter after our preview (D72): supported fields only, never `data`. */
-async function openVscodeReporter(draft: SealedReportDraft): Promise<ExportAnswer> {
+async function openVscodeReporter(
+  draft: SealedReportDraft,
+  io: ReportEditorIo,
+): Promise<ExportAnswer> {
   try {
-    await vscode.commands.executeCommand(VSCODE_ISSUE_REPORTER_COMMAND, {
+    await io.openIssueReporter({
       extensionId: EXTENSION_QUALIFIED_ID,
       issueTitle: draft.title,
       issueBody: draft.text,
@@ -279,11 +278,6 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
   }
 
   async function open(ref: ReportEventRef | undefined): Promise<void> {
-    if (deps.source === undefined) {
-      deps.log.warn('Report a problem has no flight recorder in this window')
-      deps.noticeError(UI_TEXT.actionFailed)
-      return
-    }
     sessionCount += 1
     const id = sessionCount
     session = undefined
@@ -344,16 +338,16 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     try {
       switch (via) {
         case 'copy': {
-          return await copyProblemReport(draft)
+          return await copyProblemReport(draft, deps.io)
         }
         case 'issue': {
-          return await openProblemReportIssue(draft)
+          return await openProblemReportIssue(draft, deps.io)
         }
         case 'save': {
-          return await saveProblemReport(draft)
+          return await saveProblemReport(draft, deps.io)
         }
         case 'vscodeReporter': {
-          return await openVscodeReporter(draft)
+          return await openVscodeReporter(draft, deps.io)
         }
       }
     } catch (error: unknown) {

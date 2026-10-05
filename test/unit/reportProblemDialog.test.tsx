@@ -228,13 +228,30 @@ function description() {
   return screen.getByRole('textbox', { name: 'What were you doing when it happened?' })
 }
 
+/** The dialog host over a fake post, and a way to deliver the host's next draft. */
+function mountHost() {
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+  const onClose = vi.fn()
+  const view = render(
+    <ReportDialogHost report={reportState()} postMessage={postMessage} onClose={onClose} />,
+  )
+  return {
+    postMessage,
+    deliver(overrides: Partial<ReportDialogState>) {
+      view.rerender(
+        <ReportDialogHost
+          report={reportState(overrides)}
+          postMessage={postMessage}
+          onClose={onClose}
+        />,
+      )
+    },
+  }
+}
+
 describe('ReportDialogHost', () => {
   it('keeps newer typing and the exports locked while an older reply arrives (RVM93W 2)', () => {
-    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
-    const onClose = vi.fn()
-    const view = render(
-      <ReportDialogHost report={reportState()} postMessage={postMessage} onClose={onClose} />,
-    )
+    const { postMessage, deliver } = mountHost()
     fireEvent.change(description(), { target: { value: 'A' } })
     fireEvent.change(description(), { target: { value: 'AB' } })
     expect(
@@ -244,34 +261,12 @@ describe('ReportDialogHost', () => {
       [2, 'AB'],
     ])
     // The reply to "A" arrives: the field keeps "AB" and Copy stays locked.
-    view.rerender(
-      <ReportDialogHost
-        report={reportState({
-          revision: 1,
-          description: 'A',
-          text: 'draft A',
-          hash: '1'.repeat(64),
-        })}
-        postMessage={postMessage}
-        onClose={onClose}
-      />,
-    )
+    deliver({ revision: 1, description: 'A', text: 'draft A', hash: '1'.repeat(64) })
     expect(description()).toHaveValue('AB')
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent('Updating the preview…')
     // The reply to "AB" settles it; nothing was posted again.
-    view.rerender(
-      <ReportDialogHost
-        report={reportState({
-          revision: 2,
-          description: 'AB',
-          text: 'draft AB',
-          hash: '2'.repeat(64),
-        })}
-        postMessage={postMessage}
-        onClose={onClose}
-      />,
-    )
+    deliver({ revision: 2, description: 'AB', text: 'draft AB', hash: '2'.repeat(64) })
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
     expect(updatesOf(postMessage.mock.calls)).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Copy report' }))
@@ -283,21 +278,11 @@ describe('ReportDialogHost', () => {
   })
 
   it('settles a reply that changed neither the draft nor the description (RVM93W 3)', () => {
-    const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
-    const onClose = vi.fn()
-    const view = render(
-      <ReportDialogHost report={reportState()} postMessage={postMessage} onClose={onClose} />,
-    )
+    const { deliver } = mountHost()
     fireEvent.click(screen.getByRole('button', { name: 'Remove backendExit · 2 min. ago' }))
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled()
     // Same hash, same description: only the revision says it answered.
-    view.rerender(
-      <ReportDialogHost
-        report={reportState({ revision: 1, items: ITEMS.slice(0, 2) })}
-        postMessage={postMessage}
-        onClose={onClose}
-      />,
-    )
+    deliver({ revision: 1, items: ITEMS.slice(0, 2) })
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeEnabled()
     expect(screen.queryByText('Updating the preview…')).not.toBeInTheDocument()
   })
