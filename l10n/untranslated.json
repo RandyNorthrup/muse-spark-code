@@ -102,7 +102,10 @@
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamTreeLabel",
+      "teamOrchestrator",
+      "teamUsageTitle"
     ],
     "es": [
       "usagePlan",
@@ -111,7 +114,8 @@
       "toolLabels.shell",
       "goalTokens",
       "agentImportKindHook",
-      "verifyErrors.one"
+      "verifyErrors.one",
+      "teamUsageTokens"
     ],
     "pt-br": [
       "agentTokens",
@@ -119,7 +123,8 @@
       "toolLabels.shell",
       "goalTokens",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "teamUsageTokens"
     ],
     "fr": [
       "modesTitle",
@@ -145,7 +150,9 @@
       "exportOutputLabel",
       "toolLabels.shell",
       "imageBuyPrompt",
-      "agentImportKindHook"
+      "agentImportKindHook",
+      "teamTreeLabel",
+      "teamUsageTitle"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
