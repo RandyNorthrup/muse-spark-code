@@ -32,6 +32,7 @@ namespace MuseSpark.VisualStudio.Protocol
         public static JObject ParseObject(string json)
         {
             if (json.Length > MaximumFrameChars) throw Invalid();
+            JsonSyntax.Validate(json);
             using (var reader = new JsonTextReader(new StringReader(json)) { MaxDepth = MaximumJsonDepth, DateParseHandling = DateParseHandling.None })
             {
                 var token = JToken.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
@@ -61,8 +62,8 @@ namespace MuseSpark.VisualStudio.Protocol
                 Check(value, target, root);
             }
             if (rules["anyOf"] is JArray alternatives && !alternatives.Any(s => Matches(value, s, root))) throw Invalid();
-            if (rules["const"] is JToken constant && !JToken.DeepEquals(value, constant)) throw Invalid();
-            if (rules["enum"] is JArray values && !values.Any(v => JToken.DeepEquals(value, v))) throw Invalid();
+            if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
+            if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
             var type = rules.Value<string>("type");
             if (type != null && !IsType(value, type)) throw Invalid();
             if (value is JObject obj) CheckObject(obj, rules, root);
@@ -72,7 +73,7 @@ namespace MuseSpark.VisualStudio.Protocol
                 var text = value.Value<string>() ?? throw Invalid();
                 if (rules["minLength"] != null && text.Length < rules.Value<int>("minLength")) throw Invalid();
                 if (rules["maxLength"] != null && text.Length > rules.Value<int>("maxLength")) throw Invalid();
-                if (rules.Value<string>("pattern") is string pattern && !Regex.IsMatch(text, pattern, RegexOptions.CultureInvariant, PatternTimeout)) throw Invalid();
+                if (rules.Value<string>("pattern") is string pattern && !Regex.IsMatch(text, pattern, RegexOptions.CultureInvariant | RegexOptions.ECMAScript, PatternTimeout)) throw Invalid();
                 if (rules.Value<string>("format") == "uri" && !Uri.TryCreate(text, UriKind.Absolute, out _)) throw Invalid();
             }
             if (value.Type == JTokenType.Integer || value.Type == JTokenType.Float)
@@ -111,6 +112,13 @@ namespace MuseSpark.VisualStudio.Protocol
         {
             try { Check(value, schema, root); return true; }
             catch (MhpException) { return false; }
+        }
+
+        private static bool Equal(JToken left, JToken right)
+        {
+            if ((left.Type == JTokenType.Integer || left.Type == JTokenType.Float) && (right.Type == JTokenType.Integer || right.Type == JTokenType.Float))
+                return left.Value<double>() == right.Value<double>();
+            return JToken.DeepEquals(left, right);
         }
 
         private static bool IsType(JToken value, string type)

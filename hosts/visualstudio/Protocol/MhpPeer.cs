@@ -26,9 +26,11 @@ namespace MuseSpark.VisualStudio.Protocol
         private readonly SemaphoreSlim writeLock = new SemaphoreSlim(1);
         private readonly object stateLock = new object();
         private readonly Dictionary<string, Pending> pending = new Dictionary<string, Pending>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> cancelledRequests = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly Dictionary<string, CancellationTokenSource> active = new Dictionary<string, CancellationTokenSource>(StringComparer.Ordinal);
         private readonly HashSet<string> seen = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> negotiated = new HashSet<string>(StringComparer.Ordinal);
+        private readonly List<TaskCompletionSource<bool>> readyWaiters = new List<TaskCompletionSource<bool>>();
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private long nextId;
         private bool initialized;
@@ -128,6 +130,7 @@ namespace MuseSpark.VisualStudio.Protocol
                 var response = new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = result };
                 contract.ValidateResult(method, response);
                 await WriteAsync(response).ConfigureAwait(false);
+                if (method == "initialize") { lock (stateLock) { foreach (var waiter in readyWaiters) waiter.TrySetResult(true); } }
                 if (method == "shutdown") Stop();
             }
             catch (OperationCanceledException) { await FailAsync(id, new MhpException("cancelled", "MHP_CANCELLED")).ConfigureAwait(false); }
@@ -171,12 +174,30 @@ namespace MuseSpark.VisualStudio.Protocol
             }
         }
 
+        public async Task WaitUntilReadyAsync(CancellationToken cancellation)
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (stateLock)
+            {
+                if (stopped) throw new MhpException("cancelled", "MHP_DISCONNECTED");
+                if (initialized) return;
+                readyWaiters.Add(completion);
+            }
+            try { using (cancellation.Register(() => completion.TrySetCanceled())) await completion.Task.ConfigureAwait(false); }
+            finally { lock (stateLock) { readyWaiters.Remove(completion); } }
+        }
+
         private void ReceiveResult(JObject frame)
         {
             var id = frame["id"] ?? throw new MhpException("invalidRequest", "MHP_INVALID_RESPONSE");
             lock (stateLock)
             {
-                if (!pending.TryGetValue(IdKey(id), out var request)) throw new MhpException("invalidRequest", "MHP_UNKNOWN_RESPONSE_ID");
+                if (!pending.TryGetValue(IdKey(id), out var request))
+                {
+                    if (!cancelledRequests.TryGetValue(IdKey(id), out var cancelledMethod)) throw new MhpException("invalidRequest", "MHP_UNKNOWN_RESPONSE_ID");
+                    if (frame["error"] != null) contract.ValidateFailure(frame); else contract.ValidateResult(cancelledMethod, frame);
+                    return;
+                }
                 try
                 {
                     if (frame["error"] != null) { contract.ValidateFailure(frame); request.Completion.TrySetException(new MhpException("internalError", frame["error"]?.Value<string>("message") ?? "MHP_RUNTIME_FAILED")); }
@@ -188,6 +209,7 @@ namespace MuseSpark.VisualStudio.Protocol
 
         public async Task<JToken> RequestAsync(string method, JObject parameters, CancellationToken cancellation)
         {
+            cancellation.ThrowIfCancellationRequested();
             var definition = contract.Method(method);
             RequireReady(definition.Value<string>("capability") ?? "");
             if (definition.Value<string>("direction") == "runtimeToHost" || definition.Value<string>("kind") != "request") throw new MhpException("invalidRequest", "MHP_WRONG_DIRECTION");
@@ -196,6 +218,7 @@ namespace MuseSpark.VisualStudio.Protocol
             contract.ValidateCall(method, frame);
             var completion = new TaskCompletionSource<JToken>(TaskCreationOptions.RunContinuationsAsynchronously);
             var request = new Pending(method, completion);
+            var wasCancelled = false;
             lock (stateLock) { pending.Add(IdKey(id), request); }
             try
             {
@@ -203,10 +226,10 @@ namespace MuseSpark.VisualStudio.Protocol
                 using (cancellation.Register(() => completion.TrySetCanceled()))
                 {
                     try { return await completion.Task.ConfigureAwait(false); }
-                    catch (OperationCanceledException) { await NotifyAsync("$/cancelRequest", new JObject { ["id"] = id }).ConfigureAwait(false); throw; }
+                    catch (OperationCanceledException) { wasCancelled = true; await NotifyAsync("$/cancelRequest", new JObject { ["id"] = id }).ConfigureAwait(false); throw; }
                 }
             }
-            finally { lock (stateLock) { pending.Remove(IdKey(id)); } }
+            finally { lock (stateLock) { pending.Remove(IdKey(id)); if (wasCancelled && cancelledRequests.Count < MaximumRequestIds) cancelledRequests.Add(IdKey(id), method); } }
         }
 
         public Task NotifyAsync(string method, JObject parameters)
@@ -242,10 +265,12 @@ namespace MuseSpark.VisualStudio.Protocol
             finally { writeLock.Release(); }
         }
 
-        private static string IdKey(JToken id) => id.Type + ":" + id.ToString(Formatting.None);
+        private static string IdKey(JToken id) => id.Type == JTokenType.Integer || id.Type == JTokenType.Float
+            ? "number:" + id.Value<long>().ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : id.Type + ":" + id.ToString(Formatting.None);
         private void Stop()
         {
-            lock (stateLock) { stopped = true; foreach (var request in pending.Values) request.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
+            lock (stateLock) { stopped = true; foreach (var request in pending.Values) request.Completion.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); foreach (var waiter in readyWaiters) waiter.TrySetException(new MhpException("cancelled", "MHP_DISCONNECTED")); }
             lifetime.Cancel();
         }
         public void Dispose() { Stop(); lifetime.Dispose(); writeLock.Dispose(); }

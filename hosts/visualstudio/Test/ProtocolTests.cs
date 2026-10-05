@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.VisualStudio.Threading;
 using MuseSpark.VisualStudio.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -39,7 +40,7 @@ namespace MuseSpark.VisualStudio.Test
 
         private static JObject Last(StringWriter writer) => SchemaContract.ParseObject(writer.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Last());
 
-        private static Task Send(MhpPeer peer, JObject frame) => peer.ReceiveAsync(frame.ToString(Formatting.None));
+        private static Task SendAsync(MhpPeer peer, JObject frame) => peer.ReceiveAsync(frame.ToString(Formatting.None));
 
         [TestMethod]
         public void FrozenExportIsConsumedWithoutContractChanges()
@@ -58,10 +59,10 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Initialize(capabilities: new[] { "lifecycle", "documents", "voice" }));
+                await SendAsync(peer, Initialize(capabilities: new[] { "lifecycle", "documents", "voice" }));
                 Assert.AreEqual(Contract.Version, Last(output)["result"]?.Value<string>("protocolVersion"));
                 CollectionAssert.AreEquivalent(new[] { "lifecycle", "documents" }, Last(output)["result"]?["capabilities"]?.Values<string>().ToArray());
-                await Send(peer, Call("editor/active"));
+                await SendAsync(peer, Call("editor/active"));
                 Assert.AreEqual("MHP_UNSUPPORTED_CAPABILITY", Last(output)["error"]?.Value<string>("message"));
                 Assert.AreEqual(0, host.Calls);
             }
@@ -77,7 +78,7 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, new FakeHost(), output))
             {
-                await Send(peer, Initialize(minimum, maximum));
+                await SendAsync(peer, Initialize(minimum, maximum));
                 Assert.AreEqual("MHP_INCOMPATIBLE_VERSION", Last(output)["error"]?.Value<string>("message"));
             }
         }
@@ -89,12 +90,12 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Call("documents/list"));
+                await SendAsync(peer, Call("documents/list"));
                 Assert.AreEqual("MHP_NOT_READY", Last(output)["error"]?.Value<string>("message"));
-                await Send(peer, Initialize());
-                await Send(peer, Call("shutdown", id: new JValue(2)));
+                await SendAsync(peer, Initialize());
+                await SendAsync(peer, Call("shutdown", id: new JValue(2)));
                 Assert.AreEqual(JTokenType.Null, Last(output)["result"]?.Type);
-                await Send(peer, Call("documents/list", id: new JValue(3)));
+                await SendAsync(peer, Call("documents/list", id: new JValue(3)));
                 Assert.AreEqual("MHP_NOT_READY", Last(output)["error"]?.Value<string>("message"));
                 Assert.AreEqual(0, host.Calls);
             }
@@ -107,14 +108,14 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Initialize());
-                await Send(peer, Initialize());
+                await SendAsync(peer, Initialize());
+                await SendAsync(peer, Initialize());
                 Assert.AreEqual("MHP_DUPLICATE_ID", Last(output)["error"]?.Value<string>("message"));
                 var anotherInit = Initialize(); anotherInit["id"] = "init2";
-                await Send(peer, anotherInit);
+                await SendAsync(peer, anotherInit);
                 Assert.AreEqual("MHP_ALREADY_INITIALIZED", Last(output)["error"]?.Value<string>("message"));
-                await Send(peer, Call("documents/list"));
-                await Send(peer, Call("documents/list"));
+                await SendAsync(peer, Call("documents/list"));
+                await SendAsync(peer, Call("documents/list"));
                 Assert.AreEqual("MHP_DUPLICATE_ID", Last(output)["error"]?.Value<string>("message"));
                 Assert.AreEqual(1, host.Calls);
             }
@@ -127,13 +128,13 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Initialize());
+                await SendAsync(peer, Initialize());
                 var complete = Call("tab/complete", new JObject
                 {
                     ["uri"] = "file:///C:/repo/a.cs", ["position"] = new JObject { ["line"] = 0, ["character"] = 0 }, ["version"] = 0,
                     ["context"] = new JObject { ["prefix"] = "", ["suffix"] = "", ["trigger"] = "invoke" }
                 });
-                await Send(peer, complete);
+                await SendAsync(peer, complete);
                 Assert.AreEqual("MHP_WRONG_DIRECTION", Last(output)["error"]?.Value<string>("message"));
                 Assert.AreEqual(0, host.Calls);
             }
@@ -146,11 +147,11 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Initialize());
-                await Send(peer, Call("documents/list"));
+                await SendAsync(peer, Initialize());
+                await SendAsync(peer, Call("documents/list"));
                 Assert.AreEqual("MHP_INVALID_PARAMS", Last(output)["error"]?.Value<string>("message"));
                 host.Handler = (m, p, c) => throw new IOException("private-path-and-account");
-                await Send(peer, Call("documents/list", id: new JValue(2)));
+                await SendAsync(peer, Call("documents/list", id: new JValue(2)));
                 Assert.AreEqual("MHP_HOST_FAILED", Last(output)["error"]?.Value<string>("message"));
                 Assert.IsFalse(output.ToString().Contains("private-path-and-account"));
             }
@@ -165,10 +166,10 @@ namespace MuseSpark.VisualStudio.Test
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, host, output))
             {
-                await Send(peer, Initialize());
-                var request = Send(peer, Call("documents/list", id: new JValue("work")));
+                await SendAsync(peer, Initialize());
+                var request = SendAsync(peer, Call("documents/list", id: new JValue("work")));
                 await started.Task;
-                await Send(peer, new JObject { ["jsonrpc"] = "2.0", ["method"] = "$/cancelRequest", ["params"] = new JObject { ["id"] = "work" } });
+                await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["method"] = "$/cancelRequest", ["params"] = new JObject { ["id"] = "work" } });
                 await request;
                 Assert.AreEqual("work", Last(output).Value<string>("id"));
                 Assert.AreEqual("MHP_CANCELLED", Last(output)["error"]?.Value<string>("message"));
@@ -178,23 +179,24 @@ namespace MuseSpark.VisualStudio.Test
         [TestMethod]
         public async Task CorrelatesRuntimeResultsAndRejectsWrongIdsAndShapes()
         {
+            using (var context = new JoinableTaskContext())
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, new FakeHost(), output))
             {
-                await Send(peer, Initialize());
+                await SendAsync(peer, Initialize());
                 var parameters = new JObject
                 {
                     ["uri"] = "file:///C:/repo/a.cs", ["position"] = new JObject { ["line"] = 0, ["character"] = 0 }, ["version"] = 0,
                     ["context"] = new JObject { ["prefix"] = "", ["suffix"] = "", ["trigger"] = "invoke" }
                 };
-                var request = peer.RequestAsync("tab/complete", parameters, CancellationToken.None);
+                var request = context.Factory.RunAsync(() => peer.RequestAsync("tab/complete", parameters, CancellationToken.None));
                 var id = Last(output)["id"] ?? throw new InvalidOperationException();
-                await Assert.ThrowsExceptionAsync<MhpException>(() => Send(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "wrong", ["result"] = new JArray() }));
+                await Assert.ThrowsExceptionAsync<MhpException>(() => SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "wrong", ["result"] = new JArray() }));
                 Assert.IsFalse(request.IsCompleted);
-                await Send(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = new JObject() });
-                await Assert.ThrowsExceptionAsync<MhpException>(async () => await request);
+                await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = new JObject() });
+                await Assert.ThrowsExceptionAsync<MhpException>(() => request.JoinAsync());
                 var valid = peer.RequestAsync("tab/complete", parameters, CancellationToken.None);
-                await Send(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JArray() });
+                await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = Last(output)["id"], ["result"] = new JArray() });
                 Assert.AreEqual(0, ((JArray)await valid).Count);
             }
         }
@@ -202,21 +204,22 @@ namespace MuseSpark.VisualStudio.Test
         [TestMethod]
         public async Task EnforcesOutboundDirectionAndDisconnectsPendingWork()
         {
+            using (var context = new JoinableTaskContext())
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, new FakeHost(), output))
             {
-                await Send(peer, Initialize());
+                await SendAsync(peer, Initialize());
                 await Assert.ThrowsExceptionAsync<MhpException>(() => peer.RequestAsync("documents/list", new JObject(), CancellationToken.None));
                 Assert.ThrowsException<MhpException>(() => peer.NotifyAsync("documents/read", new JObject()));
                 await peer.NotifyAsync("documents/didClose", new JObject { ["uri"] = "file:///C:/repo/a.cs" });
                 Contract.ValidateCall("documents/didClose", Last(output));
-                var request = peer.RequestAsync("tab/complete", new JObject
+                var request = context.Factory.RunAsync(() => peer.RequestAsync("tab/complete", new JObject
                 {
                     ["uri"] = "file:///C:/repo/a.cs", ["position"] = new JObject { ["line"] = 0, ["character"] = 0 }, ["version"] = 0,
                     ["context"] = new JObject { ["prefix"] = "", ["suffix"] = "", ["trigger"] = "invoke" }
-                }, CancellationToken.None);
+                }, CancellationToken.None));
                 await peer.RunAsync(new StringReader(""));
-                await Assert.ThrowsExceptionAsync<MhpException>(async () => await request);
+                await Assert.ThrowsExceptionAsync<MhpException>(() => request.JoinAsync());
             }
         }
 
@@ -228,7 +231,7 @@ namespace MuseSpark.VisualStudio.Test
             Assert.AreEqual("{}", await MhpPeer.ReadFrameAsync(new StringReader("{}\r\n")));
             Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject("[]"));
             Assert.ThrowsException<JsonReaderException>(() => SchemaContract.ParseObject("{\"id\":1,\"id\":2}"));
-            Assert.ThrowsException<JsonReaderException>(() => SchemaContract.ParseObject("{}{}"));
+            Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject("{}{}"));
             using (var output = new StringWriter())
             using (var peer = new MhpPeer(Contract, new FakeHost(), output))
             {
@@ -267,10 +270,98 @@ namespace MuseSpark.VisualStudio.Test
             {
                 foreach (var id in new JToken[] { new JValue(-1), new JValue(""), new JObject(), new JValue(0.5) })
                 {
-                    await Send(peer, Call("documents/list", id: id));
+                    await SendAsync(peer, Call("documents/list", id: id));
                     Contract.ValidateFailure(Last(output));
                     Assert.AreEqual(JTokenType.Null, Last(output)["id"]?.Type);
                 }
+            }
+        }
+
+        [TestMethod]
+        public void RefusesNonJsonSyntaxEvenWhenJsonNetAcceptsIt()
+        {
+            foreach (var json in new[] { "{'a':1}", "{a:1}", "{\"a\":1,}", "{\"a\":[1,]}", "{/*comment*/\"a\":1}", "{\"a\":undefined}", "{\"a\":NaN}", "{\"a\":+1}", "{\"a\":01}", "{\"a\":.1}", "{\"a\":1.}", "{\"a\":1e}", "{\"a\":\"raw\nnewline\"}", "{\"a\":\"\\x41\"}", "{\"a\":\"\\uXX00\"}", "{\"a\":\"unterminated}", "{\"a\" 1}", "{\"a\":truefalse}", "{} {}" })
+                Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject(json), json);
+            Assert.AreEqual("😀", SchemaContract.ParseObject("{\"a\":\"\\ud83d\\ude00\"}").Value<string>("a"));
+            Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject("{\"a\":\"\\ud800\"}"));
+            Assert.ThrowsException<MhpException>(() => SchemaContract.ParseObject("{\"a\":\"\\udc00\"}"));
+            Assert.AreEqual(1.5, SchemaContract.ParseObject("{\"a\":1.5e0}").Value<double>("a"));
+        }
+
+        [TestMethod]
+        public void UsesEcmaPatternsAndNumericJsonEquality()
+        {
+            Assert.ThrowsException<MhpException>(() => Contract.ValidateCall("settings/get", Call("settings/get", new JObject { ["key"] = "museSpark.aé" })));
+            var failure = new JObject { ["jsonrpc"] = "2.0", ["id"] = 1.0, ["error"] = new JObject { ["code"] = -32603.0, ["message"] = "MHP_INTERNAL_ERROR" } };
+            Contract.ValidateFailure(failure);
+        }
+
+        [TestMethod]
+        public async Task NumericIdsCannotBeReplayedByChangingTheirJsonNumberNotation()
+        {
+            var host = new FakeHost();
+            using (var output = new StringWriter())
+            using (var peer = new MhpPeer(Contract, host, output))
+            {
+                await SendAsync(peer, Initialize());
+                await SendAsync(peer, Call("documents/list", id: new JValue(1.0)));
+                await SendAsync(peer, Call("documents/list", id: new JValue(1)));
+                Assert.AreEqual("MHP_DUPLICATE_ID", Last(output)["error"]?.Value<string>("message"));
+                Assert.AreEqual(1, host.Calls);
+            }
+        }
+
+        [TestMethod]
+        [Timeout(10000)]
+        public async Task CancelsOutgoingRequestsAndValidatesTheirLateResponses()
+        {
+            using (var context = new JoinableTaskContext())
+            using (var output = new StringWriter())
+            using (var peer = new MhpPeer(Contract, new FakeHost(), output))
+            using (var cancellation = new CancellationTokenSource())
+            {
+                await SendAsync(peer, Initialize());
+                var request = context.Factory.RunAsync(() => peer.RequestAsync("tab/complete", new JObject
+                {
+                    ["uri"] = "file:///C:/repo/a.cs", ["position"] = new JObject { ["line"] = 0, ["character"] = 0 }, ["version"] = 0,
+                    ["context"] = new JObject { ["prefix"] = "", ["suffix"] = "", ["trigger"] = "invoke" }
+                }, cancellation.Token));
+                var id = Last(output)["id"] ?? throw new InvalidOperationException();
+                cancellation.Cancel();
+                await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => request.JoinAsync());
+                Assert.AreEqual("$/cancelRequest", Last(output).Value<string>("method"));
+                Assert.IsTrue(JToken.DeepEquals(id, Last(output)["params"]?["id"]));
+                await SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = new JArray() });
+                await Assert.ThrowsExceptionAsync<MhpException>(() => SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = new JObject() }));
+                await Assert.ThrowsExceptionAsync<MhpException>(() => SendAsync(peer, new JObject { ["jsonrpc"] = "2.0", ["id"] = "unknown", ["result"] = new JArray() }));
+                var before = output.ToString();
+                await Assert.ThrowsExceptionAsync<OperationCanceledException>(() => peer.RequestAsync("tab/complete", new JObject(), cancellation.Token));
+                Assert.AreEqual(before, output.ToString());
+            }
+        }
+
+        [TestMethod]
+        [Timeout(10000)]
+        public async Task InitializationWaitersCompleteCancelAndFailOnDisconnect()
+        {
+            using (var output = new StringWriter())
+            using (var peer = new MhpPeer(Contract, new FakeHost(), output))
+            {
+                var waiting = peer.WaitUntilReadyAsync(CancellationToken.None);
+                Assert.IsFalse(waiting.IsCompleted);
+                await SendAsync(peer, Initialize()); await waiting;
+                await peer.WaitUntilReadyAsync(CancellationToken.None);
+            }
+            using (var context = new JoinableTaskContext())
+            using (var output = new StringWriter())
+            using (var peer = new MhpPeer(Contract, new FakeHost(), output))
+            using (var cancellation = new CancellationTokenSource())
+            {
+                var waiting = context.Factory.RunAsync(() => peer.WaitUntilReadyAsync(cancellation.Token)); cancellation.Cancel();
+                await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => waiting.JoinAsync());
+                var disconnected = context.Factory.RunAsync(() => peer.WaitUntilReadyAsync(CancellationToken.None));
+                await peer.RunAsync(new StringReader(""));
+                await Assert.ThrowsExceptionAsync<MhpException>(() => disconnected.JoinAsync());
             }
         }
     }
