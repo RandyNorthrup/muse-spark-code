@@ -17,6 +17,8 @@ interface TabOpenRequest {
   readonly document: string
   readonly prefix: string
   readonly suffix: string
+  /** The completion this request has streamed so far, and only this one's. */
+  readonly streamed: string
 }
 
 /** The entry's key: the document and its raw prefix, nothing compiled. */
@@ -55,10 +57,11 @@ export class TabCache {
   public lookup(document: string, prefix: string, suffix: string): string | undefined {
     let best: TabCacheEntry | undefined
     for (const entry of this.entries.values()) {
-      if (entry.document !== document || entry.suffix !== suffix) {
-        continue
-      }
-      if (!prefix.startsWith(entry.prefix)) {
+      if (
+        entry.document !== document ||
+        entry.suffix !== suffix ||
+        !prefix.startsWith(entry.prefix)
+      ) {
         continue
       }
       if (best === undefined || entry.prefix.length > best.prefix.length) {
@@ -77,38 +80,43 @@ export class TabCache {
     return best.completion.slice(typed.length)
   }
 
-  /** A request sent for this prefix, still streaming. */
+  /** A request sent for this prefix, still streaming; nothing streamed yet. */
   public noteOpen(id: string, document: string, prefix: string, suffix: string): void {
-    this.open.set(id, { document, prefix, suffix })
+    this.open.set(id, { document, prefix, suffix, streamed: '' })
+  }
+
+  /**
+   * The completion request `id` has streamed so far (the whole text, not a
+   * delta). It is kept with that request alone, so each open request is
+   * matched against its own stream. An id no longer open is ignored.
+   */
+  public noteStreamed(id: string, text: string): void {
+    const request = this.open.get(id)
+    if (request !== undefined) {
+      this.open.set(id, { ...request, streamed: text })
+    }
   }
 
   /**
    * An open request the trigger extends (same document and suffix) whose
-   * streamed text so far starts what was typed since it opened: wait for
-   * it instead of sending another. The longest such request wins.
+   * own streamed text so far starts what was typed since it opened: wait
+   * for it instead of sending another. The longest such request wins.
    */
-  public findOpen(
-    document: string,
-    prefix: string,
-    suffix: string,
-    streamed: string,
-  ): string | undefined {
+  public findOpen(document: string, prefix: string, suffix: string): string | undefined {
     let match: string | undefined
     let longest = -1
     for (const [id, request] of this.open) {
-      if (request.document !== document || request.suffix !== suffix) {
+      if (
+        request.document !== document ||
+        request.suffix !== suffix ||
+        !prefix.startsWith(request.prefix) ||
+        !request.streamed.startsWith(prefix.slice(request.prefix.length)) ||
+        request.prefix.length <= longest
+      ) {
         continue
       }
-      if (!prefix.startsWith(request.prefix)) {
-        continue
-      }
-      if (!streamed.startsWith(prefix.slice(request.prefix.length))) {
-        continue
-      }
-      if (request.prefix.length > longest) {
-        longest = request.prefix.length
-        match = id
-      }
+      longest = request.prefix.length
+      match = id
     }
     return match
   }

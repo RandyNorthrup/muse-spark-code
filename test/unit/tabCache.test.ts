@@ -72,20 +72,45 @@ describe('open requests', () => {
   it('matches a trigger extending an open request with its stream', () => {
     const cache = new TabCache()
     cache.noteOpen('gen-1', DOC, 'const x = ', 'suffix')
-    expect(cache.findOpen(DOC, 'const x = fo', 'suffix', 'foo();')).toBe('gen-1')
-    expect(cache.findOpen(DOC, 'const x = bar', 'suffix', 'foo();')).toBeUndefined()
-    expect(cache.findOpen(DOC, 'const x = fo', 'other', 'foo();')).toBeUndefined()
+    expect(cache.findOpen(DOC, 'const x = ', 'suffix')).toBe('gen-1')
+    expect(cache.findOpen(DOC, 'const x = fo', 'suffix')).toBeUndefined()
+    cache.noteStreamed('gen-1', 'foo();')
+    expect(cache.findOpen(DOC, 'const x = fo', 'suffix')).toBe('gen-1')
+    expect(cache.findOpen(DOC, 'const x = bar', 'suffix')).toBeUndefined()
+    expect(cache.findOpen(DOC, 'const x = fo', 'other')).toBeUndefined()
+  })
+
+  it('matches each open request against its own stream', () => {
+    const cache = new TabCache()
+    cache.noteOpen('first', DOC, 'const ', 'suffix')
+    cache.noteOpen('second', DOC, 'const a', 'suffix')
+    cache.noteStreamed('first', 'aaa')
+    cache.noteStreamed('second', 'bbb')
+    // Only the first request's stream continues "aa"; the second's longer
+    // prefix must not borrow it.
+    expect(cache.findOpen(DOC, 'const aa', 'suffix')).toBe('first')
+    expect(cache.findOpen(DOC, 'const ab', 'suffix')).toBe('second')
+  })
+
+  it('ignores a stream for a request no longer open', () => {
+    const cache = new TabCache()
+    cache.noteOpen('gen-1', DOC, 'const x = ', 'suffix')
+    cache.dropOpen('gen-1')
+    cache.noteStreamed('gen-1', 'foo();')
+    expect(cache.openCount).toBe(0)
+    expect(cache.findOpen(DOC, 'const x = fo', 'suffix')).toBeUndefined()
   })
 
   it('settles an open request into the cache and forgets it', () => {
     const cache = new TabCache()
     cache.noteOpen('gen-1', DOC, 'const x = ', 'suffix')
+    cache.noteStreamed('gen-1', 'foo')
     cache.settleOpen('gen-1', 'foo();')
     expect(cache.openCount).toBe(0)
     expect(cache.lookup(DOC, 'const x = f', 'suffix')).toBe('oo();')
     cache.noteOpen('gen-2', DOC, 'const y = ', 'suffix')
     cache.dropOpen('gen-2')
     expect(cache.openCount).toBe(0)
-    expect(cache.findOpen(DOC, 'const y = ', 'suffix', '')).toBeUndefined()
+    expect(cache.findOpen(DOC, 'const y = ', 'suffix')).toBeUndefined()
   })
 })
