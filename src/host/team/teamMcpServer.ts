@@ -19,7 +19,7 @@ export function teamServerToolList(
       inputSchema: structuredClone(tool.inputSchema),
       annotations:
         tool.name === 'roster' || tool.name === 'collect'
-          ? { ...tool.annotations, readOnlyHint: true }
+          ? { ...structuredClone(tool.annotations ?? {}), readOnlyHint: true }
           : structuredClone(tool.annotations ?? {}),
     }))
 }

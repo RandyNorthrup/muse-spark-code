@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
+import { handleMcpMessage } from '../../src/core/mcp'
 import { createSchedulerTeamTools, type TeamBaseTools } from '../../src/core/team/teamTools'
 import { teamSchedulerFieldsSchema } from '../../src/shared/team'
 import { attempt, makeBoard, submission } from './helpers/teamScheduler'
@@ -265,6 +266,77 @@ describe('M96c scheduler tools', () => {
       tool('reschedule').call({ task_ids: ['a', 'b'], priority: 'urgent' }, signal),
     ).rejects.toMatchObject({ code: 'state' })
     expect(board.task('b').priority).toBe('normal')
+  })
+
+  it.each([
+    {
+      name: 'refuses an already-cancelled reschedule before parsing or changing the board',
+      abortBeforeCall: true,
+    },
+    {
+      name: 'refuses a reschedule cancelled while parsing before releasing held work',
+      abortBeforeCall: false,
+    },
+  ])('$name', async ({ abortBeforeCall }) => {
+    const { tool, board, source, now, countAttempt } = setup()
+    board.submit([submission('a')], 0)
+    board.reschedule({ task_ids: ['a'], hold: true }, 0)
+    const before = board.snapshot()
+    const controller = new AbortController()
+    const reason = new Error('Cancelled reschedule')
+    if (abortBeforeCall) {
+      controller.abort(reason)
+      for (const input of [{ task_ids: ['a'], hold: false }, {}]) {
+        await expect(tool('reschedule').call(input, controller.signal)).rejects.toBe(reason)
+      }
+      const response = await handleMcpMessage(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: 'reschedule', arguments: { task_ids: ['a'], hold: false } },
+        }),
+        [tool('reschedule')],
+        { name: 'team', version: 'test' },
+        controller.signal,
+      )
+      expect(response).toMatchObject({ kind: 'response', body: { result: { isError: true } } })
+    } else {
+      const pending = tool('reschedule').call({ task_ids: ['a'], hold: false }, controller.signal)
+      controller.abort(reason)
+      await expect(pending).rejects.toBe(reason)
+    }
+    expect(board.snapshot()).toEqual(before)
+    expect(source.read).not.toHaveBeenCalled()
+    expect(now).not.toHaveBeenCalled()
+    expect(countAttempt).not.toHaveBeenCalled()
+  })
+
+  it('refuses a reschedule cancelled during journal acknowledgement without publishing live data', async () => {
+    const { board, base, enqueue, source, now, countAttempt } = setup()
+    board.submit([submission('a')], 0)
+    const entered = Promise.withResolvers<undefined>()
+    const journal = Promise.withResolvers<undefined>()
+    const reschedule = vi.fn(async (change: unknown, at: number) => {
+      board.reschedule(change, at)
+      entered.resolve(undefined)
+      await journal.promise
+    })
+    const controller = new AbortController()
+    const reason = new Error('Cancelled during acknowledgement')
+    const tools = createSchedulerTeamTools(base, { reschedule }, { enqueue }, source, now)
+    const pending = tools
+      .find((tool) => tool.name === 'reschedule')!
+      .call({ task_ids: ['a'], priority: 'urgent' }, controller.signal)
+    await entered.promise
+    controller.abort(reason)
+    journal.resolve(undefined)
+    await expect(pending).rejects.toBe(reason)
+    expect(reschedule).toHaveBeenCalledOnce()
+    expect(board.task('a').priority).toBe('urgent')
+    expect(source.read).not.toHaveBeenCalled()
+    expect(countAttempt).not.toHaveBeenCalled()
+    expect(enqueue).not.toHaveBeenCalled()
   })
 
   it('waits for the journalled board acknowledgement before publishing a reschedule answer', async () => {

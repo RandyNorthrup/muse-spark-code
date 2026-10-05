@@ -18442,6 +18442,13 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
+**T2 review corrections (2026-10-05, `RVM96CT2` findings 1 and 2).**
+Within T2's tool regions, check reschedule cancellation before board mutation
+and after each await, and deep-clone roster/collect annotations for the fixed
+session declaration. Add focused regressions and byte-exact restoration drills
+in `docs/certification/m96c-t2.md`. No runtime wiring or dependency changes;
+full quality remains the lead's gate under the rig lane rules.
+
 **Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
 Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
 builds
@@ -19777,6 +19784,16 @@ joined with M57, M58 and PR #49's sign-in
   or the log; every gate green.
 
 ## 7. Gates
+
+**FIXM96CT2 scoped proof (2026-10-05).** Both `RVM96CT2` findings are
+fixed within T2. Kubuntu passes all five compiler projects, 21 focused tests,
+changed-file ESLint/Prettier, localization, host API, deadcode, duplication
+(0 clones), and production build with unchanged budgets. Four guard mutations
+fail their named regressions and restore SHA-256-exact source bytes; see
+`docs/certification/m96c-t2.md`. The rig/shared rules prohibit this lane from
+running full quality, merging, rebasing or pushing. Full quality and the
+existing runtime/integration/live handoff remain the lead's work; no gate was
+weakened and neither reviewed finding remains as a residual.
 
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all

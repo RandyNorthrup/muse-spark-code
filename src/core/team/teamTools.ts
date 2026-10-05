@@ -120,11 +120,14 @@ export function createSchedulerTeamTools(
     description: TEAM_MODEL_TEXT.reschedule,
     inputSchema: z.toJSONSchema(teamRescheduleSchema, { io: 'input' }),
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-    call: async (args, _signal) => {
+    call: async (args, signal) => {
+      signal.throwIfAborted()
       const change = await teamRescheduleSchema.parseAsync(args)
+      signal.throwIfAborted()
       // Only mutate the board. Do not wake dispatch, request approval or call
       // the pool: a later scheduler event/sweep may use the revised order.
       await board.reschedule(change, now())
+      signal.throwIfAborted()
       return schedulerToolAnswer(undefined, source)
     },
   }

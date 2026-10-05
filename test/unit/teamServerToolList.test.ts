@@ -77,4 +77,33 @@ describe('team server fixed declarations', () => {
     expect(refused).toMatchObject({ kind: 'response', body: { result: { isError: true } } })
     expect(base[4]!.call).not.toHaveBeenCalled()
   })
+
+  it('keeps nested roster and collect annotations byte-identical for both callers', async () => {
+    const base = tools().map((tool) => ({
+      ...tool,
+      annotations: {
+        ...tool.annotations,
+        customHint: { budget: 1, scope: { roles: ['engineering'] } },
+      },
+    }))
+    const info = { name: 'team', version: 'test' }
+    const request = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+    const lists = [teamServerToolList(base, 'orchestrator'), teamServerToolList(base, 'worker')]
+    const before = []
+    for (const list of lists)
+      before.push(JSON.stringify(await handleMcpMessage(request, list, info)))
+    for (const tool of base) {
+      if (tool.name !== 'roster' && tool.name !== 'collect') continue
+      tool.annotations.customHint.budget = 2
+      tool.annotations.customHint.scope.roles.push('research')
+      tool.annotations.readOnlyHint = false
+    }
+    for (const [index, list] of lists.entries()) {
+      expect(JSON.stringify(await handleMcpMessage(request, list, info))).toBe(before[index])
+      for (const tool of list) {
+        if (tool.name === 'roster' || tool.name === 'collect')
+          expect(tool.annotations?.['readOnlyHint']).toBe(true)
+      }
+    }
+  })
 })
