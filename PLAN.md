@@ -12644,16 +12644,18 @@ of the lanes.
 ### M87 — Panel polish (D66)
 
 **Status 2026-10-04, integration: joined on `m87/int` with main at
-`23f38dd6`; hosted CI on the milestone PR's head and native VS Code Tasks
+`2e341e4c`; hosted CI on the milestone PR's head and native VS Code Tasks
 acceptance remain open.** The lead's integration lane merged `m87/pills`
 (one blue pill per menu item), `m87/c2` (the centred chat column, even
 approval buttons, the 20 px model pill, the one-row narrow toolbar),
-`m87/shots` (`readme:shots`) and main twice (0.12.0, 0.12.1, M70's review
-pane, M89, M90, the CI sharding, the activation diet, the release reuse),
+`m87/shots` (`readme:shots`) and main four times (0.12.0, 0.12.1, M70's
+review pane, M89, M90, the CI sharding, the activation diet, the release
+reuse, the M80 live receipt, the accessibility gate's focus emulation),
 keeping the approved heartbeat. It ported FIXM87W's Revert guard onto M70's
 conditional Revert and lazy review bundle, made `/review` and Revert
 exclude each other, wired the tally's Review to M70's pane, gave M70's six
-review rows their tips, fixed a harness focus flake that main shares, and
+review rows their tips, took main's fix (#115) for an accessibility focus
+flake it had reproduced, and
 applied the owner's two evening rules for the menu: a fan of crisp pills
 with no goo, every pill one size (D66, "A fan of crisp pills, one size").
 On Kubuntu: the full unit suite with coverage (7,291 passed), 564

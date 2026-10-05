@@ -163,6 +163,13 @@ happened, not what was planned; superseded entries are kept.
   and then on slow runners. Each now waits for the event it tests: a settled
   parent turn, a held request, published claims, the fake agent's ready
   line, a held response. Tests only; the product is unchanged.
+- **CI reliability: the accessibility gate keeps each page focused.**
+  Headless Chrome did not keep a window's focus, so on a loaded machine the
+  `slash-commands` page's `/` menu closed while axe scanned it and was
+  reported as `scrollable-region-focusable` on `:root`. Each page now runs
+  with Chrome's focus emulation and is scanned only once its scenario is
+  ready (a page not ready in 10 s fails); no rule or exemption changed.
+  Tooling only.
 
 ## [0.12.1] - 2026-10-04
 
