@@ -18,7 +18,13 @@ import {
   MUSE_TRUST_WORKSPACE_ARG,
 } from '../../../shared/constants'
 import { reportForStop, type WorkerReportOutcome } from './report'
-import { assertWorkerRoot, userServerExclusion, type WorkerFenceIo } from './workerFence'
+import {
+  assertWorkerRoot,
+  recheckWorkerRoot,
+  userServerExclusion,
+  type WorkerRootGrant,
+  type WorkerFenceIo,
+} from './workerFence'
 export {
   userServerExclusion,
   MuseWorkerCapturePendingError,
@@ -127,15 +133,17 @@ export async function buildWorkerSessionConfig(input: {
   readonly exclusiveUserServers: readonly string[]
   readonly bridgeServers: Readonly<Record<string, SessionMcpServer>>
 }): Promise<{
+  readonly grant: WorkerRootGrant
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly mcpServers: Readonly<Record<string, SessionMcpServer>>
 }> {
-  const folder = await assertWorkerRoot({ ...input, folder: input.task.folder })
+  const grant = await assertWorkerRoot({ ...input, folder: input.task.folder })
   userServerExclusion(input.exclusiveUserServers)
   return {
-    workspaceRoot: folder,
+    grant,
+    workspaceRoot: grant.absolute,
     modelId: input.modelId,
     approvalMode: input.role.workspaceMode === 'read-only' ? 'denyUnmatched' : 'promptUnmatched',
     mcpServers: input.bridgeServers,
@@ -193,13 +201,15 @@ export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
     }),
   )
   const kind = hostKindFor(deps.role)
+  const { grant, ...sessionOptions } = config
   const host = await awaitWorkerAction(deps.signal, () =>
     kind === 'readOnly' ? deps.hosts.readOnlyHost() : deps.hosts.teamHost(),
   )
   let session: MuseWorkerSessionPort | undefined
   try {
     session = await awaitWorkerAction(deps.signal, async () => {
-      const opened = await host.startSession(config)
+      await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
+      const opened = await host.startSession(sessionOptions)
       // A session created after abort must never receive a prompt.
       if (deps.signal.aborted) {
         try {
@@ -213,10 +223,12 @@ export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
       }
       return opened
     })
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     const active = session
     const { lastMessage, stopReason } = await awaitWorkerAction(deps.signal, () =>
       active.sendPrompt(deps.prompt),
     )
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     return { sessionId: active.sessionId, report: reportForStop(lastMessage ?? '', stopReason) }
   } catch (error: unknown) {
     if (session !== undefined) {

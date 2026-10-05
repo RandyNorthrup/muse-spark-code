@@ -524,6 +524,28 @@ describe('runMuseCodeWorker', () => {
     expect(result.sessionId).toBe('team-session')
     expect(result.report).toEqual({ ok: true, report: { status: 'done', summary: 'Done.' } })
   })
+  it('RVM96W3-F1 refuses root replacement during host acquisition before starting a session', async () => {
+    let isReplaced = false
+    const hosts = fakeHosts()
+    await expect(
+      runMuseCodeWorker({
+        ...museDeps(hosts),
+        io: {
+          pathIdentity: fakeWorkerIdentity,
+          realPath: (given) =>
+            Promise.resolve(isReplaced && given === TASK.folder ? '/user/checkout' : given),
+        },
+        hosts: {
+          ...hosts,
+          teamHost: () => {
+            isReplaced = true
+            return hosts.teamHost()
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(MuseWorkerFolderError)
+    expect(hosts.started).toEqual([])
+  })
   it('runs a read-only role on the read-only host', async () => {
     const hosts = fakeHosts()
     const folder = '/storage/agents/code-review/t-7'

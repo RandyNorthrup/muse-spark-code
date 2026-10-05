@@ -18030,6 +18030,17 @@ next`, the exhausted policy and the queue, the meters, reservations and
      the skill's separate ledger migration is outside this scoped redesign.
      Live captures/native-server preset admission remain lead-owned gates.
 
+     **FIXM96W4 (RVM96W3, 2026-10-05):** bind admission to an opaque root
+     grant and compare its native identity at every later use, including
+     after host/configuration awaits. Mediated file operations open once,
+     derive the final name from that handle, check containment and write
+     policy on it, and read/write the same handle. Add all seven review
+     regressions and byte-exact drills: root replacement, write-target swap,
+     bare parent arguments, Windows Git suffixes/PATHEXT, non-text final
+     messages, mode reset after model selection, and bounded cancellation.
+     Real Windows junction/rename probes run here with maxWorkers=3. No
+     dependency, guard widening, live request or new editor surface.
+
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
      step 1.
@@ -20991,13 +21002,13 @@ joined with M57, M58 and PR #49's sign-in
 ## 7. Gates
 
 **M96-W host API inventory deferral (2026-10-05).** The scoped worker repair
-passes the owned suites and production budgets, but `check:host-api` reports
-one pre-existing generated-record mismatch: `node:stream` has 10 source
-importers, while `docs/ide-compatibility/host-api.md` records 9. The unchanged
-import in `src/host/team/acpProcess.ts` exists at lane base `49340fe1`.
-The inventory is outside FIXM96W's owned files; the lead regenerates it
-after integration. No source import, gate, ignore or threshold is hidden
-or weakened. See `docs/certification/m96-w.md` and §9's named residual.
+retains the historical stream-count deferral below. FIXM96W4's current
+`check:host-api` mismatch is instead two importer counts: child_process
+11 recorded / 12 actual and util 4 recorded / 5 actual, from the native
+handle-name helper. All other inventory rows agree. The generated inventory
+is outside the W repair lane's owned files; the lead regenerates and reviews
+it after integration. No gate, ignore or threshold is weakened. See
+`docs/certification/m96-w.md` and §9's named residual.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -21581,15 +21592,23 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M96 W-I-policy-integration (RVM96W3 integration residual, 2026-10-05):**
+  the unshipped W and I lanes still have separate command and environment
+  authorities. The review found different admissions for worktree list,
+  paginate/show, grep and cat-file filters. Safe while the worker modules
+  remain unreachable from shipped entry points; this is not a clean semantic
+  integration. Follow-up: the lead chooses one authority, adapts the ports
+  and runs both lanes' regressions before aggregate landing.
+
 - **M96 W-host-api-inventory (2026-10-05, gate residual):** the generated
-  host API inventory has a pre-existing `node:stream` count of 9 against
-  10 source importers, including the ACP process file already present at
-  `49340fe1`. This is documentation drift with no new host capability;
-  every other host API inventory row agrees. The file is outside the
-  repair lane's scope. Follow-up: the lead runs
-  `npm run check:host-api -- --write`, reviews the one-row change and
-  reruns the gate after integrating the lanes. Full quality remains the
-  lead's gate.
+  record's old stream mismatch was corrected in round 3. FIXM96W4 adds one
+  workerFence importer of each existing built-in node:child_process and
+  node:util: counts 11/4 recorded versus 12/5 actual. No new Node built-in
+  or VS Code capability is introduced. Safe while the worker modules are
+  unshipped; this documentation drift is not a passing gate. The generated
+  file is outside the repair lane's scope. Follow-up: the lead runs
+  `npm run check:host-api -- --write`, reviews both count changes and reruns
+  the gate after integrating lanes. Full quality remains the lead's gate.
 
 - **M96 W37-live-captures (RVM96A finding 37, 2026-10-05):** the worker
   repair lane has no authorization for live/paid calls. Its synthetic ACP

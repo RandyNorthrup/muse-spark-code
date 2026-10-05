@@ -2,7 +2,12 @@ import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './muse
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
-import { realpath } from 'node:fs/promises'
+import { open, realpath } from 'node:fs/promises'
+import { spawn, execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { z } from 'zod'
+import { handleIdentity } from '../../fs/fileIdentity'
+import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
 import { homedir } from 'node:os'
 import { pathModule } from '../../workspaceRoot'
@@ -10,12 +15,134 @@ import type { RealPathIo } from '../../workspacePath'
 import { isProtectedPath } from '../../protectedPaths'
 import { isGlobMatch } from '../../backends/modelapi/globLimits'
 import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
-import { WORKER_ACP_MAX_PERMISSION_PATHS } from '../../../shared/constants'
+import {
+  WORKER_ACP_MAX_PERMISSION_PATHS,
+  WORKER_FILE_PATH_TIMEOUT_MS,
+  WORKER_FILE_PATH_BUFFER_CHARS,
+} from '../../../shared/constants'
 import type { WorkerRolePolicy } from './workerTypes'
 
 export interface WorkerFenceIo extends RealPathIo {
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */
   readonly pathIdentity: (canonicalPath: string) => Promise<string>
+  readonly openFile?: (absolute: string, isWrite: boolean) => Promise<WorkerFileHandle>
+}
+
+export interface WorkerFileHandle {
+  readonly identify: () => Promise<{ readonly absolute: string; readonly identity: string }>
+  readonly read: (maxBytes: number) => Promise<string | undefined>
+  readonly write: (content: string) => Promise<void>
+  readonly close: () => Promise<void>
+}
+
+// stdin is a duplicate of the already-open file handle, never a filename.
+const WINDOWS_HANDLE_PATH = `
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
+Add-Type -TypeDefinition '
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class WorkerFilePath {
+ [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int n);
+ [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+ static extern uint GetFinalPathNameByHandle(IntPtr h, StringBuilder b, uint n, uint flags);
+ public static string Read(int capacity) {
+  var b = new StringBuilder(capacity);
+  var n = GetFinalPathNameByHandle(GetStdHandle(-10), b, (uint)capacity, 0);
+  if (n == 0 || n >= capacity) throw new System.ComponentModel.Win32Exception();
+  return b.ToString();
+ }
+}'
+[WorkerFilePath]::Read(${String(WORKER_FILE_PATH_BUFFER_CHARS)}) | ConvertTo-Json -Compress
+`
+
+async function windowsHandlePath(fd: number): Promise<string> {
+  const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT']
+  if (systemRoot === undefined) throw new MuseWorkerFolderError()
+  return await new Promise<string>((resolve, reject) => {
+    const child = spawn(
+      pathModule('win32').join(
+        systemRoot,
+        'System32',
+        'WindowsPowerShell',
+        'v1.0',
+        'powershell.exe',
+      ),
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_HANDLE_PATH],
+      {
+        windowsHide: true,
+        stdio: [fd, 'pipe', 'ignore'],
+        env: scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
+      },
+    )
+    let output = ''
+    const timer = setTimeout(() => {
+      child.kill()
+      reject(new MuseWorkerFolderError())
+    }, WORKER_FILE_PATH_TIMEOUT_MS)
+    child.stdout?.on('data', (chunk: Buffer) => {
+      output += chunk.toString('utf8')
+      if (output.length <= WORKER_FILE_PATH_BUFFER_CHARS * 2) return
+      child.kill()
+      reject(new MuseWorkerFolderError())
+    })
+    child.on('error', (error) => {
+      clearTimeout(timer)
+      reject(error)
+    })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      try {
+        if (code !== 0) throw new MuseWorkerFolderError()
+        resolve(z.string().parse(JSON.parse(output)))
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new MuseWorkerFolderError())
+      }
+    })
+  })
+}
+
+async function openWorkerFile(absolute: string, isWrite: boolean): Promise<WorkerFileHandle> {
+  const handle = await open(absolute, isWrite ? 'r+' : 'r')
+  return {
+    identify: async () => {
+      const identity = fileIdentityKey(await handleIdentity(handle))
+      if (identity === undefined) throw new MuseWorkerFolderError()
+      let final: string
+      if (process.platform === 'win32') final = await windowsHandlePath(handle.fd)
+      else if (process.platform === 'darwin') {
+        // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
+        const result = await promisify(execFile)(
+          '/usr/sbin/lsof',
+          ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
+          {
+            timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+            env: {
+              ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
+              LC_CTYPE: 'en_US.UTF-8',
+            },
+          },
+        )
+        const names = result.stdout.split('\n').filter((line) => line.startsWith('n'))
+        if (names.length !== 1 || names[0] === undefined) throw new MuseWorkerFolderError()
+        final = await realpath(names[0].slice(1))
+      } else final = await realpath(`/proc/self/fd/${String(handle.fd)}`)
+      final = final.replace(/^\\\\\?\\UNC\\/i, '\\\\').replace(/^\\\\\?\\/, '')
+      if ((await workerPathIdentity(final)) !== identity) throw new MuseWorkerFolderError()
+      return { absolute: final, identity }
+    },
+    read: async (maxBytes) => {
+      const stats = await handle.stat()
+      const buffer = Buffer.alloc(Math.min(stats.size, maxBytes))
+      const result = await handle.read(buffer, 0, buffer.length, 0)
+      return buffer.subarray(0, result.bytesRead).toString('utf8')
+    },
+    write: async (content) => {
+      await handle.truncate(0)
+      await handle.writeFile(content, 'utf8')
+    },
+    close: () => handle.close(),
+  }
 }
 
 /** Node/libuv's Windows stat obtains volume/file identity from a native handle. */
@@ -28,6 +155,7 @@ export async function workerPathIdentity(canonicalPath: string): Promise<string>
 export const WORKER_NATIVE_IO: WorkerFenceIo = {
   realPath: realpath,
   pathIdentity: workerPathIdentity,
+  openFile: openWorkerFile,
 }
 
 export class MuseWorkerFolderError extends Error {
@@ -40,6 +168,26 @@ export class MuseWorkerFolderError extends Error {
 interface IdentifiedPath {
   readonly absolute: string
   readonly identity: string
+}
+
+const grantTag: unique symbol = Symbol('worker root admission')
+export interface WorkerRootGrant {
+  readonly absolute: string
+  readonly [grantTag]: true
+}
+const grants = new WeakMap<WorkerRootGrant, IdentifiedPath>()
+
+export async function recheckWorkerRoot(
+  input: WorkerPathInput,
+  grant: WorkerRootGrant,
+): Promise<string> {
+  const admitted = grants.get(grant)
+  if (admitted === undefined) throw new MuseWorkerFolderError()
+  for (const given of [input.folder, grant.absolute]) {
+    const current = await identify(given, input.platform, input.io)
+    if (current.identity !== admitted.identity) throw new MuseWorkerFolderError()
+  }
+  return grant.absolute
 }
 
 async function identify(
@@ -75,7 +223,7 @@ async function lineage(
   }
 }
 
-/** Returns the resolved cwd. External workers never accept in-place. */
+/** Grants one native root identity. External workers never accept in-place. */
 export async function assertWorkerRoot(input: {
   readonly workspaceRoot: string
   readonly folder: string
@@ -83,8 +231,13 @@ export async function assertWorkerRoot(input: {
   readonly io: WorkerFenceIo
   readonly isInPlace?: boolean
   readonly role?: WorkerRolePolicy
-}): Promise<string> {
+  readonly grant?: WorkerRootGrant
+}): Promise<WorkerRootGrant> {
   try {
+    if (input.grant !== undefined) {
+      await recheckWorkerRoot(input, input.grant)
+      return input.grant
+    }
     if (input.role?.workspaceMode === 'in-place' && input.isInPlace !== true)
       throw new MuseWorkerFolderError()
     const [checkout, worker] = await Promise.all([
@@ -104,7 +257,13 @@ export async function assertWorkerRoot(input: {
       )
         throw new MuseWorkerFolderError()
     }
-    return worker.absolute
+    const grant: WorkerRootGrant = Object.freeze({
+      absolute: worker.absolute,
+      [grantTag]: true as const,
+    })
+    grants.set(grant, worker)
+    await recheckWorkerRoot(input, grant)
+    return grant
   } catch {
     throw new MuseWorkerFolderError()
   }
@@ -116,6 +275,7 @@ export interface WorkerPathInput {
   readonly io: WorkerFenceIo
   readonly workspaceRoot: string
   readonly isInPlace?: boolean
+  readonly grant?: WorkerRootGrant
 }
 
 type WorkerPath =
@@ -128,6 +288,20 @@ type WorkerPath =
     }
   | { readonly ok: false }
 
+function isWorkerPathNameAllowed(absolute: string, platform: NodeJS.Platform): boolean {
+  const p = pathModule(platform)
+  const segments = absolute.slice(p.parse(absolute).root.length).split(/[\\/]/)
+  return (
+    platform !== 'win32' ||
+    segments.every(
+      (segment) =>
+        !segment.includes(':') &&
+        !/[. ]$/.test(segment) &&
+        !/^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i.test(segment),
+    )
+  )
+}
+
 /** Unresolvable targets (including new files) refuse; there is no textual fallback. */
 export async function confineWorkerPath(
   input: WorkerPathInput,
@@ -136,24 +310,16 @@ export async function confineWorkerPath(
   try {
     if (given.trim() === '' || given.includes('\0')) return { ok: false }
     const p = pathModule(input.platform)
-    const root = await assertWorkerRoot(input)
+    const grant = input.grant ?? (await assertWorkerRoot(input))
+    const root = await recheckWorkerRoot(input, grant)
     const expanded = /^~(?:[\\/]|$)/.test(given) ? p.join(homedir(), given.slice(1)) : given
     const absolute = p.resolve(root, expanded)
-    const segments = absolute.slice(p.parse(absolute).root.length).split(/[\\/]/)
-    if (
-      input.platform === 'win32' &&
-      segments.some(
-        (segment) =>
-          segment.includes(':') ||
-          /[. ]$/.test(segment) ||
-          /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i.test(segment),
-      )
-    )
-      return { ok: false }
+    if (!isWorkerPathNameAllowed(absolute, input.platform)) return { ok: false }
     const [base, target] = await Promise.all([
       identify(root, input.platform, input.io),
       identify(absolute, input.platform, input.io),
     ])
+    if (base.identity !== grants.get(grant)?.identity) return { ok: false }
     const parents = await lineage(target, input.platform, input.io)
     const rootIndex = parents.findIndex((entry) => entry.identity === base.identity)
     if (rootIndex === -1) return { ok: false }
@@ -171,6 +337,49 @@ export async function confineWorkerPath(
     }
   } catch {
     return { ok: false }
+  }
+}
+
+/** Check the handle's name and identity, then operate only on that handle. */
+export async function withWorkerFile<T>(
+  input: WorkerPathInput,
+  given: string,
+  isWrite: boolean,
+  work: (handle: WorkerFileHandle, path: Extract<WorkerPath, { ok: true }>) => Promise<T>,
+): Promise<T> {
+  const grant = input.grant ?? (await assertWorkerRoot(input))
+  const root = await recheckWorkerRoot(input, grant)
+  if (input.io.openFile === undefined || given.trim() === '' || given.includes('\0'))
+    throw new MuseWorkerFolderError()
+  const p = pathModule(input.platform)
+  const expanded = /^~(?:[\\/]|$)/.test(given) ? p.join(homedir(), given.slice(1)) : given
+  const absolute = p.resolve(root, expanded)
+  if (!isWorkerPathNameAllowed(absolute, input.platform)) throw new MuseWorkerFolderError()
+  const handle = await input.io.openFile(absolute, isWrite)
+  try {
+    const target = await handle.identify()
+    if (!p.isAbsolute(target.absolute) || !isWorkerPathNameAllowed(target.absolute, input.platform))
+      throw new MuseWorkerFolderError()
+    const parents = await lineage(target, input.platform, input.io)
+    const rootIndex = parents.findIndex((entry) => entry.identity === grants.get(grant)?.identity)
+    if (rootIndex === -1) throw new MuseWorkerFolderError()
+    const relative = p.relative(root, target.absolute).split(p.sep).join('/')
+    const canonical = parents
+      .slice(0, rootIndex)
+      .toReversed()
+      .map((entry) => p.basename(entry.absolute))
+      .join('/')
+    const confined = {
+      ok: true as const,
+      absolute: target.absolute,
+      checkedAbsolute: target.absolute,
+      relative,
+      canonical,
+    }
+    await recheckWorkerRoot(input, grant)
+    return await work(handle, confined)
+  } finally {
+    await handle.close()
   }
 }
 
@@ -247,7 +456,7 @@ const REF_MOVING_SUBCOMMANDS: ReadonlySet<string> = new Set([
  * listings.
  */
 export function isRefMovingGitCommand(words: readonly string[]): boolean {
-  let index = words.findIndex((word) => /(?:^|[/\\])git(?:\.(?:exe|cmd))?$/i.test(word))
+  let index = words.findIndex((word) => isGitExecutable(word))
   if (index < 0) {
     return false
   }
@@ -295,6 +504,21 @@ export function isRefMovingGitCommand(words: readonly string[]): boolean {
   return !GIT_READ_SUBCOMMANDS.has(subcommand)
 }
 
+function isGitExecutable(word: string): boolean {
+  const name = word.split(/[/\\]/).at(-1)?.toLowerCase() ?? ''
+  const suffixes = new Set([
+    '.exe',
+    '.cmd',
+    '.bat',
+    '.com',
+    ...(process.env['PATHEXT'] ?? '').toLowerCase().split(';'),
+  ])
+  return (
+    name === 'git' ||
+    [...suffixes].some((suffix) => suffix.startsWith('.') && name === `git${suffix}`)
+  )
+}
+
 const GIT_SAFE_GLOBAL_FLAGS: ReadonlySet<string> = new Set([
   '--no-pager',
   '--paginate',
@@ -339,6 +563,7 @@ export async function isWorkerWriteAllowed(
     readonly platform: NodeJS.Platform
     readonly io: WorkerFenceIo
     readonly workspaceRoot: string
+    readonly grant?: WorkerRootGrant
   },
   given: string,
 ): Promise<boolean> {
@@ -350,12 +575,24 @@ export async function isWorkerWriteAllowed(
     return false
   }
   const confined = await confineWorkerPath(input, given)
-  if (!confined.ok || isProtectedPath(confined.relative) || isProtectedPath(confined.canonical)) {
+  return confined.ok && isCheckedWorkerWriteAllowed(input.role, confined)
+}
+
+export function isCheckedWorkerWriteAllowed(
+  role: WorkerRolePolicy,
+  confined: Extract<WorkerPath, { ok: true }>,
+): boolean {
+  if (
+    role.workspaceMode === 'read-only' ||
+    !role.toolGroups.includes('write') ||
+    isProtectedPath(confined.relative) ||
+    isProtectedPath(confined.canonical)
+  ) {
     return false
   }
   return (
-    input.role.writePaths === undefined ||
-    input.role.writePaths.some((pattern) => {
+    role.writePaths === undefined ||
+    role.writePaths.some((pattern) => {
       try {
         return isGlobMatch(confined.canonical, pattern)
       } catch {
@@ -390,7 +627,7 @@ export async function isWorkerCommandAllowed(
   const executable = words[0]
     ?.split(/[/\\]/)
     .at(-1)
-    ?.replace(/\.(?:exe|cmd)$/i, '')
+    ?.replace(/\.(?:exe|cmd|bat|com)$/i, '')
     .toLowerCase()
   // Wrappers are inspected for Git, but never themselves admitted as plain tools.
   if (
@@ -404,11 +641,13 @@ export async function isWorkerCommandAllowed(
       /^(?:--(?:output|ext-diff|textconv|no-index|prefix|cwd|directory|work-tree|git-dir|exec-path)|-o)(?:=|$)/.test(
         word,
       ) ||
-      /^-o.+/.test(word)
+      /^-o.+/.test(word) ||
+      word.startsWith('-C')
     )
       return false
     const value = word.includes('=') ? word.slice(word.indexOf('=') + 1) : word
     if (
+      value !== '..' &&
       !/^(?:[\\/~]|\.\.?[\\/]|[a-z]:[\\/])/i.test(value) &&
       !value.includes('/') &&
       !value.includes('\\')
@@ -550,6 +789,7 @@ export async function classifyMuseWorkerApproval(input: {
   readonly io: WorkerFenceIo
   readonly workspaceRoot: string
   readonly testCommands?: ReadonlySet<string>
+  readonly grant?: WorkerRootGrant
 }): Promise<MuseWorkerApprovalAnswer> {
   const { request } = input
   if (request.kind === 'writeFile') {

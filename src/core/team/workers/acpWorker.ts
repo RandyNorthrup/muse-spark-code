@@ -7,6 +7,7 @@
 // leaving out the user's own MCP servers. A shape the captures have not
 // shown is refused, never guessed.
 
+import { WORKER_CANCEL_GRACE_MS } from '../../../shared/constants'
 import type { AuthMethod, McpServer } from '@agentclientprotocol/sdk'
 import type { ShellDialect } from '../../backends/modelapi/shellSyntax'
 import { buildWorkerPrompt, WorkerUntrustedError, type WorkerFileIo } from './engineWorker'
@@ -16,7 +17,10 @@ import {
   assertWorkerRoot,
   requireAcpNativeIsolation,
   confineWorkerPath,
-  isWorkerWriteAllowed,
+  isCheckedWorkerWriteAllowed,
+  withWorkerFile,
+  recheckWorkerRoot,
+  type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
@@ -175,6 +179,7 @@ export type AcpPermissionVerdict =
   | { readonly action: 'askUser' }
 
 export interface AcpPermissionInput {
+  readonly grant?: WorkerRootGrant
   readonly role: WorkerRolePolicy
   /** The task's working copy or scratch copy: every path must resolve inside it. */
   readonly folder: string
@@ -206,8 +211,7 @@ export interface AcpFsInput {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: WorkerFenceIo
-  readonly readTextFile: (absolutePath: string) => Promise<string | undefined>
-  readonly writeTextFile: (absolutePath: string, content: string) => Promise<void>
+  readonly grant?: WorkerRootGrant
 }
 
 /**
@@ -219,12 +223,14 @@ export async function acpFsRead(
   input: AcpFsInput,
   given: string,
 ): Promise<{ readonly content: string } | { readonly error: string }> {
-  const confined = await confineAcpFsPath({ ...input, given })
-  if (!confined.ok) {
+  try {
+    return await withWorkerFile(input, given, false, async (handle) => {
+      const content = await handle.read(Number.MAX_SAFE_INTEGER)
+      return content === undefined ? { error: 'unreadable' } : { content }
+    })
+  } catch {
     return { error: 'outside the working copy' }
   }
-  const content = await input.readTextFile(confined.absolute)
-  return content === undefined ? { error: 'unreadable' } : { content }
 }
 
 /** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`. */
@@ -233,20 +239,21 @@ export async function acpFsWrite(
   given: string,
   content: string,
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
-  const confined = await confineAcpFsPath({ ...input, given })
-  if (!confined.ok) {
+  try {
+    return await withWorkerFile(input, given, true, async (handle, confined) => {
+      if (!isCheckedWorkerWriteAllowed(input.role, confined))
+        return {
+          error:
+            input.role.workspaceMode === 'read-only'
+              ? 'the role is read-only'
+              : 'outside the write paths',
+        }
+      await handle.write(content)
+      return { ok: true }
+    })
+  } catch {
     return { error: 'outside the working copy' }
   }
-  if (!(await isWorkerWriteAllowed(input, given))) {
-    return {
-      error:
-        input.role.workspaceMode === 'read-only'
-          ? 'the role is read-only'
-          : 'outside the write paths',
-    }
-  }
-  await input.writeTextFile(confined.absolute, content)
-  return { ok: true }
 }
 
 /** The agent side the runner drives; the SDK adapter lives in lane W's `acpProcess`. */
@@ -258,6 +265,7 @@ export interface AcpAgentConnection {
   readonly sessionNew: (params: {
     readonly cwd: string
     readonly mcpServers: readonly McpServer[]
+    readonly grant: WorkerRootGrant
   }) => Promise<{
     readonly sessionId: string
     readonly advertisedModes: readonly string[]
@@ -269,6 +277,7 @@ export interface AcpAgentConnection {
   readonly setMode: (sessionId: string, mode: string) => Promise<void>
   /** Selects and reads back the current model; absence/mismatch is an error. */
   readonly setModel: (sessionId: string, modelId: string) => Promise<string>
+  readonly checkMode: (sessionId: string, mode: string) => void
   readonly prompt: (
     sessionId: string,
     text: string,
@@ -318,17 +327,20 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   try {
     deps.signal.throwIfAborted()
     if (!deps.isTrusted) throw new WorkerUntrustedError()
-    const folder = await awaitWorkerAction(deps.signal, () =>
+    const grant = await awaitWorkerAction(deps.signal, () =>
       assertWorkerRoot({ ...deps, folder: deps.task.folder }),
     )
+    const folder = grant.absolute
     requireAcpNativeIsolation(deps.nativeServersExcluded)
     const initialized = await awaitWorkerAction(deps.signal, () => deps.connection.initialize())
     if (initialized.protocolVersion !== 1)
       throw new Error('The ACP worker requires protocol version 1')
     const opened = await awaitWorkerAction(deps.signal, async () => {
+      await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
       const response = await deps.connection.sessionNew({
         cwd: folder,
         mcpServers: deps.bridgeServers,
+        grant,
       })
       if (deps.signal.aborted) {
         void deps.connection.cancel(response.sessionId).catch(() => {
@@ -354,6 +366,7 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
     )
     if (selectedModel !== deps.modelId || selectedModel.trim() === '')
       throw new AcpModelSelectionError()
+    deps.connection.checkMode(activeId, mode)
     const prompt = await awaitWorkerAction(deps.signal, () =>
       buildWorkerPrompt(
         deps.prompt,
@@ -361,16 +374,31 @@ export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
         deps.io,
         deps.platform,
         deps.workspaceRoot,
+        false,
+        grant,
       ),
     )
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
+    deps.connection.checkMode(activeId, mode)
     const { lastMessage, stopReason } = await awaitWorkerAction(deps.signal, () =>
       deps.connection.prompt(activeId, prompt),
     )
+    await recheckWorkerRoot({ ...deps, folder: deps.task.folder }, grant)
     return { sessionId: activeId, report: reportForStop(lastMessage ?? '', stopReason) }
   } catch (error: unknown) {
     if (sessionId !== undefined) {
       try {
-        await deps.connection.cancel(sessionId)
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await Promise.race([
+            deps.connection.cancel(sessionId),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
+            }),
+          ])
+        } finally {
+          if (timer !== undefined) clearTimeout(timer)
+        }
       } catch {
         /* Finally closes an unreachable peer. */
       }

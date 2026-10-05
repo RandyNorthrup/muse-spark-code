@@ -1,4 +1,4 @@
-import { fakeWorkerIdentity } from './helpers/workerIdentity'
+import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
 import { TEAM_WORKER_PROMPT } from './helpers/teamWorkerPrompt'
 // The ACP client worker (M96 lane W): the preset modes, the permission
 // answers, the confined `fs/*`, and the run over an injected connection.
@@ -339,9 +339,7 @@ describe('acpFsRead', () => {
     folder: FOLDER,
     workspaceRoot: '/user/checkout',
     platform: 'linux' as const,
-    io: IO,
-    readTextFile: (absolutePath: string) => Promise.resolve(files[absolutePath]),
-    writeTextFile: () => Promise.resolve(),
+    io: fakeWorkerFiles(IO, (absolutePath) => Promise.resolve(files[absolutePath])),
   }
 
   it('reads inside the copy and refuses outside', async () => {
@@ -359,12 +357,14 @@ describe('acpFsWrite', () => {
     folder: FOLDER,
     workspaceRoot: '/user/checkout',
     platform: 'linux' as const,
-    io: IO,
-    readTextFile: () => Promise.resolve(undefined),
-    writeTextFile: (absolutePath: string, content: string) => {
-      written[absolutePath] = content
-      return Promise.resolve()
-    },
+    io: fakeWorkerFiles(
+      IO,
+      () => Promise.resolve(undefined),
+      (absolutePath, content) => {
+        written[absolutePath] = content
+        return Promise.resolve()
+      },
+    ),
   }
 
   it('writes under the write paths and refuses the rest', async () => {
@@ -404,6 +404,7 @@ function connectionWith(overrides: Partial<AcpAgentConnection>): AcpAgentConnect
     setConfigOption: () => Promise.resolve(),
     setMode: () => Promise.resolve(),
     setModel: (_sessionId, modelId) => Promise.resolve(modelId),
+    checkMode: () => undefined,
     prompt: () =>
       Promise.resolve({
         stopReason: 'end_turn',
@@ -426,7 +427,7 @@ function depsWith(overrides: { connection: AcpAgentConnection }) {
     workspaceRoot: '/user/checkout',
     nativeServersExcluded: true,
     isTrusted: true,
-    io: { ...IO, readTextFile: () => Promise.resolve(undefined) },
+    io: IO,
     platform: 'linux' as const,
     bridgeServers: [],
     ...overrides,
@@ -439,6 +440,25 @@ class AuthRequiredFailure extends Error {
 }
 
 describe('runAcpWorker', () => {
+  it('RVM96W3-F7 runner closes even when an injected cancel never settles', async () => {
+    const held = Promise.withResolvers<undefined>()
+    const close = vi.fn()
+    const connection = connectionWith({
+      prompt: () => Promise.reject(new Error('failed turn')),
+      cancel: () => held.promise,
+      close,
+    })
+    const running = runAcpWorker(depsWith({ connection }))
+    const rejected = expect(running).rejects.toThrow('failed turn')
+    try {
+      await vi.waitFor(() => {
+        expect(close).toHaveBeenCalledOnce()
+      })
+    } finally {
+      held.resolve(undefined)
+      await rejected
+    }
+  })
   it('RVM96A-18 selects and confirms the explicit model before dispatch', async () => {
     const operations: string[] = []
     const connection = connectionWith({
@@ -553,7 +573,6 @@ describe('runAcpWorker', () => {
           io: {
             pathIdentity: fakeWorkerIdentity,
             realPath: (given) => Promise.resolve(given === '/alias' ? '/user/checkout' : given),
-            readTextFile: () => Promise.resolve(undefined),
           },
         }),
       ).rejects.toThrow()

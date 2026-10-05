@@ -25,6 +25,8 @@ import {
 import {
   acpSpawnArgs,
   assertWorkerRoot,
+  recheckWorkerRoot,
+  type WorkerRootGrant,
   type WorkerFenceIo,
 } from '../../core/team/workers/workerFence'
 export { AcpUserServersSwitchError } from '../../core/team/workers/workerFence'
@@ -137,7 +139,7 @@ export interface SpawnAcpAgentInput {
  * servers is appended only once step 1 has captured it.
  */
 export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChildProcess> {
-  const cwd = await assertWorkerRoot({ ...input, folder: input.cwd })
+  const grant = await assertWorkerRoot({ ...input, folder: input.cwd })
   const args = acpSpawnArgs(input)
   const env = scrubWorkerEnv({
     platform: input.platform,
@@ -145,6 +147,7 @@ export async function spawnAcpAgent(input: SpawnAcpAgentInput): Promise<TeamChil
     passthrough: input.passthrough,
   })
   env[LAUNCH_ID_ENV] = input.launchId
+  const cwd = await recheckWorkerRoot({ ...input, folder: input.cwd }, grant)
   return await input.launcher.spawn({ command: input.command, args, cwd, env })
 }
 
@@ -174,13 +177,16 @@ export interface AcpClientHandlers {
   readonly onPermissionRequest: (
     toolCall: AcpPermissionToolCall,
     options: readonly AcpPermissionOption[],
+    grant: WorkerRootGrant,
   ) => Promise<{ readonly optionId: string } | undefined>
   readonly onFsRead: (
     path: string,
+    grant: WorkerRootGrant,
   ) => Promise<{ readonly content: string } | { readonly error: string }>
   readonly onFsWrite: (
     path: string,
     content: string,
+    grant: WorkerRootGrant,
   ) => Promise<{ readonly ok: true } | { readonly error: string }>
   readonly onUpdate: (text: string | undefined) => void
 }
@@ -189,7 +195,7 @@ export interface AcpClientHandlers {
 // exchange (m96-w.md). Loose objects retain future fields at the boundary.
 const agentMessageChunk = z.looseObject({
   sessionUpdate: z.literal('agent_message_chunk'),
-  content: z.looseObject({ type: z.literal('text'), text: z.string() }),
+  content: z.looseObject({ type: z.string(), text: z.optional(z.string()) }),
   messageId: z.optional(z.nullable(z.string())),
 })
 const authFields = {
@@ -273,7 +279,9 @@ function valuesOf(selector: z.infer<typeof configSelector>): readonly string[] {
 /** Only agent message text contributes to the worker report. */
 export function updateTextOf(update: unknown): string | undefined {
   const parsed = agentMessageChunk.safeParse(update)
-  return parsed.success ? parsed.data.content.text : undefined
+  return parsed.success && parsed.data.content.type === 'text'
+    ? parsed.data.content.text
+    : undefined
 }
 
 /**
@@ -407,6 +415,13 @@ export function connectAcpAgent(input: {
   const sessionModes = new Map<string, string>()
   const promptSettled = new Map<string, Promise<void>>()
   const sessionConfigurations = new Map<string, readonly unknown[]>()
+  const sessionGrants = new Map<string, WorkerRootGrant>()
+  const grantOf = (sessionId: string): WorkerRootGrant => {
+    const grant = sessionGrants.get(sessionId)
+    if (grant === undefined)
+      throw new acp.RequestError(JSON_RPC_WORKER_REFUSAL, 'Unknown worker admission')
+    return grant
+  }
   const messagesOf = (sessionId: string): { id: string | null | undefined; text: string }[] => {
     const existing = sessionMessages.get(sessionId)
     if (existing !== undefined) {
@@ -419,6 +434,7 @@ export function connectAcpAgent(input: {
   // Loose boundaries, as headless `exec` keeps them: anything the wire
   // adds later arrives rather than failing the parse (PLAN.md D36).
   const permissionParams = z.looseObject({
+    sessionId: z.string(),
     toolCall: z.looseObject({
       toolCallId: z.string(),
       title: z.optional(z.nullable(z.string())),
@@ -428,8 +444,12 @@ export function connectAcpAgent(input: {
     }),
     options: z.array(z.looseObject({ optionId: z.string(), kind: z.string() })),
   })
-  const fsReadParams = z.looseObject({ path: z.string() })
-  const fsWriteParams = z.looseObject({ path: z.string(), content: z.string() })
+  const fsReadParams = z.looseObject({ sessionId: z.string(), path: z.string() })
+  const fsWriteParams = z.looseObject({
+    sessionId: z.string(),
+    path: z.string(),
+    content: z.string(),
+  })
   const updateNotification = z.looseObject({ sessionId: z.string(), update: z.unknown() })
   const optionKinds = ['allow_once', 'allow_always', 'reject_once', 'reject_always'] as const
   clientApp
@@ -460,7 +480,9 @@ export function connectAcpAgent(input: {
           pendingPermissions.add(settle)
           void (async () => {
             try {
-              settle(await handlers.onPermissionRequest(toolCall, options))
+              settle(
+                await handlers.onPermissionRequest(toolCall, options, grantOf(params.sessionId)),
+              )
             } catch {
               settle(undefined)
             }
@@ -472,7 +494,7 @@ export function connectAcpAgent(input: {
       'fs/read_text_file',
       fsReadParams,
       async ({ params }): Promise<acp.ReadTextFileResponse> => {
-        const result = await handlers.onFsRead(params.path)
+        const result = await handlers.onFsRead(params.path, grantOf(params.sessionId))
         if ('content' in result) {
           return { content: result.content }
         }
@@ -483,7 +505,11 @@ export function connectAcpAgent(input: {
       'fs/write_text_file',
       fsWriteParams,
       async ({ params }): Promise<acp.WriteTextFileResponse> => {
-        const result = await handlers.onFsWrite(params.path, params.content)
+        const result = await handlers.onFsWrite(
+          params.path,
+          params.content,
+          grantOf(params.sessionId),
+        )
         if ('ok' in result) {
           return {}
         }
@@ -492,18 +518,30 @@ export function connectAcpAgent(input: {
     )
     .onNotification('session/update', updateNotification, ({ params }) => {
       const chunk = agentMessageChunk.safeParse(params.update)
-      const text = chunk.success ? chunk.data.content.text : undefined
+      const text =
+        chunk.success && chunk.data.content.type === 'text' ? chunk.data.content.text : undefined
       if (chunk.success) {
         const messages = messagesOf(params.sessionId)
         const last = messages.at(-1)
-        if (last !== undefined && last.id === chunk.data.messageId)
-          last.text += chunk.data.content.text
-        else messages.push({ id: chunk.data.messageId, text: chunk.data.content.text })
+        if (last !== undefined && last.id === chunk.data.messageId) last.text += text ?? ''
+        else messages.push({ id: chunk.data.messageId, text: text ?? '' })
       }
       const mode = z
         .looseObject({ sessionUpdate: z.literal('current_mode_update'), currentModeId: z.string() })
         .safeParse(params.update)
-      if (mode.success) sessionModes.set(params.sessionId, mode.data.currentModeId)
+      if (mode.success) {
+        sessionModes.set(params.sessionId, mode.data.currentModeId)
+        // A notification supersedes an earlier config response.
+        sessionConfigurations.set(
+          params.sessionId,
+          (sessionConfigurations.get(params.sessionId) ?? []).map((option) => {
+            const selector = configSelector.safeParse(option)
+            return selector.success && selector.data.category === 'mode'
+              ? { ...selector.data, currentValue: mode.data.currentModeId }
+              : option
+          }),
+        )
+      }
       handlers.onUpdate(text)
     })
   let authMethods: readonly acp.AuthMethod[] = []
@@ -547,6 +585,7 @@ export function connectAcpAgent(input: {
         }),
       )
       const parsed = sessionResponse.parse(response)
+      sessionGrants.set(parsed.sessionId, params.grant)
       sessionConfigurations.set(parsed.sessionId, parsed.configOptions ?? [])
       if (parsed.modes !== undefined && parsed.modes !== null)
         sessionModes.set(parsed.sessionId, parsed.modes.currentModeId)
@@ -584,6 +623,7 @@ export function connectAcpAgent(input: {
         throw new Error('The ACP agent did not confirm its mode')
     },
     setModel: async (sessionId, modelId) => {
+      const priorMode = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'mode')
       const selector = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'model')
       if (selector === undefined || !valuesOf(selector).includes(modelId) || modelId.trim() === '')
         throw new AcpModelSelectionError()
@@ -599,10 +639,17 @@ export function connectAcpAgent(input: {
         ),
       )
       sessionConfigurations.set(sessionId, response.configOptions)
+      if (priorMode !== undefined && selectorOf(response.configOptions, 'mode') === undefined)
+        throw new Error('The ACP agent did not confirm its mode')
       const selected = selectorOf(response.configOptions, 'model')
       if (selected?.id !== selector.id || selected.currentValue !== modelId)
         throw new AcpModelSelectionError()
       return selected.currentValue
+    },
+    checkMode: (sessionId, mode) => {
+      const configured = selectorOf(sessionConfigurations.get(sessionId) ?? [], 'mode')
+      if ((configured?.currentValue ?? sessionModes.get(sessionId)) !== mode)
+        throw new Error('The ACP agent did not confirm its mode')
     },
     prompt: async (sessionId, text) => {
       messagesOf(sessionId).length = 0
@@ -637,20 +684,19 @@ export function connectAcpAgent(input: {
       }
       pendingPermissions.clear()
       try {
-        await agent.notify('session/cancel', { sessionId })
-        const settled = promptSettled.get(sessionId)
-        if (settled !== undefined) {
-          let timer: ReturnType<typeof setTimeout> | undefined
-          try {
-            await Promise.race([
-              settled,
-              new Promise<void>((resolve) => {
-                timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
-              }),
-            ])
-          } finally {
-            if (timer !== undefined) clearTimeout(timer)
-          }
+        let timer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await Promise.race([
+            (async () => {
+              await agent.notify('session/cancel', { sessionId })
+              await promptSettled.get(sessionId)
+            })(),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, WORKER_CANCEL_GRACE_MS)
+            }),
+          ])
+        } finally {
+          if (timer !== undefined) clearTimeout(timer)
         }
       } catch {
         // ACP cancel is a notification: the agent may already be gone.
@@ -665,6 +711,7 @@ export function connectAcpAgent(input: {
       sessionModes.clear()
       promptSettled.clear()
       sessionConfigurations.clear()
+      sessionGrants.clear()
       sessionMessages.clear()
       try {
         connection.close()

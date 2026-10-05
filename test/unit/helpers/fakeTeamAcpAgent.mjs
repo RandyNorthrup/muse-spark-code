@@ -89,12 +89,26 @@ function configOptions() {
       { value: 'explicit-selected-model', name: 'Selected' },
     ],
   }
-  return scenario.startsWith('mode-legacy') ? [model] : [mode, model]
+  const isModeDropped = scenario === 'model-drops-mode' && agentState.model !== 'fake-default'
+  return isModeDropped || scenario.startsWith('mode-legacy') ? [model] : [mode, model]
 }
 
 async function onPrompt(id, params) {
   const sessionId = params.sessionId
   const report = '```muse-team-report\n{"status":"done","summary":"Fake work."}\n```'
+  if (scenario === 'draft-image') {
+    chunk(sessionId, report, 'draft')
+    notify('session/update', {
+      sessionId,
+      update: {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: 'final',
+        content: { type: 'image', data: 'AA==', mimeType: 'image/png' },
+      },
+    })
+    respond(id, { stopReason: 'end_turn' })
+    return
+  }
   if (scenario === 'draft-failed' || scenario === 'draft-final') {
     chunk(sessionId, report, 'draft')
     chunk(
@@ -204,6 +218,8 @@ async function onRequest(message) {
         agentState.mode = scenario === 'mode-ignored' ? 'plan' : params.value
       if (scenario !== 'model-ignored' && params.configId === 'fake-model-selector')
         agentState.model = params.value
+      if (scenario === 'model-resets-mode' && params.configId === 'fake-model-selector')
+        agentState.mode = 'default'
       respond(id, { configOptions: configOptions() })
       break
     }

@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile, readFile, rename, rmdir } from 'node:fs/promises'
+import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
@@ -9,13 +10,19 @@ import {
   hasRefMove,
   isWorkerCommandAllowed,
   WORKER_NATIVE_IO,
+  recheckWorkerRoot,
 } from '../../src/core/team/workers/workerFence'
 import {
   answerAcpPermission,
   ACP_PRESETS,
   runAcpWorker,
+  acpFsRead,
+  acpFsWrite,
 } from '../../src/core/team/workers/acpWorker'
-import { buildWorkerSessionConfig } from '../../src/core/team/workers/museCodeWorker'
+import {
+  buildWorkerSessionConfig,
+  classifyMuseWorkerApproval,
+} from '../../src/core/team/workers/museCodeWorker'
 import { createWorkerShellRunner, runEngineWorker } from '../../src/core/team/workers/engineWorker'
 import { spawnAcpAgent } from '../../src/host/team/acpProcess'
 import type { WorkerRolePolicy, WorkerTask } from '../../src/core/team/workers/workerTypes'
@@ -67,7 +74,8 @@ function task(folder: string): WorkerTask {
 
 describe('W-F1 native identities', () => {
   it('admits disjoint copies, refuses both ancestor directions and unresolvable paths', async () => {
-    expect(await assertWorkerRoot(input())).toBe(fixtureState.copy)
+    const grant = await assertWorkerRoot(input())
+    expect(grant.absolute).toBe(fixtureState.copy)
     for (const folder of [
       fixtureState.checkout,
       fixtureState.fixture,
@@ -81,9 +89,8 @@ describe('W-F1 native identities', () => {
     ).rejects.toThrow()
   })
   it('requires identity equality for explicit engine in-place mode', async () => {
-    expect(await assertWorkerRoot({ ...input(fixtureState.checkout), isInPlace: true })).toBe(
-      fixtureState.checkout,
-    )
+    const grant = await assertWorkerRoot({ ...input(fixtureState.checkout), isInPlace: true })
+    expect(grant.absolute).toBe(fixtureState.checkout)
     await expect(assertWorkerRoot({ ...input(), isInPlace: true })).rejects.toThrow()
   })
   it('RVM96W2C-N1 refuses a real UNC administrative-share checkout alias', async () => {
@@ -129,7 +136,7 @@ describe('W-F1 native identities', () => {
         preset: ACP_PRESETS.claude,
         isTrusted: true,
         nativeServersExcluded: true,
-        io: { ...WORKER_NATIVE_IO, readTextFile: () => Promise.resolve(undefined) },
+        io: WORKER_NATIVE_IO,
         bridgeServers: [],
         signal: new AbortController().signal,
         connection: {
@@ -138,6 +145,7 @@ describe('W-F1 native identities', () => {
           setConfigOption: () => Promise.resolve(),
           setMode: () => Promise.resolve(),
           setModel: () => Promise.resolve('fake'),
+          checkMode: () => undefined,
           prompt: () => Promise.reject(new Error('must not prompt')),
           cancel: () => Promise.resolve(),
           close: () => undefined,
@@ -159,7 +167,7 @@ describe('W-F1 native identities', () => {
         role: ROLE,
         prompt: TEAM_WORKER_PROMPT,
         isTrusted: true,
-        io: { ...WORKER_NATIVE_IO, readTextFile: () => Promise.resolve(undefined) },
+        io: WORKER_NATIVE_IO,
         requestCeiling: 5,
         declineChoiceId: 'abort',
         agentId: 'fake',
@@ -230,7 +238,8 @@ describe('W-F1 native identities', () => {
   it('RVM96A-4 refuses a junction alias and rechecks replaced roots on path requests', async () => {
     const alias = path.join(fixtureState.fixture, 'junction')
     await symlink(fixtureState.copy, alias, process.platform === 'win32' ? 'junction' : 'dir')
-    expect(await assertWorkerRoot(input(alias))).toBe(fixtureState.copy)
+    const grant = await assertWorkerRoot(input(alias))
+    expect(grant.absolute).toBe(fixtureState.copy)
     await rm(alias)
     await symlink(fixtureState.checkout, alias, process.platform === 'win32' ? 'junction' : 'dir')
     await expect(assertWorkerRoot(input(alias))).rejects.toThrow()
@@ -283,6 +292,164 @@ describe('W-F1 native identities', () => {
 })
 
 describe('W-F2 identity path admission', () => {
+  it('RVM96W3-F2 handle admission retains Windows reinterpreted-name refusal', async () => {
+    const read = vi.fn(() => Promise.resolve('sentinel'))
+    const write = vi.fn(() => Promise.resolve())
+    const io = fakeWorkerFiles(
+      {
+        pathIdentity: fakeWorkerIdentity,
+        realPath: (given) => Promise.resolve(given.replace(/:stream$/, '').replace(/[. ]$/, '')),
+      },
+      read,
+      write,
+    )
+    const policy = {
+      folder: String.raw`C:\worker`,
+      workspaceRoot: String.raw`C:\checkout`,
+      platform: 'win32' as const,
+      role: ROLE,
+      io,
+    }
+    for (const given of ['docs/a.md:stream', 'docs/a.md.', 'docs/a.md ', 'docs/NUL']) {
+      expect(await acpFsRead(policy, given)).toHaveProperty('error')
+      expect(await acpFsWrite(policy, given, 'attack')).toHaveProperty('error')
+    }
+    expect(read).not.toHaveBeenCalled()
+    expect(write).not.toHaveBeenCalled()
+  })
+  it('RVM96W3-F1 injected root replacement refuses before reading', async () => {
+    let samples = 0
+    const read = vi.fn(() => Promise.resolve('private sentinel'))
+    const io = fakeWorkerFiles(
+      {
+        pathIdentity: fakeWorkerIdentity,
+        realPath: (given) => {
+          return Promise.resolve(given === '/worker' && ++samples > 1 ? '/checkout' : given)
+        },
+      },
+      read,
+    )
+    const result = await acpFsRead(
+      { folder: '/worker', workspaceRoot: '/checkout', platform: 'linux', io, role: ROLE },
+      'private.txt',
+    )
+    expect(result).toHaveProperty('error')
+    expect(read).not.toHaveBeenCalled()
+  })
+  it('RVM96W3-F1 real renamed-root replacement invalidates the admission grant', async () => {
+    const root = path.join(fixtureState.fixture, 'race-root')
+    const held = `${root}-held`
+    await mkdir(root)
+    const grant = await assertWorkerRoot(input(root))
+    await rename(root, held)
+    await mkdir(root)
+    await expect(recheckWorkerRoot(input(root), grant)).rejects.toThrow()
+    expect(await confineWorkerPath({ ...input(root), grant }, 'inside.txt')).toEqual({ ok: false })
+  })
+  it('RVM96W3-F1 real junction retarget invalidates its admission grant', async () => {
+    const alias = path.join(fixtureState.fixture, 'race-junction')
+    await symlink(fixtureState.copy, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const grant = await assertWorkerRoot(input(alias))
+    await rm(alias)
+    await symlink(fixtureState.checkout, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    await expect(recheckWorkerRoot(input(alias), grant)).rejects.toThrow()
+  })
+  it('RVM96W3-F2 injected target swap cannot authorize a protected handle', async () => {
+    const write = vi.fn(() => Promise.resolve())
+    let resolutions = 0
+    const io = fakeWorkerFiles(
+      {
+        pathIdentity: fakeWorkerIdentity,
+        realPath: (given) => {
+          if (given === '/worker/link') resolutions += 1
+          const target = resolutions === 1 ? '/worker/.git/config' : '/worker/docs/ok.md'
+          return Promise.resolve(given === '/worker/link' ? target : given)
+        },
+      },
+      () => Promise.resolve(undefined),
+      write,
+    )
+    const result = await acpFsWrite(
+      {
+        folder: '/worker',
+        workspaceRoot: '/checkout',
+        platform: 'linux',
+        io,
+        role: { ...ROLE, writePaths: ['docs/**'] },
+      },
+      'link',
+      'attack',
+    )
+    expect(result).toHaveProperty('error')
+    expect(write).not.toHaveBeenCalled()
+  })
+  it('RVM96W3-F2 real target rename writes only the originally checked handle', async () => {
+    const root = path.join(fixtureState.fixture, 'handle-root')
+    const docs = path.join(root, 'docs')
+    const held = path.join(root, 'held')
+    await mkdir(docs, { recursive: true })
+    await writeFile(path.join(docs, 'outside.txt'), 'before')
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('Missing native handle port')
+    const state: { failure?: string } = {}
+    const io = {
+      ...WORKER_NATIVE_IO,
+      openFile: async (given: string, isWrite: boolean) => {
+        const handle = await nativeOpen(given, isWrite)
+        return {
+          ...handle,
+          write: async (content: string) => {
+            try {
+              await rename(path.join(docs, 'outside.txt'), held)
+              await rmdir(docs)
+              await symlink(
+                fixtureState.checkout,
+                docs,
+                process.platform === 'win32' ? 'junction' : 'dir',
+              )
+              await handle.write(content)
+            } catch (error: unknown) {
+              state.failure = String(error)
+              throw error
+            }
+          },
+        }
+      },
+    }
+    const result = await acpFsWrite(
+      { ...input(root), io, role: { ...ROLE, writePaths: ['docs/**'] } },
+      'docs/outside.txt',
+      'checked handle',
+    )
+    expect(result, state.failure).toEqual({ ok: true })
+    expect(await readFile(held, 'utf8')).toBe('checked handle')
+    expect(await readFile(path.join(fixtureState.checkout, 'outside.txt'), 'utf8')).toBe('outside')
+  })
+  it('RVM96W3-F1 real read target rename reads only the checked handle', async () => {
+    const root = path.join(fixtureState.fixture, 'read-handle-root-漢')
+    await mkdir(root)
+    const target = path.join(root, 'inside.txt')
+    await writeFile(target, 'original')
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('Missing native handle port')
+    const io = {
+      ...WORKER_NATIVE_IO,
+      openFile: async (given: string, isWrite: boolean) => {
+        const handle = await nativeOpen(given, isWrite)
+        return {
+          ...handle,
+          read: async (maxBytes: number) => {
+            await rename(target, `${target}-held`)
+            await writeFile(target, 'replacement')
+            return await handle.read(maxBytes)
+          },
+        }
+      },
+    }
+    expect(await acpFsRead({ ...input(root), io, role: ROLE }, 'inside.txt')).toEqual({
+      content: 'original',
+    })
+  })
   it('resolves inside paths and refuses outside, home and unresolved targets', async () => {
     expect(await confineWorkerPath(input(), 'inside.txt')).toMatchObject({
       ok: true,
@@ -325,6 +492,58 @@ describe('W-F2 identity path admission', () => {
 })
 
 describe('W-F3 one git classifier', () => {
+  it.each(['npm test -C ..', 'npm test -C..', 'npm test --prefix=..', 'npm test ..'])(
+    'RVM96W3-F3 denies bare parent argument in both adapters and engine: %s',
+    async (command) => {
+      const policy = {
+        ...input(),
+        role: { ...ROLE, roleId: 'qa' as const, toolGroups: ['testShell', 'report'] as const },
+        dialect: 'powershell' as const,
+        readOnlyCommands: new Set<string>(),
+        testCommands: new Set(['npm test']),
+      }
+      expect(await isWorkerCommandAllowed({ ...policy, command })).toBe(false)
+      expect(
+        await classifyMuseWorkerApproval({ ...policy, request: { kind: 'shellCommand', command } }),
+      ).toBe('deny')
+      expect(
+        await answerAcpPermission({
+          ...policy,
+          toolCall: { toolCallId: 'parent', title: 'test', kind: 'execute', rawInput: { command } },
+        }),
+      ).toEqual({ action: 'rejectOnce' })
+    },
+  )
+  it.each(['git.exe', 'git.cmd', 'git.bat', 'git.com', 'GIT.BAT', 'GiT.CoM'])(
+    'RVM96W3-F4 denies Windows Git suffix %s in both adapters',
+    async (executable) => {
+      const command = `${executable} push`
+      expect(hasRefMove(command, 'powershell')).toBe(true)
+      const policy = {
+        ...input(),
+        role: ROLE,
+        dialect: 'powershell' as const,
+        readOnlyCommands: new Set<string>(),
+      }
+      expect(
+        await classifyMuseWorkerApproval({ ...policy, request: { kind: 'shellCommand', command } }),
+      ).toBe('deny')
+      expect(
+        await answerAcpPermission({
+          ...policy,
+          toolCall: { toolCallId: 'suffix', title: 'test', kind: 'execute', rawInput: { command } },
+        }),
+      ).toEqual({ action: 'rejectOnce' })
+    },
+  )
+  it('RVM96W3-F4 recognizes PATHEXT Git wrappers', () => {
+    vi.stubEnv('PATHEXT', '.EXE;.CMD;.BAT;.COM;.PS1')
+    try {
+      expect(hasRefMove('Git.Ps1 push', 'powershell')).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
   it.each([
     'env git commit -am x',
     'env -i git push',
