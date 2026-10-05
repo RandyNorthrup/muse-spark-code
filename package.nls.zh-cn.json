@@ -119,7 +119,7 @@
   "config.modelApiRepositoryRules.markdownDescription": "Model API 后端：存储库可以在其 `.vscode/settings.json` 中添加的规则：询问或禁止的 `commandRules`，以及 `denyRead` glob。它们只能收紧您自己的规则，因此此处的允许规则不会应用。",
   "config.modelApiAutoReviewer.description": "付费，默认关闭。在 Model API 后端的自动模式下，一次单独的模型调用会评判每个没有规则决定的有风险操作，看起来安全时不询问直接运行；它拒绝或失败时由您决定。它绝不会允许被禁止的命令、您的规则要求询问的命令、受保护的写入或付费调用。每次审查按对话模型的令牌费率计入您的 Model API 密钥，除非您在此工作区中始终允许审查，否则会先询问。",
   "config.museCodeAutoReviewer.description": "默认开启。在 Muse Code 的自动模式下，只有当前轮次中没有规则作出决定的批准请求才符合审查条件：在隐藏的规划会话中使用您的订阅进行一次简短的 Muse Code 轮次。受保护的写入、付费调用、子任务、提问、重放或升级的请求、未知对象、没有仅允许一次选项的请求以及多个面板共享的会话都不会被审查。成功的审查可以允许一次；拒绝、失败、会话繁忙、超时或熔断器触发时会显示批准卡片。宿主进程退出后会重新创建辅助会话。",
-  "config.modelApiTab.description": "付费，默认关闭。在 Model API 后端上，输入时建议幽灵文本补全，费用计入你的 Model API 密钥：按正常输入速度，Standard 约每小时 $0.80，贡献者模型约每小时 $0.05，并受每日预算限制。每个窗口的首次建议会询问一次（在此窗口允许一次、在此工作区始终允许，或不允许；不允许会将该窗口中的 Tab 稍后提醒）。打开时会要求确认价格。如果 Copilot 已开启，除非同时运行两者，否则其语言优先使用 Copilot。",
+  "config.modelApiTab.description": "付费，默认开启；每个窗口的首次请求前询问一次。在 Model API 后端输入时建议幽灵文本补全，费用计入你的 Model API 密钥：按正常输入速度，Standard 约每小时 $0.80，贡献者模型约每小时 $0.05。本机所有窗口共享的严格每日预算默认为 $1.00。现有付费使用对话框会显示价格和预算：允许一次适用于当前窗口，在此工作区始终允许会保存同意，不允许会暂停此窗口中的 Tab。在获得允许的答复前不会发送任何内容。如果 Copilot 已开启，除非同时运行两者，否则其语言优先使用 Copilot。",
   "config.tabModel.description": "Tab 补全请求使用的模型。Standard 按 token 收费更高；Meta 不会用发送的内容训练。贡献者模型按 token 收费更低，Meta 会用发送的代码训练。",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 费率，不用你的代码训练。",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：贡献者费率，Meta 会用发送的代码训练。",

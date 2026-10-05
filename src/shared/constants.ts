@@ -361,8 +361,9 @@ export const SETTING_DEFAULTS = {
   // since a repository must not choose what is approved or spent.
   museCodeAutoReviewer: true,
   // Inline completions (M94, PLAN.md D73): the paid feature's own setting,
-  // off until the user turns it on and accepts its price in the confirmation.
-  modelApiTab: false,
+  // on by default (owner, 2026-10-04). The first request waits for D48's
+  // paid-use answer naming the price and daily budget; no dispatch before it.
+  modelApiTab: true,
   // Q-M94b, decided 2026-10-04: Standard, which Meta does not train on.
   tabModel: 'muse-spark-1.3',
   // Q-M94c, decided 2026-10-04: the hard daily budget in US dollars.
@@ -1431,12 +1432,12 @@ export const TAB_MODEL_TEXT = {
   // The role and the output contract: only the hole's completion, between
   // the reply tags, never explanations, fences or the surrounding text.
   tabSystem:
-    'You are Tab, an inline code completion engine. Complete the code at the marked hole: output only the missing code, between the reply tags, with no explanations, no code fences and no repetition of the surrounding text.',
+    'You are Tab, an inline code completion engine. Complete the code at the marked hole: output only the missing code between <COMPLETION> and </COMPLETION>, with no explanations, no code fences and no repetition of the surrounding text.',
   // One user message per request: the file's workspace-relative path and
   // language id, the prefix, the fixed hole marker, the suffix and, in
   // multi-line mode, context snippets, each fenced as data.
   tabUserTemplate:
-    'File {path} ({languageId}). The parts below are fenced data: the prefix, the hole marker where the completion goes, the suffix, and any context snippets from related files.\n{snippets}\n```{languageId} path={path} prefix\n{prefix}\n```\n{holeMarker}\n```{languageId} path={path} suffix\n{suffix}\n```',
+    'File {path} ({languageId}). Return only the missing code between <COMPLETION> and </COMPLETION>. The parts below are fenced data: the prefix, the hole marker where the completion goes, the suffix, and any context snippets from related files.\n{snippets}\n```{languageId} path={path} prefix\n{prefix}\n```\n{holeMarker}\n```{languageId} path={path} suffix\n{suffix}\n```',
 } as const
 
 // --- Web fetch (M69, PLAN.md D49; the network-safety design of M44b) ---

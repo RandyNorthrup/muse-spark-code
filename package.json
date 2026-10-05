@@ -862,7 +862,7 @@
         },
         "museSpark.modelApiTab": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "%config.modelApiTab.description%",
           "scope": "machine"
         },

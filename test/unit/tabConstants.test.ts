@@ -101,6 +101,10 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
     expect(TAB_REPLY_OPEN_TAG).toBe('<COMPLETION>')
     expect(TAB_REPLY_CLOSE_TAG).toBe('</COMPLETION>')
     expect(TAB_MODEL_TEXT.tabSystem).toContain('hole')
+    expect(TAB_MODEL_TEXT.tabSystem).toContain(TAB_REPLY_OPEN_TAG)
+    expect(TAB_MODEL_TEXT.tabSystem).toContain(TAB_REPLY_CLOSE_TAG)
+    expect(TAB_MODEL_TEXT.tabUserTemplate).toContain(TAB_REPLY_OPEN_TAG)
+    expect(TAB_MODEL_TEXT.tabUserTemplate).toContain(TAB_REPLY_CLOSE_TAG)
     expect(TAB_MODEL_TEXT.tabUserTemplate).toContain('{path}')
     expect(TAB_MODEL_TEXT.tabUserTemplate).toContain('{languageId}')
     expect(TAB_MODEL_TEXT.tabUserTemplate).toContain('{prefix}')
@@ -115,7 +119,7 @@ describe('Tab constants (M94 lane 0, PLAN.md D73)', () => {
   })
 
   it('keeps the seven Tab settings on their decided defaults', () => {
-    expect(SETTING_DEFAULTS.modelApiTab).toBe(false)
+    expect(SETTING_DEFAULTS.modelApiTab).toBe(true)
     expect(SETTING_DEFAULTS.tabModel).toBe('muse-spark-1.3')
     expect(SETTING_DEFAULTS.tabDailyBudgetUsd).toBe(1)
     expect(SETTING_DEFAULTS.tabLanguages).toEqual({

@@ -2780,6 +2780,22 @@ stopped and the next message resumes the same session.
   Muse Code's managed configuration (`muse config status`). Unrecognized
   lines and failed-command output stay out of the public-issue report.
 
+### Inline completions (M94, in development)
+
+Inline completions (M94) are still in development. Their settings are
+staged: `museSpark.modelApiTab` defaults to on for the Model API backend,
+with Standard (`museSpark.tabModel`) and a hard $1.00/day budget across
+windows (`museSpark.tabDailyBudgetUsd`, $0.05–$50). The first request in
+each window must wait for the existing paid modal showing price and budget:
+Allow once covers the window, Allow always in this workspace remembers
+consent, and Deny snoozes Tab. Nothing is sent before an allowing answer.
+The staged settings alone do not send completion requests.
+`museSpark.tabLanguages` enables languages except plaintext, markdown and
+scminput; `museSpark.tabMultiline` defaults to `auto`,
+`museSpark.tabTrigger` to `automatic` (subject to the latency probe), and
+`museSpark.tabWithCopilot` to `yield`. The contributor model is cheaper and
+lets Meta train on the code it receives; Standard does not.
+
 ## Requirements
 
 - VS Code 1.99.0 or newer, on Windows, macOS or Linux, or an editor built

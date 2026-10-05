@@ -7,6 +7,16 @@ import { isPrivateFileName } from '../../src/shared/privateFiles'
 // (reviewMaterial.ts). M94 (PLAN.md D73, research L9/L25) widens the one list
 // with the leaders' entries, tightening both callers at once.
 describe('isPrivateFileName with the M94 secret-file entries (PLAN.md D73)', () => {
+  it.each(['.crt', '.cert', '.keystore'])('refuses a basename equal to %s', (name) => {
+    expect(isPrivateFileName(name)).toBe(true)
+    expect(isPrivateFileName(`keys/${name.toUpperCase()}`)).toBe(true)
+    expect(isPrivateFileName(`keys\\${name}`)).toBe(true)
+  })
+
+  it.each(['.key', '.pem', '.p12', '.pfx'])('refuses the older suffix-only name %s', (name) => {
+    expect(isPrivateFileName(name)).toBe(true)
+  })
+
   it('refuses the five new entries as bare names and nested paths', () => {
     for (const name of [
       'server.crt',
@@ -53,6 +63,10 @@ describe('isPrivateFileName with the M94 secret-file entries (PLAN.md D73)', () 
       'server.crt.bak',
       'cert',
       'keystore.json',
+      '.crt.bak',
+      '.config',
+      '.',
+      '',
     ]) {
       expect(isPrivateFileName(name), name).toBe(false)
     }

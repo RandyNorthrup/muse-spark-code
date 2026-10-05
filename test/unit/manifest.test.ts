@@ -37,6 +37,17 @@ function count(text: string, pattern: RegExp): number {
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
 describe('package.json manifest', () => {
+  it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
+    const properties = manifest.contributes.configuration.properties
+    expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
+    expect(properties['museSpark.tabDailyBudgetUsd']).toMatchObject({
+      default: 1,
+      minimum: 0.05,
+      maximum: 50,
+      scope: 'machine',
+    })
+  })
+
   it('identifies the extension the way constants.ts expects', () => {
     expect(manifest.name).toBe(EXTENSION_NAME)
     expect(manifest.publisher).toBe(EXTENSION_PUBLISHER)

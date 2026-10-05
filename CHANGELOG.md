@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Secret-file checks now refuse a basename equal to a private suffix,
+  including `.crt`, `.cert`, `.keystore`, `.key`, `.pem`, `.p12` and `.pfx`.
+  Composer refuses a disguised PDF with these names before reading bytes;
+  host attachments and review material share the same predicate.
+- M94's staged Tab prompts now explicitly require `<COMPLETION>` and
+  `</COMPLETION>` in both instructions and the user template, keeping its
+  existing context slots and matching lane C's reply filter.
+
+### Changed
+
+- M94's staged, machine-scoped `museSpark.modelApiTab` setting defaults to
+  on, following the owner's "On, ask once first" decision. English and all
+  14 translated descriptions name the first-request paid modal, price and
+  default $1.00/day budget. Tab's provider, consent wiring and final gates
+  remain with their owning lanes; this foundation does not enable requests
+  by itself.
+
 ### Changed
 
 - **Tiered CI, ready for a merge queue.** The full gate now runs as parallel
