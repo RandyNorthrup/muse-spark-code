@@ -1554,9 +1554,11 @@ open their owned worktree instead: they have no saved conversation to resume.
 
 Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
 backend, then you take one. It needs a trusted workspace with a folder open
-(worktrees run git, which Restricted Mode forbids). Turn on
-`museSpark.modelApiBestOfN` ([Paid](#paid-features)) and accept the token
-rates first. Each run asks once in the paid-use popup, naming the prompt, the
+(worktrees run git, which Restricted Mode forbids).
+Best-of-N (Model API, paid, available by default) is controlled by
+`museSpark.modelApiBestOfN` ([Paid](#paid-features)); set it to false to hide
+it. Each run asks once in the
+paid-use popup, naming the prompt, the
 published rates, the attempt count and the per-attempt request ceiling, in
 every permission mode, Bypass included, unless you allow best-of-N always in
 this workspace; the subscription never pays.
