@@ -42,9 +42,9 @@ import { createWebFetcher } from '../host/web/webFetcher'
 import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   type EnvironmentVariable,
+  FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
-  MODEL_TEXT,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -295,7 +295,8 @@ function modelApiManager(
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
-    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
+    // D78 changes only VS Code's display default; ACP remains unchanged.
+    showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.
@@ -427,13 +428,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     const existing = modelApiHosts.get(cwd)
     if (existing !== undefined) {
       if (existing.identity !== key) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
       return await existing.manager.ensureHost()
     }
     const assertWorkspaceCurrent = () => {
       if (!identity.isCurrent()) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
     }
     const edits = workspaceEdits.get(key) ?? new WorkspaceEdits()

@@ -1,14 +1,76 @@
 # Releasing Muse Spark Code (Unofficial)
 
 A `vX.Y.Z` tag must match `package.json` and identify a commit on `main`.
-The release workflow runs the reusable build and its platform gates before
-creating a GitHub Release. The owner/lead performs publication; implementation
+The release workflow first tries to reuse a successful CI build of exactly the
+tag's source tree; otherwise it runs the reusable build and its platform gates.
+The owner/lead performs publication; implementation
 lanes do not push, tag, release, or call paid services.
+
+## Writing the Highlights block
+
+Users see each release in What's New (PLAN.md D79, M99): after an update the
+extension opens a page with every new release's Highlights and full notes,
+built from `CHANGELOG.md` at build time. Before the release PR bumps
+`package.json`:
+
+1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
+   empty `## [Unreleased]` above it).
+2. Give the section a `### Highlights` list first, before `### Added`: 3 to
+   5 bullets (at most 5), each one sentence or two a user can act on, in the
+   form `- **What it is.** What it does for you.`
+3. Where a highlight has something to try, end its bullet with
+   `<!-- try: command museSpark.<id> -->` or
+   `<!-- try: setting museSpark.<key> -->`. The page shows a **Try it** (or
+   **Open the setting**) button; GitHub, the Marketplace and VS Code's
+   changelog tab show nothing. The id must be a command or setting
+   `package.json` contributes, or `npm run build` fails.
+4. A patch release of fixes only may leave Highlights out: users then get a
+   quiet notification instead of the page. A minor or major release
+   (`X.Y.0`) without Highlights fails `test/unit/changelogVersion.test.ts`,
+   as does a release with more than 5.
+
+The notes stay English; the page's own words are translated.
+
+## Choosing the release build
+
+Tag/manifest and `main` ancestry checks still run first. The lookup considers
+only successful, completed runs of this repository's `ci.yml`, triggered by
+an own-repository pull request, `merge_group`, or a push to `main`. Forks and manual CI runs are
+excluded. It searches the latest 300 successful runs; a miss is safe to rebuild.
+Branch names and the PR head SHA do not establish source identity: the package
+job records its actual checked-out `HEAD^{tree}` (the merge tree for PR/queue CI) in
+the `source-tree-<tree SHA>` artifact and `release-build.json`.
+
+The release downloads that run's universal VSIX, ACP tarball, SBOMs and receipt
+with a pinned cross-run download action. It requires the recorded tree to equal
+the tag's `HEAD^{tree}`, checks all four asset SHA-256 hashes recorded by CI,
+and checks the VSIX and ACP manifests against the tag version. Only then are
+the verified bytes uploaded into the release run under the existing artifact
+names. Publication, attestations, release checksums and channel reporting use
+those same bytes. All four artifacts have explicit 30-day retention (previously
+the repository default); this also covers the SBOM/receipt dependency.
+
+No eligible run, expired/missing artifacts, API/download failure, a malformed
+receipt, or a tree/hash/version mismatch produces a named fallback in the job
+summary and runs today's full three-platform build and gates before publication.
+To force that path, the owner sets repository Actions variable
+`RELEASE_FORCE_REBUILD` to `true` before running/rerunning the tag workflow,
+then removes it afterward. Do not rebuild once any channel has published:
+follow the recovery instructions below to preserve the original bytes.
+
+The merge queue's temporary branch and head commit are not matching keys.
+Its successful `ci.yml` run qualifies only when `source-tree-<tree SHA>` names
+the tag's tree; the downloaded receipt and all four hashes must also match.
+The CIFLOW lane owns enabling `merge_group` and moving the full gates there.
+This lane admits those successful runs without changing `ci.yml`.
 
 ## Artifacts and channels
 
-The build produces one universal VSIX, including the macOS helper compiled on
-macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The same VSIX goes to GitHub,
+CI's full tier produces one universal VSIX, including the macOS helper
+compiled on macOS, and `muse-spark-code-acp-X.Y.Z.tgz`. The full tier runs in
+the merge queue, on manual runs, in the release workflow's own build, and on
+every PR until the merge queue is on; a fast PR run builds no packages
+(CONTRIBUTING.md, "CI tiers"). The same VSIX goes to GitHub,
 the VS Code Marketplace, and Open VSX. The same ACP tarball goes to GitHub
 and npm. A package made locally without the macOS helper is not that universal
 release artifact.
@@ -23,7 +85,7 @@ for the package (see [npm trusted publishing](#npm-trusted-publishing)). From
 GitHub also carries `SHA256SUMS` (the standard `sha256sum` format) and two
 CycloneDX inventories: `muse-spark-code.cdx.json` and
 `muse-spark-code-acp.cdx.json`. `SHA256SUMS` lists every asset: both
-packages, both inventories and, once M80 lands, its schemas. Pinned
+packages, both inventories and the `docs/schemas/*.json` schemas. Pinned
 `actions/attest-build-provenance` attests every file `SHA256SUMS` lists. The release
 job alone receives `attestations: write`; it and the npm job receive
 `id-token: write`. npm publishes by trusted publishing: the job installs npm
@@ -50,10 +112,17 @@ Windows, but forwards MCP servers to Muse Code; it does not run the extension's
 ## Outcomes and bounded retries
 
 The final summary lists GitHub Release, Marketplace, Open VSX and npm as
-`published`, `skipped-no-secret`, or `failed`. Each registry job explicitly
-reports missing secrets; a failed, blocked, cancelled, or missing-output job is
+`published`, `skipped-no-secret`, or `failed`. The Marketplace and Open VSX
+jobs explicitly report a missing secret; the npm job uses no secret, so it is
+`published` or `failed`. A failed, blocked, cancelled, or missing-output job is
 a failure. Any failed channel fails the aggregate job. A successful workflow
 with skipped secrets is not proof that every channel published.
+
+The M80 `v0` update is reported separately after the four channels. Its failed
+step remains visible and appends **admin move required** with a warning; it does
+not turn successfully published channels into failures. A failed channel still
+fails the aggregate, and a missing-secret skip still holds the tag. An update
+uses `force=false`, with ancestry checks before dispatch.
 
 Registry publication retries network failures such as `ECONNRESET`,
 `ETIMEDOUT`, and HTTP 502/503/504: at most three publish attempts, waiting
@@ -75,6 +144,25 @@ Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
 
 ## Recovering a half-published release
+
+The `workflow_dispatch` input `artifacts_run_id` remains available on a version
+tag. It selects an earlier own-repository `release.yml` run on that same tag
+whose three quality jobs, native helper, package, secret scan and SAST succeeded.
+The earlier run may have failed during publication. Its source tree may precede
+a recovery-only workflow/changelog fix; recovery preserves its original bytes.
+The shared reuse job validates that source run and nonexpired artifacts, downloads
+them once, verifies inventory and package identities/versions, then stages those
+bytes in the current run for every publisher. If the source includes a tree/hash
+receipt, recovery verifies it against the earlier source commit's tree.
+
+Pre-receipt Release builds, including the source of the 0.12.0 recovery, remain
+eligible. Their pinned artifact download provides archive integrity checking;
+the same asset inventory and manifest checks still run, but no historical
+per-asset CI hash receipt is claimed. Existing channel byte/integrity comparisons
+still refuse a conflicting published version. Invalid source, missing/expired
+artifact, failed download or verification stops recovery: it never rebuilds.
+`RELEASE_FORCE_REBUILD` applies only to automatic tag-push reuse. All release
+job conditions respect cancellation, including when the build was skipped.
 
 This recovery logic applies to tags that contain the REL workflow changes.
 Rerunning an older tag uses its original workflow definition, not today's
@@ -106,7 +194,7 @@ else.
 | GitHub published; Open VSX failed; other registries published or skipped    | Fix `OVSX_PAT`/namespace permissions/transport; rerun failed jobs. Namespace lookup/create and publishing have bounded network retries; an existing version requires the file hash match.                                                                                                         |
 | GitHub published; npm failed; other registries published or skipped         | Check the package's trusted publisher (below) and the job's `id-token: write`; rerun failed jobs. A prior successful upload requires matching `dist.integrity`.                                                                                                                                   |
 | Several registries failed                                                   | Fix each cause and rerun failed jobs together; successful channels remain published and the final summary covers all four.                                                                                                                                                                        |
-| A registry says `skipped-no-secret`                                         | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
+| Marketplace or Open VSX says `skipped-no-secret`                            | Add its token in the tag-only `marketplace` environment, then rerun that specific registry job via its job ID in the Actions API (or owner tooling that supports rerunning a job); rerun the summary after the job completes. Rerunning only failed jobs will not rerun a successful skipped job. |
 | Hash/integrity mismatch, or original artifacts expired                      | Stop. Identify which bytes were published. Issue a new version after owner review; never move the version tag or overwrite registry bytes.                                                                                                                                                        |
 
 For example, the owner can rerun one successful-but-skipped registry job using
@@ -121,8 +209,10 @@ Set up on 2026-10-04 in the package's npm settings (`muse-spark-code-acp` →
 Settings → Trusted Publisher): GitHub Actions, `RandyNorthrup/muse-spark-code`,
 workflow `release.yml`, environment `marketplace`, allowed actions `npm
 publish` (and `npm stage publish`, always allowed). A run of any other
-workflow, branch environment or repository cannot publish. The release job
-needs no npm secret, so there is no token to expire, leak or hit `EOTP`.
+workflow, branch environment or repository cannot publish. The npm job reads
+no npm secret, so it has no token to expire, leak or hit `EOTP`. The
+`marketplace` environment still holds the unused `NPM_TOKEN` from the 0.11.0
+recovery; deleting it leaves no npm token stored.
 
 If the npm job fails: confirm the trusted publisher still lists exactly those
 values (changing any of them needs a new connection, which needs the owner's
@@ -145,17 +235,41 @@ tags remain unsigned: the workflow verifies version and `main` ancestry and
 records package provenance, but these checks are not signed-tag verification.
 Decisions are recorded in `PLAN.md` §8.
 
-M80 is not implemented here. If `docs/schemas/*.json` exists at the release
+M80 is implemented, and both hooks are live: 0.12.0 uploaded the schemas and
+created `v0`. If `docs/schemas/*.json` exists at the release
 commit, its schemas are uploaded as additional GitHub Release assets with the
 same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
 packages. If `action/action.yml` exists, the final summary job
 moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
 cannot move it backwards to an ancestor. Divergent history requires review.
+The `release tags` ruleset (`refs/tags/v*`: deletion, non-fast-forward and
+update blocked, only the Admin role may bypass) also covers `v0`, so the
+job's update of `v0` with `GITHUB_TOKEN` is refused until `v0` is left out of
+the ruleset or the job may bypass it; 0.12.0 only created the tag.
+
+The owner's 0.12.1 observation (Release run `37225339230`) found HTTP 422 on
+updating `v0`: the `release tags` ruleset (`23893754`) covers `refs/tags/v*`,
+with deletion, non-fast-forward and update rules and administrator bypass only.
+The workflow token can create the tag but cannot update it. Keep the ruleset;
+an administrator must make the move. After confirming all four channels
+published, inspect the current target and confirm it is an ancestor of the
+release commit (or already at that commit/a newer descendant). If a move is
+needed, run this with the administrator's GitHub CLI account:
+
+```console
+gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sha=<release commit> -F force=false
+```
+
+Replace `<release commit>` with the full commit SHA. Verify the resulting
+`v0` target independently afterward. If history is divergent, stop for owner
+review; do not force the move or change the ruleset. No rebuild or republish is
+needed solely to repair this major tag.
 
 The Action will be consumed as
 `RandyNorthrup/muse-spark-code/action@v0`. There is no Actions Marketplace
-listing: the Action lives in a subfolder. Until M80 lands, both hooks are inert.
+listing: the Action lives in a subfolder. Hooks run only when their source files
+exist at the release commit.
 
 ## First hosted release observation
 
@@ -163,7 +277,7 @@ The certification record distinguishes the dry script exercises from live
 publication. On the first release after this change, the lead must watch the
 attestations of every `SHA256SUMS` entry, npm provenance, actual registry duplicate-error
 wording, gallery gzip/byte identity, and the final channel summary. Verify
-downloaded `SHA256SUMS` and both SBOM assets against the original run. After
-M80 lands, verify its schema upload and major-tag update on a fully published
-release, then hold it on a skipped/failed channel. No live release was run by
-this lane.
+downloaded `SHA256SUMS` and both SBOM assets against the original run.
+Verify the schema upload and major-tag update on a fully published release,
+then hold it on a skipped/failed channel. 0.11.0 and 0.12.0 have run this
+workflow live; 0.12.0 was published by a manual run on its tag.

@@ -160,8 +160,9 @@ describe('WorkspaceContext', () => {
     await expect(t.context.refreshSkills()).resolves.toBe(true)
   })
 
-  it('lists the bundled skills while museSpark.bundledSkills is on, and drops them at the refresh after it goes off (M89)', async () => {
+  it('lists the bundled skills while museSpark.bundledSkills is on, and drops them at the refresh after it goes off (M89; first-party with them, M92)', async () => {
     const PACKAGE = `${ROOT}/.ext/vendor/high-quality-projects-skill`
+    const FIRST_PARTY = `${ROOT}/.ext/first-party-skills`
     const files = memoryTree(
       {
         '.agents/skills/shout/SKILL.md': skillFile('shout', 'Caps'),
@@ -178,6 +179,7 @@ describe('WorkspaceContext', () => {
           'project_setup',
           'Set up',
         ),
+        '.ext/first-party-skills/muse_gadgets/SKILL.md': skillFile('muse_gadgets', 'Gadgets'),
       },
       ROOT,
     )
@@ -187,7 +189,7 @@ describe('WorkspaceContext', () => {
       workspaceRoot: ROOT,
       platform: 'linux',
       personalSkillsRoot: USER_ROOT,
-      bundledSkills: { packageRoot: PACKAGE, isEnabled: () => isOn },
+      bundledSkills: { packageRoot: PACKAGE, firstPartyRoot: FIRST_PARTY, isEnabled: () => isOn },
       personalAgentsRoot: USER_AGENTS_ROOT,
       hasAgents: false,
       isWorkspaceTrusted: () => true,
@@ -197,8 +199,14 @@ describe('WorkspaceContext', () => {
     await context.load()
     expect(
       context.sections().skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`),
-    ).toEqual(['project:shout:Caps', 'user:feature_delivery:Mine', 'bundled:project_setup:Set up'])
+    ).toEqual([
+      'project:shout:Caps',
+      'user:feature_delivery:Mine',
+      'bundled:muse_gadgets:Gadgets',
+      'bundled:project_setup:Set up',
+    ])
     expect(context.skill('project_setup')?.packageRoot).toBe(PACKAGE)
+    expect(context.skill('muse_gadgets')?.packageRoot).toBe(FIRST_PARTY)
     expect(context.skill('feature_delivery')?.packageRoot).toBeUndefined()
     isOn = false
     await expect(context.refreshSkills()).resolves.toBe(true)
@@ -207,9 +215,11 @@ describe('WorkspaceContext', () => {
       'feature_delivery',
     ])
     expect(context.skill('project_setup')).toBeUndefined()
+    expect(context.skill('muse_gadgets')).toBeUndefined()
     isOn = true
     await expect(context.refreshSkills()).resolves.toBe(true)
     expect(context.skill('project_setup')?.source).toBe('bundled')
+    expect(context.skill('muse_gadgets')?.source).toBe('bundled')
   })
 
   it('loads nothing in an untrusted workspace', async () => {

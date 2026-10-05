@@ -24,7 +24,8 @@ import * as z from 'zod/mini'
 import type { McpTool } from '../../core/mcp'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../core/web/webFetchDefinition'
 import type { WebFetcher } from '../../core/web/webFetch'
-import { approvalHost, checkPageUrl } from '../../core/web/pageUrl'
+import { approvalHost } from '../../core/web/hostName'
+import type { PageUrlCheck } from '../../core/web/pageUrl'
 import {
   IDE_WEB_FETCH_TOOL,
   MCP_ANNOTATIONS_OPEN_WORLD,
@@ -37,6 +38,11 @@ import type { Logger } from '../logger'
 export interface IdeWebFetchDeps {
   /** A trusted workspace whose sandbox network setting allows the network. */
   readonly isOffered: () => boolean
+  /**
+   * The URL's first checks (pageUrl.ts), from the web fetch bundle
+   * (webFetchBundle.ts, PLAN.md D6); throws when it cannot be loaded.
+   */
+  readonly checkUrl: (raw: string) => PageUrlCheck
   readonly fetchPage: WebFetcher
   /** The modal before every fetch: true only when the user allowed this one. */
   readonly confirm: (url: string, host: string) => Promise<boolean>
@@ -64,42 +70,52 @@ export function isIdeWebFetchOffered(
 /**
  * The modal, asked once per URL at a time: VS Code cannot close a modal a
  * caller stopped waiting for, so a retry of the same URL while it is still
- * open waits for that same answer instead of queueing a second modal.
+ * open waits for that same answer instead of queueing a second modal. The
+ * browser check (M81) asks its own modal through it too, keyed by the URL
+ * and what the modal shows (`keyOf`), so only a call it equally covers
+ * shares an answer.
  */
-export function oneQuestionPerUrl(
-  isAllowedByUser: (url: string, host: string) => Promise<boolean>,
-): (url: string, host: string) => Promise<boolean> {
+export function oneQuestionPerUrl<T>(
+  isAllowedByUser: (url: string, about: T) => Promise<boolean>,
+  keyOf: (url: string, about: T) => string = (url) => url,
+): (url: string, about: T) => Promise<boolean> {
   const open = new Map<string, Promise<boolean>>()
-  const isAllowedOnce = async (url: string, host: string): Promise<boolean> => {
+  const isAllowedOnce = async (key: string, url: string, about: T): Promise<boolean> => {
     try {
-      return await isAllowedByUser(url, host)
+      return await isAllowedByUser(url, about)
     } finally {
-      open.delete(url)
+      open.delete(key)
     }
   }
-  return async (url, host) => {
-    const pending = open.get(url)
+  return async (url, about) => {
+    const key = keyOf(url, about)
+    const pending = open.get(key)
     if (pending !== undefined) {
       return await pending
     }
-    const asked = isAllowedOnce(url, host)
-    open.set(url, asked)
+    const asked = isAllowedOnce(key, url, about)
+    open.set(key, asked)
     return await asked
   }
 }
 
 /**
- * `start()`'s answer, or a refusal as soon as the caller stops waiting; a
- * caller that already stopped starts nothing (no modal for nobody).
+ * `start()`'s answer, or a refusal with `reason` as soon as the caller stops
+ * waiting; a caller that already stopped starts nothing (no modal for
+ * nobody). The browser check (M81) waits for its modal through it too.
  */
-async function unlessCancelled<T>(start: () => Promise<T>, signal: AbortSignal): Promise<T> {
+export async function unlessCancelled<T>(
+  start: () => Promise<T>,
+  signal: AbortSignal,
+  reason: string,
+): Promise<T> {
   if (signal.aborted) {
-    throw new Error(MODEL_TEXT.webFetchCancelled)
+    throw new Error(reason)
   }
   let onAbort: () => void = noop
   const cancelled = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
-      reject(new Error(MODEL_TEXT.webFetchCancelled))
+      reject(new Error(reason))
     }
     signal.addEventListener('abort', onAbort, { once: true })
   })
@@ -119,8 +135,9 @@ async function callWebFetch(
   if (!parsed.success) {
     throw new Error(`invalid arguments: ${z.prettifyError(parsed.error)}`)
   }
-  // A URL that would be refused anyway is refused before the modal.
-  const checked = checkPageUrl(parsed.data.url)
+  // A URL that would be refused anyway is refused before the modal, and so
+  // is every URL while the fetch's bundle cannot be loaded.
+  const checked = deps.checkUrl(parsed.data.url)
   if (!checked.ok) {
     throw new Error(checked.failure.reason)
   }
@@ -130,6 +147,7 @@ async function callWebFetch(
   const isAllowed = await unlessCancelled(
     async () => await deps.confirm(checked.url.href, host),
     signal,
+    MODEL_TEXT.webFetchCancelled,
   )
   if (!isAllowed) {
     deps.log.info(`Web fetch from ${host} declined in the extension's confirmation`)

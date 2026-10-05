@@ -158,6 +158,9 @@ describe('resolveShellSandbox', () => {
     userProfileDir: String.raw`C:\Users\randy`,
   }
 
+  // #26 holds for every version so far: 1.4.2 ran a sandboxed command in a
+  // profile workspace on one machine and never finished it on a fresh rig
+  // (musecode-write-asks, 2026-10-04).
   it('turns the sandbox off for a Windows profile workspace under auto, and on elsewhere', () => {
     expect(
       resolveShellSandbox({
@@ -165,13 +168,14 @@ describe('resolveShellSandbox', () => {
         mode: 'auto',
         workspaceRoot: String.raw`c:\users\RANDY\Coding\x`,
       }),
-    ).toEqual({ isSandboxed: false, reason: 'profileWorkspace' })
+    ).toEqual({ isSandboxed: false, reason: 'profileWorkspace', isUnsupportedWorkspace: true })
     expect(
       resolveShellSandbox({ ...windows, mode: 'auto', workspaceRoot: String.raw`C:\src\x` }),
-    ).toEqual({ isSandboxed: true, reason: 'default' })
+    ).toEqual({ isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false })
     expect(resolveShellSandbox({ ...windows, mode: 'auto', workspaceRoot: undefined })).toEqual({
       isSandboxed: true,
       reason: 'default',
+      isUnsupportedWorkspace: false,
     })
     expect(
       resolveShellSandbox({
@@ -180,46 +184,67 @@ describe('resolveShellSandbox', () => {
         userProfileDir: undefined,
         workspaceRoot: '/home/randy/x',
       }),
-    ).toEqual({ isSandboxed: true, reason: 'default' })
+    ).toEqual({ isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false })
   })
 
-  it('obeys an explicit setting on any platform', () => {
+  it('obeys an explicit setting on any platform, and says where the sandbox may not run', () => {
     const profile = String.raw`C:\Users\randy\x`
     expect(resolveShellSandbox({ ...windows, mode: 'muse', workspaceRoot: profile })).toEqual({
       isSandboxed: true,
       reason: 'setting',
+      isUnsupportedWorkspace: true,
     })
+    expect(
+      resolveShellSandbox({ ...windows, mode: 'muse', workspaceRoot: String.raw`C:\src\x` }),
+    ).toEqual({ isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: false })
     expect(
       resolveShellSandbox({ ...windows, mode: 'off', workspaceRoot: String.raw`C:\src\x` }),
     ).toEqual({
       isSandboxed: false,
       reason: 'setting',
+      isUnsupportedWorkspace: false,
     })
   })
 
   it('maps the posture and the workspace trust onto the serve arguments', () => {
-    expect(serveArguments({ isSandboxed: true, reason: 'default' }, true, 'default')).toEqual([
-      'serve',
-      '--trust-workspace',
-    ])
-    expect(serveArguments({ isSandboxed: false, reason: 'setting' }, true, 'default')).toEqual([
-      'serve',
-      '--disable-sandbox',
-      '--trust-workspace',
-    ])
-    // Restricted Mode: no rules, no skills, no workspace shell (PLAN.md D13).
-    expect(serveArguments({ isSandboxed: true, reason: 'default' }, false, 'default')).toEqual([
-      'serve',
-      '--disable-shell',
-    ])
     expect(
-      serveArguments({ isSandboxed: false, reason: 'profileWorkspace' }, false, 'default'),
+      serveArguments(
+        { isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false },
+        true,
+        'default',
+      ),
+    ).toEqual(['serve', '--trust-workspace'])
+    expect(
+      serveArguments(
+        { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false },
+        true,
+        'default',
+      ),
+    ).toEqual(['serve', '--disable-sandbox', '--trust-workspace'])
+    // Restricted Mode: no rules, no skills, no workspace shell (PLAN.md D13).
+    expect(
+      serveArguments(
+        { isSandboxed: true, reason: 'default', isUnsupportedWorkspace: false },
+        false,
+        'default',
+      ),
+    ).toEqual(['serve', '--disable-shell'])
+    expect(
+      serveArguments(
+        { isSandboxed: false, reason: 'profileWorkspace', isUnsupportedWorkspace: true },
+        false,
+        'default',
+      ),
     ).toEqual(['serve', '--disable-sandbox', '--disable-shell'])
   })
 
   // M56 (PLAN.md D43): `muse serve --help` names restricted|enabled|proxy-only.
   it('passes the sandbox network mode while the sandbox is on, and only then', () => {
-    const sandboxed = { isSandboxed: true, reason: 'default' } as const
+    const sandboxed = {
+      isSandboxed: true,
+      reason: 'default',
+      isUnsupportedWorkspace: false,
+    } as const
     for (const mode of ['proxy-only', 'restricted', 'enabled'] as const) {
       expect(serveArguments(sandboxed, true, mode)).toEqual([
         'serve',
@@ -236,7 +261,11 @@ describe('resolveShellSandbox', () => {
       '--disable-shell',
     ])
     // Without the sandbox Muse Code ignores the flag (it says so on stderr).
-    const unsandboxed = { isSandboxed: false, reason: 'profileWorkspace' } as const
+    const unsandboxed = {
+      isSandboxed: false,
+      reason: 'profileWorkspace',
+      isUnsupportedWorkspace: true,
+    } as const
     expect(serveArguments(unsandboxed, true, 'restricted')).toEqual([
       'serve',
       '--disable-sandbox',

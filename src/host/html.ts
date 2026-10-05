@@ -24,6 +24,7 @@ export interface WebviewHtmlOptions {
   readonly nonce: string
   /** The installed table and its language (`<html lang>` for screen readers). */
   readonly l10n: UiTable
+  readonly surface?: 'tasks'
 }
 
 // What must not appear raw inside a script element: `<` could close it
@@ -69,10 +70,10 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <link rel="stylesheet" href="${options.styleUri}" nonce="${options.nonce}">
 <title>${PRODUCT_NAME}</title>
 </head>
-<body>
+<body${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
-<script nonce="${options.nonce}" src="${options.scriptUri}"></script>
+<script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>
 </body>
 </html>
 `

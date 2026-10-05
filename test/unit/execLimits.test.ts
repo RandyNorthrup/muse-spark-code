@@ -92,6 +92,17 @@ describe('M80 bounded stop', () => {
     expect(h.exit).toHaveBeenCalledWith(130)
     h.life.dispose()
   })
+  it('keeps a latched timeout exit 6 when repeated signals force scanner cleanup', () => {
+    const h = harness()
+    vi.advanceTimersByTime(1000)
+    h.send('SIGINT')
+    h.send('SIGTERM')
+    expect(h.forceFinish).toHaveBeenCalledWith({ kind: 'timeout' })
+    expect(() => vi.advanceTimersByTime(300)).toThrow('forced exit')
+    expect(h.exit).toHaveBeenCalledWith(6)
+    h.life.dispose()
+  })
+
   it('D29/D30 stopped race cannot win on a later immediately-resolved setup', async () => {
     const h = harness()
     h.life.latch({ kind: 'budget' })
