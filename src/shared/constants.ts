@@ -2006,6 +2006,9 @@ export const SHELL_DRAIN_GRACE_MS = 250
 // round, in this many rounds at most; each helper run is given this long.
 export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
+// .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
+// available on every supported Windows architecture and emits AnyCPU IL.
+export const WINDOWS_FRAMEWORK_RELATIVE_PATH = String.raw`Microsoft.NET\Framework\v4.0.30319`
 export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
