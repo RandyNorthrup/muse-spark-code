@@ -2325,5 +2325,27 @@
   "ollamaMissingFinal": "Ollama ha chiuso il flusso senza una risposta finale.",
   "ollamaMalformedFrame": "Frame del flusso Ollama non valido.",
   "ollamaStreamLimit": "Ollama ha superato il limite di dimensione del flusso o del numero di elementi.",
-  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}»."
+  "ollamaFinishReason": "Ollama ha terminato con il motivo «{reason}».",
+  "planUi": {
+    "chatGptMark": "Piano ChatGPT in uso",
+    "providerMark": "Piano {provider} in uso",
+    "manage": "Gestisci utilizzo",
+    "noticeTitle": "Stai usando il tuo piano ChatGPT",
+    "noticeDetail": "Il tuo piano ChatGPT Plus o Pro copre queste richieste. Condividono la quota esistente e non aggiungono una nuova quota.",
+    "credits": "Se consenti alle app di usare crediti nelle impostazioni di ChatGPT, le richieste possono spendere quei crediti dopo il limite del piano. Gestisci l’utilizzo per controllare limiti e impostazioni dei crediti.",
+    "understood": "Ho capito",
+    "limitTitle": "Limite di utilizzo del piano ChatGPT raggiunto",
+    "limitDetail": "Attendi il ripristino della quota o scegli un modello con chiave API. Non è stato fornito un orario di ripristino. Cambiare la fatturazione richiede una tua scelta.",
+    "chooseModel": "Scegli un altro modello",
+    "usageHeading": "Utilizzo del piano",
+    "usageDetail": "Le richieste del piano usano la quota o i crediti del fornitore e non rientrano nel limite in dollari di questa app. La quota residua e l’orario di ripristino non sono disponibili qui.",
+    "requests": "Richieste",
+    "reportedTokens": "Token riportati",
+    "estimatedTokens": "Token stimati",
+    "unknownTokens": "Richieste con utilizzo dei token sconosciuto",
+    "tokenCounts": "{input} in ingresso · {output} in uscita · richieste: {requests}",
+    "reduced": "Funzionalità ridotte",
+    "aiContent": "I contenuti generati dall’IA possono essere inesatti. Copilot aggiunge le proprie regole e usa i tuoi crediti IA; i conteggi dei token sono stime quando l’utilizzo non viene riportato.",
+    "reportContent": "Segnala contenuti dannosi"
+  }
 }

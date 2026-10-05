@@ -3938,6 +3938,14 @@ export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1
+// M95b destinations: opening one never changes billing or sends a model call.
+export const CHATGPT_MANAGE_USAGE_URL = 'https://chatgpt.com/settings/usage'
+export const COPILOT_REPORT_URL = 'mailto:copilot-partners@github.com'
+export const COPILOT_MANAGE_USAGE_URL = 'https://github.com/settings/copilot'
+export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
+// Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
+export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
+export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).
 export const CREDENTIAL_RECORD_VERSION = 1

@@ -46,10 +46,13 @@ import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
+import type { ModelOption } from '../../shared/protocol'
+import { PlanUsageSection } from './PlanUi'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
 
 export interface UsageDialogProps {
+  readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
@@ -427,6 +430,7 @@ function planFor(report: UsageReport): string {
  * `plan`, or nothing yet for a priced model the host has not settled (M95).
  */
 function providerCost(row: ProviderUsageRow): string | undefined {
+  if (row.pricing === 'plan') return UI_TEXT.modelPlan
   if (row.costUsd !== undefined) {
     return formatUsd(row.costUsd)
   }
@@ -440,9 +444,6 @@ function providerCost(row: ProviderUsageRow): string | undefined {
     case 'local': {
       // A local model shows cost 0 (M95 acceptance 10).
       return formatUsd(0)
-    }
-    case 'plan': {
-      return UI_TEXT.modelPlan
     }
   }
 }
@@ -504,13 +505,21 @@ function ProvidersSection({ providers }: { readonly providers: readonly Provider
 function AccountSection({
   report,
   modelId,
+  modelPricing,
+  model,
 }: {
   readonly report: UsageReport
   readonly modelId: string | undefined
+  readonly modelPricing: ModelPricing | undefined
+  readonly model: ModelOption | undefined
 }) {
   const { account } = report
-  const signIn = signInLabel(account?.signInMethod)
-  const plan = planFor(report)
+  const provider = model?.providerLabel ?? UI_TEXT.modelPlan
+  const signIn =
+    model?.providerId === 'chatgpt' || model?.providerId === 'copilot'
+      ? fill(UI_TEXT.planUi.providerMark, { provider })
+      : signInLabel(account?.signInMethod)
+  const plan = modelPricing === 'plan' ? UI_TEXT.modelPlan : planFor(report)
   return (
     <dl className="usage-facts">
       <dt>{UI_TEXT.usageAuthMethod}</dt>
@@ -518,7 +527,7 @@ function AccountSection({
       <dt>{UI_TEXT.usagePlan}</dt>
       <dd>{plan}</dd>
       <dt>{UI_TEXT.usageBackend}</dt>
-      <dd>{backendLabel(report.backend)}</dd>
+      <dd>{modelPricing === 'plan' ? provider : backendLabel(report.backend)}</dd>
       {account?.cliVersion === undefined ? null : (
         <>
           <dt>{UI_TEXT.usageCliVersion}</dt>
@@ -613,6 +622,7 @@ function InsightsSection({
 }
 
 export function UsageDialog({
+  models = [],
   report,
   usage,
   context,
@@ -644,6 +654,7 @@ export function UsageDialog({
     usage !== undefined &&
     cachedTokens !== undefined &&
     modelId !== undefined &&
+    (modelPricing === undefined || modelPricing === 'priced') &&
     report?.backend === 'modelApi'
       ? estimateCostUsd(
           { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
@@ -661,13 +672,20 @@ export function UsageDialog({
     body = (
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
-        <AccountSection report={report} modelId={modelId} />
+        <AccountSection
+          report={report}
+          modelId={modelId}
+          modelPricing={modelPricing}
+          model={models.find((option) => option.modelId === modelId)}
+        />
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
           <p className="usage-row-meta">
-            {report.backend === 'modelApi'
-              ? UI_TEXT.usageModelApiNote
-              : UI_TEXT.usageNoSubscription}
+            {modelPricing === 'plan'
+              ? UI_TEXT.planUi.usageDetail
+              : report.backend === 'modelApi'
+                ? UI_TEXT.usageModelApiNote
+                : UI_TEXT.usageNoSubscription}
           </p>
         ) : (
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
@@ -682,6 +700,9 @@ export function UsageDialog({
         />
         {report.providers !== undefined && report.providers.length > 0 ? (
           <ProvidersSection providers={report.providers} />
+        ) : null}
+        {report.plans !== undefined && report.plans.length > 0 ? (
+          <PlanUsageSection rows={report.plans} models={models} onOpenExternal={onOpenExternal} />
         ) : null}
         {paidFeatures.length > 0 ? (
           <>

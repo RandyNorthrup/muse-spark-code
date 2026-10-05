@@ -2407,5 +2407,27 @@
   "ollamaMissingFinal": "Ollama ukončila stream bez konečné odpovědi.",
   "ollamaMalformedFrame": "Neplatný rámec streamu Ollama.",
   "ollamaStreamLimit": "Ollama překročila limit velikosti streamu nebo počtu položek.",
-  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“."
+  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“.",
+  "planUi": {
+    "chatGptMark": "Používá se tarif ChatGPT",
+    "providerMark": "Používá se tarif {provider}",
+    "manage": "Spravovat využití",
+    "noticeTitle": "Používáte svůj tarif ChatGPT",
+    "noticeDetail": "Tyto požadavky hradí váš tarif ChatGPT Plus nebo Pro. Čerpají ze stávajícího limitu a nepřidávají další kapacitu.",
+    "credits": "Pokud v nastavení ChatGPT povolíte aplikacím používat kredity, mohou je požadavky čerpat po dosažení limitu tarifu. Ve správě využití zkontrolujte limity a nastavení kreditů.",
+    "understood": "Rozumím",
+    "limitTitle": "Byl dosažen limit využití tarifu ChatGPT",
+    "limitDetail": "Počkejte na obnovení limitu nebo zvolte model s klíčem API. Čas obnovení nebyl poskytnut. Změna účtování vyžaduje vaši volbu.",
+    "chooseModel": "Zvolit jiný model",
+    "usageHeading": "Využití tarifu",
+    "usageDetail": "Požadavky tarifu čerpají limit nebo kredity poskytovatele a nezapočítávají se do dolarového limitu aplikace. Zbývající kapacita ani čas obnovení zde nejsou dostupné.",
+    "requests": "Požadavky",
+    "reportedTokens": "Hlášené tokeny",
+    "estimatedTokens": "Odhadované tokeny",
+    "unknownTokens": "Požadavky s neznámým využitím tokenů",
+    "tokenCounts": "Vstup: {input} · výstup: {output} · požadavky: {requests}",
+    "reduced": "Omezené možnosti",
+    "aiContent": "Obsah vytvořený AI může být nepřesný. Copilot přidává vlastní pravidla a čerpá vaše kredity AI; počty tokenů jsou odhady, pokud využití není hlášeno.",
+    "reportContent": "Nahlásit škodlivý obsah"
+  }
 }

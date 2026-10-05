@@ -2325,5 +2325,27 @@
   "ollamaMissingFinal": "Ollama fechou o fluxo sem uma resposta final.",
   "ollamaMalformedFrame": "Quadro do fluxo do Ollama malformado.",
   "ollamaStreamLimit": "Ollama excedeu o limite de tamanho do fluxo ou de itens.",
-  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\"."
+  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\".",
+  "planUi": {
+    "chatGptMark": "Usando o plano do ChatGPT",
+    "providerMark": "Usando o plano de {provider}",
+    "manage": "Gerenciar uso",
+    "noticeTitle": "Você está usando seu plano do ChatGPT",
+    "noticeDetail": "Seu plano ChatGPT Plus ou Pro cobre estas solicitações. Elas compartilham sua cota existente e não adicionam uma nova cota.",
+    "credits": "Se você permitir que apps usem créditos nas configurações do ChatGPT, as solicitações poderão gastar esses créditos após o limite do plano. Gerencie o uso para verificar limites e configurações de créditos.",
+    "understood": "Entendi",
+    "limitTitle": "Limite de uso do plano do ChatGPT atingido",
+    "limitDetail": "Aguarde a renovação da cota ou escolha um modelo com chave de API. Nenhum horário de renovação foi informado. Alterar a cobrança exige sua escolha.",
+    "chooseModel": "Escolher outro modelo",
+    "usageHeading": "Uso do plano",
+    "usageDetail": "As solicitações do plano usam a cota ou os créditos do provedor e não contam para o limite em dólares deste app. A cota restante e o horário de renovação não estão disponíveis aqui.",
+    "requests": "Solicitações",
+    "reportedTokens": "Tokens informados",
+    "estimatedTokens": "Tokens estimados",
+    "unknownTokens": "Solicitações com uso de tokens desconhecido",
+    "tokenCounts": "{input} de entrada · {output} de saída · solicitações: {requests}",
+    "reduced": "Recursos reduzidos",
+    "aiContent": "O conteúdo gerado por IA pode ser impreciso. O Copilot adiciona suas próprias regras e usa seus créditos de IA; as contagens de tokens são estimativas quando o uso não é informado.",
+    "reportContent": "Denunciar conteúdo prejudicial"
+  }
 }

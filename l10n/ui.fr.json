@@ -2325,5 +2325,27 @@
   "ollamaMissingFinal": "Ollama a fermé le flux sans réponse finale.",
   "ollamaMalformedFrame": "Trame du flux Ollama mal formée.",
   "ollamaStreamLimit": "Ollama a dépassé la limite de taille du flux ou du nombre d’éléments.",
-  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} »."
+  "ollamaFinishReason": "Ollama s’est arrêté pour la raison « {reason} ».",
+  "planUi": {
+    "chatGptMark": "Abonnement ChatGPT utilisé",
+    "providerMark": "Abonnement {provider} utilisé",
+    "manage": "Gérer l’utilisation",
+    "noticeTitle": "Vous utilisez votre abonnement ChatGPT",
+    "noticeDetail": "Votre abonnement ChatGPT Plus ou Pro couvre ces requêtes. Elles partagent votre quota existant et n’ajoutent pas de quota supplémentaire.",
+    "credits": "Si vous autorisez les applications à utiliser des crédits dans les paramètres de ChatGPT, les requêtes peuvent dépenser ces crédits après avoir atteint la limite de l’abonnement. Gérez l’utilisation pour vérifier les limites et les paramètres des crédits.",
+    "understood": "Compris",
+    "limitTitle": "Limite d’utilisation de l’abonnement ChatGPT atteinte",
+    "limitDetail": "Attendez le renouvellement de votre quota ou choisissez un modèle avec une clé API. Aucune heure de renouvellement n’a été fournie. Modifier la facturation nécessite votre choix.",
+    "chooseModel": "Choisir un autre modèle",
+    "usageHeading": "Utilisation de l’abonnement",
+    "usageDetail": "Les requêtes de l’abonnement utilisent le quota ou les crédits du fournisseur et ne comptent pas dans le plafond en dollars de cette application. Le quota restant et l’heure de renouvellement ne sont pas disponibles ici.",
+    "requests": "Requêtes",
+    "reportedTokens": "Jetons déclarés",
+    "estimatedTokens": "Jetons estimés",
+    "unknownTokens": "Requêtes dont l’utilisation des jetons est inconnue",
+    "tokenCounts": "{input} en entrée · {output} en sortie · requêtes : {requests}",
+    "reduced": "Fonctionnalités réduites",
+    "aiContent": "Le contenu généré par l’IA peut être inexact. Copilot ajoute ses propres règles et utilise vos crédits IA ; les nombres de jetons sont des estimations si l’utilisation n’est pas déclarée.",
+    "reportContent": "Signaler du contenu nuisible"
+  }
 }

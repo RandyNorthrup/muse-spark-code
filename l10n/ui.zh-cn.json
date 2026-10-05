@@ -2161,5 +2161,27 @@
   "ollamaMissingFinal": "Ollama在没有最终回答的情况下关闭了数据流。",
   "ollamaMalformedFrame": "Ollama数据流帧格式错误。",
   "ollamaStreamLimit": "Ollama超出了数据流大小或条目数量限制。",
-  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。"
+  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。",
+  "planUi": {
+    "chatGptMark": "正在使用 ChatGPT 套餐",
+    "providerMark": "正在使用 {provider} 套餐",
+    "manage": "管理用量",
+    "noticeTitle": "你正在使用自己的 ChatGPT 套餐",
+    "noticeDetail": "这些请求由你的 ChatGPT Plus 或 Pro 套餐承担。它们共享现有额度，不会增加新的额度。",
+    "credits": "如果你在 ChatGPT 设置中允许应用使用点数，请求可能在达到套餐上限后消耗这些点数。请在管理用量中查看上限和点数设置。",
+    "understood": "知道了",
+    "limitTitle": "已达到 ChatGPT 套餐用量上限",
+    "limitDetail": "请等待额度重置，或选择使用 API 密钥的模型。服务未提供重置时间。更改计费方式需要你主动选择。",
+    "chooseModel": "选择其他模型",
+    "usageHeading": "套餐用量",
+    "usageDetail": "套餐请求使用提供商的额度或点数，不计入此应用的美元支出上限。这里无法查看剩余额度和重置时间。",
+    "requests": "请求数",
+    "reportedTokens": "已报告的令牌",
+    "estimatedTokens": "估算的令牌",
+    "unknownTokens": "令牌用量未知的请求",
+    "tokenCounts": "输入 {input} · 输出 {output} · 请求数：{requests}",
+    "reduced": "功能受限",
+    "aiContent": "AI 生成的内容可能不准确。Copilot 会添加自己的规则并使用你的 AI 点数；未报告用量时，令牌数为估算值。",
+    "reportContent": "举报有害内容"
+  }
 }

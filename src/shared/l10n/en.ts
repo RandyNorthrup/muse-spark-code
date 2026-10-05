@@ -16,6 +16,34 @@
 import { forms } from './forms'
 
 export const EN = {
+  planUi: {
+    // M95b: plan billing, allowance recovery and Copilot's required content note.
+    chatGptMark: 'Using ChatGPT plan',
+    providerMark: 'Using {provider} plan',
+    manage: 'Manage usage',
+    noticeTitle: 'You’re using your ChatGPT plan',
+    noticeDetail: 'ChatGPT Plus/Pro requests share your allowance; they add none.',
+    credits:
+      'Apps may spend credits after plan limits if enabled. Check ChatGPT’s Manage usage settings.',
+    understood: 'Got it',
+    limitTitle: 'ChatGPT plan usage limit reached',
+    limitDetail:
+      'Wait for a reset or choose an API-key model. Reset time is unknown. You choose billing changes.',
+    chooseModel: 'Choose another model',
+    usageHeading: 'Plan usage',
+    usageDetail:
+      'Plan allowance or credits pay, outside this app’s dollar cap. Quota and reset time are unknown.',
+    requests: 'Requests',
+    reportedTokens: 'Reported tokens',
+    estimatedTokens: 'Estimated tokens',
+    unknownTokens: 'Unknown tokens (requests)',
+    // {input}, {output}, {requests}: localized counts, including the sampled requests.
+    tokenCounts: '{input} input · {output} output · requests: {requests}',
+    reduced: 'Reduced',
+    aiContent:
+      'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
+    reportContent: 'Report harmful content',
+  },
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',

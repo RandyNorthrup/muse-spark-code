@@ -2243,5 +2243,27 @@
   "ollamaMissingFinal": "Ollama son yanıt olmadan akışı kapattı.",
   "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
   "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
-  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi."
+  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi.",
+  "planUi": {
+    "chatGptMark": "ChatGPT planı kullanılıyor",
+    "providerMark": "{provider} planı kullanılıyor",
+    "manage": "Kullanımı yönet",
+    "noticeTitle": "ChatGPT planınızı kullanıyorsunuz",
+    "noticeDetail": "Bu istekler ChatGPT Plus veya Pro planınızdan karşılanır. Mevcut kotanızı paylaşır ve yeni bir kota eklemez.",
+    "credits": "ChatGPT ayarlarında uygulamaların kredi kullanmasına izin verirseniz, plan sınırından sonra istekler bu kredileri harcayabilir. Sınırları ve kredi ayarlarını kontrol etmek için kullanımı yönetin.",
+    "understood": "Anladım",
+    "limitTitle": "ChatGPT planı kullanım sınırına ulaşıldı",
+    "limitDetail": "Kotanızın yenilenmesini bekleyin veya API anahtarı kullanan bir model seçin. Yenilenme zamanı belirtilmedi. Faturalandırmayı değiştirmek sizin seçiminizi gerektirir.",
+    "chooseModel": "Başka model seç",
+    "usageHeading": "Plan kullanımı",
+    "usageDetail": "Plan istekleri sağlayıcının kotasını veya kredilerini kullanır ve bu uygulamanın dolar sınırına dahil edilmez. Kalan kota ve yenilenme zamanı burada mevcut değildir.",
+    "requests": "İstekler",
+    "reportedTokens": "Bildirilen tokenlar",
+    "estimatedTokens": "Tahmini tokenlar",
+    "unknownTokens": "Token kullanımı bilinmeyen istekler",
+    "tokenCounts": "{input} girdi · {output} çıktı · istekler: {requests}",
+    "reduced": "Sınırlı özellikler",
+    "aiContent": "Yapay zeka tarafından üretilen içerik hatalı olabilir. Copilot kendi kurallarını ekler ve yapay zeka kredilerinizi kullanır; kullanım bildirilmediğinde token sayıları tahminidir.",
+    "reportContent": "Zararlı içeriği bildir"
+  }
 }

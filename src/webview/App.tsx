@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  Suspense,
   lazy,
   useCallback,
   useEffect,
@@ -10,6 +11,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
+import type { PlanNoticePort } from './components/PlanUi'
 import {
   type CheckpointAvailability,
   type DictationAction,
@@ -66,7 +68,6 @@ import { HistoryDialog } from './components/HistoryDialog'
 import { ReviewPane } from './components/ReviewPane'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { BestOfNDialog } from './components/BestOfNDialog'
-import { SetupBanner } from './components/SetupBanner'
 import { DeferredSurface } from './components/DeferredSurface'
 import { HandoffDialog } from './components/HandoffDialog'
 import { ShareView } from './components/ShareView'
@@ -106,8 +107,25 @@ const UsageDialog = lazy(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
 })
+const PlanSurface = lazy(async () => {
+  const module = await import('./components/PlanUi')
+  return { default: module.PlanSurface }
+})
+const PlanMark = lazy(async () => {
+  const module = await import('./components/PlanUi')
+  return { default: module.PlanMark }
+})
+const CopilotNote = lazy(async () => {
+  const module = await import('./components/PlanUi')
+  return { default: module.CopilotNote }
+})
+const SetupBanner = lazy(async () => {
+  const module = await import('./components/SetupBanner')
+  return { default: module.SetupBanner }
+})
 
 export interface AppProps {
+  readonly planNoticePort?: PlanNoticePort
   readonly postMessage: (message: WebviewToHostMessage) => void
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
@@ -311,6 +329,7 @@ export function App({
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
+  planNoticePort,
 }: AppProps) {
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
@@ -319,6 +338,14 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
+  const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
+  const selectedProvider = selectedModel?.providerId ?? providerOf(state.model?.modelId ?? '')
+  const hasPlan =
+    state.auth.status === 'signedIn' &&
+    (selectedProvider === 'chatgpt' ||
+      selectedProvider === 'copilot' ||
+      selectedModel?.pricing === 'plan')
+  const [isPlanModalOpen, setPlanModalOpen] = useState<boolean>()
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
   // The review pane's changes go with their conversation (a clear, another
   // session), and the pane goes with them (M70).
@@ -2002,7 +2029,8 @@ export function App({
         usage={state.usage}
         context={state.context}
         modelId={state.model?.modelId}
-        modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
+        modelPricing={selectedModel?.pricing}
+        models={state.models}
         paid={state.paid}
         now={now}
         onOpenExternal={onOpenExternal}
@@ -2019,6 +2047,7 @@ export function App({
     isInstallConfirmOpen ||
     state.share !== undefined
   const handoffDialog =
+    // A plan notice waits behind existing modal work.
     isOtherModalOpen || state.handoff === undefined ? null : (
       <HandoffDialog
         goal={state.handoff.goal}
@@ -2032,7 +2061,8 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
-  const isModalOpen = isOtherModalOpen || state.handoff !== undefined
+  const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
+  const isModalOpen = isOtherModalOpen || state.handoff !== undefined || isPlanDialogOpen
 
   return (
     <div className="app">
@@ -2061,6 +2091,19 @@ export function App({
         {bestOfN}
       </div>
       <DeferredSurface onClose={closeOverlay}>{usageDialog}</DeferredSurface>
+      <Suspense fallback={null}>
+        {hasPlan ? (
+          <PlanSurface
+            state={state}
+            providerId={selectedProvider}
+            isOtherModalOpen={isOtherModalOpen || state.handoff !== undefined}
+            onModalChange={setPlanModalOpen}
+            onChooseModel={onOpenModelPicker}
+            postMessage={postMessage}
+            port={planNoticePort}
+          />
+        ) : null}
+      </Suspense>
       {handoffDialog}
       {agentMap}
       {reviewPane}
@@ -2131,17 +2174,24 @@ export function App({
       <div className="composer-area" inert={isModalOpen}>
         {floating}
         {isBodyGated || state.setupComplete === undefined ? null : (
-          <SetupBanner
-            provider={state.setupComplete.provider}
-            model={state.setupComplete.model}
-            onManageProviders={() => {
-              postMessage({ type: 'hostAction', action: 'manageModels' })
-            }}
-            onDismiss={() => {
-              dispatch({ type: 'setupCompleteDismissed' })
-            }}
-          />
+          <Suspense fallback={null}>
+            <SetupBanner
+              provider={state.setupComplete.provider}
+              model={state.setupComplete.model}
+              onManageProviders={() => {
+                postMessage({ type: 'hostAction', action: 'manageModels' })
+              }}
+              onDismiss={() => {
+                dispatch({ type: 'setupCompleteDismissed' })
+              }}
+            />
+          </Suspense>
         )}
+        {hasPlan && selectedProvider === 'copilot' ? (
+          <Suspense fallback={null}>
+            <CopilotNote onOpenExternal={onOpenExternal} />
+          </Suspense>
+        ) : null}
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}
@@ -2149,6 +2199,17 @@ export function App({
           canSend={canSend(state)}
           isRunning={isRunning}
           modelLabel={modelLabelFor(state)}
+          planMark={
+            hasPlan ? (
+              <Suspense fallback={null}>
+                <PlanMark
+                  model={selectedModel}
+                  providerId={selectedProvider}
+                  onOpenExternal={onOpenExternal}
+                />
+              </Suspense>
+            ) : undefined
+          }
           permissionMode={state.permissionMode}
           context={state.context}
           paidBadge={paidBadgeFor(state)}

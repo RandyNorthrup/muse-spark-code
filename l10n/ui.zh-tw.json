@@ -2161,5 +2161,27 @@
   "ollamaMissingFinal": "Ollama在沒有最終回答的情況下關閉了資料流。",
   "ollamaMalformedFrame": "Ollama資料流框架格式錯誤。",
   "ollamaStreamLimit": "Ollama超出了資料流大小或項目數量限制。",
-  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。"
+  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。",
+  "planUi": {
+    "chatGptMark": "正在使用 ChatGPT 方案",
+    "providerMark": "正在使用 {provider} 方案",
+    "manage": "管理用量",
+    "noticeTitle": "你正在使用自己的 ChatGPT 方案",
+    "noticeDetail": "這些請求由你的 ChatGPT Plus 或 Pro 方案負擔。它們共用現有額度，不會增加新的額度。",
+    "credits": "如果你在 ChatGPT 設定中允許應用程式使用點數，請求可能在達到方案上限後消耗這些點數。請在管理用量中查看上限和點數設定。",
+    "understood": "我知道了",
+    "limitTitle": "已達到 ChatGPT 方案用量上限",
+    "limitDetail": "請等待額度重設，或選擇使用 API 金鑰的模型。服務未提供重設時間。變更計費方式需要你主動選擇。",
+    "chooseModel": "選擇其他模型",
+    "usageHeading": "方案用量",
+    "usageDetail": "方案請求使用供應商的額度或點數，不計入此應用程式的美元支出上限。這裡無法查看剩餘額度和重設時間。",
+    "requests": "請求數",
+    "reportedTokens": "已回報的權杖",
+    "estimatedTokens": "估算的權杖",
+    "unknownTokens": "權杖用量未知的請求",
+    "tokenCounts": "輸入 {input} · 輸出 {output} · 請求數：{requests}",
+    "reduced": "功能受限",
+    "aiContent": "AI 產生的內容可能不準確。Copilot 會加入自己的規則並使用你的 AI 點數；未回報用量時，權杖數為估算值。",
+    "reportContent": "檢舉有害內容"
+  }
 }
