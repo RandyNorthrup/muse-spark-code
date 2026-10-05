@@ -1,5 +1,7 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
+import { judgeRequestSchema } from '../../src/core/judge/schema'
 import {
   incomingMessageSchema,
   callToolResultSchema,
@@ -25,6 +27,17 @@ function messages(text: string): unknown[] {
 }
 
 describe('judge MCP stdio', () => {
+  it('keeps the advertised input schema exactly equal to the canonical request schema', async () => {
+    const streams = io(frame('tools/list', 1))
+    expect(await runJudgeCommand(command('mcp'), streams, {})).toBe(0)
+    const reply = incomingMessageSchema.parse(messages(streams.output())[0])
+    const result = z
+      .object({
+        tools: z.array(z.object({ inputSchema: z.record(z.string(), z.unknown()) })),
+      })
+      .parse(reply.result)
+    expect(result.tools[0]?.inputSchema).toEqual(z.toJSONSchema(judgeRequestSchema))
+  })
   it.each(evidenceCases())(
     'validates MCP answer evidence: $name',
     async ({ request, outcome, valid }) => {
@@ -65,27 +78,26 @@ describe('judge MCP stdio', () => {
     const streams = { ...io(), stdin }
     const fake = source()
     let finish: (() => void) | undefined
-    let engineSignal: AbortSignal | undefined
-    fake.judge.mockImplementation((_request, signal) => {
-      engineSignal = signal
-      return new Promise((resolve) => {
-        finish = () => {
-          resolve(answered())
-        }
+    const entered = new Promise<AbortSignal>((enter) => {
+      fake.judge.mockImplementation((_request, signal) => {
+        enter(signal)
+        return new Promise((resolve) => {
+          finish = () => {
+            resolve(answered())
+          }
+        })
       })
     })
     const running = runJudgeCommand(command('mcp'), streams, {
       resolveSource: () => Promise.resolve(fake.value),
     })
     stdin.write(call())
-    await vi.waitFor(() => {
-      expect(fake.judge).toHaveBeenCalledOnce()
-    })
+    const engineSignal = await entered
     stdin.write(`${JSON.stringify(notification)}\n`)
     await new Promise<void>((resolve) => {
       setImmediate(resolve)
     })
-    const wasAborted = engineSignal?.aborted
+    const wasAborted = engineSignal.aborted
     finish?.()
     stdin.end()
     expect(await running).toBe(notification.jsonrpc === '2.0' && notification.id === null ? 0 : 2)

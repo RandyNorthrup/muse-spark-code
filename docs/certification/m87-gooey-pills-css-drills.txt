@@ -1,0 +1,37 @@
+# M87 gooey pills: CSS breaks in one build, checked in Chrome on Kubuntu (2026-10-04)
+# Breaks: notes at the old 50 % opacity; reduced-motion and forced-colours goo removal rules made non-matching.
+applied 3 CSS breaks (original sha256 25b42684e32e664c9adf7a6224c91413a5cdace3e2f795280f0135e53e866ac1)
+=== broken
+rig=kubuntu slot=pills snapshot=44560ca8 base=/home/randy/gates/base-de88faa864aa36e8
+build exit=0
+  dist/webview/main.css  54.4 KiB
+checkpoint-restricted-group-dark-320: menu="Rewind" 3 pills PROBLEMS File checkpoints are off in Restricted Mode opacity 0.5; Rewinding the conversation is not available with Muse Code on Windows opacity 0.5
+checkpoint-restricted-group-dark-690: menu="Rewind" 3 pills PROBLEMS File checkpoints are off in Restricted Mode opacity 0.5; Rewinding the conversation is not available with Muse Code on Windows opacity 0.5
+problems: 4
+notes check exit=1
+chat-tool-menu-dark-320-reduced: menu="Message actions" 3 pills PROBLEMS Open output moves or goos under reduced motion; Review moves or goos under reduced motion; Revert moves or goos under reduced motion
+chat-tool-menu-dark-690-reduced: menu="Message actions" 3 pills PROBLEMS Open output moves or goos under reduced motion; Review moves or goos under reduced motion; Revert moves or goos under reduced motion
+problems: 6
+reduced check exit=1
+chat-tool-menu-dark-320-forced: menu="Message actions" 3 pills PROBLEMS Open output not a bordered pill without goo under forced colours; Review not a bordered pill without goo under forced colours; Revert not a bordered pill without goo under forced colours
+chat-tool-menu-dark-690-forced: menu="Message actions" 3 pills PROBLEMS Open output not a bordered pill without goo under forced colours; Review not a bordered pill without goo under forced colours; Revert not a bordered pill without goo under forced colours
+problems: 6
+forced check exit=1
+restored styles.css byte-exact (sha256 25b42684e32e664c9adf7a6224c91413a5cdace3e2f795280f0135e53e866ac1)
+=== restored
+rig=kubuntu slot=pills snapshot=373b16f9 base=/home/randy/gates/base-de88faa864aa36e8
+build exit=0
+  dist/webview/main.css  54.4 KiB
+checkpoint-restricted-group-dark-320: menu="Rewind" 3 pills ok
+checkpoint-restricted-group-dark-690: menu="Rewind" 3 pills ok
+problems: 0
+notes check exit=0
+chat-tool-menu-dark-320-reduced: menu="Message actions" 3 pills ok
+chat-tool-menu-dark-690-reduced: menu="Message actions" 3 pills ok
+problems: 0
+reduced check exit=0
+chat-tool-menu-dark-320-forced: menu="Message actions" 3 pills ok
+chat-tool-menu-dark-690-forced: menu="Message actions" 3 pills ok
+problems: 0
+forced check exit=0
+ M src/webview/styles.css

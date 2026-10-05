@@ -126,6 +126,18 @@ describe('the review bundle (M70)', () => {
     )
   })
 
+  it('hands Revert’s guard to the bundle’s edit review, which stops on it (M87)', async () => {
+    const review = lazyReview(deps())
+    const patch = '{"files":[{"path":"notes.md","hunks":[]}]}'
+    await expect(
+      review.editReview.revert('c1', patch, () => {
+        throw new Error('a turn started')
+      }),
+    ).rejects.toThrow('a turn started')
+    // Without a guard the same Revert runs, and says why nothing changed.
+    await expect(review.editReview.revert('c1', patch)).resolves.not.toHaveLength(0)
+  })
+
   it('refuses with the reason, and logs the cause, when the bundle is missing or is not the review', () => {
     const channel = new FakeLogOutputChannel()
     const log = createLogger(channel)

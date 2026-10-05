@@ -39,15 +39,17 @@ export function Clipped({
   text,
   className,
   onOpen,
+  previewLines = OUTPUT_PREVIEW_LINES,
 }: {
   readonly text: string
   readonly className: string
   readonly onOpen?: (() => void) | undefined
+  readonly previewLines?: number
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const allLines = text.split('\n')
-  const isLong = allLines.length > OUTPUT_PREVIEW_LINES || text.length > OUTPUT_PREVIEW_CHARS
-  const firstLines = allLines.slice(0, OUTPUT_PREVIEW_LINES).join('\n')
+  const isLong = allLines.length > previewLines || text.length > OUTPUT_PREVIEW_CHARS
+  const firstLines = allLines.slice(0, previewLines).join('\n')
   const preview =
     firstLines.length > OUTPUT_PREVIEW_CHARS
       ? `${firstLines.slice(0, OUTPUT_PREVIEW_CHARS)}…`
@@ -61,6 +63,7 @@ export function Clipped({
         <button
           type="button"
           className="tool-more"
+          aria-expanded={isExpanded}
           onClick={() => {
             setIsExpanded(!isExpanded)
           }}

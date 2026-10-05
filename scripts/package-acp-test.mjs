@@ -23,7 +23,9 @@ if (
 }
 for (const file of [
   LAUNCHER,
-  ...['acp.js', 'modelApi.js', 'uiText.js'].map((name) => path.join(SOURCE, 'dist', name)),
+  ...['acp.js', 'modelApi.js', 'uiText.js', 'validation.js'].map((name) =>
+    path.join(SOURCE, 'dist', name),
+  ),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),
   ),

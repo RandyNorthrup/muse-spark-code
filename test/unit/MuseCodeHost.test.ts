@@ -16,6 +16,15 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { EVENT_LOG_SUBMIT_MESSAGE, eventLogFault } from './helpers/cliRecoveryCapture'
+import {
+  CAPTURED_LAUNCHED_TURN,
+  CAPTURED_QUEUED_TURN,
+  QUEUED_ACK,
+  UNQUEUE_ACK,
+  UNQUEUE_ALREADY_APPLIED,
+  UNQUEUE_RUN_ACTIVE,
+  UNQUEUED_NOTIFICATION,
+} from './helpers/m87Capture'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { countLogged } from './helpers/logText'
 import {
@@ -284,6 +293,7 @@ describe('MuseCodeHost', () => {
     await session.setModel('muse-spark-1.2')
     await session.setReasoningEffort('xhigh')
     await session.setApprovalMode('allowAll')
+    expect(session.modelId).toBe('muse-spark-1.2')
     expect(server.requestsFor('session/setModel')[0]?.params).toMatchObject({
       sessionId: session.sessionId,
       model: { modelId: 'muse-spark-1.2' },
@@ -1265,7 +1275,21 @@ describe('MuseCodeHost: prompts, receipts and resume (D26)', () => {
     const { server, log } = setup()
     server.incoming.push('{"secret": not json}\n')
     await settle()
-    expect(log.warn).toHaveBeenCalledWith('MSP protocol error: inbound frame is not valid JSON')
+    expect(log.warn).toHaveBeenCalledWith('MSP protocol error (frame not logged)')
+  })
+
+  it('keeps private notification failure text out of the CLI log', async () => {
+    const { host, server, log } = setup()
+    const session = await host.startSession(startOptions)
+    session.onEvent(() => {
+      throw new Error('failed for alice@example.test /Users/alice/private-project')
+    })
+    server.notify('turn/started', { sessionId: session.sessionId, turnId: 't1' })
+    await settle()
+    const lines = log.error.mock.calls.map(([line]) => String(line)).join('\n')
+    expect(lines).toContain('could not be handled: Error')
+    expect(lines).not.toContain('alice@example.test')
+    expect(lines).not.toContain('/Users/alice/private-project')
   })
 
   it('refuses a command too large for the frame cap before sending it', async () => {
@@ -2144,5 +2168,129 @@ describe('MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03)', 
     expect(countLogged(log, 'event log failed (internal (MSP error -32603))')).toBe(1)
     // The CLI's own words never reach the log (AGENTS.md rule 8).
     expect(countLogged(log, 'conflicts with an existing event')).toBe(0)
+  })
+})
+
+/** A request handler that refuses as the captured JSON-RPC error (M87). */
+function capturedRefusal(frame: {
+  readonly code: number
+  readonly message: string
+  readonly data: Record<string, unknown>
+}): () => never {
+  return () => {
+    throw Object.assign(new Error(frame.message), {
+      kind: 'commandRejected',
+      code: frame.code,
+      data: frame.data,
+    })
+  }
+}
+
+const QUEUED_REF = {
+  turnId: CAPTURED_QUEUED_TURN,
+  userMessageId: undefined,
+  disposition: 'queued',
+} as const
+
+describe('MuseCodeHost: taking a queued message back (M87, PLAN.md D66)', () => {
+  it('reclaims a queued submit with turn/unqueue, as captured: the event first, then the ack', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    // The submit Muse Code queued behind a running turn, acknowledged as captured.
+    server.handle('turn/start', (params) => ({ ...QUEUED_ACK, commandId: params['commandId'] }))
+    await expect(session.sendTurn([{ type: 'text', text: 'later' }])).resolves.toEqual({
+      turnId: CAPTURED_QUEUED_TURN,
+      disposition: 'queued',
+    })
+    server.handle('turn/unqueue', (params) => {
+      server.notify('turn/unqueued', { ...UNQUEUED_NOTIFICATION, sessionId: session.sessionId })
+      return { ...UNQUEUE_ACK, commandId: params['commandId'] }
+    })
+    // Muse Code keeps no image bytes: none come back.
+    await expect(session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    const [request] = server.requestsFor('turn/unqueue')
+    expect(request?.params).toEqual({
+      sessionId: session.sessionId,
+      turnId: CAPTURED_QUEUED_TURN,
+      commandId: expect.any(String),
+    })
+    await settle()
+    expect(events).toContainEqual({
+      type: 'turnWithdrawn',
+      turnId: CAPTURED_QUEUED_TURN,
+      reason: UI_TEXT.turnUnqueued,
+    })
+  })
+
+  it('answers too late, asking nothing, for a message steered into the running turn', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    await expect(
+      session.withdrawQueued({ ...QUEUED_REF, disposition: 'steered' }),
+    ).resolves.toEqual({ status: 'tooLate' })
+    expect(server.requestsFor('turn/unqueue')).toEqual([])
+  })
+
+  it('reads the captured refusals: run_active is too late, already_applied is taken back', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.handle('turn/unqueue', capturedRefusal(UNQUEUE_RUN_ACTIVE))
+    await expect(
+      session.withdrawQueued({ ...QUEUED_REF, turnId: CAPTURED_LAUNCHED_TURN }),
+    ).resolves.toEqual({ status: 'tooLate' })
+    server.handle('turn/unqueue', capturedRefusal(UNQUEUE_ALREADY_APPLIED))
+    await expect(session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+  })
+
+  it('fails as Muse Code said for any other refusal or failure', async () => {
+    const { host, server } = setup()
+    const session = await host.startSession(startOptions)
+    server.handle(
+      'turn/unqueue',
+      capturedRefusal({
+        ...UNQUEUE_RUN_ACTIVE,
+        message: 'turn/unqueue command c rejected: something_new',
+        data: { ...UNQUEUE_RUN_ACTIVE.data, reason: 'something_new' },
+      }),
+    )
+    await expect(session.withdrawQueued(QUEUED_REF)).rejects.toThrow('something_new')
+    server.handle('turn/unqueue', refusalOf('internal', -32_603))
+    await expect(session.withdrawQueued(QUEUED_REF)).rejects.toThrow('refused: internal')
+  })
+  it('reports the withdrawal done once turn/unqueued came, though the ack timed out or failed (the review of lane C)', async () => {
+    const { host, server } = setup({ timeouts: { normalMs: 50, longMs: 50 } })
+    const { session, events } = await listeningSession(host)
+    // The captured order: the event first; here the ack never follows.
+    server.notify('turn/unqueued', { ...UNQUEUED_NOTIFICATION, sessionId: session.sessionId })
+    await settle()
+    expect(events).toContainEqual(expect.objectContaining({ type: 'turnWithdrawn' }))
+    server.silence('turn/unqueue')
+    await expect(session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    // A failed ack after the event: taken back too.
+    const failed = setup()
+    const other = await listeningSession(failed.host)
+    failed.server.handle('turn/unqueue', refusalOf('internal', -32_603))
+    failed.server.notify('turn/unqueued', {
+      ...UNQUEUED_NOTIFICATION,
+      sessionId: other.session.sessionId,
+    })
+    await settle()
+    await expect(other.session.withdrawQueued(QUEUED_REF)).resolves.toEqual({
+      status: 'withdrawn',
+      images: undefined,
+    })
+    // Another turn's event does not stand in for this one.
+    await expect(
+      other.session.withdrawQueued({ ...QUEUED_REF, turnId: CAPTURED_LAUNCHED_TURN }),
+    ).rejects.toThrow('refused: internal')
   })
 })

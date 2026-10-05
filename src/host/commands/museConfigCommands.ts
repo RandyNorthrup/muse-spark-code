@@ -18,6 +18,7 @@ import {
   readHookSources,
   readMcpServers,
 } from '../../core/backends/musecode/museConfigView'
+import { redactSecrets } from '../../core/redact'
 import { IDE_MCP_SERVER_NAME, MODEL_API_HOOKS_SETTING, UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem, PickOne } from './pickItem'
@@ -69,7 +70,7 @@ const LIST_SEPARATOR = ', '
 const DETAIL_SEPARATOR = ' · '
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 /** The file's text, or why it could not be read (a permission, a directory). */
@@ -108,7 +109,7 @@ function liveState(server: McpServerView, snapshot: McpPoolSnapshot | undefined)
         : connected
     }
     case 'failed': {
-      return fill(UI_TEXT.mcpStateFailed, { reason: state.reason })
+      return fill(UI_TEXT.mcpStateFailed, { reason: redactSecrets(state.reason) })
     }
     case 'disabled': {
       return UI_TEXT.mcpDisabled

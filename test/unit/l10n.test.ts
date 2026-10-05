@@ -1,16 +1,21 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { tableProblems } from '../../src/shared/l10n/check'
 import { EN } from '../../src/shared/l10n/en'
 import { forms, isPluralForms } from '../../src/shared/l10n/forms'
 import { tableFileName, tableLocaleFor } from '../../src/shared/l10n/locales'
 import {
   BASE_LOCALE,
+  capitalizeFirst,
   fill,
   formatDate,
+  formatFullDateTime,
+  formatList,
   formatNumber,
   formatPercent,
   formatRelativeTime,
+  formatTime,
   formatUnit,
+  isSameLocalDay,
   plural,
   setUiText,
   templateParts,
@@ -221,7 +226,121 @@ describe('tableProblems', () => {
     ])
   })
 
+  it.each(['ru', 'uk', 'fr', 'pt-br'])(
+    'requires the count in %s one forms even when English omits it',
+    (locale) => {
+      const source = {
+        files: forms({ one: 'a file in `{path}`', other: '{count} files in `{path}`' }),
+      }
+      const translated = Object.fromEntries(
+        new Intl.PluralRules(locale)
+          .resolvedOptions()
+          .pluralCategories.map((category) => [category, '{count} fichier dans `{path}`']),
+      )
+      const options = { locale, isStrict: true }
+      const missingCount = { files: { ...translated, one: 'un fichier dans `{path}`' } }
+      const problem = 'files.one: slots {count}, {path} expected, found {path}'
+      expect(tableProblems(source, missingCount, options)).toEqual([problem])
+      expect(tableProblems(source, missingCount, { ...options, isStrict: false })).toEqual([
+        problem,
+      ])
+      expect(tableProblems(source, { files: translated }, options)).toEqual([])
+      expect(
+        tableProblems(
+          source,
+          { files: { ...translated, one: '{count} fichier {extra}' } },
+          options,
+        ),
+      ).toEqual([
+        'files.one: slots {count}, {path} expected, found {count}, {extra}',
+        'files.one: the code spans (`) differ from the English',
+      ])
+    },
+  )
+
+  it('allows German one forms to omit the count when English does, keeping other slots required', () => {
+    const source = { files: forms({ one: 'a file in {path}', other: '{count} files in {path}' }) }
+    const translated = {
+      files: { one: 'eine Datei in {path}', other: '{count} Dateien in {path}' },
+    }
+    expect(tableProblems(source, translated, { locale: 'de', isStrict: true })).toEqual([])
+    expect(
+      tableProblems(source, { files: { ...translated.files, other: 'Dateien in {path}' } }, strict),
+    ).toEqual(['files.other: slots {count}, {path} expected, found {path}'])
+  })
+
   it('accepts the English table against itself in shape', () => {
     expect(tableProblems(EN, EN, { locale: 'en', isStrict: false })).toEqual([])
+  })
+})
+
+describe('message times and step lists in the display language (M87, PLAN.md D66)', () => {
+  const zone = process.env['TZ']
+  // Times on both sides of a New York midnight, and of a UTC midnight that is not local.
+  const LOCAL_2359 = Date.UTC(2026, 9, 4, 3, 59)
+  const LOCAL_0001 = Date.UTC(2026, 9, 4, 4, 1)
+  const UTC_2359 = Date.UTC(2026, 9, 3, 23, 59)
+  const UTC_0001 = Date.UTC(2026, 9, 4, 0, 1)
+  const LOCALES = ['en', 'de', 'tr', 'ja'] as const
+
+  beforeAll(() => {
+    process.env['TZ'] = 'America/New_York'
+  })
+
+  afterAll(() => {
+    if (zone === undefined) {
+      delete process.env['TZ']
+    } else {
+      process.env['TZ'] = zone
+    }
+    setUiText(EN, BASE_LOCALE)
+  })
+
+  it('judges the same day in local time, never in UTC', () => {
+    // 23:59 and 00:01 New York: one minute apart, two days.
+    expect(isSameLocalDay(LOCAL_2359, LOCAL_0001)).toBe(false)
+    // 19:59 and 20:01 New York: either side of a UTC midnight, one local day.
+    expect(isSameLocalDay(UTC_2359, UTC_0001)).toBe(true)
+    expect(isSameLocalDay(LOCAL_0001, LOCAL_0001 + 60_000)).toBe(true)
+  })
+
+  it.each(LOCALES)('formats a time, the full date and time, and a list in %s', (locale) => {
+    setUiText(EN, locale)
+    expect(formatTime(LOCAL_2359)).toBe(
+      new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(LOCAL_2359),
+    )
+    expect(formatFullDateTime(LOCAL_2359)).toBe(
+      new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeStyle: 'short' }).format(LOCAL_2359),
+    )
+    expect(formatList(['a', 'b', 'c'])).toBe(
+      new Intl.ListFormat(locale, { type: 'conjunction', style: 'long' }).format(['a', 'b', 'c']),
+    )
+  })
+
+  it('writes the local day and time, and lists with the language’s own joiners', () => {
+    setUiText(EN, 'en')
+    expect(formatTime(LOCAL_2359)).toMatch(/^11:59\sPM$/)
+    expect(formatFullDateTime(LOCAL_2359)).toContain('Saturday, October 3, 2026')
+    expect(formatFullDateTime(LOCAL_0001)).toContain('Sunday, October 4, 2026')
+    expect(formatList(['a', 'b', 'c'])).toBe('a, b, and c')
+    setUiText(EN, 'de')
+    expect(formatTime(LOCAL_2359)).toBe('23:59')
+    expect(formatList(['a', 'b', 'c'])).toBe('a, b und c')
+    // Turkish and Japanese join actions with a conjunction, not bare spaces (D66's unit list).
+    setUiText(EN, 'tr')
+    expect(formatList(['a', 'b', 'c'])).toBe('a, b ve c')
+    setUiText(EN, 'ja')
+    expect(formatList(['a', 'b', 'c'])).toBe('a、b、c')
+  })
+
+  it('raises only the first letter, by the language’s own case rules', () => {
+    setUiText(EN, 'en')
+    expect(capitalizeFirst('istanbul road')).toBe('Istanbul road')
+    expect(capitalizeFirst('')).toBe('')
+    expect(capitalizeFirst('2 files')).toBe('2 files')
+    setUiText(EN, 'tr')
+    expect(capitalizeFirst('istanbul yolu')).toBe('İstanbul yolu')
+    // A letter beyond the basic plane stays whole.
+    expect(capitalizeFirst('𐐨x')).toBe('𐐀x')
   })
 })

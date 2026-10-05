@@ -223,6 +223,24 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'turnStarted', turnId: 'turn-1' })).toEqual([])
   })
 
+  it('sends nothing when a message reaches a request, since ACP never queues one (M87)', () => {
+    const translator = new UpdateTranslator(CWD, false)
+    expect(translator.updates({ type: 'messageAdmitted', userMessageId: 'u2' })).toEqual([])
+    // An item's recorded time changes nothing an ACP client is sent.
+    expect(
+      translator.itemUpdates(
+        {
+          itemId: 'm1',
+          kind: 'agentMessage',
+          status: 'completed',
+          text: 'Done.',
+          recordedAt: '2026-09-28T06:50:10.488636Z',
+        },
+        true,
+      ),
+    ).toEqual([{ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } }])
+  })
+
   it('replays the user’s messages only from a loaded history', () => {
     const user: ItemSnapshot = {
       itemId: 'u1',

@@ -30,6 +30,7 @@ import {
   type WorktreeSession,
   type WorktreeSessionEvent,
 } from '../../core/bestOfN/worktreeConversationHost'
+import { redactSecrets } from '../../core/redact'
 import {
   type AgentEvent,
   requirementRefSchema,
@@ -81,7 +82,7 @@ export interface BestOfNManagerDeps extends Pick<
 const ABORT_CHOICE_ID = 'abort'
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 function pathIdentity(path: string, platform: NodeJS.Platform): string {

@@ -9,6 +9,7 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import type { McpPoolSnapshot } from '../core/backends/modelapi/mcp/pool'
+import { redactSecrets } from '../core/redact'
 import {
   EXPORT_FILE_EXTENSIONS,
   MUSE_EXPORT_TIMEOUT_MS,
@@ -315,8 +316,10 @@ export function createCliFeatures(deps: CliFeatureDeps): CliFeatures {
         const result = await running
         if (result.exitCode !== 0) {
           throw new Error(
-            firstLine(result.stderr) ||
-              `muse export: ${fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })}`,
+            redactSecrets(
+              firstLine(result.stderr) ||
+                `muse export: ${fill(UI_TEXT.processExitCode, { code: String(result.exitCode) })}`,
+            ),
           )
         }
         deps.log.info(`muse export wrote session ${sessionId} to ${target.fsPath}`)

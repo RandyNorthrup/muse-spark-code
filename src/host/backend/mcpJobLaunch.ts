@@ -9,6 +9,7 @@ import { Buffer } from 'node:buffer'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer } from 'node:net'
 import { setEnvironmentVariable } from '../../core/backends/musecode/launch'
+import { redactSecrets } from '../../core/redact'
 import {
   MCP_JOB_CONFIG_VARIABLE,
   MCP_JOB_HANDSHAKE_MAX_CHARS,
@@ -36,7 +37,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     let request = ''
     let isAuthorized = false
     socket.on('error', (error) => {
-      launch.log(`the MCP job control pipe closed: ${error.message}`)
+      launch.log(`the MCP job control pipe closed: ${redactSecrets(error.message)}`)
     })
     socket.on('data', (bytes: Buffer) => {
       if (isAuthorized) return
@@ -67,7 +68,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     if (isClosed) control.close()
   })
   control.on('error', (error) => {
-    launch.log(`the MCP job control pipe could not listen: ${error.message}`)
+    launch.log(`the MCP job control pipe could not listen: ${redactSecrets(error.message)}`)
     child?.kill()
   })
   control.listen(`\\\\.\\pipe\\${controlPipe}`)

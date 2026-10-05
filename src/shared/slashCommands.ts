@@ -11,6 +11,7 @@ export interface SlashCommand {
   /** Without the slash: `compact`, `engineering:standup`. */
   readonly name: string
   readonly detail: string | undefined
+  readonly tip?: string | undefined
   readonly action: PaletteAction
 }
 
@@ -26,10 +27,20 @@ function commandOf(item: PaletteItem): SlashCommand | undefined {
   }
   if (item.slashName !== undefined) {
     // The label is then the better description ("Switch model…").
-    return { name: item.slashName, detail: item.detail ?? item.label, action: item.action }
+    return {
+      name: item.slashName,
+      detail: item.detail ?? item.label,
+      tip: item.tip,
+      action: item.action,
+    }
   }
   return item.label.startsWith(SLASH)
-    ? { name: item.label.slice(SLASH.length), detail: item.detail, action: item.action }
+    ? {
+        name: item.label.slice(SLASH.length),
+        detail: item.detail,
+        tip: item.tip,
+        action: item.action,
+      }
     : undefined
 }
 

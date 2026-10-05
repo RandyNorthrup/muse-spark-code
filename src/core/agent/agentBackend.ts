@@ -326,6 +326,27 @@ export interface TurnSubmission {
   readonly userMessageId?: string
 }
 
+/**
+ * A message accepted as queued or steered (M87, PLAN.md D66), named as its
+ * submission was acknowledged: what `withdrawQueued` takes back.
+ */
+export interface QueuedMessageRef {
+  readonly turnId: string
+  /** The backend's user item id for it (the Model API's); undefined where none was given. */
+  readonly userMessageId: string | undefined
+  /** The submission's `disposition`: `queued` or `steered`, as the backend said it. */
+  readonly disposition: string
+}
+
+/**
+ * What withdrawing did (M87): `withdrawn`, with the images the message
+ * carried (undefined where the backend keeps no bytes, an empty list for a
+ * message with none), or `tooLate`: the message already reached a request.
+ */
+export type WithdrawOutcome =
+  | { readonly status: 'withdrawn'; readonly images: readonly SentImage[] | undefined }
+  | { readonly status: 'tooLate' }
+
 export interface CompactOutcome {
   readonly status: string
   readonly reason: string | undefined
@@ -518,6 +539,14 @@ export interface AgentSession {
    * command with "event log failed: …". The Model API keeps no such log.
    */
   readonly onLogDamaged?: (listener: () => void) => () => void
+  /**
+   * Take back a message before the model has it (M87, PLAN.md D66): the
+   * Model API removes it from its queue or the running turn's steered input;
+   * Muse Code sends `turn/unqueue` for a submit acknowledged `queued`. It
+   * resolves `tooLate` once the message reached a request. A session
+   * without it offers no Edit: the controller refuses before asking.
+   */
+  readonly withdrawQueued?: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>
   dispose(): void
 }
 

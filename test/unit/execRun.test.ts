@@ -750,13 +750,27 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).error?.message).toContain('0.108135')
   })
   it('D9 held response hits process deadline and retains full R', async () => {
+    // The deadline lands on the held response, not on a wall clock that a slow
+    // setup outlasts before the request is sent. Its timer's own latch is
+    // covered in execLimits.test.ts.
+    const eofHeld = Promise.withResolvers<undefined>()
     const h = await harness(
       [],
-      [{ text: 'partial', holdEof: new Promise(() => undefined) }],
-      {},
-      100,
+      [
+        {
+          text: 'partial',
+          holdEof: new Promise(() => undefined),
+          onEofHeld: () => {
+            eofHeld.resolve(undefined)
+          },
+        },
+      ],
     )
-    const r = await h.run()
+    const running = h.run()
+    // A run that ends without sending the request fails the asserts below.
+    await Promise.race([eofHeld.promise, running])
+    h.life.latch({ kind: 'timeout' })
+    const r = await running
     expect(r.code).toBe(6)
     expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)

@@ -5,8 +5,14 @@ import {
   availablePermissionModes,
   isPermissionMode,
   nextPermissionMode,
+  type AutoReviewers,
   permissionModeDetail,
 } from '../../src/shared/permissionModes'
+
+const none: AutoReviewers = { museCode: false, modelApi: false }
+const museCodeOnly: AutoReviewers = { museCode: true, modelApi: false }
+const modelApiOnly: AutoReviewers = { museCode: false, modelApi: true }
+const both: AutoReviewers = { museCode: true, modelApi: true }
 
 describe('approvalModeFor', () => {
   it('maps every mode onto a host approval mode once the approval UI exists', () => {
@@ -67,12 +73,20 @@ describe('permissionModeDetail (D24, D69)', () => {
     expect(UI_TEXT.permissionModeDetails.acceptEdits).toContain(UI_TEXT.permissionModes.manual)
     // Auto: Muse Code's own skip of simple commands, plus the reviewer while it is on.
     expect(permissionModeDetail('auto', 'museCode')).toBe(UI_TEXT.permissionModeDetails.auto)
-    expect(permissionModeDetail('auto', 'museCode', true)).toBe(UI_TEXT.museCodeReviewedAutoDetail)
-    expect(permissionModeDetail('auto', undefined, true)).toBe(UI_TEXT.museCodeReviewedAutoDetail)
+    expect(permissionModeDetail('auto', 'museCode', museCodeOnly)).toBe(
+      UI_TEXT.museCodeReviewedAutoDetail,
+    )
+    expect(permissionModeDetail('auto', undefined, museCodeOnly)).toBe(
+      UI_TEXT.museCodeReviewedAutoDetail,
+    )
+    // The Model API's paid reviewer never words Auto on Muse Code.
+    expect(permissionModeDetail('auto', 'museCode', modelApiOnly)).toBe(
+      UI_TEXT.permissionModeDetails.auto,
+    )
     // No line promises a safety check Muse Code does not run under serve (0.11.0).
     for (const mode of PERMISSION_MODES) {
-      for (const hasReviewer of [false, true]) {
-        expect(permissionModeDetail(mode, 'museCode', hasReviewer)).not.toMatch(/safety check/iu)
+      for (const reviewers of [none, museCodeOnly, modelApiOnly, both]) {
+        expect(permissionModeDetail(mode, 'museCode', reviewers)).not.toMatch(/safety check/iu)
       }
     }
   })
@@ -81,9 +95,36 @@ describe('permissionModeDetail (D24, D69)', () => {
     expect(permissionModeDetail('acceptEdits', 'modelApi')).toBe(
       UI_TEXT.modelApiPermissionModeDetails.acceptEdits,
     )
-    expect(permissionModeDetail('auto', 'modelApi', true)).toBe(
+    expect(permissionModeDetail('auto', 'modelApi', museCodeOnly)).toBe(
       UI_TEXT.modelApiPermissionModeDetails.auto,
     )
-    expect(permissionModeDetail('plan', 'modelApi')).toBe(UI_TEXT.permissionModeDetails.plan)
+    expect(permissionModeDetail('plan', 'modelApi')).toBe(
+      UI_TEXT.modelApiPermissionModeDetails.plan,
+    )
+  })
+
+  // musecode-write-asks (probed 2026-10-04): Plan is `denyUnmatched`, which
+  // refuses commands and protected writes but lets Muse Code's file tools
+  // edit files, so its line must not promise a plan before any edit.
+  it('says on Muse Code that Plan does not stop the file tools', () => {
+    const plan = permissionModeDetail('plan', 'museCode')
+    expect(plan).toBe(UI_TEXT.permissionModeDetails.plan)
+    expect(plan).toContain('can still edit files without asking')
+    expect(plan).not.toBe(permissionModeDetail('plan', 'modelApi'))
+  })
+
+  it('names the paid Auto reviewer on the Model API while it is on (M78)', () => {
+    expect(permissionModeDetail('auto', 'modelApi', modelApiOnly)).toBe(
+      UI_TEXT.modelApiReviewedAutoDetail,
+    )
+    expect(permissionModeDetail('auto', 'modelApi', both)).toBe(UI_TEXT.modelApiReviewedAutoDetail)
+    expect(UI_TEXT.modelApiReviewedAutoDetail).not.toBe(UI_TEXT.modelApiPermissionModeDetails.auto)
+    // Only Auto has a reviewer; every other mode keeps its line.
+    const others = PERMISSION_MODES.filter((each) => each !== 'auto')
+    for (const mode of others) {
+      expect(permissionModeDetail(mode, 'modelApi', both)).toBe(
+        permissionModeDetail(mode, 'modelApi'),
+      )
+    }
   })
 })

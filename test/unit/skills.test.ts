@@ -1,15 +1,17 @@
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import {
   bundledSkillSourcesRoot,
   bundledSkillsPackageRoot,
   bundledSkillsRoot,
+  firstPartySkillsRoot,
   loadSkills,
   parseSkillFile,
   personalSkillsRoot,
   projectSkillsRoot,
   skillBodyForModel,
 } from '../../src/core/context/skills'
-import { SKILL_FILE_MAX_BYTES } from '../../src/shared/constants'
+import { MODEL_TEXT, SKILL_FILE_MAX_BYTES } from '../../src/shared/constants'
 import { encoded, loaderDeps, memoryContextIo } from './helpers/fakeContextIo'
 
 const ROOT = '/ws'
@@ -151,6 +153,105 @@ describe('loadSkills: the bundled source (M89)', () => {
     expect(load.warnings).toEqual([
       `bundled skill sneaky skipped: SKILL.md is refused: path ${PACKAGE}/skills/sneaky/SKILL.md leads outside the workspace through a link`,
     ])
+  })
+})
+
+describe('loadSkills: the first-party root (M92)', () => {
+  const PACKAGE = '/ext/vendor/high-quality-projects-skill'
+  const FIRST_PARTY = '/ext/first-party-skills'
+  const roots = [
+    { directory: `${ROOT}/.agents/skills`, source: 'project' as const, confineTo: ROOT },
+    { directory: USER_ROOT, source: 'user' as const, confineTo: undefined },
+    {
+      directory: FIRST_PARTY,
+      source: 'bundled' as const,
+      confineTo: FIRST_PARTY,
+      packageRoot: FIRST_PARTY,
+    },
+    {
+      directory: `${PACKAGE}/skills`,
+      source: 'bundled' as const,
+      confineTo: PACKAGE,
+      packageRoot: PACKAGE,
+    },
+  ]
+
+  it('puts the first-party skills beside the extension on both path styles', () => {
+    expect(firstPartySkillsRoot('/ext', 'linux')).toBe('/ext/first-party-skills')
+    expect(firstPartySkillsRoot(String.raw`C:\ext`, 'win32')).toBe(
+      String.raw`C:\ext\first-party-skills`,
+    )
+  })
+
+  it('lists first-party skills as bundled, each root keeping its own package', async () => {
+    const files = new Map([
+      [`${FIRST_PARTY}/muse_gadgets/SKILL.md`, skillFile('muse_gadgets', 'Gadgets')],
+      [`${PACKAGE}/skills/quality_retrofit/SKILL.md`, skillFile('quality_retrofit', 'Retrofit')],
+      // An id the vendored package also holds: the first-party skill wins.
+      [`${FIRST_PARTY}/shared_id/SKILL.md`, skillFile('shared_id', 'Ours')],
+      [`${PACKAGE}/skills/shared_id/SKILL.md`, skillFile('shared_id', 'Theirs')],
+    ])
+    const load = await loadSkills({ io: memoryContextIo(files), platform: 'linux' }, roots)
+    expect(load.skills.map((skill) => `${skill.source}:${skill.id}:${skill.description}`)).toEqual([
+      'bundled:muse_gadgets:Gadgets',
+      'bundled:shared_id:Ours',
+      'bundled:quality_retrofit:Retrofit',
+    ])
+    expect(load.skills.map((skill) => skill.packageRoot)).toEqual([
+      FIRST_PARTY,
+      FIRST_PARTY,
+      PACKAGE,
+    ])
+    expect(load.warnings).toEqual([
+      'bundled skill shared_id skipped: the bundled skill with the same id takes precedence',
+    ])
+  })
+
+  it('lets a project or personal skill shadow a first-party one', async () => {
+    const files = new Map([
+      [`${ROOT}/.agents/skills/muse_gadgets/SKILL.md`, skillFile('muse_gadgets', 'Mine')],
+      [`${USER_ROOT}/shared_id/SKILL.md`, skillFile('shared_id', 'Personal')],
+      [`${FIRST_PARTY}/muse_gadgets/SKILL.md`, skillFile('muse_gadgets', 'Bundled')],
+      [`${FIRST_PARTY}/shared_id/SKILL.md`, skillFile('shared_id', 'Bundled')],
+    ])
+    const load = await loadSkills({ io: memoryContextIo(files), platform: 'linux' }, roots)
+    expect(load.skills.map((skill) => `${skill.source}:${skill.id}`)).toEqual([
+      'project:muse_gadgets',
+      'user:shared_id',
+    ])
+    expect(load.skills.map((skill) => skill.packageRoot)).toEqual([undefined, undefined])
+    expect(load.warnings).toEqual([
+      'bundled skill muse_gadgets skipped: the project skill with the same id takes precedence',
+      'bundled skill shared_id skipped: the user skill with the same id takes precedence',
+    ])
+  })
+
+  it('ships a well-formed muse_gadgets skill that loads under its own package root', async () => {
+    const text = await readFile('first-party-skills/muse_gadgets/SKILL.md', 'utf8')
+    expect(Buffer.byteLength(text)).toBeLessThan(SKILL_FILE_MAX_BYTES)
+    const parsed = parseSkillFile(text)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) {
+      return
+    }
+    expect(parsed.skill.name).toBe('muse_gadgets')
+    expect(parsed.skill.description).toContain('Muse Gadgets')
+    expect(parsed.skill.isUserInvocable).toBe(true)
+    // The skill's required sections, as D71 lists them.
+    for (const marker of ['timeout_ms', 'CONFIG_GADGET_SDK_TOKEN', 'AGENTS.md', 'export.ps1']) {
+      expect(parsed.skill.body).toContain(marker)
+    }
+    const loaded = skillBodyForModel({
+      id: 'muse_gadgets',
+      name: parsed.skill.name,
+      description: parsed.skill.description,
+      body: parsed.skill.body,
+      source: 'bundled',
+      isUserInvocable: true,
+      argumentHint: undefined,
+      packageRoot: FIRST_PARTY,
+    })
+    expect(loaded.startsWith(`${MODEL_TEXT.bundledSkillRoot} ${FIRST_PARTY}\n\n`)).toBe(true)
   })
 })
 

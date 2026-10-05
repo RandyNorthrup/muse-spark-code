@@ -32,13 +32,13 @@ beforeAll(async () => {
 
 afterAll(() => removeFolder(paths.root))
 
-/** A stand-in Windows PowerShell: `Add-Type -OutputAssembly` writes the file, the self-test answers. */
+/** A stand-in compiler writes the file; Windows PowerShell answers the self-test. */
 function fakePowerShell(selfTest = 'joined\r\n') {
   const scripts: string[] = []
   const run: RunProgram = async (_file, args) => {
     const script = args.at(-1) ?? ''
-    scripts.push(script)
-    const output = /-OutputAssembly '([^']+)'/.exec(script)?.[1]
+    const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
+    scripts.push(output === undefined ? script : args.join(' '))
     if (output !== undefined) {
       await writeFile(output, 'assembly')
       return ''
@@ -79,7 +79,7 @@ describe('shellJobAssembly (M27)', () => {
     expect(left.toSorted((a, b) => a.localeCompare(b))).toEqual([name, 'notes.txt'])
     // One compile, one self-test, however often it is asked.
     expect(powershell.scripts).toHaveLength(2)
-    expect(powershell.scripts[0]).toContain('-OutputType Library')
+    expect(powershell.scripts[0]).toContain('/target:library')
     expect(powershell.scripts[1]).toContain(`::Join('${SHELL_JOB_NAME_PREFIX}`)
     // It loads the assembly as each command's join does, so it proves that
     // load, and a failing load or join cannot reach the answer.
@@ -259,7 +259,7 @@ describe('shellJobAssembly (M27)', () => {
     await expect(ready()).resolves.toBe(assembly)
     expect(run).toHaveBeenCalledTimes(3)
     expect(powershell.scripts).toHaveLength(2)
-    expect(powershell.scripts[0]).toContain('-OutputAssembly')
+    expect(powershell.scripts[0]).toContain('/out:')
     expect(powershell.scripts[1]).toContain('::Join(')
     expect(logged).toHaveLength(1)
     expect(logged[0]).toContain('self-test temporarily unavailable')
