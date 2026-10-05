@@ -702,7 +702,9 @@ is no telemetry and no GitHub access.
     workspace command.
 - **A second scrub** runs over the whole final draft, the title and your
   description included: workspace roots become `<workspace>` and the home
-  folder `~`; other user paths, e-mail addresses, IPv4 and IPv6 addresses,
+  folder `~` (on Windows in any letter case, with either separator and in
+  the extended `\\?\` spelling); other user paths, Windows network (UNC)
+  paths, e-mail addresses, IPv4 and IPv6 addresses,
   URL query strings, fragments and credentials, your login and machine
   names, and every secret pattern the extension's redactor knows are
   removed.
