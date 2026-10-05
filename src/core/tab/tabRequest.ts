@@ -34,25 +34,29 @@ export interface TabRequestInput {
 
 export type TabUserInput = Omit<TabRequestInput, 'model' | 'mode'>
 
+/** A `{name}` slot in the user template. */
+const TEMPLATE_SLOT = /\{(\w+)\}/gu
+
 /**
  * The one user message: the file's path and language, the prefix, the fixed
  * hole marker, the suffix and any context snippets, each fenced as data.
- * Slots are replaced literally, so code holding braces passes through.
+ * The template is read once and every slot is filled in that one pass, so
+ * an inserted value (code, a path, a snippet) is never read for slots
+ * itself: code holding `{suffix}` or `{prefix}` passes through literally.
  */
 export function tabUserText(input: TabUserInput): string {
-  const slots: Readonly<Record<string, string>> = {
-    path: input.path,
-    languageId: input.languageId,
-    snippets: input.snippets,
-    prefix: input.prefix,
-    holeMarker: TAB_HOLE_MARKER,
-    suffix: input.suffix,
-  }
-  let text: string = TAB_MODEL_TEXT.tabUserTemplate
-  for (const [slot, value] of Object.entries(slots)) {
-    text = text.split(`{${slot}}`).join(value)
-  }
-  return text
+  const slots = new Map<string, string>([
+    ['path', input.path],
+    ['languageId', input.languageId],
+    ['snippets', input.snippets],
+    ['prefix', input.prefix],
+    ['holeMarker', TAB_HOLE_MARKER],
+    ['suffix', input.suffix],
+  ])
+  return TAB_MODEL_TEXT.tabUserTemplate.replaceAll(
+    TEMPLATE_SLOT,
+    (slot: string, name: string) => slots.get(name) ?? slot,
+  )
 }
 
 /**

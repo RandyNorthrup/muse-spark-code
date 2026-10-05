@@ -74,6 +74,24 @@ describe('buildTabRequest', () => {
     const text = tabUserText({ ...INPUT, prefix: 'const template = "{path}";' })
     expect(text).toContain('const template = "{path}";')
   })
+
+  it('never reads an inserted value for slots: later slot names stay literal', () => {
+    const prefix = 'const template = "{suffix} {holeMarker}";'
+    const text = tabUserText({ ...INPUT, prefix })
+    expect(text).toContain(prefix)
+    expect(text.split(TAB_HOLE_MARKER)).toHaveLength(2)
+    expect(text.split(INPUT.suffix)).toHaveLength(2)
+  })
+
+  it('never reads a snippet for slots, so the request head stays stable', () => {
+    const snippets = '```src/other.ts\nconst head = "{prefix}"\n```'
+    const earlier = tabUserText({ ...INPUT, snippets, prefix: 'const x = ' })
+    const later = tabUserText({ ...INPUT, snippets, prefix: 'const x = fo' })
+    expect(earlier).toContain(snippets)
+    expect(later).toContain(snippets)
+    const head = earlier.slice(0, earlier.indexOf(snippets) + snippets.length)
+    expect(later.startsWith(head)).toBe(true)
+  })
 })
 
 describe('tabPromptCacheKey', () => {
@@ -107,7 +125,9 @@ describe('tabPromptCacheKey', () => {
 
 describe('isModelApiError', () => {
   it('tells a ModelApiError apart by name and fields, not instanceof', () => {
-    expect(isModelApiError(new ModelApiError('nope', 429, 'rate_limit_error', undefined))).toBe(true)
+    expect(isModelApiError(new ModelApiError('nope', 429, 'rate_limit_error', undefined))).toBe(
+      true,
+    )
     // The Tab bundle's copy of the class: the same shape, another identity.
     expect(
       isModelApiError({ name: 'ModelApiError', status: 500, message: 'boom', kind: 'x' }),
