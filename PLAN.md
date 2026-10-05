@@ -14876,6 +14876,20 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM95G build deferral (2026-10-05).** The correction lane fixes all six
+assigned Gemini review findings and runs the required focused gates on
+Kubuntu. `npm run build` generates all production bundles within their
+unchanged caps, then exits 1 at the existing bundle-split gate because
+`src/core/backends/modelapi/codecs/gemini.ts` is on neither classification
+list in `scripts/check-bundle-split.mjs`. This unwired codec and missing
+registration predate the fixes. Gate-script/provider integration ownership
+is outside lane G; the brief prohibits widening this lane's files or any
+guard. No ignore or rule is changed. Follow-up: the lead's integration lane
+classifies/wires the provider codec under D74's lazy-bundle contract, reruns
+the build and combined full quality, and records certification before
+release. `docs/certification/m95-g.md` records the failed build and the
+separately run later build checks; no successful full-build claim is made.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -15319,6 +15333,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M95-G tool-result image replay (FIXM95G / RVM95A 11).** The existing
+  Gemini captures and research §1.6 do not establish a multimedia
+  `functionResponse` representation. The codec explicitly refuses the whole
+  request with `gemini_tool_result_image_unsupported`, including mixed
+  text/image results, so it cannot send a silently incomplete result. User
+  message images still encode as captured/documented `inlineData`. Follow-up:
+  capture a tool-returned image in Gemini's supported native representation,
+  then add replay and exact-byte regressions before enabling it. The review
+  finding is fixed by the lead-approved explicit-refusal option; the media
+  capability remains unavailable, with no new live/paid calls in this lane.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

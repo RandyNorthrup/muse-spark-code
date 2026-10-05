@@ -23,6 +23,8 @@ import {
   toGeminiSchemaSubset,
 } from '../../src/core/backends/modelapi/codecs/gemini'
 import { ModelApiError } from '../../src/core/backends/modelapi/client'
+import { MODEL_API_MODEL_TEXT, OBS_PACK_WHOLE_SENDS } from '../../src/shared/constants'
+import { ObservationPack } from '../../src/core/backends/modelapi/observationPack'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -35,6 +37,7 @@ import {
   isReasoningItem,
   type CreateResponseBody,
   type FunctionCallItem,
+  type InputMessageItem,
   type ReasoningItem,
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
@@ -70,6 +73,11 @@ function capture(name: string): CaptureFile {
       ...(bodySummary !== undefined && { bodySummary }),
     },
   }
+}
+
+/** Exact UTF-8 HTTP request bodies, intentionally compact with no trailing LF. */
+function requestBytes(name: string): string {
+  return readFileSync(path.join(ROOT, 'test', 'fixtures', 'gemini', `${name}.request.txt`), 'utf8')
 }
 
 /**
@@ -111,25 +119,6 @@ function chunk(parts: unknown[], finishReason?: string): unknown {
 function payloadsOf(name: string): unknown[] {
   const events = capture(name).response.events ?? []
   return events.map((event) => event.data)
-}
-
-/** The native tools, calling config and generation config the goldens share. */
-const NATIVE_GET_TIME_DECLARATION = {
-  name: 'get_time',
-  description: 'Returns the current time in the given IANA time zone.',
-  parameters: {
-    type: 'object',
-    properties: {
-      timezone: { type: 'string', description: 'An IANA time zone such as UTC.' },
-    },
-    required: ['timezone'],
-  },
-}
-const NATIVE_TOOLS = [{ functionDeclarations: [NATIVE_GET_TIME_DECLARATION] }]
-const NATIVE_TOOL_CONFIG = { functionCallingConfig: { mode: 'AUTO' } }
-const NATIVE_GENERATION_CONFIG = {
-  maxOutputTokens: 1024,
-  thinkingConfig: { thinkingLevel: 'low', includeThoughts: true },
 }
 
 /** The harness properties the schema-subset tests share. */
@@ -202,21 +191,9 @@ describe('gemini paths and thinking levels', () => {
 
 describe('encodeGeminiRequest goldens', () => {
   it('encodes a first tool turn byte for byte', () => {
-    expect(encodeGeminiRequest(TOOL_BODY, 'gemini-3.5-flash-lite')).toEqual({
-      path: '/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse',
-      body: {
-        systemInstruction: { parts: [{ text: 'be brief' }] },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: 'What time is it in UTC right now?' }],
-          },
-        ],
-        tools: NATIVE_TOOLS,
-        toolConfig: NATIVE_TOOL_CONFIG,
-        generationConfig: NATIVE_GENERATION_CONFIG,
-      },
-    })
+    const request = encodeGeminiRequest(TOOL_BODY, 'gemini-3.5-flash-lite')
+    expect(request.path).toBe('/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse')
+    expect(JSON.stringify(request.body)).toBe(requestBytes('first-turn'))
   })
 
   it('is deterministic: the same body always encodes to the same bytes', () => {
@@ -286,58 +263,70 @@ describe('encodeGeminiRequest history', () => {
       },
     ],
   }
+  const completedAnswer: InputMessageItem = {
+    type: 'message',
+    role: 'assistant',
+    content: [{ type: 'output_text', text: 'It is noon UTC.' }],
+  }
 
   it('replays the signature in its exact part, the call and the JSON result', () => {
     const request = encodeGeminiRequest(replay, 'gemini-3.5-flash-lite')
-    expect(request.body).toEqual({
-      systemInstruction: { parts: [{ text: 'be brief' }] },
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: 'What time is it in UTC right now?' }],
-        },
-        {
-          role: 'model',
-          parts: [
-            {
-              functionCall: {
-                name: 'get_time',
-                args: { timezone: 'UTC' },
-                id: 'call_3117260',
-              },
-              thoughtSignature: signature,
-            },
-          ],
-        },
-        {
-          role: 'user',
-          parts: [
-            {
-              functionResponse: {
-                id: 'call_3117260',
-                name: 'get_time',
-                response: { timezone: 'UTC', time: '2026-10-04T12:00:00Z' },
-              },
-            },
-          ],
-        },
-      ],
-      tools: NATIVE_TOOLS,
-      toolConfig: NATIVE_TOOL_CONFIG,
-      generationConfig: NATIVE_GENERATION_CONFIG,
-    })
+    expect(JSON.stringify(request.body)).toBe(requestBytes('tool-loop'))
   })
 
   it('keeps the earlier native bytes when the session grows', () => {
-    const first = encodeGeminiRequest(TOOL_BODY, 'gemini-3.5-flash-lite')
-    const grown = encodeGeminiRequest(replay, 'gemini-3.5-flash-lite')
-    const firstContents: unknown = first.body['contents']
-    const grownContents: unknown = grown.body['contents']
-    if (!Array.isArray(firstContents) || !Array.isArray(grownContents)) {
-      throw new TypeError('expected contents on both requests')
+    const bodies: CreateResponseBody[] = [
+      TOOL_BODY,
+      replay,
+      {
+        ...replay,
+        input: [
+          ...replay.input,
+          completedAnswer,
+          {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: 'And tomorrow?' }],
+          },
+        ],
+      },
+    ]
+    // Two declarations make a per-request tool re-sort observable.
+    const requests = bodies.map((body) =>
+      encodeGeminiRequest(
+        {
+          ...body,
+          tools: [
+            ...body.tools,
+            {
+              type: 'function',
+              name: 'another_tool',
+              description: 'A second fixture tool.',
+              parameters: { type: 'object' },
+              strict: false,
+            },
+          ],
+        },
+        'gemini-3.5-flash-lite',
+      ),
+    )
+    for (const [index, previous] of requests.entries()) {
+      const next = requests[index + 1]
+      if (next === undefined) {
+        continue
+      }
+      const before: unknown = previous.body['contents']
+      const after: unknown = next.body['contents']
+      if (!Array.isArray(before) || !Array.isArray(after)) {
+        throw new TypeError('expected contents on both requests')
+      }
+      expect(JSON.stringify(after.slice(0, before.length))).toBe(JSON.stringify(before))
+      // Include every non-growing field and its key order, not only contents[0].
+      const stable = (body: Record<string, unknown>) =>
+        JSON.stringify(Object.entries(body).filter(([key]) => key !== 'contents'))
+      expect(stable(next.body)).toBe(stable(previous.body))
+      expect(next.path).toBe(previous.path)
     }
-    expect(grownContents.length).toBe(3)
-    expect(grownContents[0]).toEqual(firstContents[0])
   })
 
   it('wraps a plain-text result as {result}', () => {
@@ -351,6 +340,91 @@ describe('encodeGeminiRequest history', () => {
       'gemini-3.5-flash-lite',
     )
     expect(JSON.stringify(request.body)).toContain('{"result":"noon"}')
+  })
+
+  it.each([false, true])(
+    'explicitly refuses tool-result images instead of dropping them (text: %s)',
+    (hasText) => {
+      const body: CreateResponseBody = {
+        ...replay,
+        input: replay.input.map((item) =>
+          item.type === 'function_call_output'
+            ? {
+                ...item,
+                output: [
+                  ...(hasText
+                    ? [{ type: 'input_text' as const, text: 'picture from view_image' }]
+                    : []),
+                  { type: 'input_image', image_url: 'data:image/png;base64,iVBOR', detail: 'auto' },
+                ],
+              }
+            : item,
+        ),
+      }
+      expect(() => encodeGeminiRequest(body, 'gemini-3.5-flash-lite')).toThrow(
+        expect.objectContaining({
+          name: 'ModelApiError',
+          kind: 'unsupported_content',
+          code: 'gemini_tool_result_image_unsupported',
+        }),
+      )
+    },
+  )
+
+  it('keeps all text parts in a supported tool result', () => {
+    const body: CreateResponseBody = {
+      ...replay,
+      input: replay.input.map((item) =>
+        item.type === 'function_call_output'
+          ? {
+              ...item,
+              output: [
+                { type: 'input_text', text: 'first' },
+                { type: 'input_text', text: 'second' },
+              ],
+            }
+          : item,
+      ),
+    }
+    expect(JSON.stringify(encodeGeminiRequest(body, 'gemini-3.5-flash-lite').body)).toContain(
+      JSON.stringify({ result: 'first\nsecond' }),
+    )
+  })
+
+  it('pins packed-output request bytes using the real ObservationPack', () => {
+    const output = Array.from(
+      { length: 200 },
+      (_, index) => `line ${String(index)} ${'x'.repeat(40)}`,
+    ).join('\n')
+    const input = replay.input.map((item) =>
+      item.type === 'function_call_output' ? { ...item, output } : item,
+    )
+    const pack = new ObservationPack()
+    for (let round = 0; round < OBS_PACK_WHOLE_SENDS; round += 1) {
+      pack.noteSent(pack.project(input))
+    }
+    const packed = pack.project(input)
+    expect(packed.some((item) => pack.isPlaceholder(item))).toBe(true)
+    const request = encodeGeminiRequest({ ...replay, input: packed }, 'gemini-3.5-flash-lite')
+    expect(JSON.stringify(request.body)).toBe(requestBytes('packed-output'))
+  })
+
+  it('pins compaction request bytes with the tools retained for BYO', () => {
+    const body: CreateResponseBody = {
+      ...replay,
+      input: [
+        ...replay.input,
+        completedAnswer,
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
+        },
+      ],
+    }
+    expect(JSON.stringify(encodeGeminiRequest(body, 'gemini-3.5-flash-lite').body)).toBe(
+      requestBytes('compaction'),
+    )
   })
 
   it('signs an unsigned call with the documented dummy, for foreign history', () => {
@@ -423,9 +497,7 @@ describe('encodeGeminiRequest history', () => {
       },
       'gemini-3.5-flash-lite',
     )
-    expect(JSON.stringify(image.body)).toContain(
-      '{"inlineData":{"mimeType":"image/png","data":"iVBOR"}}',
-    )
+    expect(JSON.stringify(image.body)).toBe(requestBytes('image'))
     expect(() =>
       encodeGeminiRequest(
         {

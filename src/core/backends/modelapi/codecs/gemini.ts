@@ -304,11 +304,19 @@ function toNativeParts(content: readonly InputContentPart[]): unknown[] {
  * A tool result as the `functionResponse.response` object (research §1.6):
  * a JSON-object string goes back as that object (the capture replays
  * `{"timezone": …, "time": …}` verbatim); anything else, including text
- * joined from content parts, as `{result}`. Pictures in a result have no
- * `functionResponse` form and stay out; the host's arg validation reports
- * what the model must resend.
+ * joined from content parts, as `{result}`. No tool-result image form was
+ * captured or recorded in research §1.6, so media refuses the whole request
+ * with a named error before any text-only representation can be sent.
  */
 function toFunctionResponseBody(output: FunctionCallOutputItem['output']): Record<string, unknown> {
+  if (typeof output !== 'string' && output.some((part) => part.type === 'input_image')) {
+    throw new ModelApiError(
+      'GeminiToolResultImageUnsupported',
+      0,
+      'unsupported_content',
+      'gemini_tool_result_image_unsupported',
+    )
+  }
   const text =
     typeof output === 'string'
       ? output
