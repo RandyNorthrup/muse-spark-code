@@ -38,6 +38,7 @@ const BUNDLES = [
   'uiText.js',
   'extensionHooks.js',
   'validation.js',
+  'validationSchema.js',
   'searchWorker.js',
   'pageWorker.js',
 ]

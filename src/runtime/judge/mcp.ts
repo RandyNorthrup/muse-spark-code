@@ -7,7 +7,6 @@ import {
   EXEC_FORCE_WRITE_MS,
   IDE_MCP_SERVER_INFO,
   JUDGE_MAX_BODY_BYTES,
-  JUDGE_SCORE_LEVEL_MAX,
   MCP_CANCELLED_NOTIFICATION,
   UI_TEXT,
 } from '../../shared/constants'
@@ -24,82 +23,11 @@ const cancelledNotificationSchema = z.object({
   params: z.object({ requestId: z.union([z.string(), z.number()]) }),
 })
 
-// Generated from judgeRequestSchema; the owning MCP test requires exact parity.
-// Keep the JSON-schema converter out of the shared Node parser (PLAN.md D6).
-const judgeInputSchema = {
-  $schema: 'https://json-schema.org/draft/2020-12/schema',
-  type: 'object',
-  properties: {
-    state: {
-      anyOf: [
-        { type: 'string' },
-        { type: 'array', items: {} },
-        { type: 'object', propertyNames: { type: 'string' }, additionalProperties: {} },
-      ],
-    },
-    questions: {
-      type: 'object',
-      propertyNames: { type: 'string' },
-      additionalProperties: {
-        oneOf: [
-          {
-            type: 'object',
-            properties: {
-              type: { type: 'string', const: 'noul' },
-              instructions: { type: 'string', minLength: 1 },
-              criteria: {
-                type: 'object',
-                properties: { true: { type: 'string' }, false: { type: 'string' } },
-                additionalProperties: false,
-              },
-            },
-            required: ['type', 'instructions'],
-            additionalProperties: false,
-          },
-          {
-            type: 'object',
-            properties: {
-              type: { type: 'string', const: 'choice' },
-              instructions: { type: 'string', minLength: 1 },
-              criteria: {
-                type: 'object',
-                propertyNames: { type: 'string', pattern: '^[A-Z]$' },
-                additionalProperties: { type: ['string', 'null'] },
-              },
-            },
-            required: ['type', 'instructions', 'criteria'],
-            additionalProperties: false,
-          },
-          {
-            type: 'object',
-            properties: {
-              type: { type: 'string', const: 'score' },
-              instructions: { type: 'string', minLength: 1 },
-              criteria: {
-                minItems: 2,
-                maxItems: JUDGE_SCORE_LEVEL_MAX,
-                type: 'array',
-                items: { type: 'string', minLength: 1 },
-              },
-            },
-            required: ['type', 'instructions', 'criteria'],
-            additionalProperties: false,
-          },
-        ],
-      },
-    },
-    model: { type: 'string', minLength: 1 },
-  },
-  required: ['state', 'questions'],
-  additionalProperties: false,
-}
-
-/** Reuse the captured MCP server protocol; only a bounded advisory tool is exposed. */
 function judgeTool(judge: JudgeCall, fail: (code: number) => void): McpTool {
   return {
     name: 'judge',
     description: fill(UI_TEXT.judgeNoAnswer, { reason: 'advisory-only' }),
-    inputSchema: judgeInputSchema,
+    inputSchema: z.toJSONSchema(judgeRequestSchema),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     async call(raw, signal) {
       const request = judgeRequestSchema.safeParse(raw)

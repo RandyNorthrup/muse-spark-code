@@ -27,6 +27,7 @@ export {
   never,
   nonnegative,
   null,
+  nullish,
   nullable,
   number,
   object,

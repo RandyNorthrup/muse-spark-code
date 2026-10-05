@@ -747,6 +747,22 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+// The shared parser exposes conversion lazily; no other shipped bundle may
+// carry the converter or its entry, even if a caller only lists tools.
+for (const file of ['src/host/validationSchemaEntry.ts']) {
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== 'dist/validationSchema.js' && inputsOf(bundle).has(file))
+      problems.push(`${bundle.output} carries ${file}, which loads only for JSON Schema conversion`)
+  }
+  if (
+    !inputsOf({
+      output: 'dist/validationSchema.js',
+      metafile: 'dist/meta/validationSchema.json',
+    }).has(file)
+  )
+    problems.push(`dist/validationSchema.js no longer carries ${file}`)
+}
+
 // Phase-2 implementations belong only to the explicit-action factory. This
 // includes every other lazy bundle, so an accidental import cannot hide there.
 const judge = inputsOf(JUDGE)

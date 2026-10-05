@@ -18,8 +18,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill, formatUsd as formatBudgetUsd } from '../../shared/l10n/text'
-import { formatUsd } from '../../core/usage/insights'
+import { fill, formatUsd } from '../../shared/l10n/text'
 import {
   autoReviewPrice,
   modelApiPaidTier,
@@ -91,7 +90,7 @@ function confirmationDetail(feature: PaidFeature): string {
     // Invalid hand edits show zero; this formatter enables no charge.
     return fill(details.judge, {
       price: paidFeaturePrice(feature),
-      budget: formatBudgetUsd(budget.success ? budget.data : 0, 2),
+      budget: formatUsd(budget.success ? budget.data : 0, 2),
     })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })

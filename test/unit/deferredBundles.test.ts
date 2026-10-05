@@ -8,7 +8,8 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import type * as validation from '../../src/shared/validationEntry'
+import type * as validation from '../../src/host/validationEntry'
+import { EN } from '../../src/shared/l10n/en'
 
 const metafileSchema = z.looseObject({
   outputs: z.record(
@@ -35,6 +36,57 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('preserves every English fallback value in the compact Node artifact', () => {
+    const require = createRequire(path.resolve('dist/uiText.js'))
+    const table: { readonly EN: typeof EN } = require(path.resolve('dist/uiText.js'))
+    expect(table.EN).toEqual(EN)
+    const meta = metafileSchema.parse(JSON.parse(readFileSync('dist/meta/uiText.json', 'utf8')))
+    expect(meta.outputs['dist/uiText.js']?.inputs).toHaveProperty('src/shared/l10n/en.ts')
+  })
+
+  it('loads JSON Schema conversion only when the shared parser converts a schema', () => {
+    const entry = path.resolve('dist/validation.js')
+    const nativeRequire = createRequire(entry)
+    const loaded: string[] = []
+    const writer = { isMalformed: false }
+    const module: { exports: unknown } = { exports: {} }
+    const tracedRequire = (name: string): unknown => {
+      loaded.push(name)
+      return name === './validationSchema.js' && writer.isMalformed ? {} : nativeRequire(name)
+    }
+    const run = vm.compileFunction(readFileSync(entry, 'utf8'), [
+      'require',
+      'module',
+      'exports',
+      '__filename',
+    ])
+    Reflect.apply(run, undefined, [
+      (file: string): unknown => {
+        loaded.push(file)
+        if (file === 'node:module')
+          return {
+            createRequire: () => tracedRequire,
+          }
+        return nativeRequire(file)
+      },
+      module,
+      module.exports,
+      entry,
+    ])
+    const parser: typeof validation = Object.assign({}, nativeRequire(entry), module.exports)
+    expect(parser.string().safeParse(1).success).toBe(false)
+    expect(loaded).not.toContain('./validationSchema.js')
+    expect(parser.toJSONSchema(parser.strictObject({ value: parser.string() }))).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+      required: ['value'],
+      additionalProperties: false,
+    })
+    expect(loaded).toContain('./validationSchema.js')
+    writer.isMalformed = true
+    expect(() => parser.toJSONSchema(parser.string())).toThrow('validation-schema-unavailable')
+  })
+
   it('uses the real shared parser for boundary checks without inlining it in Node bundles', () => {
     const require = createRequire(path.resolve('dist/validation.js'))
     const parser: typeof validation = require(path.resolve('dist/validation.js'))
@@ -175,6 +227,7 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['validation', 'src/host/validationSchemaEntry.ts', 'for JSON Schema conversion'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     // M91b: the plugin host, required by the adapters on the first plugin hook.
     ['foreignHooks', 'src/core/backends/modelapi/pluginHost.ts', 'on the first plugin hook'],

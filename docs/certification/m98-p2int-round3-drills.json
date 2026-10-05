@@ -1,0 +1,97 @@
+{
+  "prerequisiteControls": [
+    {
+      "name": "english-value-preservation",
+      "file": "scripts/build.mjs",
+      "mutation": {
+        "old": "JSON.stringify(context.module.exports.EN)",
+        "next": "JSON.stringify({})"
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "preserves every English fallback value",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "955a8bcf0e59b6549b2f08f6b797bbd8a783b22f463a2e6e06b25fc5e0baf21e"
+      },
+      "restored": {
+        "sha256": "955a8bcf0e59b6549b2f08f6b797bbd8a783b22f463a2e6e06b25fc5e0baf21e"
+      }
+    },
+    {
+      "name": "lazy-conversion",
+      "file": "src/host/validationSchema.ts",
+      "mutation": {
+        "old": "/** The parser stays small;",
+        "next": "const eagerWriter: unknown = createRequire(__filename)('./validationSchema.js')\n\n/** The parser stays small;"
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "loads JSON Schema conversion only",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      },
+      "restored": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      }
+    },
+    {
+      "name": "writer-callable",
+      "file": "src/host/validationSchema.ts",
+      "mutation": {
+        "old": "  if (!isSchemaWriter(writer)) throw new Error('validation-schema-unavailable')\n",
+        "next": ""
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "loads JSON Schema conversion only",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      },
+      "restored": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      }
+    },
+    {
+      "name": "conversion-export",
+      "file": "src/host/validationEntry.ts",
+      "mutation": {
+        "old": "export { toJSONSchema } from './validationSchema'\n",
+        "next": ""
+      },
+      "command": ["npm", "run", "build"],
+      "rejection": "reads zod/mini.toJSONSchema, absent from validation.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "a0840327242ac2e7d580d3b214facc1f81c8a3a037746f698e688df895b4c83a"
+      },
+      "restored": {
+        "sha256": "a0840327242ac2e7d580d3b214facc1f81c8a3a037746f698e688df895b4c83a"
+      }
+    }
+  ]
+}

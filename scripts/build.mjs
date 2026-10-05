@@ -49,6 +49,9 @@
 
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { Buffer } from 'node:buffer'
+import { runInNewContext } from 'node:vm'
+import { brotliCompressSync } from 'node:zlib'
 import * as esbuild from 'esbuild'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -65,8 +68,10 @@ const HOST_OUTFILE = 'dist/extension.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
-const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_ENTRY = 'src/host/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
+const VALIDATION_SCHEMA_ENTRY = 'src/host/validationSchemaEntry.ts'
+const VALIDATION_SCHEMA_OUTFILE = 'dist/validationSchema.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
@@ -424,11 +429,39 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+// Preserve every table value while keeping the shared Node fallback under
+// its unchanged cap. Browser and development output keep the source form.
+/** @type {import('esbuild').Plugin} */
+const compactEnglish = {
+  name: 'compact-node-english',
+  setup(build) {
+    build.onEnd((result) => {
+      if (result.errors.length > 0) return
+      const output = result.outputFiles?.[0]
+      if (output === undefined || result.metafile === undefined)
+        throw new Error('English table output is missing')
+      const context = { module: { exports: {} } }
+      // Only the just-built, repository-owned table is evaluated, without I/O.
+      runInNewContext(output.text, context)
+      const encoded = brotliCompressSync(JSON.stringify(context.module.exports.EN)).toString(
+        'base64',
+      )
+      const compact = `exports.EN=JSON.parse(require("node:zlib").brotliDecompressSync(Buffer.from(${JSON.stringify(encoded)},"base64")).toString("utf8"));\n`
+      writeFileSync(UI_TEXT_OUTFILE, compact)
+      const meta = result.metafile.outputs[UI_TEXT_OUTFILE]
+      meta.bytes = Buffer.byteLength(compact)
+      meta.inputs[UI_TEXT_ENTRY].bytesInOutput = encoded.length
+      meta.imports.push({ path: 'node:zlib', kind: 'require-call', external: true })
+    })
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const uiTextOptions = {
   ...common,
   entryPoints: [UI_TEXT_ENTRY],
   outfile: UI_TEXT_OUTFILE,
+  ...(isProduction && { write: false, plugins: [compactEnglish] }),
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -436,8 +469,16 @@ const uiTextOptions = {
 
 const validationOptions = {
   ...uiTextOptions,
+  write: true,
+  plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
+}
+
+const validationSchemaOptions = {
+  ...validationOptions,
+  entryPoints: [VALIDATION_SCHEMA_ENTRY],
+  outfile: VALIDATION_SCHEMA_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -527,6 +568,7 @@ if (isWatch) {
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
     esbuild.context(validationOptions),
+    esbuild.context(validationSchemaOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -559,6 +601,7 @@ if (isWatch) {
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),
     validation: esbuild.build(validationOptions),
+    validationSchema: esbuild.build(validationSchemaOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
@@ -604,6 +647,7 @@ if (isWatch) {
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)
   reportSize(VALIDATION_OUTFILE)
+  reportSize(VALIDATION_SCHEMA_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)

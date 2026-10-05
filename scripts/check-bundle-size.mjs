@@ -103,6 +103,8 @@ const BUDGETS = [
   { path: 'dist/judge.js', budgetKiB: 75 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
+  // M98 integration: JSON Schema conversion loads only on explicit tool listing.
+  { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.

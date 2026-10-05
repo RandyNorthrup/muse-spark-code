@@ -32,6 +32,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M98 H/GH integration prerequisites.** Preserve the complete translated
+  M91/M98 string union under the existing English fallback cap with lossless
+  Node-only encoding. The shared validation module exports MCP's JSON Schema
+  conversion through a lazy sibling, keeping the parser's existing cap and
+  startup behavior. Generated host API and notices cover the merged tree.
+
 - **Muse Judge phase-2 integration.** Preserve the B/CS/D library alongside
   the reviewed CLI/MCP lane and 0.13.0 release inventories. The shared Node
   validation runtime now includes calibration's existing strict-upper-bound

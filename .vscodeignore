@@ -23,6 +23,7 @@
 !dist/whatsNew.json
 !dist/uiText.js
 !dist/validation.js
+!dist/validationSchema.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/webview/main.js
