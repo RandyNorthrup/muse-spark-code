@@ -98,7 +98,19 @@ describe('permissionModeDetail (D24, D69)', () => {
     expect(permissionModeDetail('auto', 'modelApi', museCodeOnly)).toBe(
       UI_TEXT.modelApiPermissionModeDetails.auto,
     )
-    expect(permissionModeDetail('plan', 'modelApi')).toBe(UI_TEXT.permissionModeDetails.plan)
+    expect(permissionModeDetail('plan', 'modelApi')).toBe(
+      UI_TEXT.modelApiPermissionModeDetails.plan,
+    )
+  })
+
+  // musecode-write-asks (probed 2026-10-04): Plan is `denyUnmatched`, which
+  // refuses commands and protected writes but lets Muse Code's file tools
+  // edit files, so its line must not promise a plan before any edit.
+  it('says on Muse Code that Plan does not stop the file tools', () => {
+    const plan = permissionModeDetail('plan', 'museCode')
+    expect(plan).toBe(UI_TEXT.permissionModeDetails.plan)
+    expect(plan).toContain('can still edit files without asking')
+    expect(plan).not.toBe(permissionModeDetail('plan', 'modelApi'))
   })
 
   it('names the paid Auto reviewer on the Model API while it is on (M78)', () => {

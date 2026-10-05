@@ -797,6 +797,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
   })
+  // The sandbox-off warning (musecode-write-asks): once per window, in the
+  // first Muse Code conversation that starts on a host without the sandbox.
+  let hasShownSandboxOffNotice = false
+  const shouldWarnSandboxOff = (): boolean => {
+    const isFirst = !hasShownSandboxOffNotice
+    hasShownSandboxOffNotice = true
+    return isFirst
+  }
   // Muse Code's own settings and trace logs (M14): read, never written; the
   // config root as the CLI sees it, `museSpark.environmentVariables` included.
   const museConfig = () => ({
@@ -1984,8 +1992,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           void sandbox.offerIfNeeded('failure').catch(logRejection(log, 'sandbox offer'))
         },
         platform: process.platform,
-        userProfileDir: process.env['USERPROFILE'],
         shellSandbox: () => backend.shellSandboxPosture(),
+        shouldWarnSandboxOff,
         editorContext: () => editorContext.active,
         isAutosaveEnabled: () => currentSettings().autosave,
         saveAll: async () => {
@@ -2506,6 +2514,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           backendSetting: settings.backend,
           shellSandboxSetting: settings.shellSandbox,
           shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
+          isShellSandboxed: posture.isSandboxed,
           sandboxNetworkSetting: settings.sandboxNetwork,
           isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
           isBinaryPathConfigured: settings.museBinaryPath !== '',

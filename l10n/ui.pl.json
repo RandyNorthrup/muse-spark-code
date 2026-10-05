@@ -796,7 +796,9 @@
   "planOpenFailed": "Nie udało się otworzyć planu",
   "sideChatSessionOnly": "Ten czat poboczny może otwierać tylko inne czaty poboczne.",
   "renameFailed": "Nie można zmienić nazwy rozmowy",
-  "sandboxOffProfileNotice": "Ten obszar roboczy znajduje się w Twoim profilu użytkownika, gdzie piaskownica Windows Muse Code nie może uruchamiać poleceń, więc to okno uruchamia polecenia powłoki bez piaskownicy, bezpośrednio jako Ty. Monity o zatwierdzenie nadal obowiązują. Ustawienie: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Piaskownica Windows Muse Code nie może niezawodnie uruchamiać poleceń w obszarze roboczym w Twoim profilu użytkownika, więc to okno uruchamia Muse Code bez jego piaskownicy systemu operacyjnego. Jego narzędzia plikowe mogą wtedy bez pytania zapisywać wszędzie, gdzie może zapisywać Twoje konto, także poza tym obszarem roboczym, w każdym trybie, łącznie z Planowaniem, a jego polecenia działają bezpośrednio jako Ty, z Twoją siecią. Zatwierdzanie nadal obejmuje jego polecenia i zapisy w .git, .muse i .agents. Obszar roboczy poza Twoim profilem użytkownika zachowuje piaskownicę. Ustawienie: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "Ustawienie museSpark.shellSandbox jest wyłączone, więc Muse Code działa w tym oknie bez swojej piaskownicy systemu operacyjnego. Jego narzędzia plikowe mogą wtedy bez pytania zapisywać wszędzie, gdzie może zapisywać Twoje konto, także poza tym obszarem roboczym, w każdym trybie, łącznie z Planowaniem, a jego polecenia działają bezpośrednio jako Ty, z Twoją siecią. Zatwierdzanie nadal obejmuje jego polecenia i zapisy w .git, .muse i .agents.",
+  "sandboxPreparingNotice": "Piaskownica Windows Muse Code jest jeszcze przygotowywana, więc to polecenie nie zostało uruchomione. Po konfiguracji Muse Code jednorazowo, w tle, daje piaskownicy dostęp do odczytu Twoich plików, co przy dużym profilu użytkownika może chwilę potrwać. Spróbuj ponownie za kilka minut. Ustawienie: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Najpierw otwórz folder; plik AGENTS.md znajduje się w katalogu głównym obszaru roboczego.",
   "rulesFileExists": "Plik AGENTS.md już istnieje w tym obszarze roboczym; otwieranie go.",
   "rulesFileCreated": "Utworzono plik AGENTS.md. Muse czyta go jako reguły projektu od następnej rozmowy.",
@@ -934,7 +936,7 @@
   "bannerDismiss": "Odrzuć",
   "trustGrantedNotice": "Obszar roboczy jest zaufany: Muse wczyta jego reguły, umiejętności i pamięć od następnej wiadomości.",
   "sandboxRestartNotice": "Zmieniono ustawienie Muse Code; przy następnej wiadomości Muse Code uruchomi się z nim ponownie i będzie kontynuować tę rozmowę.",
-  "sandboxProfileNotice": "Ten obszar roboczy znajduje się w Twoim profilu użytkownika, do którego piaskownica Windows Muse Code nie ma dostępu: polecenia powłoki będą uruchamiane w folderze programu PowerShell zamiast w projekcie. Nie dotyczy to odczytu i edycji plików. W obszarze roboczym poza C:\\Users polecenia są uruchamiane na miejscu.",
+  "sandboxProfileNotice": "Ten obszar roboczy znajduje się w Twoim profilu użytkownika, gdzie piaskownica Windows Muse Code może nie uruchamiać poleceń: mogą one startować w folderze programu PowerShell zamiast w projekcie albo nigdy się nie kończyć. Nie dotyczy to odczytu i edycji plików. W obszarze roboczym poza C:\\Users polecenia są uruchamiane na miejscu.",
   "permissionModes": {
     "manual": "Ręczny",
     "acceptEdits": "Automatyczna edycja",
@@ -945,7 +947,7 @@
   "permissionModeDetails": {
     "manual": "Muse zapyta przed uruchomieniem poleceń; Muse Code edytuje pliki obszaru roboczego bez pytania",
     "acceptEdits": "W Muse Code to samo co Ręczny: Muse Code edytuje pliki obszaru roboczego bez pytania i pyta przed uruchomieniem poleceń",
-    "plan": "Muse przeanalizuje kod i przedstawi plan przed wprowadzeniem zmian",
+    "plan": "Muse najpierw planuje; Muse Code odrzuca polecenia, ale jego narzędzia plikowe nadal mogą edytować pliki bez pytania",
     "auto": "Muse Code bez pytania uruchamia polecenia, które uznaje za proste, a przed pozostałymi pyta",
     "bypassPermissions": "Muse będzie edytować pliki i uruchamiać polecenia bez pytania"
   },
@@ -953,6 +955,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse poprosi o zatwierdzenie przed każdą edycją i każdym poleceniem",
     "acceptEdits": "Muse będzie edytować pliki bez pytania i pytać przed uruchomieniem poleceń",
+    "plan": "Muse przeanalizuje kod i przedstawi plan przed wprowadzeniem zmian",
     "auto": "Muse będzie edytować pliki bez pytania, z wyjątkiem plików chronionych, i pytać przed poleceniami"
   },
   "modelApiReviewedAutoDetail": "Muse będzie edytować pliki bez pytania, z wyjątkiem plików chronionych; płatny oceniający może jednorazowo zezwolić na niektóre polecenia, o resztę pyta Ciebie",

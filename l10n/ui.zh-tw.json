@@ -742,7 +742,9 @@
   "planOpenFailed": "無法開啟計畫",
   "sideChatSessionOnly": "此旁聊只能開啟其他旁聊對話。",
   "renameFailed": "無法重新命名對話",
-  "sandboxOffProfileNotice": "此工作區位於您的使用者設定檔資料夾下，Muse Code 的 Windows 沙箱無法在此執行命令，因此此視窗不使用沙箱，直接以您的身分執行 shell 命令。核准提示仍然適用。設定：museSpark.shellSandbox。",
+  "sandboxOffProfileWarning": "Muse Code 的 Windows 沙箱無法在您的使用者設定檔資料夾下的工作區中可靠地執行命令，因此此視窗會在不使用其作業系統沙箱的情況下執行 Muse Code。此時，它的檔案工具可以在任何模式下（包括規劃模式）不經詢問地寫入您的帳戶可寫入的任何位置，包括此工作區之外；它的命令會以您的身分、使用您的網路直接執行。核准仍然適用於它的命令以及對 .git、.muse 和 .agents 的寫入。位於您的使用者設定檔資料夾以外的工作區會保留沙箱。設定：museSpark.shellSandbox。",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox 已關閉，因此 Muse Code 在此視窗中不使用其作業系統沙箱執行。此時，它的檔案工具可以在任何模式下（包括規劃模式）不經詢問地寫入您的帳戶可寫入的任何位置，包括此工作區之外；它的命令會以您的身分、使用您的網路直接執行。核准仍然適用於它的命令以及對 .git、.muse 和 .agents 的寫入。",
+  "sandboxPreparingNotice": "Muse Code 的 Windows 沙箱仍在準備中，因此此命令沒有執行。設定完成後，Muse Code 會在背景一次性為沙箱授予您檔案的讀取權限，使用者設定檔較大時可能需要一些時間。請幾分鐘後再試一次。設定：museSpark.shellSandbox。",
   "rulesFileNoWorkspace": "請先開啟資料夾；AGENTS.md 位於工作區根目錄。",
   "rulesFileExists": "此工作區中已有 AGENTS.md；正在開啟。",
   "rulesFileCreated": "已建立 AGENTS.md。從下一個對話開始，Muse 會將其視為專案規則讀取。",
@@ -865,7 +867,7 @@
   "bannerDismiss": "關閉",
   "trustGrantedNotice": "工作區已受信任：從下一則訊息開始，Muse 會載入其規則、技能和記憶。",
   "sandboxRestartNotice": "Muse Code 的某項設定已變更；Muse Code 會在下一則訊息時套用新設定重新啟動，並繼續此對話。",
-  "sandboxProfileNotice": "此工作區位於您的使用者設定檔資料夾下，而Muse Code 的 Windows 沙箱無法進入該處：shell 命令會在 PowerShell 資料夾而非專案中啟動。檔案讀取和編輯不受影響。位於 C:\\Users 以外的工作區會就地執行命令。",
+  "sandboxProfileNotice": "此工作區位於您的使用者設定檔資料夾下，Muse Code 的 Windows 沙箱可能無法在此執行命令：命令可能會在 PowerShell 資料夾而非專案中啟動，或永遠不會結束。檔案讀取和編輯不受影響。位於 C:\\Users 以外的工作區會就地執行命令。",
   "permissionModes": {
     "manual": "手動",
     "acceptEdits": "自動編輯",
@@ -876,7 +878,7 @@
   "permissionModeDetails": {
     "manual": "Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問",
     "acceptEdits": "在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問",
-    "plan": "Muse 會先探索程式碼並提出計畫，再進行編輯",
+    "plan": "Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案",
     "auto": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問",
     "bypassPermissions": "Muse 會直接編輯檔案及執行命令，不會詢問"
   },
@@ -884,6 +886,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse 會在每次編輯和每個命令前要求核准",
     "acceptEdits": "Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
+    "plan": "Muse 會先探索程式碼並提出計畫，再進行編輯",
     "auto": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問"
   },
   "modelApiReviewedAutoDetail": "Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您",

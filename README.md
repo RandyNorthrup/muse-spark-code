@@ -534,13 +534,13 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                          | The CLI decides: it applies edits inside the workspace without asking (Muse Code 1.3.0) and asks before commands its own allow rules do not cover |
-| **Edit automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                             |
-| **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI plans; its own allow rules still apply, so it is not strictly read-only                                                                   |
-| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                             |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                          |
+| Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                          | The CLI decides: it applies file edits without asking (only `.git`, `.muse` and `.agents` ask) and asks before commands its own allow rules do not cover                   |
+| **Edit automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
+| **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
+| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
 
 A paid use asks in the paid-use popup in every mode, Bypass included, unless
 you allowed it always in this workspace; on the Model API backend, Plan
@@ -612,10 +612,17 @@ command on the Model API backend; Auto runs one its server marks read-only
 without asking, as Muse Code does, and Plan refuses all but those, which ask. The Model API backend's file tools refuse any path
 that leaves the workspace, including through a symbolic link or junction
 inside it (only `read_file` may read under a permission profile's
-`extraRoots`). Muse Code refuses such a write while its sandbox runs; without
-the sandbox (`shellSandbox` set to `off`, or `auto` for a Windows workspace
-under your profile) its file tools may write outside the workspace, so
-choose the permission mode with that in mind.
+`extraRoots`). Muse Code refuses such a write while its sandbox runs
+("absolute path is outside the workspace"). Without the sandbox
+(`shellSandbox` set to `off`, or `auto` for a Windows workspace under your
+profile) its file tools can write anywhere your account can, and Muse Code
+asks before none of those writes, in any mode, Plan included: Meta's
+[permissions page](https://dev.meta.ai/docs/muse-code/permissions) says
+`--disable-sandbox` "also removes workspace confinement from the file
+tools", and probes of 1.4.2 on 2026-10-04 confirmed it
+([certification](docs/certification/musecode-write-asks.md)). The panel
+warns once per window when Muse Code runs without its sandbox, and
+**Muse Spark: Diagnostics** says where its file tools can write.
 
 **Protected writes.** On the Model API backend, writes to files that
 configure or run code always ask, whatever the mode: `.git`, `.husky`,
@@ -645,7 +652,21 @@ it wrote `.claude/settings.json` and a file outside the workspace without
 asking, even in Manual. A note saved with the memory tools is
 the one exception under `.agents`: those tools write only Markdown notes in
 the memory folders, so they are treated as ordinary edits (see
-[Memory](#memory)).
+[Memory](#memory)). Muse Code 1.4.2 itself asks only before writes to
+`.git`, `.muse` and `.agents`; every other file, other coding agents'
+folders such as `.claude` and `.cursor` included, it writes without a card
+in every mode, so none of those writes reaches the panel.
+
+### Plan on Muse Code
+
+Plan selects Muse Code's `denyUnmatched` mode. It refuses the commands its
+own allow rules do not cover and writes to `.git`, `.muse` and `.agents`, but Muse Code's file tools still
+edit other files without asking: inside the workspace with the sandbox,
+anywhere without it (probed on 1.4.2, 2026-10-04). The model is asked to
+plan, and in practice it does, but nothing stops an edit it makes. A
+read-only plan mode needs Muse Code's Read-only permission profile, which
+`muse serve` cannot select yet
+([meta-models/muse-code-sdk#43](https://github.com/meta-models/muse-code-sdk/issues/43)).
 
 ### Plans as files
 
@@ -2772,7 +2793,7 @@ Bypass at once.
 | `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `cleanupPeriodDays`               | `30`        | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `backend`                         | `auto`      | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile where it cannot run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools may also write outside the workspace. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                         |
+| `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile, where it cannot reliably run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools can also write anywhere outside the workspace without asking, in every mode, and the panel warns once per window. Changing it restarts the host                                                                                                                                                                                                                                                                                   |
 | `sandboxNetwork`                  | `default`   | The network Muse Code's shell sandbox gives commands: `proxy-only` asks before each new destination, `restricted` allows none, `enabled` allows all; `default` passes nothing, leaving Muse Code's own default (`proxy-only`) or your administrator's managed configuration. For commands it applies while the sandbox is on. Changing it restarts the host. At `restricted`, Muse Code is also not offered [web fetch](#web-fetch), sandbox or not; the Model API backend's web fetch follows its permission modes                                                                                                                                                                                            |
 | `museBinaryPath`                  | `""`        | Absolute path to the Muse Code executable (a relative one is refused); empty discovers it on `PATH` or the install dir. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `modelApiWebSearch`               | `false`     | [Paid](#paid-features): web search on the Model API backend, $2.50 per 1,000 searches; asks you to confirm the price when turned on, then asks before each prompt that may search                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -3093,17 +3114,27 @@ stopped and the next message resumes the same session.
   relaunches `muse sandbox windows setup` through the UAC prompt); the same
   flow is **Muse Spark: Set Up Shell Sandbox**. Start a new conversation
   afterwards. Linux and macOS need no setup.
+- **"Muse Code's Windows sandbox is still being prepared"** (the command
+  failed with `ACL publication lock … timed out`) — after the setup, Muse
+  Code 1.4.2 gives its sandbox read access to your files once, in a
+  background worker, and a command that needs that worker's lock gives up
+  after two minutes. On a large user profile the worker can take a long
+  time (over an hour on a test machine with many repository copies in the
+  profile). Try again later; the setup is not needed again.
 - **Shell commands run in `C:\Windows\System32\WindowsPowerShell\v1.0`
-  instead of the project** — Muse Code's Windows sandbox (1.3.0 and 1.4.0;
-  on 1.3.0 the first command also takes about half a minute) cannot enter
-  folders under `C:\Users\<you>`
+  instead of the project, or never finish** — Muse Code's Windows sandbox
+  does not reliably run commands in folders under `C:\Users\<you>`
   ([meta-models/muse-code-sdk#26](https://github.com/meta-models/muse-code-sdk/issues/26)).
-  This sandbox issue was not retested on 1.4.2 in the October 2 probes;
-  the workaround remains until a fix is verified.
-  With `museSpark.shellSandbox` at `auto` the extension starts Muse Code
-  without the sandbox for such workspaces: commands run directly as you, in
-  the project, still gated by the approval cards, and the panel says so once
-  per conversation. `muse` keeps the sandbox regardless; `off` never sandboxes.
+  1.3.0 and 1.4.0 started them in PowerShell's folder. 1.4.2 ran them in
+  the project on one machine, but on a freshly set-up machine a sandboxed
+  command there never finished, even after the worker above had run
+  (2026-10-04). With `museSpark.shellSandbox` at `auto` the extension
+  starts Muse Code without the sandbox for such workspaces: commands run
+  directly as you, in the project, still gated by the approval cards, but
+  Muse Code's file tools can then write anywhere without asking, and the
+  panel warns once per window. A workspace outside your user profile (such
+  as `C:\code`) keeps the sandbox. `muse` keeps the sandbox regardless
+  (worth trying on 1.4.2 if commands run for you); `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
   Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
   1.4.0 and 1.4.2-R4684.1, retested October 2;

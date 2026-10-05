@@ -760,7 +760,9 @@
   "planOpenFailed": "Nem sikerült megnyitni a tervet",
   "sideChatSessionOnly": "Ez a mellékbeszélgetés csak más mellékbeszélgetéseket nyithat meg.",
   "renameFailed": "A beszélgetést nem sikerült átnevezni",
-  "sandboxOffProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahol a Muse Code Windows-homokozója nem tud parancsokat futtatni, ezért ez az ablak homokozó nélkül, közvetlenül az Ön nevében futtatja a shell-parancsokat. A jóváhagyási kérések továbbra is érvényesek. Beállítás: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "A Muse Code Windows-homokozója nem tud megbízhatóan parancsokat futtatni a felhasználói profilja alatti munkaterületen, ezért ez az ablak a Muse Code-ot az operációs rendszer homokozója nélkül futtatja. A fájleszközei így kérdezés nélkül bárhová írhatnak, ahová az Ön fiókja írhat, ezen a munkaterületen kívül is, minden módban, a Tervezést is beleértve, a parancsai pedig közvetlenül az Ön nevében, az Ön hálózatával futnak. A jóváhagyás továbbra is vonatkozik a parancsaira és a .git, .muse és .agents mappába történő írásra. A felhasználói profilon kívüli munkaterület megtartja a homokozót. Beállítás: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "A museSpark.shellSandbox ki van kapcsolva, ezért a Muse Code ebben az ablakban az operációs rendszer homokozója nélkül fut. A fájleszközei így kérdezés nélkül bárhová írhatnak, ahová az Ön fiókja írhat, ezen a munkaterületen kívül is, minden módban, a Tervezést is beleértve, a parancsai pedig közvetlenül az Ön nevében, az Ön hálózatával futnak. A jóváhagyás továbbra is vonatkozik a parancsaira és a .git, .muse és .agents mappába történő írásra.",
+  "sandboxPreparingNotice": "A Muse Code Windows-homokozója még előkészítés alatt áll, ezért ez a parancs nem futott le. A beállítás után a Muse Code egyszer, a háttérben olvasási hozzáférést ad a homokozónak a fájljaihoz, ami nagy felhasználói profil esetén eltarthat egy ideig. Néhány perc múlva próbálja újra. Beállítás: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Először nyisson meg egy mappát; az AGENTS.md a munkaterület gyökerében található.",
   "rulesFileExists": "Az AGENTS.md már létezik ezen a munkaterületen, ezért megnyílik.",
   "rulesFileCreated": "Az AGENTS.md létrejött. A Muse a következő beszélgetéstől projektszabályokként olvassa.",
@@ -888,7 +890,7 @@
   "bannerDismiss": "Elvetés",
   "trustGrantedNotice": "A munkaterület megbízható: a Muse a következő üzenettől betölti a szabályait, képességeit és memóriáját.",
   "sandboxRestartNotice": "Egy Muse Code-beállítás megváltozott; a Muse Code a következő üzenetnél ezzel újraindul, és folytatja ezt a beszélgetést.",
-  "sandboxProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahová a Muse Code Windows-homokozója nem tud belépni: a shell-parancsok a projekt helyett a PowerShell mappájában indulnak. A fájlok olvasását és szerkesztését ez nem érinti. A C:\\Users mappán kívüli munkaterületeken a parancsok helyben futnak.",
+  "sandboxProfileNotice": "Ez a munkaterület a felhasználói profilja alatt van, ahol a Muse Code Windows-homokozója esetleg nem futtatja a parancsokat: a projekt helyett a PowerShell mappájában indulhatnak, vagy soha nem fejeződnek be. A fájlok olvasását és szerkesztését ez nem érinti. A C:\\Users mappán kívüli munkaterületeken a parancsok helyben futnak.",
   "permissionModes": {
     "manual": "Kézi",
     "acceptEdits": "Automatikus szerkesztés",
@@ -899,7 +901,7 @@
   "permissionModeDetails": {
     "manual": "A Muse parancsok futtatása előtt rákérdez; a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait",
     "acceptEdits": "A Muse Code-ban ugyanaz, mint a Kézi: a Muse Code kérdezés nélkül szerkeszti a munkaterület fájljait, a parancsok futtatása előtt pedig rákérdez",
-    "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be",
+    "plan": "A Muse előbb tervez; a Muse Code elutasítja a parancsokat, de a fájleszközei továbbra is kérdezés nélkül szerkeszthetnek fájlokat",
     "auto": "A Muse Code kérdezés nélkül futtatja az általa egyszerűnek ítélt parancsokat, a többi előtt pedig rákérdez",
     "bypassPermissions": "A Muse kérdezés nélkül szerkeszt fájlokat és futtat parancsokat"
   },
@@ -907,6 +909,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "A Muse minden szerkesztés és minden parancs előtt jóváhagyást kér",
     "acceptEdits": "A Muse kérdezés nélkül szerkeszti a fájlokat, a parancsok futtatása előtt pedig rákérdez",
+    "plan": "A Muse feltérképezi a kódot, és a szerkesztés előtt tervet mutat be",
     "auto": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat, a parancsok előtt pedig rákérdez"
   },
   "modelApiReviewedAutoDetail": "A Muse a védett fájlok kivételével kérdezés nélkül szerkeszti a fájlokat; egy fizetős ellenőrző néhány parancsot egyszer engedélyezhet, a többiről Önt kérdezi",

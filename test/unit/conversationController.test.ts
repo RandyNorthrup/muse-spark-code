@@ -312,7 +312,8 @@ function setup(
     isRemoteWindow?: boolean
     confirmsRemoteBypass?: boolean
     platform?: NodeJS.Platform
-    userProfileDir?: string
+    /** The window’s once-per-window claim for the sandbox-off warning. */
+    shouldWarnSandboxOff?: () => boolean
     editorContext?: EditorContext
     isAutosaveEnabled?: boolean
     /** The verify loop's note to Muse Code (M68). */
@@ -699,8 +700,15 @@ function setup(
     },
     onSandboxUnavailable,
     platform: options.platform ?? 'linux',
-    userProfileDir: options.userProfileDir,
-    shellSandbox: () => options.shellSandbox ?? { isSandboxed: true, reason: 'default' },
+    shellSandbox: () =>
+      options.shellSandbox ?? {
+        isSandboxed: true,
+        reason: 'default',
+        isUnsupportedWorkspace: false,
+      },
+    ...(options.shouldWarnSandboxOff !== undefined && {
+      shouldWarnSandboxOff: options.shouldWarnSandboxOff,
+    }),
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     ...(options.verifyGuidance !== undefined && { verifyGuidance: options.verifyGuidance }),
@@ -2669,6 +2677,21 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(t.onSandboxUnavailable).toHaveBeenCalledTimes(1)
   })
 
+  // Captured 2026-10-04 on a fresh 1.4.2 setup (musecode-write-asks.md): the
+  // sandbox is set up, but its read-access worker still holds the lock.
+  it('says the sandbox is still preparing, and offers no setup, when the lock timed out', async () => {
+    const failureReason = String.raw`windows_elevated unified exec session launcher unavailable: sandbox enforcement unavailable: Windows sandbox setup unavailable: admit deny-read state C:\Users\dev\.local\share\muse\windows-sandbox/deny_read_acl_state.json: Windows sandbox ACL update failed for C:\Users\dev\.local\share\muse\windows-sandbox: ACL publication lock Global\TbhWindowsSandboxAclPublication: timed out: owner S-1-5-21-1-2-3-1001: wait timed out after 120000 ms`
+    const item = { itemId: 'c1', kind: 'toolCall', status: 'failed', tool: 'powershell' }
+    const t = setup()
+    await t.send('l1', 'hi')
+    t.server.notify('item/completed', { sessionId: 's1', item: { ...item, failureReason } })
+    await settle()
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxPreparingNotice },
+    ])
+    expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
+  })
+
   it('leaves other tool failures to the transcript', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -2687,14 +2710,12 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(t.onSandboxUnavailable).not.toHaveBeenCalled()
   })
 
-  it('warns once per session when the sandbox is forced on for a profile workspace', async () => {
-    // Every Muse Code version is affected so far (1.3.0 and 1.4.0, #26), so
-    // the warning no longer looks at the version the fake server reports.
+  it('warns once per session when the sandbox is forced on where it may not run commands', async () => {
+    // #26 (1.3.0 and 1.4.0; 1.4.2 on a fresh setup); the posture says so.
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`c:\users\RANDY\Coding\project`,
-      shellSandbox: { isSandboxed: true, reason: 'setting' },
+      shellSandbox: { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: true },
     })
     await t.send('l1', 'hi')
     await t.send('l2', 'again')
@@ -2704,47 +2725,83 @@ describe('ConversationController: transcript actions (M4)', () => {
     expect(notices).toHaveLength(1)
     expect(notices[0]).toMatchObject({
       level: 'warning',
-      text: expect.stringContaining('shell commands will start in the PowerShell folder') as string,
+      text: expect.stringContaining('can start in the PowerShell folder') as string,
     })
   })
 
-  it('explains once when auto turned the sandbox off for a profile workspace', async () => {
+  // musecode-write-asks: without the sandbox Muse Code's file tools write
+  // anywhere without asking, in every mode (Meta's permissions page; probed
+  // 2026-10-04), so the panel says so whatever turned the sandbox off.
+  it('warns that the file tools can write anywhere when auto turned the sandbox off', async () => {
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`C:\Users\randy\project`,
-      shellSandbox: { isSandboxed: false, reason: 'profileWorkspace' },
+      shellSandbox: {
+        isSandboxed: false,
+        reason: 'profileWorkspace',
+        isUnsupportedWorkspace: true,
+      },
     })
     await t.send('l1', 'hi')
     const notices = t.surface.posted.filter((m) => m.type === 'notice')
-    expect(notices).toHaveLength(1)
-    expect(notices[0]).toMatchObject({
-      level: 'info',
-      text: expect.stringContaining('runs shell commands without the sandbox') as string,
-    })
+    expect(notices).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxOffProfileWarning },
+    ])
+    expect(UI_TEXT.sandboxOffProfileWarning).toContain('without asking in any mode, Plan included')
+    expect(UI_TEXT.sandboxOffProfileWarning).toContain(
+      'outside your user profile keeps the sandbox',
+    )
   })
 
-  it('says nothing when the user chose off, or when the sandbox is on and works', async () => {
-    const off = setup({
+  it('warns the same way when the user chose off', async () => {
+    const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
-      workspaceRoot: String.raw`C:\Users\randy\project`,
-      shellSandbox: { isSandboxed: false, reason: 'setting' },
+      workspaceRoot: String.raw`C:\src\project`,
+      shellSandbox: { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false },
     })
-    await off.send('l1', 'hi')
-    expect(off.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
+    await t.send('l1', 'hi')
+    expect(t.surface.posted.filter((m) => m.type === 'notice')).toEqual([
+      { type: 'notice', level: 'warning', text: UI_TEXT.sandboxOffSettingWarning },
+    ])
+    expect(UI_TEXT.sandboxOffSettingWarning).toContain('outside this workspace too, without asking')
   })
 
-  it('stays quiet for a workspace outside the profile and off Windows', async () => {
+  it('warns once per window: the window claims the warning for its first conversation', async () => {
+    let hasShown = false
+    const shouldWarnSandboxOff = () => {
+      const isFirst = !hasShown
+      hasShown = true
+      return isFirst
+    }
+    const off = { isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false } as const
+    const first = setup({ shellSandbox: off, shouldWarnSandboxOff })
+    const second = setup({ shellSandbox: off, shouldWarnSandboxOff })
+    await first.send('l1', 'hi')
+    await first.send('l2', 'again')
+    await second.send('l1', 'hi')
+    const warnings = (t: typeof first) =>
+      t.surface.posted.filter(
+        (m) => m.type === 'notice' && m.text === UI_TEXT.sandboxOffSettingWarning,
+      )
+    expect(warnings(first)).toHaveLength(1)
+    expect(warnings(second)).toHaveLength(0)
+  })
+
+  it('stays quiet where the sandbox runs: outside the profile, off Windows, or forced on outside the profile', async () => {
     const outside = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\randy`,
       workspaceRoot: String.raw`C:\src\project`,
     })
     await outside.send('l1', 'hi')
     const posix = setup({ platform: 'darwin', workspaceRoot: '/Users/randy/project' })
     await posix.send('l1', 'hi')
-    for (const t of [outside, posix]) {
+    const forced = setup({
+      platform: 'win32',
+      workspaceRoot: String.raw`C:\src\project`,
+      shellSandbox: { isSandboxed: true, reason: 'setting', isUnsupportedWorkspace: false },
+    })
+    await forced.send('l1', 'hi')
+    for (const t of [outside, posix, forced]) {
       expect(t.surface.posted.filter((m) => m.type === 'notice')).toHaveLength(0)
     }
   })
@@ -5504,7 +5561,6 @@ describe('ConversationController: backends and tiers (M7)', () => {
   it('explains the Model API backend once per session instead of the sandbox notice', async () => {
     const t = setup({
       platform: 'win32',
-      userProfileDir: String.raw`C:\Users\r`,
       workspaceRoot: String.raw`C:\Users\r\ws`,
     })
     const { api, controller } = modelApiController(t, {

@@ -591,7 +591,16 @@ hands it and what its tools read or run, the same way the extension does:
   and picked text are sent only as paths.
 - Permission modes (Manual, Edit automatically, Plan, Auto, Bypass) decide
   which tool calls run without a card; the card shows the command or path
-  before anything runs.
+  before anything runs. On the Muse Code backend that holds for commands
+  and for writes to `.git`, `.muse` and `.agents` only: Muse Code's file
+  tools write every other file without a card in every mode, Plan included.
+- `museSpark.shellSandbox` decides whether Muse Code runs inside its OS
+  sandbox. With it, Muse Code's file tools cannot write outside the
+  workspace. Without it (`off`, or `auto` on Windows for a workspace under
+  your user profile) they can write, and
+  so copy workspace content, anywhere your account can, without asking; the
+  panel warns once per window, and **Muse Spark: Diagnostics** says which
+  applies.
 
 ## Contact
 

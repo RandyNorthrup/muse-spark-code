@@ -778,7 +778,9 @@
   "planOpenFailed": "No se pudo abrir el plan",
   "sideChatSessionOnly": "Este chat paralelo solo puede abrir conversaciones paralelas.",
   "renameFailed": "No se pudo cambiar el nombre de la conversación",
-  "sandboxOffProfileNotice": "Esta área de trabajo está en su perfil de usuario, donde el espacio aislado de Windows de Muse Code no puede ejecutar comandos, así que esta ventana ejecuta los comandos de shell sin espacio aislado, directamente con su usuario. Las solicitudes de aprobación siguen aplicándose. Configuración: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "El espacio aislado de Windows de Muse Code no puede ejecutar comandos de forma fiable en un área de trabajo de su perfil de usuario, así que esta ventana ejecuta Muse Code sin su espacio aislado del sistema operativo. Sus herramientas de archivos pueden entonces escribir sin preguntar en cualquier lugar donde pueda escribir su cuenta, también fuera de esta área de trabajo, en cualquier modo, incluido Planificar, y sus comandos se ejecutan directamente con su usuario y su red. La aprobación sigue cubriendo sus comandos y las escrituras en .git, .muse y .agents. Un área de trabajo fuera de su perfil de usuario mantiene el espacio aislado. Configuración: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox está desactivado, así que Muse Code se ejecuta sin su espacio aislado del sistema operativo en esta ventana. Sus herramientas de archivos pueden entonces escribir sin preguntar en cualquier lugar donde pueda escribir su cuenta, también fuera de esta área de trabajo, en cualquier modo, incluido Planificar, y sus comandos se ejecutan directamente con su usuario y su red. La aprobación sigue cubriendo sus comandos y las escrituras en .git, .muse y .agents.",
+  "sandboxPreparingNotice": "El espacio aislado de Windows de Muse Code todavía se está preparando, así que este comando no se ejecutó. Tras su configuración, Muse Code concede una vez, en segundo plano, acceso de lectura a sus archivos al espacio aislado, y eso puede tardar un rato en un perfil de usuario grande. Vuelva a intentarlo dentro de unos minutos. Configuración: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Abra primero una carpeta; AGENTS.md se encuentra en la raíz del área de trabajo.",
   "rulesFileExists": "AGENTS.md ya existe en esta área de trabajo; se abrirá.",
   "rulesFileCreated": "Se creó AGENTS.md. Muse lo lee como reglas del proyecto a partir de la siguiente conversación.",
@@ -911,7 +913,7 @@
   "bannerDismiss": "Descartar",
   "trustGrantedNotice": "Área de trabajo de confianza: Muse cargará sus reglas, aptitudes y memoria a partir del siguiente mensaje.",
   "sandboxRestartNotice": "Cambió una opción de configuración de Muse Code; Muse Code se reinicia con ella en el siguiente mensaje y continúa esta conversación.",
-  "sandboxProfileNotice": "Esta área de trabajo está en su perfil de usuario, al que el espacio aislado de Windows de Muse Code no puede acceder: los comandos de shell se iniciarán en la carpeta de PowerShell en lugar de en el proyecto. Las lecturas y ediciones de archivos no se ven afectadas. Un área de trabajo fuera de C:\\Users ejecuta los comandos en su sitio.",
+  "sandboxProfileNotice": "Esta área de trabajo está en su perfil de usuario, donde es posible que el espacio aislado de Windows de Muse Code no ejecute comandos: pueden iniciarse en la carpeta de PowerShell en lugar de en el proyecto, o no terminar nunca. Las lecturas y ediciones de archivos no se ven afectadas. Un área de trabajo fuera de C:\\Users ejecuta los comandos en su sitio.",
   "permissionModes": {
     "manual": "Manual",
     "acceptEdits": "Editar automáticamente",
@@ -922,7 +924,7 @@
   "permissionModeDetails": {
     "manual": "Muse preguntará antes de ejecutar comandos; Muse Code edita los archivos del área de trabajo sin preguntar",
     "acceptEdits": "En Muse Code, lo mismo que Manual: Muse Code edita los archivos del área de trabajo sin preguntar y pregunta antes de ejecutar comandos",
-    "plan": "Muse explorará el código y presentará un plan antes de editar",
+    "plan": "Muse planifica primero; Muse Code rechaza los comandos, pero sus herramientas de archivos aún pueden editar archivos sin preguntar",
     "auto": "Muse Code ejecuta sin preguntar los comandos que considera simples y pregunta antes de los demás",
     "bypassPermissions": "Muse editará archivos y ejecutará comandos sin preguntar"
   },
@@ -930,6 +932,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse pedirá aprobación antes de cada edición y de cada comando",
     "acceptEdits": "Muse editará archivos sin preguntar y preguntará antes de ejecutar comandos",
+    "plan": "Muse explorará el código y presentará un plan antes de editar",
     "auto": "Muse editará archivos sin preguntar, salvo los archivos protegidos, y preguntará antes de los comandos"
   },
   "modelApiReviewedAutoDetail": "Muse editará archivos sin preguntar, salvo los archivos protegidos; un revisor de pago puede permitir algunos comandos una vez, y se te pregunta por el resto",

@@ -680,7 +680,8 @@ describe('App conversation', () => {
       // simple commands, and the reviewer (on by default, M90) may allow others once.
       'ManualMuse will ask before running commands; Muse Code edits workspace files without askingCurrent',
       'Edit automaticallyOn Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
-      'PlanMuse will explore the code and present a plan before editing',
+      // Plan on Muse Code refuses commands, not file-tool edits (musecode-write-asks).
+      'PlanMuse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
       'AutoMuse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest',
     ])
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Edit automatically/ }))

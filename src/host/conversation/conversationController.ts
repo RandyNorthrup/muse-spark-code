@@ -53,7 +53,7 @@ import {
   planTooLargeText,
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
-import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import type { ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
 import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
@@ -116,6 +116,7 @@ import {
   REVIEW_PANE_MAX_EDITS,
   REVIEW_PANE_MAX_LINES,
   SANDBOX_FAILURE_MARKER,
+  SANDBOX_PREPARING_MARKER,
   SESSION_LIST_LIMIT,
   SESSION_LIST_MAX_PAGES,
   CHOICE_STEERING_NOTE,
@@ -324,10 +325,13 @@ export interface ConversationDeps {
   /** A shell tool reported the OS sandbox missing: the host offers the setup. */
   readonly onSandboxUnavailable: () => void
   readonly platform: NodeJS.Platform
-  /** `%USERPROFILE%`; undefined off Windows (the sandbox notice, D12). */
-  readonly userProfileDir: string | undefined
   /** The shell sandbox posture the host runs with (D12). */
   readonly shellSandbox: () => ShellSandboxPosture
+  /**
+   * True the first time in this window that the sandbox-off warning may be
+   * shown (musecode-write-asks); without it, every session shows it.
+   */
+  readonly shouldWarnSandboxOff?: () => boolean
   /** The active editor for the file chip (M5); undefined when none. */
   readonly editorContext: () => EditorContext | undefined
   /** `museSpark.autosave`: save dirty editors before every turn. */
@@ -2106,27 +2110,36 @@ export class ConversationController {
   }
 
   /**
-   * One notice per session about the shell sandbox (PLAN.md D12): `auto`
-   * turned it off for a Windows profile workspace, or the user forced it on
-   * where the CLI cannot run commands in the workspace.
+   * The shell sandbox's notice when a Muse Code session starts (PLAN.md D12).
+   * Without the sandbox, Muse Code's file tools write anywhere without asking
+   * (musecode-write-asks), which is said once per window, whether the setting
+   * or `auto` turned it off. The sandbox forced on where this CLI cannot run
+   * commands (#26) is warned once per session.
    */
-  private noteShellSandbox(workspaceRoot: string): void {
+  private noteShellSandbox(): void {
     const posture = this.deps.shellSandbox()
-    if (posture.reason === 'profileWorkspace') {
-      this.notice('info', UI_TEXT.sandboxOffProfileNotice)
+    if (!posture.isSandboxed) {
+      if (this.deps.shouldWarnSandboxOff?.() ?? true) {
+        this.notice(
+          'warning',
+          posture.reason === 'profileWorkspace'
+            ? UI_TEXT.sandboxOffProfileWarning
+            : UI_TEXT.sandboxOffSettingWarning,
+        )
+      }
       return
     }
-    const isLimited = isProfileWorkspace(
-      this.deps.platform,
-      workspaceRoot,
-      this.deps.userProfileDir,
-    )
-    if (isLimited && posture.isSandboxed) {
+    if (posture.isUnsupportedWorkspace) {
       this.notice('warning', UI_TEXT.sandboxProfileNotice)
     }
   }
 
-  /** The shell tool's "sandbox not set up" failure gets one actionable notice; a `!` row's too (M46). */
+  /**
+   * The shell tool's "sandbox not set up" failure gets one actionable notice;
+   * a `!` row's too (M46). While Muse Code's sandbox is still preparing
+   * (its read-access worker holds the lock), it is set up already, so the
+   * notice says to wait instead and no setup is offered.
+   */
   private noteSandboxFailure(text: string | undefined): void {
     if (text === undefined || this.hasWarnedSandbox) {
       return
@@ -2138,6 +2151,10 @@ export class ConversationController {
       return
     }
     this.hasWarnedSandbox = true
+    if (text.includes(SANDBOX_PREPARING_MARKER)) {
+      this.notice('warning', UI_TEXT.sandboxPreparingNotice)
+      return
+    }
     this.notice('warning', UI_TEXT.sandboxNotice)
     this.deps.onSandboxUnavailable()
   }
@@ -2969,7 +2986,7 @@ export class ConversationController {
     if (host.info.kind === 'modelApi') {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
-      this.noteShellSandbox(workspaceRoot)
+      this.noteShellSandbox()
       void this.offerBundledSkills()
     }
     return session

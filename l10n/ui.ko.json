@@ -742,7 +742,9 @@
   "planOpenFailed": "계획을 열 수 없습니다",
   "sideChatSessionOnly": "이 사이드 채팅에서는 사이드 채팅 대화만 열 수 있습니다.",
   "renameFailed": "대화 이름을 바꿀 수 없습니다",
-  "sandboxOffProfileNotice": "이 작업 영역은 사용자 프로필 아래에 있으며, 여기서는 Muse Code의 Windows 샌드박스가 명령을 실행할 수 없습니다. 따라서 이 창은 샌드박스 없이 사용자 권한으로 셸 명령을 직접 실행합니다. 승인 프롬프트는 계속 적용됩니다. 설정: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Muse Code의 Windows 샌드박스는 사용자 프로필 아래의 작업 영역에서 명령을 안정적으로 실행할 수 없으므로, 이 창은 OS 샌드박스 없이 Muse Code를 실행합니다. 이 경우 파일 도구는 이 작업 영역 밖을 포함해 계정이 쓸 수 있는 모든 곳에, 계획을 포함한 모든 모드에서 묻지 않고 쓸 수 있으며, 명령은 사용자의 네트워크로 사용자 권한으로 직접 실행됩니다. 승인은 계속해서 명령과 .git, .muse, .agents에 대한 쓰기에 적용됩니다. 사용자 프로필 밖의 작업 영역에서는 샌드박스가 유지됩니다. 설정: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "museSpark.shellSandbox가 꺼져 있으므로 이 창에서 Muse Code는 OS 샌드박스 없이 실행됩니다. 이 경우 파일 도구는 이 작업 영역 밖을 포함해 계정이 쓸 수 있는 모든 곳에, 계획을 포함한 모든 모드에서 묻지 않고 쓸 수 있으며, 명령은 사용자의 네트워크로 사용자 권한으로 직접 실행됩니다. 승인은 계속해서 명령과 .git, .muse, .agents에 대한 쓰기에 적용됩니다.",
+  "sandboxPreparingNotice": "Muse Code의 Windows 샌드박스가 아직 준비 중이라 이 명령이 실행되지 않았습니다. 설정 후 Muse Code는 백그라운드에서 한 번 샌드박스에 파일 읽기 권한을 부여하며, 사용자 프로필이 크면 시간이 걸릴 수 있습니다. 몇 분 후에 다시 시도하세요. 설정: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "먼저 폴더를 여세요. AGENTS.md는 작업 영역 루트에 있습니다.",
   "rulesFileExists": "이 작업 영역에 AGENTS.md가 이미 있습니다. 파일을 엽니다.",
   "rulesFileCreated": "AGENTS.md를 만들었습니다. Muse는 다음 대화부터 이 파일을 프로젝트 규칙으로 읽습니다.",
@@ -865,7 +867,7 @@
   "bannerDismiss": "해제",
   "trustGrantedNotice": "작업 영역 신뢰됨: Muse는 다음 메시지부터 작업 영역의 규칙, 스킬, 메모리를 로드합니다.",
   "sandboxRestartNotice": "Muse Code 설정이 변경되었습니다. Muse Code는 다음 메시지에서 변경된 설정으로 다시 시작하고 이 대화를 계속합니다.",
-  "sandboxProfileNotice": "이 작업 영역은 사용자 프로필 아래에 있으며, Muse Code Windows 샌드박스는 여기에 들어갈 수 없습니다. 셸 명령은 프로젝트 대신 PowerShell 폴더에서 시작됩니다. 파일 읽기와 편집에는 영향이 없습니다. C:\\Users 외부의 작업 영역에서는 명령이 해당 위치에서 실행됩니다.",
+  "sandboxProfileNotice": "이 작업 영역은 사용자 프로필 아래에 있으며, 여기서는 Muse Code의 Windows 샌드박스가 명령을 실행하지 못할 수 있습니다. 명령이 프로젝트 대신 PowerShell 폴더에서 시작되거나 끝나지 않을 수 있습니다. 파일 읽기와 편집에는 영향이 없습니다. C:\\Users 외부의 작업 영역에서는 명령이 해당 위치에서 실행됩니다.",
   "permissionModes": {
     "manual": "수동",
     "acceptEdits": "자동 편집",
@@ -876,7 +878,7 @@
   "permissionModeDetails": {
     "manual": "Muse가 명령을 실행하기 전에 묻습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집합니다",
     "acceptEdits": "Muse Code에서는 수동과 같습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집하고, 명령을 실행하기 전에 묻습니다",
-    "plan": "Muse가 코드를 탐색하고 편집하기 전에 계획을 제시합니다",
+    "plan": "Muse가 먼저 계획합니다. Muse Code는 명령을 거부하지만 파일 도구는 여전히 묻지 않고 파일을 편집할 수 있습니다",
     "auto": "Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다",
     "bypassPermissions": "Muse가 묻지 않고 파일을 편집하고 명령을 실행합니다"
   },
@@ -884,6 +886,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse가 편집과 명령마다 승인을 요청합니다",
     "acceptEdits": "Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다",
+    "plan": "Muse가 코드를 탐색하고 편집하기 전에 계획을 제시합니다",
     "auto": "Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다"
   },
   "modelApiReviewedAutoDetail": "Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집합니다. 유료 검토자가 일부 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다",

@@ -796,7 +796,9 @@
   "planOpenFailed": "Plán se nepodařilo otevřít",
   "sideChatSessionOnly": "Tento vedlejší chat může otevřít pouze vedlejší chaty.",
   "renameFailed": "Konverzaci se nepodařilo přejmenovat",
-  "sandboxOffProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemůže spouštět příkazy, takže toto okno spouští příkazy shellu bez sandboxu, přímo pod vaším účtem. Výzvy ke schválení stále platí. Nastavení: museSpark.shellSandbox.",
+  "sandboxOffProfileWarning": "Sandbox Muse Code pro Windows nedokáže spolehlivě spouštět příkazy v pracovním prostoru ve vašem uživatelském profilu, takže toto okno spouští Muse Code bez jeho sandboxu operačního systému. Jeho nástroje pro soubory pak mohou bez ptaní zapisovat kamkoli, kam smí váš účet, i mimo tento pracovní prostor, v každém režimu včetně režimu Plán, a jeho příkazy běží přímo pod vaším účtem s vaší sítí. Schvalování se dál týká jeho příkazů a zápisů do .git, .muse a .agents. Pracovní prostor mimo váš uživatelský profil si sandbox ponechá. Nastavení: museSpark.shellSandbox.",
+  "sandboxOffSettingWarning": "Nastavení museSpark.shellSandbox je vypnuté, takže Muse Code v tomto okně běží bez svého sandboxu operačního systému. Jeho nástroje pro soubory pak mohou bez ptaní zapisovat kamkoli, kam smí váš účet, i mimo tento pracovní prostor, v každém režimu včetně režimu Plán, a jeho příkazy běží přímo pod vaším účtem s vaší sítí. Schvalování se dál týká jeho příkazů a zápisů do .git, .muse a .agents.",
+  "sandboxPreparingNotice": "Sandbox Muse Code pro Windows se ještě připravuje, takže tento příkaz neproběhl. Po nastavení dá Muse Code sandboxu jednou na pozadí přístup ke čtení vašich souborů, což může u velkého uživatelského profilu chvíli trvat. Zkuste to znovu za několik minut. Nastavení: museSpark.shellSandbox.",
   "rulesFileNoWorkspace": "Nejdříve otevřete složku; AGENTS.md se nachází v kořeni pracovního prostoru.",
   "rulesFileExists": "AGENTS.md už v tomto pracovním prostoru existuje; otevírá se.",
   "rulesFileCreated": "Soubor AGENTS.md byl vytvořen. Muse ho od příští konverzace čte jako pravidla projektu.",
@@ -934,7 +936,7 @@
   "bannerDismiss": "Zavřít",
   "trustGrantedNotice": "Pracovní prostor je důvěryhodný: Muse od další zprávy načte jeho pravidla, dovednosti a paměť.",
   "sandboxRestartNotice": "Změnilo se nastavení Muse Code; Muse Code se s ním při další zprávě restartuje a bude v této konverzaci pokračovat.",
-  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, do kterého sandbox Muse Code pro Windows nemůže vstoupit: příkazy shellu se spustí ve složce PowerShellu místo v projektu. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo C:\\Users spouští příkazy na místě.",
+  "sandboxProfileNotice": "Tento pracovní prostor je ve vašem uživatelském profilu, kde sandbox Muse Code pro Windows nemusí spouštět příkazy: mohou se spustit ve složce PowerShellu místo v projektu, nebo nikdy neskončit. Čtení a úpravy souborů to neovlivní. Pracovní prostor mimo C:\\Users spouští příkazy na místě.",
   "permissionModes": {
     "manual": "Ruční",
     "acceptEdits": "Upravovat automaticky",
@@ -945,7 +947,7 @@
   "permissionModeDetails": {
     "manual": "Muse se zeptá před spuštěním příkazů; Muse Code upravuje soubory pracovního prostoru bez ptaní",
     "acceptEdits": "V Muse Code totéž co Ruční: Muse Code upravuje soubory pracovního prostoru bez ptaní a před spuštěním příkazů se zeptá",
-    "plan": "Muse prozkoumá kód a před úpravami předloží plán",
+    "plan": "Muse nejprve plánuje; Muse Code odmítá příkazy, ale jeho nástroje pro soubory mohou dál upravovat soubory bez ptaní",
     "auto": "Muse Code spouští příkazy, které považuje za jednoduché, bez ptaní a před ostatními se zeptá",
     "bypassPermissions": "Muse bude upravovat soubory a spouštět příkazy bez ptaní"
   },
@@ -953,6 +955,7 @@
   "modelApiPermissionModeDetails": {
     "manual": "Muse požádá o schválení před každou úpravou a každým příkazem",
     "acceptEdits": "Muse bude upravovat soubory bez ptaní a před spuštěním příkazů se zeptá",
+    "plan": "Muse prozkoumá kód a před úpravami předloží plán",
     "auto": "Muse bude upravovat soubory bez ptaní, kromě chráněných souborů, a před příkazy se zeptá"
   },
   "modelApiReviewedAutoDetail": "Muse bude upravovat soubory bez ptaní, kromě chráněných souborů; placený kontrolor může některé příkazy jednou povolit a na zbytek se zeptá vás",

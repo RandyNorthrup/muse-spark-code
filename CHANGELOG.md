@@ -91,6 +91,25 @@ happened, not what was planned; superseded entries are kept.
   release recovery run and hosted Action check status. The Modes menu's Auto
   line on the Model API names the paid Auto reviewer while it is on, and the
   panel's focus shortcuts name Cmd+Esc on macOS.
+- **The panel no longer says approvals still cover everything when Muse
+  Code runs without its sandbox.** Without it, Muse Code's file tools can
+  write anywhere your account can, without asking, in every mode, Plan
+  included (Meta's permissions page; probed on 1.4.2). This is the posture
+  `museSpark.shellSandbox` at `auto` picks for a Windows workspace under
+  your user profile, where the sandbox does not reliably run commands
+  ([#26](https://github.com/meta-models/muse-code-sdk/issues/26): 1.4.2 ran
+  them there on one machine and hung on a freshly set-up one). The panel
+  now warns once per window whenever the sandbox is off, whether `auto` or
+  the `off` setting turned it off; the Diagnostics report gains a
+  `muse code file writes` line; the setting's description says so too.
+- **The Modes menu no longer promises that Plan on Muse Code plans before
+  editing.** Plan is Muse Code's `denyUnmatched`, which refuses commands its
+  own allow rules do not cover and writes to `.git`, `.muse` and `.agents` but lets its file tools edit
+  other files, and the menu now says that.
+- **A first command after the Windows sandbox setup that fails while Muse
+  Code is still preparing the sandbox** (`ACL publication lock … timed
+  out`) now says to wait and try again, instead of offering the setup that
+  has already run.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
