@@ -2,6 +2,11 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createWindowJudge } from '../../src/host/judge/judgeEntry'
+import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { UI_TEXT } from '../../src/shared/constants'
+import { memento } from './helpers/memento'
+import { confirmModal } from './helpers/vscodeViews'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
 import type { JudgeLedgerClaim } from '../../src/core/judge/admission'
 import { admittedModelApiJudge } from '../../src/host/judge/judgeTransport'
@@ -165,7 +170,70 @@ describe('Judge on the real D78 shared journal', () => {
         }
         if (receipt === 'nonsend')
           await expect(transport.send(body, new AbortController().signal)).rejects.toThrow()
-        else await transport.send(body, new AbortController().signal)
+        else if (receipt === 'complete') {
+          vi.mocked(confirmModal).mockImplementationOnce((_title, _options, ...items) =>
+            Promise.resolve(items[0]),
+          )
+          const paid = createPaidFeatures({
+            globalState: memento(new Map()),
+            workspaceState: memento(new Map()),
+            isSettingOn: () => false,
+            isJudgeOn: () => true,
+            isKeyStored: () => true,
+            canRememberPaidUse: () => false,
+            dailyBudgetUsd: shared.capUsd,
+            log,
+          })
+          const judge = createWindowJudge(
+            {
+              engine: () => 'same',
+              context: () => ({
+                backend: 'modelApi',
+                modelId: session.modelId,
+                ownerId: 'window',
+                contextLimit: 100_000,
+                confidential: false,
+              }),
+              readSettingsText: () => undefined,
+              startSession: () => Promise.reject(new Error('Subscription source unexpected')),
+              modelApi: () => connection,
+              ledger: { remainingUsd: shared.judgeLedger.remainingUsd, reserve: observed },
+              paid,
+              emit: () => undefined,
+              status: () => undefined,
+              notice: () => undefined,
+              log,
+            },
+            UI_TEXT,
+            'en',
+          )
+          try {
+            judge.start(
+              {
+                backend: 'modelApi',
+                sessionId: session.sessionId,
+                turnId: submitted.turnId,
+                tool: 'shell',
+                args: { command: 'npm test' },
+              },
+              'Current action',
+            )
+            await vi.waitFor(async () => {
+              expect(owned).toBeDefined()
+              if (owned === undefined) throw new Error('Judge claim absent')
+              const settled = await shared.lookupByClaimId('2026-10-5', owned.claimId)
+              expect(settled.settledUsd).toBe(0.0000199)
+            })
+            expect(confirmModal).toHaveBeenCalledWith(
+              expect.any(String),
+              expect.objectContaining({ detail: expect.stringContaining('$5.00') }),
+              expect.anything(),
+              expect.anything(),
+            )
+          } finally {
+            judge.dispose()
+          }
+        } else await transport.send(body, new AbortController().signal)
         expect(observed).toHaveBeenCalledTimes(1)
         expect(automatic).not.toHaveBeenCalled()
         const claim = owned
