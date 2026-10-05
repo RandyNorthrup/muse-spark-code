@@ -61,6 +61,11 @@ function record(): ChatGptRecord {
   }
 }
 
+function fetchUrl(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === 'string') return input
+  return input instanceof URL ? input.href : input.url
+}
+
 function rig(initial?: unknown) {
   let stored: unknown = initial
   let nonce = NONCE
@@ -73,7 +78,7 @@ function rig(initial?: unknown) {
   let status = 200
   let tokenOverrides: Record<string, unknown> = {}
   const fetcher: typeof fetch = (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const url = fetchUrl(input)
     requests.push({ url, init })
     let body = responses.get(url)
     if (body === undefined) {

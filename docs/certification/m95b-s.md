@@ -174,3 +174,50 @@ Focused final suites: **95/95** before the final drill restores (83 sign-in,
 last error/lifetime regressions were added; final checks are recorded below.
 Full `npm run quality` is expressly reserved for the lead by the lane's
 `common.md`; it is not claimed here. No gate was weakened.
+
+### Final Kubuntu checks and integration deferral
+
+| Check                                            | Result                                                                            |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `npm run typecheck`                              | Exit 0, all five projects; final test-helper cleanup also passed `typecheck:unit` |
+| ESLint on the six changed TypeScript files       | Exit 0, zero warnings after the fixture dispatch cleanup                          |
+| Prettier on changed code/tests/certification     | Exit 0                                                                            |
+| `npm run deadcode`                               | Exit 0; inherited `vendor/**` configuration hint only                             |
+| `npx jscpd`                                      | Exit 0; 967 files, zero clones                                                    |
+| `node scripts/check-l10n.mjs`                    | Exit 0; 14 tables, 127 manifest strings, 493 source files, zero problems          |
+| `npm run check:host-api`                         | Exit 1; the sole generated difference is `node:crypto` import count 35 → 36       |
+| `npm run build`                                  | Exit 0; size, split, host-global and 84-package notice checks pass                |
+| Three new complete unit files                    | 95/95 pass after final restoration and fixture cleanup                            |
+| Existing presets and provider-localization files | 19/19 pass in a separate two-file run                                             |
+
+**M95BS-R-host-api-count:** `docs/ide-compatibility/host-api.md` belongs to
+integration/documentation, outside this lane. W/lead must regenerate it
+with `npm run check:host-api -- --write`, review the one count change and
+rerun the check. API membership is unchanged; this is generated-document
+maintenance, not a weakened check. No aggregate all-gates claim is made.
+
+Build sizes: activation **553.1/600 KiB**, Model API **413.3/475 KiB**,
+providers **96.2/125 KiB**, Models panel **51.0/75 KiB**, Models webview
+**411.4/475 KiB**, conversation webview including its shared chunk
+**896.4/900 KiB**, ACP **798.8/850 KiB**, checkpoint store **88.4/225 KiB**.
+V/X have not yet imported the new sign-in core into their entries; integrated
+bundle budgets must be rechecked when they wire it. No budget changed.
+
+Implementation commit `d69c05aed5430278519d9c95bfa6d046c8fc6dea` ran the
+worktree's real hooks: serial lint-staged and a staged gitleaks scan
+(**64,472 bytes**, no leaks). Post-commit ESLint exposed a formatting conflict
+in the fake fetcher's nested conditional: lint-staged's ESLint fix inserted
+parentheses that Prettier removed. The final test-only helper uses one early
+return and one non-nested conditional; scoped ESLint and final whole-file
+tests now pass. The production implementation is unchanged by that cleanup.
+The follow-up commit records this correction and final checks with hooks on.
+
+Final source checksum (SHA-256), after the synchronous declaration relocation:
+`91085f0a546b362f0b7ccd348d4caad6cef2f57c6ee1d7cb8509eed02b4bf9ca`.
+No network wait moved ahead of the timestamp; both slow-JWKS regressions pass.
+
+The follow-up hook initially flagged that published source digest under
+`generic-api-key` because its preceding description contained an OAuth
+keyword. Renamed the descriptive label to “source checksum”; no credential,
+scanner configuration, suppression or ignore was added. The digest and
+its byte-exact proof are unchanged.
