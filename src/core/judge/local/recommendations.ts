@@ -24,6 +24,14 @@ export const LOCAL_JUDGE_RECOMMENDATIONS = [
     evidence: 'docs/certification/m98-2j-spike.md',
     requiresCalibrationForAuto: true,
   },
+  {
+    model: 'tev1:0.8b-q8_0',
+    technique: 'systemone',
+    downloadBytes: 811_856_202,
+    recommended: false,
+    evidence: 'docs/certification/m98p2-j.md',
+    requiresCalibrationForAuto: true,
+  },
 ] as const
 
 export interface LocalModelPullAction {

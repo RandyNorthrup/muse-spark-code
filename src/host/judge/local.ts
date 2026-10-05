@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { homedir } from 'node:os'
 import { MUSE_INSTALL_TIMEOUT_MS, LOCAL_JUDGE_MAX_RESPONSE_BYTES } from '../../shared/constants'
+import { darwinPeerDependencies } from '../../core/judge/local/darwinPeer'
 import { requireLocalExecutable } from '../../core/judge/local/executable'
 import type { LocalModelPullAction } from '../../core/judge/local/recommendations'
 import type { JudgeRuntime } from '../../core/judge/engine'
@@ -52,13 +53,16 @@ export function createHostLocalJudge(deps: LocalJudgeHostDependencies): JudgeRun
       signal.throwIfAborted()
       if (process.platform !== 'win32') {
         const installed = deps.posixRuntimeInstallation?.()
+        if (installed?.modelDirectory !== installation.modelDirectory)
+          throw new Error('unverified-platform')
         const lifecycle =
           deps.posixLifecycle ??
           (process.platform === 'linux'
-            ? createLinuxPeerDependencies(await deps.peerHelper(process.platform))
-            : undefined)
-        if (!installed || !lifecycle || installed.modelDirectory !== installation.modelDirectory)
-          throw new Error('unverified-platform')
+            ? createLinuxPeerDependencies(await deps.peerHelper('linux'))
+            : process.platform === 'darwin'
+              ? darwinPeerDependencies(await deps.peerHelper('darwin'), installed)
+              : undefined)
+        if (!lifecycle) throw new Error('unverified-platform')
         return await posixPeer(socket, installed, lifecycle, signal)
       }
       const helper = await deps.peerHelper(process.platform)

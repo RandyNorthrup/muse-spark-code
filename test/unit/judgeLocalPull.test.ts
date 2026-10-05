@@ -37,6 +37,7 @@ describe('M98 J2 explicit consented model download boundary', () => {
       ['tev1:4b', true, false],
       ['tev1:0.8b', false, true],
       ['qwen3:4b-instruct-2507-q4_K_M', false, true],
+      ['tev1:0.8b-q8_0', false, true],
     ])
   })
   it('shows exact model and size, then pulls once only after consent', async () => {

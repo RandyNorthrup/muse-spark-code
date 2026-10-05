@@ -30,6 +30,7 @@ happened, not what was planned; superseded entries are kept.
   separate-source identifier. Defaults remain `auto` with no separate source;
   configuration alone cannot enable an unverified or unmeasured source.
 - **Linux local judge proofs (M98 2j).** Native pidfd leases, vetted installation roots and local mount checks, with bounded Ollama receipts; runtime/package assembly remains pending.
+- **macOS local judge native proof (M98 J).** Libproc/kqueue lifetime binding, local APFS/HFS and signed Ollama installation checks, with six counted free small-model calls and native transport/refusal receipts; product assembly remains pending.
 
 - **Local judge design spike (M98-2j).** A test-only pinned loopback
   transport, Windows per-connection process verification and manifest/blob
