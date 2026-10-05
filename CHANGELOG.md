@@ -54,7 +54,8 @@ happened, not what was planned; superseded entries are kept.
   matchers and Gemini lifecycle filters refuse visibly, Gemini sequential
   policy spans user and project settings, Cursor requires version 1 and
   uses the adapter's source-event contract, and universal Copilot regexes
-  remain supported. Kiro Manual is refused until its adapter has a row.
+  remain supported. Truncated or normalized MCP identities are refused.
+  Kiro Manual is refused until its adapter has a row.
 
 ## [0.12.1] - 2026-10-04
 

@@ -50,6 +50,7 @@ import {
   AGENT_IMPORT_KIRO_FILE_TRIGGERS,
   AGENT_IMPORT_KIRO_TASK_EVENTS,
   AGENT_IMPORT_KIRO_TOOLS,
+  AGENT_IMPORT_MCP_SERVER_MAX_CHARS,
   AGENT_IMPORT_SETUP_TRIGGERS,
   AGENT_IMPORT_SPARK_NAME_MATCHED,
   AGENT_IMPORT_SPARK_PATH_MATCHED,
@@ -57,13 +58,13 @@ import {
   AGENT_IMPORT_WINDSURF_EVENTS,
   HOOK_MATCHER_MAX_CHARS,
   HOOK_MAX_TIMEOUT_SECONDS,
+  MCP_FUNCTION_NAME_MAX_CHARS,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
   MUSE_MCP_OPTIONAL_MODE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { mcpFunctionName, mcpServerPart } from '../backends/modelapi/mcp/functions'
 
 /**
  * Why an entry that was found is not converted. The lane-0 preview keys name
@@ -725,7 +726,10 @@ const GEMINI_VOCABULARY: ToolVocabulary = {
       server === undefined ||
       tool === undefined ||
       rest.length > 0 ||
-      mcpFunctionName(server, tool, new Set()) !== `${OUR_MCP_PREFIX}${server}__${tool}`
+      !CANONICAL_SERVER.test(server) ||
+      server.length > AGENT_IMPORT_MCP_SERVER_MAX_CHARS ||
+      !CANONICAL_TOOL.test(tool) ||
+      `${OUR_MCP_PREFIX}${server}__${tool}`.length > MCP_FUNCTION_NAME_MAX_CHARS
       ? null
       : { names: [`${OUR_MCP_PREFIX}${server}__${tool}`], patterns: [] }
   },
@@ -782,7 +786,7 @@ const KIRO_VOCABULARY: ToolVocabulary = {
     if (
       server === undefined ||
       !CANONICAL_SERVER.test(server) ||
-      mcpServerPart(server) !== server
+      server.length > AGENT_IMPORT_MCP_SERVER_MAX_CHARS
     ) {
       return null
     }
@@ -790,7 +794,7 @@ const KIRO_VOCABULARY: ToolVocabulary = {
       return isAnchored ? null : { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}`] }
     }
     return CANONICAL_TOOL.test(tool) &&
-      mcpFunctionName(server, tool, new Set()) === `${OUR_MCP_PREFIX}${server}__${tool}`
+      `${OUR_MCP_PREFIX}${server}__${tool}`.length <= MCP_FUNCTION_NAME_MAX_CHARS
       ? { names: [], patterns: [`^${OUR_MCP_PREFIX}${server}__${tool}${isAnchored ? '$' : ''}`] }
       : null
   },
@@ -882,20 +886,29 @@ function convertCommandGroup(
   hook: FoundHook,
   event: string,
   matcher: string | undefined,
+  isCodex = false,
 ): Conversion<MuseHook> {
   const refused = groupRefusal(hook, NATIVE_GROUP_FIELDS)
   if (refused !== undefined) {
     return refused
   }
-  const handler = hookHandlerSchema.safeParse(hook.raw)
-  if (!hasOnlyFields(hook.raw, HANDLER_FIELDS) || !handler.success) {
+  const fields = isCodex ? CODEX_HANDLER_FIELDS : HANDLER_FIELDS
+  const handler = isCodex
+    ? codexHandlerSchema.safeParse(hook.raw)
+    : hookHandlerSchema.safeParse(hook.raw)
+  if (!hasOnlyFields(hook.raw, fields) || !handler.success) {
     return { ok: false, reason: 'unsupported' }
   }
+  if ('additionalContextLimit' in handler.data && handler.data.additionalContextLimit !== undefined)
+    return fieldRefusal('additionalContextLimit')
   const { type, command, timeout, statusMessage } = handler.data
+  const commandWindows = 'commandWindows' in handler.data ? handler.data.commandWindows : undefined
   if (
     type !== COMMAND_HANDLER ||
     !hasCommand(command) ||
-    (timeout !== undefined && !isTimeoutSeconds(timeout))
+    (commandWindows !== undefined && !hasCommand(commandWindows)) ||
+    (timeout !== undefined && !isTimeoutSeconds(timeout)) ||
+    (isCodex && hook.event === 'Interrupt' && handler.data.async !== true)
   ) {
     return { ok: false, reason: 'unsupported' }
   }
@@ -909,6 +922,7 @@ function convertCommandGroup(
           {
             type: COMMAND_HANDLER,
             command,
+            ...(commandWindows !== undefined && { commandWindows }),
             ...(timeout !== undefined && { timeout }),
             ...(handler.data.async !== undefined && { async: handler.data.async }),
             ...(statusMessage !== undefined && { statusMessage }),
@@ -1064,56 +1078,12 @@ export function convertCodexHook(hook: FoundHook): Conversion<MuseHook> {
   if (!AGENT_IMPORT_CODEX_EVENTS.includes(hook.event)) {
     return { ok: false, reason: 'unmapped' }
   }
-  const refused = groupRefusal(hook, NATIVE_GROUP_FIELDS)
-  if (refused !== undefined) {
-    return refused
-  }
-  if (!hasOnlyFields(hook.raw, CODEX_HANDLER_FIELDS)) {
-    return { ok: false, reason: 'unsupported' }
-  }
-  const handler = codexHandlerSchema.safeParse(hook.raw)
-  if (!handler.success) {
-    return { ok: false, reason: 'unsupported' }
-  }
-  if (handler.data.additionalContextLimit !== undefined) {
-    return fieldRefusal('additionalContextLimit')
-  }
-  const { type, command, commandWindows, timeout, statusMessage } = handler.data
-  if (
-    type !== COMMAND_HANDLER ||
-    !hasCommand(command) ||
-    (commandWindows !== undefined && !hasCommand(commandWindows)) ||
-    (timeout !== undefined && !isTimeoutSeconds(timeout))
-  ) {
-    return { ok: false, reason: 'unsupported' }
-  }
-  if (hook.event === 'Interrupt' && handler.data.async !== true) {
-    return { ok: false, reason: 'unsupported' }
-  }
-  const matcher = nativeMatcher(
+  return convertCommandGroup(
+    hook,
     hook.event,
-    hook.matcher === undefined ? undefined : codexMatcher(hook.matcher),
+    nativeMatcher(hook.event, hook.matcher === undefined ? undefined : codexMatcher(hook.matcher)),
+    true,
   )
-  return {
-    ok: true,
-    value: {
-      event: hook.event,
-      group: {
-        ...(matcher !== undefined && { matcher }),
-        hooks: [
-          {
-            type: COMMAND_HANDLER,
-            command,
-            ...(commandWindows !== undefined && { commandWindows }),
-            ...(timeout !== undefined && { timeout }),
-            ...(handler.data.async !== undefined && { async: handler.data.async }),
-            ...(statusMessage !== undefined && { statusMessage }),
-          },
-        ],
-      },
-    },
-    dropped: hook.group?.['description'] === undefined ? [] : ['description'],
-  }
 }
 
 // --- Foreign hooks into spark-hooks.json (M91, PLAN.md D70) ---

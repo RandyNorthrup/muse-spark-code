@@ -418,16 +418,12 @@ async function isConfined(
   if (!canReadOrigin(scan, origin)) {
     return false
   }
-  if (origin === 'user' && !scan.input.isWorkspaceTrusted()) {
-    const file = await scan.input.io.realPath(absolutePath)
-    const roots =
-      scan.input.workspaceRoots?.() ??
-      (scan.input.workspaceRoot === undefined ? [] : [scan.input.workspaceRoot])
-    for (const workspace of roots) {
-      const canonical = await scan.input.io.realPath(workspace)
-      if (resolveWorkspacePath(canonical, file, scan.input.platform).ok) return false
-    }
-  }
+  if (
+    origin === 'user' &&
+    !scan.input.isWorkspaceTrusted() &&
+    (await isInOpenWorkspace(scan, absolutePath))
+  )
+    return false
   const root = scan.input.workspaceRoot
   if (origin === 'user' || root === undefined) {
     return origin === 'user'
@@ -669,6 +665,7 @@ async function collectHooks(
   origin: ImportOrigin,
   file: string,
   isOff: boolean,
+  source: 'claudeCode' | 'codex' = 'claudeCode',
 ): Promise<void> {
   const text = await readText(scan, file, origin)
   if (text === undefined) {
@@ -676,49 +673,27 @@ async function collectHooks(
   }
   const hooks = readClaudeHooks(text)
   if (hooks === undefined) {
-    scan.warnings.push(`is not a readable settings file, skipped`)
+    scan.warnings.push(
+      source === 'codex'
+        ? 'is not a readable Codex hooks file, skipped'
+        : 'is not a readable settings file, skipped',
+    )
     return
   }
   const switched = withSwitches(hooks, { isOff })
   for (const hook of switched) {
     const base = {
-      source: 'claudeCode',
+      source,
       origin,
       label: hook.event,
       originPath: file,
     } as const
-    const converted = convertHook(hook)
-    if (converted.ok || converted.reason !== 'unmapped') {
+    const converted = source === 'codex' ? convertCodexHook(hook) : convertHook(hook)
+    if (source === 'codex' || converted.ok || converted.reason !== 'unmapped') {
       addHook(scan, base, converted, origin === 'user' ? 'settings' : 'hooks')
       continue
     }
     addHook(scan, base, convertClaudeSparkHook(hook), sparkFileOf(origin))
-  }
-}
-
-async function collectCodexHooks(
-  scan: Scan,
-  origin: ImportOrigin,
-  file: string,
-  isOff: boolean,
-): Promise<void> {
-  const text = await readText(scan, file, origin)
-  if (text === undefined) {
-    return
-  }
-  const hooks = readClaudeHooks(text)
-  if (hooks === undefined) {
-    scan.warnings.push(`is not a readable Codex hooks file, skipped`)
-    return
-  }
-  const switched = withSwitches(hooks, { isOff })
-  for (const hook of switched) {
-    addHook(
-      scan,
-      { source: 'codex', origin, label: hook.event, originPath: file },
-      convertCodexHook(hook),
-      origin === 'user' ? 'settings' : 'hooks',
-    )
   }
 }
 
@@ -1551,7 +1526,7 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
   const isOff = configTexts.some((text) => isCodexHooksOff(text))
   if (home !== undefined) {
     await collectCodexConfigFile(scan, 'user', p.join(home, names.configFile), isOff)
-    await collectCodexHooks(scan, 'user', p.join(home, names.hooksFile), isOff)
+    await collectHooks(scan, 'user', p.join(home, names.hooksFile), isOff, 'codex')
     await collectMarkdown(scan, {
       source: 'codex',
       origin: 'user',
@@ -1566,7 +1541,7 @@ async function scanCodex(scan: Scan, isProjectRead: boolean): Promise<void> {
     return
   }
   await collectCodexConfigFile(scan, 'project', p.join(projectDir, names.configFile), isOff)
-  await collectCodexHooks(scan, 'project', p.join(projectDir, names.hooksFile), isOff)
+  await collectHooks(scan, 'project', p.join(projectDir, names.hooksFile), isOff, 'codex')
 }
 
 async function scanCursor(scan: Scan, isProjectRead: boolean): Promise<void> {

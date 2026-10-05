@@ -917,9 +917,9 @@ describe('scanAgentImports: every agent’s hooks', () => {
   it('reads no project hook without live trust (the scope drill)', async () => {
     const setup = hookInput({}, { isWorkspaceTrusted: () => false })
     const scan = await scanAgentImports(setup)
-    expect(scan.candidates.length).toBeGreaterThan(0)
-    expect(scan.candidates.every((candidate) => candidate.origin === 'user')).toBe(true)
-    expect(setup.io.reads.filter((path) => path.startsWith(`${WS}/`))).toEqual([])
+    expect(scan.candidates).not.toHaveLength(0)
+    for (const candidate of scan.candidates) expect(candidate.origin).toBe('user')
+    expect(setup.io.reads.some((file) => file.startsWith(`${WS}/`))).toBe(false)
   })
 
   it('lists a broken Kiro file in fixed words, never with its content', async () => {
@@ -1308,4 +1308,18 @@ describe('RVM91I2 Cline source workspace identity', () => {
     const scan = await scanAgentImports(setup)
     expect(scan.candidates).toEqual([])
   })
+})
+
+it('R2-gates never treats an unsupported Codex event as a Claude extension hook', async () => {
+  const setup = only(
+    {
+      [`${HOME}/.codex/hooks.json`]: JSON.stringify({
+        hooks: { InstructionsLoaded: [{ hooks: [{ type: 'command', command: 'observe' }] }] },
+      }),
+    },
+    ['codex'],
+  )
+  const scan = await scanAgentImports(setup)
+  expect(scan.candidates[0]?.source).toBe('codex')
+  expect(scan.candidates[0]?.target).toEqual({ kind: 'none', reason: 'unmapped' })
 })

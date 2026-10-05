@@ -13553,6 +13553,11 @@ live) and the controller filters its id as well.
   sequential policy spans merged settings; Cursor records match adapter
   source-event selection at `d8e609aa` and require version 1. Each finding
   gets a regression and a SHA-256-restored red drill in `m91-i.md`.
+  The lane also removes its six duplication-gate clones using existing
+  scanner/converter functions and replaces the heavy Model API name-builder
+  import with bounded canonical-name checks against the pinned 20/64 contract,
+  verified by tests against the real builder; the import bundle keeps its
+  existing 125 KiB cap. No new layer or dependency.
 
 The early protected-paths fix is its own pull request,
 `fix/protect-agent-folders`.
@@ -14242,6 +14247,19 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M91-I-Bundle-budget deferral (FIXM91I3, 2026-10-04).** The required
+production build was run and the import bundle alone exceeds its unchanged
+125 KiB cap: 148.5 KiB after removing the new heavy name-builder import and
+all six duplication-gate clones. An in-memory build of the starting commit
+`d1eeaadbb791c93a9440e36d358b9cfdc7f2c9f1`, with the production options and
+shared English fallback, is already 147.7 KiB. This is a blocking packaging
+deferral, not a gate waiver or support claim. Splitting a bundle needs build,
+bundle-split and host entry changes outside lane I's owned files; the lane
+brief forbids widening there and common.md says to stop and report when a
+bundle cannot fit. Follow-up: W/lead splits the importer under the existing
+budgets and reruns the production build and full quality gate before landing.
+No cap, threshold, ignore or rule level changed.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -14686,6 +14704,13 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M91-I-Bundle-budget (FIXM91I3).** The import bundle is 148.5/125 KiB;
+  the starting commit is already 147.7/125 KiB (see §7's recorded deferral).
+  Safe for now only as an unmerged, unsupported milestone lane: packaging
+  and full quality remain blocked, so this does not authorize release.
+  Follow-up W/lead: split the lazy importer with unchanged budgets and certify
+  the resulting production artifacts before merging or publishing.
+
 - **M91-I-Manual-adapter (FIXM91I3).** No numbered RVM91I2 finding is
   left open on the importer side. The pinned P adapter at `d8e609aa` has no
   Kiro Manual row, so the importer now refuses Manual as `unmapped` and
@@ -14698,8 +14723,9 @@ before a repaired one loads (2026-09-30).
   executes these records. Follow-up W/P/H/X: validate the foreign record;
   apply commandPattern, Kiro pathPattern/file operation and template
   substitutions, Cursor loop_limit (default 5), source cwd/shell/environment,
-  adapter input and model payloads, fail-closed results, and paid handler
-  admission; certify integrated guards before declaring support.
+  adapter input and model payloads, runtime MCP registry identity binding,
+  fail-closed results, and paid handler admission; certify integrated guards
+  before declaring support.
 - **M91-I-Live-Cline-reference (FIXM91I3).** Scan and planning now reject
   retargeted executable references, and generated Unix/PowerShell commands
   quote literal paths with the source's 30-second timeout. A file can still

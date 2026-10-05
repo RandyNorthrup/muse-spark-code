@@ -879,17 +879,17 @@ describe('RVM91I2 Gemini adapter tool names', () => {
   // P d8e609aa captured Gemini 0.62.0: search -> grep_search,
   // list_files -> list_directory. Legacy names cannot preserve exact filters.
   it('R2-5g refuses legacy exact aliases absent from the captured adapter vocabulary', () => {
-    for (const matcher of ['^grep$', '^search_file_content$', '^ls$']) {
-      expect(
-        convertGeminiHook(
-          foreign(
-            'BeforeTool',
-            { type: 'command', command: 'guard' },
-            { matcher, group: { matcher } },
-          ),
-        ),
-      ).toEqual({ ok: false, reason: 'field', field: 'matcher' })
-    }
+    const legacy = ['^grep$', '^search_file_content$', '^ls$'].map((matcher) =>
+      convertGeminiHook({
+        event: 'BeforeTool',
+        matcher,
+        group: { matcher },
+        raw: { type: 'command', command: 'guard' },
+      }),
+    )
+    expect(legacy).toEqual(
+      Array.from({ length: 3 }, () => ({ ok: false, reason: 'field', field: 'matcher' })),
+    )
     const current = groupOf(
       convertGeminiHook(
         foreign(
@@ -900,5 +900,38 @@ describe('RVM91I2 Gemini adapter tool names', () => {
       ),
     )
     expect(isAdmitted(current['matcher'], 'search')).toBe(true)
+  })
+})
+
+describe('RVM91I2 bounded names and shared native converter', () => {
+  it('R2-7 refuses full MCP names that require Muse hash truncation', () => {
+    const tool = 'a'.repeat(60)
+    const plain = `mcp__fs__${tool}`
+    expect(mcpFunctionName('fs', tool, new Set())).not.toBe(plain)
+    const matcher = `^mcp_fs_${tool}$`
+    const gemini = convertGeminiHook(
+      foreign('BeforeTool', { type: 'command', command: 'guard' }, { matcher, group: { matcher } }),
+    )
+    const kiro = kiroOne({
+      name: 'guard',
+      trigger: 'PreToolUse',
+      matcher: `^@fs/${tool}$`,
+      action: { type: 'command', command: 'guard' },
+    })
+    expect(gemini).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+    expect(kiro).toEqual({ ok: false, reason: 'field', field: 'matcher' })
+  })
+
+  it('R2-gates retains separate Claude and Codex handler field admission', () => {
+    const hook = foreign('PostToolUse', {
+      type: 'command',
+      command: 'fmt',
+      commandWindows: 'fmt.ps1',
+    })
+    expect(convertHook(hook)).toEqual({ ok: false, reason: 'unsupported' })
+    expect(convertCodexHook(hook)).toMatchObject({
+      ok: true,
+      value: { group: { hooks: [{ command: 'fmt', commandWindows: 'fmt.ps1' }] } },
+    })
   })
 })
