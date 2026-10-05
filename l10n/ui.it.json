@@ -2139,5 +2139,49 @@
   "anthropicCodecToolArgumentsInvalid": "Gli argomenti degli strumenti Anthropic devono essere un oggetto JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic non supporta questo livello di ragionamento.",
   "anthropicCodecEmptyTurn": "Anthropic richiede almeno un messaggio.",
-  "anthropicCodecLimitExceeded": "La risposta di Anthropic ha superato un limite di decodifica."
+  "anthropicCodecLimitExceeded": "La risposta di Anthropic ha superato un limite di decodifica.",
+  "modelsEmpty": "Ancora nessun provider di modelli. Aggiunga un provider per usare i propri modelli.",
+  "panelNoMatches": "Nessun risultato.",
+  "modelFilterLabels": {
+    "toolCalling": "Chiamate di strumenti",
+    "vision": "Visione",
+    "reasoning": "Ragionamento",
+    "contextMin": "Contesto min",
+    "contextMax": "Contesto max",
+    "maxInput": "Prezzo di input max",
+    "maxOutput": "Prezzo di output max",
+    "maxCached": "Prezzo della cache max",
+    "freeOrLocal": "Gratis o locale",
+    "provider": "Fornitore",
+    "family": "Famiglia",
+    "clear": "Cancella filtri",
+    "any": "Tutti"
+  },
+  "tickModel": "Offri {model} nel selettore dei modelli",
+  "pinModel": "Fissa {model} come preferito",
+  "modelsColumnOffered": "Offerto",
+  "modelsColumnPinned": "Fissato",
+  "providerDetailFields": {
+    "azureResource": "Risorsa di Azure",
+    "deployment": "Distribuzione",
+    "loopbackPort": "Porta locale",
+    "customFormat": "Formato del protocollo"
+  },
+  "providerDocs": "Documentazione",
+  "providerDataUse": "Come vengono usati i dati",
+  "numCtxLabel": "Dimensione del contesto",
+  "suggestUnavailable": "Nessun suggerimento: nessun modello soddisfa i requisiti.",
+  "lastDefaultHint": "Ultima scelta: {model}",
+  "importUntrusted": "Questo file non è attendibile: controlli ogni indirizzo prima di importare.",
+  "openRouterOrder": "Ordine provider preferito",
+  "openRouterFallback": "Passa ad altri provider",
+  "keyMissing": "Nessuna chiave salvata",
+  "testRunning": "Verifica in corso…",
+  "modelsShownCount": {
+    "one": "{shown} di {count} modello",
+    "many": "{shown} di {count} modelli",
+    "other": "{shown} di {count} modelli"
+  },
+  "pricePerMillion": "Prezzi per milione di token.",
+  "modelsNotScanned": "Aggiorni per elencare i modelli di questo provider."
 }

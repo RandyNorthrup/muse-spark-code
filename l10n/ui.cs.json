@@ -2213,5 +2213,50 @@
   "anthropicCodecToolArgumentsInvalid": "Argumenty nástroje Anthropic musí být objekt JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic tuto úroveň uvažování nepodporuje.",
   "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
-  "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování."
+  "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování.",
+  "modelsEmpty": "Zatím žádní poskytovatelé modelů. Přidejte jednoho, abyste mohli používat vlastní modely.",
+  "panelNoMatches": "Žádné shody.",
+  "modelFilterLabels": {
+    "toolCalling": "Volání nástrojů",
+    "vision": "Vize",
+    "reasoning": "Usuzování",
+    "contextMin": "Min. kontext",
+    "contextMax": "Max. kontext",
+    "maxInput": "Max. cena vstupu",
+    "maxOutput": "Max. cena výstupu",
+    "maxCached": "Max. cena mezipaměti",
+    "freeOrLocal": "Zdarma nebo místní",
+    "provider": "Poskytovatel",
+    "family": "Rodina",
+    "clear": "Vymazat filtry",
+    "any": "Vše"
+  },
+  "tickModel": "Nabídnout {model} ve výběru modelů",
+  "pinModel": "Připnout {model} jako oblíbený",
+  "modelsColumnOffered": "Nabízeno",
+  "modelsColumnPinned": "Připnuto",
+  "providerDetailFields": {
+    "azureResource": "Prostředek Azure",
+    "deployment": "Nasazení",
+    "loopbackPort": "Místní port",
+    "customFormat": "Formát protokolu"
+  },
+  "providerDocs": "Dokumentace",
+  "providerDataUse": "Jak se používají vaše data",
+  "numCtxLabel": "Velikost kontextu",
+  "suggestUnavailable": "Žádný návrh: žádný zdejší model nesplňuje podmínky.",
+  "lastDefaultHint": "Poslední výchozí: {model}",
+  "importUntrusted": "Tento soubor není důvěryhodný: před importem zkontrolujte každou adresu.",
+  "openRouterOrder": "Upřednostňované pořadí poskytovatelů",
+  "openRouterFallback": "Přejít na jiné poskytovatele",
+  "keyMissing": "Žádný klíč není uložen",
+  "testRunning": "Testuje se…",
+  "modelsShownCount": {
+    "one": "{shown} z {count} modelu",
+    "few": "{shown} z {count} modely",
+    "many": "{shown} z {count} modelů",
+    "other": "{shown} z {count} modelů"
+  },
+  "pricePerMillion": "Ceny za milion tokenů.",
+  "modelsNotScanned": "Obnovte, aby se vypsaly modely tohoto poskytovatele."
 }

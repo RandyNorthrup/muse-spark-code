@@ -26,12 +26,14 @@ import {
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
+  bundleFor,
   serveRepo,
   withNarrowPage,
 } from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 const WINDOW_SIZE = '690,760'
 // Virtual time: the scenario plays, the harness waits 5 s, axe runs.
 const VIRTUAL_TIME_BUDGET_MS = 30_000
@@ -69,7 +71,7 @@ function decodeEntities(text) {
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
 async function scan(chrome, port, page, lang, profileDir) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&bundle=${bundleFor(page.scenario)}&theme=${page.theme}&axe=1${langQuery(lang)}`
   try {
     if (page.scenario === 'share-narrow') {
       return await withNarrowPage(chrome, profileDir, url, async (tab) => {
@@ -170,6 +172,12 @@ async function main() {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
   const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build\` first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)

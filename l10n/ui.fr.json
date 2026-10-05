@@ -2139,5 +2139,49 @@
   "anthropicCodecToolArgumentsInvalid": "Les arguments des outils Anthropic doivent être un objet JSON.",
   "anthropicCodecEffortUnsupported": "Anthropic ne prend pas en charge ce niveau de raisonnement.",
   "anthropicCodecEmptyTurn": "Anthropic nécessite au moins un message.",
-  "anthropicCodecLimitExceeded": "La réponse d’Anthropic a dépassé une limite de décodage."
+  "anthropicCodecLimitExceeded": "La réponse d’Anthropic a dépassé une limite de décodage.",
+  "modelsEmpty": "Aucun fournisseur de modèles pour l’instant. Ajoutez-en un pour utiliser vos propres modèles.",
+  "panelNoMatches": "Aucun résultat.",
+  "modelFilterLabels": {
+    "toolCalling": "Appels d’outils",
+    "vision": "Compréhension visuelle",
+    "reasoning": "Raisonnement",
+    "contextMin": "Contexte min",
+    "contextMax": "Contexte max",
+    "maxInput": "Prix d’entrée max",
+    "maxOutput": "Prix de sortie max",
+    "maxCached": "Prix du cache max",
+    "freeOrLocal": "Gratuit ou local",
+    "provider": "Fournisseur",
+    "family": "Famille",
+    "clear": "Effacer les filtres",
+    "any": "Tous"
+  },
+  "tickModel": "Proposer {model} dans le sélecteur de modèles",
+  "pinModel": "Épingler {model} en favori",
+  "modelsColumnOffered": "Proposé",
+  "modelsColumnPinned": "Épinglé",
+  "providerDetailFields": {
+    "azureResource": "Ressource Azure",
+    "deployment": "Déploiement",
+    "loopbackPort": "Port local",
+    "customFormat": "Format du protocole"
+  },
+  "providerDocs": "Documentation du fournisseur",
+  "providerDataUse": "Utilisation de vos données",
+  "numCtxLabel": "Taille du contexte",
+  "suggestUnavailable": "Aucune suggestion : aucun modèle ne remplit les conditions.",
+  "lastDefaultHint": "Dernier choix : {model}",
+  "importUntrusted": "Ce fichier n’est pas fiable : vérifiez chaque adresse avant de l’importer.",
+  "openRouterOrder": "Ordre de fournisseurs préféré",
+  "openRouterFallback": "Basculer vers d’autres fournisseurs",
+  "keyMissing": "Aucune clé enregistrée",
+  "testRunning": "Test en cours…",
+  "modelsShownCount": {
+    "one": "{shown} modèle sur {count}",
+    "many": "{shown} modèles sur {count}",
+    "other": "{shown} modèles sur {count}"
+  },
+  "pricePerMillion": "Prix par million de jetons.",
+  "modelsNotScanned": "Actualisez pour lister les modèles de ce fournisseur."
 }

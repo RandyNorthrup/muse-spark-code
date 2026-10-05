@@ -17,6 +17,8 @@
 !dist/pageWorker.js
 !dist/webview/main.js
 !dist/webview/main.css
+!dist/webview/models.js
+!dist/webview/models.css
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**

@@ -1991,5 +1991,47 @@
   "anthropicCodecToolArgumentsInvalid": "Anthropic のツール引数は JSON オブジェクトである必要があります。",
   "anthropicCodecEffortUnsupported": "Anthropic はこの推論レベルに対応していません。",
   "anthropicCodecEmptyTurn": "Anthropic には少なくとも 1 件のメッセージが必要です。",
-  "anthropicCodecLimitExceeded": "Anthropic の応答がデコードの上限を超えました。"
+  "anthropicCodecLimitExceeded": "Anthropic の応答がデコードの上限を超えました。",
+  "modelsEmpty": "モデルプロバイダーがまだありません。独自のモデルを使うには追加してください。",
+  "panelNoMatches": "一致するものがありません。",
+  "modelFilterLabels": {
+    "toolCalling": "ツール呼び出し",
+    "vision": "画像認識",
+    "reasoning": "推論",
+    "contextMin": "最小コンテキスト",
+    "contextMax": "最大コンテキスト",
+    "maxInput": "最大入力価格",
+    "maxOutput": "最大出力価格",
+    "maxCached": "最大キャッシュ価格",
+    "freeOrLocal": "無料またはローカル",
+    "provider": "プロバイダー",
+    "family": "ファミリー",
+    "clear": "フィルターをクリア",
+    "any": "すべて"
+  },
+  "tickModel": "モデル選択に {model} を表示する",
+  "pinModel": "{model} をお気に入りにピン留めする",
+  "modelsColumnOffered": "表示中",
+  "modelsColumnPinned": "ピン留め中",
+  "providerDetailFields": {
+    "azureResource": "Azure リソース",
+    "deployment": "デプロイ",
+    "loopbackPort": "ローカルポート",
+    "customFormat": "プロトコル形式"
+  },
+  "providerDocs": "ドキュメント",
+  "providerDataUse": "データの使用方法",
+  "numCtxLabel": "コンテキストサイズ",
+  "suggestUnavailable": "提案なし: 条件を満たすモデルがありません。",
+  "lastDefaultHint": "最後の既定値: {model}",
+  "importUntrusted": "このファイルは信頼できません: インポート前にすべてのアドレスを確認してください。",
+  "openRouterOrder": "優先プロバイダー順",
+  "openRouterFallback": "他のプロバイダーにフォールバックする",
+  "keyMissing": "保存されたキーがありません",
+  "testRunning": "テスト中…",
+  "modelsShownCount": {
+    "other": "{count} 件中 {shown} 件"
+  },
+  "pricePerMillion": "100 万トークンあたりの価格。",
+  "modelsNotScanned": "このプロバイダーのモデルを一覧表示するには更新してください。"
 }
