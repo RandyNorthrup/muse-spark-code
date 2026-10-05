@@ -1139,15 +1139,23 @@ All read on 2026-10-04.
     conflicts). If the merge was clean, the exit value is 0."
   - `-p`: "Send results to standard output instead of overwriting
     <current>."
-  - So a trial merge in memory predicts the real merge's outcome exactly.
+  - So a trial merge in memory predicts a plain text file's merge. It does
+    not predict a file that landing merges another way, such as the
+    CHANGELOG. Round 2 therefore predicts with the landing's own merge
+    routine (Codex's review `RVM96C`, finding 16).
 - **`git patch-id`**
   ([git-scm.com/docs/git-patch-id](https://git-scm.com/docs/git-patch-id)):
   - "A 'patch ID' is nothing but a sum of SHA-1 of the file diffs associated
     with a patch, with line numbers ignored."
   - With `--stable`, "Reordering file diffs that make up a patch does not
     affect the ID", and "All whitespace within the patch is ignored".
-  - So a branch refreshed onto a moved base keeps its patch ID when its own
-    change is unchanged.
+  - A patch ID is therefore not evidence that reviewed bytes survived.
+    Codex's review `RVM96C` (finding 12) piped two synthetic patches into
+    `git patch-id --stable`. One changed `print("deny")` to
+    `print("allow user")`, the other to `print("allowuser")`. Both gave
+    `b9ade564bb7bd5db20ccb6068f1d59ddb3cf6349`, though their programs print
+    different text. Review carry-over (M96d) uses exact file deltas, and a
+    patch ID only as a hint.
 - **Copy-on-write copies in Node**
   ([nodejs/node doc/api/fs.md](https://raw.githubusercontent.com/nodejs/node/main/doc/api/fs.md)):
   - `fs.constants.COPYFILE_FICLONE`: "The copy operation will attempt to
@@ -1187,6 +1195,43 @@ All read on 2026-10-04.
   Stable, Insiders, VSCodium and Cursor each have their own. The ACP agent
   outside VS Code has none.
 
+The round-2 coordinator (D75, lane K) rests on these facts, read the same
+day:
+
+- **Unix domain sockets**
+  ([man7.org unix(7)](https://man7.org/linux/man-pages/man7/unix.7.html)):
+  - `ECONNREFUSED`: "The remote address specified by connect(2) was not a
+    listening socket. This error can also occur if the target pathname is
+    not a socket."
+  - "Binding to a socket with a filename creates a socket in the filesystem
+    that must be deleted by the caller when it is no longer needed". So a
+    stale file can remain, and refusal is what proves that nothing listens.
+  - The abstract namespace "automatically disappear[s] when all open
+    references to the socket are closed", but "is a nonportable Linux
+    extension", so it is not used.
+  - "On Linux, sun_path is 108 bytes in size", and portable applications
+    should allow for implementations where it is "as short as 92 bytes".
+- **Windows named pipes in libuv**
+  ([libuv src/win/pipe.c](https://raw.githubusercontent.com/libuv/libuv/v1.x/src/win/pipe.c)):
+  - The server's first instance is created with
+    `FILE_FLAG_FIRST_PIPE_INSTANCE`, and a name already in use makes the
+    bind fail with `UV_EADDRINUSE`.
+  - A client meeting `ERROR_PIPE_BUSY` waits (`WaitNamedPipe`), so a busy
+    pipe is not a missing one.
+  - A pipe is a kernel object that exists while its server holds it.
+- **Hard links** ([man7.org link(2)](https://man7.org/linux/man-pages/man2/link.2.html)):
+  - `EEXIST`: "_newpath_ already exists", and "If _newpath_ exists, it will
+    _not_ be overwritten."
+  - So linking a complete file to a new name is a claim that never replaces
+    another claim.
+- **Exclusive creation on network file systems**
+  ([man7.org open(2)](https://man7.org/linux/man-pages/man2/open.2.html)):
+  - "On NFS, O_EXCL is supported only when using NFSv3 or later on kernel
+    2.6 or later". Elsewhere, programs that rely on it for locking "will
+    contain a race condition".
+  - So the coordinator's folders must be machine-local, and are checked by
+    machine id.
+
 ### 8.4 What D75 takes from §8
 
 - **The lead's lanes become the scheduler.** It brings the board of
@@ -1194,22 +1239,24 @@ All read on 2026-10-04.
   engine, staggered starts, reassignment of a stalled lane with a handoff,
   divergence stopped and handed back, review by class in one pass, and the
   third-round redesign.
-- **The lead's region ownership becomes write-set leases.** Tasks lease
-  files and regions. Overlaps are predicted with real trial merges. The
-  structured merges cover the regions, the l10n tables (by key) and the
-  CHANGELOG (changelog-rebase, the kept check and the released-section
-  guard; never a union).
+- **The lead's region ownership becomes write-set leases.** Attempts lease
+  files. Overlaps are predicted with the landing's own merge routine. The
+  CHANGELOG merges by bullet identity (changelog-rebase, the kept check
+  and the released-section guard; never a union). Regions and the by-key
+  merge of the l10n tables wait for M96d.
 - **The lead's serial queue becomes the merge queue.** It is ordered by
-  dependency, priority, conflicts and blast radius. It tests the merged
-  result, batches small changes, bisects to the culprit and retries a
-  flaky check once.
+  dependency, priority, conflicts and blast radius. It lands only what it
+  tested, bound to the whole snapshot. It batches small changes, retries a
+  flaky check once, and falls back to serial, cumulative admission when a
+  batch fails.
 - **The lead's rigs become runners.** Snapshots go through a temporary
   index, dependency caches are keyed by lockfile, routing follows labels
   and affinity, and helpers are replaced by rename. Windows runners get a
   self-test for the standard-input hang.
 - **The incidents become machine-wide rules.**
-  - One coordinator for every window, with leases on singleton servers and
-    a single running instance of each.
+  - One coordinator process for every window. It releases nothing on a
+    timer, only on proof (the facts above), and runs a single instance of
+    each singleton server itself.
   - The working copy checked never to be the user's checkout.
   - Below-normal priority, heavy-command slots and a load guard.
   - Cleanup that never follows a link.
