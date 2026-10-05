@@ -219,12 +219,12 @@ describe('/handoff (M74)', () => {
     { command: UI_TEXT.reviewChangesItem, title: UI_TEXT.reviewPaneTitle },
   ])(
     'keeps a brief that arrives while $command is open waiting until it closes, one modal at a time',
-    ({ command, title }) => {
+    async ({ command, title }) => {
       const postMessage = renderPanel()
       submitCommand('/handoff')
       admit()
       openFromPalette(command)
-      const open = screen.getByRole('dialog', { name: title })
+      const open = await screen.findByRole('dialog', { name: title })
       deliver(READY)
       // The open dialog keeps the screen and the focus; the brief's dialog,
       // and its Start, are not there to reach under it.

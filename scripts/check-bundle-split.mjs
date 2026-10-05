@@ -115,6 +115,8 @@ const LAZY_ONLY = [
   'mediaBudget.ts',
   'memoryTools.ts',
   'modelCallHooks.ts',
+  // M95-I: policy stays out of activation/ACP; the provider/reviewer bundles also read it.
+  'modelPolicy.ts',
   // M73: observation packing's store, its placeholder and recall_output.
   'observationPack.ts',
   'permissions.ts',

@@ -44,6 +44,7 @@ import {
   type AgentImportSource,
   EFFORT_LEVELS,
   MODEL_API_MODEL_PREFIX,
+  BYO_MODEL_REFERENCE_PATTERN,
   MODEL_API_TOOLS,
   PERMISSION_MODES,
   PERSONAL_AGENTS_DIR_SEGMENTS,
@@ -698,7 +699,10 @@ function isImportableAgent(text: string): boolean {
     isPlainValue(quoted('description')) &&
     (!header.has('tools') ||
       (tools !== undefined && tools.length > 0 && tools.every((tool) => AGENT_TOOLS.has(tool)))) &&
-    (!header.has('model') || (isPlainValue(model) && model.startsWith(MODEL_API_MODEL_PREFIX))) &&
+    (!header.has('model') ||
+      (isPlainValue(model) &&
+        (model.startsWith(MODEL_API_MODEL_PREFIX) ||
+          (BYO_MODEL_REFERENCE_PATTERN.test(model) && !model.startsWith('meta/'))))) &&
     (!header.has('effort') || (effort !== undefined && AGENT_EFFORTS.has(effort))) &&
     (!header.has('permission-mode') || (mode !== undefined && AGENT_PERMISSION_MODES.has(mode)))
   )

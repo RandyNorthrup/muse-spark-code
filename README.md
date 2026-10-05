@@ -3547,7 +3547,12 @@ the Models panel host as `dist/modelsPanel.js`, and its browser script and
 stylesheet as `dist/webview/models.js` and `dist/webview/models.css`. The
 production build checks their measured budgets and keeps provider code outside
 activation and the Meta backend. Provider transport and final panel wiring
-remain pending until the remaining M95 lanes are integrated.
+remain pending until the remaining M95 lanes are integrated. The host now
+has an injected provider-registry seam: verified model output and effort limits,
+priced/local/plan/unpriced accounting, provider-aware hooks and reasoning
+replay filtering. Unverified model prices remain unknown; a dollar cap refuses
+them. Auto review quotes the selected provider's card. These offline host
+checks do not certify the pending production provider transport.
 The accessibility gate uses Playwright to read real Chrome's axe results
 across all four themes, with explicit standard and narrow viewports.
 

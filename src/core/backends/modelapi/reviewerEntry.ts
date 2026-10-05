@@ -17,7 +17,12 @@ import {
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
 } from './sessionBudget'
-import { estimateCostUsd } from '../../usage/insights'
+import {
+  effortForPolicy,
+  modelPricedUsage,
+  outputLimitFor,
+  type ResolvedModel,
+} from './modelPolicy'
 import type { AgentEvent, ItemSnapshot } from '../../../shared/agentEvents'
 import {
   AUTO_REVIEW_ROW_TOOL,
@@ -38,6 +43,7 @@ interface ReviewerContext {
     ModelApiHostDeps,
     'client' | 'workspaceRoot' | 'platform' | 'newId' | 'log' | 'noteReviewerUsage'
   >
+  readonly resolved: ResolvedModel
   readonly table: UiText
   readonly locale: string
   readonly breaker: ReviewBreaker
@@ -170,11 +176,14 @@ async function callReviewer(
     instructions: AUTO_REVIEWER_MODEL_TEXT.autoReviewerInstructions,
     tools: [],
     tool_choice: 'auto',
-    reasoning: { effort: MODEL_API_EFFORT_OFF, summary: 'auto' },
+    reasoning: {
+      effort: effortForPolicy(context.resolved.policy, MODEL_API_EFFORT_OFF),
+      summary: 'auto',
+    },
     stream: true,
     store: false,
     include: ['reasoning.encrypted_content'],
-    max_output_tokens: AUTO_REVIEWER_MAX_OUTPUT_TOKENS,
+    max_output_tokens: outputLimitFor(context.resolved.policy, AUTO_REVIEWER_MAX_OUTPUT_TOKENS),
   })
   const modelId = confirmed.modelId
   let text = ''
@@ -194,16 +203,20 @@ async function callReviewer(
           spentUsd: total.spentUsd,
           estimatedInputTokens: input,
           modelId,
+          maxOutputTokens: body.max_output_tokens,
+          ...(modelId.includes('/') && { price: context.resolved.price }),
         })
         body = {
           ...body,
           max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
         }
       }
-      reservedUsd = estimateCostUsd(
-        { inputTokens: input, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-        modelId,
-      )
+      reservedUsd =
+        context.resolved.price.reserve({
+          inputTokens: input,
+          outputTokens: body.max_output_tokens,
+          cachedTokens: 0,
+        }) ?? 0
       claim = await budgetScope.journal.reserve(
         budgetScope.sessionId,
         budgetScope.accountId,
@@ -224,7 +237,7 @@ async function callReviewer(
         },
       },
     )
-    const events = context.deps.client.streamResponse(
+    const events = context.resolved.client.streamResponse(
       body,
       AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
       undefined,
@@ -261,27 +274,38 @@ async function callReviewer(
     return 'failed'
   } finally {
     if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
-      context.deps.noteReviewerUsage(modelId, {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      })
+      try {
+        context.deps.noteReviewerUsage(modelId, {
+          inputTokens: usage.input_tokens,
+          outputTokens: usage.output_tokens,
+          cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+          ...(modelId.includes('/') && {
+            ...modelPricedUsage(usage),
+            cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+            costUsd: context.resolved.price.settle(modelPricedUsage(usage), {
+              cost: usage.provider_cost_usd,
+            }),
+          }),
+        })
+      } catch {
+        // CAPPAR replaces legacy tariff-only observers. The request count
+        // remains explicitly unknown, and its journal claim still settles.
+        context.deps.log.warn('Auto review usage observer failed; its paid tally remains unknown')
+      }
     }
     if (claim !== undefined) {
       const wasSent = directBudget?.isSent === true
       const hasUsage = usage !== null && usage !== undefined && context.isCountedUsage(usage)
       let costUsd = wasSent && !wasRefused ? reservedUsd : 0
+      let hasKnownCost = false
       if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
-        costUsd = estimateCostUsd(
-          {
-            inputTokens: usage.input_tokens,
-            outputTokens: usage.output_tokens,
-            cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-          },
-          modelId,
-        )
+        const settledCost = context.resolved.price.settle(modelPricedUsage(usage), {
+          cost: usage.provider_cost_usd,
+        })
+        hasKnownCost = settledCost !== undefined
+        costUsd = settledCost ?? reservedUsd
       }
-      await claim.settle(costUsd, wasSent && !wasRefused && !hasUsage)
+      await claim.settle(costUsd, wasSent && !wasRefused && (!hasUsage || !hasKnownCost))
     }
   }
   return parseReviewerAnswer(text) ?? 'unreadable'

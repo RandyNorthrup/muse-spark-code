@@ -19,7 +19,7 @@ import {
   type ResponseObject,
   type ToolDefinition,
 } from './schemas'
-import { replayProducer } from './sessionStore'
+import { replayProducer } from './modelPolicy'
 import { redactHookText } from './toolHookPayload'
 
 interface TextSummary {

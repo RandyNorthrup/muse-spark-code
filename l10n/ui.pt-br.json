@@ -2325,5 +2325,8 @@
   "ollamaMissingFinal": "Ollama fechou o fluxo sem uma resposta final.",
   "ollamaMalformedFrame": "Quadro do fluxo do Ollama malformado.",
   "ollamaStreamLimit": "Ollama excedeu o limite de tamanho do fluxo ou de itens.",
-  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\"."
+  "ollamaFinishReason": "Ollama terminou com o motivo \"{reason}\".",
+  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, saída {output}. Por solicitação {request}; por imagem {image}.",
+  "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, saída {output} por milhão.",
+  "modelToolCallingUnavailable": "A chamada de ferramentas não foi verificada para este modelo."
 }

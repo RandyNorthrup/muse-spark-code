@@ -2243,5 +2243,8 @@
   "ollamaMissingFinal": "Ollama son yanıt olmadan akışı kapattı.",
   "ollamaMalformedFrame": "Bozuk Ollama akış çerçevesi.",
   "ollamaStreamLimit": "Ollama akış boyutu veya öğe sınırını aştı.",
-  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi."
+  "ollamaFinishReason": "Ollama \"{reason}\" nedeniyle sona erdi.",
+  "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
+  "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
+  "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı."
 }

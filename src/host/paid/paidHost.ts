@@ -102,7 +102,8 @@ export async function askPaidUse(
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
     (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
-    (request.feature === 'autoReviewer' && autoReviewPrice(request.modelId) === undefined)
+    (request.feature === 'autoReviewer' &&
+      autoReviewPrice(request.modelId, request.pricing) === undefined)
   ) {
     return 'deny'
   }

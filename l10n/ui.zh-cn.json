@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollama在没有最终回答的情况下关闭了数据流。",
   "ollamaMalformedFrame": "Ollama数据流帧格式错误。",
   "ollamaStreamLimit": "Ollama超出了数据流大小或条目数量限制。",
-  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。"
+  "ollamaFinishReason": "Ollama已结束，原因为“{reason}”。",
+  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
+  "paidProviderPriceTier": "输入达到 {threshold} 个词元后：每百万词元输入 {input}、输出 {output}。",
+  "modelToolCallingUnavailable": "此模型的工具调用尚未验证。"
 }

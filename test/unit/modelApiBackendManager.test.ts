@@ -7,7 +7,8 @@ import {
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi } from './helpers/fakeModelApi'
+import { FAKE_MODEL_API_ACCOUNT_ID, fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { noopToolIo } from './helpers/fakeToolIo'
 import { fakeManagerDeps } from './helpers/modelApiManager'
@@ -21,6 +22,57 @@ interface HookFixture {
   readonly files: Map<string, string>
   readonly runHook: NonNullable<ToolIo['runHook']>
 }
+
+it('loads the provider factory only on first BYO resolution and reuses it', async () => {
+  const meta = fakeModelApi()
+  const provider = fakeModelApi()
+  const log = new FakeLogOutputChannel()
+  const ref = 'team/small'
+  const registry = createProviderRegistry({
+    models: () =>
+      Promise.resolve([
+        {
+          ref,
+          origin: 'https://example.test',
+          pricing: { kind: 'local' },
+          evidence: { capabilities: { toolCalling: true } },
+        },
+      ]),
+    createClient: () => Promise.resolve(fakeModelApiClient(provider, log)),
+    isCurrent: () => true,
+  })
+  const createProviders = vi.fn(() => Promise.resolve(registry))
+  const manager = new ModelApiBackendManager(
+    fakeManagerDeps(meta, log, {
+      workspaceRoot: '/ws',
+      bundlePath: 'src/host/backend/modelApiEntry.ts',
+      loadBundle: () => modelApiEntry,
+      createProviders,
+    }),
+  )
+  try {
+    const host = await manager.ensureHost()
+    const session = await host.startSession({
+      workspaceRoot: '/ws',
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'onRequest',
+    })
+    expect(createProviders).not.toHaveBeenCalled()
+    await session.setModel(ref)
+    await session.setModel(ref)
+    expect(createProviders).toHaveBeenCalledTimes(1)
+    expect(await host.listModels(session.sessionId)).toContainEqual(
+      expect.objectContaining({
+        modelId: ref,
+        providerId: 'team',
+        isActive: true,
+        pricing: 'local',
+      }),
+    )
+  } finally {
+    await manager.dispose()
+  }
+})
 
 /** A manager on the fake API with no waits, over the given root and store. */
 function managerOn(

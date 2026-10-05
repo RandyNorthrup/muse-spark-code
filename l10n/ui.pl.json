@@ -2407,5 +2407,8 @@
   "ollamaMissingFinal": "Ollama zamknęła strumień bez końcowej odpowiedzi.",
   "ollamaMalformedFrame": "Nieprawidłowa ramka strumienia Ollama.",
   "ollamaStreamLimit": "Ollama przekroczyła limit rozmiaru strumienia lub liczby elementów.",
-  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”."
+  "ollamaFinishReason": "Ollama zakończyła działanie z powodu „{reason}”.",
+  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
+  "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
+  "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu."
 }

@@ -14,7 +14,7 @@ describe('ChatViewProvider', () => {
   it('configures the resolved view, registers it, and answers ready', () => {
     const { registry, view } = resolve()
     expect(view.webview.options.enableScripts).toBe(true)
-    expect(view.webview.html).toContain('<script nonce=')
+    expect(view.webview.html).toContain('<script type="module" nonce=')
     expect(registry.active?.id).toBe(SIDEBAR_SURFACE_ID)
     view.webview.messages.fire({ type: 'ready' })
     expect(view.webview.postMessage).toHaveBeenCalledOnce()
@@ -77,7 +77,7 @@ describe('ChatViewProvider: reload (M11)', () => {
     const before = view.webview.html
     registry.active?.reload()
     expect(view.webview.html).not.toBe(before)
-    expect(view.webview.html).toContain('<script nonce=')
+    expect(view.webview.html).toContain('<script type="module" nonce=')
     expect(view.webview.html.length).toBe(before.length)
   })
 })

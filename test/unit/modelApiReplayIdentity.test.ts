@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
+import { createProviderRegistry } from '../../src/core/providers/providerRegistry'
 import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -15,14 +16,28 @@ describe('model reasoning producer identity', () => {
     const api = fakeModelApi()
     const log = new FakeLogOutputChannel()
     const store = memorySessionStore()
+    const client = fakeModelApiClient(api, log)
     const host = new ModelApiHost({
       ...fakeModelApiHostDeps({
-        client: fakeModelApiClient(api, log),
+        client,
         workspaceRoot: ROOT,
         io: memoryToolIo({}, ROOT),
         log,
       }),
       store,
+      models: createProviderRegistry({
+        models: () =>
+          Promise.resolve([
+            {
+              ref: 'openai/gpt-5.6',
+              origin: 'https://example.test',
+              evidence: { capabilities: { toolCalling: true } },
+              pricing: { kind: 'unpriced' },
+            },
+          ]),
+        createClient: () => Promise.resolve(client),
+        isCurrent: () => true,
+      }),
     })
     const session = await host.startSession({
       workspaceRoot: ROOT,
@@ -61,6 +76,9 @@ describe('model reasoning producer identity', () => {
       await session.setModel('muse-spark-1.2')
       await send()
       expect(hasReasoning(api.responseBodies()[3])).toBe(false)
+      api.script({ text: 'summary after switching' })
+      await session.compact()
+      expect(hasReasoning(api.responseBodies()[4])).toBe(false)
     } finally {
       await host.close()
     }

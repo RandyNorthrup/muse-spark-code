@@ -5134,6 +5134,13 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
 
 ## 3. Open questions (need the owner)
 
+- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
+  commit supplies ProviderClient/transport/authSource for this checkout?
+  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
+  is on a different base. The rig brief forbids main merges and network
+  fetches. The injected host/registry contract is tested offline; production
+  assembly awaits the lead's exact dependency and W's configured sources.
+
 - **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
   `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
   contains only `a95f24cf`. May the exact local release commit be merged
@@ -14434,7 +14441,8 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
-**Lane I host integration (2026-10-05, Mac mini; in progress).** Resolve
+**Lane I host integration (2026-10-05, Mac mini; host seam implemented,
+production composition pending).** Resolve
 every host and Auto reviewer request through the configured model registry;
 persist reasoning producer identity, bind held confirmations and retries,
 read capabilities through `modelPolicy.ts`, and use the price-card public
@@ -14442,8 +14450,17 @@ functions for admission and settlement. Preserve bare Meta request bytes,
 packing, `then_run` and consent behavior. Compaction body/tools and context
 pressure belong to M101 C1/O; price-card arithmetic belongs to P2; CAPREC
 replaces this lane's policy adapter after integration. The starting checkout
-lacks lane T's ProviderClient/transport and the registry; its exact dependency
-is being clarified. No dependency merge or live/paid call is implied.
+lacks lane T's ProviderClient/transport. This lane supplies the registry
+factory and a lazy injected client-construction seam, without copying a rig
+snapshot. W must supply the production configured-model/auth factory and
+profile identity; N replaces the evidence adapter, P2 settles its propagated
+one-hour-write subset, and CAPPAR consumes resolved paid receipts/effort
+metadata. Until P2 lands, a priced receipt with a one-hour-write subset and
+a one-hour rate retains uncertain liability unless the provider reports the
+authoritative total; remove that temporary refusal and update its named test
+when P2's public settlement honours the subset. A legacy reviewer observer cannot discard the durable settlement:
+its counted paid use remains explicitly unknown on observer failure.
+No dependency merge or live/paid call is implied.
 Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead
 owns full quality and release certification.
 
@@ -14711,7 +14728,7 @@ release acceptance are still pending.**
 | A Anthropic codec                | new `modelapi/codecs/anthropic.ts` (breakpoints, thinking replay and the edit rule); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | G Gemini codec                   | new `modelapi/codecs/gemini.ts` (thought signatures, the schema subset); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | O Ollama codec                   | new `modelapi/codecs/ollama.ts` (NDJSON, `num_ctx`, `think`); tests and goldens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, window, output cap, effort tiers, price lookup, compaction's tools, the identity line, hook fields), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| I Integration                    | `ModelApiHost.ts` (client resolution at its nine call sites and the reviewer's, tool and hosted-tool gating, output cap, effort tiers, price lookup, the identity line, hook fields; `modelPolicy.ts`, `src/core/providers/providerRegistry.ts`; compaction tools/window delegated to M101 C1/O), `reviewerEntry.ts`, `modelCallHooks.ts`, `instructions.ts`, `sessionStore.ts` (each replay entry's provider), `sessionBudget.ts`, `src/core/usage/insights.ts`, `src/shared/paid.ts`, `src/shared/effort.ts`, `src/core/import/agentImport.ts`, `src/core/backendSelection.ts`, `modelApiBackendManager.ts`, `modelApiEntry.ts`, `modelApiBundle.ts`, new `src/host/backend/providersEntry.ts` (→ `dist/providers.js`)                                                                                                                                                                                                                                                                                                                                                                        |
 | K Keys and panel host            | new `src/host/providers/**` (SecretStorage records, the password box with the preset's live shape check, the local-server probe, `oauthLoopback.ts` (a one-shot `127.0.0.1` callback server), OpenRouter's connect and key usage, the model scans' cache and diff, removal with undo, import and export, the workspace suggestion), new `src/host/models/modelsPanel.ts` (the `WebviewPanel`, its CSP, its zod-validated bridge) and the quick-pick fast path; entry → `dist/modelsPanel.js`; `src/host/auth/credentialStore.ts`, `src/host/auth/authService.ts` (a provider counts as a Model API credential), the command region of `src/extension.ts` (with `museSpark.startWithOwnModel`: the wizard opened at "Pick a provider"; its draft held in memory only; **Save** writes `providers.json` and the secret together, sets the default model and asks the conversation to set the composer's model; **Cancel** discards the draft, so nothing is written)                                                                                                                              |
 | M Models panel UI                | new `src/webview/models/**`: the entry (→ `dist/webview/models.js`, a second entry in `scripts/build.mjs`), the section registry, the Providers and Models sections, the shared components (below), the panel's reducer; new `src/shared/modelsPanel.ts` (the panel's message and state schemas); the harness scenarios and accessibility cases for every state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | U Picker, first-run and usage UI | `src/shared/protocol.ts` (`modelOptionSchema` gains provider fields; `SIGN_IN_METHODS` gains `byo`), the `listModels`, `setModel` and `signIn` regions of `src/host/conversation/conversationController.ts` (`byo` runs `museSpark.startWithOwnModel`), `src/webview/components/SignIn.tsx` (the first-run screen's **Start with your own model**, ranked equally with the other two when no backend is set up), the "You're set up with `<provider>` · `<model>`" confirmation with **Manage providers**, `src/webview/components/Palette.tsx` (groups, pinned favourites first, **Add a model provider…** and **Manage models…**), the composer pill, `UsageDialog.tsx` (rows per provider, "unpriced", "local", OpenRouter's key usage; its setup rows offer the BYO choice too), `src/webview/state/uiState.ts`, the walkthrough region of `package.json` (`contributes.walkthroughs`: a step with a `command:museSpark.startWithOwnModel` link) and its `resources/` media, their harness scenarios and accessibility cases (the first-run screen with the new button, in both its states) |
@@ -15760,6 +15777,19 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Provider × item table complete; full gate green
 
 ## 7. Gates
+
+**M95-I dependency and acceptance limits (2026-10-05).** The rig brief
+requires scoped gates, not full quality or a dependency merge. The lead owns
+full quality and integrated live acceptance. The five wire-format tests use
+real codecs, captured frames and real host tools through a test-only client;
+they do not certify lane T's missing production transport, credentials or
+redirect policy. W must assemble the registered production factory and panel
+seam; N supplies capability provenance/native effort metadata; P2 owns
+one-hour-write settlement; CAPPAR owns paid feature observers and picker
+consumers. No stub or guessed transport is shipped, and no support claim is
+made until those dependencies and integrated gates pass. Native hosted search
+on BYO needs its separately captured tool/price adapter; capability evidence
+alone cannot prove that route. No gate is weakened.
 
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected

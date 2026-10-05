@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollamaが最終回答なしでストリームを閉じました。",
   "ollamaMalformedFrame": "Ollamaのストリームフレームが不正です。",
   "ollamaStreamLimit": "Ollamaがストリームサイズまたは項目数の上限を超えました。",
-  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。"
+  "ollamaFinishReason": "Ollamaが理由「{reason}」で終了しました。",
+  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
+  "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
+  "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。"
 }

@@ -2407,5 +2407,8 @@
   "ollamaMissingFinal": "Ollama ukončila stream bez konečné odpovědi.",
   "ollamaMalformedFrame": "Neplatný rámec streamu Ollama.",
   "ollamaStreamLimit": "Ollama překročila limit velikosti streamu nebo počtu položek.",
-  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“."
+  "ollamaFinishReason": "Ollama skončila s důvodem „{reason}“.",
+  "paidProviderPrice": "Za milion tokenů: vstup {input}, čtení mezipaměti {cached}, zápis mezipaměti {write}, hodinový zápis {write1h}, výstup {output}. Za požadavek {request}; za obrázek {image}.",
+  "paidProviderPriceTier": "Od {threshold} vstupních tokenů: vstup {input}, výstup {output} za milion.",
+  "modelToolCallingUnavailable": "Volání nástrojů nebylo u tohoto modelu ověřeno."
 }

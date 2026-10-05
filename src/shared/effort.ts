@@ -31,7 +31,11 @@ export function effortForThinking(effort: EffortLevel, isThinkingEnabled: boolea
  * MODEL_EFFORT_LEVELS); the full UI range when the model is unknown or not
  * yet reported, so the slider never offers less than the CLI does.
  */
-export function effortLevelsFor(modelId: string | undefined): readonly EffortLevel[] {
+export function effortLevelsFor(
+  modelId: string | undefined,
+  supported?: readonly EffortLevel[],
+): readonly EffortLevel[] {
+  if (modelId?.includes('/') === true) return supported ?? []
   if (modelId === undefined) {
     return EFFORT_LEVELS
   }

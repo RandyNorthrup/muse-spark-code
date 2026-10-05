@@ -1215,6 +1215,8 @@ export const MODEL_API_PRICES_PER_MILLION = {
 } as const
 export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
 export const MODEL_API_PRICE_DECIMALS = 3
+/** Provider fees may be smaller than Meta's display precision; keep positive fees visible. */
+export const PROVIDER_PRICE_MAX_DECIMALS = 20
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
@@ -3578,7 +3580,11 @@ export const CODE_INTEL_MODEL_TEXT = {
 // and the paired evaluation that drives it. Kept separate so activation and
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
+export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
+
 export const MODEL_API_MODEL_TEXT = {
+  toolCallingUnavailable:
+    'The selected model has no verified tool-calling capability; this call was not run.',
   providerIdentity:
     'You are {model}, served by {provider}, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the

@@ -2161,5 +2161,8 @@
   "ollamaMissingFinal": "Ollama在沒有最終回答的情況下關閉了資料流。",
   "ollamaMalformedFrame": "Ollama資料流框架格式錯誤。",
   "ollamaStreamLimit": "Ollama超出了資料流大小或項目數量限制。",
-  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。"
+  "ollamaFinishReason": "Ollama已結束，原因為「{reason}」。",
+  "paidProviderPrice": "每百萬詞元：輸入 {input}、快取讀取 {cached}、快取寫入 {write}、一小時寫入 {write1h}、輸出 {output}。每次請求 {request}；每張圖片 {image}。",
+  "paidProviderPriceTier": "輸入達到 {threshold} 個詞元後：每百萬詞元輸入 {input}、輸出 {output}。",
+  "modelToolCallingUnavailable": "此模型的工具呼叫尚未驗證。"
 }

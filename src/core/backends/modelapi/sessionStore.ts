@@ -30,17 +30,7 @@ import {
   webSearchActionSchema,
 } from './schemas'
 
-/** The configured provider and exact model that produced opaque reasoning. */
-export interface ReplayProducer {
-  readonly provider: string
-  readonly model: string
-}
-
-/** Bare references remain Meta's; qualified references name their configured provider. */
-export function replayProducer(model: string): ReplayProducer {
-  const slash = model.indexOf('/')
-  return { provider: slash === -1 ? 'meta' : model.slice(0, slash), model }
-}
+import type { ReplayProducer } from './modelPolicy'
 
 export interface StoredReplayItem {
   readonly turnId: string

@@ -2243,5 +2243,8 @@
   "ollamaMissingFinal": "Ollama hat den Stream ohne abschließende Antwort geschlossen.",
   "ollamaMalformedFrame": "Fehlerhaftes Ollama-Stream-Frame.",
   "ollamaStreamLimit": "Ollama hat das Limit für Streamgröße oder Elemente überschritten.",
-  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet."
+  "ollamaFinishReason": "Ollama wurde mit dem Grund „{reason}“ beendet.",
+  "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
+  "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
+  "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert."
 }

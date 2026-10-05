@@ -2325,5 +2325,8 @@
   "ollamaMissingFinal": "Ollama cerró el flujo sin una respuesta final.",
   "ollamaMalformedFrame": "Trama del flujo de Ollama mal formada.",
   "ollamaStreamLimit": "Ollama superó el límite de tamaño del flujo o de elementos.",
-  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}»."
+  "ollamaFinishReason": "Ollama terminó con el motivo «{reason}».",
+  "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, salida {output}. Por solicitud {request}; por imagen {image}.",
+  "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, salida {output} por millón.",
+  "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo."
 }
