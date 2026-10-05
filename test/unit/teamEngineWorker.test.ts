@@ -1,3 +1,4 @@
+import { fakeWorkerIdentity } from './helpers/workerIdentity'
 // M77's attempt host for engine workers (M96 lane W): the prompt order
 // and caps, the shell's confinement, the `report` tool, the depth guard,
 // and limit errors handed to lane A's marks.
@@ -61,7 +62,11 @@ function readFilesFrom(files: Readonly<Record<string, string>>) {
 }
 
 function fileIo(files: Readonly<Record<string, string>> = {}): WorkerFileIo {
-  return { realPath: resolveRealPath, readTextFile: readFilesFrom(files) }
+  return {
+    pathIdentity: fakeWorkerIdentity,
+    realPath: resolveRealPath,
+    readTextFile: readFilesFrom(files),
+  }
 }
 
 function resolvedVoid(): Promise<void> {
@@ -118,6 +123,7 @@ function depsWith(
 ): EngineWorkerDeps {
   return {
     task: TASK,
+    workspaceRoot: '/user/checkout',
     role: ROLE,
     prompt: PARTS,
     isTrusted: true,
@@ -133,8 +139,21 @@ function depsWith(
 }
 
 describe('buildWorkerPrompt', () => {
+  it('RVM96W2C-N14 labels inlined bounded excerpts as possibly truncated', async () => {
+    const data = 'x'.repeat(WORKER_BRIEF_FILES_MAX_BYTES)
+    const prompt = await buildWorkerPrompt(
+      PARTS,
+      { ...TASK, files: ['large.txt'] },
+      fileIo({ [`${TASK.folder}/large.txt`]: data }),
+      'linux',
+      '/user/checkout',
+    )
+    expect(prompt).toContain('(bounded excerpt; may be truncated)')
+    expect(prompt).toContain(data)
+  })
+
   it('orders charter, body, rules, then the task', async () => {
-    const prompt = await buildWorkerPrompt(PARTS, TASK, fileIo(), 'linux')
+    const prompt = await buildWorkerPrompt(PARTS, TASK, fileIo(), 'linux', '/user/checkout')
     const charterAt = prompt.indexOf(PARTS.charter)
     const bodyAt = prompt.indexOf(PARTS.body)
     const rulesAt = prompt.indexOf(PARTS.rulesAndSkills)
@@ -149,29 +168,29 @@ describe('buildWorkerPrompt', () => {
   })
 
   it('never carries the parent conversation', async () => {
-    const prompt = await buildWorkerPrompt(PARTS, TASK, fileIo(), 'linux')
+    const prompt = await buildWorkerPrompt(PARTS, TASK, fileIo(), 'linux', '/user/checkout')
     expect(prompt).not.toContain('parent conversation')
     expect(prompt).not.toContain('earlier user message')
   })
 
   it('refuses a brief past the cap', async () => {
     const long = { ...TASK, brief: `x${'y'.repeat(8000)}` }
-    await expect(buildWorkerPrompt(PARTS, long, fileIo(), 'linux')).rejects.toBeInstanceOf(
-      WorkerBriefError,
-    )
+    await expect(
+      buildWorkerPrompt(PARTS, long, fileIo(), 'linux', '/user/checkout'),
+    ).rejects.toBeInstanceOf(WorkerBriefError)
   })
 
   it('inlines small named files as data inside the folder', async () => {
     const task: WorkerTask = { ...TASK, files: ['src/a.ts'] }
     const io = fileIo({ '/storage/agents/engineering/t-1/src/a.ts': 'export const a = 1' })
-    const prompt = await buildWorkerPrompt(PARTS, task, io, 'linux')
+    const prompt = await buildWorkerPrompt(PARTS, task, io, 'linux', '/user/checkout')
     expect(prompt).toContain('marked as data')
     expect(prompt).toContain('export const a = 1')
   })
 
   it('names an escaped file without reading its contents', async () => {
     const task: WorkerTask = { ...TASK, files: ['../secret.txt'] }
-    const prompt = await buildWorkerPrompt(PARTS, task, fileIo(), 'linux')
+    const prompt = await buildWorkerPrompt(PARTS, task, fileIo(), 'linux', '/user/checkout')
     expect(prompt).toContain('Files: ../secret.txt')
     expect(prompt).not.toContain('File data')
   })
@@ -179,6 +198,7 @@ describe('buildWorkerPrompt', () => {
   it('RVM96A-3 refuses private and protected prompt reads including aliases', async () => {
     const readTextFile = vi.fn(() => Promise.resolve('synthetic-private-sentinel'))
     const io: WorkerFileIo = {
+      pathIdentity: fakeWorkerIdentity,
       realPath: (given) =>
         Promise.resolve(given.endsWith('/alias.txt') ? `${TASK.folder}/.env` : given),
       readTextFile,
@@ -192,7 +212,7 @@ describe('buildWorkerPrompt', () => {
       'AGENTS.md',
       'alias.txt',
     ]
-    const prompt = await buildWorkerPrompt(PARTS, { ...TASK, files }, io, 'linux')
+    const prompt = await buildWorkerPrompt(PARTS, { ...TASK, files }, io, 'linux', '/user/checkout')
     expect(readTextFile).not.toHaveBeenCalled()
     expect(prompt).not.toContain('synthetic-private-sentinel')
     for (const file of files) expect(prompt).toContain(file)
@@ -209,8 +229,9 @@ describe('buildWorkerPrompt', () => {
     const prompt = await buildWorkerPrompt(
       PARTS,
       { ...TASK, files },
-      { realPath: resolveRealPath, readTextFile },
+      { pathIdentity: fakeWorkerIdentity, realPath: resolveRealPath, readTextFile },
       'linux',
+      '/user/checkout',
     )
     const data = (prompt.match(/漢/g) ?? []).join('')
     expect(Buffer.byteLength(data, 'utf8')).toBeLessThanOrEqual(WORKER_BRIEF_FILES_MAX_BYTES)
@@ -228,6 +249,7 @@ describe('buildWorkerPrompt', () => {
         [`${TASK.folder}/large.txt`]: '漢'.repeat(WORKER_BRIEF_FILES_MAX_BYTES),
       }),
       'linux',
+      '/user/checkout',
     )
     expect(prompt).not.toContain('漢')
   })
@@ -242,6 +264,10 @@ describe('createWorkerShellRunner', () => {
     }
     const run = createWorkerShellRunner({
       root: TASK.folder,
+      workspaceRoot: '/user/checkout',
+      role: ROLE,
+      io: fileIo(),
+      readOnlyCommands: new Set(['git status']),
       platform: 'linux',
       baseEnv: { PATH: '/usr/bin', META_API_KEY: 'key-1' },
       spawn,
@@ -296,6 +322,21 @@ describe('classifyLimitError', () => {
 })
 
 describe('runEngineWorker', () => {
+  it('RVM96W2C-N8 retains the last message after a malformed report call', async () => {
+    const capture = createReportCapture()
+    capture.called('{"status":"done"')
+    const tail = vi.fn(() => Promise.resolve('Tests failed; parser remains incomplete.'))
+    const result = await runEngineWorker(
+      depsWith({ session: new FakeSession(), capture, readTranscriptTail: tail }),
+    )
+    expect(tail).toHaveBeenCalledOnce()
+    expect(result.report).toEqual({
+      ok: false,
+      status: 'unstructured',
+      summary: 'Tests failed; parser remains incomplete.',
+    })
+  })
+
   it('runs the attempt confined to the task folder and reports', async () => {
     const session = new FakeSession()
     const capture = createReportCapture()

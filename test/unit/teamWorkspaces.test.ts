@@ -443,7 +443,9 @@ describe('credential-free workers', () => {
       failure = error
     }
     expect(failure).toMatchObject({ name: 'TeamGitError' })
-    expect(failure).toMatchObject({ message: expect.stringContaining('muse-spark-refuses-ssh') })
+    expect(failure).toMatchObject({
+      message: expect.stringContaining('Could not read from remote repository'),
+    })
   })
 })
 

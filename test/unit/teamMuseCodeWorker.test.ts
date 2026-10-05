@@ -1,4 +1,6 @@
+import { fakeWorkerIdentity } from './helpers/workerIdentity'
 // M96-W: isolated Muse hosts, canonical roots, bridge admission and role policy.
+import { workerPathIdentity } from '../../src/core/team/workers/workerFence'
 import { realpath } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -48,7 +50,7 @@ const TASK: WorkerTask = {
   folder: '/storage/agents/engineering/t-7',
   files: [],
 }
-const IO = { realPath: (given: string) => Promise.resolve(given) }
+const IO = { pathIdentity: fakeWorkerIdentity, realPath: (given: string) => Promise.resolve(given) }
 
 function configInput(
   overrides: Partial<Parameters<typeof buildWorkerSessionConfig>[0]> = {},
@@ -75,6 +77,7 @@ function classify(
     dialect: 'bash',
     readOnlyCommands: READ_ONLY_COMMANDS,
     folder: TASK.folder,
+    workspaceRoot: '/user/checkout',
     platform: 'linux',
     io: IO,
   })
@@ -125,6 +128,7 @@ describe('buildWorkerSessionConfig', () => {
     'RVM96A-4 refuses canonical overlap/unresolved roots: %s',
     async (canonical) => {
       const io = {
+        pathIdentity: fakeWorkerIdentity,
         realPath: (given: string) => {
           if (given === '/repo') return Promise.resolve(given)
           return canonical === undefined
@@ -143,7 +147,7 @@ describe('buildWorkerSessionConfig', () => {
         configInput({
           task: { ...TASK, folder: '/proc/self/cwd' },
           workspaceRoot: process.cwd(),
-          io: { realPath: realpath },
+          io: { pathIdentity: workerPathIdentity, realPath: realpath },
         }),
       ),
     ).rejects.toBeInstanceOf(MuseWorkerFolderError)
@@ -311,6 +315,7 @@ describe('classifyMuseWorkerApproval', () => {
       },
       dialect: 'bash' as const,
       folder: TASK.folder,
+      workspaceRoot: '/user/checkout',
       platform: 'linux' as const,
       io: IO,
       readOnlyCommands: READ_ONLY_COMMANDS,
@@ -347,6 +352,7 @@ function fakeHosts(): TeamHostProvider & { started: string[] } {
         sessionId: `${kind}-session`,
         sendPrompt: () =>
           Promise.resolve({
+            stopReason: 'end_turn',
             lastMessage: '```muse-team-report\n{"status":"done","summary":"Done."}\n```',
           }),
         cancel: () => Promise.resolve(),
@@ -382,6 +388,23 @@ function hostsForSession(session: MuseWorkerSessionPort): TeamHostProvider {
   return { teamHost: () => Promise.resolve(host), readOnlyHost: () => Promise.resolve(host) }
 }
 describe('runMuseCodeWorker', () => {
+  it.each(['max_turn_requests', 'max_tokens', 'refusal', 'cancelled'])(
+    'RVM96W2C-N6 Muse stop %s cannot substantiate a done block',
+    async (stopReason) => {
+      const session: MuseWorkerSessionPort = {
+        sessionId: 'stop',
+        sendPrompt: () =>
+          Promise.resolve({
+            stopReason,
+            lastMessage: '```muse-team-report\n{"status":"done","summary":"Draft success."}\n```',
+          }),
+        cancel: () => Promise.resolve(),
+        dispose: () => undefined,
+      }
+      const result = await runMuseCodeWorker(museDeps(hostsForSession(session)))
+      expect(result.report.ok).toBe(false)
+    },
+  )
   it('RVM96A-19 cancels a session that finishes opening after abort without prompting it', async () => {
     const opening = Promise.withResolvers<MuseWorkerSessionPort>()
     const entered = Promise.withResolvers<undefined>()
@@ -389,7 +412,7 @@ describe('runMuseCodeWorker', () => {
       sessionId: 'late',
       cancel: vi.fn(() => Promise.resolve()),
       dispose: vi.fn(),
-      sendPrompt: vi.fn(() => Promise.resolve({ lastMessage: undefined })),
+      sendPrompt: vi.fn(() => Promise.resolve({ stopReason: 'end_turn', lastMessage: undefined })),
     }
     const host: MuseWorkerHostPort = {
       hostId: 'late-host',
@@ -437,7 +460,10 @@ describe('runMuseCodeWorker', () => {
   })
   it('RVM96A-19 interrupts a pending Muse turn and disposes the session', async () => {
     const entered = Promise.withResolvers<undefined>()
-    const reply = Promise.withResolvers<{ lastMessage: string | undefined }>()
+    const reply = Promise.withResolvers<{
+      stopReason: 'end_turn'
+      lastMessage: string | undefined
+    }>()
     const session: MuseWorkerSessionPort = {
       sessionId: 'pending',
       cancel: vi.fn(() => Promise.resolve()),
@@ -469,7 +495,7 @@ describe('runMuseCodeWorker', () => {
       expect(session.cancel).toHaveBeenCalledOnce()
       expect(session.dispose).toHaveBeenCalledOnce()
     } finally {
-      reply.resolve({ lastMessage: undefined })
+      reply.resolve({ stopReason: 'end_turn', lastMessage: undefined })
       try {
         await running
       } catch {

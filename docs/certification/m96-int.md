@@ -514,3 +514,28 @@ Local commits use the unchanged serial lint-staged and gitleaks hooks. The
 rig's existing `temp/hook-bin` wrapper is prepended to PATH for the commit
 process only, then PATH is restored. No push, main merge, rebase, paid/live
 call, installation, credential read or machine/user setting change occurs.
+
+## Round 3b — macmini integration
+
+Worktree `/Users/randy/lanes/M96INT3B`, branch `m96/int3b`, base
+`32caf103`. The rig brief authorizes the six ordered merges, classifier
+unification, X2 wiring, aggregate gates and a final full quality run.
+No credential reads, live/paid model attempts or pushes.
+
+R (`570c6922`) preserves both Unreleased entries and the immutable role
+resolution, with 126 owning tests passing. B (`dc7f0970`) also brings its
+inherited 0.13.0 release tree: compose shared validation with deferred team
+schemas, retain both paid-gate availability policies and both UI features,
+union translations while honouring removed obsolete keys, and regenerate
+host API data. All five compiler projects, 108 resource/bridge/pool tests
+and localization with zero problems pass. K (`4adf07c8`) preserves both
+plan/residual records, keeps its notes under Unreleased, and passes 84
+complete-file tests including native Mac process ownership/lifetime.
+
+W retains I's canonical environment builder. Its real SSH regression
+naturally failed when that builder selected the nonexistent refusing
+executable (`unable to fork` instead of a clean transport refusal). Use W's
+`false` SSH command in the canonical builder: no network is reached and
+credentials/askpass remain disabled. Update literal expectations and retain
+the real transport assertions. W fence/Muse/environment then pass 108 tests;
+ACP/stdio/engine pass 94. Further final-tree receipts follow below.

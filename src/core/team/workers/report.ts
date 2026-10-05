@@ -15,11 +15,11 @@ export const WORKER_REPORT_STATUSES = ['done', 'partial', 'blocked', 'failed', '
 const reportSchema = z
   .object({
     status: z.enum(WORKER_REPORT_STATUSES),
-    summary: z.string().check(z.refine((text) => text.trim().length > 0)),
+    summary: z.string().check(z.refine(hasVisibleText)),
     files: z.optional(z.array(z.string())),
     checks: z.optional(z.array(z.string())),
     sources: z.optional(z.array(z.string())),
-    questions: z.optional(z.array(z.string().check(z.refine((text) => text.trim().length > 0)))),
+    questions: z.optional(z.array(z.string().check(z.refine(hasVisibleText)))),
     next: z.optional(z.string()),
   })
   .check(z.refine((report) => report.status !== 'blocked' || (report.questions?.length ?? 0) > 0))
@@ -33,13 +33,41 @@ export type WorkerReport = z.infer<typeof reportSchema>
  */
 export type WorkerReportOutcome =
   | { readonly ok: true; readonly report: WorkerReport }
-  | { readonly ok: false; readonly status: 'unstructured'; readonly summary: string }
+  | {
+      readonly ok: false
+      readonly status: 'unstructured' | 'capped' | 'refused' | 'cancelled' | 'failed'
+      readonly summary: string
+      /** Preserve the backend's original stop, including future values (D36). */
+      readonly stopReason?: string
+    }
+
+function hasVisibleText(text: string): boolean {
+  return text.replaceAll(/[\s\p{Cf}]/gu, '').length > 0
+}
+
+const STOP_OUTCOMES: ReadonlyMap<string, 'capped' | 'refused' | 'cancelled'> = new Map([
+  ['max_turn_requests', 'capped'],
+  ['max_tokens', 'capped'],
+  ['refusal', 'refused'],
+  ['cancelled', 'cancelled'],
+])
+
+/** Only a completed turn may substantiate a structured report. Unknown stops fail closed. */
+export function reportForStop(text: string, stopReason: string): WorkerReportOutcome {
+  if (stopReason === 'end_turn') return extractTeamReport(text)
+  const status = STOP_OUTCOMES.get(stopReason) ?? 'failed'
+  return { ok: false, status, stopReason, summary: clipReportSummary(text) }
+}
 
 /** The summary an `unstructured` outcome keeps. */
 export function clipReportSummary(text: string): string {
   const trimmed = text.trim()
-  return trimmed.length > WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS
-    ? `${trimmed.slice(0, WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS)}…`
+  const characters = Array.from(
+    new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed),
+    (entry) => entry.segment,
+  )
+  return characters.length > WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS
+    ? `${characters.slice(0, WORKER_UNSTRUCTURED_SUMMARY_MAX_CHARS).join('')}…`
     : trimmed
 }
 

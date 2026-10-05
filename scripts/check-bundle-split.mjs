@@ -704,6 +704,8 @@ const TEXT_BLOCKS = [
     sentinels: ['undeclaredTool'],
     readers: ['dist/team.js', BUNDLES.modelApi.output],
   },
+  // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
+  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],

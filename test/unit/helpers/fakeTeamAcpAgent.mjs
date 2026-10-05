@@ -7,7 +7,6 @@
 // Scenarios: report, permission-inside, permission-outside, fs, slow, auth,
 // modes-legacy (no session/set_config_option).
 
-import { RequestError } from '@agentclientprotocol/sdk'
 import { createInterface } from 'node:readline'
 import { clearTimeout, setTimeout } from 'node:timers'
 
@@ -49,10 +48,10 @@ function agentRequest(method, params) {
   })
 }
 
-function chunk(sessionId, text) {
+function chunk(sessionId, text, messageId = 'final') {
   notify('session/update', {
     sessionId,
-    update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } },
+    update: { sessionUpdate: 'agent_message_chunk', messageId, content: { type: 'text', text } },
   })
 }
 
@@ -70,6 +69,15 @@ const MODES = {
 }
 
 function configOptions() {
+  const mode = {
+    id: 'fake-mode-selector',
+    name: 'Mode',
+    category: 'mode',
+    type: 'select',
+    currentValue: agentState.mode,
+    options: MODES.availableModes.map((entry) => ({ value: entry.id, name: entry.name })),
+  }
+  if (scenario === 'model-missing') return [mode]
   const model = {
     id: 'fake-model-selector',
     name: 'Model',
@@ -81,19 +89,27 @@ function configOptions() {
       { value: 'explicit-selected-model', name: 'Selected' },
     ],
   }
-  const mode = {
-    id: 'fake-mode-selector',
-    name: 'Mode',
-    category: 'mode',
-    type: 'select',
-    currentValue: agentState.mode,
-    options: MODES.availableModes.map((entry) => ({ value: entry.id, name: entry.name })),
-  }
-  return scenario === 'model-missing' ? [mode] : [mode, model]
+  return scenario.startsWith('mode-legacy') ? [model] : [mode, model]
 }
 
 async function onPrompt(id, params) {
   const sessionId = params.sessionId
+  const report = '```muse-team-report\n{"status":"done","summary":"Fake work."}\n```'
+  if (scenario === 'draft-failed' || scenario === 'draft-final') {
+    chunk(sessionId, report, 'draft')
+    chunk(
+      sessionId,
+      scenario === 'draft-failed' ? 'The tests failed after all; I could not finish.' : report,
+      'final',
+    )
+    respond(id, { stopReason: 'end_turn' })
+    return
+  }
+  if (scenario.startsWith('stop-')) {
+    chunk(sessionId, report)
+    respond(id, { stopReason: scenario.slice('stop-'.length) })
+    return
+  }
   if (scenario === 'slow') {
     const timer = setTimeout(() => {
       promptTimers.delete(sessionId)
@@ -152,19 +168,35 @@ async function onRequest(message) {
   record({ method, params, ...(id !== undefined && { id }) })
   switch (method) {
     case 'initialize': {
-      respond(id, { protocolVersion: 1, agentCapabilities: {}, authMethods: [] })
+      respond(id, {
+        protocolVersion: scenario === 'protocol-9' ? 9 : 1,
+        agentCapabilities: {},
+        authMethods: [],
+      })
       break
     }
     case 'session/new': {
       if (scenario === 'auth') {
-        send({ jsonrpc: '2.0', id, ...RequestError.authRequired().toResult() })
+        // Captured SDK 1.5.0 RequestError.authRequired().toResult() (m96-w.md).
+        fail(id, -32_000, 'Authentication required')
         break
       }
-      respond(id, { sessionId: 'fake-s1', modes: MODES, configOptions: configOptions() })
+      const currentModeId = scenario.startsWith('mode-legacy') ? 'plan' : 'default'
+      respond(id, {
+        sessionId: 'fake-s1',
+        modes: {
+          ...MODES,
+          currentModeId: scenario === 'mode-legacy-forbidden' ? 'bypassPermissions' : currentModeId,
+        },
+        configOptions: configOptions(),
+      })
       break
     }
     case 'session/set_config_option': {
-      if (scenario === 'modes-legacy') {
+      if (
+        scenario === 'modes-legacy' ||
+        (scenario.startsWith('mode-legacy') && params.configId === 'fake-mode-selector')
+      ) {
         fail(id, -32_601, 'Method not found')
         break
       }
@@ -176,7 +208,13 @@ async function onRequest(message) {
       break
     }
     case 'session/set_mode': {
-      agentState.mode = params.modeId
+      if (scenario !== 'mode-legacy-ignored') {
+        agentState.mode = params.modeId
+        notify('session/update', {
+          sessionId: params.sessionId,
+          update: { sessionUpdate: 'current_mode_update', currentModeId: params.modeId },
+        })
+      }
       respond(id, {})
       break
     }

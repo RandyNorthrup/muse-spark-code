@@ -269,7 +269,7 @@ describe('workerEnvironment', () => {
     const out = workerEnvironment(base, process.platform)
     expect(out['GIT_TERMINAL_PROMPT']).toBe('0')
     expect(out['GIT_ASKPASS']).toBeUndefined()
-    expect(out['GIT_SSH_COMMAND']).toBe('muse-spark-refuses-ssh')
+    expect(out['GIT_SSH_COMMAND']).toBe('false')
     expect(out['GIT_CONFIG_COUNT']).toBe('2')
     expect(out['GIT_CONFIG_KEY_0']).toBe('credential.helper')
     expect(out['GIT_CONFIG_VALUE_0']).toBe('')

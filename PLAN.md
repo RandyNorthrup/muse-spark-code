@@ -18354,6 +18354,46 @@ next`, the exhausted policy and the queue, the meters, reservations and
        changes are authorized in this repair lane.
        Lane-local final gates also remove unused worker scaffold exports;
        no ignore or threshold is changed.
+
+     #### Round-3 redesign: worker fences
+
+     REDM96W replaces the repeated lane-W checks with one `workerFence.ts`.
+     It owns startup, path, write and command admission for Muse Code, ACP
+     and engine workers (including the engine shell). Existing worker ports
+     stay backend-neutral; no new dependency or live model call is needed.
+
+     - **W-F1 Identity:** reuse `src/core/fs/fileIdentity.ts` after realpath
+       for native file identity: Windows
+       volume serial/file index from Node's handle-based stat, POSIX device/
+       inode. Compare root identities against each other's ancestors; refuse
+       unresolved or zero identities. Only the engine's explicit `in-place`
+       mode may use the checkout, and it requires equality. Start with the
+       resolved folder, recheck on every mediated path/command request.
+     - **W-F2 Paths:** resolve relative/home paths first, follow aliases,
+       require an existing target whose ancestor identity is the worker root.
+       Refuse outside/unresolved paths without asking. One extractor covers
+       ACP path-valued fields, including cwd, from, to and destination.
+       Prompt reads also exclude private/protected names and label bounded
+       data as possibly truncated. This is admission, not an OS sandbox.
+     - **W-F3 Git:** one default-deny classifier sees executable paths,
+       git.exe/git.cmd and env/command/nice/xargs/shell wrappers. Ref moves,
+       unsafe Git options and command path escapes never produce a card.
+       Pin credential.helper and core.askPass empty and SSH to `false`.
+     - **W-F4 Results:** ACP message IDs delimit separate messages; only the
+       final message supplies the result. Non-end-turn stops are explicit
+       non-success; malformed report calls retain the last-message summary.
+       Confirm protocol/mode/model, flush cancel before closing transport.
+     - **W-F5 Evidence:** retain every RVM96A W regression and add named
+       RVM96W2C N1-N18 regressions, real Windows alias tests, complete owned
+       suites with maxWorkers=3, invariant red drills and committed-blob
+       restoration hashes in `docs/certification/m96-w.md`.
+
+     Readiness: scope is worker files and named defects only. Explicit lane
+     brief overrides the common rig-only rule for real Windows tests and
+     keeps full `quality` with the lead. Canonical PLAN format is preserved;
+     the skill's separate ledger migration is outside this scoped redesign.
+     Live captures/native-server preset admission remain lead-owned gates.
+
   9. **Lane T:** the tools, the roster and rubric, the Model API
      declaration and the `team` server, with the `collect` wait set from
      step 1.

@@ -468,7 +468,7 @@ export function workerEnvironment(
     }
   }
   out['GIT_TERMINAL_PROMPT'] = '0'
-  out['GIT_SSH_COMMAND'] = 'muse-spark-refuses-ssh'
+  out['GIT_SSH_COMMAND'] = 'false'
   out['GIT_CONFIG_COUNT'] = '2'
   out['GIT_CONFIG_KEY_0'] = 'credential.helper'
   out['GIT_CONFIG_VALUE_0'] = ''
