@@ -2706,6 +2706,9 @@ export const MUSE_DISABLE_SANDBOX_ARG = '--disable-sandbox'
 // for VS Code's Restricted Mode: no workspace shell execution (PLAN.md D13).
 export const MUSE_TRUST_WORKSPACE_ARG = '--trust-workspace'
 export const MUSE_DISABLE_SHELL_ARG = '--disable-shell'
+// `muse serve --disable-write`: "Disable non-shell workspace filesystem
+// writes" (the 1.4.2 capture, research §4.7, for M96's read-only team host).
+export const MUSE_DISABLE_WRITE_ARG = '--disable-write'
 // `muse serve --sandbox-network <mode>` (M56, PLAN.md D43).
 export const MUSE_SANDBOX_NETWORK_ARG = '--sandbox-network'
 export const MUSE_INSTALL_URL = 'https://dev.meta.ai/products/muse-code/'
