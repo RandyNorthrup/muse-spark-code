@@ -15287,3 +15287,12 @@ plural form alongside unchanged archive bytes/metadata and malformed-input
 refusal. Run full quality on the finished local head; record its actual exit,
 tail and any deliberately failing drills in `docs/certification/m97.md`.
 No push, merge, rebase, paid/live model call or gate weakening is authorized.
+
+FIN3's first complete quality attempt on `02f32bc6` clears all five original
+failures but finds two independent wall-clock races. D9's 100 ms process
+deadline can expire during backend startup, leaving no dispatched reservation;
+use controlled Date/timers, wait for the fake response request, then advance
+the same 100 ms deadline. Legal byte-boundary tests share a real 10 ms scanner
+deadline; hold Date.now constant for those tests while retaining the explicit
+9/10 ms elapsed-time boundary assertions. Preserve every deadline, liability
+assertion, byte cap and whole-file test; demonstrate both guards still fail.

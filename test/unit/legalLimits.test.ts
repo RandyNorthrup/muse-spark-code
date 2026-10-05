@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as SharedConstants from '../../src/shared/constants'
 import { scanLegal } from '../../src/core/legal/scan'
 import { snapshotFrom } from './legal/helpers'
@@ -11,6 +11,9 @@ vi.mock('../../src/shared/constants', async (original) => ({
   LEGAL_FINDINGS_PER_RULE_MAX: 2,
   LEGAL_SCAN_TIMEOUT_MS: 10,
 }))
+// Byte/count limits must not race the independent 10 ms time limit under
+// coverage. The elapsed-time cases below still set the exact 9/10 boundaries.
+beforeEach(() => vi.spyOn(Date, 'now').mockReturnValue(0))
 afterEach(() => vi.restoreAllMocks())
 const options = { headerPolicy: 'off' } as const
 function scanned(files: Record<string, string>) {

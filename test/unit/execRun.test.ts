@@ -750,16 +750,36 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).error?.message).toContain('0.108135')
   })
   it('D9 held response hits process deadline and retains full R', async () => {
-    const h = await harness(
-      [],
-      [{ text: 'partial', holdEof: new Promise(() => undefined) }],
-      {},
-      100,
-    )
-    const r = await h.run()
-    expect(r.code).toBe(6)
-    expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
-    expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    // Startup is not the event under test. Advance the same process deadline
+    // only after dispatch, when the unfinished response owns its reservation.
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    try {
+      const dispatched = Promise.withResolvers<undefined>()
+      const h = await harness(
+        [],
+        [
+          {
+            text: 'partial',
+            holdEof: new Promise(() => undefined),
+            onRequest: () => {
+              dispatched.resolve(undefined)
+            },
+          },
+        ],
+        {},
+        100,
+      )
+      const running = h.run()
+      await dispatched.promise
+      expect(h.api.responseBodies()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(100)
+      const r = await running
+      expect(r.code).toBe(6)
+      expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
+      expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
+    } finally {
+      vi.useRealTimers()
+    }
   })
   it.each([false, true])(
     'D11/D12 missing key vs unavailable store=%s starts no network',
