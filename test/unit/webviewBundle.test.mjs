@@ -151,6 +151,7 @@ describe('the production webview chunks (FIX78W)', () => {
     })
     expect(result.status).toBe(1)
     expect(result.stderr).toContain('ENOENT')
-    expect(result.stderr).toContain("stat 'dist/webview/shared.js'")
+    expect(result.stderr).toContain('stat ')
+    expect(result.stderr.replaceAll('\\', '/')).toContain('dist/webview/shared.js')
   })
 })
