@@ -154,6 +154,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **CI reliability:** Windows MCP and shell job helpers compile directly with the .NET compiler, avoiding PowerShell startup and module discovery under load; failures retain compiler diagnostics and termination details.
 - A blocked M80 `v0` tag update now reports that an administrator must move it,
   while preserving the four release channels' outcomes. Updates require a
   fast-forward; the release guide documents the administrator's recovery command.
