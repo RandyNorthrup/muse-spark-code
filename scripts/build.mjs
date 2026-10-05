@@ -131,6 +131,10 @@ const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
 const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
 const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
 const JUDGE_HOOK_OUTFILE = 'dist/judgeHook.js'
+const JUDGE_LOCAL_ENTRY = 'src/runtime/judge/judgeLocalEntry.ts'
+const JUDGE_LOCAL_OUTFILE = 'dist/judgeLocal.js'
+const JUDGE_USES_ENTRY = 'src/runtime/judge/judgeUsesEntry.ts'
+const JUDGE_USES_OUTFILE = 'dist/judgeUses.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
@@ -403,6 +407,16 @@ const judgeLintOptions = {
   entryPoints: [JUDGE_LINT_ENTRY],
   outfile: JUDGE_LINT_OUTFILE,
 }
+const judgeLocalOptions = {
+  ...judgeOptions,
+  entryPoints: [JUDGE_LOCAL_ENTRY],
+  outfile: JUDGE_LOCAL_OUTFILE,
+}
+const judgeUsesOptions = {
+  ...judgeOptions,
+  entryPoints: [JUDGE_USES_ENTRY],
+  outfile: JUDGE_USES_OUTFILE,
+}
 const judgeHookOptions = {
   ...judgeOptions,
   entryPoints: [JUDGE_HOOK_ENTRY],
@@ -581,6 +595,8 @@ if (isWatch) {
     esbuild.context(judgeOptions),
     esbuild.context(judgeLintOptions),
     esbuild.context(judgeHookOptions),
+    esbuild.context(judgeLocalOptions),
+    esbuild.context(judgeUsesOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(uiTextOptions),
@@ -616,6 +632,8 @@ if (isWatch) {
     judge: esbuild.build(judgeOptions),
     judgeLint: esbuild.build(judgeLintOptions),
     judgeHook: esbuild.build(judgeHookOptions),
+    judgeLocal: esbuild.build(judgeLocalOptions),
+    judgeUses: esbuild.build(judgeUsesOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     uiText: esbuild.build(uiTextOptions),

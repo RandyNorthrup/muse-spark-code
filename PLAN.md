@@ -270,6 +270,8 @@ quality`) and as a CI job.
 | `dist/validationSchema.js` | ≤ 50 KiB (M98 integration: JSON Schema writer, only loaded when a caller converts a schema; existing parser stays ≤ 50 KiB)                                                                                                                                                                                                                                                                            |
 | `dist/judgeLint.js`        | ≤ 50 KiB (H lint library; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                                  |
 | `dist/judgeHook.js`        | ≤ 100 KiB (GH advisory hook contracts; child of the explicit-action judge factory)                                                                                                                                                                                                                                                                                                                     |
+| `dist/judgeLocal.js`       | ≤ 75 KiB (J local source and platform helper preparation; measured 49 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                 |
+| `dist/judgeUses.js`        | ≤ 25 KiB (FU independent use admission and caution holders; measured 16 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                               |
 | `dist/judge.js`            | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                           |
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
@@ -17085,6 +17087,22 @@ is fabricated or newly acquired: syntax/host extraction and admission remain
 required injected dependencies. Cursor's registration list excludes all five
 blocking events, even if a future neutral-output parser were to accept them.
 
+**Z round-4 J/FU assembly (2026-10-05).** Package both libraries as
+separate children of the explicit-action judge factory. Local assembly supplies
+the platform helper from packaged sources (Windows C#, Linux pidfd C) or the
+universal macOS libproc binary, compiled/verified only on explicit preparation,
+with credential-free compiler environments. The caller must still provide vetted
+installation records, certified platform identity, actual full-request token
+measurement and captured model wording; none is fabricated. FU exposes its
+independent evidence admission and caution holders, with no policy/source
+injection into ordinary conversations until paired M75 and borrowed-golden
+receipts exist. No new setting or public CLI action, no installed-source support
+claim, and no future C/E/A/I/FP implementation. All startup artifacts must remain
+unchanged from the resolved four-merge baseline. Register production/watch,
+VSIX/ACP/test-package, notices/SBOM, globals, knip/cycles and exclusive split
+guards together; measure separate child budgets by D6 without raising an
+existing cap. Native/source/factory controls receive byte-exact red/green proofs.
+
 ## 7. Gates
 
 **M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
@@ -17096,6 +17114,19 @@ The local source remains opt-in; each use remains inactive without its own
 paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
 unchanged; record the known package overage for the lead/VSIXDIET2. Full
 quality, coverage, installed-source and release receipts remain lead gates.
+
+**M98P2INT round-4 package-budget receipt (2026-10-05).** Four ordered
+J/FU merges and their lazy libraries pass the named bounded source/unit/native
+gates and every JavaScript/shared/CSS cap. The real universal VSIX is
+2,418,240 bytes, 165,440 over the unchanged 2,252,800-byte cap (36,219
+above the final round-3 archive); its real size gate exits 1 after packaging.
+Both actual archive inventories, all ten new missing-entry controls,
+extracted factories and signed universal Mac helpers pass. Production ACP is
+1,280,879 bytes. No cap is raised, package optimization is not widened into
+this lane, and the lead/VSIXDIET2 owns recovery. Source controls, platform
+limitations, the two discarded command overlaps and their serial green reruns,
+all final hashes/bytes and $0 / zero new inference attempts are recorded in
+`docs/certification/m98-p2int-round4.md` and its adjacent JSON receipts.
 
 **M98P2INT round-3 package-budget deferral (2026-10-05).** The required
 H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
@@ -17862,9 +17893,9 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                                     | Escape hatch                                 | Reason                                                                                                                                                                                                     | Date       |
-| -------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the two shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
+| Location                                     | Escape hatch                                 | Reason                                                                                                                                                                                                      | Date       |
+| -------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the four shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
 
 | Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
 | --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |

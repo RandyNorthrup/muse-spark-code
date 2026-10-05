@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import type { Socket } from 'node:net'
 import {
   JUDGE_MAX_STATE_TOKENS,
@@ -53,26 +53,22 @@ export interface LocalJudgeDependencies {
 }
 
 // /api/ps captured on win11 in localJudgeSystemOneCapture.json (2 attempts).
+const modelIdentityFields = {
+  name: z.string().check(z.minLength(1)),
+  digest: z.string().check(z.regex(/^[a-f\d]{64}$/)),
+}
 const healthSchema = z.looseObject({
   models: z
     .array(
       z.looseObject({
-        name: z.string().min(1),
-        digest: z.string().regex(/^[a-f\d]{64}$/),
-        context_length: z.number().int().positive(),
+        ...modelIdentityFields,
+        context_length: z.int().check(z.positive()),
       }),
     )
-    .max(LOCAL_JUDGE_MAX_MODELS),
+    .check(z.maxLength(LOCAL_JUDGE_MAX_MODELS)),
 })
 const tagsSchema = z.looseObject({
-  models: z
-    .array(
-      z.looseObject({
-        name: z.string().min(1),
-        digest: z.string().regex(/^[a-f\d]{64}$/),
-      }),
-    )
-    .max(LOCAL_JUDGE_MAX_MODELS),
+  models: z.array(z.looseObject(modelIdentityFields)).check(z.maxLength(LOCAL_JUDGE_MAX_MODELS)),
 })
 
 function redactedValue(value: unknown): unknown {

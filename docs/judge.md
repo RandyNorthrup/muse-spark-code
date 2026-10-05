@@ -76,3 +76,22 @@ the parent's existing ask runner. Cursor's five blocking rows are excluded
 from the registration list regardless of later neutral-parser changes;
 observation rows retain validated caution/neutral delivery. Installed command
 and real-source/grammar receipts remain separate acceptance work.
+
+Round 4 exposes `loadLocal()` and `loadUses()` in separate lazy children.
+`createLocalJudge` supplies the packaged platform helper; vetted installation
+records, per-platform certification, full serialized-request token measurement
+and captured model wording remain mandatory caller dependencies. Its factory
+and helper preparation start no listener or inference. Windows and Linux
+sources compile into caller-owned storage with a fixed compiler, empty
+credential environment and a bounded deadline; the universal macOS helper is
+verified in its package. Downloads remain a separate explicit, consented action.
+
+FU exposes independent use admission, hint/advice helpers, deadline fences and
+`JudgeUses` caution holders. No production policy or source is injected into
+conversations: all nine uses remain inactive without their own matching paired
+M75 and borrowed-golden evidence. Immediate/native actions still have no new
+fence. Held review actions never await judge output, share one dispatch and keep
+each approval's lifetime independent. The shared portable libraries serve VS
+Code, ACP/headless and future editor bridges with the same evidence rules.
+No C/E/A/I/FP surface is implemented by this round. The universal package remains
+blocked by the existing VSIX cap, pending the lead's VSIXDIET2 work.

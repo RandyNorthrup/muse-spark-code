@@ -7,6 +7,8 @@ import type { Logger } from '../../host/logger'
 import { stderrLogger } from '../stderrLog'
 import type * as LintEntry from './judgeLintEntry'
 import type * as HookEntry from './judgeHookEntry'
+import type * as LocalEntry from './judgeLocalEntry'
+import type * as UsesEntry from './judgeUsesEntry'
 import { applyCalibration } from '../../core/judge/calibration/apply'
 import { fitCalibration } from '../../core/judge/calibration/fit'
 import { reportCalibration } from '../../core/judge/calibration/report'
@@ -38,6 +40,8 @@ const childFactories: {
     | {
         readonly lint: () => typeof LintEntry
         readonly hook: () => typeof HookEntry
+        readonly local: () => typeof LocalEntry
+        readonly uses: () => typeof UsesEntry
       }
     | undefined
 } = { current: undefined }
@@ -66,6 +70,16 @@ const features = {
   startJudgeServer,
   runJudgeCommand,
   runJudgeMcp,
+  loadLocal() {
+    return Promise.resolve(
+      children().local().createJudgeLocalFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
+    )
+  },
+  loadUses() {
+    return Promise.resolve(
+      children().uses().createJudgeUsesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
+    )
+  },
   loadLint() {
     const bundle = children().lint()
     return Promise.resolve(
@@ -95,6 +109,22 @@ export function createJudgeFeatures(language: {
   // A later host caller can supply its LogOutputChannel adapter directly.
   const log = language.log ?? stderrLogger(writeLog, 'warn')
   childFactories.current = {
+    local: lazyBundleLoader({
+      bundlePath: path.join(__dirname, 'judgeLocal.js'),
+      log,
+      isBundle: (value): value is typeof LocalEntry =>
+        hasFactory<typeof LocalEntry>(value, 'createJudgeLocalFeatures'),
+      label: 'judge local bundle',
+      unavailable,
+    }),
+    uses: lazyBundleLoader({
+      bundlePath: path.join(__dirname, 'judgeUses.js'),
+      log,
+      isBundle: (value): value is typeof UsesEntry =>
+        hasFactory<typeof UsesEntry>(value, 'createJudgeUsesFeatures'),
+      label: 'judge uses bundle',
+      unavailable,
+    }),
     lint: lazyBundleLoader({
       bundlePath: path.join(__dirname, 'judgeLint.js'),
       log,

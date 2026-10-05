@@ -1,5 +1,5 @@
 // SystemOne reuses P0's captured Jev schemas. Chat follows localJudgeCapture.json.
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { entropyConfidence } from '../math'
 import { materialForLogprobs } from '../techniques'
 import {
@@ -12,34 +12,34 @@ import {
 } from '../schema'
 
 const ollamaAnswerSchema = z.union([
-  z.looseObject({ type: z.literal('noul'), noul: z.number().min(0).max(1) }),
+  z.looseObject({ type: z.literal('noul'), noul: z.number().check(z.minimum(0), z.maximum(1)) }),
   jevAnswerSchema,
 ])
 const vendorSchema = z.looseObject({
-  model: z.string().min(1),
+  model: z.string().check(z.minLength(1)),
   answers: z.record(z.string(), ollamaAnswerSchema),
   usage: z.looseObject({
-    input_tokens: z.number().int().nonnegative(),
-    output_tokens: z.number().int().nonnegative(),
+    input_tokens: z.int().check(z.nonnegative()),
+    output_tokens: z.int().check(z.nonnegative()),
   }),
 })
 const chatSchema = z.looseObject({
-  model: z.string().min(1),
+  model: z.string().check(z.minLength(1)),
   done: z.literal(true),
   message: z.looseObject({ role: z.literal('assistant'), content: z.string() }),
-  prompt_eval_count: z.number().int().nonnegative(),
+  prompt_eval_count: z.int().check(z.nonnegative()),
   eval_count: z.literal(1),
   logprobs: z
     .array(
       z.looseObject({
         token: z.string(),
-        logprob: z.number().max(0),
+        logprob: z.number().check(z.maximum(0)),
         top_logprobs: z
-          .array(z.looseObject({ token: z.string(), logprob: z.number().max(0) }))
-          .min(1),
+          .array(z.looseObject({ token: z.string(), logprob: z.number().check(z.maximum(0)) }))
+          .check(z.minLength(1)),
       }),
     )
-    .length(1),
+    .check(z.minLength(1), z.maxLength(1)),
 })
 
 function hasSameKeys(actual: object, expected: readonly string[]): boolean {

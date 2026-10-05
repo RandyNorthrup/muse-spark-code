@@ -32,6 +32,8 @@ for (const file of [
     'judge.js',
     'judgeLint.js',
     'judgeHook.js',
+    'judgeLocal.js',
+    'judgeUses.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),

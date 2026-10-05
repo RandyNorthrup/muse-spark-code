@@ -103,6 +103,8 @@ const BUDGETS = [
   { path: 'dist/judge.js', budgetKiB: 75 },
   { path: 'dist/judgeLint.js', budgetKiB: 50 },
   { path: 'dist/judgeHook.js', budgetKiB: 100 },
+  { path: 'dist/judgeLocal.js', budgetKiB: 75 },
+  { path: 'dist/judgeUses.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.

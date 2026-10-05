@@ -21,6 +21,8 @@
 !dist/judge.js
 !dist/judgeLint.js
 !dist/judgeHook.js
+!dist/judgeLocal.js
+!dist/judgeUses.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/uiText.js
@@ -42,6 +44,9 @@
 !native/windows/MuseSparkJob.cs
 !native/windows/MuseSparkMcpLauncher.cs
 !native/darwin/muse-dictate
+!native/darwin/muse-local-judge-peer
+!native/linux/MuseSparkLocalJudgePeer.c
+!native/windows/MuseSparkLocalJudgePeer.cs
 !package.json
 !package.nls.json
 !package.nls.*.json

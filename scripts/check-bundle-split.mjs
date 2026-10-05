@@ -91,6 +91,38 @@ const JUDGE_ONLY = [
 ]
 const JUDGE_CHILDREN = [
   {
+    output: 'dist/judgeLocal.js',
+    metafile: 'dist/meta/judgeLocal.json',
+    files: [
+      'src/runtime/judge/judgeLocalEntry.ts',
+      'src/runtime/judge/localHelper.ts',
+      'src/host/judge/local.ts',
+      'src/core/judge/local/darwinPeer.ts',
+      'src/core/judge/local/executable.ts',
+      'src/core/judge/local/linuxPeer.ts',
+      'src/core/judge/local/linuxVolume.ts',
+      'src/core/judge/local/model.ts',
+      'src/core/judge/local/posixPeer.ts',
+      'src/core/judge/local/recommendations.ts',
+      'src/core/judge/local/snapshot.ts',
+      'src/core/judge/local/source.ts',
+      'src/core/judge/local/transport.ts',
+      'src/core/judge/local/windowsPeer.ts',
+      'src/core/judge/local/wire.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeUses.js',
+    metafile: 'dist/meta/judgeUses.json',
+    files: [
+      'src/runtime/judge/judgeUsesEntry.ts',
+      'src/host/judge/uses.ts',
+      'src/core/judge/uses/advice.ts',
+      'src/core/judge/uses/definitions.ts',
+      'src/core/judge/uses/fences.ts',
+    ],
+  },
+  {
     output: 'dist/judgeLint.js',
     metafile: 'dist/meta/judgeLint.json',
     files: [

@@ -3602,6 +3602,17 @@ beforeMCPExecution, beforeReadFile and beforeSubmitPrompt are never
 registered**: Cursor has no neutral answer for them, and the judge never
 grants a permission. This library delivery adds no installed hook/lint command
 support claim or automatic hook registration.
+The factory also exposes local-source and independently measured use libraries
+in `dist/judgeLocal.js` and `dist/judgeUses.js`. The VSIX and ACP archives carry
+Windows C# and Linux pidfd helper sources and the universal macOS libproc/kqueue
+helper. Explicit helper preparation uses a fixed system compiler with no API
+credentials; local inference still requires opt-in, vetted installation/platform
+proof, a real token counter and captured wording. Every use stays inactive
+without its own paired M75 and borrowed-golden evidence. Identical held review
+actions share one dispatch while retaining each approval's caution lifetime.
+This adds no local setting, automatic source choice or installed-source support
+claim. On macOS, `bash native/darwin/build-local-judge.sh` builds and verifies
+both helper architectures for packaging; this command ran successfully here.
 See [the integration contract and outstanding evidence](docs/judge.md).
 
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`

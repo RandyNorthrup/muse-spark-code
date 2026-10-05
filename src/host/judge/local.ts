@@ -55,13 +55,14 @@ export function createHostLocalJudge(deps: LocalJudgeHostDependencies): JudgeRun
         const installed = deps.posixRuntimeInstallation?.()
         if (installed?.modelDirectory !== installation.modelDirectory)
           throw new Error('unverified-platform')
-        const lifecycle =
-          deps.posixLifecycle ??
-          (process.platform === 'linux'
-            ? createLinuxPeerDependencies(await deps.peerHelper('linux'))
-            : process.platform === 'darwin'
-              ? darwinPeerDependencies(await deps.peerHelper('darwin'), installed)
-              : undefined)
+        let lifecycle = deps.posixLifecycle
+        if (lifecycle === undefined) {
+          if (process.platform === 'linux') {
+            lifecycle = createLinuxPeerDependencies(await deps.peerHelper('linux'))
+          } else if (process.platform === 'darwin') {
+            lifecycle = darwinPeerDependencies(await deps.peerHelper('darwin'), installed)
+          }
+        }
         if (!lifecycle) throw new Error('unverified-platform')
         return await posixPeer(socket, installed, lifecycle, signal)
       }

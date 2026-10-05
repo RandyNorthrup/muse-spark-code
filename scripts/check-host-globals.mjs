@@ -38,6 +38,8 @@ const HOST_BUNDLES = [
   'dist/judge.js',
   'dist/judgeLint.js',
   'dist/judgeHook.js',
+  'dist/judgeLocal.js',
+  'dist/judgeUses.js',
   'dist/whatsNew.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',

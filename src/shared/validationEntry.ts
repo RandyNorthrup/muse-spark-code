@@ -15,6 +15,7 @@ export {
   instanceof,
   int,
   iso,
+  json,
   lazy,
   literal,
   looseObject,

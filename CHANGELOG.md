@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- **M98 local and use libraries.** Package the reviewed Windows, Linux and
+  macOS local proofs and FU's independent advisory uses behind separate lazy
+  factory children. Local inference requires opt-in; uses require their own
+  paired and borrowed-golden evidence. Shared review actions retain separate
+  caution holders. Native helpers ship in both extension and ACP archives;
+  ordinary startup loads no local or use implementation.
+
 ### Added
 
 - **M98 reviewed lint and hook libraries.** Explicit judge actions can load

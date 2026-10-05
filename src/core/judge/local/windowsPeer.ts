@@ -3,7 +3,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { realpath } from 'node:fs/promises'
 import type { Socket } from 'node:net'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_TIMEOUT_MS,
@@ -11,15 +11,15 @@ import {
 } from '../../../shared/constants'
 
 const identitySchema = z.strictObject({
-  pid: z.number().int().positive(),
-  creationTime: z.string().regex(/^\d+$/),
-  executable: z.string().min(1),
+  pid: z.int().check(z.positive()),
+  creationTime: z.string().check(z.regex(/^\d+$/)),
+  executable: z.string().check(z.minLength(1)),
   executableDigest: z
     .string()
-    .length(LOCAL_JUDGE_DIGEST_HEX_LENGTH)
-    .regex(/^[a-f\d]+$/),
-  ownerSid: z.string().regex(/^S-1-/),
-  callerSid: z.string().regex(/^S-1-/),
+    .check(z.minLength(LOCAL_JUDGE_DIGEST_HEX_LENGTH), z.maxLength(LOCAL_JUDGE_DIGEST_HEX_LENGTH))
+    .check(z.regex(/^[a-f\d]+$/)),
+  ownerSid: z.string().check(z.regex(/^S-1-/)),
+  callerSid: z.string().check(z.regex(/^S-1-/)),
 })
 type PeerIdentity = z.infer<typeof identitySchema>
 const execute = promisify(execFile)

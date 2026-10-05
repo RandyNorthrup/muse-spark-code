@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { open, readFile, realpath, type FileHandle } from 'node:fs/promises'
 import type { BigIntStats } from 'node:fs'
 import path from 'node:path'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   LOCAL_JUDGE_DIGEST_HEX_LENGTH,
   LOCAL_JUDGE_MAX_LAYERS,
@@ -17,23 +17,23 @@ import { verifyLinuxAnchor, verifyLinuxLocalVolume } from './linuxVolume'
 
 const hex = z
   .string()
-  .length(LOCAL_JUDGE_DIGEST_HEX_LENGTH)
-  .regex(/^[a-f\d]+$/)
+  .check(z.minLength(LOCAL_JUDGE_DIGEST_HEX_LENGTH), z.maxLength(LOCAL_JUDGE_DIGEST_HEX_LENGTH))
+  .check(z.regex(/^[a-f\d]+$/))
 const blobSchema = z.looseObject({
-  mediaType: z.string().min(1),
-  digest: z.string().regex(/^sha256:[a-f\d]{64}$/),
-  size: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  mediaType: z.string().check(z.minLength(1)),
+  digest: z.string().check(z.regex(/^sha256:[a-f\d]{64}$/)),
+  size: z.int().check(z.nonnegative()).check(z.maximum(Number.MAX_SAFE_INTEGER)),
 })
 const manifestSchema = z.looseObject({
   schemaVersion: z.literal(2),
   mediaType: z.literal('application/vnd.docker.distribution.manifest.v2+json'),
   config: blobSchema,
-  layers: z.array(blobSchema).min(1).max(LOCAL_JUDGE_MAX_LAYERS),
+  layers: z.array(blobSchema).check(z.minLength(1)).check(z.maxLength(LOCAL_JUDGE_MAX_LAYERS)),
 })
 const tagsSchema = z.looseObject({
   models: z
-    .array(z.looseObject({ name: z.string().min(1), digest: hex }))
-    .max(LOCAL_JUDGE_MAX_MODELS),
+    .array(z.looseObject({ name: z.string().check(z.minLength(1)), digest: hex }))
+    .check(z.maxLength(LOCAL_JUDGE_MAX_MODELS)),
 })
 
 async function exactPath(root: string, relative: string): Promise<string> {

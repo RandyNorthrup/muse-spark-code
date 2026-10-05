@@ -3,7 +3,7 @@ import { lookup } from 'node:dns/promises'
 import { once } from 'node:events'
 import { request } from 'node:http'
 import { createConnection, isIP, type Socket } from 'node:net'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_TIMEOUT_MS,

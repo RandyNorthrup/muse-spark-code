@@ -35,6 +35,8 @@ const BUNDLES = [
   'judge.js',
   'judgeLint.js',
   'judgeHook.js',
+  'judgeLocal.js',
+  'judgeUses.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'uiText.js',
@@ -52,6 +54,9 @@ const BUNDLES = [
 const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkLocalJudgePeer.cs'),
+  path.join('native', 'linux', 'MuseSparkLocalJudgePeer.c'),
+  path.join('native', 'darwin', 'muse-local-judge-peer'),
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'

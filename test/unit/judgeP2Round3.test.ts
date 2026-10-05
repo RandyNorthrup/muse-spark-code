@@ -25,7 +25,7 @@ function features() {
 }
 
 describe('round-3 production judge factories', () => {
-  it.each(['judgeLint.js', 'judgeHook.js'] as const)(
+  it.each(['judgeLint.js', 'judgeHook.js', 'judgeLocal.js', 'judgeUses.js'] as const)(
     'retries %s after a missing or malformed child is repaired',
     async (child) => {
       for (const isMalformed of [false, true]) {
@@ -34,12 +34,31 @@ describe('round-3 production judge factories', () => {
           for (const file of ['judge.js', 'uiText.js', 'validation.js']) {
             copyFileSync(path.resolve('dist', file), path.join(folder, file))
           }
-          if (isMalformed) writeFileSync(path.join(folder, child), 'module.exports = {}')
+          if (isMalformed)
+            writeFileSync(
+              path.join(folder, child),
+              'module.exports = { createJudgeLintFeatures: true, createJudgeHookFeatures: true, createJudgeLocalFeatures: true, createJudgeUsesFeatures: true }',
+            )
           const root = judgeFeaturesLoader({
             bundlePath: path.join(folder, 'judge.js'),
             log: createLogger(new FakeLogOutputChannel()),
           })()
-          const load = () => (child === 'judgeLint.js' ? root.loadLint() : root.loadHook())
+          const load = () => {
+            switch (child) {
+              case 'judgeLint.js': {
+                return root.loadLint()
+              }
+              case 'judgeHook.js': {
+                return root.loadHook()
+              }
+              case 'judgeLocal.js': {
+                return root.loadLocal()
+              }
+              case 'judgeUses.js': {
+                return root.loadUses()
+              }
+            }
+          }
           expect(() => {
             void load()
           }).toThrow(fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' }))

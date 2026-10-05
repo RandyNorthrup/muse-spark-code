@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { LOCAL_JUDGE_TIMEOUT_MS } from '../../../shared/constants'
 import type { PosixPeerDependencies, PosixProcessLease } from './posixPeer'
 import { verifyLinuxAnchor, verifyLinuxLocalVolume } from './linuxVolume'
@@ -10,10 +10,10 @@ const snapshotSchema = z.discriminatedUnion('alive', [
   z.strictObject({
     alive: z.literal(true),
     identity: z.strictObject({
-      pid: z.number().int().positive(),
-      uid: z.number().int().nonnegative(),
-      creationTime: z.string().regex(/^\d+$/),
-      executable: z.string().min(1),
+      pid: z.int().check(z.positive()),
+      uid: z.int().check(z.nonnegative()),
+      creationTime: z.string().check(z.regex(/^\d+$/)),
+      executable: z.string().check(z.minLength(1)),
     }),
   }),
 ])

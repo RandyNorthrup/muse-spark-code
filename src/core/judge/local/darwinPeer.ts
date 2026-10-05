@@ -5,7 +5,7 @@ import process from 'node:process'
 import { identityOf, lstatIdentity, sameFile } from '../../fs/fileIdentity'
 import { createInterface } from 'node:readline'
 import { promisify } from 'node:util'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_TIMEOUT_MS,
@@ -20,17 +20,17 @@ const OLLAMA_REQUIREMENT = '=anchor apple generic and certificate leaf[subject.O
 // Native ABI permission bits; these are not application tunables.
 const WRITABLE_BY_OTHERS = 0o022
 const identitySchema = z.strictObject({
-  pid: z.number().int().positive(),
-  uid: z.number().int().nonnegative(),
-  realUid: z.number().int().nonnegative(),
-  creationTime: z.string().regex(/^[1-9]\d{6,}$/),
-  executable: z.string().min(1),
+  pid: z.int().check(z.positive()),
+  uid: z.int().check(z.nonnegative()),
+  realUid: z.int().check(z.nonnegative()),
+  creationTime: z.string().check(z.regex(/^[1-9]\d{6,}$/)),
+  executable: z.string().check(z.minLength(1)),
 })
 const volumeSchema = z.strictObject({
   filesystem: z.enum(['apfs', 'hfs']),
-  flags: z.number().int().nonnegative(),
-  device: z.string().regex(/^\d+$/),
-  uid: z.number().int().nonnegative(),
+  flags: z.int().check(z.nonnegative()),
+  device: z.string().check(z.regex(/^\d+$/)),
+  uid: z.int().check(z.nonnegative()),
 })
 
 async function ownedPath(file: string, uid: number): Promise<void> {

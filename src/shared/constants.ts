@@ -4788,6 +4788,7 @@ export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowe
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
 // M98-2j: test-only local transport/provenance spike; no shipped reader.
+export const LOCAL_JUDGE_HELPER_MODE = 0o700
 export const LOCAL_JUDGE_TIMEOUT_MS = 30_000
 export const LOCAL_JUDGE_MAX_RESPONSE_BYTES = 65_536
 export const LOCAL_JUDGE_MAX_MODELS = 100

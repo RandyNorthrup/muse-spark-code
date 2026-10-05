@@ -6,7 +6,7 @@ import { readFile, readdir, readlink, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Socket } from 'node:net'
 import { promisify } from 'node:util'
-import { z } from 'zod'
+import * as z from 'zod/mini'
 import { LOCAL_JUDGE_MAX_RESPONSE_BYTES, LOCAL_JUDGE_TIMEOUT_MS } from '../../../shared/constants'
 import { verifyLinuxInstallation } from './linuxVolume'
 
@@ -20,10 +20,10 @@ const PROC_LAYOUT = {
   startTimeIndex: 19,
 } as const
 const processIdentitySchema = z.strictObject({
-  pid: z.number().int().positive(),
-  creationTime: z.string().regex(/^\d+$/),
-  executable: z.string().min(1),
-  uid: z.number().int().nonnegative(),
+  pid: z.int().check(z.positive()),
+  creationTime: z.string().check(z.regex(/^\d+$/)),
+  executable: z.string().check(z.minLength(1)),
+  uid: z.int().check(z.nonnegative()),
 })
 
 /** Native pidfd/libproc integration owns lifetime proof, never a JS PID cache. */

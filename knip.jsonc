@@ -62,6 +62,8 @@
     "src/runtime/judge/judgeEntry.ts",
     "src/runtime/judge/judgeLintEntry.ts",
     "src/runtime/judge/judgeHookEntry.ts",
+    "src/runtime/judge/judgeLocalEntry.ts",
+    "src/runtime/judge/judgeUsesEntry.ts",
     "src/runtime/judge/judgeBundle.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
