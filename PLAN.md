@@ -14878,6 +14878,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM95A gate delegation (2026-10-05).** The owner's rig brief expressly
+forbids a full `quality` / full-test run and integration merges in this
+lane. Local focused suites, five-project typecheck, scoped lint/format,
+localization, host API, knip, duplication, cycles and production build run
+here; the lead must run full quality on the integrated tree. No threshold,
+ignore or rule is weakened. `docs/certification/m95-a.md` records results.
+
 **MG69 merged-source proof (2026-10-02).** Kubuntu passes 49 owning/merged
 files (2,056 tests; two existing Windows-only cases platform-skipped), all
 five compiler projects and every required static gate. Both review and import
@@ -15321,6 +15328,27 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M95 / RVM95AO-4-SSE — upstream Anthropic SSE buffering (FIXM95A,
+  2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
+  bytes, item bytes/count, stream bytes and frame count. Its input seam is
+  already-parsed `SseEvent`s: the shared `parseSse` reader can still retain
+  an unterminated line/event before the decoder sees it. Safe for this lane
+  only because no shipped entry imports the Anthropic codec (the bundle
+  exclusion gate proves that). Lane T must bound the byte source and SSE
+  pending line/event before providers are wired; this is a release blocker,
+  not an accepted risk for a configured provider. No shared parser/transport
+  redesign in this owned-file repair. Evidence and guard drills:
+  `docs/certification/m95-a.md`.
+
+- **M95 / RVM95AO-A-LIVE — preserved-thinking beta and rolling breakpoint
+  receipts (FIXM95A, 2026-10-05).** Existing counted frames are replayed,
+  and deterministic request goldens prove placement and prefix bytes
+  (rolling markers excepted). No capture exercises the `drop_block` beta
+  after a packing swap or the new rolling marker through this codec. Safe
+  while the codec is unwired; the owner's counted step-13 live receipts
+  remain required before release. This lane is explicitly forbidden from
+  making paid/live calls.
 
 - Code intelligence (M67) shows what VS Code's language services say. A
   result located outside the workspace is left out and a hover defined only

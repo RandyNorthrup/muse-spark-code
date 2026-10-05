@@ -165,7 +165,17 @@ export const usageSchema = z.object({
   input_tokens: z.number(),
   output_tokens: z.number(),
   total_tokens: z.optional(z.number()),
-  input_tokens_details: z.optional(z.nullable(z.object({ cached_tokens: z.optional(z.number()) }))),
+  input_tokens_details: z.optional(
+    z.nullable(
+      z.object({
+        cached_tokens: z.optional(z.number()),
+        // M95: writes are a disjoint subset of total input; 1h is a subset
+        // of writes. Absent TTL information stays unknown, never guessed.
+        cache_write_tokens: z.optional(z.number()),
+        cache_write_tokens_1h: z.optional(z.number()),
+      }),
+    ),
+  ),
   output_tokens_details: z.optional(
     z.nullable(z.object({ reasoning_tokens: z.optional(z.number()) })),
   ),

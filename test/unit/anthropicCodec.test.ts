@@ -13,14 +13,26 @@ import {
   isMessageItem,
   isReasoningItem,
   messageText,
+  responseSchema,
   type CreateResponseBody,
   type FunctionToolDefinition,
+  type InputItem,
   type ReasoningItem,
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 import type { SseEvent } from '../../src/core/backends/modelapi/sse'
+import {
+  ANTHROPIC_MAX_ARGUMENT_BYTES,
+  ANTHROPIC_MAX_FRAME_BYTES,
+  ANTHROPIC_MAX_FRAMES,
+  ANTHROPIC_MAX_ITEM_BYTES,
+  ANTHROPIC_MAX_ITEMS,
+  ANTHROPIC_MAX_STREAM_BYTES,
+} from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 
-const MODEL = 'anthropic/claude-sonnet-5-5'
+const MODEL = 'claude-sonnet-5-5'
 const BASE_OPTIONS: AnthropicEncodeOptions = { model: MODEL, maxTokens: 256, effort: 'high' }
 
 const GET_TIME_TOOL: FunctionToolDefinition = {
@@ -71,6 +83,13 @@ function encodedText(
   options: AnthropicEncodeOptions = BASE_OPTIONS,
 ): string {
   return `${JSON.stringify(encodeAnthropicRequest(body, options), null, 2)}\n`
+}
+
+/** M95 explicitly excepts rolling cache markers from the immutable prefix. */
+function historyBytes(messages: unknown): string {
+  return JSON.stringify(messages, (key, value: unknown) =>
+    key === 'cache_control' ? undefined : value,
+  )
 }
 
 interface CaptureFile {
@@ -350,12 +369,32 @@ describe('prefix stability (acceptance 4)', () => {
     const followUpNative = encodeAnthropicRequest(followUp, BASE_OPTIONS).body
     expect(followUpNative.system).toEqual(firstNative.system)
     expect(followUpNative.tools).toEqual(firstNative.tools)
-    expect(followUpNative.messages.slice(0, 1)).toEqual(firstNative.messages)
+    expect(historyBytes(followUpNative.messages.slice(0, 1))).toBe(
+      historyBytes(firstNative.messages),
+    )
     expect(followUpNative.messages.length).toBe(3)
   })
 })
 
 describe('stream decoding from the captures', () => {
+  it.each([
+    'anthropic/03-tool-call-stream.json',
+    'anthropic/04-tool-result-stream.json',
+    'anthropic/05-tool-history-without-tools.json',
+    'anthropic/06-thinking-tool-call-stream.json',
+    'anthropic/07-thinking-tool-result-stream.json',
+    'anthropic/08-cache-call-1.json',
+    'anthropic/09-cache-call-2.json',
+    'anthropic-sonnet-thinking-high/01-tool-call-stream.json',
+    'anthropic-sonnet-thinking-high/02-tool-result-stream.json',
+    'anthropic-sonnet-thinking-riddle/01-tool-call-stream.json',
+    'anthropic-sonnet-thinking-riddle/02-tool-result-stream.json',
+    'anthropic-opus-thinking/01-tool-call-stream.json',
+    'anthropic-opus-thinking/02-tool-result-stream.json',
+  ])('replays the counted stream capture %s to completion under the bounds', async (name) => {
+    await decodeCompleted(captureEvents(`../../docs/certification/m95-captures/${name}`))
+  })
+
   it('decodes a tool-call stream: fragments assemble, caller is collected', async () => {
     const extras: Record<string, Readonly<Record<string, unknown>>> = {}
     const events = await decodeAll(captureEvents(`${ANTHROPIC_CAPTURE}03-tool-call-stream.json`), {
@@ -392,7 +431,7 @@ describe('stream decoding from the captures', () => {
       input_tokens: 2074,
       output_tokens: 54,
       total_tokens: 2128,
-      input_tokens_details: {},
+      input_tokens_details: { cache_write_tokens: 0, cache_write_tokens_1h: 0 },
     })
     expect(extras).toEqual({ toolu_01S1LvZbGnDjtmtuJf7MYCN7: { caller: { type: 'direct' } } })
   })
@@ -487,17 +526,29 @@ describe('stream decoding from the captures', () => {
       input_tokens: 295 + 2054,
       output_tokens: 227,
       total_tokens: 295 + 2054 + 227,
-      input_tokens_details: { cached_tokens: 2054 },
+      input_tokens_details: {
+        cached_tokens: 2054,
+        cache_write_tokens: 0,
+        cache_write_tokens_1h: 0,
+      },
       output_tokens_details: { reasoning_tokens: 114 },
     })
   })
 
-  it('folds cache writes into the input total on the cache pair', async () => {
+  it('preserves cache writes and their captured TTL split on the cache pair', async () => {
     const first = await decodeCompleted(captureEvents(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`))
     const second = await decodeCompleted(captureEvents(`${ANTHROPIC_CAPTURE}09-cache-call-2.json`))
     // 16 post-breakpoint tokens plus 1,925 written, then read back in full.
     expect(first.terminal.response.usage?.input_tokens).toBe(16 + 1925)
-    expect(second.terminal.response.usage?.input_tokens_details).toEqual({ cached_tokens: 1925 })
+    expect(first.terminal.response.usage?.input_tokens_details).toEqual({
+      cache_write_tokens: 1925,
+      cache_write_tokens_1h: 0,
+    })
+    expect(second.terminal.response.usage?.input_tokens_details).toEqual({
+      cached_tokens: 1925,
+      cache_write_tokens: 0,
+      cache_write_tokens_1h: 0,
+    })
   })
 
   it('is deterministic: the same frames decode to the same events', async () => {
@@ -529,6 +580,14 @@ describe('thinking replay (acceptance 9 and 12)', () => {
     signature: 'sig-bytes',
   })
 
+  const rollingToolUse = {
+    type: 'tool_use',
+    id: 'toolu_01r',
+    name: 'get_time',
+    input: {},
+    cache_control: { type: 'ephemeral', ttl: '5m' },
+  }
+
   it('replays the same model thinking first in its turn, with the beta', () => {
     const native = encodeAnthropicRequest(
       replayBody({ type: 'reasoning', encrypted_content: thinkingEnvelope }),
@@ -541,7 +600,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
     })
     expect(native.body.messages[1]?.content).toEqual([
       { type: 'thinking', thinking: 'let me think', signature: 'sig-bytes' },
-      { type: 'tool_use', id: 'toolu_01r', name: 'get_time', input: {} },
+      rollingToolUse,
     ])
   })
 
@@ -550,7 +609,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
       v: 1,
       provider: 'anthropic',
       kind: 'thinking',
-      model: 'anthropic/claude-opus-5-5',
+      model: 'claude-opus-5-5',
       thinking: 'other',
       signature: 'other-sig',
     })
@@ -560,9 +619,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
     )
     expect(native.headers['anthropic-beta']).toBeUndefined()
     expect(native.body.thinking).toEqual({ type: 'adaptive' })
-    expect(native.body.messages[1]?.content).toEqual([
-      { type: 'tool_use', id: 'toolu_01r', name: 'get_time', input: {} },
-    ])
+    expect(native.body.messages[1]?.content).toEqual([rollingToolUse])
   })
 
   it('drops thinking from another provider and damaged envelopes', () => {
@@ -579,9 +636,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
         ),
         BASE_OPTIONS,
       )
-      expect(native.body.messages[1]?.content).toEqual([
-        { type: 'tool_use', id: 'toolu_01r', name: 'get_time', input: {} },
-      ])
+      expect(native.body.messages[1]?.content).toEqual([rollingToolUse])
     }
   })
 
@@ -592,9 +647,7 @@ describe('thinking replay (acceptance 9 and 12)', () => {
     )
     expect(native.body.thinking).toBeUndefined()
     expect(native.headers['anthropic-beta']).toBeUndefined()
-    expect(native.body.messages[1]?.content).toEqual([
-      { type: 'tool_use', id: 'toolu_01r', name: 'get_time', input: {} },
-    ])
+    expect(native.body.messages[1]?.content).toEqual([rollingToolUse])
   })
 
   it('round-trips a redacted block exactly', async () => {
@@ -650,14 +703,17 @@ describe('thinking replay (acceptance 9 and 12)', () => {
 })
 
 describe('breakpoints and effort', () => {
-  it('sends no breakpoint or tool_choice without tools or system', () => {
+  it('marks the last message without tools or system', () => {
     const native = encodeAnthropicRequest(userOnly(''), BASE_OPTIONS)
     expect(native.body.system).toBeUndefined()
     expect(native.body.tools).toBeUndefined()
     expect(native.body.tool_choice).toBeUndefined()
+    expect(native.body.messages[0]?.content).toEqual([
+      { type: 'text', text: 'hi', cache_control: { type: 'ephemeral', ttl: '5m' } },
+    ])
   })
 
-  it('marks the last tool when there is no system text', () => {
+  it('marks only the last message when there is no system text', () => {
     const native = encodeAnthropicRequest(
       canonicalBody({
         instructions: '',
@@ -669,8 +725,11 @@ describe('breakpoints and effort', () => {
     expect(native.body.tools?.[0]).not.toHaveProperty('cache_control')
     expect(native.body.tools?.[1]).toMatchObject({
       name: 'get_date',
-      cache_control: { type: 'ephemeral', ttl: '5m' },
     })
+    expect(native.body.tools?.[1]).not.toHaveProperty('cache_control')
+    expect(native.body.messages[0]?.content).toEqual([
+      { type: 'text', text: 'hi', cache_control: { type: 'ephemeral', ttl: '5m' } },
+    ])
     expect(native.body.tool_choice).toEqual({ type: 'auto' })
   })
 
@@ -682,6 +741,9 @@ describe('breakpoints and effort', () => {
     expect(native.body.system?.[0]).toMatchObject({
       cache_control: { type: 'ephemeral', ttl: '1h' },
     })
+    expect(native.body.messages[0]?.content).toEqual([
+      { type: 'text', text: 'hi', cache_control: { type: 'ephemeral', ttl: '1h' } },
+    ])
   })
 
   it('maps minimal to low and leaves thinking off for none', () => {
@@ -701,7 +763,7 @@ describe('breakpoints and effort', () => {
   it('refuses an unknown effort', () => {
     expect(() =>
       encodeAnthropicRequest(userOnly('Remember this.'), { ...BASE_OPTIONS, effort: 'ultra' }),
-    ).toThrow(/unsupported reasoning effort/)
+    ).toThrow(/unsupported_reasoning_effort/)
   })
 })
 
@@ -724,7 +786,7 @@ describe('encode guards', () => {
           }),
           BASE_OPTIONS,
         ),
-      ).toThrow(/arguments are not/)
+      ).toThrow(/invalid_tool_arguments/)
     }
   })
 
@@ -773,9 +835,9 @@ describe('encode guards', () => {
         }),
         BASE_OPTIONS,
       ),
-    ).toThrow(/PDF input/)
+    ).toThrow(/unsupported_pdf_input/)
     expect(() => encodeAnthropicRequest(canonicalBody({ instructions: '' }), BASE_OPTIONS)).toThrow(
-      /no messages/,
+      /empty_turn/,
     )
   })
 
@@ -810,7 +872,13 @@ describe('encode guards', () => {
         type: 'image',
         source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' },
       },
-      { type: 'tool_use', id: 't1', name: 'get_time', input: {} },
+      {
+        type: 'tool_use',
+        id: 't1',
+        name: 'get_time',
+        input: {},
+        cache_control: { type: 'ephemeral', ttl: '5m' },
+      },
     ])
   })
 
@@ -832,7 +900,7 @@ describe('encode guards', () => {
         content: [
           { type: 'text', text: 'a' },
           { type: 'tool_result', tool_use_id: 't1', content: 'out' },
-          { type: 'text', text: 'b' },
+          { type: 'text', text: 'b', cache_control: { type: 'ephemeral', ttl: '5m' } },
         ],
       },
     ])
@@ -856,7 +924,14 @@ describe('encode guards', () => {
       { ...BASE_OPTIONS, effort: 'none' },
     )
     expect(native.body.tools?.map((tool) => tool.name)).toEqual(['get_time'])
-    expect(native.body.messages).toEqual([{ role: 'user', content: 'Be brief.hi' }])
+    expect(native.body.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Be brief.hi', cache_control: { type: 'ephemeral', ttl: '5m' } },
+        ],
+      },
+    ])
   })
 })
 
@@ -878,20 +953,20 @@ describe('decode edges', () => {
     expect(terminal?.type).toBe('response.completed')
   })
 
-  it('tolerates deltas with no payload and surfaces thinking text', async () => {
+  it('accepts empty string deltas and surfaces thinking text', async () => {
     const frames = streamOf(
       [
-        { start: { type: 'text', text: '' }, deltas: [{ type: 'text_delta' }] },
+        { start: { type: 'text', text: '' }, deltas: [{ type: 'text_delta', text: '' }] },
         {
           start: { type: 'tool_use', id: 't9', name: 'get_time' },
-          deltas: [{ type: 'input_json_delta' }],
+          deltas: [{ type: 'input_json_delta', partial_json: '' }],
         },
         {
           start: { type: 'thinking', thinking: '', signature: '' },
           deltas: [
-            { type: 'thinking_delta' },
+            { type: 'thinking_delta', thinking: '' },
             { type: 'thinking_delta', thinking: 'hmm' },
-            { type: 'signature_delta' },
+            { type: 'signature_delta', signature: '' },
           ],
         },
       ],
@@ -1002,7 +1077,7 @@ describe('decode edges', () => {
     }
     expect(messageText(message)).toBe('tail')
 
-    await expect(decodeAll([], { model: MODEL })).rejects.toThrow(/no message_stop/)
+    await expect(decodeAll([], { model: MODEL })).rejects.toThrow(/missing_message_stop/)
   })
 
   it('refuses malformed streams with explicit errors', async () => {
@@ -1139,7 +1214,7 @@ describe('decode edges', () => {
       ],
     ]
     for (const [name, frames] of cases) {
-      await expect(decodeAll(frames, { model: MODEL }), name).rejects.toThrow(/anthropic codec/)
+      await expect(decodeAll(frames, { model: MODEL }), name).rejects.toThrow(/Anthropic/)
     }
   })
 
@@ -1223,6 +1298,284 @@ describe('error envelope and models list', () => {
   })
 
   it('refuses a models list of unknown shape', () => {
-    expect(() => parseAnthropicModelsList({ data: [{ name: 'no-id' }] })).toThrow(/models list/)
+    expect(() => parseAnthropicModelsList({ data: [{ name: 'no-id' }] })).toThrow(
+      /invalid_models_list/,
+    )
   })
+})
+
+describe('review regressions (RVM95AO)', () => {
+  it('uses the captured native model id in every golden', () => {
+    const captured: { request: { body: { model: string } } } = JSON.parse(
+      readFileSync(new URL(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`, import.meta.url), 'utf8'),
+    )
+    expect(MODEL).toBe(captured.request.body.model)
+    for (const name of [
+      'first-turn',
+      'tool-loop-reasoning',
+      'image',
+      'packed-output',
+      'compaction',
+    ]) {
+      const request: { body: { model: string } } = JSON.parse(golden(name))
+      expect(request.body.model).toBe(captured.request.body.model)
+    }
+  })
+
+  it('rolls only the final breakpoint as growing history preserves prefix bytes', () => {
+    const histories: CreateResponseBody['input'][] = [
+      [],
+      [
+        { type: 'function_call', call_id: 'rolling-call', name: 'get_time', arguments: '{}' },
+        { type: 'function_call_output', call_id: 'rolling-call', output: '{"time":"12:00"}' },
+      ],
+      [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: '12:00 UTC.' }],
+        },
+        { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'And tomorrow?' }] },
+      ],
+    ]
+    const snapshots = []
+    const input: InputItem[] = []
+    for (const history of histories) {
+      input.push(...history)
+      const request = encodeAnthropicRequest(timeQuestionBody(input), BASE_OPTIONS)
+      const prior = snapshots.at(-1)
+      if (prior !== undefined) {
+        expect(JSON.stringify(request.body.system)).toBe(JSON.stringify(prior.body.system))
+        expect(JSON.stringify(request.body.tools)).toBe(JSON.stringify(prior.body.tools))
+        expect(historyBytes(request.body.messages.slice(0, prior.body.messages.length))).toBe(
+          historyBytes(prior.body.messages),
+        )
+      }
+      const controls = JSON.stringify(request).match(/"cache_control"/g)
+      expect(controls).toHaveLength(2)
+      const earlierMessages = request.body.messages.slice(0, -1)
+      for (const message of earlierMessages) {
+        expect(JSON.stringify(message)).not.toContain('cache_control')
+      }
+      expect(request.body.messages.at(-1)?.content).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ cache_control: { type: 'ephemeral', ttl: '5m' } }),
+        ]),
+      )
+      snapshots.push(request)
+    }
+    expect(`${JSON.stringify(snapshots, null, 2)}\n`).toBe(goldenBytes('growing-history'))
+  })
+
+  it.each([
+    ['text_delta', 'text', { type: 'text', text: '' }],
+    ['input_json_delta', 'partial_json', { type: 'tool_use', id: 't1', name: 'get_time' }],
+    ['thinking_delta', 'thinking', { type: 'thinking', thinking: '', signature: '' }],
+    ['signature_delta', 'signature', { type: 'thinking', thinking: '', signature: '' }],
+  ])('fails malformed known %s payloads instead of completing', async (type, field, start) => {
+    for (const payload of [37, undefined]) {
+      const frames = streamOf([{ start, deltas: [{ type, [field]: payload }] }], 'end_turn')
+      await expect(decodeAll(frames, { model: MODEL })).rejects.toThrow(`malformed_${type}`)
+    }
+  })
+
+  it('refuses the captured tool stream with numeric partial_json', async () => {
+    const frames = captureEvents(`${ANTHROPIC_CAPTURE}03-tool-call-stream.json`).map((frame) => {
+      if (frameTypeOf(frame) !== 'content_block_delta') return frame
+      const data: { type: string; index: number; delta: { type: string; partial_json: unknown } } =
+        JSON.parse(frame.data)
+      return {
+        ...frame,
+        data: JSON.stringify({ ...data, delta: { ...data.delta, partial_json: 37 } }),
+      }
+    })
+    await expect(decodeAll(frames, { model: MODEL })).rejects.toThrow('malformed_input_json_delta')
+  })
+
+  it('rejects a known delta for the wrong block kind', async () => {
+    const frames = streamOf(
+      [
+        {
+          start: { type: 'text', text: '' },
+          deltas: [{ type: 'input_json_delta', partial_json: '{}' }],
+        },
+      ],
+      'end_turn',
+    )
+    await expect(decodeAll(frames, { model: MODEL })).rejects.toThrow('malformed_input_json_delta')
+  })
+
+  it('retains distinct write counts at equal total input through canonical validation', async () => {
+    const first = await decodeCompleted(cacheUsageFrames(16, 1925, 1925, 0))
+    const second = await decodeCompleted(cacheUsageFrames(941, 1000, 750, 250))
+    const firstUsage = responseSchema.parse(first.terminal.response).usage
+    const secondUsage = responseSchema.parse(second.terminal.response).usage
+    expect(firstUsage?.input_tokens).toBe(secondUsage?.input_tokens)
+    expect(firstUsage?.input_tokens_details).toEqual({
+      cache_write_tokens: 1925,
+      cache_write_tokens_1h: 0,
+    })
+    expect(secondUsage?.input_tokens_details).toEqual({
+      cache_write_tokens: 1000,
+      cache_write_tokens_1h: 250,
+    })
+    expect(secondUsage).not.toEqual(firstUsage)
+  })
+
+  it('leaves uncaptured TTL unknown and rejects inconsistent TTL counters', async () => {
+    const frames = cacheUsageFrames(16, 1925, 1925, 0).map((frame) => {
+      if (frameTypeOf(frame) !== 'message_start') return frame
+      const data: { message: { usage: Record<string, unknown> } } = JSON.parse(frame.data)
+      delete data.message.usage['cache_creation']
+      return { ...frame, data: JSON.stringify(data) }
+    })
+    const { terminal } = await decodeCompleted(frames)
+    expect(terminal.response.usage?.input_tokens_details).toEqual({ cache_write_tokens: 1925 })
+    await expect(decodeAll(cacheUsageFrames(16, 1925, 1925, 1), { model: MODEL })).rejects.toThrow(
+      'invalid_cache_write_split',
+    )
+  })
+
+  it('reads the installed language when a local refusal occurs', async () => {
+    setUiText(
+      {
+        ...EN,
+        anthropicCodecEmptyTurn: 'Lokalisierte leere Anfrage',
+        anthropicCodecError: 'Lokalisierter Protokollfehler',
+      },
+      'de',
+    )
+    try {
+      expect(() => encodeAnthropicRequest(canonicalBody({}), BASE_OPTIONS)).toThrow(
+        'Lokalisierte leere Anfrage (empty_turn)',
+      )
+      await expect(
+        decodeAll([{ event: undefined, data: '{bad' }], { model: MODEL }),
+      ).rejects.toThrow('Lokalisierter Protokollfehler (non_json_frame)')
+    } finally {
+      setUiText(EN, 'en')
+    }
+  })
+})
+
+/** Fault injections preserve the captured usage shape and final-delta omission of TTL. */
+function cacheUsageFrames(
+  fresh: number,
+  written: number,
+  fiveMinute: number,
+  oneHour: number,
+): SseEvent[] {
+  return captureEvents(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`).map((frame) => {
+    const type = frameTypeOf(frame)
+    if (type !== 'message_start' && type !== 'message_delta') return frame
+    const data: { type: string; message?: { usage: unknown }; usage?: unknown } = JSON.parse(
+      frame.data,
+    )
+    const usage = {
+      input_tokens: fresh,
+      cache_creation_input_tokens: written,
+      cache_read_input_tokens: 0,
+      output_tokens: 4,
+    }
+    if (data.message === undefined) {
+      data.usage = usage
+    } else {
+      data.message.usage = {
+        ...usage,
+        cache_creation: {
+          ephemeral_5m_input_tokens: fiveMinute,
+          ephemeral_1h_input_tokens: oneHour,
+        },
+      }
+    }
+    return { ...frame, data: JSON.stringify(data) }
+  })
+}
+
+describe('bounded Anthropic accumulation (RVM95AO 4)', () => {
+  it('caps frame bytes before parsing, including UTF-8 bytes', async () => {
+    const data = JSON.stringify({
+      type: 'ping',
+      padding: 'é'.repeat(ANTHROPIC_MAX_FRAME_BYTES / 2),
+    })
+    expect(data.length).toBeLessThan(ANTHROPIC_MAX_FRAME_BYTES)
+    await expect(decodeAll([{ event: 'ping', data }], { model: MODEL })).rejects.toThrow(
+      'frame_bytes_limit',
+    )
+  })
+
+  it.each([
+    ['text', 'text_delta', 'text'],
+    ['thinking', 'thinking_delta', 'thinking'],
+    ['thinking', 'signature_delta', 'signature'],
+    ['tool_use', 'input_json_delta', 'partial_json'],
+  ])('caps retained %s/%s bytes before append', async (kind, type, field) => {
+    const limit = kind === 'tool_use' ? ANTHROPIC_MAX_ARGUMENT_BYTES : ANTHROPIC_MAX_ITEM_BYTES
+    const fragment = 'x'.repeat(ANTHROPIC_MAX_FRAME_BYTES / 2)
+    const deltas = Array.from({ length: limit / fragment.length + 1 }, () => ({
+      type,
+      [field]: fragment,
+    }))
+    if (kind === 'tool_use') {
+      deltas.unshift({ type, [field]: '{"value":"' })
+      deltas.push({ type, [field]: '"}' })
+    }
+    const frames = streamOf(
+      [
+        {
+          start: { type: kind, id: 't1', name: 'get_time', text: '', thinking: '', signature: '' },
+          deltas,
+        },
+      ],
+      'end_turn',
+    )
+    await expect(decodeAll(frames, { model: MODEL })).rejects.toThrow(
+      kind === 'tool_use' ? 'argument_limit' : 'item_bytes_limit',
+    )
+  })
+
+  it.each(['text', 'future'])(
+    'caps the lifetime %s item count, including finished blocks',
+    async (type) => {
+      const frames = streamOf(
+        Array.from({ length: ANTHROPIC_MAX_ITEMS + 1 }, () => ({
+          start: { type, text: '' },
+          deltas: [],
+        })),
+        'end_turn',
+      )
+      await expect(decodeAll(frames, { model: MODEL })).rejects.toThrow('item_count_limit')
+    },
+  )
+
+  it.each(['bytes', 'frames'])(
+    'caps total stream %s and closes its async source',
+    async (dimension) => {
+      let isClosed = false
+      const frame = {
+        event: 'ping',
+        data: JSON.stringify({
+          type: 'ping',
+          padding: dimension === 'bytes' ? 'x'.repeat(ANTHROPIC_MAX_FRAME_BYTES / 2) : '',
+        }),
+      }
+      const count =
+        (dimension === 'bytes'
+          ? Math.ceil(ANTHROPIC_MAX_STREAM_BYTES / frame.data.length)
+          : ANTHROPIC_MAX_FRAMES) + 1
+      async function* source() {
+        await Promise.resolve()
+        try {
+          for (let index = 0; index < count; index += 1) yield frame
+          yield { event: 'message_stop', data: JSON.stringify({ type: 'message_stop' }) }
+        } finally {
+          isClosed = true
+        }
+      }
+      await expect(
+        Array.fromAsync(decodeAnthropicStream(source(), { model: MODEL })),
+      ).rejects.toThrow('stream_limit')
+      expect(isClosed).toBe(true)
+    },
+  )
 })

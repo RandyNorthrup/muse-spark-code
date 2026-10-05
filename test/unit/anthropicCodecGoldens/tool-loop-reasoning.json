@@ -5,7 +5,7 @@
     "anthropic-beta": "thinking-binding-controls-2026-08-01"
   },
   "body": {
-    "model": "anthropic/claude-sonnet-5-5",
+    "model": "claude-sonnet-5-5",
     "max_tokens": 256,
     "system": [
       {
@@ -20,7 +20,12 @@
     "messages": [
       {
         "role": "user",
-        "content": "What time is it in UTC? Call get_time."
+        "content": [
+          {
+            "type": "text",
+            "text": "What time is it in UTC? Call get_time."
+          }
+        ]
       },
       {
         "role": "assistant",
@@ -49,7 +54,11 @@
           {
             "type": "tool_result",
             "tool_use_id": "toolu_01test",
-            "content": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}"
+            "content": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
+            }
           }
         ]
       }

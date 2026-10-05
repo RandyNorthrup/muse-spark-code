@@ -1962,5 +1962,12 @@
   "agentImportIgnoredToTracked": "spowodowałoby to skopiowanie pliku ignorowanego przez Git do pliku śledzonego",
   "agentImportEditPrompt": "Otworzyć przekonwertowane wpisy w {path} jako niezapisaną zmianę do przejrzenia i zapisania? Zapisz ją tylko pod tą ścieżką, nigdy w innym pliku.",
   "agentImportEditAction": "Edytuj i otwórz plik",
-  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne."
+  "agentImportPreviewLegacyKey": "Plik używa starego klucza `mcp_servers`. Zmień jego nazwę na `mcpServers`, dodając te wpisy: Muse Code nie wczytuje żadnego, gdy oba są obecne.",
+  "anthropicCodecError": "Anthropic nie mógł przetworzyć tego żądania.",
+  "anthropicCodecPdfUnsupported": "Modele Anthropic nie obsługują danych wejściowych PDF.",
+  "anthropicCodecImageInvalid": "Obrazy dla Anthropic muszą używać adresu URL danych base64 z obsługiwanym typem obrazu.",
+  "anthropicCodecToolArgumentsInvalid": "Argumenty narzędzi Anthropic muszą być obiektem JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic nie obsługuje tego poziomu rozumowania.",
+  "anthropicCodecEmptyTurn": "Anthropic wymaga co najmniej jednej wiadomości.",
+  "anthropicCodecLimitExceeded": "Odpowiedź Anthropic przekroczyła limit dekodowania."
 }

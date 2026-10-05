@@ -17,11 +17,9 @@
 // codec rechecks the beta and the leaked-`final`-style surprises.
 //
 // Rules this codec owns:
-// - Breakpoints: one explicit `cache_control` breakpoint, TTL `5m` unless
-//   the caller injects `1h`. It sits on the last system block, or on the
-//   last tool when there is no system text: a system breakpoint caches the
-//   tools-plus-system prefix (the capture's tool loop read 2,054 tokens
-//   through one), and message blocks mutate every turn, so none is marked.
+// - Breakpoints: the system block and the request's last cacheable message
+//   block, rolling, with TTL `5m` unless the caller injects `1h`. Only the
+//   boundary marker moves; earlier content bytes remain stable (M95 tests).
 // - Thinking replay: a `thinking` or `redacted_thinking` block goes back
 //   byte for byte, first in its turn, only for the model that produced it
 //   and only while thinking is enabled. Anything else in a canonical
@@ -42,7 +40,17 @@
 
 import * as z from 'zod/mini'
 
-import { HTTP_TOO_MANY_REQUESTS, THINKING_OFF_EFFORT } from '../../../../shared/constants'
+import {
+  ANTHROPIC_MAX_ARGUMENT_BYTES,
+  ANTHROPIC_MAX_FRAME_BYTES,
+  ANTHROPIC_MAX_FRAMES,
+  ANTHROPIC_MAX_ITEM_BYTES,
+  ANTHROPIC_MAX_ITEMS,
+  ANTHROPIC_MAX_STREAM_BYTES,
+  HTTP_TOO_MANY_REQUESTS,
+  THINKING_OFF_EFFORT,
+} from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../client'
 import {
   type CreateResponseBody,
@@ -67,8 +75,17 @@ type AnthropicEffort = (typeof ANTHROPIC_EFFORTS)[number]
 const IMAGE_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
 const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 
+class AnthropicCodecError extends Error {
+  override readonly name = 'AnthropicCodecError'
+}
+
+/** Local errors read the installed language at the call, with stable technical codes. */
+function codecError(code: string, message = UI_TEXT.anthropicCodecError): Error {
+  return new AnthropicCodecError(`${message} (${code})`)
+}
+
 export interface AnthropicEncodeOptions {
-  /** The BYO model id (`anthropic/<id>` resolved by the registry); never `body.model`. */
+  /** The native model id (`<id>` resolved from `anthropic/<id>`); never `body.model`. */
   readonly model: string
   /** The preset's output cap for this model. */
   readonly maxTokens: number
@@ -119,6 +136,7 @@ export interface AnthropicTool {
 export interface AnthropicTextBlock {
   readonly type: 'text'
   readonly text: string
+  readonly cache_control?: AnthropicCacheControl
 }
 
 export interface AnthropicImageBlock {
@@ -128,6 +146,7 @@ export interface AnthropicImageBlock {
     readonly media_type: string
     readonly data: string
   }
+  readonly cache_control?: AnthropicCacheControl
 }
 
 export interface AnthropicToolUseBlock {
@@ -154,6 +173,7 @@ export interface AnthropicToolResultBlock {
   readonly type: 'tool_result'
   readonly tool_use_id: string
   readonly content: string | readonly (AnthropicTextBlock | AnthropicImageBlock)[]
+  readonly cache_control?: AnthropicCacheControl
 }
 
 export type AnthropicMessageBlock =
@@ -247,7 +267,7 @@ function anthropicEffort(effort: string): AnthropicEffort | undefined {
   if ((ANTHROPIC_EFFORTS as readonly string[]).includes(effort)) {
     return effort as AnthropicEffort
   }
-  throw new Error(`anthropic codec: unsupported reasoning effort ${JSON.stringify(effort)}`)
+  throw codecError('unsupported_reasoning_effort', UI_TEXT.anthropicCodecEffortUnsupported)
 }
 
 const DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/
@@ -256,10 +276,10 @@ function imageBlock(imageUrl: string): AnthropicImageBlock {
   const match = DATA_URL_PATTERN.exec(imageUrl)
   const mediaType = match?.[1]
   if (match === null || mediaType === undefined || match[2] === undefined) {
-    throw new Error('anthropic codec: image_url must be a base64 data URL')
+    throw codecError('invalid_image_url', UI_TEXT.anthropicCodecImageInvalid)
   }
   if (!(IMAGE_MEDIA_TYPES as readonly string[]).includes(mediaType)) {
-    throw new Error(`anthropic codec: unsupported image media type ${JSON.stringify(mediaType)}`)
+    throw codecError('unsupported_image_type', UI_TEXT.anthropicCodecImageInvalid)
   }
   return { type: 'image', source: { type: 'base64', media_type: mediaType, data: match[2] } }
 }
@@ -291,12 +311,10 @@ function toolUseBlock(
   try {
     input = JSON.parse(call.arguments) as unknown
   } catch {
-    throw new Error(`anthropic codec: tool ${JSON.stringify(call.name)} arguments are not JSON`)
+    throw codecError('invalid_tool_arguments_json', UI_TEXT.anthropicCodecToolArgumentsInvalid)
   }
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new Error(
-      `anthropic codec: tool ${JSON.stringify(call.name)} arguments are not an object`,
-    )
+    throw codecError('invalid_tool_arguments_object', UI_TEXT.anthropicCodecToolArgumentsInvalid)
   }
   const extras = toolExtras?.[call.call_id]
   return {
@@ -380,7 +398,7 @@ export function encodeAnthropicRequest(
               return [{ imageUrl: part.image_url }]
             }
             case 'input_file': {
-              throw new Error('anthropic codec: PDF input is not mapped for Anthropic models')
+              throw codecError('unsupported_pdf_input', UI_TEXT.anthropicCodecPdfUnsupported)
             }
           }
         })
@@ -445,26 +463,42 @@ export function encodeAnthropicRequest(
   }
   flushAssistant()
   if (messages.length === 0) {
-    throw new Error('anthropic codec: refusing to send a turn with no messages')
+    throw codecError('empty_turn', UI_TEXT.anthropicCodecEmptyTurn)
   }
 
   const tools = body.tools.filter((tool) => tool.type === 'function')
-  const breakpoint = { type: 'ephemeral' as const, ttl }
+  const breakpoint: AnthropicCacheControl = { type: 'ephemeral', ttl }
   const system =
     body.instructions === ''
       ? undefined
       : [{ type: 'text' as const, text: body.instructions, cache_control: breakpoint }]
-  // The breakpoint caches the tools-plus-system prefix (capture 08): on the
-  // last system block, or on the last tool when there is no system text.
   const nativeTools =
     tools.length === 0
       ? undefined
-      : tools.map((tool, index) => ({
+      : tools.map((tool) => ({
           name: tool.name,
           description: tool.description,
           input_schema: tool.parameters,
-          ...(system === undefined && index === tools.length - 1 && { cache_control: breakpoint }),
         }))
+  const nativeMessages = messages.map((message) => ({
+    role: message.role,
+    content:
+      typeof message.content === 'string'
+        ? [{ type: 'text' as const, text: message.content }]
+        : [...message.content],
+  }))
+  // Signed thinking cannot carry cache_control; it is replayed byte-exact.
+  // Select the final eligible block, without leaving old rolling markers.
+  for (const message of nativeMessages.toReversed()) {
+    const index = message.content.findLastIndex(
+      (block) => block.type !== 'thinking' && block.type !== 'redacted_thinking',
+    )
+    const last = message.content[index]
+    if (last !== undefined && last.type !== 'thinking' && last.type !== 'redacted_thinking') {
+      message.content[index] = { ...last, cache_control: breakpoint }
+      break
+    }
+  }
 
   return {
     path: ANTHROPIC_PATH,
@@ -476,7 +510,7 @@ export function encodeAnthropicRequest(
       model: options.model,
       max_tokens: options.maxTokens,
       ...(system !== undefined && { system }),
-      messages,
+      messages: nativeMessages,
       ...(nativeTools !== undefined && { tools: nativeTools }),
       ...(nativeTools !== undefined && { tool_choice: { type: 'auto' as const } }),
       stream: true,
@@ -499,6 +533,12 @@ const anthropicUsageSchema = z.object({
   input_tokens: z.number(),
   cache_creation_input_tokens: z.optional(z.number()),
   cache_read_input_tokens: z.optional(z.number()),
+  cache_creation: z.optional(
+    z.object({
+      ephemeral_5m_input_tokens: z.number(),
+      ephemeral_1h_input_tokens: z.number(),
+    }),
+  ),
   output_tokens: z.number(),
   output_tokens_details: z.optional(
     z.nullable(z.object({ thinking_tokens: z.optional(z.number()) })),
@@ -536,22 +576,22 @@ const contentBlockStartSchema = z.object({
 
 const textDeltaSchema = z.object({
   type: z.literal('text_delta'),
-  text: z.optional(z.string()),
+  text: z.string(),
 })
 
 const inputJsonDeltaSchema = z.object({
   type: z.literal('input_json_delta'),
-  partial_json: z.optional(z.string()),
+  partial_json: z.string(),
 })
 
 const thinkingDeltaSchema = z.object({
   type: z.literal('thinking_delta'),
-  thinking: z.optional(z.string()),
+  thinking: z.string(),
 })
 
 const signatureDeltaSchema = z.object({
   type: z.literal('signature_delta'),
-  signature: z.optional(z.string()),
+  signature: z.string(),
 })
 
 const contentBlockDeltaSchema = z.object({
@@ -585,18 +625,32 @@ function toUsage(usage: AnthropicUsage): Usage {
     usage.output_tokens,
     usage.cache_creation_input_tokens ?? 0,
     usage.cache_read_input_tokens ?? 0,
+    usage.cache_creation?.ephemeral_5m_input_tokens ?? 0,
+    usage.cache_creation?.ephemeral_1h_input_tokens ?? 0,
+    usage.output_tokens_details?.thinking_tokens ?? 0,
   ]) {
     if (!Number.isFinite(value) || value < 0) {
-      throw new Error('anthropic codec: refusing invalid usage counters')
+      throw codecError('invalid_usage_counters')
     }
   }
   const created = usage.cache_creation_input_tokens ?? 0
   const read = usage.cache_read_input_tokens ?? 0
+  const split = usage.cache_creation
+  if (
+    split !== undefined &&
+    split.ephemeral_5m_input_tokens + split.ephemeral_1h_input_tokens !== created
+  ) {
+    throw codecError('invalid_cache_write_split')
+  }
   return {
     input_tokens: usage.input_tokens + created + read,
     output_tokens: usage.output_tokens,
     total_tokens: usage.input_tokens + created + read + usage.output_tokens,
-    input_tokens_details: read === 0 && created === 0 ? {} : { cached_tokens: read },
+    input_tokens_details: {
+      ...(read !== 0 && { cached_tokens: read }),
+      ...(usage.cache_creation_input_tokens !== undefined && { cache_write_tokens: created }),
+      ...(split !== undefined && { cache_write_tokens_1h: split.ephemeral_1h_input_tokens }),
+    },
     ...(usage.output_tokens_details?.thinking_tokens !== undefined && {
       output_tokens_details: { reasoning_tokens: usage.output_tokens_details.thinking_tokens },
     }),
@@ -629,6 +683,8 @@ function stopOutcome(stopReason: string | null | undefined): StopOutcome {
 
 interface PendingBlock {
   kind: 'text' | 'tool_use' | 'thinking' | 'redacted' | 'other'
+  bytes: number
+  toolInputBytes: number
   text: string
   thinking: string
   signature: string
@@ -642,6 +698,8 @@ interface PendingBlock {
 function emptyBlock(): PendingBlock {
   return {
     kind: 'other',
+    bytes: 0,
+    toolInputBytes: 0,
     text: '',
     thinking: '',
     signature: '',
@@ -686,7 +744,7 @@ function startPendingBlock(
   if (raw.type === 'tool_use') {
     const tool = toolUseStartSchema.safeParse(raw)
     if (!tool.success) {
-      throw new Error('anthropic codec: refusing a tool_use block with no id or name')
+      throw codecError('malformed_tool_use_start')
     }
     const pending = emptyBlock()
     pending.kind = 'tool_use'
@@ -722,7 +780,7 @@ function startPendingBlock(
   if (raw.type === 'redacted_thinking') {
     const redacted = redactedStartSchema.safeParse(raw)
     if (!redacted.success) {
-      throw new Error('anthropic codec: refusing a redacted block with no data')
+      throw codecError('malformed_redacted_start')
     }
     const pending = emptyBlock()
     pending.kind = 'redacted'
@@ -737,16 +795,42 @@ function startPendingBlock(
   return { pending: emptyBlock(), added: undefined }
 }
 
+/** Check bytes before retaining a delta, including signature and tool arguments. */
+function appendBlock(
+  pending: PendingBlock,
+  field: 'text' | 'toolInput' | 'thinking' | 'signature',
+  value: string,
+): void {
+  const bytes = Buffer.byteLength(value, 'utf8')
+  if (field === 'toolInput' && pending.toolInputBytes + bytes > ANTHROPIC_MAX_ARGUMENT_BYTES) {
+    throw codecError('argument_limit', UI_TEXT.anthropicCodecLimitExceeded)
+  }
+  if (pending.bytes + bytes > ANTHROPIC_MAX_ITEM_BYTES) {
+    throw codecError('item_bytes_limit', UI_TEXT.anthropicCodecLimitExceeded)
+  }
+  pending.bytes += bytes
+  if (field === 'toolInput') pending.toolInputBytes += bytes
+  pending[field] += value
+}
+
 /** Fold one delta into its block, returning the canonical events for it. */
 function applyDelta(pending: PendingBlock, itemId: string, raw: DeltaWire): StreamEvent[] {
   if (raw.type === 'text_delta') {
-    const text = textDeltaSchema.safeParse(raw).data?.text ?? ''
-    pending.text += text
+    const parsed = textDeltaSchema.safeParse(raw)
+    if (!parsed.success || pending.kind !== 'text') {
+      throw codecError('malformed_text_delta')
+    }
+    const text = parsed.data.text
+    appendBlock(pending, 'text', text)
     return text === '' ? [] : [{ type: 'response.output_text.delta', item_id: itemId, delta: text }]
   }
   if (raw.type === 'input_json_delta') {
-    const fragment = inputJsonDeltaSchema.safeParse(raw).data?.partial_json ?? ''
-    pending.toolInput += fragment
+    const parsed = inputJsonDeltaSchema.safeParse(raw)
+    if (!parsed.success || pending.kind !== 'tool_use') {
+      throw codecError('malformed_input_json_delta')
+    }
+    const fragment = parsed.data.partial_json
+    appendBlock(pending, 'toolInput', fragment)
     return fragment === ''
       ? []
       : [
@@ -758,14 +842,22 @@ function applyDelta(pending: PendingBlock, itemId: string, raw: DeltaWire): Stre
         ]
   }
   if (raw.type === 'thinking_delta') {
-    const thinking = thinkingDeltaSchema.safeParse(raw).data?.thinking ?? ''
-    pending.thinking += thinking
+    const parsed = thinkingDeltaSchema.safeParse(raw)
+    if (!parsed.success || pending.kind !== 'thinking') {
+      throw codecError('malformed_thinking_delta')
+    }
+    const thinking = parsed.data.thinking
+    appendBlock(pending, 'thinking', thinking)
     return thinking === ''
       ? []
       : [{ type: 'response.reasoning_summary_text.delta', item_id: itemId, delta: thinking }]
   }
   if (raw.type === 'signature_delta') {
-    pending.signature += signatureDeltaSchema.safeParse(raw).data?.signature ?? ''
+    const parsed = signatureDeltaSchema.safeParse(raw)
+    if (!parsed.success || pending.kind !== 'thinking') {
+      throw codecError('malformed_signature_delta')
+    }
+    appendBlock(pending, 'signature', parsed.data.signature)
     return []
   }
   return []
@@ -782,6 +874,9 @@ export async function* decodeAnthropicStream(
   options: AnthropicDecodeOptions,
 ): AsyncGenerator<StreamEvent> {
   let messageId = ''
+  let streamBytes = 0
+  let frameCount = 0
+  let itemCount = 0
   let latestUsage: AnthropicUsage | undefined
   let stop: StopOutcome = { status: 'incomplete', reason: 'missing_stop_reason' }
   const output: OutputItem[] = []
@@ -791,7 +886,7 @@ export async function* decodeAnthropicStream(
   const block = (index: number): PendingBlock => {
     const found = blocks.get(index)
     if (found === undefined) {
-      throw new Error(`anthropic codec: delta for block ${String(index)} with no start`)
+      throw codecError('missing_block_start')
     }
     return found
   }
@@ -851,9 +946,7 @@ export async function* decodeAnthropicStream(
         try {
           JSON.parse(source)
         } catch {
-          throw new Error(
-            `anthropic codec: tool ${JSON.stringify(pending.toolName)} sent invalid JSON`,
-          )
+          throw codecError('invalid_tool_json')
         }
         const item: FunctionCallItem = {
           type: 'function_call',
@@ -881,21 +974,31 @@ export async function* decodeAnthropicStream(
   }
 
   for await (const frame of frames) {
+    const bytes =
+      Buffer.byteLength(frame.data, 'utf8') + Buffer.byteLength(frame.event ?? '', 'utf8')
+    if (bytes > ANTHROPIC_MAX_FRAME_BYTES) {
+      throw codecError('frame_bytes_limit', UI_TEXT.anthropicCodecLimitExceeded)
+    }
+    streamBytes += bytes
+    frameCount += 1
+    if (streamBytes > ANTHROPIC_MAX_STREAM_BYTES || frameCount > ANTHROPIC_MAX_FRAMES) {
+      throw codecError('stream_limit', UI_TEXT.anthropicCodecLimitExceeded)
+    }
     let data: unknown
     try {
       data = JSON.parse(frame.data)
     } catch {
-      throw new Error('anthropic codec: refusing a non-JSON stream frame')
+      throw codecError('non_json_frame')
     }
     const kind = frameTypeSchema.safeParse(data)
     if (!kind.success) {
-      throw new Error('anthropic codec: refusing a stream frame with no type')
+      throw codecError('missing_frame_type')
     }
     switch (kind.data.type) {
       case 'message_start': {
         const parsed = messageStartSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed message_start')
+          throw codecError('malformed_message_start')
         }
         messageId = parsed.data.message.id
         if (parsed.data.message.usage !== undefined) {
@@ -914,9 +1017,14 @@ export async function* decodeAnthropicStream(
       case 'content_block_start': {
         const parsed = contentBlockStartSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed content_block_start')
+          throw codecError('malformed_content_block_start')
+        }
+        itemCount += 1
+        if (itemCount > ANTHROPIC_MAX_ITEMS) {
+          throw codecError('item_count_limit', UI_TEXT.anthropicCodecLimitExceeded)
         }
         const started = startPendingBlock(parsed.data.content_block, blockItemId(parsed.data.index))
+        started.pending.bytes = Buffer.byteLength(JSON.stringify(parsed.data.content_block), 'utf8')
         blocks.set(parsed.data.index, started.pending)
         if (started.added !== undefined) {
           yield started.added
@@ -926,7 +1034,7 @@ export async function* decodeAnthropicStream(
       case 'content_block_delta': {
         const parsed = contentBlockDeltaSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed content_block_delta')
+          throw codecError('malformed_content_block_delta')
         }
         const pending = block(parsed.data.index)
         // Any other delta shape is tolerated and ignored (rule 13: the wire
@@ -937,7 +1045,7 @@ export async function* decodeAnthropicStream(
       case 'content_block_stop': {
         const parsed = contentBlockStopSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed content_block_stop')
+          throw codecError('malformed_content_block_stop')
         }
         yield* finishBlock(parsed.data.index)
         continue
@@ -945,11 +1053,11 @@ export async function* decodeAnthropicStream(
       case 'message_delta': {
         const parsed = messageDeltaSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed message_delta')
+          throw codecError('malformed_message_delta')
         }
         stop = stopOutcome(parsed.data.delta.stop_reason)
         if (parsed.data.usage !== undefined) {
-          latestUsage = parsed.data.usage
+          latestUsage = { ...latestUsage, ...parsed.data.usage }
         }
         continue
       }
@@ -958,7 +1066,7 @@ export async function* decodeAnthropicStream(
           yield* finishBlock(index)
         }
         if (messageId === '') {
-          throw new Error('anthropic codec: stream ended with no message_start')
+          throw codecError('missing_message_start')
         }
         const usage = latestUsage === undefined ? undefined : toUsage(latestUsage)
         const response = emptyResponse(messageId, options.model, output, usage)
@@ -982,7 +1090,7 @@ export async function* decodeAnthropicStream(
       case 'error': {
         const parsed = streamErrorSchema.safeParse(data)
         if (!parsed.success) {
-          throw new Error('anthropic codec: refusing a malformed stream error')
+          throw codecError('malformed_stream_error')
         }
         yield {
           type: 'error',
@@ -997,7 +1105,7 @@ export async function* decodeAnthropicStream(
       }
     }
   }
-  throw new Error('anthropic codec: stream ended with no message_stop')
+  throw codecError('missing_message_stop')
 }
 
 function emptyResponse(
@@ -1057,7 +1165,7 @@ export interface AnthropicListedModel {
 export function parseAnthropicModelsList(body: unknown): AnthropicListedModel[] {
   const parsed = anthropicModelsListSchema.safeParse(body)
   if (!parsed.success) {
-    throw new Error('anthropic codec: refusing a models list of unknown shape')
+    throw codecError('invalid_models_list')
   }
   return parsed.data.data.map((entry) => ({
     id: entry.id,

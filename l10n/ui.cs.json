@@ -1962,5 +1962,12 @@
   "agentImportIgnoredToTracked": "tím by se soubor ignorovaný Gitem zkopíroval do sledovaného souboru",
   "agentImportEditPrompt": "Otevřít převedené položky v {path} jako neuloženou úpravu ke kontrole a uložení? Uložte ji pouze do této cesty, nikdy do jiného souboru.",
   "agentImportEditAction": "Upravit a otevřít soubor",
-  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden."
+  "agentImportPreviewLegacyKey": "Soubor používá starý klíč `mcp_servers`. Při přidávání těchto položek jej přejmenujte na `mcpServers`: když jsou přítomny oba, Muse Code nenačte ani jeden.",
+  "anthropicCodecError": "Anthropic nemohl zpracovat tento požadavek.",
+  "anthropicCodecPdfUnsupported": "Modely Anthropic nepodporují vstup ve formátu PDF.",
+  "anthropicCodecImageInvalid": "Obrázky pro Anthropic musí používat datovou URL v base64 s podporovaným typem obrázku.",
+  "anthropicCodecToolArgumentsInvalid": "Argumenty nástroje Anthropic musí být objekt JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic tuto úroveň uvažování nepodporuje.",
+  "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
+  "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování."
 }

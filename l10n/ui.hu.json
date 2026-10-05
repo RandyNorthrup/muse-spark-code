@@ -1830,5 +1830,12 @@
   "agentImportIgnoredToTracked": "ez Git által figyelmen kívül hagyott fájlt másolna egy követett fájlba",
   "agentImportEditPrompt": "Megnyitja az átalakított bejegyzéseket itt: {path}, nem mentett módosításként, ellenőrzésre és mentésre? Csak erre az útvonalra mentse, soha ne másik fájlba.",
   "agentImportEditAction": "Fájl szerkesztése és megnyitása",
-  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be."
+  "agentImportPreviewLegacyKey": "A fájl az elavult `mcp_servers` kulcsot használja. Ezek hozzáadásakor nevezze át `mcpServers` névre: ha mindkettő jelen van, a Muse Code egyiket sem tölti be.",
+  "anthropicCodecError": "Az Anthropic nem tudta feldolgozni ezt a kérést.",
+  "anthropicCodecPdfUnsupported": "Az Anthropic modellek nem támogatják a PDF-bemenetet.",
+  "anthropicCodecImageInvalid": "Az Anthropic képekhez támogatott képtípusú base64 adat-URL szükséges.",
+  "anthropicCodecToolArgumentsInvalid": "Az Anthropic eszközargumentumainak JSON-objektumnak kell lenniük.",
+  "anthropicCodecEffortUnsupported": "Az Anthropic nem támogatja ezt a gondolkodási szintet.",
+  "anthropicCodecEmptyTurn": "Az Anthropic legalább egy üzenetet igényel.",
+  "anthropicCodecLimitExceeded": "Az Anthropic válasza túllépte a dekódolási korlátot."
 }

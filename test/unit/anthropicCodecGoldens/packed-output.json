@@ -4,7 +4,7 @@
     "anthropic-version": "2023-06-01"
   },
   "body": {
-    "model": "anthropic/claude-sonnet-5-5",
+    "model": "claude-sonnet-5-5",
     "max_tokens": 256,
     "system": [
       {
@@ -19,7 +19,12 @@
     "messages": [
       {
         "role": "user",
-        "content": "What time is it in UTC? Call get_time."
+        "content": [
+          {
+            "type": "text",
+            "text": "What time is it in UTC? Call get_time."
+          }
+        ]
       },
       {
         "role": "assistant",
@@ -53,7 +58,11 @@
                   "data": "iVBORw0KGgo="
                 }
               }
-            ]
+            ],
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
+            }
           }
         ]
       }

@@ -1830,5 +1830,12 @@
   "agentImportIgnoredToTracked": "dadurch würde eine von Git ignorierte Datei in eine versionierte Datei kopiert",
   "agentImportEditPrompt": "Konvertierte Einträge in {path} als ungespeicherte Änderung zum Prüfen und Speichern öffnen? Speichern Sie sie nur unter diesem Pfad, nie in einer anderen Datei.",
   "agentImportEditAction": "Datei bearbeiten und öffnen",
-  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind."
+  "agentImportPreviewLegacyKey": "Die Datei verwendet den veralteten Schlüssel `mcp_servers`. Benennen Sie ihn in `mcpServers` um, wenn Sie diese hinzufügen: Muse Code lädt keinen von beiden, wenn beide vorhanden sind.",
+  "anthropicCodecError": "Anthropic konnte diese Anfrage nicht verarbeiten.",
+  "anthropicCodecPdfUnsupported": "PDF-Eingaben werden von Anthropic-Modellen nicht unterstützt.",
+  "anthropicCodecImageInvalid": "Bilder für Anthropic müssen eine Base64-Daten-URL mit einem unterstützten Bildtyp verwenden.",
+  "anthropicCodecToolArgumentsInvalid": "Werkzeugargumente für Anthropic müssen ein JSON-Objekt sein.",
+  "anthropicCodecEffortUnsupported": "Diese Denkintensität wird von Anthropic nicht unterstützt.",
+  "anthropicCodecEmptyTurn": "Anthropic benötigt mindestens eine Nachricht.",
+  "anthropicCodecLimitExceeded": "Die Antwort von Anthropic hat ein Dekodierungslimit überschritten."
 }

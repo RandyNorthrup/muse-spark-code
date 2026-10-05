@@ -1764,5 +1764,12 @@
   "agentImportIgnoredToTracked": "这会将 Git 忽略的文件复制到受跟踪的文件中",
   "agentImportEditPrompt": "将转换后的条目在 {path} 中作为未保存的编辑打开，以供检查和保存？请只保存到该路径，切勿保存到其他文件。",
   "agentImportEditAction": "编辑并打开文件",
-  "agentImportPreviewLegacyKey": "该文件使用旧版 `mcp_servers` 键。添加这些条目时请将其重命名为 `mcpServers`：两者同时存在时 Muse Code 都不会加载。"
+  "agentImportPreviewLegacyKey": "该文件使用旧版 `mcp_servers` 键。添加这些条目时请将其重命名为 `mcpServers`：两者同时存在时 Muse Code 都不会加载。",
+  "anthropicCodecError": "Anthropic 无法处理此请求。",
+  "anthropicCodecPdfUnsupported": "Anthropic 模型不支持 PDF 输入。",
+  "anthropicCodecImageInvalid": "Anthropic 图像必须使用受支持图像类型的 base64 数据 URL。",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic 工具参数必须是 JSON 对象。",
+  "anthropicCodecEffortUnsupported": "Anthropic 不支持此推理级别。",
+  "anthropicCodecEmptyTurn": "Anthropic 至少需要一条消息。",
+  "anthropicCodecLimitExceeded": "Anthropic 响应超出了一个解码限制。"
 }

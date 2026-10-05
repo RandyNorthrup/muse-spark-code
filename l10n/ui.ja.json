@@ -1764,5 +1764,12 @@
   "agentImportIgnoredToTracked": "Gitで無視されたファイルを追跡対象のファイルにコピーすることになります",
   "agentImportEditPrompt": "変換した項目を {path} に未保存の編集として開き、確認して保存しますか？保存先はそのパスだけにし、別のファイルには保存しないでください。",
   "agentImportEditAction": "ファイルを編集して開く",
-  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。"
+  "agentImportPreviewLegacyKey": "ファイルは古い `mcp_servers` キーを使用しています。これらを追加するときに `mcpServers` に名前を変更してください。両方あると Muse Code はどちらも読み込みません。",
+  "anthropicCodecError": "Anthropic はこのリクエストを処理できませんでした。",
+  "anthropicCodecPdfUnsupported": "Anthropic モデルは PDF 入力に対応していません。",
+  "anthropicCodecImageInvalid": "Anthropic の画像には、対応する画像形式の base64 データ URL を使用する必要があります。",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic のツール引数は JSON オブジェクトである必要があります。",
+  "anthropicCodecEffortUnsupported": "Anthropic はこの推論レベルに対応していません。",
+  "anthropicCodecEmptyTurn": "Anthropic には少なくとも 1 件のメッセージが必要です。",
+  "anthropicCodecLimitExceeded": "Anthropic の応答がデコードの上限を超えました。"
 }

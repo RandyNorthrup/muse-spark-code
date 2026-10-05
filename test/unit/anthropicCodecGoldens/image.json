@@ -4,7 +4,7 @@
     "anthropic-version": "2023-06-01"
   },
   "body": {
-    "model": "anthropic/claude-sonnet-5-5",
+    "model": "claude-sonnet-5-5",
     "max_tokens": 256,
     "system": [
       {
@@ -30,6 +30,10 @@
               "type": "base64",
               "media_type": "image/png",
               "data": "iVBORw0KGgo="
+            },
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
             }
           }
         ]

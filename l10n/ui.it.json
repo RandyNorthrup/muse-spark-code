@@ -1896,5 +1896,12 @@
   "agentImportIgnoredToTracked": "questo copierebbe un file ignorato da Git in un file tracciato",
   "agentImportEditPrompt": "Aprire le voci convertite in {path} come modifica non salvata da controllare e salvare? Salvarla solo in quel percorso, mai in un altro file.",
   "agentImportEditAction": "Modifica e apri il file",
-  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe."
+  "agentImportPreviewLegacyKey": "Il file usa la vecchia chiave `mcp_servers`. Rinominala in `mcpServers` quando aggiungi questi: Muse Code non carica nessuna delle due se sono presenti entrambe.",
+  "anthropicCodecError": "Anthropic non ha potuto elaborare questa richiesta.",
+  "anthropicCodecPdfUnsupported": "I modelli Anthropic non supportano gli input PDF.",
+  "anthropicCodecImageInvalid": "Le immagini per Anthropic devono usare un URL dati base64 con un tipo di immagine supportato.",
+  "anthropicCodecToolArgumentsInvalid": "Gli argomenti degli strumenti Anthropic devono essere un oggetto JSON.",
+  "anthropicCodecEffortUnsupported": "Anthropic non supporta questo livello di ragionamento.",
+  "anthropicCodecEmptyTurn": "Anthropic richiede almeno un messaggio.",
+  "anthropicCodecLimitExceeded": "La risposta di Anthropic ha superato un limite di decodifica."
 }

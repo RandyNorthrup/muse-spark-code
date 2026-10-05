@@ -3796,3 +3796,12 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
+
+// M95: provider-controlled Anthropic decoding is bounded before JSON parsing
+// and before retaining each block, even when the provider ignores token caps.
+export const ANTHROPIC_MAX_FRAME_BYTES = 256 * 1024
+export const ANTHROPIC_MAX_STREAM_BYTES = 16 * 1024 * 1024
+export const ANTHROPIC_MAX_ARGUMENT_BYTES = 1024 * 1024
+export const ANTHROPIC_MAX_ITEM_BYTES = 4 * 1024 * 1024
+export const ANTHROPIC_MAX_ITEMS = 1024
+export const ANTHROPIC_MAX_FRAMES = 65_536

@@ -1830,5 +1830,12 @@
   "agentImportIgnoredToTracked": "bu, Git tarafından yok sayılan bir dosyayı izlenen bir dosyaya kopyalar",
   "agentImportEditPrompt": "Dönüştürülen girdiler {path} içinde inceleyip kaydetmeniz için kaydedilmemiş bir düzenleme olarak açılsın mı? Yalnızca bu yola kaydedin, asla başka bir dosyaya kaydetmeyin.",
   "agentImportEditAction": "Dosyayı düzenle ve aç",
-  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez."
+  "agentImportPreviewLegacyKey": "Dosya eski `mcp_servers` anahtarını kullanıyor. Bunları eklerken adını `mcpServers` olarak değiştirin: ikisi birden olduğunda Muse Code hiçbirini yüklemez.",
+  "anthropicCodecError": "Anthropic bu isteği işleyemedi.",
+  "anthropicCodecPdfUnsupported": "Anthropic modelleri PDF girdisini desteklemiyor.",
+  "anthropicCodecImageInvalid": "Anthropic görüntüleri, desteklenen bir görüntü türüyle base64 veri URL’si kullanmalıdır.",
+  "anthropicCodecToolArgumentsInvalid": "Anthropic araç bağımsız değişkenleri bir JSON nesnesi olmalıdır.",
+  "anthropicCodecEffortUnsupported": "Anthropic bu akıl yürütme düzeyini desteklemiyor.",
+  "anthropicCodecEmptyTurn": "Anthropic en az bir ileti gerektirir.",
+  "anthropicCodecLimitExceeded": "Anthropic yanıtı bir kod çözme sınırını aştı."
 }

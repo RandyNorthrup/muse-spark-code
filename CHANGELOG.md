@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Harden the pending Anthropic provider codec: bound stream accumulation,
+  reject malformed deltas, preserve cache-write usage and TTL counts, apply
+  rolling cache breakpoints, and translate local errors. Native request
+  goldens and the codec bundle exclusion guard cover the review regressions.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed

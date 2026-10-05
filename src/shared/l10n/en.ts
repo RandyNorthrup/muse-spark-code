@@ -2282,6 +2282,15 @@ export const EN = {
   exportThenRunLabel: 'Then ran:',
   // {command}: the then_run command; {outcome}: why it did not run.
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
+  // M95: locally authored Anthropic errors; protocol identifiers remain technical.
+  anthropicCodecError: 'Anthropic could not process this request.',
+  anthropicCodecPdfUnsupported: 'PDF input is not supported for Anthropic models.',
+  anthropicCodecImageInvalid:
+    'Anthropic images must use a base64 data URL with a supported image type.',
+  anthropicCodecToolArgumentsInvalid: 'Anthropic tool arguments must be a JSON object.',
+  anthropicCodecEffortUnsupported: 'This reasoning effort is not supported by Anthropic.',
+  anthropicCodecEmptyTurn: 'Anthropic requires at least one message.',
+  anthropicCodecLimitExceeded: 'The Anthropic response exceeded a decoding limit.',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
