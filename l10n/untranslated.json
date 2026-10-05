@@ -102,7 +102,10 @@
       "toolLabels.find_definition",
       "toolLabels.mcp__ide__findDefinition",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamTemplateSolo",
+      "teamIntensityLevels.minimal",
+      "teamIntensityLevels.max"
     ],
     "es": [
       "usagePlan",
@@ -138,7 +141,10 @@
       "toolLabels.mcp__ide__generateImage",
       "workflowChildUntitled",
       "agentImportKindHook",
-      "agentImportKindAgent"
+      "agentImportKindAgent",
+      "teamTemplateSolo",
+      "teamIntensityLevels.minimal",
+      "teamIntensityLevels.max"
     ],
     "it": [
       "usageAccount",
@@ -149,7 +155,7 @@
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
-    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook"]
+    "hu": ["toolLabels.shell", "imageBuyPrompt", "agentImportKindHook", "teamIntensityLevels.max"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
