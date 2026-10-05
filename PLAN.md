@@ -4232,8 +4232,10 @@ every fact, is `docs/certification/m96-research.md`.
       `ProviderRegistry.clientFor`, as M95's draft names it): by key, by a
       subscription sign-in (ChatGPT; Copilot's models through
       `vscode.lm`), through OpenRouter, or on a local server.
-    - **Muse Code agents.** A hidden session in the window's `muse serve`,
-      as M90's reviewer is, paid by the Muse subscription.
+    - **Muse Code agents.** A hidden session in the window's team host: a
+      `muse serve` that the team starts through its own launcher, apart
+      from the one the conversation uses (Scheduler and traffic). It is paid
+      by the Muse subscription.
     - **External agents.** An agent CLI the user installed, run over ACP:
       Claude Code, Codex, Gemini CLI, Cline, Goose and others. It is paid
       however that CLI is paid, the user's own plan or key.
@@ -4564,6 +4566,11 @@ every fact, is `docs/certification/m96-research.md`.
   - It is set only by the user, per role, in the wizard, after a
     confirmation that says the worker will write in their own tree.
     Never by a repository, a project role or a template.
+  - It is offered only where the window can prove that every process a task
+    started has ended: Windows' job, or a Linux user cgroup scope
+    (Scheduler and traffic). On macOS, and on Linux without a user scope, a
+    detached grandchild could still write in the user's tree after its
+    task ended, so `in-place` is not offered there.
   - The task starts only when no other writing task runs.
   - While it runs, the orchestrator's tools that can write are refused at
     call admission ("a worker is writing in place"): edits,
@@ -5952,8 +5959,11 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       - `ps` gives start times to the second only;
       - a process can be created before it is recorded;
       - a user's mistaken confirmation could let two writers overlap.
-    - **The lead's decision.** No cross-process liveness proof sits on any
-      safety path in the first release:
+    - **The lead's decision.** No proof that another process is alive or
+      gone sits on any safety path in the first release. A window judges
+      only its own children, and every descendant's end is proved only by
+      Windows' job or a Linux user cgroup scope; elsewhere it is the user's
+      decision, named as a residual (round 4, `RVM96C3`):
       - **one window, one scheduler:** the board, leases, write-set
         serialization, the merge queue and landing live in one extension
         host, in memory and in a durable journal of its own;
@@ -5996,23 +6006,35 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       - **a local server:** its loaded-model answer names the model, for
         example Ollama's running models, or LM Studio's model state
         `loaded`. A server that serves one model names that model;
-      - **an external agent:** it is found on the PATH and answers
-        `initialize`. If the entry names a model, the model must also be
-        among the agent's model options, read during setup.
+      - **an external agent:** it is found on the PATH, answers
+        `initialize`, and its **selected** model is known and is the entry's
+        model. At setup the extension sets the agent's `model` config option
+        to the entry's model and reads the current value back. A model that
+        is only offered, an agent that reports no model, or an entry that
+        names none never counts as a second model.
 
       No probe is a model call.
 
     - **Probes never touch a conversation.** A conversation's mode is
       decided from the latest probe results already known. An entry with
       no result yet is not ready. No conversation starts a probe, waits for
-      one, or sends anything extra because of one. Probes run only:
+      one, or sends anything extra because of one.
+    - **Probes are setup traffic, and only a team's.** They run only:
       - when the user saves or tests an entry, in the Roles section;
-      - in the background, when the panel first opens in a workspace that
-        has a distinct custom entry, with `museSpark.team` on and the
-        workspace not on Solo.
+      - once per window, when the panel first opens, in a workspace where
+        the user has saved a distinct custom entry and left **Check the
+        team's models when this window opens** on (a Roles-section setting,
+        on once such an entry is saved). `museSpark.team` must be on, and
+        the workspace not on Solo.
 
-      A workspace with no distinct custom entry runs no probe at all. Its
-      check is a read of workspace state in the activation bundle.
+      Configuring a second model is what authorizes this traffic.
+
+    - **The zero-traffic baseline.** A workspace with no distinct custom
+      entry, with Solo, or with the team off sends nothing for the team at
+      any time: no probe, no `initialize`, no process. Its check is a read
+      of workspace state in the activation bundle. In a team workspace, the
+      only extra traffic is the declared probes above, none of it tied to a
+      send.
 
     - **What is off,** completely:
       - the `team` MCP server is not registered: Muse Code's
@@ -6225,24 +6247,46 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       - **an external agent:** its `session/prompt` has answered, then the
         extension ends the agent's process tree, which it started, and the
         tree has exited.
-      - **Exited** is observed inside the window, never across processes:
-        the window spawned the process, so it sees the child's own exit,
+      - **Exited** is observed inside the window, never across processes.
+        The window spawned the process, so it sees the child's own exit,
         and the tree's end through its container (Process lifetime, below).
+      - **Three different events.** A direct child's exit, a process group's
+        shutdown, and the retirement of every descendant are not the same.
+        Only the last retires an attempt:
+        - **proved** on Windows, when the job's active process count is
+          zero, and on Linux with a user cgroup scope, when the scope's
+          `cgroup.events` reads `populated 0`;
+        - **not provable** on macOS or on Linux without a user scope. A
+          descendant that called `setsid` leaves the process group, so the
+          group's end proves nothing about it.
       - **The escalation is bounded.** The extension waits up to
         `TEAM_RETIRE_WAIT_MS` (30 seconds) for the terminal events, then
         ends what it can: the session, the read-only host, the agent's
-        tree. A Muse Code worker on the shared `muse serve` cannot be killed
-        alone; if it is still not terminal, its attempt is **uncertain**.
-      - **An uncertain attempt** keeps its lanes and leases counted, and
-        its working copy is never reused while it is uncertain. The task
-        turns `blocked` ("the earlier attempt has not stopped"), with two
-        ways out:
-        - **Restart Muse Code**, which ends this window's `muse serve` and
-          every session in it, after a confirmation that names them. Its
-          exit retires the attempt, and the task continues;
-        - **Hand off anyway**, which starts the next attempt in a fresh
-          working copy from the last checkpoint commit, and quarantines the
-          old copy. Anything written there later is discarded, with a note.
+        tree, the team host. If an attempt is still not terminal, or its
+        descendants cannot be proved gone, it is **uncertain**.
+      - **An uncertain attempt** keeps its process slots counted, and its
+        working copy is never reused while it is uncertain. Its launches
+        stay in recovery's search, even those whose direct child ended. The
+        task turns `blocked` ("the earlier attempt has not stopped"), with
+        these ways out:
+        - **Restart the team host**, which ends the window's team `muse
+serve` and every worker session in it, after a confirmation that
+          names them. The conversation's own Muse Code host is untouched.
+          Where the platform proves retirement, the attempt is then retired
+          and the task continues;
+        - **Continue anyway** (macOS, and Linux without a user scope). The
+          user decides that the earlier attempt has stopped. This is
+          recorded as the user's decision, not as proof, and the README
+          names the residual;
+        - **Hand off anyway**, offered only when the replacement can be
+          admitted: a slot is free while the old attempt's process slot
+          stays counted, and every exclusive resource the replacement needs
+          is free. The task's write-set lease passes to the new attempt,
+          because it is the same task and the old copy is quarantined, so
+          the old copy's writes can never land. Anything written there later
+          is discarded, with a note. When no slot is free, the card names
+          the limit and offers **Raise a limit…** and **Restart the team
+          host** instead.
     - **Stalls, reassignment and the handoff.**
       - **A stall** is one of:
         - `noProgress`: no worker event for `TEAM_STALL_MS` (10 minutes).
@@ -6563,26 +6607,50 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       other's hints.
   - **Process lifetime: workers die with their window.**
     - **Every child runs in the window's process-lifetime container.**
-      That covers every worker process, external agent, read-only Muse Code
-      host, worker or check command and MCP server the team starts:
-      - **Windows:** a job with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, as
-        M27's `MuseSparkMcpJob.cs` makes. The job helper holds the job and
-        waits on the extension host's process handle, so when the host ends,
-        the helper ends, the job closes and the operating system ends the
-        whole tree;
-      - **Linux:** a process group of its own, ended on dispose (`SIGTERM`,
-        then `SIGKILL` after `TEAM_KILL_GRACE_MS`, 5 seconds). The direct
-        child also starts under `PR_SET_PDEATHSIG` (`SIGKILL`) through
-        `setpriv --pdeathsig` where that is installed, so it dies with the
-        extension host even in a hard crash;
+      That covers every worker process, external agent, the team host,
+      the read-only Muse Code host, worker and check commands, and the MCP
+      servers the team starts:
+      - **Windows:** a job with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` and no
+        breakaway, as `MuseSparkMcpJob.cs` makes it: the owner's handle is
+        bound with its READY and GO handshake, and the child is created
+        suspended and assigned before it resumes. The job helper waits on
+        the extension host's process handle, so when the host ends, the job
+        closes and the operating system ends the whole tree. The job's
+        active process count proves when every descendant has ended. Never
+        M27's `taskkill` fallback;
+      - **Linux with a user cgroup scope:** each launch runs in a transient
+        scope of its own, `systemd-run --user --scope --collect`, named for
+        the launch id, inside the user's delegated cgroup v2 tree. A
+        descendant cannot leave it by `setsid`. Ending the scope ends every
+        process in it, and `populated 0` proves they are gone;
+      - **Linux without one** (no systemd user session, cgroup v1, some
+        containers and WSL1): a process group of its own, ended on dispose
+        (`SIGTERM`, then `SIGKILL` after `TEAM_KILL_GRACE_MS`, 5 seconds),
+        and `setpriv --pdeathsig KILL` for the direct child where installed;
       - **macOS:** a process group of its own, ended on dispose the same way.
-    - **The honest limits.**
-      - macOS has no parent-death signal, so a hard crash of the extension
-        host can leave a child running.
-      - On Linux, `PR_SET_PDEATHSIG` reaches only the direct child, so a
-        grandchild can survive a hard crash. The same is true without
-        `setpriv`.
-      - Recovery handles both (below), and the README says so.
+    - **The honest limits, each a named residual.**
+      - **A detached descendant.** On macOS, and on Linux without a user
+        scope, a descendant that calls `setsid` leaves the process group.
+        It can outlive its task even after a clean dispose. Its attempt
+        stays uncertain until the user continues, and `in-place` is not
+        offered there (D75).
+      - **A hard crash** of the extension host on macOS leaves its children
+        running: there is no parent-death signal.
+      - **The parent-death signal** reaches only the direct child, is cleared
+        in a forked child, and is armed only once `setpriv` runs. A host
+        that dies after the spawn but before the arming leaves that child
+        running too. The launch intent lets recovery find it.
+      - **Windows' job** does not hold a process created through a broker,
+        such as `Win32_Process.Create`.
+      - None of these is an OS sandbox. Recovery handles what it can find
+        (below), and the README says so.
+    - **The team host.** On Muse Code, team workers never use the
+      conversation's `muse serve`, which may predate the team and is not in
+      its container. The team starts a host of its own through the launcher
+      when the first team conversation needs one, so it is journalled and
+      contained from its first instant. The user's conversation and its
+      sessions are untouched, and **Restart the team host** ends only
+      workers.
     - **Every launch is journalled before it starts.**
       1. **The intent.** The journal records the launch: its id, its
          command, its folder and its task. The record is written and
@@ -6592,16 +6660,36 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       3. **The confirmation.** Right after the spawn, the journal records
          the process id, its process group, and its start time as the OS
          reports it.
-      4. **The end.** The child's exit is recorded.
+      4. **The end.** The child's exit is recorded, and separately whether
+         every descendant was proved gone.
 
       A crash between any two steps leaves an intent or a confirmation with
-      no end. That is what recovery looks for. So no launch can go
-      unrecorded (`RVM96C2` finding 2).
+      no end. A launch whose child ended without proof that its descendants
+      did is kept open too. Recovery looks for both. So no launch goes
+      unrecorded (`RVM96C2` finding 2), though a descendant that drops the
+      launch marker from its environment can still go unfound (a residual).
 
+    - **Window identity.** A window's identity is the instance id it draws
+      at activation, with the time it started. A journal is owned by the
+      instance that wrote it.
+      - **Proven gone** means one of two things:
+        - the same window's identity with a newer start: a later
+          activation in the very window that wrote the journal;
+        - an explicit user action, recorded as the user's decision.
+      - **The same window, newer start.** VS Code gives an extension no
+        window identity that survives a reload and differs between
+        duplicate windows. Step 1 of M96c captures whether
+        `vscode.env.sessionId`, or the view's restored webview state, is
+        such an identity. Until a capture shows one, only the user's action
+        proves a journal's owner gone.
+      - **Read-only until then.** Any journal whose owner might be live is
+        read-only to every other window. Another window never writes it,
+        and never commits, moves, removes or discards its working copies or
+        its `agents/` refs.
     - **Recovery after a crash.** When a window opens a workspace whose
       storage holds another window instance's journal, with launches that
-      have no recorded end, it looks for orphans. It never ends one on its
-      own.
+      have no recorded end, or no proof that their descendants ended, it
+      looks for orphans. It never ends one on its own.
       - **Finding them, best effort, on Linux and macOS:** processes of
         this user whose environment holds a launch id from that journal
         (Linux `/proc/<pid>/environ`; macOS `ps -E`), or whose process id
@@ -6621,12 +6709,27 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       - **Windows** needs no orphan search: the job ended the tree with the
         window.
       - **The other window may still be open.** Another window instance's
-        journal may belong to a live duplicate window. If its hint (below)
-        is fresh, the panel says so and suggests **Open that window**.
-        Recovery never touches its working copies: **Resume** starts each
-        interrupted task in a fresh working copy, seeded from a commit of
-        the old copy's state, and the old copy is quarantined until the
-        user cleans it up.
+        journal may belong to a live duplicate window, with a missing or
+        stale hint. So recovery offers only actions that leave that
+        window's material as it is:
+        - **Open that window**, when a hint names it;
+        - **Continue here as a new task.** A new task, owned by this window,
+          starts in a fresh working copy from the old task's last commit,
+          which is immutable. The old task keeps its id, its copy, its
+          branch and its journal row, untouched. **Include its uncommitted
+          edits** reads a snapshot of the old copy through a temporary index:
+          a read, never a write.
+        - **Take over** (the user's action, which proves the owner gone for
+          this journal): only then does this window mark the old task
+          interrupted in its own records, and offer to discard the old copy
+          and branch. The card says that if the other window is still open,
+          its task breaks.
+      - **A native session is not moved.** Muse Code's `session/resume`
+        takes no new workspace path (`MuseCodeHost.ts`), so a recovered
+        Muse Code or external task starts a new session from the handoff
+        brief in the new copy. An ACP agent's `session/load` with a new
+        `cwd` is used only if step 1 captures it. An engine worker's stored
+        session is rebound to the new copy by the extension itself.
     - **The cost of an orphan** is the machine's time, and perhaps a
       singleton it holds, such as a browser connection. It never reaches the
       user's tree, because its working copy is quarantined, and landing is
@@ -6640,11 +6743,16 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       (`TEAM_LEASE_IDLE_MS`, 120 seconds) is counted from the last call's
       terminal answer, never from its start (`RVM96C2` finding 5).
     - **A cancelled call is not finished.** MCP lets a server ignore a
-      cancellation it cannot honour. So a call cancelled by **Take back**,
-      a lost workspace trust or a stopped task keeps the lease until it
-      answers. If it never answers, the lease holds until the server's
-      process is ended and has exited, which the panel offers as **Restart
-      server**.
+      cancellation it cannot honour, and recommends no answer when it
+      honours one. So a call cancelled by **Take back**, a lost workspace
+      trust or a stopped task keeps the lease until it answers:
+      - **a server the window started** (stdio): **Restart server** ends its
+        process, and the lease is released once it has exited;
+      - **a remote server** (streamable HTTP), whose process the window does
+        not own and cannot see end: the lease stays held. **Release anyway**
+        releases it as the user's decision, not as proof, and the card says
+        that the earlier call may still be acting on the resource (a named
+        residual). Closing the protocol session is not offered as proof.
   - **Across windows: hints, never locks.**
     - **What a window publishes.** A small hint file,
       `<state home>/muse-spark-code/hints/<window instance>.json`, rewritten
@@ -6673,6 +6781,14 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
         **Wait** (until the hint drops the server) or **Open that window**.
         A hint is fresh when it is younger than `TEAM_HINT_FRESH_MS` (60
         seconds).
+      - **One question per collision.** An answer holds for the collision
+        it answered: the other window, the repository and the paths (or the
+        server). Hints rewritten with the same collision ask nothing new.
+        The answer lapses when that window's hint drops the paths or the
+        server, or this window closes. A new path or another window asks
+        again. Files that merge by key or by bullet (`json-table`,
+        `changelog`) never ask, since they never serialize. A remembered
+        answer never bypasses trust, caps or paid consent.
       - **The machine's load.** The Traffic view sums every fresh hint's
         counts: "3 windows run 14 workers on this machine". This advisory
         sum is shown beside `museSpark.teamMaxWorkers`, and warns when it
@@ -6690,9 +6806,15 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     M96d's coordinator spike.
   - **Budgets: the shared paid ledger.** The team's daily budget is a scope
     of its own in D78's shared daily paid ledger: M82's durable claim
-    journal under the extension's global storage, made atomic across
-    windows with a file lock (D78, on `feat/defaults-on`).
-    - It holds totals and claims only, never anyone's liveness.
+    journal under the extension's global storage
+    (`createSessionBudgetJournal`, D78 on `feat/defaults-on` at
+    `e748d751`). Each window publishes owned claim intents, and the sum is
+    checked before dispatch. There is no separate file lock.
+    - It holds claim records and outcomes, never anyone's liveness.
+    - **What lane A adds to it:** the team's token measure; a durable
+      latest-day record; and a lookup by claim id after a restart, so that
+      settlement by id works when the window that made the claim is gone.
+      Today's settlement handle is bound to its owner.
     - `museSpark.teamDailyBudgetUsd` and `museSpark.teamDailyBudgetTokens`
       bound the sum across every window of this editor for the local day.
       The intensity level sets each workspace's own budget beneath it.
@@ -6729,7 +6851,11 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
         before.
       - `museSpark.teamHeavyCommandSlots` sets the number per window. By
         default it is one per eight logical CPUs, and at least one.
-    - **The load guard is what protects the machine across windows.**
+    - **The load guard keeps the machine responsive across windows, best
+      effort.** It holds back new local work under pressure. It is not a
+      resource bound: it samples every few seconds, needs a sustained load,
+      and leaves running work running, so a burst of starts or memory
+      already in use can still overload the machine (a named residual).
       - Each window samples the machine's CPU use and free memory every
         `TEAM_LOAD_SAMPLE_MS` (5 seconds). CPU use comes from `os.cpus()`
         times, because `os.loadavg()` is always zeros on Windows (research
@@ -6749,21 +6875,23 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     team can show names its reason, and offers an action the user can
     take:
 
-| Refusal                                                    | Recovery offered                                                                                                                                          |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every entry exhausted                                      | D75's four choices: **Queue it**, **Main agent does it**, **Raise a limit…**, **Cancel**                                                                  |
-| No free slot for a sub-task                                | The orchestrator does it itself; **Raise a limit…** opens the role's running cap                                                                          |
-| An attempt not stopped                                     | **Restart Muse Code** (ends this window's `muse serve`, after naming its sessions), or **Hand off anyway** (fresh copy)                                   |
-| A landing finds git's lock held                            | **Retry**, and **Open a terminal here**. The card names the lock file and says what holds it, if known. It is never removed by the extension (below)      |
-| A landing whose snapshot changed                           | Automatic: merge and test again. **Pause queue** stops it                                                                                                 |
-| A JSON table that does not parse, or holds a duplicate key | The task goes back as a conflict rework, naming the file, the line and the key                                                                            |
-| The team journal does not parse                            | The file is moved aside as `*.broken` and kept. The window starts with an empty board, and says which tasks it could not read                             |
-| The shared paid ledger does not parse                      | D78's refusal stands. **Show the ledger file**, and **Start today again**, which moves the file aside and counts the whole day as spent, so the cap holds |
-| The hints folder cannot be used                            | Hints are off, said once; nothing else changes                                                                                                            |
-| An orphan process after a crash                            | **Stop** (checked again first), **Keep**, or **Show in a terminal**                                                                                       |
-| A probe fails                                              | **Test again**, and **Open provider settings**; the entry stays not ready                                                                                 |
-| An exclusive MCP server another window runs                | **Start here anyway**, **Wait**, **Open that window**                                                                                                     |
-| A call that never ends on an exclusive server              | **Restart server**, which ends the server's process and releases the lease once it has exited                                                             |
+| Refusal                                                    | Recovery offered                                                                                                                                                                                                                   |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every entry exhausted                                      | D75's four choices: **Queue it**, **Main agent does it**, **Raise a limit…**, **Cancel**                                                                                                                                           |
+| No free slot for a sub-task                                | The orchestrator does it itself; **Raise a limit…** opens the role's running cap                                                                                                                                                   |
+| An attempt not stopped                                     | **Restart the team host** (ends only worker sessions, after naming them); **Continue anyway** where retirement cannot be proved (the user's decision, not proof); **Hand off anyway** when a slot is free, else **Raise a limit…** |
+| A landing finds git's lock held, or another known holder   | The merged result is committed to a landing branch instead; **Apply** later, from a new snapshot, when nothing holds the repository; **Open a terminal here**. The lock is never removed by the extension                          |
+| A landing whose snapshot changed                           | Automatic: merge and test again. **Pause queue** stops it                                                                                                                                                                          |
+| A JSON table that does not parse, or holds a duplicate key | The task goes back as a conflict rework, naming the file, the line and the key                                                                                                                                                     |
+| The team journal does not parse                            | The file is moved aside as `*.broken` and kept. The window starts with an empty board, and says which tasks it could not read                                                                                                      |
+| The shared paid ledger does not parse                      | D78's refusal stands. **Show the ledger file**, and **Start today again**, which moves the file aside and counts the whole day as spent, so the cap holds                                                                          |
+| The hints folder cannot be used                            | Hints are off, said once; nothing else changes                                                                                                                                                                                     |
+| Another window's journal, whose owner may be live          | **Open that window**; **Continue here as a new task** (from the old task's last commit, never writing its copy); **Take over**, the user's action, with its warning                                                                |
+| A file changed during landing                              | Named on the landing card, with **Undo merge** by M86's rule                                                                                                                                                                       |
+| An orphan process after a crash                            | **Stop** (checked again first), **Keep**, or **Show in a terminal**                                                                                                                                                                |
+| A probe fails                                              | **Test again**, and **Open provider settings**; the entry stays not ready                                                                                                                                                          |
+| An exclusive MCP server another window runs                | **Start here anyway**, **Wait**, **Open that window**                                                                                                                                                                              |
+| A call that never ends on an exclusive server              | A server the window started: **Restart server**, which releases the lease once its process has exited. A remote server: **Release anyway**, the user's decision, with the residual named                                           |
 
 - **The integration pipeline: a merge queue in the orchestrator.**
   - **The integration flow** is a team setting with three values:
@@ -6857,16 +6985,50 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
   - **Landing: one at a time in the window, under git's own lock.**
     - **In the window,** the merge queue lands one admission at a time
       into each working tree. This is an in-process exclusion.
-    - **Across processes, git's lock.** Landing first creates the working
-      tree's `index.lock` (in its git directory, a linked worktree's own),
-      by exclusive create, as git itself does. Its content names the
-      landing and the window. Landing holds it until the last file is
-      written and the landing journal is closed, then removes it.
-      - Meanwhile git commands, and another window's landing into the same
-        tree, wait or fail as they do for any git operation.
+    - **Never while another known process holds the repository.** Before
+      it writes anything, landing checks the known holders:
+      - an `index.lock` already present in the working tree's git
+        directory;
+      - a fresh hint from another window working in the same working tree;
+      - an operation in progress that git records: a merge, rebase,
+        cherry-pick, revert or bisect.
+
+      With any of them present, landing does not write the user's working
+      tree or index. It commits the merged result to a landing branch,
+      `agents/landing/<id>`, in the user's repository instead. Its card
+      says what holds the repository, and offers **Apply** later: the
+      existing landing card, which writes the uncommitted changes, from a
+      new snapshot, when nothing holds the repository.
+
+    - **Otherwise, git's lock.** Landing creates the working tree's
+      `index.lock` (in its git directory, a linked worktree's own) by
+      exclusive create, as git itself does. Its content names the landing
+      and the window. Landing holds it until the last file is written and
+      the landing journal is closed, then removes it.
+      - Git commands that take the index lock, and another window's landing
+        into the same tree, wait or fail as they do for any git operation.
       - The extension's `agents/` refs are updated through
         `git update-ref`, under git's own ref locks.
       - There is no other lock between windows.
+    - **What the lock does not exclude.** Not every writer takes
+      `index.lock`:
+      - `git checkout-index` without its index-update option;
+      - `git clean`;
+      - ref-only updates, such as moving `HEAD` or a branch;
+      - editors and tools that write files directly;
+      - another linked worktree's commands, which share the refs.
+
+      Against them, landing detects and never claims to prevent:
+      - each file is written only while it holds the bytes the snapshot
+        saw;
+      - after the last file, landing reads every landed file and `HEAD`
+        again. A file that does not hold the bytes landing wrote, or a
+        `HEAD` that moved, is reported as "changed during landing", naming
+        the file, with **Undo merge** by M86's rule.
+
+      The write race between the last check and each rename stays M86's
+      residual, now named for external git clients too.
+
     - **When the lock is already there,** the landing waits up to
       `TEAM_LANDING_LOCK_WAIT_MS` (30 seconds), then stops. Its card
       offers **Retry** and **Open a terminal here**, names the lock file,
@@ -7043,9 +7205,9 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       - Running tasks, on their lanes.
       - Actions: **Run next** (which sets `urgent`), **Hold** and
         **Release**, priority, **Reassign…** (to an entry the user picks,
-        through retirement and the handoff), **Hand off anyway** and
-        **Restart Muse Code** (for an attempt that has not stopped) and
-        **Cancel**.
+        through retirement and the handoff), **Hand off anyway**,
+        **Continue anyway** and **Restart the team host** (for an attempt
+        that has not stopped) and **Cancel**.
     - **Lanes.** Busy and free slots against each of this window's caps,
       per role, entry and agent; the check slots and runners.
     - **Leases.**
@@ -7106,8 +7268,9 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
 - **Decisions** (the lead, 2026-10-04, under the owner's ruling of the
   same day to choose the fuller and more robust option, with the security
   and SoL-Pi invariants kept; redesigned in round 3 after `RVM96C2`):
-  - **The first release is window-scoped. No cross-process liveness proof
-    sits on any safety path.**
+  - **The first release is window-scoped. No proof that another process is
+    alive or gone sits on any safety path, and a descendant's end is proved
+    only by Windows' job or a Linux user scope.**
     - Why: three rounds showed that no cross-process proof holds simply.
       Lock files and timers could not prove a frozen window stopped
       (`RVM96C`). Endpoints and incarnations could not either (`RVM96C2`):
@@ -7190,11 +7353,28 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
   - **Preemption only between tasks.**
     - Why: a writer stopped mid-edit leaves half an edit. The lead never
       stops a lane mid-write.
-  - **An attempt is over only when it has stopped, seen from inside the
-    window; otherwise the handoff is blocked, with Restart Muse Code or
-    Hand off anyway as ways out.**
-    - Why: a cancel is a request, not an end. A Muse Code turn or an
-      external agent can still write after acknowledging it.
+  - **An attempt is over only when every descendant has ended: proved by
+    Windows' job or a Linux user cgroup scope, and otherwise the user's
+    decision. The handoff waits for one of them.**
+    - Why: a cancel is a request, a direct child's exit is not its
+      descendants' (`setsid`), and a process group's end proves nothing
+      about one that left it (`RVM96C3` finding 1).
+  - **Recovery never writes another window's journal, copy or refs unless
+    that window is proven gone: the same window with a newer start, once
+    a capture shows such an identity, or the user's Take over.**
+    - Why: a duplicate window may be live with no fresh hint, and a fresh
+      copy does not protect the old one from being committed or deleted
+      (`RVM96C3` finding 2).
+  - **Landing writes the user's tree only when no known process holds the
+    repository; otherwise it commits to a landing branch for the user to
+    apply. It detects, and never claims to prevent, writers that ignore
+    `index.lock`.**
+    - Why: `git checkout-index`, `git clean` and ref-only updates take no
+      index lock (`RVM96C3` finding 3).
+  - **Team workers on Muse Code use a team host of their own.**
+    - Why: the conversation's `muse serve` may predate the team and its
+      container, and restarting it would end the user's sessions
+      (`RVM96C3` finding 4).
   - **Stalls reassign by default, after retirement, with a checkpoint and
     a handoff; caps keep `continue on next` off; divergence goes back to
     the orchestrator.**
@@ -16486,6 +16666,16 @@ liveness proof on any safety path:
 - windows share only hints, which warn and ask;
 - the budget uses D78's shared paid ledger.
 
+Round 4 (2026-10-04) answers Codex's third review (`RVM96C3`):
+
+- every descendant's end is proved only by Windows' job or a Linux user
+  cgroup scope, and is otherwise the user's decision;
+- recovery never writes another window's journal, copy or refs until that
+  window is proven gone;
+- landing never writes the tree while another known process holds the
+  repository, and detects writers that ignore git's lock;
+- Muse Code workers run on a team host of their own.
+
 - **Goal.** A user builds a team in the Models & Agents panel within two
   minutes, from a template with prefills and suggestions.
   - **Roles.** Each role has a charter generated from its settings, a
@@ -16677,23 +16867,23 @@ liveness proof on any safety path:
     Lanes A, I, K, W's external region and T's MCP server are
     security-heavy or concurrency-heavy, and go to Codex or Claude.
 
-| Lane                                                 | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Strings and constants                              | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json`; the Team region of `src/shared/constants.ts` (`TEAM_*`, among them `TEAM_ROLE_TOOLSETS`, `TEAM_READ_ONLY_COMMANDS`, `TEAM_ROLE_TYPICAL_TASK_TOKENS`, `TEAM_ROLE_MIN_CONTEXT_TOKENS`, `TEAM_ROLE_BASE_EFFORT`, `TEAM_INTENSITY_LEVELS`, `TEAM_WORKER_RPM_ESTIMATE`, `TEAM_WORKER_TPM_ESTIMATE`, `TEAM_MAX_CONCURRENT_COMMANDS`, `TEAM_THROTTLE_RECOVER_MS`, `TEAM_LEDGER_FLUSH_MS`, and lane K's `TEAM_KILL_GRACE_MS` (5,000), `TEAM_HINT_WRITE_MS` (10,000), `TEAM_HINT_FRESH_MS` (60,000), `TEAM_LANDING_LOCK_WAIT_MS` (30,000), `TEAM_LOAD_SAMPLE_MS` (5,000), `TEAM_LOAD_CPU_HIGH` (0.85), `TEAM_LOAD_WINDOW_MS` (30,000), `TEAM_LOAD_FREE_MEMORY_MIN` (2 GiB)); `TEAM_MODEL_TEXT` (the charter templates, the roster frame, the rubric, the guidance, the built-in roles' bodies, the report contract); the new `src/shared/team.ts` (zod: agents, roles, pools and entries, caps with measure and window, model settings, intensity, policies, tasks, ledger rows, the tree, the panel's messages) and its `protocol.ts` region                                                                                                                                                                                                                                                                                                                                                 |
-| P Probe, captures and the rubric's fixtures          | `test/e2e/team.live.e2e.test.ts` and `test/e2e/teamAcp.live.e2e.test.ts` (opt-in, contributor model), `test/e2e/teamRubric.live.e2e.test.ts` and `test/fixtures/team-rubric/` (the frozen tasks, labels and split), and the capture section of `docs/certification/m96.md`; no source file                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| R Roles, charters and tool sets                      | the new `src/core/team/`: `teamConfig.ts` (the user's agents, the workspace team, the user default, Default as an entry, the `.muse/team.json` lowering merge), `roles.ts` (the role keys on M76's parser; shadow-only narrowing and the new-id ceiling with its per-workspace allowance; the `customAgents.ts` region that hands them over), `builtInRoles.ts`, `charter.ts` (the generator), `toolsets.ts` (the one definition: allowlists, the charter's "You may" line, the panel's checklist), `capabilityCheck.ts`, `sameModel.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| A Pools, accounting and the ledger                   | `src/core/team/teamPool.ts` (Default's live resolution, headroom, selection, the rate-limit and usage-limit marks per agent, switches and their rows, `continue on next` and its handoff brief, the exhausted policy, the queue), `src/core/team/teamAdmission.ts` (per-agent, per-role, global, depth and shell-command slots), `src/core/team/teamCeilings.ts` (the computed ceiling per entry from documented limits, headers, our hard ceilings and the machine; the halving on 429 and the recovery), `src/core/team/teamMeter.ts` (caps by measure and window as sums over ledger rows, reservations through M82's journal, reported versus estimated, charging the sending entry, resets), the new `src/host/team/teamLedger.ts` (the durable record: rows per delegation in a daily append-only file, atomic and cross-window as M94's ledger, flushed at state changes and every `TEAM_LEDGER_FLUSH_MS`, retention by `museSpark.cleanupPeriodDays`, leases and interrupted rows); the `teamWorkers` cases of `src/core/paid/paidFeatures.ts` and `paidConsent.ts`                                                                                                                                                                                                                                                                                                                                                                                 |
-| I Workspaces and integration                         | `src/core/team/teamWorkspaces.ts` on `src/core/bestOfN/` (the base commit; shared clones under `storageUri` with no remote; the `agents/<role>/<task-id>` branches and the extension's own `agents/` refs in the user's repository; scratch copies for every read-only worker; the end-of-task commit and fetch; cleanup), `src/core/team/refFence.ts` (the ref guard, the read-only list's refused options, the credential-free worker environment, the `agents/` ref check), `src/core/team/teamMerge.ts` (the per-file three-way merge with `git merge-file`, conflicts, protected paths, the `write-paths` check, the breach check, Undo merge), `src/core/team/reviewGate.ts` (review before merge), `src/core/team/reviewerPick.ts` (differs from every author)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| H Hooks                                              | the `SubagentStart`/`SubagentStop` payload region of the Model API hook runner; `TeammateIdle` for team tasks and the new `TeamAgentSwitch` in M91's `EXTENSION_HOOK_EVENTS` region (after M91 merges)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| F Autofill, intensity, validation, preview, transfer | `src/core/team/autofill.ts` (M96's suggestion kinds for M95's engine in `src/core/providers/suggest.ts`: `roleModel`, `roleBudget`, `reviewVendor`, `poolFallback`, each with its reason; dismissals; learning from the record), `src/core/team/intensity.ts` (levels to running caps, effort steps, task tokens and daily budgets; custom roles kept; re-apply; each level's cost per hour), `src/core/team/modelSettings.ts` (the settings a model supports, from M95's capabilities, Muse Code's profiles and ACP config options; their cost notes; role defaults), `src/core/team/capValidation.ts`, `src/core/team/preview.ts`, `src/core/team/teamTransfer.ts`, `src/core/team/templates.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| W Workers                                            | `src/core/team/workers/`: `engineWorker.ts` (M77's attempt host, confined to the worker's working copy or scratch copy, for every engine worker, with M48's child loop, M27's job-object shell and the credential-free environment; after D74, M95's clients, `vscode.lm` included; the `report` tool; limit errors handed to lane A's marks), `museCodeWorker.ts` (a side session per task, M90's pattern; the read-only host started with `--disable-write` and `--disable-shell`; the bridge's servers in `config.mcpServers` and the user's exclusive servers switched off where step 1 shows how), `acpWorker.ts` (the ACP client: `initialize`, terminal sign-in, `session/new` with `cwd` and the bridge's servers, each preset's switch for leaving out the user's own MCP servers, the mode, the permission answers, confined `fs/*`, cancel), `report.ts` (`muse-team-report`); the new `src/host/team/acpProcess.ts` (spawn in a job, the scrubbed environment, presets found on the PATH, **Install**)                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| T Tools and orchestrator                             | first, the golden request test (M91 lane G's `test/unit/modelApiGoldenRequests.test.ts` and its fixtures, extended; today's request bytes for fixed conversations, with team scenarios added: team off, Solo, single-model mode with only Default, key entries with `teamWorkers` off, a mode change mid-conversation) and the Muse Code `session/start` golden frame from the fake CLI; then the single-model check (`src/core/team/singleModel.ts`, read from workspace state in the activation bundle, and its storage with the conversation); then `src/core/team/teamTools.ts` (the five tools for both backends, `command_id`, `reason`, `plan`; `merge` withheld from workers), `src/core/team/roster.ts` (the stable part, the live part, the rubric, the state-change tail note), the declaration rule and the team region of `ModelApiHost.ts` and `subagentTools.ts` (the declaration and its storage with the conversation; the orchestrator's writing tools refused during `in-place`), the new `src/core/team/orchestratorSlot.ts` (the workspace's override, **Reset to Default**, what Default resolves to) with the pill's region of the conversation controller, the new `src/host/team/teamMcpServer.ts` (per-session tokens, on `src/core/mcp.ts`), the Muse Code backend manager's `mcpServers` region                                                                                                                                 |
-| L Pipelines and history                              | `src/core/team/pipelines.ts` (built-ins, loading, rounds, `redesign`, the hand-off to `merge`), `src/core/team/teamHistory.ts` (the ledger's queries: filters, search, sorting, totals per role and agent for today, the week and all time, the record's figures per entry, CSV and JSON export with transcripts only on request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| U1 The Roles section                                 | the `roles` and `agents` sections of M95's Models & Agents panel, registered in `src/webview/models/sections.ts`: the new `src/webview/models/sections/roles/**` (`RolesSection.tsx`, `CharterEditor.tsx`, `ToolChecklist.tsx`, `PoolEditor.tsx` with the model picker from M95's `DataTable` and `FilterBar`, drag and key reordering, caps with their reasons and `InlineError`; the suggestions as `SuggestionCard`s; the preview; import and export; the guided first run) and `src/webview/models/sections/agents/**` (the panel's Agent map, on `TeamTree.tsx`); the `roles` and `agents` slices and the `roles/*` and `agents/*` messages in `src/shared/modelsPanel.ts`; their handlers in the M96 region of `src/host/models/modelsPanel.ts`; the harness scenarios for each state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| U2 The Agent map and transcript UI                   | the new `src/webview/components/TeamTree.tsx` (shared by the chat panel's Agent map and the panel's Agent map section), the `AgentMap.tsx` region, the delegation card and plan, the merge card, the switch row, the "waiting for you" card, the worker label on approval cards, the Team section of `UsageDialog.tsx`, the header pill; the harness scenarios `team-tree`, `team-tree-320` and `team-cards`; the styles region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| B Shared resources                                   | `src/core/team/resources.ts` (the registry: exclusive, shared and free; the defaults matched by command and package; command patterns; leases held in the window's scheduler, with holder and attempt, and idle release only after every call is terminal; the queue, the wait and "busy"; the hint question before an exclusive server another window runs), the new `src/host/team/mcpBridge.ts` (one instance of each server on M50's pool, per-caller loopback endpoints with their own tokens, routing by caller and request id, read-only filtering for read-only roles, lease admission per call), the bridge's entries in the Muse Code backend manager's `mcpServers` region (after lane T's), the **Tools and devices** part of the Roles section (with lane U1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| K Process lifetime, journal, hints, load guard       | the new `src/host/team/processLifetime.ts` (the one launcher every team child goes through: the intent written and flushed before the spawn, the `MUSE_SPARK_LAUNCH_ID` marker, the confirmation with process id, group and start time after it, the end; Windows through M27's job helper with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, the helper waiting on the extension host's handle; Linux and macOS in a process group of its own, ended on dispose with `TEAM_KILL_GRACE_MS`; Linux under `setpriv --pdeathsig KILL` where installed; below-normal priority), `native/windows/MuseSparkJob.cs`'s kill-on-close mode and its wait on the host, `src/host/team/teamJournal.ts` (the window's journal under `team/journal/<window instance>/`, atomic writes, the `*.broken` move aside), `src/host/team/orphanRecovery.ts` (launches with no end in another instance's journal, the environment-marker search on Linux and macOS, matched or uncertain, **Stop** after a second check), `src/host/team/windowHints.ts` (the hint file, its fields, owner-only folder, rewrite and removal, the fresh-hint reader, the questions, the advisory sum; hints off when the folder cannot be used), `src/host/team/loadGuard.ts` (the CPU and free-memory sampler); the team's scope in D78's shared paid ledger and its idempotent settlement with a durable outcome per claim (lane A's `teamMeter.ts` region); the refusals table's actions (with lane U2) |
-| X Wiring                                             | `package.json` (settings, commands, the walkthrough step), `scripts/build.mjs`, `scripts/check-bundle-size.mjs` and `check-bundle-split.mjs` (`dist/team.js`, `dist/teamAcp.js`), `.vscodeignore`, the notices gate, the `extension.ts` region, the host API record; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan, `docs/certification/m96.md`; the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Lane                                                 | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings and constants                              | `src/shared/l10n/en.ts`, the 14 `l10n/ui.*.json`, `package.nls*.json`; the Team region of `src/shared/constants.ts` (`TEAM_*`, among them `TEAM_ROLE_TOOLSETS`, `TEAM_READ_ONLY_COMMANDS`, `TEAM_ROLE_TYPICAL_TASK_TOKENS`, `TEAM_ROLE_MIN_CONTEXT_TOKENS`, `TEAM_ROLE_BASE_EFFORT`, `TEAM_INTENSITY_LEVELS`, `TEAM_WORKER_RPM_ESTIMATE`, `TEAM_WORKER_TPM_ESTIMATE`, `TEAM_MAX_CONCURRENT_COMMANDS`, `TEAM_THROTTLE_RECOVER_MS`, `TEAM_LEDGER_FLUSH_MS`, and lane K's `TEAM_KILL_GRACE_MS` (5,000), `TEAM_HINT_WRITE_MS` (10,000), `TEAM_HINT_FRESH_MS` (60,000), `TEAM_LANDING_LOCK_WAIT_MS` (30,000), `TEAM_LOAD_SAMPLE_MS` (5,000), `TEAM_LOAD_CPU_HIGH` (0.85), `TEAM_LOAD_WINDOW_MS` (30,000), `TEAM_LOAD_FREE_MEMORY_MIN` (2 GiB)); `TEAM_MODEL_TEXT` (the charter templates, the roster frame, the rubric, the guidance, the built-in roles' bodies, the report contract); the new `src/shared/team.ts` (zod: agents, roles, pools and entries, caps with measure and window, model settings, intensity, policies, tasks, ledger rows, the tree, the panel's messages) and its `protocol.ts` region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| P Probe, captures and the rubric's fixtures          | `test/e2e/team.live.e2e.test.ts` and `test/e2e/teamAcp.live.e2e.test.ts` (opt-in, contributor model), `test/e2e/teamRubric.live.e2e.test.ts` and `test/fixtures/team-rubric/` (the frozen tasks, labels and split), and the capture section of `docs/certification/m96.md`; no source file                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| R Roles, charters and tool sets                      | the new `src/core/team/`: `teamConfig.ts` (the user's agents, the workspace team, the user default, Default as an entry, the `.muse/team.json` lowering merge), `roles.ts` (the role keys on M76's parser; shadow-only narrowing and the new-id ceiling with its per-workspace allowance; the `customAgents.ts` region that hands them over), `builtInRoles.ts`, `charter.ts` (the generator), `toolsets.ts` (the one definition: allowlists, the charter's "You may" line, the panel's checklist), `capabilityCheck.ts`, `sameModel.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| A Pools, accounting and the ledger                   | `src/core/team/teamPool.ts` (Default's live resolution, headroom, selection, the rate-limit and usage-limit marks per agent, switches and their rows, `continue on next` and its handoff brief, the exhausted policy, the queue), `src/core/team/teamAdmission.ts` (per-agent, per-role, global, depth and shell-command slots), `src/core/team/teamCeilings.ts` (the computed ceiling per entry from documented limits, headers, our hard ceilings and the machine; the halving on 429 and the recovery), `src/core/team/teamMeter.ts` (caps by measure and window as sums over ledger rows, reservations through M82's journal, reported versus estimated, charging the sending entry, resets), the new `src/host/team/teamLedger.ts` (the durable record: rows per delegation in a daily append-only file, atomic and cross-window as M94's ledger, flushed at state changes and every `TEAM_LEDGER_FLUSH_MS`, retention by `museSpark.cleanupPeriodDays`, leases and interrupted rows); the `teamWorkers` cases of `src/core/paid/paidFeatures.ts` and `paidConsent.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| I Workspaces and integration                         | `src/core/team/teamWorkspaces.ts` on `src/core/bestOfN/` (the base commit; shared clones under `storageUri` with no remote; the `agents/<role>/<task-id>` branches and the extension's own `agents/` refs in the user's repository; scratch copies for every read-only worker; the end-of-task commit and fetch; cleanup), `src/core/team/refFence.ts` (the ref guard, the read-only list's refused options, the credential-free worker environment, the `agents/` ref check), `src/core/team/teamMerge.ts` (the per-file three-way merge with `git merge-file`, conflicts, protected paths, the `write-paths` check, the breach check, Undo merge), `src/core/team/reviewGate.ts` (review before merge), `src/core/team/reviewerPick.ts` (differs from every author)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| H Hooks                                              | the `SubagentStart`/`SubagentStop` payload region of the Model API hook runner; `TeammateIdle` for team tasks and the new `TeamAgentSwitch` in M91's `EXTENSION_HOOK_EVENTS` region (after M91 merges)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| F Autofill, intensity, validation, preview, transfer | `src/core/team/autofill.ts` (M96's suggestion kinds for M95's engine in `src/core/providers/suggest.ts`: `roleModel`, `roleBudget`, `reviewVendor`, `poolFallback`, each with its reason; dismissals; learning from the record), `src/core/team/intensity.ts` (levels to running caps, effort steps, task tokens and daily budgets; custom roles kept; re-apply; each level's cost per hour), `src/core/team/modelSettings.ts` (the settings a model supports, from M95's capabilities, Muse Code's profiles and ACP config options; their cost notes; role defaults), `src/core/team/capValidation.ts`, `src/core/team/preview.ts`, `src/core/team/teamTransfer.ts`, `src/core/team/templates.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| W Workers                                            | `src/core/team/workers/`: `engineWorker.ts` (M77's attempt host, confined to the worker's working copy or scratch copy, for every engine worker, with M48's child loop, M27's job-object shell and the credential-free environment; after D74, M95's clients, `vscode.lm` included; the `report` tool; limit errors handed to lane A's marks), `museCodeWorker.ts` (a session per task on the window's team host, a `muse serve` started through lane K's launcher and never the conversation's; the read-only host started with `--disable-write` and `--disable-shell`; the bridge's servers in `config.mcpServers` and the user's exclusive servers switched off where step 1 shows how), `acpWorker.ts` (the ACP client: `initialize`, terminal sign-in, `session/new` with `cwd` and the bridge's servers, each preset's switch for leaving out the user's own MCP servers, the mode, the permission answers, confined `fs/*`, cancel), `report.ts` (`muse-team-report`); the new `src/host/team/acpProcess.ts` (spawn in a job, the scrubbed environment, presets found on the PATH, **Install**)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| T Tools and orchestrator                             | first, the golden request test (M91 lane G's `test/unit/modelApiGoldenRequests.test.ts` and its fixtures, extended; today's request bytes for fixed conversations, with team scenarios added: team off, Solo, single-model mode with only Default, key entries with `teamWorkers` off, a mode change mid-conversation) and the Muse Code `session/start` golden frame from the fake CLI; then the single-model check (`src/core/team/singleModel.ts`, read from workspace state in the activation bundle, and its storage with the conversation); then `src/core/team/teamTools.ts` (the five tools for both backends, `command_id`, `reason`, `plan`; `merge` withheld from workers), `src/core/team/roster.ts` (the stable part, the live part, the rubric, the state-change tail note), the declaration rule and the team region of `ModelApiHost.ts` and `subagentTools.ts` (the declaration and its storage with the conversation; the orchestrator's writing tools refused during `in-place`), the new `src/core/team/orchestratorSlot.ts` (the workspace's override, **Reset to Default**, what Default resolves to) with the pill's region of the conversation controller, the new `src/host/team/teamMcpServer.ts` (per-session tokens, on `src/core/mcp.ts`), the Muse Code backend manager's `mcpServers` region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| L Pipelines and history                              | `src/core/team/pipelines.ts` (built-ins, loading, rounds, `redesign`, the hand-off to `merge`), `src/core/team/teamHistory.ts` (the ledger's queries: filters, search, sorting, totals per role and agent for today, the week and all time, the record's figures per entry, CSV and JSON export with transcripts only on request)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| U1 The Roles section                                 | the `roles` and `agents` sections of M95's Models & Agents panel, registered in `src/webview/models/sections.ts`: the new `src/webview/models/sections/roles/**` (`RolesSection.tsx`, `CharterEditor.tsx`, `ToolChecklist.tsx`, `PoolEditor.tsx` with the model picker from M95's `DataTable` and `FilterBar`, drag and key reordering, caps with their reasons and `InlineError`; the suggestions as `SuggestionCard`s; the preview; import and export; the guided first run) and `src/webview/models/sections/agents/**` (the panel's Agent map, on `TeamTree.tsx`); the `roles` and `agents` slices and the `roles/*` and `agents/*` messages in `src/shared/modelsPanel.ts`; their handlers in the M96 region of `src/host/models/modelsPanel.ts`; the harness scenarios for each state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| U2 The Agent map and transcript UI                   | the new `src/webview/components/TeamTree.tsx` (shared by the chat panel's Agent map and the panel's Agent map section), the `AgentMap.tsx` region, the delegation card and plan, the merge card, the switch row, the "waiting for you" card, the worker label on approval cards, the Team section of `UsageDialog.tsx`, the header pill; the harness scenarios `team-tree`, `team-tree-320` and `team-cards`; the styles region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| B Shared resources                                   | `src/core/team/resources.ts` (the registry: exclusive, shared and free; the defaults matched by command and package; command patterns; leases held in the window's scheduler, with holder and attempt, and idle release only after every call is terminal; the queue, the wait and "busy"; the hint question before an exclusive server another window runs), the new `src/host/team/mcpBridge.ts` (one instance of each server on M50's pool, per-caller loopback endpoints with their own tokens, routing by caller and request id, read-only filtering for read-only roles, lease admission per call), the bridge's entries in the Muse Code backend manager's `mcpServers` region (after lane T's), the **Tools and devices** part of the Roles section (with lane U1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| K Process lifetime, journal, hints, load guard       | the new `src/host/team/processLifetime.ts` (the one launcher every team child goes through: the intent written and flushed before the spawn, the `MUSE_SPARK_LAUNCH_ID` marker, the confirmation with process id, group and start time after it, the end; Windows through M27's job helper with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, the helper waiting on the extension host's handle; Linux in a transient user cgroup scope per launch (`systemd-run --user --scope --collect`) where a systemd user session and cgroup v2 exist, its `populated` state read for retirement; otherwise Linux and macOS in a process group of its own, ended on dispose with `TEAM_KILL_GRACE_MS`, and Linux under `setpriv --pdeathsig KILL` where installed; the retirement result per launch, proved or not; below-normal priority; the team host for Muse Code workers), `native/windows/MuseSparkJob.cs`'s kill-on-close mode and its wait on the host, `src/host/team/teamJournal.ts` (the window's journal under `team/journal/<window instance>/`, atomic writes, the `*.broken` move aside), `src/host/team/windowIdentity.ts` (the instance id and start; journals read-only unless proven gone; **Take over**), `src/host/team/orphanRecovery.ts` (launches with no end, or no proof that their descendants ended, in another instance's journal, the environment-marker search on Linux and macOS, matched or uncertain, **Stop** after a second check), `src/host/team/windowHints.ts` (the hint file, its fields, owner-only folder, rewrite and removal, the fresh-hint reader, the questions, the advisory sum; hints off when the folder cannot be used), `src/host/team/loadGuard.ts` (the CPU and free-memory sampler); the team's scope in D78's shared paid ledger and its idempotent settlement with a durable outcome per claim (lane A's `teamMeter.ts` region); the refusals table's actions (with lane U2) |
+| X Wiring                                             | `package.json` (settings, commands, the walkthrough step), `scripts/build.mjs`, `scripts/check-bundle-size.mjs` and `check-bundle-split.mjs` (`dist/team.js`, `dist/teamAcp.js`), `.vscodeignore`, the notices gate, the `extension.ts` region, the host API record; README, PRIVACY, CHANGELOG, AGENTS.md, CONTRIBUTING, this plan, `docs/certification/m96.md`; the full gate                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 - **Steps.**
   1. **Captures (lane P), before any constant is set.** Under AGENTS rule
@@ -17244,8 +17434,9 @@ next`, the exhausted policy and the queue, the meters, reservations and
       - An MCP server's lease is released after `TEAM_LEASE_IDLE_MS` with no
         call queued, running or unanswered after a cancel, counted from the
         last terminal answer. A call longer than that keeps the lease, and so
-        does a cancelled call that the server never answers, until
-        **Restart server** ends the server and it exits. A command's declared
+        does a cancelled call that the server never answers: for a server
+        the window started, until **Restart server** ends it and it exits;
+        for a remote server, until the user's **Release anyway**. A command's declared
         resource is released only when its process has exited.
       - A stopped or cancelled holder's lease is released when its attempt
         is retired, and its late call, from the earlier attempt, is refused.
@@ -17283,13 +17474,20 @@ next`, the exhausted policy and the queue, the meters, reservations and
         - **not loaded:** a local server that serves only the orchestrator's
           model M, while the entry names model N. The server answers, but N
           is not loaded.
+      - **External agents.** An external entry whose agent is still set to
+        the orchestrator's model M, one that only offers N without selecting
+        it, and one that reports no model, all stay single-model.
       - **Zero extra traffic.** In every case above, a spy on every outbound
         HTTP request, every ACP `initialize` and `session/new`, every process
         start and the first send's timing records nothing beyond today's:
         - no probe, initialization or process because of the team;
         - no wait before the first send;
         - no probe in a workspace with no distinct entry, with Solo, or with
-          the team off.
+          the team off, across opening the panel and the first send, under
+          one spy.
+        - In a workspace with a distinct entry that is not loaded, the spy
+          records exactly the declared setup probes at the panel's opening,
+          and nothing tied to the send.
       - **Model API: the golden bytes.** Every request equals M91 lane G's
         golden fixtures (`01-plain-turn` to `07-skills-and-rules`), on its
         byte-exact comparator as corrected by FIXM91G (`6cfb19e4`).
@@ -17352,8 +17550,26 @@ next`, the exhausted policy and the queue, the meters, reservations and
           says why.
         - Nothing is ever stopped automatically.
       - **Resume never reuses an old copy.** It starts a fresh working copy
-        from a commit of the old copy's state, and the old copy is
-        quarantined.
+        from the old task's last commit, and the old copy is quarantined.
+      - **A detached descendant.** A command whose child calls `setsid`,
+        closes its pipes and writes later, while the command itself exits
+        normally:
+        - with a Linux user scope, the attempt is not retired until the
+          scope is empty, and ending the scope ends the descendant;
+        - on macOS and on Linux without a scope, the attempt stays
+          uncertain, its launch stays in recovery's search, and the
+          handoff waits for **Continue anyway**;
+        - `in-place` is not offered where retirement cannot be proved.
+      - **The team host.** A Solo conversation, then a team conversation in
+        the same window: the team's workers run on a team host started
+        through the launcher, and the conversation's host and its sessions
+        are untouched. The Solo baseline's traffic stays zero.
+      - **Before the parent-death signal is armed.** The host dies between
+        the spawn and `setpriv`'s arming, at a barrier: the child survives,
+        its launch intent is found by the next window, and the residual is
+        recorded.
+      - **Windows.** An attempted breakaway and a nested job leave the tree
+        in the job, and the job's active count reaching zero retires it.
   49. **Hints warn and ask, and never lock** (lane K).
       - Each window writes its hint file every `TEAM_HINT_WRITE_MS`, and
         removes it when it closes. The file holds no brief, report, prompt or
@@ -17371,8 +17587,20 @@ next`, the exhausted policy and the queue, the meters, reservations and
         - A missing hint gives today's behaviour.
         - A malformed hint is ignored.
         - A hints folder that cannot be used turns hints off, said once.
+      - **One question per collision.** Ten identical hint rewrites ask
+        once. Five tasks touching the same collision ask once. A new path,
+        or another window, asks again. **Wait** lapses when the hint drops
+        the path. Merge-kind files (JSON tables, changelogs) never ask.
       - **The advisory sum** of fresh hints' workers shows in the Traffic
         view, and warns when it passes `museSpark.teamMaxWorkers`.
+      - **A live duplicate window.** Window A runs a writer with uncommitted
+        edits. B opens the same workspace, with A's hint fresh, stale or
+        missing:
+        - B never writes A's journal, and never commits, moves or removes
+          A's copy or refs;
+        - **Continue here as a new task** starts from A's last commit;
+        - only **Take over** marks A's task interrupted in B's records and
+          offers the discard, with its warning.
   50. **The budget, the host and the refusals** (lane K).
       - **The budget scope.** The team's budget is a scope of D78's shared
         paid ledger. Two windows of one editor never pass
@@ -17524,6 +17752,19 @@ next`, the exhausted policy and the queue, the meters, reservations and
     - **Settlement.** Drill: keep only totals, without an outcome per
       claim; the lost-acknowledgement retry credits twice, and the case
       fails.
+    - **Descendants.** Drill: retire on the direct child's exit; the
+      detached grandchild's late write lands in the next attempt's copy, and
+      the case fails. Drill: record the launch as ended without the
+      descendants' proof; recovery never lists the grandchild, and the case
+      fails.
+    - **Recovery isolation.** Drill: let **Resume** commit the other
+      window's copy; A's later edit is lost, and the case fails. Drill:
+      discard without **Take over**; A's copy disappears under it, and the
+      case fails.
+    - **The team host.** Drill: run team workers on the conversation's
+      host; the Solo-to-team case finds an uncontained worker, and fails.
+    - **Hint questions.** Drill: ask on every rewrite; the once-per-collision
+      case fails.
     - **A child's slot.** One slot, a running worker that delegates.
       - Drill: queue the child behind its parent; it waits forever, and the
         timeout case fails.
@@ -17888,27 +18129,27 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
     already a client in `src/runtime/exec/execClient.ts`.
 - **Security and privacy.**
 
-| #   | Threat                                                                                                                           | What stops it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T1  | A worker reads hostile text (a page, a file, an issue) and its report tells the orchestrator to widen something or send data out | Reports are data, marked untrusted where the orchestrator reads them (D49); no report or tool result can choose a policy, a model, a path or an agent; the charter tells the worker never to follow instructions found in content; every delegation shows its brief on a card                                                                                                                                                                                                                              |
-| T2  | A repository raises caps, adds a provider, names a command, widens a role, or turns on `in-place`                                | `team.json` may only lower, and an unknown key refuses it; command lines are user level only; a project role may only narrow the role it shadows, and a new one starts read-only until the user allows its file's hash; nothing sets `in-place` but the user; an import is a draft the user saves; nothing loads untrusted                                                                                                                                                                                 |
-| T3  | A fork bomb: workers that spawn workers                                                                                          | Depth 1, or 2 through `delegates`, never more; caps at every level and globally; one bounded queue                                                                                                                                                                                                                                                                                                                                                                                                         |
-| T4  | Runaway spend, or a plan run dry                                                                                                 | Reservation before each engine request against every cap of its entry; token, spend and task caps per entry by task, day and lifetime; the team's daily budget; the D48 popup per `delegate` call; `ask` when every entry is spent; `dry_run` and the preview; **Stop all**                                                                                                                                                                                                                                |
-| T5  | A credential reaches a worker process                                                                                            | Credentials stay in SecretStorage and the extension host (rule 8); Muse Code and external workers never get one; credential variables are removed from external environments; no vendor credential file is read                                                                                                                                                                                                                                                                                            |
-| T6  | A worker writes outside its workspace                                                                                            | Engine workers: file tools confined to the working copy at every call, and a shell that runs there without git's credentials (not an OS sandbox; a residual). Muse Code and external workers: a working copy (a scratch one when read-only), the mode, the permission answers, the breach check, and the merge's `write-paths` check                                                                                                                                                                       |
-| T7  | A worker moves the user's branch, merges, or pushes                                                                              | Working copies are shared clones with refs of their own and no remote; the ref guard; denial without asking for Muse Code and external workers; no git credentials in worker processes; the extension's `agents/` refs checked at every approval and at the end; the merge as the only path into the user's tree, with no commit and no ref change                                                                                                                                                         |
-| T8  | A worker's approval card passes for the orchestrator's                                                                           | The label is the panel's own chrome, drawn from the task, never from worker text                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| T9  | A merge smuggles in a protected path, a link out, or a repository program                                                        | M77's take checks (canonical targets, link and protected-path refusal); `git merge-file`, which runs no drivers or filters; protected paths ask in every mode; the merge card in every mode                                                                                                                                                                                                                                                                                                                |
-| T10 | Code reaches a provider the workspace must not use                                                                               | A confidential workspace refuses contributor models and agents that M95 marks as training on input; the panel names where each entry sends code                                                                                                                                                                                                                                                                                                                                                            |
-| T11 | An external agent does what its role forbids without asking                                                                      | A role takes an external agent only through a captured mode that meets it; no mode that skips asking is chosen; requests with paths outside the working copy are rejected; only the once options reach the user; every external entry is marked "runs under its own rules"; the first use in each workspace asks                                                                                                                                                                                           |
-| T12 | The machine runs out of memory                                                                                                   | `teamMaxProcessWorkers` from free memory and CPUs; per-agent caps; process trees killed on stop and on close                                                                                                                                                                                                                                                                                                                                                                                               |
-| T13 | A hook widens a worker                                                                                                           | M51 and D70: hooks observe, refuse or narrow; a `SubagentStart` hook's context is data; a `TeammateIdle` block never passes the task's ceiling; a `TeamAgentSwitch` answer can only refuse                                                                                                                                                                                                                                                                                                                 |
-| T14 | An imported team file carries something harmful                                                                                  | An import never takes a credential, an endpoint, a provider or a command; zod refuses unknown keys; it opens as a draft; missing agents stay unmapped until the user maps them                                                                                                                                                                                                                                                                                                                             |
-| T15 | The ledger or its export keeps prompts or code                                                                                   | A row holds only the brief, through `redactSecrets` and bounded; the export holds no transcript unless the user ticks it; retention follows `museSpark.cleanupPeriodDays`                                                                                                                                                                                                                                                                                                                                  |
-| T16 | An interrupted task resumes on stale consent or limits                                                                           | **Resume** is a new admission: trust, the entry's headroom, every cap and, for a key entry, the D48 popup are checked again before anything is sent                                                                                                                                                                                                                                                                                                                                                        |
-| T17 | Workers fight over a singleton tool or device, or one takes it from the orchestrator                                             | The resource registry and its leases; one MCP bridge that runs each server once; workers start with only their role's servers; a Muse Code or external worker whose own configuration holds an exclusive server does not start until that server moves to the bridge                                                                                                                                                                                                                                       |
-| T18 | A crashed or closed window's work keeps running, or two windows fight over a singleton or one working tree                       | Lane K: every child in the window's process-lifetime container (kill-on-close jobs; process groups; Linux's parent-death signal), every launch journalled before its spawn, orphans found from the journal and stopped only by the user; across windows, hints that ask before an exclusive server starts or a hinted file is written, never a lock; landing serialized by git's own `index.lock`, never removed by the extension; the shared paid ledger for the budget, with a durable outcome per claim |
-| T19 | A user with one model pays for, or sees, multi-agent machinery they never asked for                                              | Single-model mode: nothing registered, declared, started or sent; the golden bytes and frames; a mode change only at a conversation boundary, or as a refusal at the next turn                                                                                                                                                                                                                                                                                                                             |
+| #   | Threat                                                                                                                                               | What stops it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T1  | A worker reads hostile text (a page, a file, an issue) and its report tells the orchestrator to widen something or send data out                     | Reports are data, marked untrusted where the orchestrator reads them (D49); no report or tool result can choose a policy, a model, a path or an agent; the charter tells the worker never to follow instructions found in content; every delegation shows its brief on a card                                                                                                                                                                                                                                                                                                                                                 |
+| T2  | A repository raises caps, adds a provider, names a command, widens a role, or turns on `in-place`                                                    | `team.json` may only lower, and an unknown key refuses it; command lines are user level only; a project role may only narrow the role it shadows, and a new one starts read-only until the user allows its file's hash; nothing sets `in-place` but the user; an import is a draft the user saves; nothing loads untrusted                                                                                                                                                                                                                                                                                                    |
+| T3  | A fork bomb: workers that spawn workers                                                                                                              | Depth 1, or 2 through `delegates`, never more; caps at every level and globally; one bounded queue                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| T4  | Runaway spend, or a plan run dry                                                                                                                     | Reservation before each engine request against every cap of its entry; token, spend and task caps per entry by task, day and lifetime; the team's daily budget; the D48 popup per `delegate` call; `ask` when every entry is spent; `dry_run` and the preview; **Stop all**                                                                                                                                                                                                                                                                                                                                                   |
+| T5  | A credential reaches a worker process                                                                                                                | Credentials stay in SecretStorage and the extension host (rule 8); Muse Code and external workers never get one; credential variables are removed from external environments; no vendor credential file is read                                                                                                                                                                                                                                                                                                                                                                                                               |
+| T6  | A worker writes outside its workspace                                                                                                                | Engine workers: file tools confined to the working copy at every call, and a shell that runs there without git's credentials (not an OS sandbox; a residual). Muse Code and external workers: a working copy (a scratch one when read-only), the mode, the permission answers, the breach check, and the merge's `write-paths` check                                                                                                                                                                                                                                                                                          |
+| T7  | A worker moves the user's branch, merges, or pushes                                                                                                  | Working copies are shared clones with refs of their own and no remote; the ref guard; denial without asking for Muse Code and external workers; no git credentials in worker processes; the extension's `agents/` refs checked at every approval and at the end; the merge as the only path into the user's tree, with no commit and no ref change                                                                                                                                                                                                                                                                            |
+| T8  | A worker's approval card passes for the orchestrator's                                                                                               | The label is the panel's own chrome, drawn from the task, never from worker text                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| T9  | A merge smuggles in a protected path, a link out, or a repository program                                                                            | M77's take checks (canonical targets, link and protected-path refusal); `git merge-file`, which runs no drivers or filters; protected paths ask in every mode; the merge card in every mode                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| T10 | Code reaches a provider the workspace must not use                                                                                                   | A confidential workspace refuses contributor models and agents that M95 marks as training on input; the panel names where each entry sends code                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| T11 | An external agent does what its role forbids without asking                                                                                          | A role takes an external agent only through a captured mode that meets it; no mode that skips asking is chosen; requests with paths outside the working copy are rejected; only the once options reach the user; every external entry is marked "runs under its own rules"; the first use in each workspace asks                                                                                                                                                                                                                                                                                                              |
+| T12 | The machine runs out of memory                                                                                                                       | `teamMaxProcessWorkers` from free memory and CPUs; per-agent caps; process trees killed on stop and on close                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| T13 | A hook widens a worker                                                                                                                               | M51 and D70: hooks observe, refuse or narrow; a `SubagentStart` hook's context is data; a `TeammateIdle` block never passes the task's ceiling; a `TeamAgentSwitch` answer can only refuse                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| T14 | An imported team file carries something harmful                                                                                                      | An import never takes a credential, an endpoint, a provider or a command; zod refuses unknown keys; it opens as a draft; missing agents stay unmapped until the user maps them                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| T15 | The ledger or its export keeps prompts or code                                                                                                       | A row holds only the brief, through `redactSecrets` and bounded; the export holds no transcript unless the user ticks it; retention follows `museSpark.cleanupPeriodDays`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| T16 | An interrupted task resumes on stale consent or limits                                                                                               | **Resume** is a new admission: trust, the entry's headroom, every cap and, for a key entry, the D48 popup are checked again before anything is sent                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| T17 | Workers fight over a singleton tool or device, or one takes it from the orchestrator                                                                 | The resource registry and its leases; one MCP bridge that runs each server once; workers start with only their role's servers; a Muse Code or external worker whose own configuration holds an exclusive server does not start until that server moves to the bridge                                                                                                                                                                                                                                                                                                                                                          |
+| T18 | A crashed or closed window's work keeps running, another window's live task is taken over, or two windows fight over a singleton or one working tree | Lane K: every child in the window's process-lifetime container (Windows' kill-on-close job; a Linux user cgroup scope, or a process group and parent-death signal where none exists; a process group on macOS), retirement proved only by the job or the scope and otherwise the user's decision; every launch journalled before its spawn; orphans stopped only by the user; journals of windows that might be live read-only to others until proven gone; across windows, hints that ask, never lock; landing only when no known process holds the repository, else a landing branch; the shared paid ledger for the budget |
+| T19 | A user with one model pays for, or sees, multi-agent machinery they never asked for                                                                  | Single-model mode: nothing registered, declared, started or sent; the golden bytes and frames; a mode change only at a conversation boundary, or as a refusal at the next turn                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
 - **Residuals, recorded.**
   - **Muse Code's own rules.** A Muse Code worker can run a command that
@@ -17933,6 +18174,14 @@ x > f`, `Set-Content`) are each refused. A fake Muse Code or external
   - **Overshoot.** A Muse Code or external worker can pass a cap by the
     requests it already has in flight before it is cancelled. The
     overshoot is counted, charged to its entry and shown.
+  - **Descendants without proof.** On macOS, and on Linux without a user
+    cgroup scope, a descendant that calls `setsid` can outlive its task.
+    The attempt stays uncertain until the user continues, which is their
+    decision, not proof, and `in-place` is not offered there.
+  - **Before the parent-death signal is armed,** a host crash leaves the
+    child running. Its launch intent lets the next window find it.
+  - **A remote exclusive MCP server.** Its uncertain call is released only by
+    the user's **Release anyway**, and may still be acting.
   - **Hints are cooperation, not a boundary.** Code a worker runs has the
     user's rights and could write a hint file. A hint only ever asks the
     user something, so a forged or stale one can cost a question, never a
@@ -18193,7 +18442,9 @@ serve`."
 
 ### M96c — Scheduler and traffic (D75)
 
-**Status 2026-10-04: planned, round 3 (redesign).** This milestone builds
+**Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
+Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
+builds
 D75's **Scheduler and traffic** part, inside one window. M96's lane K gives
 it process lifetime, the journal, hints and the load guard. The research is
 `docs/certification/m96-research.md` §8.
@@ -18298,9 +18549,9 @@ it process lifetime, the journal, hints and the load guard. The research is
 | Lane                              | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_BOARD_MAX` (64), `TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_MAX_REASSIGNMENTS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts`                                                                                                                                                                                                                                                                                            |
-| S Scheduler                       | the new `src/core/team/scheduler/`: `board.ts` (the DAG, states, cycle and edge refusals, the two dependency kinds, attempt numbers and stale-event refusal, the reload pause), `criticalPath.ts`, `pick.ts` (the score, aging, the starvation bound, priority inheritance, fair share between conversations, work-stealing within a role, preemption only between tasks, staggered starts), `retire.ts` (retirement per worker kind, exits seen inside the window, the bounded escalation, attempts that have not stopped, **Restart Muse Code**, **Hand off anyway** and quarantine), `slots.ts` (a delegating worker's child slots reserved at `delegate`, or the refusal), `stalls.ts` (detection, the checkpoint after retirement, the handoff, where it goes, bounds, divergence), `reviewFlow.ts` (the integration flow, the automatic review, class reviews and their merge, full re-review after a change, rework rounds, `redesign`, claim checks); the scheduler region of `teamPool.ts`                                                                                                                                                                                                                        |
+| S Scheduler                       | the new `src/core/team/scheduler/`: `board.ts` (the DAG, states, cycle and edge refusals, the two dependency kinds, attempt numbers and stale-event refusal, the reload pause), `criticalPath.ts`, `pick.ts` (the score, aging, the starvation bound, priority inheritance, fair share between conversations, work-stealing within a role, preemption only between tasks, staggered starts), `retire.ts` (retirement per worker kind, exits seen inside the window, descendants proved by the job or the user scope, the bounded escalation, attempts that have not stopped, **Restart the team host**, **Continue anyway**, **Hand off anyway** only with a free slot, and quarantine), `slots.ts` (a delegating worker's child slots reserved at `delegate`, or the refusal), `stalls.ts` (detection, the checkpoint after retirement, the handoff, where it goes, bounds, divergence), `reviewFlow.ts` (the integration flow, the automatic review, class reviews and their merge, full re-review after a change, rework rounds, `redesign`, claim checks); the scheduler region of `teamPool.ts`                                                                                                                       |
 | C Collisions                      | `src/core/team/writeSets.ts` (glob expansion, per-file overlap, attempt leases in the window, inheritance, growth, clipping, exclusive writers, the hint question for files another window names), `src/core/team/waitFor.ts` (the wait-for graph over leases, dependencies, children and slots, and cycle refusal), `src/core/team/conflictPredict.ts` (diff polling, prediction through lane Q's merge routine, the integration state), `src/core/team/sharedFiles.ts` (the list and the built-in entries), `src/core/team/merge/changelog.ts` (bullet identity, the authorized delta, released sections, the kept check, fragments), `src/core/team/merge/jsonTable.ts` (the strict parse that keeps raw key order, decodes escapes and refuses duplicates at any depth; the three-way merge by key for flat and nested objects; same-key and type conflicts; the refusal on input that does not parse, with no text fallback; key order; the file's own style, byte-order mark and line endings; the two-way kept check after the formatter) and the staging copy's formatter step for merged JSON files, through M68's `formatAfterEdit` (with lane Q); the `sharedFiles` key in `teamConfig.ts`'s `team.json` region |
-| Q Merge queue and hygiene         | `src/core/team/mergeQueue.ts` (the order, batches closed under dependency, the flaky rerun, serial cumulative admission, `on_conflict`), `src/core/team/mergeRoutine.ts` (the one merge routine landing and prediction share), `src/host/team/stagingCopy.ts` (the whole snapshot through a temporary index, its tree hash, the check identity, the staging clone), `src/host/team/landingJournal.ts` (the write-ahead journal in the window's journal, and **Recover** by M86's rule), `src/host/team/gitIndexLock.ts` (taking and releasing the working tree's `index.lock` by exclusive create, its content, the wait and the card; never removing a lock it did not take), `src/host/team/teamCleanup.ts` (link-safe removal, `\\?\` paths, the orphan sweep, quarantined copies, disk use), the checkout guard in `teamWorkspaces.ts`'s region, the landing region of `teamMerge.ts` (the in-process exclusion, the lock, the snapshot and blob comparison)                                                                                                                                                                                                                                                           |
+| Q Merge queue and hygiene         | `src/core/team/mergeQueue.ts` (the order, batches closed under dependency, the flaky rerun, serial cumulative admission, `on_conflict`), `src/core/team/mergeRoutine.ts` (the one merge routine landing and prediction share), `src/host/team/stagingCopy.ts` (the whole snapshot through a temporary index, its tree hash, the check identity, the staging clone), `src/host/team/landingJournal.ts` (the write-ahead journal in the window's journal, and **Recover** by M86's rule), `src/host/team/gitIndexLock.ts` (the known-holder check: an `index.lock`, another window's fresh hint on the tree, a git operation in progress; the landing branch `agents/landing/<id>` and **Apply**; taking and releasing the working tree's `index.lock` by exclusive create, its content; never removing a lock it did not take; the read-back after the last file), `src/host/team/teamCleanup.ts` (link-safe removal, `\\?\` paths, the orphan sweep, quarantined copies, disk use), the checkout guard in `teamWorkspaces.ts`'s region, the landing region of `teamMerge.ts` (the in-process exclusion, the lock, the snapshot and blob comparison)                                                                        |
 | O Check slots and runners         | `src/core/runners/` (`runnerConfig.ts`, the zod schema of `runners.json`; `routing.ts`, labels, affinity, load and fallback; `health.ts`), `src/host/runners/sshRunner.ts` (the user's `ssh` and `git` with the fixed options, the snapshot push, the lockfile-keyed setup, streaming, run ids, the remote end check, the Windows self-test), `native/runner/runner-helper.sh` and `runner-helper.ps1` (slots taken by exclusive create on the runner, the job's process group, its timeout and exit marker; installed by rename), `src/host/team/checkSlots.ts` (persistent slots, per-lockfile installs, reset, the copy-on-write option), the bridge's `run_checks` tool in `mcpBridge.ts`'s region, the test-command routing region of `engineWorker.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | T2 Tools                          | `teamTools.ts`'s regions for `delegate`'s new fields, `merge`'s enqueue and `reschedule`; the live parts of `roster` and `collect` and the state-change note's new events in `roster.ts`; the `team` server's tool list                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | V The Traffic view                | `src/core/team/trafficMetrics.ts`, the new `src/webview/components/traffic/` (`TrafficView.tsx`, `TrafficBoard.tsx`, `TrafficLanes.tsx`, `TrafficLeases.tsx`, `TrafficWindows.tsx` (other windows' hints and the advisory sum), `TrafficRecovery.tsx` (interrupted tasks, an open landing journal, orphans), `TrafficConflicts.tsx`, `TrafficMergeQueue.tsx`, `TrafficMetrics.tsx`), `src/webview/models/sections/runners/**`, the `traffic/*` and `runners/*` slices and messages in `src/shared/modelsPanel.ts` and their handlers' region, the harness scenarios `team-traffic`, `team-traffic-320`, `team-traffic-hints`, `team-traffic-recovery` and `runners`, the styles region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -18323,6 +18574,11 @@ it process lifetime, the journal, hints and the load guard. The research is
      - **Opening a folder that is already open** in another window, on all
        three platforms: does VS Code bring that window forward? No model
        call.
+     - **Window identity.** Whether `vscode.env.sessionId`, or the chat
+       view's restored webview state, stays the same across a reload of one
+       window and differs between duplicate windows. No model call.
+     - **ACP `session/load` with a new `cwd`,** on our own agent: whether a
+       loaded session works in the new folder. Expected: 1 prompt.
      - **Process lifetime,** on all three platforms: what a hard kill of a
        stand-in extension host leaves running, with Windows' job, Linux with
        and without `setpriv`, and macOS. No model call.
@@ -18431,10 +18687,16 @@ it process lifetime, the journal, hints and the load guard. The research is
      - Past `TEAM_RETIRE_WAIT_MS` the escalation ends what it can. An
        attempt that has still not stopped keeps its lanes and leases
        counted, its copy is not reused, and the task is blocked.
-     - **Restart Muse Code** ends this window's `muse serve` after naming
-       its sessions, and its exit retires the attempt.
-     - **Hand off anyway** starts a fresh copy from the checkpoint commit
-       and quarantines the old one.
+     - **Restart the team host** ends only worker sessions after naming
+       them. Where retirement is provable, its end retires the attempt.
+     - **Continue anyway**, where retirement cannot be proved, records the
+       user's decision, not proof.
+     - **Hand off anyway** is offered only with a free slot and the
+       resources the replacement needs. It starts a fresh copy from the
+       checkpoint commit, passes the write-set lease to the new attempt, and
+       quarantines the old copy. With a cap of one, or a singleton the old
+       attempt holds, the card names the limit and offers **Raise a limit…**
+       and **Restart the team host** instead.
   10. **Stalls.**
       - Each kind is detected. A command inside its timeout is not a stall.
       - The checkpoint commit is made only after the attempt has stopped.
@@ -18581,10 +18843,16 @@ it process lifetime, the journal, hints and the load guard. The research is
       - Every landing holds the working tree's `index.lock`, taken by
         exclusive create, from before its first file until after its last.
         Its content names the landing and the window.
-      - **A held lock.** A landing that finds the lock held waits up to
-        `TEAM_LANDING_LOCK_WAIT_MS`, then stops with **Retry** and **Open a
-        terminal here**. A git command run meanwhile meets the lock as it
-        would any other.
+      - **A known holder.** With an `index.lock` present, another window's
+        fresh hint on the same working tree, or a git operation in progress,
+        landing commits to `agents/landing/<id>` instead of writing, and
+        **Apply** writes it later from a new snapshot.
+      - **Detection, not prevention.** `git checkout-index` without its
+        update option, `git clean` of an untouched dependency, a ref-only
+        `HEAD` move, and a command in another linked worktree, each made at
+        a barrier between the last byte check and the renames: landing
+        reports each as "changed during landing", names the file or `HEAD`,
+        and offers **Undo merge**. None is claimed prevented.
       - **Never removed by the extension.** No code path removes an
         `index.lock` that the landing did not take, and no button does.
       - The landing journal is written before any file, and each file is
@@ -18698,8 +18966,13 @@ it process lifetime, the journal, hints and the load guard. The research is
       exit, and the handoff starts only after that.
     - **A writer that has not stopped:** a fake Muse Code session never
       sends its terminal event. Past the wait, the task is `blocked`, its
-      lanes stay counted, and no handoff starts until **Restart Muse Code**
-      (whose exit retires it) or **Hand off anyway** (a fresh copy).
+      lanes stay counted, and no handoff starts until **Restart the team
+      host**, **Continue anyway** or **Hand off anyway** (a fresh copy, only
+      with a free slot).
+    - **Hand off with no lane.** A cap of one, and a singleton held by the
+      old attempt: **Hand off anyway** is not offered, and the card names
+      the limit. Drill: offer it anyway; the replacement waits forever, and
+      the case fails.
     - Drill: skip the checkpoint commit; the branch commit's bytes lack the
       edit, and the case fails.
     - Drill: choose the same agent for a `rateLimited` stall; the case
@@ -18823,6 +19096,15 @@ it process lifetime, the journal, hints and the load guard. The research is
       edited meanwhile is named as a conflict.
     - **A git command meanwhile.** `git add` run during A's landing meets
       the lock, as with any git operation.
+    - **Writers that ignore the lock.** At the same barrier:
+      `git checkout-index -f -- a.ts`, `git clean` of an untracked
+      dependency, `git update-ref HEAD`, and a commit in a second linked
+      worktree. Each is reported after the landing, and none is claimed
+      prevented. Drill: skip the post-landing read-back; the overwritten
+      file goes unreported, and the case fails.
+    - **A known holder.** A rebase in progress: landing commits to a landing
+      branch and writes nothing. Drill: write the tree anyway; the case
+      fails.
     - Drill: remove a stale `index.lock` automatically; the paused A
       resumes and overwrites B's landing, and the case fails.
     - Drill: offer a button that removes the lock; the static check for
@@ -18893,6 +19175,12 @@ it process lifetime, the journal, hints and the load guard. The research is
       fails.
     - **The checkout guard.** Drill: let a worker start in the user's
       repository root; the case fails.
+    - **A remote exclusive server.** A fake streamable-HTTP server keeps a
+      call running after its cancellation, and another honours a cancel
+      without answering. The lease stays held in both, and **Release
+      anyway** is the only release, recorded as the user's decision. Drill:
+      release on closing the protocol session; the next call overlaps the
+      running one, and the case fails.
     - **Quarantine.** Drill: reuse the copy of an attempt that has not
       stopped; the late
       write reaches the next attempt, and the case fails.
@@ -18954,18 +19242,18 @@ it process lifetime, the journal, hints and the load guard. The research is
   - No new dependency: git, ssh and Node's own modules.
 - **Security and privacy.**
 
-| #   | Threat                                                                                                    | What stops it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| T20 | A repository adds a runner, changes its command, or sends code to a machine of its choosing               | Runners are user-level only, in `runners.json`, and never read from a repository; a repository's checks run on a runner only in a trusted workspace, as they would locally                                                                                                                                                                                                                                                                                                                                             |
-| T21 | A credential reaches a runner, or SSH is driven into accepting an unknown host                            | The runner's environment is its own plus allowlisted names, never a credential variable; `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ForwardAgent=no`; the extension never reads SSH keys or configuration; workers never get the SSH agent                                                                                                                                                                                                                                                                         |
-| T22 | Untested or broken code lands in the user's tree                                                          | Admission bound to the whole snapshot, the check identity and every final blob; a new snapshot compared before landing, and the landed bytes compared with the tested blobs; serial cumulative admission after a red batch, landing only the combination that passed; **Land without checks** asks in every mode                                                                                                                                                                                                       |
-| T23 | A merge brings in conflict markers, a silently picked value, duplicate JSON keys, or a repository program | `rework` by default, so markers stay in the task's branch, and always for a JSON table or a changelog; a JSON table that does not parse, holds a duplicate key at any depth or is not an object is refused, never merged as text; `git merge-file` and the TypeScript CHANGELOG and JSON merges run no repository program (the project's formatter runs only in the staging copy, as the checks do); same-key changes are conflicts, never picks; the kept checks, run again after the formatter, refuse a lossy merge |
-| T24 | Two landings, or a landing and a git command, write one working tree at once                              | One landing at a time in the window; across processes, git's own `index.lock`, held from before the first file to after the last; the extension never removes a lock it did not take; per-file byte checks; a crashed landing's journal rolled back by **Recover** once the user removes the lock it left                                                                                                                                                                                                              |
-| T25 | Cleanup deletes outside a working copy                                                                    | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                                                                                                                                                                                                                                                                                                     |
-| T26 | A worker escapes into the user's checkout                                                                 | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| T27 | The board floods: endless tasks, reassignments or reviews                                                 | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                                                                                                                                                                                                                                                                                                  |
-| T28 | A scheduler event or report steers the orchestrator                                                       | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                                                                                                                                                                                                                                                                                                     |
-| T29 | A stalled worker keeps writing after its replacement starts                                               | Retirement only when the attempt has stopped, seen inside the window; every child in the window's process-lifetime container; an attempt that has not stopped blocks the handoff, keeps its counts, and its copy is never reused; stale events refused by attempt number                                                                                                                                                                                                                                               |
+| #   | Threat                                                                                                          | What stops it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T20 | A repository adds a runner, changes its command, or sends code to a machine of its choosing                     | Runners are user-level only, in `runners.json`, and never read from a repository; a repository's checks run on a runner only in a trusted workspace, as they would locally                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| T21 | A credential reaches a runner, or SSH is driven into accepting an unknown host                                  | The runner's environment is its own plus allowlisted names, never a credential variable; `BatchMode=yes`, `StrictHostKeyChecking=yes`, `ForwardAgent=no`; the extension never reads SSH keys or configuration; workers never get the SSH agent                                                                                                                                                                                                                                                                                                                                                    |
+| T22 | Untested or broken code lands in the user's tree                                                                | Admission bound to the whole snapshot, the check identity and every final blob; a new snapshot compared before landing, and the landed bytes compared with the tested blobs; serial cumulative admission after a red batch, landing only the combination that passed; **Land without checks** asks in every mode                                                                                                                                                                                                                                                                                  |
+| T23 | A merge brings in conflict markers, a silently picked value, duplicate JSON keys, or a repository program       | `rework` by default, so markers stay in the task's branch, and always for a JSON table or a changelog; a JSON table that does not parse, holds a duplicate key at any depth or is not an object is refused, never merged as text; `git merge-file` and the TypeScript CHANGELOG and JSON merges run no repository program (the project's formatter runs only in the staging copy, as the checks do); same-key changes are conflicts, never picks; the kept checks, run again after the formatter, refuse a lossy merge                                                                            |
+| T24 | Two landings, a landing and a git command, or a landing and another known holder write one working tree at once | One landing at a time in the window; no write to the tree or index while an `index.lock`, another window's fresh hint on the tree, or a git operation in progress holds the repository, but a commit to a landing branch the user applies later; otherwise git's own `index.lock` from before the first file to after the last, never removed by the extension; per-file byte checks and a read-back after the last file that reports writers ignoring the lock (`git checkout-index`, `git clean`, ref-only moves, other linked worktrees) as changed during landing, detected and not prevented |
+| T25 | Cleanup deletes outside a working copy                                                                          | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| T26 | A worker escapes into the user's checkout                                                                       | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| T27 | The board floods: endless tasks, reassignments or reviews                                                       | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| T28 | A scheduler event or report steers the orchestrator                                                             | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| T29 | A stalled worker, or its detached descendant, keeps writing after its replacement starts                        | Retirement only when every descendant has ended: proved by Windows' job or a Linux user scope, otherwise the user's **Continue anyway**; an uncertain attempt blocks the handoff, keeps its process slots, and its copy is never reused; **Hand off anyway** only with a free slot; stale events refused by attempt number                                                                                                                                                                                                                                                                        |
 
 - **Residuals, recorded.**
   - **Runners execute project code** on the user's machines, as local checks
@@ -18978,6 +19266,12 @@ it process lifetime, the journal, hints and the load guard. The research is
     does. If the user removes the lock while it is frozen and it then
     resumes, two landings can overlap. The extension never removes the
     lock.
+  - **Writers that ignore git's lock** (`git checkout-index`, `git clean`,
+    ref-only updates, editors, another linked worktree) can change the tree
+    during a landing. Landing reports them afterwards and offers **Undo
+    merge**, but cannot prevent them.
+  - **Continue anyway** and **Release anyway** are the user's decisions, not
+    proof.
   - **Orphans after a hard crash** on macOS, and grandchildren on Linux, run
     until the user stops them from the next window's list. A process id
     reused between the last check and the signal is the residual of any
