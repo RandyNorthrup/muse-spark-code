@@ -35,7 +35,8 @@ suite('M97 shipped scanner', () => {
       const handle = await loaded.runLegalScan({ workspaceRoot: root, input: {}, signal })
       return legalScanResultSchema.parse(handle.result)
     }
-    const expected = await runner()
+    const expectedJson = JSON.stringify(await runner())
+    const expected = legalScanResultSchema.parse(JSON.parse(expectedJson))
     const native = await runLegalScanCall({}, runner, true, signal)
     assert.ok(native.ok)
     assert.deepEqual(legalScanResultSchema.parse(JSON.parse(native.json)), expected)
