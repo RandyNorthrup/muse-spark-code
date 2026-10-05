@@ -34,6 +34,7 @@ const BUNDLES = [
   'reviewer.js',
   'foreignHooks.js',
   'hookRuntime.js',
+  'recorder.js',
   'uiText.js',
   'uiTextRuntime.js',
   'uiTextHooks.js',

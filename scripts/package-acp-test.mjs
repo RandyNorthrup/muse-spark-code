@@ -26,6 +26,7 @@ for (const file of [
   ...[
     'acp.js',
     'modelApi.js',
+    'recorder.js',
     'uiText.js',
     'uiTextRuntime.js',
     'uiTextHooks.js',

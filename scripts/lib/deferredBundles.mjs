@@ -255,6 +255,13 @@ export function checkDeferredBundles(inputsOf) {
       }
     }
   }
+  const acp = inputsOf(BUNDLES.acp)
+  for (const file of ['src/host/support/recorderEntry.ts', 'src/host/support/reportJournal.ts']) {
+    if (acp.has(file))
+      problems.push(
+        `${BUNDLES.acp.output} carries ${file}, which loads only from the recorder bundle`,
+      )
+  }
   return problems
 }
 

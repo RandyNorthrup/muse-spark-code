@@ -180,9 +180,9 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 }
 
 function inputs(name: string): string[] {
-  return Object.keys(fixture(`dist/meta/${name}.json`).meta.inputs).map((file) =>
-    file.split(path.sep).join('/'),
-  )
+  return Object.keys(
+    fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta.inputs,
+  ).map((file) => file.split(path.sep).join('/'))
 }
 
 describe('deferred cohort bundles', () => {
@@ -333,6 +333,12 @@ describe('deferred cohort bundles', () => {
     }
   })
 
+  it('keeps the shared recorder outside ACP until journal startup', () => {
+    expect(bundleText('acp')).toContain('./recorder.js')
+    expect(inputs('acp')).not.toContain('src/host/support/recorderEntry.ts')
+    expect(inputs('acp')).not.toContain('src/host/support/reportJournal.ts')
+  })
+
   it('keeps the plugin host out of the adapters’ bundle until a plugin hook runs (M91b)', () => {
     expect(bundleText('foreignHooks')).toContain('./pluginHooks.js')
     for (const file of [
@@ -379,6 +385,8 @@ describe('deferred cohort bundles', () => {
   it.each([
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
+    ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
+    ['acp', 'src/host/support/reportJournal.ts', 'from the recorder bundle'],
     // M91b: the plugin host, required by the adapters on the first plugin hook.
     ['foreignHooks', 'src/core/backends/modelapi/pluginHost.ts', 'on the first plugin hook'],
     ['modelApi', 'src/core/backends/modelapi/pluginChild.ts', 'on its first action'],
@@ -395,7 +403,7 @@ describe('deferred cohort bundles', () => {
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/meta/${name}.json`
+      const file = `dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`
       const meta = structuredClone(fixture(file).meta)
       const original = JSON.stringify(meta)
       const hash = createHash('sha256').update(original).digest('hex')

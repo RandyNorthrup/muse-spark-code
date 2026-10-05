@@ -4134,6 +4134,8 @@ remain registered at activation.
 Node bundles share a core English fallback and generated runtime, hooks/import
 and optional-surface regions. English regions load when a value is read; full
 translation validation or webview table serialization reads every region.
+The ACP agent loads the shared recorder before session initialization or reading
+a report, retaining the same journal policy without embedding another copy.
 
 The extension is developed by a small team of AI agents under one human
 owner. The process below has been in use since 2026-09-28. Each milestone's

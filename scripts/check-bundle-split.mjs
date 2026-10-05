@@ -54,7 +54,7 @@
 // - the report dialog (M93: the builder, its second scrub, the export paths
 //   and the handler) or the flight recorder's journal (its policy and frame
 //   mapping) is in dist/extension.js, or missing from dist/report.js or
-//   dist/recorder.js. The ACP agent bundles both itself.
+//   dist/recorder.js. The ACP agent loads that same journal before serving.
 // - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
 //   CHECKPOINT_, AGENT_IMPORT_, GIT_, REVIEW_, WEB_FETCH_, EXEC_,
 //   AUTO_REVIEWER_MODEL_TEXT) is
@@ -617,6 +617,16 @@ for (const file of readdirSync('src/core/tab')) {
     problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
 }
 problems.push(...checkDeferredBundles(inputsOf))
+
+// ACTDIET: ACP shares the journal before session initialization or report reading.
+const acpMeta = JSON.parse(readFileSync(BUNDLES.acp.metafile, 'utf8'))
+if (
+  acpMeta.outputs[BUNDLES.acp.output].imports.every(
+    (entry) => !(entry.path === './recorder.js' && entry.external),
+  )
+) {
+  problems.push(`${BUNDLES.acp.output} no longer loads the shared recorder`)
+}
 
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which

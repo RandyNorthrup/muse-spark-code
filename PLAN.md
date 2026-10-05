@@ -256,7 +256,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 | Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/conversation.js`     | ≤ 275 KiB (ACTDIET: first chat surface, 228.8 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
+| `dist/conversation.js`     | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
 | `dist/tab.js`              | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
 | `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
 | `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
@@ -6828,6 +6828,10 @@ source files and parsing TypeScript. Preserve the canonical declarations,
 diagnostics and every parent/destination check. No UI, protocol, dependency,
 paid call or release change. The named brief authorizes local parallel Vitest
 for D4-C despite common.md's ordinary rig-only/one-process rules.
+
+- [ ] Recover the merged webview startup overage within unchanged startup and
+      deferred budgets: inspect model-text overcarriage, then defer optional
+      dialogs with the existing loading/focus affordance only if measurements fit.
 
 ### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
 

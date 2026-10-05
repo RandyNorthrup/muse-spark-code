@@ -250,6 +250,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- ACP loads the same recorder bundle before report reading or session startup,
+  keeping the journal implementation out of its entry bundle.
+
 - Keep English fallback regions lazy through descriptor-preserving locale
   state. Runtime, hooks and optional surfaces load their text on access;
   browser and integration builds retain their inline fallback.

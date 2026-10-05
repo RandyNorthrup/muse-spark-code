@@ -12,6 +12,8 @@ import { hostFramesOf } from './hostFrames'
 import { ReportJournal, type ReportJournalFs } from './reportJournal'
 import type { PendingRecord, WindowJournal } from './reportRecorder'
 
+export { ReportJournal } from './reportJournal'
+
 export interface WindowJournalOptions {
   /** `ExtensionContext.globalStorageUri.fsPath`. */
   readonly globalStorageDir: string

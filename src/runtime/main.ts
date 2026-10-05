@@ -34,7 +34,7 @@ import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './a
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
-import { ReportJournal } from '../host/support/reportJournal'
+import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
@@ -164,7 +164,8 @@ async function readBoundedFile(
  * (no workspace needed). Each process writes only its own journal; `report`
  * reads them all.
  */
-function reportJournal(log: Logger): ReportJournal {
+async function reportJournal(log: Logger): Promise<ReportJournal> {
+  const { ReportJournal } = await import('../host/support/recorderEntry')
   return new ReportJournal({
     globalStorageDir: agentDataFolder({
       platform: process.platform,
@@ -322,7 +323,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   // The agent records its own failures for `report` (M93): an activation
   // marker shields this process's journal from a peer's cleanup while it
   // runs; there is no crash offer outside the editor, so startup's is unused.
-  const journal = reportJournal(log)
+  const journal = await reportJournal(log)
   await journal.startup()
   const agent = createAcpAgent({
     backend: runtime.backend,
@@ -567,7 +568,7 @@ async function main(): Promise<number> {
         nowMs,
         // Reading prunes expired records but sets and consumes no marker.
         readJournal: async () => {
-          const journal = reportJournal(log)
+          const journal = await reportJournal(log)
           const merged = await journal.readMerged()
           return {
             entries: reportEventsOf(merged.entries, nowMs),

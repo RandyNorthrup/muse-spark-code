@@ -429,7 +429,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',

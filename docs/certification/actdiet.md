@@ -360,3 +360,23 @@ build isolated temporary artifacts, preventing their initial shared-dist race.
 Kubuntu final regional/l10n/deferred run: **49 passed** (3 files). The preceding
 29-test behavior/locale run passed; an intermediate two-suite metadata race was
 caught and corrected, not accepted as a product result.
+
+## ACP prototype (step 3)
+
+ACP now loads the existing recorder before serving or reading a report. Its
+journal retains the same constructor and policy; no session connects before
+startup finishes. Both ACP packages and CI membership checks carry recorder.js,
+and its metafile participates in the ACP notices. No new localized/wire text.
+ACP **875,453 → 860,293 bytes** (15,160 saved), below unchanged 870,400-byte cap.
+Activation **470,105 bytes** (+23: load conversation before allocating a tasks
+panel so a missing bundle can retry without allocating a stale panel).
+Conversation **221,188 bytes**, tightened new cap **250 KiB**.
+
+Kubuntu: recorder/reportCommand/deferredBundles **54 passed**; the actual staged
+production ACP package passes the fake stdio end-to-end file, **9 passed**. Both
+new ACP guard drills reject an embedded journal or missing recorder import,
+restore original metafile bytes with matching SHA-256, then pass again.
+
+Full production build currently rejects the merged webview startup at
+**933,277 bytes / 921,600 cap**; compilation and every other bundle size pass.
+The source of this separate merge overage is under investigation; no cap raised.

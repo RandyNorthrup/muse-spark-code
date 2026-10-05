@@ -36,6 +36,7 @@ const ACP_METAFILES = [
   path.join(METAFILE_DIR, 'reviewer.json'),
   path.join(METAFILE_DIR, 'foreignHooks.json'),
   path.join(METAFILE_DIR, 'hookRuntime.json'),
+  path.join(METAFILE_DIR, 'recorder.json'),
   path.join(METAFILE_DIR, 'searchWorker.json'),
   path.join(METAFILE_DIR, 'pageWorker.json'),
 ]
@@ -80,7 +81,7 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/searchWorker.js and
 dist/pageWorker.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
