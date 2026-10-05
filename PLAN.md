@@ -14708,15 +14708,18 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   analysis; static readers cannot resolve arbitrary build logic or linkage.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
-- I-R10 — **aggregate receipt pending; owner: lead.** All 460 a11y
-  pages pass with unchanged rules; synthetic history findings have exact
-  fingerprint-only exceptions; all five dynamic RegExp findings are removed.
-  The first full quality run exits 0. On source `a5265fcd`, every static,
-  coverage, build, audit and 460-page accessibility gate passes. Incoming
-  shared refs added a certification SHA-256 false positive, now exactly ignored.
-  The latest complete repeat is still running at the finish timebox: lead owns
-  its final aggregate receipt. Two-worker SAST covers every rule/target with
-  zero findings/timeouts; all deadlines and failure thresholds stay unchanged.
+- I-R10 — **local aggregate receipt closed; owner: FIN3.** Full
+  `npm run quality` on `62e881ad` exits 0 in 1,559.97 seconds on macmini:
+  385 test files / 7,406 tests, coverage above all unchanged thresholds,
+  every production bundle/split/notices gate, audit, 460 general accessibility
+  pages, 96 native Chromium legal checks and 24 legal WCAG pages, history
+  scanning with no leaks, and 529 SAST rules / 771 targets with zero findings.
+  Existing 4/60 test skips, 48 a11y exemptions and the reviewed audit exception
+  are unchanged; no new exemption, retry or raised deadline was used. Five
+  original failures and two additional timing races are repaired and their
+  guards proved in `docs/certification/m97.md`. The final documentation head
+  receives a complete repeat; platform/live release receipts remain their own
+  requirements, not claims made by this local aggregate.
 
 ## 10. Definition of done and release records
 
