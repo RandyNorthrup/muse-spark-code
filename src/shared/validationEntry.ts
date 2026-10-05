@@ -5,6 +5,7 @@ export {
   array,
   boolean,
   discriminatedUnion,
+  email,
   enum,
   exactOptional,
   extend,

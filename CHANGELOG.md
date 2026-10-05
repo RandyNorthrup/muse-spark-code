@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The merged M91 elicitation runtime now receives `zod/mini.email` from the
+  shared validation bundle, as required by the bundle-split gate.
+
 - M91's unwired Gemini hook adapters translate established native arguments
   and explicitly refuse unsupported blocking calls. Tool-selection whitelists
   survive `ANY` without forcing a call. Captured nested arguments and saved
@@ -163,8 +166,13 @@ happened, not what was planned; superseded entries are kept.
   - Translated commands and multi-line picker labels in all 14 languages.
     `dist/tab.js` ships in the VSIX, with size, module-split, model-text and
     host-global checks; the host-API record is regenerated.
-  - Cursor's Tab hook bridge is prepared; executing those hook configurations
-    and the final live check wait for M91/lane K.
+  - Cursor's Tab hooks now load through M91's configured window runner on
+    either backend. Read guards fail closed before completion dispatch;
+    cached verdicts invalidate on configuration changes, and accepted edits
+    report actual line text. The guard stays in the lazy Tab bundle; all
+    hook callers share the production runner's process cap. Fake-hook
+    veto/edit flows pass. Integrated bundle caps and the final live check
+    remain open; see `docs/certification/m94-k.md`.
 
 ## [0.13.0] - 2026-10-05
 

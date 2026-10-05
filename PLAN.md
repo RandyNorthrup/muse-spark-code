@@ -5494,7 +5494,7 @@ the scope below on 2026-10-04.
 - **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
 - **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
 - **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. M94KW now admits and dispatches these two imports through the Tab operation; M91b's other extension-event imports still wait.
 - **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
   use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
   yes, once per window, as Tab's form of D48** — Allow once this window (until
@@ -15403,11 +15403,22 @@ returns`void`, so every bus mapping is observation only; a throw fails
 
 ### M94 — Inline completions (Tab) (D73)
 
+**M94KW scope (2026-10-05).** Admit only Cursor's two Tab imports on the
+extension-event route; retain M91b's other import deferrals. Supply request
+model, roots and generation before each file check, actual line text for
+accepted edits, and the lazy Tab factory. Reuse M91's window snapshot and
+raw command runner; enforce its process cap across bundle callers. Whole
+owning suites run at most three files per invocation, with red drills and
+byte-exact restoration. No paid/live calls or full quality run in this lane.
+The continuation in `docs/certification/m94-k.md` is the evidence record.
+
 **Status 2026-10-04: lanes 0/P/C/L/H/U integrated; lane W finishing wiring
 and verification on `feature/m94-tab`, merged with `main-sync`.** The plan
 is D73, Q-M94a–d and this section; the research is
-`docs/certification/m94-research.md`. Lane K waits for M91 and the final live
-check remains with the lead. W also moves the small status item into the
+`docs/certification/m94-research.md`. M94KW integrates lane K with M91
+and the current release base; configured fake-hook flows are verified in
+`docs/certification/m94-k.md`. Integrated size gates and the final live
+check remain with the lead. W also moves the small status item into the
 activation shim, translates the multi-line picker, and wires recent-edit
 and definition snippets through the same privacy checks as the current file.
 The full gate also joins main's M87 palette-tip contract: Tab's paid row

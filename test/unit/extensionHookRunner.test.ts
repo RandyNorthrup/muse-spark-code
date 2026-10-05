@@ -38,7 +38,10 @@ interface HookRun {
 function setup(
   options: {
     readonly files?: Record<string, string>
-    readonly runHook?: (command: string, payload: Record<string, unknown>) => ShellResult
+    readonly runHook?: (
+      command: string,
+      payload: Record<string, unknown>,
+    ) => ShellResult | Promise<ShellResult>
     readonly isWorkspaceTrusted?: () => boolean
     readonly isHooksEnabled?: () => boolean
     readonly isIndexed?: (relativePath: string) => Promise<boolean>
@@ -404,34 +407,127 @@ describe('ExtensionHookRunner', () => {
   })
 })
 
-
 describe('Tab raw dispatch on both backends', () => {
+  it.each([
+    { format: 'cline', sourceEvent: 'beforeTabFileRead' },
+    { format: 'cursor', sourceEvent: 'afterTabFileEdit' },
+    { format: 'cursor', sourceEvent: 'beforeTabFileRead', async: true },
+    { format: 'cursor', sourceEvent: 'beforeTabFileRead', failClosed: 'false' },
+  ])('refuses an invalid Tab import group ($format, $sourceEvent)', async (fields) => {
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ ...fields, hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+    })
+    await t.runner.reload()
+    expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)
+    expect(t.warnings.join('\n')).toContain('invalid group')
+  })
+
+  it('refuses a raw result from an old configuration', async () => {
+    const { promise, resolve: finish } = Promise.withResolvers<ShellResult>()
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+      runHook: () => promise,
+    })
+    await t.runner.reload()
+    const pending = t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
+    expect(t.hookRuns).toHaveLength(1)
+    await t.runner.reload()
+    finish(hookResult('{"permission":"allow"}'))
+    expect(await pending).toBeUndefined()
+  })
   it('admits configured Cursor Tab matchers and returns raw vetoes without onFailure rescue', async () => {
-    const t = setup({ files: { [PROJECT_HOOKS]: sparkDoc({
-      beforeTabFileRead: [{ format: 'cursor', sourceEvent: 'beforeTabFileRead', failClosed: false, matcher: 'TabRead', hooks: [{ type: 'command', command: 'guard', onFailure: { type: 'command', command: 'rescue' } }] }],
-      afterTabFileEdit: [{ matcher: 'TabWrite', hooks: [{ type: 'command', command: 'observe' }] }],
-    }) }, runHook: () => ({ ...hookResult('{"permission":"allow"}'), exitCode: 2 }) })
+    const t = setup({
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [
+            {
+              format: 'cursor',
+              sourceEvent: 'beforeTabFileRead',
+              failClosed: false,
+              matcher: 'TabRead',
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'guard',
+                  onFailure: { type: 'command', command: 'rescue' },
+                },
+              ],
+            },
+          ],
+          afterTabFileEdit: [
+            { matcher: 'TabWrite', hooks: [{ type: 'command', command: 'observe' }] },
+          ],
+        }),
+      },
+      runHook: () => ({ ...hookResult('{"permission":"allow"}'), exitCode: 2 }),
+    })
     await t.runner.reload()
     expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(true)
     expect(t.runner.hasTabHooks('afterTabFileEdit')).toBe(true)
-    const result = await t.runner.runTab({ event: 'beforeTabFileRead', matcherValue: 'TabRead', maxTimeoutMs: 1500,
-      stdin: JSON.stringify({ hook_event_name: 'beforeTabFileRead', file_path: '/ws/file.ts', content: 'local source', generation_id: 'request-1', workspace_roots: ['/ws'], model: 'muse-spark-1.3' }),
+    const result = await t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabRead',
+      maxTimeoutMs: 1500,
+      stdin: JSON.stringify({
+        hook_event_name: 'beforeTabFileRead',
+        file_path: '/ws/file.ts',
+        content: 'local source',
+        generation_id: 'request-1',
+        workspace_roots: ['/ws'],
+        model: 'muse-spark-1.3',
+      }),
     })
     expect(result?.[0]?.exitCode).toBe(2)
     expect(t.hookRuns.map((run) => run.command)).toEqual(['guard'])
-    expect(t.hookRuns[0]?.payload).toMatchObject({ file_path: '/ws/file.ts', content: 'local source', generation_id: 'request-1' })
-    const mismatch = await t.runner.runTab({ event: 'beforeTabFileRead', matcherValue: 'Other', maxTimeoutMs: 1500, stdin: '{}' })
+    expect(t.hookRuns[0]?.payload).toMatchObject({
+      file_path: '/ws/file.ts',
+      content: 'local source',
+      generation_id: 'request-1',
+    })
+    const mismatch = await t.runner.runTab({
+      event: 'beforeTabFileRead',
+      matcherValue: 'TabWrite',
+      maxTimeoutMs: 1500,
+      stdin: '{}',
+    })
     expect(mismatch).toEqual([])
     expect(t.hookRuns).toHaveLength(1)
   })
 
   it('refuses dispatch after trust revocation and clears snapshot when disabled', async () => {
-    let trusted = true
-    const t = setup({ isWorkspaceTrusted: () => trusted, files: { [PROJECT_HOOKS]: sparkDoc({ beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }] }) } })
+    let isTrusted = true
+    const t = setup({
+      isWorkspaceTrusted: () => isTrusted,
+      files: {
+        [PROJECT_HOOKS]: sparkDoc({
+          beforeTabFileRead: [{ hooks: [{ type: 'command', command: 'guard' }] }],
+        }),
+      },
+    })
     await t.runner.reload()
     const version = t.runner.configurationVersion()
-    trusted = false
-    expect(await t.runner.runTab({ event: 'beforeTabFileRead', matcherValue: 'TabRead', maxTimeoutMs: 1500, stdin: '{}' })).toBeUndefined()
+    isTrusted = false
+    expect(
+      await t.runner.runTab({
+        event: 'beforeTabFileRead',
+        matcherValue: 'TabRead',
+        maxTimeoutMs: 1500,
+        stdin: '{}',
+      }),
+    ).toBeUndefined()
     await t.runner.reload()
     expect(t.runner.configurationVersion()).not.toBe(version)
     expect(t.runner.hasTabHooks('beforeTabFileRead')).toBe(false)

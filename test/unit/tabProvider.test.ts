@@ -41,7 +41,6 @@ import {
 import {
   TabIgnoreCache,
   chooseTabMode,
-  createTabProvider,
   inferTabPartialAccept,
   isFilesExcluded,
   isTabFileEligible,
@@ -445,7 +444,7 @@ interface ProviderHarness {
   readonly log: FakeLogOutputChannel
   readonly textListeners: ((event: TabTextChangeEvent) => void)[]
   readonly provider: vscode.InlineCompletionItemProvider
-  readonly handle: ReturnType<typeof createTabProvider>
+  readonly handle: ReturnType<typeof entryProvider>
   serve(
     text?: string,
     line?: number,
@@ -1182,30 +1181,71 @@ describe('Tab multi-line context wiring', () => {
   })
 })
 
-
 describe('M94KW configured hooks through the lazy factory', () => {
   it('vetoes before a model call, then observes and edits an accepted completion with a real fake hook', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'muse-tab-hook-flow-'))
     const file = path.join(root, 'file.ts')
     const fixture = path.resolve('test/fixtures/tabHooks/completion.mjs')
-    const hookRuns: { readonly command: string; readonly stdin: string; readonly timeoutMs: number }[] = []
-    const files = new Map<string, string | Uint8Array>([[path.join(root, '.muse/spark-hooks.json'), JSON.stringify({ hooks: {
-      beforeTabFileRead: [{ format: 'cursor', sourceEvent: 'beforeTabFileRead', failClosed: false, matcher: 'TabRead', hooks: [{ type: 'command', command: 'fake-read', timeout: 10 }] }],
-      afterTabFileEdit: [{ format: 'cursor', sourceEvent: 'afterTabFileEdit', matcher: 'TabWrite', hooks: [{ type: 'command', command: 'fake-edit' }] }],
-    } })]])
+    const hookRuns: {
+      readonly command: string
+      readonly stdin: string
+      readonly timeoutMs: number
+    }[] = []
+    const files = new Map<string, string | Uint8Array>([
+      [
+        path.join(root, '.muse/spark-hooks.json'),
+        JSON.stringify({
+          hooks: {
+            beforeTabFileRead: [
+              {
+                format: 'cursor',
+                sourceEvent: 'beforeTabFileRead',
+                failClosed: false,
+                matcher: 'TabRead',
+                hooks: [{ type: 'command', command: 'fake-read', timeout: 10 }],
+              },
+            ],
+            afterTabFileEdit: [
+              {
+                format: 'cursor',
+                sourceEvent: 'afterTabFileEdit',
+                matcher: 'TabWrite',
+                hooks: [{ type: 'command', command: 'fake-edit' }],
+              },
+            ],
+          },
+        }),
+      ],
+    ])
     const runner = new ExtensionHookRunner({
-      io: memoryContextIo(files), platform: process.platform, workspaceRoot: root,
+      io: memoryContextIo(files),
+      platform: process.platform,
+      workspaceRoot: root,
       settingsPath: path.join(root, 'config/settings.json'),
-      isWorkspaceTrusted: () => true, isHooksEnabled: () => true, now: Date.now,
+      isWorkspaceTrusted: () => true,
+      isHooksEnabled: () => true,
+      now: Date.now,
       runHook: async (command, stdin, cwd, timeoutMs, signal) => {
         hookRuns.push({ command, stdin, timeoutMs })
-        return await runCommand({ file: process.execPath, args: [fixture], cwd,
-          env: hookEnvironment(process.env, process.platform), timeoutMs, signal, stdin,
+        return await runCommand({
+          file: process.execPath,
+          args: [fixture],
+          cwd,
+          env: hookEnvironment(process.env, process.platform),
+          timeoutMs,
+          signal,
+          stdin,
           maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
-          tree: { platform: process.platform, systemRoot: process.env['SystemRoot'], log: new FakeLogOutputChannel() },
+          tree: {
+            platform: process.platform,
+            systemRoot: process.env['SystemRoot'],
+            log: () => undefined,
+          },
         })
       },
-      notice: () => undefined, showOutput: () => undefined, warn: () => undefined,
+      notice: () => undefined,
+      showOutput: () => undefined,
+      warn: () => undefined,
     })
     await runner.reload()
     const harness = providerHarness({
@@ -1218,7 +1258,9 @@ describe('M94KW configured hooks through the lazy factory', () => {
       },
     })
     try {
-      await expect(harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file)).resolves.toEqual([])
+      await expect(
+        harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file),
+      ).resolves.toEqual([])
       expect(harness.complete).not.toHaveBeenCalled()
       await harness.serve('BLOCK_TAB', 0, 0, new FakeCancellationToken(), file)
       expect(hookRuns).toHaveLength(1)
@@ -1229,30 +1271,51 @@ describe('M94KW configured hooks through the lazy factory', () => {
       const args = items[0]?.command?.arguments?.[0]
       writeFileSync(file, 'const y = foo()')
       harness.handle.acceptNotified(args)
-      await vi.waitFor(() => expect(readFileSync(file, 'utf8')).toContain('fake hook edited accepted completion'))
+      await vi.waitFor(() => {
+        expect(readFileSync(file, 'utf8')).toContain('fake hook edited accepted completion')
+      })
       expect(JSON.parse(hookRuns.at(-1)?.stdin ?? '{}')).toMatchObject({
-        hook_event_name: 'afterTabFileEdit', generation_id: 'request-3', file_path: file,
-        edits: [{ old_string: '', new_string: 'foo()', old_line: 'const y = ', new_line: 'const y = foo()', range: { start_line_number: 1, start_column: 11, end_line_number: 1, end_column: 11 } }],
+        hook_event_name: 'afterTabFileEdit',
+        generation_id: 'request-3',
+        file_path: file,
+        edits: [
+          {
+            old_string: '',
+            new_string: 'foo()',
+            old_line: 'const y = ',
+            new_line: 'const y = foo()',
+            range: { start_line_number: 1, start_column: 11, end_line_number: 1, end_column: 11 },
+          },
+        ],
       })
       expect(harness.complete).toHaveBeenCalledOnce()
-    } finally { harness.handle.dispose(); await removeFolder(root) }
+    } finally {
+      harness.handle.dispose()
+      await removeFolder(root)
+    }
   })
 
   it('keeps completion bytes identical with no configured guard, including JSON-expanded text', async () => {
     const plain = providerHarness()
     const run = vi.fn().mockResolvedValue([])
-    const wired = providerHarness({ hookDispatch: {
-      isHooksEnabled: () => true, configurationVersion: () => 'empty',
-      hasHooks: () => Promise.resolve(false), run,
-    } })
+    const wired = providerHarness({
+      hookDispatch: {
+        isHooksEnabled: () => true,
+        configurationVersion: () => 'empty',
+        hasHooks: () => Promise.resolve(false),
+        run,
+      },
+    })
     const text = 'const y = ' + '"'.repeat(TAB_FILE_MAX_BYTES / 2)
     expect(JSON.stringify(await wired.serve(text))).toBe(JSON.stringify(await plain.serve(text)))
-    expect(wired.snapshots).toEqual(plain.snapshots.map((snapshot) => ({ ...snapshot, isCancelled: expect.any(Function) })))
+    expect(wired.snapshots).toEqual(
+      plain.snapshots.map((snapshot) => ({ ...snapshot, isCancelled: expect.any(Function) })),
+    )
     expect(run).not.toHaveBeenCalled()
-    plain.handle.dispose(); wired.handle.dispose()
+    plain.handle.dispose()
+    wired.handle.dispose()
   })
 })
-
 
 describe('Tab accepted edit metadata', () => {
   it('reports only the remaining full insertion after a partial word', async () => {
@@ -1260,9 +1323,14 @@ describe('Tab accepted edit metadata', () => {
     const items = await harness.serve()
     harness.textListeners[0]?.({ changes: [textChange({ insertedText: 'foo(' })] })
     harness.handle.acceptNotified(items[0]?.command?.arguments?.[0])
-    expect(harness.afterEdit).toHaveBeenLastCalledWith(expect.objectContaining({
-      newString: 'bar)', oldLine: 'const y = foo(', newLine: 'const y = foo(bar)',
-      range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 }, inferred: false,
-    }))
+    expect(harness.afterEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        newString: 'bar)',
+        oldLine: 'const y = foo(',
+        newLine: 'const y = foo(bar)',
+        range: { startLineNumber: 1, startColumn: 15, endLineNumber: 1, endColumn: 15 },
+        inferred: false,
+      }),
+    )
   })
 })

@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   HOOK_STDIN_MAX_BYTES,
+  HOOK_MAX_RUNNING_COMMANDS,
   MODEL_TEXT,
   TOOL_FILE_MAX_BYTES,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
@@ -905,4 +906,44 @@ describe('createToolIo (real file system and shell)', () => {
     expect(result.isOutputTooLarge).toBe(true)
     expect(result.isTimedOut).toBe(false)
   }, 30_000)
+})
+
+describe('shared production hook process cap', () => {
+  it('caps callers across dispatch lanes, cancels a waiter and admits the next after release', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'muse-hook-cap-'))
+    const runner = io().runHook
+    if (runner === undefined) throw new Error('hook runner missing')
+    const script =
+      "const fs=require('node:fs');fs.appendFileSync('started','x');const poll=setInterval(()=>{if(fs.existsSync('release')){clearInterval(poll);process.exit(0)}},10)"
+    const command =
+      process.platform === 'win32'
+        ? `"${process.execPath}" -e "${script}"`
+        : `${posixQuoted(process.execPath)} -e ${posixQuoted(script)}`
+    const runs: Promise<unknown>[] = []
+    try {
+      for (let i = 0; i < HOOK_MAX_RUNNING_COMMANDS; i += 1)
+        runs.push(runner(command, '{}', folder, 10_000))
+      await vi.waitFor(async () => {
+        const started = await readFile(path.join(folder, 'started'), 'utf8')
+        expect(started.length).toBe(HOOK_MAX_RUNNING_COMMANDS)
+      })
+      const signal = new AbortController()
+      const cancelled = runner(command, '{}', folder, 10_000, signal.signal)
+      const rejection = expect(cancelled).rejects.toThrow('hook command cancelled')
+      signal.abort()
+      await rejection
+      runs.push(runner(command, '{}', folder, 10_000))
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const beforeRelease = await readFile(path.join(folder, 'started'), 'utf8')
+      expect(beforeRelease.length).toBe(HOOK_MAX_RUNNING_COMMANDS)
+      await writeFile(path.join(folder, 'release'), '')
+      await Promise.all(runs)
+      const afterRelease = await readFile(path.join(folder, 'started'), 'utf8')
+      expect(afterRelease.length).toBe(HOOK_MAX_RUNNING_COMMANDS + 1)
+    } finally {
+      await writeFile(path.join(folder, 'release'), '')
+      await Promise.allSettled(runs)
+      await removeFolder(folder)
+    }
+  })
 })

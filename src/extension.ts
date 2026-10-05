@@ -897,7 +897,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
     return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
   }
+  let tabHookConfiguration = 0
+  let tabHookReload: Promise<void> = Promise.resolve()
   const tab = createTabActivation({
+    hookDispatch: {
+      isHooksEnabled: () => currentSettings().modelApiHooks,
+      configurationVersion: () =>
+        `${String(tabHookConfiguration)}:${hookRunner?.configurationVersion() ?? ''}`,
+      hasHooks: async (event) => {
+        await tabHookReload
+        const runner = await hookRunnerFor(false)
+        if (runner === undefined) throw new Error('Tab hook dispatch unavailable')
+        return runner.hasTabHooks(event)
+      },
+      run: async (request) => {
+        const version = tabHookConfiguration
+        await tabHookReload
+        if (version !== tabHookConfiguration) return
+        const runner = await hookRunnerFor(false)
+        return await runner?.runTab(request)
+      },
+    },
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
     log,
     isTabSettingOn: () => currentSettings().modelApiTab,
@@ -2374,10 +2394,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     let loaded: ExtensionHooksModule
     try {
       loaded = await hookBundle.loadBundle()
-    } catch (error: unknown) {
-      log.warn(
-        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      )
+    } catch {
+      log.warn('Extension hooks are unavailable')
       if (shouldAnnounceFailure) {
         void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
       }
@@ -2878,6 +2896,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     )
   }
   const onHookConfigFile = (uri: vscode.Uri): void => {
+    tabHookConfiguration += 1
     if (!areHooksArmed()) {
       return
     }
@@ -2887,15 +2906,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     } else if (uri.path.endsWith('.muse/hooks.json')) {
       reason = 'hooks'
     }
-    void withHookRunner((runner) => runner.noteConfigFile(uri.fsPath, reason), false).catch(
-      logRejection(log, 'ConfigChange hook'),
-    )
+    tabHookReload = (async () => {
+      try {
+        await withHookRunner((runner) => runner.noteConfigFile(uri.fsPath, reason), false)
+      } catch (error: unknown) {
+        logRejection(log, 'ConfigChange hook')(error)
+      }
+    })()
   }
   const onHookUserFile = (): void => {
+    tabHookConfiguration += 1
     if (!areHooksArmed()) {
       return
     }
-    void withHookRunner((runner) => runner.reload(), false).catch(logRejection(log, 'hook reload'))
+    tabHookReload = (async () => {
+      try {
+        await withHookRunner((runner) => runner.reload(), false)
+      } catch (error: unknown) {
+        logRejection(log, 'hook reload')(error)
+      }
+    })()
   }
 
   editorContext.update(editorSnapshot)
@@ -2990,9 +3020,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
-        void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
-          logRejection(log, 'ConfigChange hook'),
-        )
+        tabHookConfiguration += 1
+        tabHookReload = (async () => {
+          try {
+            await withHookRunner((runner) => runner.noteSettingsChange(), false)
+          } catch (error: unknown) {
+            logRejection(log, 'ConfigChange hook')(error)
+          }
+        })()
       }
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         registry.broadcast({ type: 'settingsChanged', settings: hostContext.getSettings() })

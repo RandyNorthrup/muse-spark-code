@@ -50,6 +50,7 @@ import {
 } from './hooks'
 
 export { loadForeignHookDefinitions } from './hooks'
+export { buildForeignStdin } from './hookFormats'
 
 export interface ForeignHookAdapterDeps {
   readonly workspaceRoot: string
