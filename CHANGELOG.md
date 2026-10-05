@@ -283,6 +283,8 @@ happened, not what was planned; superseded entries are kept.
   remain supported. Truncated or normalized MCP identities are refused.
   Kiro Manual is refused until its adapter has a row.
 
+- Restore dead-export checks for shared constants: the exec schema tests use named imports instead of enumerating the whole module, and Knip also checks unused namespace values and types.
+
 ### Security
 
 - Tab uses held-project trust for completions and rechecks it at the native Git entry for ignore lookups, so a held pull-request worktree runs no automatic Tab Git command.

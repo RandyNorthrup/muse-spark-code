@@ -6134,6 +6134,26 @@ checks fail under deliberate bypasses, then restore exact source bytes.
 - [ ] Certify each CI-shaped VSIX with the actual universal helper. Its measured prior-train ZIP contribution gives estimates within the cap after the repairs; Q-TRAIN14 records the missing artifact and read/network fence.
 - [x] Record conflict decisions, checks, gate-fire drills if new guards are needed, and exact per-merge bundle/archive bytes in `docs/certification/train-0.14.0.md`. Commit locally with hooks; no push, main merge, rebase, credential access or paid/live call. Time box: 100 minutes on Kubuntu.
 
+### KNIPC — Restore dead-export analysis of shared constants (2026-10-05)
+
+- [x] Reproduce the Knip 6.38.0 blind spot and bisect a scratch copy of
+      `src/shared/constants.ts`; identify the source construct or entry/config
+      classification that suppresses its exports.
+- [x] Fix the cause without an ignore or weakened gate; remove genuinely
+      unused constants and tests that only keep those constants alive.
+      The whole-module enumeration in `execSchema.test.ts` and disabled
+      namespace issue types were the two blockers. Named imports plus additive
+      `nsExports`/`nsTypes` inclusion expose both planted value/type exports;
+      every existing constant remains referenced, so none is removed.
+- [x] Plant an unused export, observe plain Knip exit 1, restore byte-exact
+      and observe exit 0. Record evidence and scoped static/build/test checks
+      in `docs/certification/knip-constants.md`; commit locally with hooks on.
+
+The KNIPC rig brief and shared lane rules prohibit full quality/full-unit
+runs and integration merges/pushes. The lead retains full quality, coverage,
+accessibility and integration certification; this lane runs the required
+scoped checks directly on macmini, with all existing gates unchanged.
+
 ### TRAIN13B — Release-train size recovery and complete Kubuntu gate (2026-10-05)
 
 - [x] Confirm both checkpoint test files pass in the cleared normal temporary directory.
@@ -17412,6 +17432,14 @@ budgets and reruns the production build and full quality gate before landing.
 No cap, threshold, ignore or rule level changed.
 
 **Resolved in integration (lane W, 2026-10-04, accepted by the lead).** The import bundle's cap is 175 KiB under the D6 rule (147.7 KiB measured, plus 15%, rounded up to 25 KiB); see the D6 table.
+**KNIPC bounded lane (2026-10-05).** The rig brief and shared rules prohibit
+aggregate quality/full-unit runs and integration merges/pushes on this lane.
+Full quality, coverage, accessibility and integration certification remain
+the lead's gates. The namespace export/type checks extend Knip's existing
+issue set without an ignore or lowered severity; value/type plants prove
+both guards fire. Scoped macmini evidence is recorded in
+`docs/certification/knip-constants.md`.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.

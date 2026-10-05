@@ -118,6 +118,11 @@
 
   "ignoreExportsUsedInFile": true,
 
+  // These add-on issue types extend Knip 6's default set; listing any ordinary
+  // issue type here would replace that set and silently narrow the gate.
+  // Type-only namespace imports in partial mocks must not hide unused exports.
+  "include": ["nsExports", "nsTypes"],
+
   // error = fails the run.
   //
   // `cycles` is deliberately absent: knip 6's rule reported nothing against a
@@ -129,7 +134,9 @@
     "unlisted": "error",
     "unresolved": "error",
     "exports": "error",
+    "nsExports": "error",
     "types": "error",
+    "nsTypes": "error",
     "duplicates": "error",
     "binaries": "error",
     "enumMembers": "error"
