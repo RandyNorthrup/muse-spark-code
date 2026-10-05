@@ -6,7 +6,12 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { isCredentialBound, parseCredentialRecord } from '../../src/core/providers/credentialRecord'
+import {
+  isCredentialBound,
+  parseCredentialRecord,
+  type CredentialAuth,
+  type CredentialRecord,
+} from '../../src/core/providers/credentialRecord'
 import {
   checkEndpointUrl,
   classifyAddress,
@@ -23,8 +28,13 @@ import {
 import {
   emptyProvidersFile,
   readProvidersFile,
+  userPriceCard,
   writeProvidersFileAtomic,
+  type OpenRouterRouting,
+  type ProviderAuth,
+  type ProviderEntry,
   type ProvidersFile,
+  type UserPriceCard,
 } from '../../src/core/providers/providersFile'
 
 describe('classifyAddress', () => {
@@ -150,7 +160,8 @@ describe('originOf', () => {
 })
 
 describe('credentialRecord', () => {
-  const record = { v: 1 as const, auth: 'apiKey' as const, origin: 'https://api.openai.com' }
+  const auth: CredentialAuth = 'apiKey'
+  const record: CredentialRecord = { v: 1, auth, origin: 'https://api.openai.com' }
 
   it('parses the record and refuses anything else', () => {
     expect(parseCredentialRecord(record)).toEqual(record)
@@ -216,19 +227,23 @@ describe('providersFile', () => {
     dir = ''
   })
 
+  const auth: ProviderAuth = 'apiKey'
+  const routing: OpenRouterRouting = { privacy: 'zdr', allowFallbacks: true }
+  const entry: ProviderEntry = {
+    id: 'openai',
+    preset: 'openai',
+    address: 'https://api.openai.com',
+    auth,
+    models: ['gpt-5.6-luna'],
+    pinned: ['gpt-5.6-luna'],
+  }
   const file: ProvidersFile = {
     v: 1,
     defaultModel: 'openai/gpt-5.6-luna',
-    providers: [
-      {
-        id: 'openai',
-        preset: 'openai',
-        address: 'https://api.openai.com',
-        auth: 'apiKey',
-        models: ['gpt-5.6-luna'],
-        pinned: ['gpt-5.6-luna'],
-      },
-    ],
+    providers: [entry],
+  }
+  const userPrices: Record<string, UserPriceCard> = {
+    'gpt-5.6-luna': { input: 2e-6, output: 8e-6 },
   }
 
   it('starts empty, round-trips atomically and reads back', async () => {
@@ -251,6 +266,28 @@ describe('providersFile', () => {
     await writeFile(wrong, '{"v":1,"providers":[{"id":"meta"}]}', 'utf8')
     expect(await readProvidersFile(bad)).toMatchObject({ ok: false, reason: 'unparseable' })
     expect(await readProvidersFile(wrong)).toMatchObject({ ok: false, reason: 'invalid' })
+  })
+
+  it('reads user-entered prices and routing as sourced cards', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'providers-'))
+    const filePath = path.join(dir, 'providers.json')
+    const routerEntry: ProviderEntry = {
+      id: 'openrouter',
+      preset: 'openrouter',
+      address: 'https://openrouter.ai',
+      auth,
+      models: ['openai/gpt-oss-20b'],
+      prices: userPrices,
+      routing,
+    }
+    expect(await writeProvidersFileAtomic(filePath, { v: 1, providers: [routerEntry] })).toEqual({
+      ok: true,
+    })
+    const read = await readProvidersFile(filePath)
+    expect(read.ok && read.file.providers[0]?.routing).toEqual(routing)
+    const card = userPriceCard(userPrices, 'gpt-5.6-luna')
+    expect(card).toMatchObject({ input: 2e-6, output: 8e-6, source: 'user' })
+    expect(userPriceCard(userPrices, 'no-such-model')).toBeUndefined()
   })
 
   it('refuses to write an invalid value before touching the disk', async () => {

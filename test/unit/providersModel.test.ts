@@ -24,6 +24,7 @@ import {
   resolvePriceCard,
   settleUsageUsd,
   ticksToUsdPerToken,
+  type ModelPricing,
   type PriceCard,
 } from '../../src/core/providers/priceCard'
 
@@ -162,6 +163,16 @@ describe('priceCard', () => {
       settleUsageUsd(card, { inputTokens: 100, cachedTokens: 200, outputTokens: 0 }),
     ).toBeUndefined()
     expect(settleUsageUsd(card, { inputTokens: NaN, outputTokens: 0 })).toBeUndefined()
+  })
+
+  it('names the four pricing kinds', () => {
+    const pricings: ModelPricing[] = [
+      { kind: 'priced', card },
+      { kind: 'unpriced' },
+      { kind: 'local' },
+      { kind: 'plan' },
+    ]
+    expect(pricings.map((pricing) => pricing.kind)).toEqual(['priced', 'unpriced', 'local', 'plan'])
   })
 
   it('rejects bad cards and bad usage', () => {

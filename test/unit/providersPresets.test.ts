@@ -11,6 +11,7 @@ import {
   openRouterKeyPage,
   openRouterRoutingRequest,
   openRouterTokenRequestBody,
+  isUserSuppliedOrigin,
   presetById,
   presetsByCategory,
   PRESETS,
@@ -84,6 +85,10 @@ describe('the preset table', () => {
   })
 
   it('fixes cloud origins and leaves user origins to the user', () => {
+    expect(isUserSuppliedOrigin(preset('openai'))).toBe(false)
+    expect(isUserSuppliedOrigin(preset('azure'))).toBe(true)
+    expect(isUserSuppliedOrigin(preset('ollama'))).toBe(true)
+    expect(isUserSuppliedOrigin(preset('custom'))).toBe(true)
     expect(preset('openai').origin).toEqual({ kind: 'fixed', origin: 'https://api.openai.com' })
     expect(preset('anthropic').origin).toEqual({
       kind: 'fixed',

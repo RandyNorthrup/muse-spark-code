@@ -12,12 +12,14 @@ import {
 import { diffModelScans, isScanStale } from '../../src/core/providers/scanDiff'
 import {
   isDefaultCapable,
+  suggest,
   suggestDefaultModel,
   suggestSessionBudget,
 } from '../../src/core/providers/suggest'
 import {
   applyWizardEvent,
   startWizard,
+  WIZARD_STEPS,
   wizardBlockers,
   wizardSummary,
   type WizardState,
@@ -48,6 +50,13 @@ function row(
 }
 
 describe('wizardFlow', () => {
+  it('names every step from pick to done', () => {
+    expect(WIZARD_STEPS.at(0)).toBe('pick-provider')
+    expect(WIZARD_STEPS.at(-1)).toBe('done')
+    expect(WIZARD_STEPS).toContain('privacy')
+    expect(startWizard().step).toBe('pick-provider')
+  })
+
   it('walks every step for a keyed provider', () => {
     let state = selectOpenai(startWizard())
     state = applyWizardEvent(state, { type: 'next' })
@@ -211,6 +220,13 @@ describe('suggest', () => {
     expect(tied?.value).toBe('groq/other')
     expect(tied?.reason).toContain('Recommended')
     expect(tied?.reason).toContain('last default')
+  })
+
+  it('dispatches both kinds through one entry point', () => {
+    const context = { models: [capable] }
+    expect(suggest('defaultModel', context)?.value).toBe(capable.ref)
+    const card = { input: 2e-6, output: 8e-6, source: 'list' as const }
+    expect(suggest('sessionBudget', context, card)?.kind).toBe('sessionBudget')
   })
 
   it('budgets from history, else from a reference session at the default rates', () => {
