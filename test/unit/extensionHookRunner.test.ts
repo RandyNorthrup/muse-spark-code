@@ -13,6 +13,9 @@ import {
 import type { ShellResult } from '../../src/core/shellResult'
 import { memoryContextIo } from './helpers/fakeContextIo'
 import { hookResult } from './helpers/fakeToolIo'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { extensionHooksBundle } from '../../src/host/extensionHooksBundle'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const ROOT = '/ws'
 const SETTINGS = '/home/user/.config/muse/settings.json'
@@ -86,6 +89,23 @@ function setup(
     },
   }
 }
+
+describe('extension hooks lazy bundle', () => {
+  it.each([
+    { name: 'null', value: null },
+    { name: 'missing factory', value: {} },
+    { name: 'nonfunction factory', value: { createExtensionHookRunner: false } },
+  ])('rejects a malformed bundle factory ($name)', async ({ value }) => {
+    const bundle = extensionHooksBundle(
+      '/extensionHooks.js',
+      new FakeLogOutputChannel(),
+      () => value,
+    )
+    await expect(async () => {
+      await bundle.loadBundle()
+    }).rejects.toThrow(UI_TEXT.extensionHooksUnavailable)
+  })
+})
 
 describe('ExtensionHookRunner', () => {
   it('observes extension settings without inventing a settings filename', async () => {

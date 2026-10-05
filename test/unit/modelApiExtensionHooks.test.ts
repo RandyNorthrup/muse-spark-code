@@ -334,6 +334,15 @@ describe('ModelApiSession extension hooks', () => {
           siblings_running: 1,
         })
         expect(JSON.stringify(session.history())).not.toContain('another check')
+        const childPrompts = session
+          .snapshot()
+          .children?.flatMap((child) =>
+            child.session.transcript.flatMap(({ item }) =>
+              item.kind === 'userMessage' ? [item.text] : [],
+            ),
+          )
+        expect(childPrompts).toHaveLength(2)
+        expect(childPrompts).toEqual(expect.arrayContaining(['first', 'second']))
       } finally {
         first.resolve(true)
         second.resolve(true)

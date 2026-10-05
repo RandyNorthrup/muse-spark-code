@@ -5,7 +5,7 @@
 // `permission_mode`) with this runtime's additions (`turn_id`, `model`,
 // `model_provider`), and each event's documented fields; answers follow the
 // same contract (exit 0 parses JSON, exit 2 refuses where the event can
-// refuse). Every guard below has a red drill in docs/certification/m91-e.md.
+// refuse). Wiring guard drills are recorded in docs/certification/m91-e.md.
 
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -472,6 +472,36 @@ describe('dispatchExtensionHooks', () => {
     expect(result.failedReason).toBe('boom')
     expect(result.output).toBe('')
   })
+
+  it.each(['spawn', 'timeout', 'output-limit'])(
+    'reports start and resource failures for a user-started run (%s)',
+    async (failure) => {
+      const result = await dispatchExtensionHooks({
+        hooks: hookFor('Manual', 'broken'),
+        event: 'Manual',
+        payload,
+        io: {
+          runHook: () =>
+            failure === 'spawn'
+              ? Promise.reject(new Error('spawn ENOENT'))
+              : Promise.resolve({
+                  ...shellResult('{"systemMessage":"unexpected output"}', '', 0),
+                  isTimedOut: failure === 'timeout',
+                  isOutputTooLarge: failure === 'output-limit',
+                }),
+        },
+        cwd: '/ws',
+        warn: () => undefined,
+      })
+      expect(result.failedReason).toBe(
+        failure === 'spawn'
+          ? 'extension hook could not start'
+          : 'extension hook exceeded its limit',
+      )
+      expect(result.messages).toEqual([])
+      expect(result.output).toBe('')
+    },
+  )
 
   it('selects Setup hooks by trigger', async () => {
     const hooks = parseSparkHooksConfig(

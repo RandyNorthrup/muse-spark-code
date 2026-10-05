@@ -1380,7 +1380,7 @@ describe('ConversationController: composer controls', () => {
       api.script({ text: 'done' })
       await controller.handle({ type: 'sendMessage', localId: 'l1', text: 'hi', attachmentIds: [] })
       await vi.waitFor(() => {
-        expect(agentEvents(t).some((event) => event.type === 'turnCompleted')).toBe(true)
+        expect(agentEvents(t)).toContainEqual(expect.objectContaining({ type: 'turnCompleted' }))
       })
       await controller.handle({ type: 'setEffort', effort: 'max' })
       await controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })
