@@ -1,0 +1,407 @@
+/* Native hosts map these tokens to their theme. VS Code and browser fallbacks
+   remain usable without an editor API. No SVG or element uses inline styles. */
+:root {
+  --ms-background: var(--vscode-editor-background, #fff);
+  --ms-foreground: var(--vscode-foreground, #3b3b3b);
+  --ms-muted: var(--vscode-descriptionForeground, #626262);
+  --ms-border: var(--vscode-panel-border, #767676);
+  --ms-focus: var(--vscode-focusBorder, #005fb8);
+  --ms-input-background: var(--vscode-input-background, #fff);
+  --ms-input-foreground: var(--vscode-input-foreground, #3b3b3b);
+  --ms-button-background: var(--vscode-button-secondaryBackground, var(--ms-input-background));
+  --ms-button-foreground: var(--vscode-button-secondaryForeground, var(--ms-input-foreground));
+  --ms-blue: var(--vscode-charts-blue, #1a85ff);
+  --ms-purple: var(--vscode-charts-purple, #652d90);
+  --ms-orange: var(--vscode-charts-orange, #ba6800);
+  --ms-green: var(--vscode-charts-green, #008000);
+  --ms-yellow: var(--vscode-charts-yellow, #b89500);
+  --ms-red: var(--vscode-charts-red, #c42b1c);
+  --ms-other: var(--vscode-disabledForeground, #767676);
+
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  color-scheme: light dark;
+}
+
+html,
+body {
+  margin: 0;
+  min-width: 0;
+  background: var(--ms-background);
+  color: var(--ms-foreground);
+}
+
+.usage-page,
+.usage-page * {
+  box-sizing: border-box;
+}
+
+.usage-page {
+  max-width: 1200px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.usage-page h1 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.usage-page h2 {
+  font-size: 1.35rem;
+}
+
+.usage-page h3 {
+  font-size: 1.1rem;
+}
+
+.usage-page section {
+  margin-block: 24px;
+  min-width: 0;
+}
+
+.usage-page button,
+.usage-page input,
+.usage-page select,
+.usage-page summary {
+  font: inherit;
+}
+
+.usage-page button,
+.usage-page input,
+.usage-page select {
+  min-height: 32px;
+  max-width: 100%;
+  border: 1px solid var(--ms-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--ms-input-foreground);
+  background: var(--ms-input-background);
+}
+
+.usage-page button {
+  color: var(--ms-button-foreground);
+  background: var(--ms-button-background);
+  cursor: pointer;
+  white-space: normal;
+}
+
+.usage-page :focus-visible {
+  outline: 2px solid var(--ms-focus);
+  outline-offset: 2px;
+}
+
+.usage-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+  margin-block: 16px;
+}
+
+.usage-range label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+}
+
+.usage-page input[type='radio'] {
+  min-height: 24px;
+  margin: 0;
+  width: 24px;
+}
+
+.usage-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.usage-controls > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.usage-export-options {
+  display: grid;
+  gap: 4px;
+  padding-block: 8px;
+}
+
+.usage-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 12px;
+}
+
+.usage-kpis > div {
+  padding: 12px;
+  border: 1px solid var(--ms-border);
+  border-radius: 6px;
+}
+
+.usage-kpis dt {
+  color: var(--ms-muted);
+}
+
+.usage-kpis dd {
+  font-size: 1.25rem;
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-page dl > div {
+  margin-block: 8px;
+}
+
+.usage-page .usage-kpis > div {
+  margin-block: 0;
+}
+
+.usage-page dd {
+  margin-inline-start: 0;
+}
+
+.usage-certainties {
+  padding-inline-start: 20px;
+}
+
+.usage-certainties p {
+  margin-block: 4px;
+}
+
+.usage-limit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+
+.usage-limit-card {
+  border: 1px solid var(--ms-border);
+  padding: 12px;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.usage-page progress {
+  width: 100%;
+  height: 16px;
+  accent-color: var(--ms-blue);
+}
+
+.usage-warning {
+  font-weight: 600;
+}
+
+.usage-chart {
+  margin: 24px 0;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--ms-border);
+  border-radius: 6px;
+}
+
+.usage-chart figcaption {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.usage-chart svg {
+  display: block;
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+  margin-block: 12px;
+}
+
+.usage-chart svg circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-chart-active {
+  fill: none;
+  stroke: var(--ms-foreground);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-chart-axis {
+  stroke: var(--ms-border);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-projection {
+  stroke-dasharray: 6 4;
+}
+
+.usage-series-blue {
+  fill: var(--ms-blue);
+  stroke: var(--ms-blue);
+  background: var(--ms-blue);
+}
+
+.usage-series-purple {
+  fill: var(--ms-purple);
+  stroke: var(--ms-purple);
+  background: var(--ms-purple);
+}
+
+.usage-series-orange {
+  fill: var(--ms-orange);
+  stroke: var(--ms-orange);
+  background: var(--ms-orange);
+}
+
+.usage-series-green {
+  fill: var(--ms-green);
+  stroke: var(--ms-green);
+  background: var(--ms-green);
+}
+
+.usage-series-yellow {
+  fill: var(--ms-yellow);
+  stroke: var(--ms-yellow);
+  background: var(--ms-yellow);
+}
+
+.usage-series-red {
+  fill: var(--ms-red);
+  stroke: var(--ms-red);
+  background: var(--ms-red);
+}
+
+.usage-series-other {
+  fill: var(--ms-other);
+  stroke: var(--ms-other);
+  background: var(--ms-other);
+}
+
+.usage-line {
+  fill: none;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.usage-legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+}
+
+.usage-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.usage-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border: 1px solid var(--ms-foreground);
+}
+
+.usage-page summary {
+  cursor: pointer;
+  min-height: 32px;
+  padding-block: 4px;
+}
+
+.usage-table-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.usage-page table {
+  border-collapse: collapse;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-page caption {
+  text-align: start;
+  font-weight: 600;
+  padding-block: 8px;
+}
+
+.usage-page th,
+.usage-page td {
+  text-align: start;
+  padding: 8px;
+  border-bottom: 1px solid var(--ms-border);
+  min-width: 100px;
+}
+
+.usage-model-detail > button {
+  margin-inline-end: 8px;
+}
+
+.usage-page th button {
+  width: 100%;
+  text-align: start;
+}
+
+.usage-model-detail {
+  border: 2px solid var(--ms-focus);
+  padding: 12px;
+}
+
+.usage-page button:disabled {
+  cursor: default;
+  opacity: 70%;
+}
+
+.usage-page footer {
+  color: var(--ms-muted);
+}
+
+@media (width <= 400px) {
+  .usage-page {
+    padding: 12px;
+  }
+
+  .usage-controls > label {
+    width: 100%;
+  }
+
+  .usage-controls select,
+  .usage-controls input {
+    width: 100%;
+  }
+
+  .usage-chart {
+    padding: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .usage-page *,
+  .usage-page *::before,
+  .usage-page *::after {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .usage-chart svg {
+    forced-color-adjust: none;
+  }
+
+  .usage-chart-active {
+    stroke: CanvasText;
+  }
+}
