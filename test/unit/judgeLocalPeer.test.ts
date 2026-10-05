@@ -1,4 +1,5 @@
 import { once } from 'node:events'
+import { readFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -19,6 +20,15 @@ const original = {
 }
 
 describe('M98-2j process identity', () => {
+  it('links the spike helper evidence to the promoted native source', async () => {
+    const receipt = path.resolve('docs/certification/m98-2j-spike.md')
+    const text = await readFile(receipt, 'utf8')
+    const link = /\[reviewed[^\]]*C# helper\]\(([^)]+)\)/.exec(text)
+    expect(link).not.toBeNull()
+    const target = path.resolve(path.dirname(receipt), link![1]!)
+    expect(target).toBe(path.resolve('native/windows/MuseSparkLocalJudgePeer.cs'))
+    await expect(readFile(target, 'utf8')).resolves.toContain('GetExtendedTcpTable')
+  })
   it('accepts the same installed executable, SID and process generation', () => {
     expect(() => {
       requireInstalledPeer(original, installed, original)

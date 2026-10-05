@@ -154,6 +154,24 @@ describe('M98 J2 source policy and exact content sockets', () => {
         level: { type: 'score', instructions: 'level', criteria: [synthetic, 'other', 'last'] },
       },
     }
+    f.setResponse((route, body) => {
+      if (route !== '/v1/systemone') return defaultResponse(route)
+      const sent = judgeRequestSchema.parse(JSON.parse(body))
+      const level = sent.questions['level']
+      if (level?.type !== 'score') throw new Error('missing score fixture')
+      return {
+        ...capture.response,
+        answers: {
+          ...capture.response.answers,
+          level: {
+            ...capture.response.answers.level,
+            legend: Object.fromEntries(
+              level.criteria.map((label, index) => [String(index), label]),
+            ),
+          },
+        },
+      }
+    })
     const result = await f.source.judge(judgeRequestSchema.parse(request), signal())
     expect(result.outcome).toBe('answered')
     expect(f.bodies).toHaveLength(1)

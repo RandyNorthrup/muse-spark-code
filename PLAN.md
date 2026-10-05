@@ -14963,6 +14963,16 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2j — Local judge after the parallel spike
 
+- **FIXM98J2 review repair (2026-10-05).** Reject SystemOne score legends
+  that change the ordered request criteria and expected scores inconsistent
+  with their probability distribution, allowing only floating-point error.
+  Repair the spike's promoted Windows-helper evidence link. Prove both
+  findings with regressions and byte-exact red drills. On win11, rerun
+  native IPv4/IPv6 ownership and attempt real process-generation/PID-reuse
+  and CPU-only latency receipts, with at most four free local inference
+  attempts and no pull/removal. Record any uncertified item by name in the
+  lane receipt and section 9; other platform sources remain with their lanes.
+
 - **Scope.** Adopt the spike's reviewed result, not a cached listener probe
   or this lane's guess. CPU-only is the product assumption; `tev1:4b` is
   recommended, or a captured local general model of at least 3B with
@@ -15065,6 +15075,13 @@ its hundreds-label evidence exists. Z closes each small delivery separately;
 do not wait for all ten surfaces to ship a certified one.
 
 ## 7. Gates
+
+**FIXM98J2 bounded repair delegation (2026-10-05).** The rig brief
+authorizes hook-on local commits after owning tests and red/restored drills,
+scoped lint/format and typechecks. Run the common final scoped checks
+directly on win11, never full quality/full tests, merge, rebase or push.
+The lead retains integrated quality, packaging and installed-host gates;
+the stale host-API generated record remains Z's existing handoff.
 
 **M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
 hook-on local commits after owning tests and deliberate failing drills,

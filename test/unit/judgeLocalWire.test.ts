@@ -37,6 +37,29 @@ describe('M98 J2 captured local result boundary', () => {
     expect(result.muse['kind']?.confidence).toBeGreaterThan(0)
   })
 
+  it('rejects a score legend that reverses the requested criteria', () => {
+    const value = structuredClone(capture.response)
+    const legend = value.answers.level.legend
+    const first = legend['0']
+    legend['0'] = legend['2']
+    legend['2'] = first
+    expect(() => localSystemOneResult(value, request, value.model)).toThrow('invalid-local-answer')
+  })
+
+  it('rejects an in-range score that contradicts its distribution', () => {
+    const value = structuredClone(capture.response)
+    value.answers.level.score = 2
+    expect(() => localSystemOneResult(value, request, value.model)).toThrow('invalid-local-answer')
+  })
+
+  it('accepts score summation roundoff but rejects a meaningful discrepancy', () => {
+    const value = structuredClone(capture.response)
+    value.answers.level.score += Number.EPSILON
+    expect(() => localSystemOneResult(value, request, value.model)).not.toThrow()
+    value.answers.level.score += 0.000001
+    expect(() => localSystemOneResult(value, request, value.model)).toThrow('invalid-local-answer')
+  })
+
   it('rejects a valid wire answer of the wrong requested kind', () => {
     const response = {
       ...capture.response,

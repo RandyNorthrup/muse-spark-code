@@ -47,7 +47,7 @@ therefore fails verification until the new installation is vetted.
 The model root resolves to `%USERPROFILE%/.ollama/models` on `C:`, which
 `System.IO.DriveInfo` reports as a fixed NTFS drive on this rig.
 
-The [reviewed test-only C# helper](../../test/unit/helpers/localJudgePeer.cs)
+The [reviewed Windows C# helper](../../native/windows/MuseSparkLocalJudgePeer.cs)
 uses the same local compilation pattern as the Windows job helpers: the
 Framework C# compiler, a source-hash-named executable under the worktree's
 ignored `temp/` directory, and direct `execFile` with an argument array.

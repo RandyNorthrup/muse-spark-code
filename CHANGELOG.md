@@ -62,6 +62,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Local SystemOne score answers now refuse changed criteria legends and
+  scores inconsistent with their returned probability distribution. The
+  Windows spike's native-helper evidence link follows its promoted source.
+
 - **Muse Judge (M98, RVM98J).** Boolean action arguments hash correctly;
   retried actions reject stale callbacks and fences; complete prompt batches
   fit the measured context; choice and score tokens must be one character.

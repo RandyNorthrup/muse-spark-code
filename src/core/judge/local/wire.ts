@@ -85,9 +85,15 @@ export function localSystemOneResult(
       throw new Error('invalid-local-answer')
     if (
       answer.type === 'score' &&
-      (answer.score < 0 ||
+      (question.type !== 'score' ||
+        answer.score < 0 ||
         answer.score > alternatives.length - 1 ||
-        !hasSameKeys(answer.legend, alternatives))
+        !hasSameKeys(answer.legend, alternatives) ||
+        question.criteria.some((level, index) => answer.legend[String(index)] !== level) ||
+        // The score is the expectation of the ordered level distribution.
+        // Scale summation tolerance by both the term count and level range.
+        Math.abs(answer.score - probabilities.reduce((sum, p, index) => sum + p * index, 0)) >
+          Number.EPSILON * alternatives.length ** 2 * 100)
     )
       throw new Error('invalid-local-answer')
     muse[id] = {
