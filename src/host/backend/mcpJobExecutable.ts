@@ -1,5 +1,5 @@
 // Compile the Windows MCP job launcher once per source version. Each server
-// starts this executable directly; PowerShell is used only while preparing it.
+// starts this executable directly; its compiler is started directly too.
 // M27's shell-job DLL remains separate for shell commands.
 
 import { stat } from 'node:fs/promises'
@@ -31,8 +31,8 @@ async function isPresent(file: string): Promise<boolean> {
 const EXECUTABLE: JobBuild = {
   stem: 'MuseSparkMcpJob-',
   extension: '.exe',
-  addTypeOptions:
-    "-OutputType ConsoleApplication -ReferencedAssemblies 'System.Runtime.Serialization','System.Xml'",
+  outputType: 'exe',
+  references: ['System.Runtime.Serialization.dll', 'System.Xml.dll'],
   label: 'MCP job executable',
   isPresent,
 }
@@ -70,7 +70,7 @@ export function mcpJobExecutable(deps: McpJobExecutableDeps): () => Promise<stri
         )
         let didCompile = false
         if (!(await isPresent(executable))) {
-          await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run ?? runProgram)
+          await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run)
           didCompile = true
         }
         await verify(executable, deps)

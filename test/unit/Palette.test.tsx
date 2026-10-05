@@ -70,9 +70,11 @@ describe('Palette (actions view)', () => {
   it('filters rows by text and reports no matches', () => {
     const { props, filter } = renderPalette()
     fireEvent.change(filter, { target: { value: 'fix' } })
-    expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
-      '/fix-bugFixes a bug',
-    ])
+    expect(
+      screen
+        .getAllByRole('option')
+        .map((node) => node.querySelector('.palette-item-text')?.textContent),
+    ).toEqual(['/fix-bugFixes a bug'])
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(props.onAction).toHaveBeenCalledWith({ type: 'insertSkill', selector: 'fix-bug' })
     expect(filter).toHaveAttribute('aria-controls', 'palette-listbox')
@@ -164,6 +166,11 @@ describe('Palette (actions view)', () => {
     renderPalette({ groups: buildPalette({ ...context, skills: undefined }) })
     expect(screen.getByText('Start a conversation to load skills')).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: /load skills/ })).toBeNull()
+    // A note carries no ARIA attribute, which would void its presentation role
+    // and leave the listbox a child it may not hold (axe, aria-required-children).
+    for (const note of document.querySelectorAll('.palette-item-disabled')) {
+      expect(note.getAttributeNames().filter((name) => name.startsWith('aria-'))).toEqual([])
+    }
   })
 })
 
@@ -188,8 +195,8 @@ describe('Palette (models view)', () => {
   it('lists models with their context window, marks the current one, and selects', () => {
     const { props, filter } = renderPalette({ view: 'models' })
     const options = screen.getAllByRole('option')
-    expect(options.map((node) => node.textContent)).toEqual([
-      'Muse Spark 1.31M contextCurrent',
+    expect(options.map((node) => node.querySelector('.palette-item-text')?.textContent)).toEqual([
+      'Muse Spark 1.31M context',
       'Muse Spark 1.2',
     ])
     expect(screen.getByTitle('Current')).toBeInTheDocument()
@@ -324,4 +331,36 @@ describe('Palette (attached to the prompt)', () => {
     fireEvent.keyDown(prompt, { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalledOnce()
   })
+})
+
+describe('M87 palette descriptions', () => {
+  it('gives each action row the same pointer tooltip and accessible description', () => {
+    renderPalette()
+    const rows = screen.getAllByRole('option')
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(row.title.trim()).not.toBe('')
+      expect(row).toHaveAttribute('aria-describedby')
+      expect(
+        document.querySelector(`[id="${CSS.escape(row.getAttribute('aria-describedby') ?? '')}"]`),
+      ).toHaveTextContent(row.title)
+      expect(row).toHaveAccessibleDescription(row.title)
+    }
+  })
+
+  it.each(['', ' '.repeat(3)])(
+    'describes a skill with an empty or blank description: %j',
+    (description) => {
+      renderPalette({
+        groups: buildPalette({
+          ...context,
+          // Not "review": M70's /review rows share that name.
+          skills: [{ selector: 'tidy-notes', displayName: 'Tidy notes', description }],
+        }),
+      })
+      const row = screen.getByRole('option', { name: /tidy-notes/ })
+      expect(row).toHaveAttribute('title', 'Run the Tidy notes skill.')
+      expect(row).toHaveAccessibleDescription('Run the Tidy notes skill.')
+    },
+  )
 })

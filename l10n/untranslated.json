@@ -49,7 +49,9 @@
       "wireFormats.responses",
       "wireFormats.chat",
       "wireFormats.anthropic",
-      "pickerMetaGroup"
+      "pickerMetaGroup",
+      "contextMeterUnderOne",
+      "diffTallyLines"
     ],
     "cs": [
       "providerFilters.cloud",

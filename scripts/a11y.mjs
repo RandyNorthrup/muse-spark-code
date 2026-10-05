@@ -11,33 +11,48 @@
 //   node scripts/a11y.mjs --lang=de          in l10n/ui.de.json (PLAN.md D33)
 //   node scripts/a11y.mjs --lang=pseudo      in the pseudo-locale table
 //   CHROME_PATH=/path/to/chrome node scripts/a11y.mjs
+//
+// Each page runs in a Playwright page with focus emulation on: headless
+// Chrome does not keep a window's focus, and on a loaded machine a window
+// that lost it mid-scan closed the composer's menus under axe (the
+// slash-commands race, docs/certification/a11y-focus.md).
 
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import process from 'node:process'
+import { chromium } from 'playwright-core'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
   LOOPBACK,
+  PAGE_TIMEOUT_MS,
   SCENARIOS,
   bundleFor,
+  SIZED_SCENARIOS,
   serveRepo,
-  withNarrowPage,
+  withSizedPage,
 } from './lib/harnessServer.mjs'
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
 const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
-// Measured from Chrome's former --window-size=690,760 capture: 87 px
-// belonged to its window frame. Preserve the actual viewport (M95INT).
-const STANDARD_VIEWPORT = { width: 690, height: 673 }
+// The page the gate has always measured: what Chrome's 690x760 window left
+// for the page. A sized scenario (SIZED_SCENARIOS: a real 320 px panel, the
+// 1400 px column) is this tall at its own width.
+const VIEWPORT = { width: 690, height: 673 }
+const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
 // Windows headless Chrome stalled on the long transcript plus jump button
 // with four concurrent pages (M46); two workers passed twice with all rules.
 const WINDOWS_MAX_WORKERS = 2
+// Each worker's browser holds this many pages at once; a page spends most of
+// its time in the harness's 5 s settle, in real time now.
+const PAGES_PER_WORKER = 2
+const WINDOWS_PAGES_PER_WORKER = 1
 // axe's reasons (messageKey) for a contrast it could not decide: the text is
 // covered, or it could not see the background behind it; or the content is
 // glyphs, not text.
@@ -58,23 +73,73 @@ const EXEMPT_REASONS = new Map([
 ])
 const repoRoot = process.cwd()
 
-/** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
-async function scan(chrome, port, page, lang, profileDir) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&bundle=${bundleFor(page.scenario)}&theme=${page.theme}&axe=1${langQuery(lang)}`
+/** One worker's browser: a persistent context on its own profile. */
+async function launchWorker(chrome, profileDir) {
+  return await chromium.launchPersistentContext(profileDir, {
+    ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
+    viewport: VIEWPORT,
+    timeout: PAGE_TIMEOUT_MS,
+  })
+}
+
+/** The page keeps its focus whatever the machine does with the window. */
+async function keepFocus(tab) {
+  // As a webview the user is typing in does. Playwright turns this on for
+  // every page by default; it is asked for here too, so the gate does not
+  // rest on that default.
+  const session = await tab.context().newCDPSession(tab)
+  await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+}
+
+async function axeResultOf(tab, remaining) {
+  const result = tab.locator('#axe-result')
+  await result.waitFor({ state: 'attached', timeout: remaining() })
+  return JSON.parse(await result.textContent({ timeout: remaining() }))
+}
+
+/**
+ * A scenario that needs scrollbars (the 1400 px column's check), which the
+ * workers' browsers hide: a browser of its own at its size.
+ */
+async function scanWithScrollbars(chrome, url, sized) {
+  const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-a11y-sized-'))
   try {
-    return await withNarrowPage(
-      chrome,
-      profileDir,
-      url,
-      async (tab, remaining) => {
-        const result = tab.locator('#axe-result')
-        await result.waitFor({ state: 'attached', timeout: remaining() })
-        return JSON.parse(await result.textContent({ timeout: remaining() }))
-      },
-      page.scenario === 'share-narrow' ? undefined : STANDARD_VIEWPORT,
-    )
+    return await withSizedPage(chrome, profileDir, url, sized, async (tab, remaining) => {
+      await keepFocus(tab)
+      return await axeResultOf(tab, remaining)
+    })
+  } finally {
+    await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+  }
+}
+
+/** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
+async function scan(chrome, context, port, page, lang) {
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&bundle=${bundleFor(page.scenario)}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const sized = SIZED_SCENARIOS[page.scenario]
+  if (sized?.hasScrollbars === true) {
+    try {
+      return await scanWithScrollbars(chrome, url, sized)
+    } catch (error) {
+      return { error: String(error.message ?? error) }
+    }
+  }
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
+  const tab = await context.newPage()
+  try {
+    tab.setDefaultTimeout(PAGE_TIMEOUT_MS)
+    tab.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+    await keepFocus(tab)
+    if (sized !== undefined) {
+      await tab.setViewportSize({ width: sized.width, height: SIZED_VIEWPORT_HEIGHT })
+    }
+    await tab.goto(url, { timeout: remaining() })
+    return await axeResultOf(tab, remaining)
   } catch (error) {
     return { error: String(error.message ?? error) }
+  } finally {
+    await tab.close()
   }
 }
 
@@ -153,6 +218,12 @@ async function main() {
   ) {
     throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build\` first`)
   }
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)
@@ -160,7 +231,9 @@ async function main() {
   await prepareLang(repoRoot, lang)
   const scenarios = requested.length > 0 ? requested : SCENARIOS
   const pages = THEMES.flatMap((theme) => scenarios.map((scenario) => ({ scenario, theme })))
-  const maxWorkers = process.platform === 'win32' ? WINDOWS_MAX_WORKERS : MAX_WORKERS
+  const isWindows = process.platform === 'win32'
+  const maxWorkers = isWindows ? WINDOWS_MAX_WORKERS : MAX_WORKERS
+  const pagesPerWorker = isWindows ? WINDOWS_PAGES_PER_WORKER : PAGES_PER_WORKER
   const workers = Math.max(1, Math.min(maxWorkers, availableParallelism() - 1, pages.length))
   const { server, port } = await serveRepo(repoRoot)
   const profiles = await Promise.all(
@@ -169,13 +242,23 @@ async function main() {
   const results = []
   let next = 0
   try {
-    // Each worker has a Chrome profile of its own and takes the next page.
+    // Each worker has a browser on a Chrome profile of its own; each of its
+    // lanes takes the next page.
     await Promise.all(
       profiles.map(async (profileDir) => {
-        while (next < pages.length) {
-          const page = pages[next]
-          next += 1
-          results.push({ ...page, ...(await scan(chrome, port, page, lang, profileDir)) })
+        const context = await launchWorker(chrome, profileDir)
+        try {
+          await Promise.all(
+            Array.from({ length: pagesPerWorker }, async () => {
+              while (next < pages.length) {
+                const page = pages[next]
+                next += 1
+                results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
+              }
+            }),
+          )
+        } finally {
+          await context.close()
         }
       }),
     )

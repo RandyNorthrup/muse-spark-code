@@ -14,7 +14,7 @@ import {
 import { createRevertIo } from '../../src/host/editor/revertIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { fingerprint } from '../../src/core/verify/fingerprint'
-import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { FILE_REFUSAL_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { CheckpointPort } from '../../src/host/checkpoints/checkpointHost'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -340,7 +340,7 @@ describe('Revert confinement under checkpoint admission (RV69 finding 2)', () =>
       })
       await expect(
         t.review.revertHunk('edit', oneHunk('sub/notes.md', action), 0, 0),
-      ).rejects.toThrow(MODEL_TEXT.pathChangedAfterApproval)
+      ).rejects.toThrow(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       expect(t.complete).toHaveBeenCalledExactlyOnceWith(false)
       expect(t.trash).not.toHaveBeenCalled()
       expect(await readFile(path.join(outside, 'notes.md'), 'utf8')).toBe('after\n')

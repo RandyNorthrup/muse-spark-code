@@ -18,8 +18,14 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type {
   AgentHost,
   ModelSummary,
+  QueuedMessageRef,
+  SessionEventListener,
   SessionMcpHttpServer,
+  TurnPart,
+  WithdrawOutcome,
 } from '../../src/core/agent/agentBackend'
+import type { AgentEvent, TodoItem } from '../../src/shared/agentEvents'
+import type { TasksTabPort, TasksTabView } from '../../src/host/views/tasksTabPort'
 import { verifyGuidance } from '../../src/core/verify/checkCommands'
 import {
   ModelApiHost,
@@ -120,6 +126,7 @@ import { heldShellToolIo, memoryToolIo, type MemoryToolIo, noopToolIo } from './
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
 import { readPickedFile } from '../../src/host/backend/toolIo'
 import { canonicalPath } from '../../src/host/canonicalPath'
+import { withCheckpointEdit } from '../../src/host/checkpoints/checkpointHost'
 import { confineWorkspacePath } from '../../src/core/workspacePath'
 import { PendingPrompts } from '../../src/core/sessionBoard'
 import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
@@ -127,7 +134,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
-import { EditReview } from '../../src/host/editor/editReview'
+import { EditReview, type ReviewNotice } from '../../src/host/editor/editReview'
 import {
   admissionPort,
   admitted,
@@ -170,6 +177,28 @@ const NO_FOLDER_CHECKPOINT: Extract<HostToWebviewMessage, { type: 'checkpointSta
   legacyTurnIds: [],
   restoreBlocker: 'modelApiOnly',
   turnIds: [],
+}
+
+const REVERT_EDIT = { type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' } as const
+
+/**
+ * An edit review whose Revert, once `entered`, waits for `held` and then
+ * ends as `finish` says (M87): the window in which its file I/O runs.
+ */
+function heldRevertReview(finish: (check: (() => void) | undefined) => readonly ReviewNotice[]) {
+  const held = Promise.withResolvers<undefined>()
+  const entered = Promise.withResolvers<undefined>()
+  const editReview: ConversationDeps['editReview'] = {
+    openDiff: () => Promise.resolve([]),
+    revert: async (_itemId, _patch, check) => {
+      entered.resolve(undefined)
+      await held.promise
+      return finish(check)
+    },
+    describe: () => Promise.resolve([]),
+    revertHunk: () => Promise.resolve({ isReverted: false, notices: [] }),
+  }
+  return { held, entered, editReview }
 }
 
 interface FakeAuth {
@@ -389,6 +418,8 @@ function setup(
     damagedIds?: readonly string[]
     /** The Muse Code host's command deadlines (CLI recovery: a steer that times out). */
     timeouts?: CommandTimeouts
+    /** The surface's tasks tab (M87); none unless a test passes one. */
+    tasksTab?: TasksTabPort
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
   } = {},
@@ -704,6 +735,7 @@ function setup(
     editorContext: () => options.editorContext,
     isAutosaveEnabled: () => options.isAutosaveEnabled ?? false,
     ...(options.verifyGuidance !== undefined && { verifyGuidance: options.verifyGuidance }),
+    ...(options.tasksTab !== undefined && { tasksTab: options.tasksTab }),
     ...(options.bundledSkillsOffer !== undefined && {
       bundledSkillsOffer: options.bundledSkillsOffer,
     }),
@@ -813,6 +845,7 @@ function setup(
     surface,
     controller,
     deps,
+    checkpoints,
     planFiles,
     openExternal,
     log,
@@ -1102,7 +1135,7 @@ describe('ConversationController.sendMessage', () => {
       sessionInfo,
       { ...NO_FOLDER_CHECKPOINT, sessionId: 's1' },
       skillList,
-      { type: 'turnAccepted', localId: 'l1', turnId: 't1' },
+      { type: 'turnAccepted', localId: 'l1', turnId: 't1', disposition: 'started' },
     ])
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/start')).toHaveLength(1)
@@ -1189,7 +1222,12 @@ describe('ConversationController.sendMessage', () => {
       expectedTurnId: 't1',
       input: [{ type: 'text', text: 'also this' }, NOTE],
     })
-    expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't1',
+      disposition: 'steered',
+    })
     // Muse Code found no turn to take it (CLI recovery: only that falls back).
     t.server.handle('turn/steer', rejectionFor('invalid_target'))
     await t.send('l3', 'late')
@@ -2903,6 +2941,8 @@ describe('ConversationController: editor integration (M5)', () => {
   it('rewinds code by reverting the edits after a message newest first, or says there is nothing (M13)', async () => {
     const t = setup()
     await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
     await t.controller.handle({
       type: 'rewindCode',
       edits: [
@@ -3033,6 +3073,292 @@ describe('ConversationController: editor integration (M5)', () => {
     })
     const notices = t.surface.posted.flatMap((m) => (m.type === 'notice' ? [m.text] : []))
     expect(notices).toEqual(['opened c1'])
+  })
+
+  // D66 item 17: an edit row's Revert is one step of "Rewind code to here".
+  it('reverts one edit after its confirmation, and nothing once it is declined (M87)', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'revertEdit', itemId: 'c1', outputRef: 'tool_patch-1' })
+    expect(t.fileConfirmations).toEqual([UI_TEXT.revertEditConfirmTitle])
+    expect(t.reviews).toEqual([
+      ['revert', 'c1', '{"files":[{"path":"notes.md","hunks":[]}]}#tool_patch-1'],
+    ])
+    const declined = setup({ confirmsFileAction: false })
+    await declined.send('l1', 'edit it')
+    declined.finishTurn()
+    await settle()
+    await declined.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(declined.fileConfirmations).toEqual([UI_TEXT.revertEditConfirmTitle])
+    expect(declined.reviews).toEqual([])
+  })
+
+  it('reverts nothing while a turn runs, or once one started under the confirmation (M87)', async () => {
+    const running = setup()
+    await running.send('l1', 'edit it')
+    await running.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(running.fileConfirmations).toEqual([])
+    expect(running.reviews).toEqual([])
+    expect(running.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    const started = setup()
+    await started.send('l1', 'edit it')
+    started.finishTurn()
+    await settle()
+    started.whileConfirming.current = async () => {
+      started.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      await settle()
+    }
+    await started.controller.handle({
+      type: 'revertEdit',
+      itemId: 'c1',
+      outputRef: 'tool_patch-1',
+    })
+    expect(started.reviews).toEqual([])
+    expect(started.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+  })
+
+  it.each([false, true])(
+    'refuses Revert when a turn starts during held patch output (completed: %s, M87)',
+    async (hasCompleted) => {
+      const t = setup()
+      await t.send('l1', 'edit it')
+      t.finishTurn()
+      await settle()
+      t.server.silence('item/readOutput')
+      const reverting = t.controller.handle(REVERT_EDIT)
+      await vi.waitFor(() => {
+        expect(t.server.requestsFor('item/readOutput')).toHaveLength(1)
+      })
+      t.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      if (hasCompleted) {
+        t.server.notify('turn/completed', { sessionId: 's1', turnId: 't2', terminal: 'completed' })
+      }
+      await settle()
+      const request = t.server.requestsFor('item/readOutput')[0]!
+      t.server.incoming.push(
+        `${JSON.stringify({
+          jsonrpc: '2.0',
+          id: request.id,
+          result: {
+            content: '{"files":[{"path":"notes.md","hunks":[]}]}',
+            encoding: 'utf8',
+            mediaType: 'application/json',
+            offsetBytes: 0,
+            byteLen: 40,
+            eof: true,
+          },
+        })}\n`,
+      )
+      await reverting
+      expect(t.reviews).toEqual([])
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        level: 'info',
+        text: UI_TEXT.restoreTurnRunning,
+      })
+    },
+  )
+
+  // Each stage M70's Revert awaits: the path's resolution, the checkpoint
+  // lease (M72), the read under it, and the conditional write or trash just
+  // before its admission's final word.
+  it.each(
+    ['resolve', 'lease', 'read', 'write', 'delete'].flatMap((stage) =>
+      [false, true].map((changesSession) => ({ stage, changesSession })),
+    ),
+  )(
+    'refuses Revert during held $stage admission (changesSession: $changesSession, M87)',
+    async ({ stage, changesSession }) => {
+      const held = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const pause = async (): Promise<void> => {
+        entered.resolve(undefined)
+        await held.promise
+      }
+      let content = 'hi\n'
+      const writes = vi.fn((next: string) => {
+        content = next
+      })
+      const reads = vi.fn(async () => {
+        const snapshot = content
+        if (stage === 'read') {
+          await pause()
+        }
+        return snapshot
+      })
+      const log = new FakeLogOutputChannel()
+      // As the guarded conditional writes do: the final word is asked after
+      // their own awaits, just before the change.
+      const change = async (
+        held: string,
+        next: string,
+        options: { readonly assertCanWrite: () => void },
+      ): Promise<'written'> => {
+        if (stage === held) {
+          await pause()
+        }
+        options.assertCanWrite()
+        writes(next)
+        return 'written'
+      }
+      const review = new EditReview({
+        platform: 'linux',
+        workspaceRoot: '/ws',
+        log,
+        realPath: async (fsPath) => {
+          if (stage === 'resolve') {
+            await pause()
+          }
+          return fsPath
+        },
+        readFile: reads,
+        hasUnsavedChanges: () => false,
+        // Match the extension adapter: the checkpoint lease may await
+        // admission, and the Revert then runs under it.
+        withAdmission: async (work) =>
+          await withCheckpointEdit(
+            {
+              ...t.checkpoints,
+              markTurn: async (_key, isRunning) => {
+                if (isRunning && stage === 'lease') {
+                  await pause()
+                }
+              },
+            },
+            log,
+            () => {
+              // The backend's workspace guard; this fake backend has none.
+            },
+            async () =>
+              await work(() => {
+                // The lease's own final word; the controller's guard is what is tested.
+              }),
+          ),
+        io: {
+          writeFileIfUnchanged: (_fsPath, _fingerprint, next, options) =>
+            change('write', next, options),
+          trashFileIfUnchanged: (_fsPath, _fingerprint, options) => change('delete', '', options),
+          createFileIfAbsent: (_fsPath, next, options) => change('create', next, options),
+        },
+        openDiff: () => Promise.resolve(),
+      })
+      const t = setup({ editReview: review })
+      await t.send('l1', 'edit it')
+      t.finishTurn()
+      await settle()
+      // The same created-file patch as EditReview's existing fixture.
+      const patch =
+        '{"files":[{"path":"new.txt","hunks":[{"oldStart":0,"oldLines":0,"newStart":1,"newLines":1,"lines":["+hi"]}]}]}'
+      t.server.handle('item/readOutput', () => ({
+        content:
+          stage === 'delete'
+            ? patch
+            : patch.replace('"path":"new.txt",', '"path":"new.txt","created":false,'),
+        encoding: 'utf8',
+        mediaType: 'application/json',
+        offsetBytes: 0,
+        byteLen: 40,
+        eof: true,
+      }))
+      const reverting = t.controller.handle(REVERT_EDIT)
+      await entered.promise
+      if (changesSession) {
+        await t.controller.handle({ type: 'clearConversation' })
+      } else {
+        t.server.notify('turn/started', { sessionId: 's1', turnId: 't2' })
+      }
+      await settle()
+      content = 'running turn writes\n'
+      held.resolve(undefined)
+      await reverting
+      expect(writes).not.toHaveBeenCalled()
+      // Held before the read, nothing is read once the guard has spoken.
+      if (stage === 'resolve' || stage === 'lease') {
+        expect(reads).not.toHaveBeenCalled()
+      }
+      expect(content).toBe('running turn writes\n')
+      if (changesSession) {
+        return
+      }
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        level: 'info',
+        text: UI_TEXT.restoreTurnRunning,
+      })
+    },
+  )
+
+  it('refuses Revert while a submitted turn still awaits its acknowledgement (M87)', async () => {
+    const t = setup()
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    t.server.silence('turn/start')
+    const sending = t.send('l2', 'next edit')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    })
+    await t.controller.handle(REVERT_EDIT)
+    expect(t.reviews).toEqual([])
+    expect(t.fileConfirmations).toEqual([])
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    const request = t.server.requestsFor('turn/start')[1]!
+    t.server.incoming.push(
+      `${JSON.stringify({
+        jsonrpc: '2.0',
+        id: request.id,
+        result: {
+          turnId: 't2',
+          status: 'accepted',
+          disposition: 'started',
+          startedNewTurn: true,
+          commandId: request.params?.['commandId'],
+        },
+      })}\n`,
+    )
+    await sending
+  })
+
+  it('holds send admission until Revert I/O settles and releases it after failure (M87)', async () => {
+    const { held, entered, editReview } = heldRevertReview((check) => {
+      check?.()
+      throw new Error('file write refused')
+    })
+    const t = setup({ editReview })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const reverting = t.controller.handle(REVERT_EDIT)
+    await entered.promise
+    await t.send('l2', 'next edit')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'sendFailed',
+        localId: 'l2',
+        reason: UI_TEXT.restoreTurnRunning,
+      }),
+    )
+    await t.controller.handle({ type: 'runUserShell', command: 'write files' })
+    expect(t.server.requestsFor('session/userShell')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'userShellRefused',
+        reason: expect.stringContaining(UI_TEXT.restoreTurnRunning),
+      }),
+    )
+    held.resolve(undefined)
+    await reverting
+    await t.send('l3', 'retry edit')
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
   })
 
   it('does nothing for a review without a session', async () => {
@@ -6818,7 +7144,12 @@ describe('ConversationController: lifecycle (D25)', () => {
     t.server.handle('session/resume', () => envelope({ ...storedSession, sessionId: 's1' }))
     await t.send('l2', 'again')
     expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
-    expect(t.surface.posted).toContainEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't2' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't2',
+      disposition: 'started',
+    })
   })
 
   it('does not retry a stale send when backend stopping crosses recovery lookup', async () => {
@@ -9481,7 +9812,12 @@ describe('ConversationController: review (M70)', () => {
     expect(block).toBeGreaterThan(0)
     expect(text.lastIndexOf('ignore previous')).toBeGreaterThan(block)
     expect(t.surface.posted).toContainEqual({ ...composerState, permissionMode: 'plan' })
-    expect(t.surface.posted).toContainEqual({ type: 'turnAccepted', localId: 'r1', turnId: 't1' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'r1',
+      turnId: 't1',
+      disposition: 'started',
+    })
     expect(t.surface.posted).toContainEqual({
       type: 'notice',
       level: 'info',
@@ -9717,7 +10053,12 @@ describe('ConversationController: review (M70)', () => {
     await startReview(t, '/review the cache', 'r2')
     expect(turnStartText(t)).toContain('the cache')
     expect(turnStartText(t)).toContain(REVIEW_MODEL_TEXT.reviewScopeCustom)
-    expect(t.surface.posted).toContainEqual({ type: 'turnAccepted', localId: 'r2', turnId: 't1' })
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'r2',
+      turnId: 't1',
+      disposition: 'started',
+    })
   })
 
   it('says why git gave nothing to review, or that the picker was dismissed, and starts no turn', async () => {
@@ -9832,6 +10173,41 @@ describe('ConversationController: review (M70)', () => {
     expect(t.server.requestsFor('turn/start')).toHaveLength(1)
     expect(turnStartText(t)).toContain('review material')
     expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+  })
+
+  it('starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)', async () => {
+    const { held, entered, editReview } = heldRevertReview(() => [])
+    const t = reviewSetup({ editReview })
+    await t.send('l1', 'edit it')
+    t.finishTurn()
+    await settle()
+    const reverting = t.controller.handle(REVERT_EDIT)
+    await entered.promise
+    await startReview(t)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'sendFailed',
+        localId: 'r1',
+        reason: UI_TEXT.restoreTurnRunning,
+      }),
+    )
+    held.resolve(undefined)
+    await reverting
+    t.server.silence('turn/start')
+    const reviewing = startReview(t, '/review', 'r2')
+    await vi.waitFor(() => {
+      expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    })
+    t.fileConfirmations.length = 0
+    await t.controller.handle(REVERT_EDIT)
+    expect(t.fileConfirmations).toEqual([])
+    expect(t.surface.posted.at(-1)).toMatchObject({ text: UI_TEXT.restoreTurnRunning })
+    acceptTurnStart(t, 1, 't2')
+    await reviewing
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({ type: 'turnAccepted', localId: 'r2', turnId: 't2' }),
+    )
   })
 
   it('reviews on the Model API as the Reviewer: its tools only, no mode change, nothing paid', async () => {
@@ -12736,7 +13112,12 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       t.server.handle('turn/steer', rejectionFor(reason))
       await t.send('l2', 'late')
       expect(t.server.requestsFor('turn/start')).toHaveLength(2)
-      expect(t.surface.posted.at(-1)).toEqual({ type: 'turnAccepted', localId: 'l2', turnId: 't1' })
+      expect(t.surface.posted.at(-1)).toEqual({
+        type: 'turnAccepted',
+        localId: 'l2',
+        turnId: 't1',
+        disposition: 'started',
+      })
     },
   )
 
@@ -12961,6 +13342,522 @@ describe('ConversationController: a slow, wedged or damaged Muse Code (CLI recov
       level: 'info',
       text: UI_TEXT.museCodeRestartedUnresponsive,
     })
+  })
+})
+
+/** What a fake tasks tab was asked, in order (M87). */
+function fakeTasksTab() {
+  const calls: (
+    { readonly call: 'open' | 'update'; readonly view: TasksTabView } | { readonly call: 'ended' }
+  )[] = []
+  const port: TasksTabPort = {
+    open: (view) => {
+      calls.push({ call: 'open', view })
+    },
+    update: (view) => {
+      calls.push({ call: 'update', view })
+    },
+    ended: () => {
+      calls.push({ call: 'ended' })
+    },
+  }
+  return { port, calls }
+}
+
+const OPEN_TASKS_TAB: ConversationMessage = { type: 'hostAction', action: 'openTasksTab' }
+const TASK_A: TodoItem = { text: 'Read the code', status: 'pending' }
+const TASK_A_DONE: TodoItem = { text: 'Read the code', status: 'completed' }
+const TASK_B: TodoItem = { text: 'Fix the bug', status: 'inProgress', activeForm: 'Fixing the bug' }
+const WITHDRAWN: WithdrawOutcome = { status: 'withdrawn', images: [] }
+
+/** Muse Code acknowledges every submit as queued behind another turn, as turn `tq`. */
+function queueEverySubmit(t: ReturnType<typeof setup>): void {
+  t.server.handle('turn/start', (params) => ({
+    turnId: 'tq',
+    status: 'accepted',
+    disposition: 'queued',
+    commandId: params['commandId'],
+  }))
+}
+
+/**
+ * The sessions `t`'s host starts take a message back as `answer` says (M87);
+ * each backend's own withdrawal is tested with that backend. `emit` sends an
+ * event as the attached session would; with `hasSteerIds`, each steer is
+ * acknowledged with a user item id of its own (`us1`, `us2`…), as the Model
+ * API's are.
+ */
+function withWithdraw(
+  t: ReturnType<typeof setup>,
+  answer: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>,
+  hasSteerIds = false,
+  beforeSteerAck?: (userMessageId: string, emit: (event: AgentEvent) => void) => void,
+) {
+  const calls: QueuedMessageRef[] = []
+  const listeners: SessionEventListener[] = []
+  const emitToListeners = (event: AgentEvent) => {
+    for (const listener of listeners) {
+      listener(event)
+    }
+  }
+  let steers = 0
+  const start = t.host.startSession.bind(t.host)
+  vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+    const session = await start(options)
+    const onEvent = session.onEvent.bind(session)
+    const steer = session.steer.bind(session)
+    return Object.assign(session, {
+      onEvent: (listener: SessionEventListener) => {
+        listeners.push(listener)
+        return onEvent(listener)
+      },
+      steer: async (expectedTurnId: string, parts: readonly TurnPart[]) => {
+        const submission = await steer(expectedTurnId, parts)
+        steers += 1
+        const userMessageId = `us${String(steers)}`
+        beforeSteerAck?.(userMessageId, emitToListeners)
+        return hasSteerIds ? { ...submission, userMessageId } : submission
+      },
+      withdrawQueued: (ref: QueuedMessageRef) => {
+        calls.push(ref)
+        return answer(ref)
+      },
+    })
+  })
+  return {
+    calls,
+    emit: emitToListeners,
+  }
+}
+
+/**
+ * The sessions `t`'s host starts have no `withdrawQueued` (M87 lane C): Muse
+ * Code's own sessions now take a queued message back, so a backend without
+ * the verb is one whose method is hidden.
+ */
+function withoutWithdraw(t: ReturnType<typeof setup>): void {
+  const start = t.host.startSession.bind(t.host)
+  vi.spyOn(t.host, 'startSession').mockImplementation(async (options) => {
+    const session = await start(options)
+    Object.defineProperty(session, 'withdrawQueued', { value: undefined })
+    return session
+  })
+}
+
+/** A running turn t1 on `t`, with one message steered into it as `l2`. */
+async function steeredIntoRunning(t: ReturnType<typeof setup>): Promise<void> {
+  await t.send('l1', 'hi')
+  t.server.notify('turn/started', { sessionId: 's1', turnId: 't1', viewCursor: 'v' })
+  await settle()
+  await t.send('l2', 'also this')
+}
+
+/** A panel whose session queued `l1` as turn `tq`, and takes messages back as `answer` says. */
+async function queuedL1(answer: (ref: QueuedMessageRef) => Promise<WithdrawOutcome>) {
+  const t = setup()
+  queueEverySubmit(t)
+  const rig = withWithdraw(t, answer)
+  await t.send('l1', 'later')
+  return { t, rig }
+}
+
+/** Edit on a card, with the ids it names. */
+function withdraw(
+  t: ReturnType<typeof setup>,
+  localId: string,
+  turnId: string,
+  userMessageId?: string,
+): Promise<void> {
+  return t.controller.handle({
+    type: 'withdrawQueued',
+    localId,
+    turnId,
+    ...(userMessageId !== undefined && { userMessageId }),
+  })
+}
+
+/** The panel's refusal of an Edit on `localId`. */
+function withdrawRefusal(localId: string, reason: string = UI_TEXT.queuedTooLate) {
+  return { type: 'withdrawRefused', localId, reason }
+}
+
+/** A withdrawal the test answers when it chooses. */
+function heldAnswer() {
+  const held: { give?: (outcome: WithdrawOutcome) => void } = {}
+  const answer = () =>
+    new Promise<WithdrawOutcome>((resolve) => {
+      held.give = resolve
+    })
+  return { held, answer }
+}
+
+describe('ConversationController: queued messages (M87, PLAN.md D66)', () => {
+  it('tells the panel what became of each message: started, steered or queued', async () => {
+    const t = setup()
+    await steeredIntoRunning(t)
+    expect(t.surface.posted).toContainEqual({
+      type: 'turnAccepted',
+      localId: 'l1',
+      turnId: 't1',
+      disposition: 'started',
+    })
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l2',
+      turnId: 't1',
+      disposition: 'steered',
+    })
+    const { t: queued } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    expect(queued.surface.posted.at(-1)).toEqual({
+      type: 'turnAccepted',
+      localId: 'l1',
+      turnId: 'tq',
+      disposition: 'queued',
+    })
+  })
+
+  it('takes a queued message back through its session, under the ids its card was given', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toEqual([{ turnId: 'tq', userMessageId: undefined, disposition: 'queued' }])
+    expect(t.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+    expect(logLines(t.log)).toContain('Queued message l1 withdrawn')
+    // Taken back, it is not asked for again.
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(1)
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+  })
+
+  it('puts the images it carried back in the composer, and says when they could not come back', async () => {
+    const image = { mediaType: 'image/png', base64Data: Buffer.from(PNG).toString('base64') }
+    const { t } = await queuedL1(() => Promise.resolve({ status: 'withdrawn', images: [image] }))
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted).toEqual([
+      {
+        type: 'attachmentAdded',
+        attachment: expect.objectContaining({ mediaType: 'image/png', width: 2, height: 3 }),
+      },
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+    // A backend that keeps no bytes cannot give them back.
+    const { t: bare } = await queuedL1(() =>
+      Promise.resolve({ status: 'withdrawn', images: undefined }),
+    )
+    bare.surface.posted.length = 0
+    await withdraw(bare, 'l1', 'tq')
+    expect(bare.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: false },
+    ])
+  })
+
+  it('asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    for (const [localId, turnId, userMessageId] of [
+      ['forged', 'tq', undefined],
+      ['l1', 't9', undefined],
+      ['l1', 'tq', 'u9'],
+    ] as const) {
+      await withdraw(t, localId, turnId, userMessageId)
+      expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal(localId))
+    }
+    expect(rig.calls).toEqual([])
+    // A message that started its own turn was never queued.
+    const started = setup()
+    const startedRig = withWithdraw(started, () => Promise.resolve(WITHDRAWN))
+    await started.send('l1', 'now')
+    await withdraw(started, 'l1', 't1')
+    expect(startedRig.calls).toEqual([])
+    // A session with no way to take one back says so, not that it is too late (M87 lane C).
+    const plain = setup()
+    queueEverySubmit(plain)
+    withoutWithdraw(plain)
+    await plain.send('l1', 'later')
+    await withdraw(plain, 'l1', 'tq')
+    expect(plain.surface.posted.at(-1)).toEqual(
+      withdrawRefusal('l1', UI_TEXT.queuedEditUnsupported),
+    )
+    expect(plain.server.requestsFor('turn/unqueue')).toEqual([])
+  })
+
+  it('takes a Muse Code message back when turn/unqueued came but the ack failed (the review of lane C)', async () => {
+    const t = setup()
+    queueEverySubmit(t)
+    await t.send('l1', 'later')
+    t.server.handle('turn/unqueue', () => {
+      // The captured order: the event goes out first; here the ack then fails.
+      t.server.notify('turn/unqueued', { sessionId: 's1', turnId: 'tq', commandId: 'c' })
+      throw Object.assign(new Error('refused: internal'), { kind: 'internal', code: -32_603 })
+    })
+    t.surface.posted.length = 0
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'queuedWithdrawn',
+      localId: 'l1',
+      attachmentsKept: false,
+    })
+    expect(t.surface.posted.some((message) => message.type === 'withdrawRefused')).toBe(false)
+  })
+
+  it('offers no Edit for a steer a request read before its ack came (the review of lane C)', async () => {
+    const t = setup()
+    const rig = withWithdraw(
+      t,
+      () => Promise.resolve(WITHDRAWN),
+      true,
+      (userMessageId, emit) => {
+        emit({ type: 'messageAdmitted', userMessageId })
+      },
+    )
+    await steeredIntoRunning(t)
+    expect(t.surface.posted.at(-1)).toMatchObject({ disposition: 'steered', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l2'))
+  })
+
+  it('answers a signed-out panel’s Edit with the reason, asking nothing', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    t.auth.isAdmitted = false
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1', UI_TEXT.notSignedInReason))
+  })
+
+  it('takes back steered input the turn has not read, and a steer moved to a turn of its own', async () => {
+    const t = setup()
+    const rig = withWithdraw(t, () => Promise.resolve(WITHDRAWN), true)
+    await steeredIntoRunning(t)
+    expect(t.surface.posted.at(-1)).toMatchObject({ disposition: 'steered', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    expect(rig.calls).toEqual([{ turnId: 't1', userMessageId: 'us1', disposition: 'steered' }])
+    // The turn left the next steer unread: it waits as a turn of its own.
+    await t.send('l3', 'and this')
+    rig.emit({ type: 'userMessageTurnChanged', userMessageId: 'us2', turnId: 't5' })
+    await withdraw(t, 'l3', 't1', 'us2')
+    expect(rig.calls).toHaveLength(1)
+    await withdraw(t, 'l3', 't5', 'us2')
+    expect(rig.calls.at(-1)).toEqual({ turnId: 't5', userMessageId: 'us2', disposition: 'queued' })
+  })
+
+  it('stops asking once the model has it: its turn started, a request took it, or its turn ended', async () => {
+    const { t: queued, rig: queuedRig } = await queuedL1(() => Promise.resolve(WITHDRAWN))
+    queued.server.notify('turn/started', { sessionId: 's1', turnId: 'tq', viewCursor: 'v' })
+    await settle()
+    await withdraw(queued, 'l1', 'tq')
+    expect(queuedRig.calls).toEqual([])
+    const t = setup()
+    const rig = withWithdraw(t, () => Promise.resolve(WITHDRAWN), true)
+    await steeredIntoRunning(t)
+    rig.emit({ type: 'messageAdmitted', userMessageId: 'us1' })
+    await withdraw(t, 'l2', 't1', 'us1')
+    await t.send('l3', 'and this')
+    t.finishTurn()
+    await settle()
+    await withdraw(t, 'l3', 't1', 'us2')
+    expect(rig.calls).toEqual([])
+    expect(t.surface.posted.filter((message) => message.type === 'withdrawRefused')).toHaveLength(2)
+  })
+
+  it('says it is too late when the model already has it, and asks no more for that card', async () => {
+    const { t, rig } = await queuedL1(() => Promise.resolve({ status: 'tooLate' }))
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1'))
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(1)
+  })
+
+  it('asks the backend once while an Edit is in flight', async () => {
+    const { held, answer } = heldAnswer()
+    const { t, rig } = await queuedL1(answer)
+    t.surface.posted.length = 0
+    const first = withdraw(t, 'l1', 'tq')
+    await vi.waitFor(() => {
+      expect(rig.calls).toHaveLength(1)
+    })
+    await withdraw(t, 'l1', 'tq')
+    held.give?.(WITHDRAWN)
+    await first
+    expect(rig.calls).toHaveLength(1)
+    expect(t.surface.posted).toEqual([
+      { type: 'queuedWithdrawn', localId: 'l1', attachmentsKept: true },
+    ])
+  })
+
+  it('says why when the backend fails, logs no words of its own, and lets the Edit be tried again', async () => {
+    const failure = String.raw`turn/unqueue failed under C:\Users\someone`
+    let attempts = 0
+    const { t, rig } = await queuedL1(() => {
+      attempts += 1
+      return attempts === 1 ? Promise.reject(new Error(failure)) : Promise.resolve(WITHDRAWN)
+    })
+    await withdraw(t, 'l1', 'tq')
+    expect(t.surface.posted.at(-1)).toEqual(withdrawRefusal('l1', failure))
+    expect(logLines(t.log)).toContain('Withdrawing queued message l1 failed: Error')
+    expect(logLines(t.log).join('\n')).not.toContain('someone')
+    await withdraw(t, 'l1', 'tq')
+    expect(rig.calls).toHaveLength(2)
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'queuedWithdrawn',
+      localId: 'l1',
+      attachmentsKept: true,
+    })
+  })
+
+  it('drops an answer that comes after the conversation changed', async () => {
+    const { held, answer } = heldAnswer()
+    const { t, rig } = await queuedL1(answer)
+    const withdrawing = withdraw(t, 'l1', 'tq')
+    await vi.waitFor(() => {
+      expect(rig.calls).toHaveLength(1)
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    t.surface.posted.length = 0
+    held.give?.(WITHDRAWN)
+    await withdrawing
+    expect(t.surface.posted).toEqual([])
+  })
+})
+
+describe('ConversationController: the tasks tab (M87, PLAN.md D66)', () => {
+  it('opens with the conversation’s list and name, keeps up with both, and is the controller’s own', async () => {
+    const tab = fakeTasksTab()
+    const t = setup({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls).toEqual([])
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(t.hostActions).toEqual([])
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] } },
+    ])
+    t.server.notify('session/todoListChanged', {
+      sessionId: 's1',
+      items: [TASK_A_DONE, TASK_B],
+    })
+    t.server.notify('session/nameChanged', { sessionId: 's1', name: 'Refactor' })
+    await settle()
+    expect(tab.calls.slice(1)).toEqual([
+      {
+        call: 'update',
+        view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A_DONE, TASK_B] },
+      },
+      { call: 'update', view: { conversation: 'Refactor', items: [TASK_A_DONE, TASK_B] } },
+    ])
+  })
+
+  it('opens before the first message, and follows the session that message starts', async () => {
+    const tab = fakeTasksTab()
+    const t = setup({ tasksTab: tab.port })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: UI_TEXT.untitledConversation, items: [] } },
+    ])
+    await t.send('l1', 'hi')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({
+      call: 'update',
+      view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] },
+    })
+    expect(tab.calls).not.toContainEqual({ call: 'ended' })
+  })
+
+  it('opens for a resumed session with the list and name its history carried', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    t.server.handle('session/resume', (params) => ({
+      ...envelope({ ...storedSession, sessionId: params['sessionId'], status: 'idle' }),
+      history: {
+        mode: 'snapshot',
+        items: null,
+        snapshot: { state: { items: [], name: 'Planned', todoList: { items: [TASK_B] } } },
+      },
+    }))
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls).toEqual([
+      { call: 'open', view: { conversation: 'Planned', items: [TASK_B] } },
+    ])
+  })
+
+  it('ends with its conversation: a new one, another session, the panel closing, an account boundary', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    await t.controller.handle(OPEN_TASKS_TAB)
+    await t.controller.handle({ type: 'clearConversation' })
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    // Nothing more reaches it until it opens again.
+    await t.send('l2', 'again')
+    t.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(tab.calls.at(-1)).toEqual({
+      call: 'open',
+      view: { conversation: UI_TEXT.untitledConversation, items: [TASK_A] },
+    })
+    await t.controller.handle({ type: 'resumeSession', sessionId: 'old' })
+    await settle()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    await t.controller.handle(OPEN_TASKS_TAB)
+    t.controller.dispose()
+    expect(tab.calls.at(-1)).toEqual({ call: 'ended' })
+    expect(tab.calls.filter((call) => call.call === 'ended')).toHaveLength(3)
+    const boundary = fakeTasksTab()
+    const b = setup({ tasksTab: boundary.port })
+    await b.send('l1', 'hi')
+    await b.controller.handle(OPEN_TASKS_TAB)
+    await b.controller.backendStopping(true)
+    expect(boundary.calls.at(-1)).toEqual({ call: 'ended' })
+  })
+
+  it('stays through a restart that resumes the same conversation', async () => {
+    const tab = fakeTasksTab()
+    const t = withHistory({ tasksTab: tab.port })
+    await t.send('l1', 'hi')
+    await t.controller.handle(OPEN_TASKS_TAB)
+    await t.controller.backendStopping(false)
+    await t.send('l2', 'go on')
+    await settle()
+    expect(t.server.requestsFor('session/resume')[0]?.params).toMatchObject({ sessionId: 's1' })
+    expect(tab.calls).not.toContainEqual({ call: 'ended' })
+    expect(tab.calls.at(-1)).toMatchObject({ call: 'update' })
+  })
+
+  it('says it could not open where the host has no tabs, or the tab failed', async () => {
+    const failed = fill(UI_TEXT.hostActionFailed, { action: 'openTasksTab' })
+    const t = setup()
+    await t.controller.handle(OPEN_TASKS_TAB)
+    expect(t.hostActions).toEqual([])
+    expect(t.surface.posted.at(-1)).toEqual({ type: 'notice', level: 'error', text: failed })
+    const broken: TasksTabPort = {
+      open: () => {
+        throw new Error('no editor group')
+      },
+      update: vi.fn<(view: TasksTabView) => void>(),
+      ended: vi.fn<() => void>(),
+    }
+    const b = setup({ tasksTab: broken })
+    await b.send('l1', 'hi')
+    await b.controller.handle(OPEN_TASKS_TAB)
+    expect(b.surface.posted.at(-1)).toEqual({
+      type: 'notice',
+      level: 'error',
+      text: `${failed}: no editor group`,
+    })
+    // A tab that never opened follows nothing.
+    b.server.notify('session/todoListChanged', { sessionId: 's1', items: [TASK_A] })
+    await settle()
+    await b.controller.handle({ type: 'clearConversation' })
+    expect(broken.update).not.toHaveBeenCalled()
+    expect(broken.ended).not.toHaveBeenCalled()
   })
 })
 

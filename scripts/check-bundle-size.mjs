@@ -49,6 +49,11 @@ const BUDGETS = [
   // 25 KiB (PLAN.md D6).
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
+  // The window's web fetch (M69), loaded on the first fetch: each hop's
+  // checks and pins, the pinned transport, the decoders and the failures'
+  // words. 46.7 KiB when split out on 2026-10-04, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/webFetch.js', budgetKiB: 75 },
   // The Auto reviewer on Muse Code (M90), loaded on the first review: its
   // side session, queue and approvals with M78's reviewer core. 45.4 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).

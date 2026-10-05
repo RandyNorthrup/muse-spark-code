@@ -5,7 +5,11 @@ import {
   mcpFunctionDefinition,
   mcpFunctionName,
 } from '../../src/core/backends/modelapi/mcp/functions'
-import { MAX_IMAGE_BYTES, MODEL_TEXT, TOOL_OUTPUT_MAX_CHARS } from '../../src/shared/constants'
+import {
+  MAX_IMAGE_BYTES,
+  MODEL_API_MODEL_TEXT,
+  TOOL_OUTPUT_MAX_CHARS,
+} from '../../src/shared/constants'
 import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
 
 // Meta's function name rule (tool-calling): `[A-Za-z0-9_.-]`, at most one dot.
@@ -188,7 +192,7 @@ describe('mcpFunctionDefinition (M50)', () => {
       description: 'Does a thing',
       inputSchema: { type: 'array' },
     })
-    expect(definition.description).toBe(`Does a thing\n\n${MODEL_TEXT.mcpSchemaReplaced}`)
+    expect(definition.description).toBe(`Does a thing\n\n${MODEL_API_MODEL_TEXT.mcpSchemaReplaced}`)
     expect(notes).toEqual(['the schema is past the Model API limits or not an object'])
   })
 })
@@ -262,12 +266,12 @@ describe('mcpCallOutcome (M50)', () => {
       ],
     })
     expect(outcome.output.split('\n')).toEqual([
-      `[audio audio/wav not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`,
+      `[audio audio/wav not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`,
       '[resource link] a.txt: file:///a.txt (notes)',
       '[resource link] file:///b.txt: file:///b.txt',
       '[resource file:///c.txt]',
       'hello',
-      `[resource file:///d.bin (binary) not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`,
+      `[resource file:///d.bin (binary) not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`,
       '[content of type hologram not passed on]',
       '[content of type unknown not passed on]',
     ])
@@ -279,8 +283,8 @@ describe('mcpCallOutcome (M50)', () => {
       '{\n  "n": 1\n}',
     )
     expect(mcpCallOutcome({})).toEqual({
-      output: MODEL_TEXT.mcpNoContent,
-      visibleOutput: MODEL_TEXT.mcpNoContent,
+      output: MODEL_API_MODEL_TEXT.mcpNoContent,
+      visibleOutput: MODEL_API_MODEL_TEXT.mcpNoContent,
     })
   })
 

@@ -6,8 +6,9 @@
 // smol-toml, loaded on the first import), the bundled skills installer (M89:
 // the copy and links for Muse Code, loaded on the first install, removal or
 // offer), code intelligence's `ide` answers (M67, loaded on the first call),
-// voice's drivers (M9/M35, loaded on the first recording) and the Auto
-// reviewer on Muse Code (M90, loaded on the first review), the webview, and
+// voice's drivers (M9/M35, loaded on the first recording), the window's web
+// fetch (M69, loaded on the first fetch) and the Auto reviewer on Muse Code
+// (M90, loaded on the first review), the webview, and
 // (in dev mode) the integration tests with esbuild.
 //
 //   node scripts/build.mjs               dev build + integration test bundles
@@ -76,6 +77,8 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
+const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
@@ -227,6 +230,13 @@ const voiceOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const webFetchOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [WEB_FETCH_ENTRY],
+  outfile: WEB_FETCH_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const museCodeReviewerOptions = {
   ...planMarkdownOptions,
   entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
@@ -370,6 +380,7 @@ if (isWatch) {
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(uiTextOptions),
@@ -393,6 +404,7 @@ if (isWatch) {
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
     uiText: esbuild.build(uiTextOptions),
@@ -429,6 +441,7 @@ if (isWatch) {
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(UI_TEXT_OUTFILE)

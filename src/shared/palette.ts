@@ -88,6 +88,8 @@ export type PaletteAction =
 export interface PaletteItem {
   readonly id: string
   readonly label: string
+  /** Absent only on the loading/empty notes and externally supplied rows. */
+  readonly tip?: string | undefined
   readonly detail?: string
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
@@ -413,6 +415,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
   return skills.map((skill) => ({
     id: `skill:${skill.selector}`,
     label: `/${skill.selector}`,
+    tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
     detail:
       skill.argumentHint === undefined
         ? skill.description
@@ -422,7 +425,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
 }
 
 export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
-  return [
+  const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
       title: UI_TEXT.groupContext,
@@ -651,6 +654,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       ],
     },
   ]
+  const tips = new Map(Object.entries(UI_TEXT.paletteTips))
+  return groups.map((group) => ({
+    ...group,
+    items: group.items.map((item) => ({
+      ...item,
+      tip: item.tip ?? tips.get(item.id),
+    })),
+  }))
 }
 
 /** Case-insensitive substring filter over label and detail; empty groups drop. */

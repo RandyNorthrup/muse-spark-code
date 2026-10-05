@@ -29,10 +29,21 @@
 //   dist/bundledSkills.js, or that bundle carries its own English table.
 // - code intelligence's `ide` answers (M67: the queries, the read tools, the
 //   repo map and the rename), voice's drivers (M9, M35: the dictation
-//   driver, Muse Voice's stream, the processes and the socket) or the Auto
-//   reviewer on Muse Code (M90: its side session, with M78's reviewer core)
-//   are in dist/extension.js, or missing from dist/codeIntel.js,
-//   dist/voice.js or dist/museCodeReviewer.js.
+//   driver, Muse Voice's stream, the processes and the socket), the window's
+//   web fetch (M69: each hop's checks and pins, the transport, the decoders,
+//   the failures) or the Auto reviewer on Muse Code (M90: its side session,
+//   with M78's reviewer core) are in dist/extension.js, or missing from
+//   dist/codeIntel.js, dist/voice.js, dist/webFetch.js or
+//   dist/museCodeReviewer.js.
+// - a model text block beside MODEL_TEXT (MODEL_API_, CODE_INTEL_,
+//   CHECKPOINT_, AGENT_IMPORT_, REVIEW_, WEB_FETCH_, EXEC_,
+//   AUTO_REVIEWER_MODEL_TEXT) is
+//   in any shipped bundle but the ones declared to read it, or no longer in
+//   one of those; a block is declared that this check does not guard;
+//   FILE_REFUSAL_MODEL_TEXT, which activation carries by design, holds other
+//   keys than its pinned ones; or a key of MODEL_TEXT, which every bundle
+//   reading any key of it carries whole, is read by no source file of
+//   dist/extension.js (it belongs in the block of the bundle that reads it).
 //
 // Exits 1 on any problem.
 //
@@ -170,14 +181,6 @@ for (const name of [...ACTIVATION_ALLOWED.keys(), ...lazy, ...DEFERRED_ONLY]) {
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
-// The session's model text is its own object (M70 budget repair). esbuild
-// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
-// the activation and ACP loaders must discard with the unused export.
-for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
-  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
-    problems.push(`${bundle.output} carries the Model API session's model text`)
-  }
-}
 for (const bundle of DEFERRED) {
   const inputs = inputsOf(bundle)
   for (const file of bundle.files) {
@@ -320,6 +323,24 @@ const ON_FIRST_USE = [
       'src/core/voice/dictation.ts',
       'src/core/voice/museVoice.ts',
       'src/core/voice/recorderHelper.ts',
+    ],
+  },
+  // The window's web fetch (M69), split out on 2026-10-04: the Model API
+  // backend keeps its own URL checks, the ACP agent its own fetch.
+  {
+    output: 'dist/webFetch.js',
+    metafile: 'dist/meta/webFetch.json',
+    use: 'the first web fetch',
+    files: [
+      'src/host/web/webFetchEntry.ts',
+      'src/host/web/webFetcher.ts',
+      'src/host/web/pinnedRequest.ts',
+      'src/core/web/webFetch.ts',
+      'src/core/web/fetchFailure.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/publicAddress.ts',
+      'src/core/web/mimeType.ts',
+      'src/core/web/textDecoding.ts',
     ],
   },
   {
@@ -492,6 +513,187 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
   }
 }
 
+// Model text (PLAN.md D6, 2026-10-03). One object is carried whole by every
+// bundle that reads any key of it: esbuild does not tree-shake by key. So
+// text that only lazily loaded bundles read is a block of its own in
+// src/shared/constants.ts, and esbuild keeps property names, so a block's
+// sentinel key in a bundle's output means that bundle carries the block.
+// Each sentinel must also still be in the bundles that read the block, so a
+// renamed key cannot quietly turn the check off. A block's readers are
+// declared; every other shipped bundle, lazily loaded ones included, must
+// not carry it (the review of the diet, P2-2: a lazy bundle that read one key
+// of another lazy bundle's block would carry the whole block).
+const CONSTANTS = 'src/shared/constants.ts'
+/** Every JavaScript bundle the production build ships, from its metafiles. */
+function shippedBundles() {
+  return ['dist/meta', 'dist/meta-acp'].flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.json'))
+      .flatMap((name) => {
+        const metafile = `${dir}/${name}`
+        const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
+        return Object.keys(outputs)
+          .filter((output) => output.endsWith('.js'))
+          .map((output) => ({ output, metafile }))
+      }),
+  )
+}
+const SHIPPED = shippedBundles()
+/** The shipped bundle that `output` names; a missing one is a problem. */
+function shipped(output) {
+  const bundle = SHIPPED.find((entry) => entry.output === output)
+  if (bundle === undefined) {
+    problems.push(`${output} is not among the shipped bundles' metafiles`)
+  }
+  return bundle ?? { output, metafile: '' }
+}
+const TEXT_BLOCKS = [
+  {
+    block: 'MODEL_API_MODEL_TEXT',
+    sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
+    readers: [BUNDLES.modelApi.output],
+  },
+  {
+    block: 'CODE_INTEL_MODEL_TEXT',
+    sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
+    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output],
+  },
+  {
+    block: 'CHECKPOINT_MODEL_TEXT',
+    sentinels: ['writeNotRecorded'],
+    readers: [CHECKPOINT_STORE.output],
+  },
+  {
+    block: 'AGENT_IMPORT_MODEL_TEXT',
+    sentinels: ['importedRulesHeading'],
+    readers: [AGENT_IMPORT.output],
+  },
+  // The review turn's text (M70): the review's bundle, the Model API's
+  // built-in Reviewer, and the review pane's removed-line note.
+  {
+    block: 'REVIEW_MODEL_TEXT',
+    sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+  },
+  // Web fetch's own words (M69): the window's fetch, the Model API
+  // backend's URL checks and the ACP agent's fetch.
+  {
+    block: 'WEB_FETCH_MODEL_TEXT',
+    sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+  },
+  // A headless run's attached files (M80): the ACP agent's runtime only.
+  {
+    block: 'EXEC_MODEL_TEXT',
+    sentinels: ['execUntrustedLead'],
+    readers: [BUNDLES.acp.output],
+  },
+  // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
+  // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy
+  // but none of the calls that read this text.
+  {
+    block: 'AUTO_REVIEWER_MODEL_TEXT',
+    sentinels: ['autoReviewerInstructions', 'museCodeReviewerTurn'],
+    readers: ['dist/reviewer.js', 'dist/museCodeReviewer.js'],
+  },
+].map((entry) => ({
+  ...entry,
+  readers: entry.readers.map((output) => shipped(output)),
+  others: SHIPPED.filter(({ output }) => !entry.readers.includes(output)),
+}))
+// The refusals a file tool gives are read at activation (memoryStore,
+// toolIo, fsAtomic) and by lazily loaded bundles alike, so every bundle
+// that reads one carries the block by design and it takes no `others`. Its
+// keys are pinned instead: a key added here rides into dist/extension.js
+// and dist/acp.js, so it must be one that activation reads anyway.
+const FILE_REFUSAL = {
+  block: 'FILE_REFUSAL_MODEL_TEXT',
+  keys: ['fileHasUnsavedChanges', 'pathChangedAfterApproval'],
+}
+const constantsSource = readFileSync(CONSTANTS, 'utf8')
+/** The keys of one `export const NAME = { … } as const` block of constants.ts. */
+function blockKeys(name) {
+  const start = constantsSource.indexOf(`export const ${name} = {`)
+  const end = constantsSource.indexOf('} as const', start)
+  if (start === -1 || end === -1) {
+    problems.push(`${CONSTANTS} no longer declares ${name}`)
+    return []
+  }
+  return constantsSource
+    .slice(start, end)
+    .matchAll(/^ {2}(\w+):/gm)
+    .map((match) => match[1])
+    .toArray()
+}
+const outputText = new Map()
+function textOf(output) {
+  if (!outputText.has(output)) {
+    outputText.set(output, readFileSync(output, 'utf8'))
+  }
+  return outputText.get(output)
+}
+for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
+  const keys = new Set(blockKeys(block))
+  for (const sentinel of sentinels) {
+    if (!keys.has(sentinel)) {
+      problems.push(`${block} has no key ${sentinel}: pick another sentinel for it`)
+    }
+    const declared = new RegExp(`[{,]${sentinel}:`)
+    for (const { output } of others) {
+      if (declared.test(textOf(output))) {
+        problems.push(
+          `${output} carries ${block} (its key ${sentinel}), which only ${readers.map((reader) => reader.output).join(', ')} read`,
+        )
+      }
+    }
+    for (const { output } of readers) {
+      if (!declared.test(textOf(output))) {
+        problems.push(`${output} no longer carries ${block} (its key ${sentinel})`)
+      }
+    }
+  }
+}
+// Every model text block beside MODEL_TEXT is guarded: a new one needs an
+// entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
+const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
+  if (!guarded.has(block)) {
+    problems.push(
+      `${CONSTANTS} declares ${block}, which scripts/check-bundle-split.mjs does not guard`,
+    )
+  }
+}
+const fileRefusalKeys = blockKeys(FILE_REFUSAL.block)
+if (fileRefusalKeys.join(', ') !== FILE_REFUSAL.keys.join(', ')) {
+  problems.push(
+    `${FILE_REFUSAL.block} holds ${fileRefusalKeys.join(', ')}, not ${FILE_REFUSAL.keys.join(', ')}: every bundle that reads a key of it, dist/extension.js among them, carries all of it`,
+  )
+}
+// What stays in MODEL_TEXT is what dist/extension.js reads: a key no source
+// file of the activation bundle reads makes every bundle carry it for
+// nothing, and belongs in the block of the bundle that does read it.
+const activationReads = new Set()
+for (const input of activation.keys()) {
+  if (input === CONSTANTS || !input.startsWith('src/')) {
+    continue
+  }
+  const source = readFileSync(input, 'utf8')
+  if (/\bMODEL_TEXT\[/.test(source)) {
+    problems.push(`${input} reads MODEL_TEXT by a computed key, which this check cannot follow`)
+  }
+  for (const match of source.matchAll(/\bMODEL_TEXT\.(\w+)/g)) {
+    activationReads.add(match[1])
+  }
+}
+const modelTextKeys = blockKeys('MODEL_TEXT')
+for (const key of modelTextKeys) {
+  if (!activationReads.has(key)) {
+    problems.push(
+      `MODEL_TEXT.${key} is read by no source file of ${BUNDLES.activation.output}: move it to the block of the bundle that reads it`,
+    )
+  }
+}
+
 if (problems.length > 0) {
   console.error(`bundle split: ${String(problems.length)} problem(s); see PLAN.md D6 and M57`)
   for (const problem of problems) {
@@ -539,6 +741,9 @@ console.log(
   `ok   ${AGENT_IMPORT.output}: carries the import (scan, converters, file access, smol-toml); ${BUNDLES.activation.output} carries none of it`,
 )
 console.log(`ok   ${BUNDLES.providers.output}: codecs and provider core load exclusively there`)
+console.log(
+  `ok   model text: ${TEXT_BLOCKS.map(({ block }) => block).join(', ')} each in its readers and in no other of the ${String(SHIPPED.length)} shipped bundles; ${FILE_REFUSAL.block} pinned to ${String(FILE_REFUSAL.keys.length)} keys; ${String(modelTextKeys.length)} MODEL_TEXT keys, each read at activation`,
+)
 console.log(`ok   ${UI_TEXT.output}: Node bundles share the English fallback`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
