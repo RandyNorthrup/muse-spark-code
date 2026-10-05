@@ -1,0 +1,203 @@
+package io.github.randynorthrup.musespark
+
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Document
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import java.net.URI
+import java.nio.file.Path
+
+class DocumentServices(
+  private val project: Project,
+  private val trusted: () -> Boolean,
+) {
+  private val documents get() = FileDocumentManager.getInstance()
+
+  fun request(
+    method: String,
+    params: JsonObject,
+  ): JsonElement =
+    when (method) {
+      "documents/list" ->
+        jsonValue(
+          (
+            FileEditorManager.getInstance(project).openFiles.mapNotNull(documents::getDocument) +
+              documents.unsavedDocuments
+          ).distinct().mapNotNull { document ->
+            documents.getFile(document)?.takeIf(::inWorkspace)?.let { snapshot(it, document) }
+          },
+        )
+      "documents/read" -> {
+        val (file, document) = document(params["uri"].asString)
+        json("document" to snapshot(file, document), "text" to document.text)
+      }
+      "documents/applyEdits" -> apply(params)
+      "documents/save" -> {
+        val (file, document) = document(params["uri"].asString)
+        require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
+        require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
+        documents.saveDocument(document)
+        snapshot(file, document)
+      }
+      "documents/saveAll" -> {
+        require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
+        // Do not save another project's buffers.
+        val ours = documents.unsavedDocuments.filter { documents.getFile(it)?.let(::inWorkspace) == true }
+        ours.forEach(documents::saveDocument)
+        json("saved" to ours.none(documents::isDocumentUnsaved))
+      }
+      "editor/active" -> active()
+      "editor/open" -> {
+        val (file, document) = document(params["uri"].asString)
+        val start = params["range"]?.asJsonObject?.getAsJsonObject("start")
+        val offset = start?.let { offset(document, it) } ?: 0
+        FileEditorManager.getInstance(project).openTextEditor(OpenFileDescriptor(project, file, offset), true)
+        jsonValue(null)
+      }
+      "editor/insertAtCursor", "editor/replaceSelection" -> {
+        val range =
+          if (params.has("range")) {
+            params["range"]
+          } else {
+            json("start" to params["position"], "end" to params["position"])
+          }
+        apply(
+          json(
+            "uri" to params["uri"],
+            "expectedVersion" to params["expectedVersion"],
+            "undoLabel" to params["undoLabel"],
+            "edits" to listOf(json("range" to range, "newText" to params["text"])),
+          ),
+        )
+      }
+      else -> error("MHP_METHOD_NOT_FOUND")
+    }
+
+  fun active(): JsonElement {
+    val active =
+      FileEditorManager.getInstance(project).selectedTextEditor?.let { editor ->
+        documents.getFile(editor.document)?.takeIf(::inWorkspace)?.let { file -> editor to file }
+      } ?: return jsonValue(null)
+    val (editor, file) = active
+    val selection = editor.selectionModel
+    val start = if (selection.hasSelection()) selection.selectionStart else editor.caretModel.offset
+    val end = if (selection.hasSelection()) selection.selectionEnd else start
+    val excerpt = editor.document.text.substring(start, end)
+    return json(
+      "uri" to uri(file),
+      "version" to editor.document.modificationStamp,
+      "range" to range(editor.document, start, end),
+      "excerpt" to excerpt.take(MAXIMUM_SELECTION_CHARS),
+      "truncated" to (excerpt.length > MAXIMUM_SELECTION_CHARS),
+    )
+  }
+
+  fun snapshot(
+    file: VirtualFile,
+    document: Document,
+  ): JsonObject =
+    json(
+      "uri" to uri(file),
+      "version" to document.modificationStamp,
+      "dirty" to documents.isDocumentUnsaved(document),
+      "languageId" to file.fileType.name.lowercase(),
+    )
+
+  fun document(value: String): Pair<VirtualFile, Document> {
+    val uri = URI(value)
+    require(uri.scheme == "file" && uri.authority.isNullOrEmpty()) { "MHP_PERMISSION_DENIED" }
+    val path = Path.of(uri).toRealPath()
+    val file =
+      requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)) { "MHP_DOCUMENT_NOT_FOUND" }
+    require(inWorkspace(file)) { "MHP_PERMISSION_DENIED" }
+    return file to requireNotNull(documents.getDocument(file)) { "MHP_DOCUMENT_NOT_FOUND" }
+  }
+
+  fun inWorkspace(file: VirtualFile): Boolean =
+    runCatching {
+      val path = file.toNioPath().toRealPath()
+      ProjectRootManager.getInstance(project).contentRoots.any { root ->
+        runCatching { path.startsWith(root.toNioPath().toRealPath()) }.getOrDefault(false)
+      }
+    }.getOrDefault(false)
+
+  private data class Edit(
+    val start: Int,
+    val end: Int,
+    val text: String,
+  )
+
+  private fun apply(params: JsonObject): JsonObject {
+    val (file, document) = document(params["uri"].asString)
+    require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
+    require(file.isWritable) { "MHP_PERMISSION_DENIED" }
+    val edits =
+      params
+        .getAsJsonArray("edits")
+        .map { value ->
+          val edit = value.asJsonObject
+          val range = edit.getAsJsonObject("range")
+          Edit(
+            offset(document, range.getAsJsonObject("start")),
+            offset(document, range.getAsJsonObject("end")),
+            edit["newText"].asString,
+          )
+        }.sortedWith(compareBy<Edit> { it.start }.thenBy { it.end })
+    require(edits.all { it.start <= it.end }) { "MHP_INVALID_RANGE" }
+    require(
+      edits.zipWithNext().all { (left, right) ->
+        left.end <= right.start && !(left.start == left.end && left.start == right.start)
+      },
+    ) { "MHP_OVERLAPPING_EDITS" }
+    WriteCommandAction.runWriteCommandAction(
+      project,
+      params["undoLabel"].asString,
+      null,
+      Runnable {
+        require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
+        require(!documents.isDocumentUnsaved(document)) { "MHP_DIRTY_BUFFER" }
+        for (edit in edits.asReversed()) document.replaceString(edit.start, edit.end, edit.text)
+      },
+    )
+    return snapshot(file, document)
+  }
+
+  companion object {
+    private const val MAXIMUM_SELECTION_CHARS = 16_384
+
+    fun uri(file: VirtualFile): String = file.toNioPath().toUri().toASCIIString()
+
+    fun offset(
+      document: Document,
+      position: JsonObject,
+    ): Int {
+      val line = position["line"].asInt
+      val character = position["character"].asInt
+      require(line >= 0 && line < document.lineCount) { "MHP_INVALID_RANGE" }
+      val start = document.getLineStartOffset(line)
+      require(character >= 0 && character <= document.getLineEndOffset(line) - start) { "MHP_INVALID_RANGE" }
+      return start + character
+    }
+
+    fun position(
+      document: Document,
+      offset: Int,
+    ): JsonObject {
+      val line = document.getLineNumber(offset)
+      return json("line" to line, "character" to offset - document.getLineStartOffset(line))
+    }
+
+    fun range(
+      document: Document,
+      start: Int,
+      end: Int,
+    ): JsonObject = json("start" to position(document, start), "end" to position(document, end))
+  }
+}
