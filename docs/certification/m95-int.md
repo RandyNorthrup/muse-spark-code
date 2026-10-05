@@ -143,10 +143,26 @@ the released helper's recorded 119,342-byte compressed contribution; that
 arithmetic is conditional and does not certify an absent binary. Final full
 quality and remaining prerequisite status are recorded below.
 
-The preliminary build honestly fails unchanged caps: Models host 94.7/75 KiB
-and chat 905.0/900 KiB. Activation is 570.2/600 KiB, English 121.0/125 KiB.
-The missing 0.13.0 release contains shared Node validation and chat deferrals
-needed by the requested baseline; no cap is raised here.
+The single final full-quality invocation runs on `b4ffa572`, with three
+workers and all live flags off. Format, full lint, all five type projects,
+localization, host API, deadcode, cycles and duplication pass. Unit execution
+then returns 1: **399 files pass, five fail and four skip; 8,059 tests pass,
+27 fail and 63 skip**. One of those failed files fails its setup, leaving six
+tests unrun. The real build's required parser is absent from two fake package
+fixtures; four panel/sidebar assertions expect the old non-module tag, and
+one handoff assertion expects the newly deferred usage surface synchronously.
+These are missed fixture updates, not product failures or successful drills.
+
+Both fixtures now supply `validation.js` (the launcher fixture builds the real
+entry); panel/sidebar assertions require module plus nonce, and the handoff
+test waits for the real dialog before checking focus, exclusivity and close.
+All five complete files pass **73/73**, in two runs of at most three files.
+Together with the full sweep this is **8,092 unique tests passed and 57 existing
+live/platform skips**. V8 produces no coverage report after the failed suite.
+The original full wrapper remains **exit 1**, and is not repeated under the
+brief's single-full-run limit. Its remaining gates run separately below;
+a new complete wrapper/coverage receipt belongs to the lead after the two
+prerequisites are resolved. No assertions, thresholds or deadlines are removed.
 
 ## Round one — historical integration receipts
 

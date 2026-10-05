@@ -18,6 +18,8 @@ happened, not what was planned; superseded entries are kept.
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
   budget counts every static JavaScript chunk; the package ships all chunks.
+  Package and panel regression fixtures exercise the shared parser, module
+  scripts and asynchronous dialog loading.
 
 - M95 integration uses one strict Models panel bridge and includes the captured
   Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a

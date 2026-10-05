@@ -15530,6 +15530,23 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**M95INT round-two whole-chain receipt (2026-10-05) — still deferred.**
+The single full `npm run quality` authorized by the 150-minute rig brief
+passes format, lint, all five type projects, localization, host API, dead
+code, cycles and duplication, then returns 1 at unit tests: 27 failures
+and one failed setup across five files. Two fake package fixtures omit the
+new required `validation.js`; four panel/sidebar assertions expect the old
+script tag, and a handoff test expects synchronous usage-dialog loading.
+The repaired five complete files pass 73/73 with no assertion removed.
+Together with the full run, every offline test has passed, but V8 emits no
+coverage report after the failed suite. Preserve the brief's single-wrapper
+limit: separately run its remaining build, audit, accessibility, secret and
+SAST gates. A fresh whole-chain/coverage receipt belongs to the lead after
+the release/helper prerequisites in §3 are resolved; do not call this
+wrapper green. The earlier four SAST findings, timeout warnings and two
+browser failures are repaired, with red proofs and clean scoped/full scans
+recorded in `docs/certification/m95-int.md`. No gate is weakened.
+
 **M95INT final whole-chain rerun — deferred under the 120-minute rig brief.**
 The final 548-page rerun still returns 1: `dark/models-pick` has one selected
 description at 4.41:1 contrast (4.5:1 required), and `hc-light/models-table`

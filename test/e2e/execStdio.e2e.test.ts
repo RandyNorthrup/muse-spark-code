@@ -118,7 +118,15 @@ function packagingFixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of ['acp', 'modelApi', 'reviewer', 'uiText', 'searchWorker', 'pageWorker']) {
+  for (const bundle of [
+    'acp',
+    'modelApi',
+    'reviewer',
+    'uiText',
+    'validation',
+    'searchWorker',
+    'pageWorker',
+  ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
   }
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
