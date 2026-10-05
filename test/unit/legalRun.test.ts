@@ -132,6 +132,81 @@ describe('M97 legal run (lane R)', () => {
       }
     }
   })
+  it('redacts thrown scanner and writer reasons in reports, stderr and --out', async () => {
+    for (const format of ['text', 'json'] as const) {
+      for (const out of [undefined, 'report/legal.txt']) {
+        const context = deps({
+          scan: () => Promise.reject(new Error('access_token=synthetic-marker')),
+        })
+        const outcome = await runLegalCommand({
+          options: { format, out, registry: false },
+          deps: context,
+        })
+        expect(outcome.exitCode).toBe(LEGAL_EXIT.incomplete)
+        expect([outcome.out, outcome.err, ...context.written.values()].join('\n')).not.toContain(
+          'synthetic-marker',
+        )
+      }
+    }
+    const outcome = await runLegalCommand({
+      options: { format: 'json', out: 'report/legal.json', registry: false },
+      deps: deps({ writeFile: () => Promise.reject(new Error('access_token=synthetic-marker')) }),
+    })
+    expect(outcome.err).not.toContain('synthetic-marker')
+  })
+  it('keeps successful registry enrichment in text and JSON reports', async () => {
+    for (const format of ['text', 'json'] as const) {
+      const context = deps({
+        scan: fakeScan(scanResult(), [{ ecosystem: 'npm', name: 'is-even', version: '1.0.0' }]),
+        fetch: () => Promise.resolve(new Response('{"license":"MIT"}')),
+      })
+      const outcome = await runLegalCommand({
+        options: { format, out: undefined, registry: true },
+        deps: context,
+      })
+      expect(outcome.exitCode).toBe(LEGAL_EXIT.ok)
+      expect(outcome.err).toBe('')
+      if (format === 'json') {
+        const body: unknown = JSON.parse(outcome.out)
+        expect(legalReportEnvelopeSchema.parse(body).registry.licenses).toMatchObject([
+          {
+            target: { ecosystem: 'npm', name: 'is-even', version: '1.0.0' },
+            status: 'found',
+            license: 'MIT',
+          },
+        ])
+      } else {
+        expect(outcome.out).toContain('registry.npmjs.org')
+      }
+    }
+  })
+  it('includes the disclaimer in JSON stdout and exports, including degraded scans', async () => {
+    for (const out of [undefined, 'report/legal.json']) {
+      for (const scan of [fakeScan(scanResult()), () => Promise.reject(new Error('unavailable'))]) {
+        const context = deps({ scan })
+        const outcome = await runLegalCommand({
+          options: { format: 'json', out, registry: false },
+          deps: context,
+        })
+        const body: unknown = JSON.parse(
+          out === undefined ? outcome.out : (context.written.get(out) ?? ''),
+        )
+        expect(body).toMatchObject({ disclaimer: UI_TEXT.legalScanDisclaimer })
+      }
+    }
+  })
+  it('renders ratio confidence as 100 and 50 percent', async () => {
+    const outcome = await runLegalCommand({
+      options: { format: 'text', out: undefined, registry: false },
+      deps: deps({
+        scan: fakeScan(
+          scanResult({ findings: [finding(), finding({ id: 'rule/test/2', confidence: 0.5 })] }),
+        ),
+      }),
+    })
+    expect(outcome.out).toContain('100%')
+    expect(outcome.out).toContain('50%')
+  })
   it('exits 0 on advice alone and renders every finding field', async () => {
     const context = deps({
       scan: fakeScan(

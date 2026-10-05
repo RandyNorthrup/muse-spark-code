@@ -214,7 +214,7 @@ async function queryOne(
 ): Promise<LegalRegistryLicense> {
   // No headers, no credentials: the registries' public documents need none.
   // The deadline arrives with the signal: each attempt owns one (see above).
-  const response = await input.fetch(url, { signal: input.signal })
+  const response = await input.fetch(url, { signal: input.signal, redirect: 'manual' })
   const { status } = response
   if (status === HTTP_STATUS.notFound) {
     await discardBody(response)
