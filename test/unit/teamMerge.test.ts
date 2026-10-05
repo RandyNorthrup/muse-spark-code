@@ -18,7 +18,7 @@ import {
 import type * as FsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { cpSync } from 'node:fs'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   applyTeamMerge,
   isTeamMergeError,
@@ -614,10 +614,25 @@ describe('binary files', () => {
 })
 
 describe('no repository program', () => {
-  it('runs no filter, textconv or merge driver', async () => {
+  let fixture: { root: string; base: string; head: string; canary: string }
+  beforeAll(async () => {
     const { root, head: base } = await teamFixtureRepo(runGit)
     const canary = path.join(root, 'canary-fired')
-    const filter = `touch "${canary}" && cat`
+    const program = path.join(root, '..', 'canary.cjs')
+    await writeFile(
+      program,
+      [
+        "const fs = require('node:fs')",
+        "fs.writeFileSync(process.argv[2], 'fired')",
+        "if (process.argv[3] === 'filter') process.stdout.write(fs.readFileSync(0))",
+      ].join('\n'),
+    )
+    // One owned Node program avoids spawning touch and cat through Git's
+    // POSIX emulation on Windows. Forward slashes also work in Git's shell.
+    const command = [process.execPath, program, canary]
+      .map((part) => JSON.stringify(part.replaceAll('\\', '/')))
+      .join(' ')
+    const filter = `${command} filter`
     await appendFile(
       path.join(root, '.git', 'config'),
       [
@@ -626,9 +641,9 @@ describe('no repository program', () => {
         `  smudge = ${JSON.stringify(filter)}`,
         '[merge "canary"]',
         '  name = canary merge driver',
-        `  driver = ${JSON.stringify(`touch "${canary}" && cat "%A" > "%A" && exit 0`)}`,
+        `  driver = ${JSON.stringify(`${command} merge`)}`,
         '[diff "canary"]',
-        `  textconv = ${JSON.stringify(`touch "${canary}"`)}`,
+        `  textconv = ${JSON.stringify(`${command} textconv`)}`,
         '',
       ].join('\n'),
     )
@@ -642,12 +657,21 @@ describe('no repository program', () => {
       'refs/heads/main',
     )
     await runGit(['read-tree', '--reset', '-u', 'main'], root)
-    const head = await taskBranch(root, withAttributes, { 'shared.txt': 'one\nTWO\nthree\n' })
-    // The task copy's real checkout fires the smudge filter. Its canary is
-    // outside the imported tree; clear it before testing extension-owned Git.
+    const head = await teamFixtureCommit(runGit, root, withAttributes, {
+      'shared.txt': 'one\nTWO\nthree\n',
+    })
+    // The real read-tree checkout fires the smudge filter. A clean merge
+    // never needs a task copy; no recursive copy or second checkout here.
     await expect(stat(canary)).resolves.toBeDefined()
+    fixture = { root, base: withAttributes, head, canary }
+  })
+
+  it('runs no filter, textconv or merge driver', async () => {
+    const { root, base, head, canary } = fixture
     await rm(canary, { force: true })
-    await applyTeamMerge(io(), spec(root, withAttributes, head))
+    const result = await applyTeamMerge(io(), spec(root, base, head))
+    expect(result.written).toEqual(['shared.txt'])
+    expect(await readFile(path.join(root, 'shared.txt'), 'utf8')).toBe('one\nTWO\nthree\n')
     await expect(stat(canary)).rejects.toThrow()
   })
 })

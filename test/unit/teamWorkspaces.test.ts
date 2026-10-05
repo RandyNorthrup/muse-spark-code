@@ -264,9 +264,14 @@ describe('startTeamWorkspace', () => {
 })
 
 describe('two writers', () => {
+  let first: TaskWorkspace
+  let second: TaskWorkspace
+  beforeAll(async () => {
+    first = await copiedTaskWorkspace('t1')
+    second = await copiedTaskWorkspace('t2', 'own-branch', 'engineering', first)
+  })
+
   it('never touch each other’s trees; both branches land from the same base', async () => {
-    const first = await copiedTaskWorkspace('t1')
-    const second = await copiedTaskWorkspace('t2', 'own-branch', 'engineering', first)
     const { root, head } = first
     expect(first.workspace.folder).not.toBe(second.workspace.folder)
     await writeWorkerFile(first.workspace.folder, 'shared.txt', 'one\nFIRST\nthree\n')
@@ -277,27 +282,63 @@ describe('two writers', () => {
     expect(await readFile(path.join(second.workspace.folder, 'shared.txt'), 'utf8')).toBe(
       'one\nSECOND\nthree\n',
     )
-    const one = await commitWorkerEdit(first.workspace.folder, 'engineering', 't1', 'entry-a')
-    const two = await commitWorkerEdit(second.workspace.folder, 'engineering', 't2', 'entry-b')
+    const ready = Promise.withResolvers<undefined>()
+    let writersReady = 0
+    const concurrentGit: typeof runGit = async (args, cwd, input, env) => {
+      if (args.includes('add')) {
+        writersReady += 1
+        if (writersReady === 2) {
+          ready.resolve(undefined)
+        }
+        await ready.promise
+      }
+      return await runGit(args, cwd, input, env)
+    }
+    // Both real commits reach staging before either proceeds. No sleeps,
+    // timing assumptions or serialized writer stand-ins.
+    const [one, two] = await Promise.all([
+      commitTaskBranch(concurrentGit, first.workspace.folder, {
+        branch: 'agents/engineering/t1',
+        role: 'engineering',
+        taskId: 't1',
+        entryId: 'entry-a',
+      }),
+      commitTaskBranch(concurrentGit, second.workspace.folder, {
+        branch: 'agents/engineering/t2',
+        role: 'engineering',
+        taskId: 't2',
+        entryId: 'entry-b',
+      }),
+    ])
+    expect(writersReady).toBe(2)
     expect(one.committed).toBe(true)
     expect(two.committed).toBe(true)
-    await publishTaskRef(
-      runGit,
-      root,
-      first.workspace.folder,
-      'agents/engineering/t1',
-      'refs/heads/agents/engineering/t1',
-      head,
-    )
-    await publishTaskRef(
-      runGit,
-      root,
-      second.workspace.folder,
-      'agents/engineering/t2',
-      'refs/heads/agents/engineering/t2',
-      head,
-    )
+    await Promise.all([
+      publishTaskRef(
+        runGit,
+        root,
+        first.workspace.folder,
+        'agents/engineering/t1',
+        'refs/heads/agents/engineering/t1',
+        head,
+      ),
+      publishTaskRef(
+        runGit,
+        root,
+        second.workspace.folder,
+        'agents/engineering/t2',
+        'refs/heads/agents/engineering/t2',
+        head,
+      ),
+    ])
     expect(await revOf(root, 'refs/heads/agents/engineering/t1')).toBe(one.head)
+    expect(await revOf(root, 'refs/heads/agents/engineering/t2')).toBe(two.head)
+    const finalTrees = await Promise.all(
+      [first, second].map(
+        async ({ workspace }) => await readFile(path.join(workspace.folder, 'shared.txt'), 'utf8'),
+      ),
+    )
+    expect(finalTrees).toEqual(['one\nFIRST\nthree\n', 'one\nSECOND\nthree\n'])
     // The user's branch still has no commit.
     expect(await revOf(root, 'main')).toBe(head)
   })
@@ -375,6 +416,21 @@ describe('publishTaskRef', () => {
 })
 
 describe('repair regressions: publication CAS', () => {
+  let raceFixture: TaskWorkspace
+  let taskHead: string
+  beforeAll(async () => {
+    raceFixture = await copiedTaskWorkspace('cas')
+    // Publication imports an existing commit; commitTaskBranch has its own
+    // real-porcelain tests. Build this fixture in one plumbing transaction.
+    taskHead = await teamFixtureCommit(
+      runGit,
+      raceFixture.workspace.folder,
+      raceFixture.head,
+      { 'shared.txt': 'changed\n' },
+      'refs/heads/agents/engineering/cas',
+    )
+  })
+
   it('reports a held ref lock as Git failure rather than fictitious movement', async () => {
     const { root, head, workspace } = await copiedTaskWorkspace('locked')
     const ref = 'refs/heads/agents/engineering/locked'
@@ -387,25 +443,23 @@ describe('repair regressions: publication CAS', () => {
   })
 
   it('refuses an intervening ref movement at the object import boundary', async () => {
-    const { root, head, workspace } = await copiedTaskWorkspace('cas')
-    await writeWorkerFile(workspace.folder, 'shared.txt', 'changed\n')
-    const { head: taskHead } = await commitWorkerEdit(
-      workspace.folder,
-      'engineering',
-      'cas',
-      'entry',
-    )
+    const { root, head, workspace } = raceFixture
     const ref = 'refs/heads/agents/engineering/cas'
+    let isImportCompleted = false
     const racingGit: typeof runGit = async (args, cwd, input) => {
       const result = await runGit(args, cwd, input)
       if (args[0] === 'fetch') {
+        // This awaited seam is the barrier: imported objects exist, while
+        // the publication CAS has not run. The intervening writer wins.
         await runGit(['update-ref', ref, taskHead, head], root)
+        isImportCompleted = true
       }
       return result
     }
     await expect(
       publishTaskRef(racingGit, root, workspace.folder, 'agents/engineering/cas', ref, head),
     ).rejects.toMatchObject({ code: 'refMoved' })
+    expect(isImportCompleted).toBe(true)
     expect(await revOf(root, ref)).toBe(taskHead)
   })
 })

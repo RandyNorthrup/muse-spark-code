@@ -20,13 +20,23 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Remaining Windows team fixture cost (WINI96B).** The repository-program
+  canary uses one owned Node program and a prepared repository, without a
+  redundant task-tree copy. Two real writers commit concurrently behind an
+  explicit staging barrier and publish their distinct refs in parallel.
+  The publication-race fixture uses Git fast-import; its intervening write
+  stays at the awaited object-import boundary. Original assertions and
+  default deadlines remain, with additional checks of both published refs,
+  both worker trees and the canary's merged content. Measurements and
+  platform proof are in M96 lane I's certification record.
+
 - **Lower Windows team fixture cost (WINI96).** Tests reuse prepared,
   independent repository and workspace copies, batch fixture commits with
   Git fast-import, and read immutable blobs through one Git batch per
   repository. Every original assertion and default deadline remains.
-  Windows merge and workspace suite times fall roughly by half; three
-  default-timeout cases still block complete native verification, recorded
-  in M96 lane I's certification.
+  Windows merge and workspace suite times fall roughly by half; at that
+  checkpoint, three default-timeout cases still block complete native
+  verification, recorded in M96 lane I's certification.
 
 - **Team merge transactions (RVM96I2C lane I).** Landing compares each
   target's current bytes and permissions with its planned base, prepares
@@ -38,8 +48,8 @@ happened, not what was planned; superseded entries are kept.
   patch output remains available. Ref-lock failures retain their real error,
   symlink blobs refuse, executable flips preserve private permissions, binary
   rework keeps the worker's bytes, and 8.3 fixture listings stay bounded.
-  Windows default-timeout verification remains blocked; see M96 lane I's
-  certification record.
+  That checkpoint left Windows default-timeout verification blocked; see
+  M96 lane I's certification record and the WINI96B follow-up above.
 
 - **Windows team paths (M96 lane I).** Canonical containment accepts drive
   letter and directory casing differences and extended namespace spellings.

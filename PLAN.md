@@ -21590,6 +21590,26 @@ before a repaired one loads (2026-09-30).
   two timing failures. Earlier I-Windows records used 120-second overrides
   and do not close this gate. Detailed timings and remaining actions are in
   `docs/certification/m96-i.md`, WINI96.
+  WINI96B (2026-10-05) authorizes a fresh, two-attempt repair round for
+  exactly the filter canary, two-writer and publication-race timeouts.
+  Profile per-step wall time, direct Git children and filesystem calls;
+  reduce fixture work and use deterministic completion barriers. Keep all
+  assertions and default deadlines. Acceptance: three consecutive complete
+  lane-I Windows passes with three workers, then one at normal workers;
+  retain POSIX behavior and record before/after case costs. Native tests
+  here are the explicit exception to common.md's rig-only rule. Full
+  quality/coverage and release integration remain the lead's gates.
+  Final-source three-worker acceptance passes three consecutive complete
+  lane-I runs, each 214/214 with unchanged defaults. All three assigned
+  repairs pass in normal configuration too, but that complete run is
+  213/214: the unassigned overlap-refusal case times out at 5.085 s.
+  I-default-timeout's normal-worker criterion therefore remains open;
+  the earlier normal pass is not substituted for final-source proof.
+  WINI96B's exact three-case scope prevents changing the fourth fixture
+  without owner authorization. A focused fast-import setup replacement
+  is proposed, with assertions and deadlines unchanged. No blind rerun.
+  Fresh POSIX 214/214, three restored guard drills and all scoped
+  static/build gates pass. See the WINI96B certification section.
   The integrator must unify lane I's tokenizer and lane W's shared Git
   classifier in round 3b, and honour TeamGit's explicit isolated environment
   argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
