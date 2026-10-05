@@ -28,6 +28,8 @@
   "command.openShareFile.title": "共有ファイルを開く",
   "command.mcpServers.title": "MCP サーバー",
   "command.hooks.title": "フック",
+  "command.runSetupHooks.title": "セットアップフックの実行",
+  "command.runHook.title": "フックの実行…",
   "command.memory.title": "メモリ",
   "command.newWorktree.title": "新しいワークツリー…",
   "command.removeWorktree.title": "ワークツリーの削除…",

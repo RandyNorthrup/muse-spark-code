@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **M91 lane E wiring, in progress.** Trusted, opt-in `spark-hooks.json`
+  dispatch now reaches rules and skill loading, expanded prompts, tool
+  admission and permission refusals, model switches, todos, finished thoughts,
+  Best-of-N worktrees and bounded teammate continuations. Window hooks load
+  lazily on both backends, with Setup and Manual commands, `/hook run`, matched
+  file changes, settings changes and added folders. The standalone agent's
+  trusted Setup command runs without an account probe or a model call. Hook
+  context estimates have their own usage row. Full 21-event support remains
+  pending the owning S/M/W lanes and the automatic-compaction integration;
+  see `docs/certification/m91-e.md` for exact evidence and limits.
+
 - **Hooks from every popular agent (M91, PLAN.md D70), in progress.**
   - **The plan.** On the Model API backend:
     - Muse Code's Interrupt and its PostToolUseFailure correction;

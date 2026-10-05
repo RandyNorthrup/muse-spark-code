@@ -181,6 +181,26 @@ function fakeChild(): EventEmitter {
 }
 
 describe('parseCommandLine', () => {
+  it('requires explicit trust for Setup and confines maintenance to Setup', () => {
+    expect(parseCommandLine(['setup'])).toMatchObject({ command: 'invalid' })
+    expect(parseCommandLine(['--trust-workspace', 'setup'])).toMatchObject({
+      command: 'setup',
+      maintenance: false,
+    })
+    expect(parseCommandLine(['--trust-workspace', 'setup', '--maintenance'])).toMatchObject({
+      command: 'setup',
+      maintenance: true,
+    })
+    expect(parseCommandLine(['--maintenance'])).toMatchObject({ command: 'invalid' })
+    expect(parseCommandLine(['exec', '--trust-workspace', 'setup'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+    expect(parseCommandLine(['exec', '--maintenance', 'setup'])).toMatchObject({
+      command: 'invalid',
+      exitCode: 2,
+    })
+  })
   it('serves by default, with the flags as options', () => {
     expect(parseCommandLine([])).toEqual({ command: 'serve', options: DEFAULTS })
     expect(

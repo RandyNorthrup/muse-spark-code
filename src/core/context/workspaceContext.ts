@@ -290,4 +290,9 @@ export class WorkspaceContext {
       memory: this.memory,
     }
   }
+
+  /** Loaded rule filenames only, for InstructionsLoaded; never their contents. */
+  public rulePaths(): readonly string[] {
+    return this.rules.map((rule) => rule.path)
+  }
 }

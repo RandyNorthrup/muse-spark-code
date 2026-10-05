@@ -28,6 +28,8 @@
   "command.openShareFile.title": "Abrir arquivo compartilhado",
   "command.mcpServers.title": "Servidores MCP",
   "command.hooks.title": "Ganchos",
+  "command.runSetupHooks.title": "Executar ganchos de configuração",
+  "command.runHook.title": "Executar um gancho…",
   "command.memory.title": "Memória",
   "command.newWorktree.title": "Nova Árvore de Trabalho…",
   "command.removeWorktree.title": "Remover Árvore de Trabalho…",

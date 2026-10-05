@@ -11,6 +11,7 @@ import {
   type AgentHost,
   type AgentSession,
   type BackendKind,
+  NO_EXTENSION_HOOK_DISPATCH,
   type GoalCommand,
   type GoalRefusal,
   type HostExit,
@@ -298,6 +299,8 @@ export interface ConversationDeps {
   readonly initialPermissionMode: PermissionMode
   /** False until the approval cards ship (M4); see shared/permissionModes.ts. */
   readonly hasApprovalUi: boolean
+  readonly runManualHook?: (name: string) => Promise<{ readonly matched: boolean }>
+  readonly rewriteMessage?: (text: string) => Promise<string | undefined>
   readonly openExternal: (url: string) => void
   readonly openSideChat?: (sessionId: string) => void
   readonly mentions: MentionSearch
@@ -554,6 +557,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'confirmHandoff',
 ])
 const QUEUED_DISPOSITION = 'queued'
+const COMPLETED_STATUS = 'completed'
 const TOOL_CALL_KIND = 'toolCall'
 const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
@@ -957,6 +961,7 @@ export class ConversationController {
    * Child sessions this surface has rows for. Their turns reach the parent
    * stream (M48) but never take the parent turn's steering, Stop or Ctrl+B.
    */
+  private messageDisplayQueue: Promise<void> = Promise.resolve()
   private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
   /** The contributor model the user said yes to (once per conversation). */
@@ -1756,7 +1761,68 @@ export class ConversationController {
     }
   }
 
+  /**
+   * An assistant message about to show (M91 lane E): MessageDisplay fires
+   * on both backends, since display passes through here. The message is
+   * held until its hooks answer; a display-only rewrite travels on the
+   * forwarded item's `displayText` while `text` stays the original, so
+   * history, copy and export keep what the model wrote. True when held.
+   */
+  private holdForMessageDisplay(event: Extract<AgentEvent, { type: 'itemCompleted' }>): boolean {
+    const session = this.session
+    const fire = session?.fireExtensionHook
+    const rewrite = this.deps.rewriteMessage
+    const text = event.item.kind === AGENT_MESSAGE_KIND ? event.item.text : undefined
+    if (
+      text === undefined ||
+      (fire === undefined && rewrite === undefined) ||
+      event.item.status !== COMPLETED_STATUS ||
+      text.trim() === ''
+    ) {
+      return false
+    }
+    const held = event
+    const generation = this.sendInvalidationEpoch
+    // The payload matches `messageDisplayFields` in `extensionHooks.ts`
+    // (`message`), built inline so that module stays out of the activation
+    // bundle. A hook failure shows the message as written, never nothing,
+    // and the queue survives a failure so later messages still show.
+    const previousDisplay = this.messageDisplayQueue
+    this.messageDisplayQueue = (async () => {
+      await previousDisplay
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      let shown = held
+      try {
+        const dispatch =
+          fire === undefined
+            ? undefined
+            : await fire.call(session, 'MessageDisplay', { message: text }, undefined)
+        const displayText = dispatch === undefined ? await rewrite?.(text) : dispatch.displayText
+        if (displayText !== undefined && displayText !== text) {
+          shown = { ...held, item: { ...held.item, displayText } }
+        }
+      } catch {
+        this.deps.log.warn('A MessageDisplay hook failed; the message shows as written')
+      }
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      try {
+        this.forward(shown)
+        this.track(shown)
+      } catch (error: unknown) {
+        this.deps.log.warn(`An assistant message could not be shown: ${describe(error)}`)
+      }
+    })()
+    return true
+  }
+
   private onEvent(event: AgentEvent): void {
+    if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
+      return
+    }
     if (event.type === 'modelChanged') {
       this.voiceContextRevision += 1
     } else if (event.type === 'viewGap') {
@@ -3277,6 +3343,13 @@ export class ConversationController {
           this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
         modelId: () => this.modelId,
         wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
+        // The run's extension hooks fire from the surface session's
+        // snapshot (M91 lane E): attempts run with hooks off, so the
+        // parent's side fires. A session without such a point (Muse Code)
+        // leaves the run hookless, as before.
+        fireExtensionHook: (event, fields, matcherValue) =>
+          this.session?.fireExtensionHook?.(event, fields, matcherValue) ??
+          Promise.resolve(NO_EXTENSION_HOOK_DISPATCH),
         isTrusted: () => this.deps.isWorkspaceTrusted(),
         realPath: (absolutePath) => this.deps.realPath(absolutePath),
         onUpdate: (run) => {
@@ -6251,6 +6324,14 @@ export class ConversationController {
     if (this.session !== undefined) {
       try {
         await this.session.setModel(modelId)
+        const appliedModel = this.session.modelId
+        // Extension-hook sessions apply or refuse synchronously. Muse Code's
+        // modelId instead waits for its next notification after setModel.
+        if (appliedModel !== modelId && this.session.fireExtensionHook !== undefined) {
+          this.modelId = appliedModel
+          this.postSessionInfo(appliedModel)
+          return
+        }
       } catch (error: unknown) {
         this.modelId = previous
         this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`)
@@ -7371,6 +7452,11 @@ export class ConversationController {
           message.includeEditorContext === true,
           message.reference,
         )
+        break
+      }
+      case 'runManualHook': {
+        const result = await this.deps.runManualHook?.(message.name)
+        if (result === undefined) this.notice('warning', UI_TEXT.hooksNotRunnable)
         break
       }
       case 'cancelTurn': {

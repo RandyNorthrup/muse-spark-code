@@ -229,6 +229,12 @@ function TokensSection({
             <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
           </>
         )}
+        {usage?.hookTokensAdded === undefined ? null : (
+          <>
+            <dt>{UI_TEXT.usageAddedByHooks}</dt>
+            <dd>{formatTokenWindow(usage.hookTokensAdded)}</dd>
+          </>
+        )}
         {costUsd !== undefined && (
           <>
             <dt>{UI_TEXT.usageCost}</dt>

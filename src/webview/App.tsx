@@ -16,6 +16,7 @@ import {
   GOAL_SLASH_COMMAND,
   HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
+  HOOK_RUN_SLASH_COMMAND,
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
@@ -176,6 +177,7 @@ const KEEPS_PALETTE_OPEN: ReadonlySet<PaletteAction['type']> = new Set([
 // What choosing `/goal` leaves in the prompt: the command, ready for the objective (M45).
 const GOAL_PROMPT_START = `/${GOAL_SLASH_COMMAND} `
 const LOOP_PROMPT_START = `/${LOOP_SLASH_COMMAND} `
+const HOOK_PROMPT_START = `/${HOOK_RUN_SLASH_COMMAND} `
 // What choosing `/review` leaves: the command, ready for what to review (M70).
 const REVIEW_PROMPT_START = `/${REVIEW_SLASH_COMMAND} `
 // What choosing `/handoff` leaves in the prompt: the command, ready for the goal (M74).
@@ -297,6 +299,9 @@ function promptStartFor(action: PaletteAction): string | undefined {
     }
     case 'startLoop': {
       return LOOP_PROMPT_START
+    }
+    case 'startHook': {
+      return HOOK_PROMPT_START
     }
     case 'startReview': {
       return REVIEW_PROMPT_START
@@ -567,6 +572,16 @@ export function App({
       return
     }
     const text = current.draft.trim()
+    if (text === HOOK_PROMPT_START.trim() || text.startsWith(HOOK_PROMPT_START)) {
+      const name = text.slice(HOOK_PROMPT_START.trim().length).trim()
+      if (name === '') {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.manualHookPick })
+        return
+      }
+      dispatch({ type: 'draftChanged', draft: '' })
+      postMessage({ type: 'runManualHook', name })
+      return
+    }
     // `/review …` (M70): a review turn, its card what was typed. The chips
     // and the reference chip wait for the next message.
     const review = parseReviewPrompt(text)
@@ -1421,6 +1436,11 @@ export function App({
         }
         case 'startLoop': {
           dispatch({ type: 'draftChanged', draft: LOOP_PROMPT_START })
+          closeOverlay()
+          break
+        }
+        case 'startHook': {
+          dispatch({ type: 'draftChanged', draft: HOOK_PROMPT_START })
           closeOverlay()
           break
         }

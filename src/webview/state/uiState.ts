@@ -1640,6 +1640,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           ...(event.packedTokensAvoided !== undefined && {
             packedTokensAvoided: event.packedTokensAvoided,
           }),
+          ...(event.hookTokensAdded !== undefined && { hookTokensAdded: event.hookTokensAdded }),
         },
       }
     }
