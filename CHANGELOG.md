@@ -13,7 +13,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Security
 
-- Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`.
+- Muse Gadgets SDK tokens (`mgst_…`) are now redacted from logs and transcripts and counted by `scan-secrets`. A valid-length prefix glued to more token characters (a trailing `-` or `-extra`) is an overlength near-miss, not a token, and is left alone.
 
 ## [0.12.0] - 2026-10-04
 

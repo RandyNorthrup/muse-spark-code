@@ -117,13 +117,16 @@ const PEM_PRIVATE_KEY =
 
 // Muse Gadgets SDK tokens (M92): `mgst_` and 43 base64url characters holding
 // 32 bytes, so the last one is constrained to the endings those bytes take —
-// the shape the SDK's own installer validates. The boundaries keep `mgst_`
-// inside a longer identifier, or a longer run, from matching.
+// the shape the SDK's own installer validates. The boundaries are explicit
+// lookarounds over the token alphabet: `\b` treats `-` as a boundary, but
+// `-` is in the alphabet, so a valid-length prefix of a longer run (a token
+// with `-` or `-extra` glued on) must not match.
 const GADGET_SDK_TOKEN_PREFIX = 'mgst_'
 const GADGET_SDK_TOKEN_BODY = '[A-Za-z0-9_-]{42}'
 const GADGET_SDK_TOKEN_LAST = '[AEIMQUYcgkosw048]'
+const GADGET_SDK_TOKEN_EDGE = '[A-Za-z0-9_-]'
 const GADGET_SDK_TOKEN_PATTERN = new RegExp(
-  String.raw`\b${GADGET_SDK_TOKEN_PREFIX}${GADGET_SDK_TOKEN_BODY}${GADGET_SDK_TOKEN_LAST}\b`,
+  `(?<!${GADGET_SDK_TOKEN_EDGE})${GADGET_SDK_TOKEN_PREFIX}${GADGET_SDK_TOKEN_BODY}${GADGET_SDK_TOKEN_LAST}(?!${GADGET_SDK_TOKEN_EDGE})`,
   'g',
 )
 

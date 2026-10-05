@@ -316,6 +316,23 @@ describe('redactSecrets', () => {
         expect(countSecretMatches(glued, [])).toBe(0)
       }
     })
+
+    it('leaves a valid token glued to a hyphen run alone', () => {
+      // `-` is in the token alphabet, so a hyphen continues the run: the
+      // whole is an overlength near-miss, not a token with punctuation.
+      for (const glued of [`${token}-`, `${token}-extra`, `-${token}`]) {
+        expect(redactSecrets(glued)).toBe(glued)
+        expect(countSecretMatches(glued, [])).toBe(0)
+      }
+    })
+
+    it('redacts every valid final character', () => {
+      for (const last of 'AEIMQUYcgkosw048') {
+        const candidate = `mgst_${'A'.repeat(42)}${last}`
+        expect(redactSecrets(candidate)).toBe('[redacted]')
+        expect(countSecretMatches(candidate, [])).toBe(1)
+      }
+    })
   })
 
   it('leaves ordinary words, counts, prefixes and code with those names alone', () => {
