@@ -1,6 +1,7 @@
 // Lane P: the wizard flow, suggestions, scan diffs and model filters
 // (M95, D74) — every step, every facet, every badge, each able to fail.
 
+import { checkEndpointUrl } from '../../src/core/providers/endpointPolicy'
 import { describe, expect, it } from 'vitest'
 import {
   badgesFor,
@@ -31,10 +32,13 @@ function selectOpenai(state: WizardState): WizardState {
     presetId: 'openai',
     auth: 'apiKey',
   })
-  return applyWizardEvent(selected, {
-    type: 'edit-form',
-    fields: { address: 'https://api.openai.com' },
-  })
+  return applyWizardEvent(
+    applyWizardEvent(selected, {
+      type: 'edit-form',
+      fields: { address: 'https://api.openai.com' },
+    }),
+    { type: 'validate-endpoint', address: 'https://api.openai.com', answers: ['93.184.215.14'] },
+  )
 }
 
 function row(
@@ -163,6 +167,117 @@ describe('wizardFlow', () => {
     const summary = wizardSummary(selectOpenai(startWizard()))
     expect(summary.origin).toBe('https://api.openai.com')
     expect(summary.lines.join('\n')).toContain('Code goes to: https://api.openai.com')
+  })
+
+  it('requires validated endpoints and explicit private-network consent before Save', () => {
+    const ready = {
+      ...selectOpenai(startWizard()),
+      step: 'confirm' as const,
+      draft: {
+        ...selectOpenai(startWizard()).draft,
+        endpoint: undefined,
+        keyPresent: true,
+        keyShapeOk: true,
+        test: { ok: true },
+        models: ['m'],
+      },
+    }
+    expect(wizardBlockers(ready)).not.toEqual([])
+    expect(applyWizardEvent(ready, { type: 'confirm' }).step).toBe('confirm')
+    const refused = {
+      ...ready,
+      draft: {
+        ...ready.draft,
+        address: 'https://169.254.169.254',
+        endpoint: {
+          address: 'https://169.254.169.254',
+          verdict: checkEndpointUrl('https://169.254.169.254', ['169.254.169.254']),
+        },
+      },
+    }
+    expect(wizardBlockers(refused)).not.toEqual([])
+    const address = 'https://nas.lan'
+    const privateState = {
+      ...ready,
+      draft: {
+        ...ready.draft,
+        address,
+        endpoint: { address, verdict: checkEndpointUrl(address, ['192.168.1.10']) },
+      },
+    }
+    expect(wizardBlockers(privateState)).not.toEqual([])
+    expect(
+      wizardBlockers(applyWizardEvent(privateState, { type: 'confirm-private', confirmed: true })),
+    ).toEqual([])
+  })
+
+  it('invalidates tests, credentials and consent when connection fields change', () => {
+    const base = {
+      ...selectOpenai(startWizard()),
+      step: 'confirm' as const,
+      draft: {
+        ...selectOpenai(startWizard()).draft,
+        keyPresent: true,
+        keyShapeOk: true,
+        connected: true,
+        costAccepted: true,
+        privateConfirmed: true,
+        test: { ok: true },
+        models: ['m'],
+      },
+    }
+    for (const fields of [
+      { address: 'https://new.example' },
+      { customFormat: 'anthropic' as const },
+      { auth: 'none' as const },
+      { azureResource: 'other' },
+      { deployment: 'other' },
+      { loopbackPort: 1234 },
+    ]) {
+      const edited = applyWizardEvent(base, { type: 'edit-form', fields })
+      expect(edited.draft.test).toBeUndefined()
+      expect(edited.draft.keyPresent).toBe(false)
+      expect(edited.draft.keyShapeOk).toBe(false)
+      expect(edited.draft.connected).toBe(false)
+      expect(edited.draft.costAccepted).toBe(false)
+      expect(edited.draft.privateConfirmed).toBe(false)
+      expect(edited.draft.models).toEqual([])
+      expect(wizardBlockers(edited)).not.toEqual([])
+    }
+    const unchanged = applyWizardEvent(base, {
+      type: 'edit-form',
+      fields: { address: base.draft.address },
+    })
+    expect(unchanged.draft.test?.ok).toBe(true)
+    expect(
+      applyWizardEvent(base, { type: 'edit-form', fields: { sessionBudgetUsd: 1 } }).draft.test?.ok,
+    ).toBe(true)
+  })
+
+  it('ignores stale endpoint validation and form attempts to set trusted state', () => {
+    const base = selectOpenai(startWizard())
+    const edited = applyWizardEvent(base, {
+      type: 'edit-form',
+      fields: { address: 'https://new.example' },
+    })
+    expect(
+      applyWizardEvent(edited, {
+        type: 'validate-endpoint',
+        address: 'https://api.openai.com',
+        answers: ['93.184.215.14'],
+      }).draft.endpoint,
+    ).toBeUndefined()
+    // Structural excess properties can arrive from JS callers; the form whitelist ignores them.
+    const fields = {
+      address: 'https://new.example',
+      keyPresent: true,
+      test: { ok: true },
+      privateConfirmed: true,
+    }
+    const injected = applyWizardEvent(edited, { type: 'edit-form', fields })
+    expect(injected.draft.keyPresent).toBe(false)
+    expect(injected.draft.test).toBeUndefined()
+    expect(injected.draft.privateConfirmed).toBe(false)
   })
 
   it('keeps Save disabled until the form is valid', () => {

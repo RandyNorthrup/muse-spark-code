@@ -7,6 +7,7 @@
 // A paid test states its cost and waits for `accept-test-cost` first.
 // Pure: no clock, no network, no storage.
 
+import { checkEndpointUrl, type EndpointVerdict } from './endpointPolicy'
 import type { OpenRouterPrivacy } from './presets'
 
 /** The wizard's steps, in order (privacy only for OpenRouter). */
@@ -63,6 +64,7 @@ export interface WizardDraft {
   readonly privacy: OpenRouterPrivacy
   readonly allowFallbacks: boolean
   readonly providerOrder: readonly string[]
+  readonly endpoint?: { readonly address: string; readonly verdict: EndpointVerdict } | undefined
   readonly privateConfirmed: boolean
   readonly defaultModel?: string | undefined
   readonly sessionBudgetUsd?: number | undefined
@@ -95,9 +97,41 @@ export function startWizard(): WizardState {
   }
 }
 
+// Only form-owned fields can be edited; credentials, validation and consent
+// arrive through their own events, never an unrestricted draft merge.
+const WIZARD_FORM_FIELDS = [
+  'address',
+  'azureResource',
+  'deployment',
+  'loopbackPort',
+  'customFormat',
+  'auth',
+  'defaultModel',
+  'sessionBudgetUsd',
+  'allowFallbacks',
+  'providerOrder',
+] as const
+const WIZARD_CONNECTION_FIELDS = [
+  'address',
+  'azureResource',
+  'deployment',
+  'loopbackPort',
+  'customFormat',
+  'auth',
+] as const
+
 export type WizardEvent =
   | { readonly type: 'select-preset'; readonly presetId: string; readonly auth: 'apiKey' | 'none' }
-  | { readonly type: 'edit-form'; readonly fields: Partial<WizardDraft> }
+  | {
+      readonly type: 'edit-form'
+      readonly fields: Partial<Pick<WizardDraft, (typeof WIZARD_FORM_FIELDS)[number]>>
+    }
+  | {
+      readonly type: 'validate-endpoint'
+      readonly address: string
+      readonly answers: readonly string[]
+    }
+  | { readonly type: 'confirm-private'; readonly confirmed: boolean }
   | { readonly type: 'submit-key'; readonly shapeOk: boolean }
   | { readonly type: 'connect-oauth' }
   | { readonly type: 'accept-test-cost' }
@@ -191,6 +225,13 @@ export function wizardBlockers(state: WizardState): readonly string[] {
   if (draft.address === undefined || draft.address.trim() === '') {
     blockers.push('Enter the server address.')
   }
+  if (draft.endpoint === undefined || draft.endpoint.address !== draft.address) {
+    blockers.push('Validate the server address first.')
+  } else if (draft.endpoint.verdict.kind === 'refused') {
+    blockers.push(`The server address was refused: ${draft.endpoint.verdict.reason}`)
+  } else if (draft.endpoint.verdict.kind === 'confirm-private' && !draft.privateConfirmed) {
+    blockers.push('Confirm access to this private network first.')
+  }
   if (draft.auth !== 'none' && !draft.keyPresent && !draft.connected) {
     blockers.push('Enter the key or connect the account first.')
   }
@@ -224,7 +265,7 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
         step: 'configure',
         error: undefined,
         draft: {
-          ...state.draft,
+          ...startWizard().draft,
           presetId: event.presetId,
           auth: event.auth,
           keyPresent: false,
@@ -237,7 +278,59 @@ export function applyWizardEvent(state: WizardState, event: WizardEvent): Wizard
       }
     }
     case 'edit-form': {
-      return { ...state, error: undefined, draft: { ...state.draft, ...event.fields } }
+      let draft = state.draft
+      for (const field of WIZARD_FORM_FIELDS) {
+        if (Object.hasOwn(event.fields, field)) {
+          draft = { ...draft, [field]: event.fields[field] }
+        }
+      }
+      const isChanged = WIZARD_CONNECTION_FIELDS.some(
+        (field) => draft[field] !== state.draft[field],
+      )
+      return {
+        ...state,
+        error: undefined,
+        draft: isChanged
+          ? {
+              ...draft,
+              endpoint: undefined,
+              privateConfirmed: false,
+              costAccepted: false,
+              keyPresent: false,
+              keyShapeOk: false,
+              connected: false,
+              test: undefined,
+              models: [],
+            }
+          : draft,
+      }
+    }
+    case 'validate-endpoint': {
+      // Ignore validation completed for an address that has since been edited.
+      if (event.address !== state.draft.address) {
+        return state
+      }
+      return {
+        ...state,
+        error: undefined,
+        draft: {
+          ...state.draft,
+          endpoint: {
+            address: event.address,
+            verdict: checkEndpointUrl(event.address, event.answers),
+          },
+          privateConfirmed: false,
+        },
+      }
+    }
+    case 'confirm-private': {
+      return state.draft.endpoint?.verdict.kind === 'confirm-private'
+        ? {
+            ...state,
+            error: undefined,
+            draft: { ...state.draft, privateConfirmed: event.confirmed },
+          }
+        : failed(state, 'Confirm access to this private network first.')
     }
     case 'submit-key': {
       if (state.step !== 'credential') {

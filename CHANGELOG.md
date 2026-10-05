@@ -16,7 +16,9 @@ happened, not what was planned; superseded entries are kept.
   and clean up failed writes. OpenRouter routing keeps order and fallback
   restrictions together, Fireworks keys use the correct prefix, custom model
   limits survive reload, scan summaries track price availability accurately,
-  and recommendations exclude non-callable models.
+  and recommendations exclude non-callable models. The provider wizard requires
+  endpoint validation and private-network consent before saving, and connection
+  edits clear dependent credentials, tests and consent.
 
 ## [0.12.1] - 2026-10-04
 
