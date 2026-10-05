@@ -6792,16 +6792,16 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
 
-- [~] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
-  brief's batches of at most three files with three workers. Preserve coverage
-  collection and merge the complete map against the unchanged thresholds.
+- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
+      brief's batches of at most three files with three workers. Preserve coverage
+      collection and merge the complete map against the unchanged thresholds.
 - [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
       artifacts: build and load every required support bundle from private fixtures,
       using the production English compression plugin for the exact-value check.
       Preserve activation's assertions that action bundles remain unloaded.
-- [ ] Fix any further macOS failures at their root, prove regression assertions
+- [x] Fix any further macOS failures at their root, prove regression assertions
       fire, then collect two consecutive green complete runs and per-file receipts.
-- [ ] Run typecheck, scoped lint/format and the available static/build gates;
+- [x] Run typecheck, scoped lint/format and the available static/build gates;
       commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
       integration is outside the macOS CI matrix. Time box: 90 minutes.
 

@@ -63,8 +63,8 @@ partition and per-batch/per-file results under `temp/cifix14/`.
 Source commit: `66e4e2f4`. All **501 files**, every member of all four shards,
 completed successfully: **10,867 passed tests, 82 existing skipped/disabled
 cases, zero failures**. Per-file results are in `cifix14-macos-files.csv`;
-the second-run columns will be added after the repeat finishes. Existing
-opt-in live suites stayed disabled; model attempts: zero.
+both runs have a column set, with status, passed/skipped/failed counts and timing. Existing
+opt-in live suites stayed disabled; live model attempts: zero.
 
 The final `vitest run --merge-reports=<four-shard-reports> --coverage` exits 0:
 
@@ -108,3 +108,34 @@ runtime `7f0bd93cbe74db1362d889df9a78d0ca650db9ebade3e4393c27d9f2ee9dafca`,
 hooks `ffca4813c8958d878805ed33b0d062dc1126bb73f86c944ad1853d1ecab662c7`,
 surfaces `bb5e221aa512b7fb886ba5cc914ee56f6922ee4dd4d3b1e1bc78380d29d973ab`.
 Exact receipts remain under `temp/cifix14/` in this worktree.
+
+## Second complete run and final disposition
+
+Both consecutive complete runs account for every member of all four shards:
+**501 files each (494 passed, seven existing opt-in/platform files skipped),
+10,867 passed tests, 82 existing skipped cases, zero failures**. The receipt
+builder checks unique shard membership, exactly one result per file per run,
+no extra/missing results, and matching totals. The combined per-file CSV is
+`docs/certification/cifix14-macos-files.csv`.
+
+Run 1 collects full coverage and passes the unchanged merged coverage gate.
+Run 2 repeats all unit/process-e2e tests with the same sanitized CI environment,
+three-worker limit and rig timeout, without collecting coverage again. It groups
+files by the first run's measured duration within their original CI shard,
+then replays all four shard reports through Vitest; replay exits 0. No product
+or test source changes between runs. The 90-minute brief and the first run's
+costly full-map aggregation require this distinction; a second coverage run is
+not claimed. Hosted CI's Node 22 remains for the lead's receipt: this rig used
+Node 24.21.0. Integration is absent from the macOS build matrix.
+
+The only macOS failures found were the two deferred-bundle artifact dependencies.
+Both are fixed in the test fixtures; production English output is unchanged.
+No additional macOS product defect, skip, retry or timeout change was introduced.
+The two deliberate failure drills fired and their files were restored byte-exact.
+Local commits use hooks; no push, merge, rebase or paid/live call occurred.
+
+Changed files: `test/unit/deferredBundles.test.ts`, `scripts/build.mjs`,
+`scripts/lib/uiTextRegions.mjs`, `scripts/lib/uiTextRegions.d.mts`, `PLAN.md`,
+`CHANGELOG.md`, this certification and its per-file CSV. The shared-rule
+prohibition on `npm run quality` remains recorded in PLAN §7; aggregate quality,
+accessibility, audit/SAST and hosted Node 22 certification remain with the lead.
