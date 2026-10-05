@@ -231,3 +231,64 @@ passed before the final explicit signal-validation change; its hook check
 and final serial gates follow. Duplication initially found four test fixture
 clones; fixture setup was consolidated without ignores and `jscpd` reran
 green (zero clones). No production source was refactored for that gate.
+
+### Final serial lane receipt
+
+Implementation commit: `3fd00ae627313e1589c1d7ab218212cef07db048`.
+Its enabled `.husky/_` pre-commit hook passed ESLint/Prettier on all ten
+TypeScript files, Markdown formatting and staged gitleaks (no leaks).
+All 94 source hashes still match after those hooks and the production build.
+
+All final commands below ran **serially and directly on macmini**, after the
+implementation commit. During development one all-project typecheck overlapped
+an owning test invocation; that overlap is excluded from this final receipt.
+The final serial rerun is the certification evidence.
+
+| Check                                                 | Final result                                                                                |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                   | All five projects pass                                                                      |
+| Changed-file `npx eslint --max-warnings=0`            | Pass, no suppressions                                                                       |
+| Changed-file `npx prettier --check`                   | Pass                                                                                        |
+| Three owning Vitest files, whole files with rig flags | **48/48 pass**                                                                              |
+| `npm run deadcode` (plain knip)                       | Pass; existing `vendor/**` configuration hint only                                          |
+| `npm run cycles` (dpdm)                               | Pass, 403 files, no cycle                                                                   |
+| `npx jscpd`                                           | Pass, 859 files, zero clones                                                                |
+| `node scripts/check-l10n.mjs`                         | **0 problems**: 14 tables, 127 manifest strings, 433 source files                           |
+| `npm run build`                                       | Pass: production, all 18 unchanged budgets, split/model-text readers, host globals, notices |
+| `npm run check:host-api`                              | **Exit 1**, the three inherited snapshot differences below                                  |
+| `git diff --check`                                    | Pass                                                                                        |
+
+The host API snapshot mismatch is exactly P0/FIXM98J's existing deferral in
+PLAN §7: `paidHost.ts` 11 → 12 calls; add that file to
+`WorkspaceConfiguration.get`; `node:crypto` 32 → 33. FU adds **no snapshot
+difference**. The generated document is Z-owned; Z/lead must run
+`npm run check:host-api -- --write`, review those rows and rerun the gate.
+It is not claimed green here.
+
+| Production bundle       | Size / unchanged cap               |
+| ----------------------- | ---------------------------------- |
+| Extension               | **553.3 / 600 KiB**, 566,613 bytes |
+| Model API               | 426.4 / 475 KiB                    |
+| Muse Code reviewer      | 17.4 / 75 KiB                      |
+| Webview JS              | 861.2 / 900 KiB                    |
+| ACP                     | 786.7 / 850 KiB                    |
+| Shared English fallback | 105.9 / 125 KiB                    |
+| Checkpoint store        | 109.1 / 225 KiB                    |
+
+The actual production activation metafile contains **no `src/core/judge/`
+or `src/host/judge/` input**. No source/schema/implementation bundle loads
+through the optional type-only dependency. No bundle, cap, language table,
+model-text reader or dependency changed.
+
+The real source adapters retain per-connection locality/provenance checks;
+`sourceVerified` is validated use-eligibility evidence, never a cached proof
+that authorizes a content-bearing socket. The runtime still applies all
+paid admission/first-charge/confidential rules. No live/paid/local attempt
+was added by any gate or drill.
+
+Full quality/coverage/installed-host/package/hosted certification and the
+shared snapshot/docs/assembly updates remain Z/lead's explicitly delegated
+integration work. FU's pure implementation, injected reviewer region,
+owning acceptance tests and red controls are complete. Working tree was
+clean after the implementation commit and final lane gates; this receipt
+update is the only subsequent change.
