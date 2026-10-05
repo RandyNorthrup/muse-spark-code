@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M96 second-review ledger repairs:** retention drains concurrent usage
+  before rolling it up, takeover refuses a stale durable snapshot, and
+  persistence strips unapproved fields, including nested private content.
+
 - **M96 review repairs:** computed worker ceilings preserve zero and partial
   provider limits; cooldowns only lengthen, and spend caps use the UI locale.
   Ledger publications and resets serialize with generation acknowledgements;

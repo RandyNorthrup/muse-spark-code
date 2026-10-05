@@ -346,6 +346,51 @@ export class TeamLedger {
     return { rolled, removed }
   }
 
+  /** Validates and enqueues a snapshot while the publication queue is held. */
+  private async recordPending(candidate: string): Promise<void> {
+    const parsed = teamLedgerRowSchema.safeParse(JSON.parse(candidate) as unknown)
+    if (!parsed.success) {
+      throw new Error(`Team ledger row is invalid: ${z.prettifyError(parsed.error)}`)
+    }
+    if (
+      parsed.data.workspaceId !== this.deps.workspaceId ||
+      (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
+    ) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    }
+    let line = toLedgerLine(parsed.data)
+    if (parsed.data.kind === 'reset') {
+      await this.flushPending()
+      const { rows } = await this.read()
+      line = toLedgerLine({
+        ...parsed.data,
+        clearedUsage: ledgerMeterRows(rows)
+          .filter(
+            (row) =>
+              row.kind !== 'reset' &&
+              (parsed.data.clearedEntryId === undefined ||
+                row.entryId === parsed.data.clearedEntryId) &&
+              row.startMs < parsed.data.startMs,
+          )
+          .map((row) => ({
+            entryId: row.entryId,
+            taskId: row.taskId,
+            dayKey: row.dayKey,
+            usage: row.usage,
+          })),
+      })
+    }
+    const previous = this.lastStatus.get(parsed.data.taskId)
+    this.lastStatus.set(parsed.data.taskId, parsed.data.status)
+    const lines = this.pending.get(parsed.data.dayKey) ?? []
+    lines.push(line)
+    this.pending.set(parsed.data.dayKey, lines)
+    this.generation += 1
+    if (previous === undefined || previous !== parsed.data.status) {
+      await this.flushPending()
+    }
+  }
+
   /** Starts the flush timer: usage rows land at least every `flushMs`. */
   public start(): void {
     if (this.timerStarted) return
@@ -369,49 +414,8 @@ export class TeamLedger {
    * no secret and no other prompt text reaches the file.
    */
   public async record(record: TeamLedgerRecord): Promise<void> {
-    let line = toLedgerLine(record)
-    const parsed = teamLedgerRowSchema.safeParse(JSON.parse(line) as unknown)
-    if (!parsed.success) {
-      throw new Error(`Team ledger row is invalid: ${z.prettifyError(parsed.error)}`)
-    }
-    if (
-      parsed.data.workspaceId !== this.deps.workspaceId ||
-      (parsed.data.kind === 'task' && parsed.data.lease.holder !== this.deps.windowId)
-    ) {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
-    }
-    await this.queued(async () => {
-      if (parsed.data.kind === 'reset') {
-        await this.flushPending()
-        const { rows } = await this.read()
-        line = toLedgerLine({
-          ...parsed.data,
-          clearedUsage: ledgerMeterRows(rows)
-            .filter(
-              (row) =>
-                row.kind !== 'reset' &&
-                (parsed.data.clearedEntryId === undefined ||
-                  row.entryId === parsed.data.clearedEntryId) &&
-                row.startMs < parsed.data.startMs,
-            )
-            .map((row) => ({
-              entryId: row.entryId,
-              taskId: row.taskId,
-              dayKey: row.dayKey,
-              usage: row.usage,
-            })),
-        })
-      }
-      const previous = this.lastStatus.get(parsed.data.taskId)
-      this.lastStatus.set(parsed.data.taskId, parsed.data.status)
-      const lines = this.pending.get(parsed.data.dayKey) ?? []
-      lines.push(line)
-      this.pending.set(parsed.data.dayKey, lines)
-      this.generation += 1
-      if (previous === undefined || previous !== parsed.data.status) {
-        await this.flushPending()
-      }
-    })
+    const candidate = toLedgerLine(record)
+    await this.queued(() => this.recordPending(candidate))
   }
 
   /** Serializes the whole snapshot, acknowledgement and retry, never just one day's append. */
@@ -476,18 +480,32 @@ export class TeamLedger {
     ) {
       return false
     }
-    await this.record({
-      ...latest,
-      startMs: latest.startMs,
-      endMs: this.deps.now(),
-      status: 'interrupted',
-      outcome: 'interrupted',
-      usage,
-      estimated: isEstimated,
-      ...(decision !== undefined && { recoveryDecision: decision }),
-      lease: { holder: this.deps.windowId, sinceMs: this.deps.now() },
+    return await this.queued(async () => {
+      await this.flushPending()
+      const { rows } = await this.read()
+      const current = TeamLedger.latestByTask(rows).get(latest.taskId)
+      // A changed snapshot needs a fresh recovery decision, never stale accounting.
+      if (
+        current?.workspaceId !== this.deps.workspaceId ||
+        !isTeamLedgerActive(current.status) ||
+        JSON.stringify(current) !== JSON.stringify(latest)
+      ) {
+        return false
+      }
+      await this.recordPending(
+        toLedgerLine({
+          ...current,
+          endMs: this.deps.now(),
+          status: 'interrupted',
+          outcome: 'interrupted',
+          usage,
+          estimated: isEstimated,
+          ...(decision !== undefined && { recoveryDecision: decision }),
+          lease: { holder: this.deps.windowId, sinceMs: this.deps.now() },
+        }),
+      )
+      return true
     })
-    return true
   }
 
   /**
@@ -500,7 +518,11 @@ export class TeamLedger {
       return { rolled: 0, removed: 0 }
     }
     await this.flush()
-    return await this.queued(() => this.prunePublished())
+    return await this.queued(async () => {
+      // Usage may have queued after the preliminary flush; roll up only its durable version.
+      await this.flushPending()
+      return await this.prunePublished()
+    })
   }
 }
 

@@ -113,6 +113,102 @@ async function lifetimeInput(ledger: TeamLedger, taskId: string, atMs: number): 
 }
 
 describe('teamLedger', () => {
+  it('A2-F01 retention drains a concurrent usage update before publishing its rollup', async () => {
+    const directory = await ledgerDir()
+    const nowMs = new Date(2026, 9, 5).getTime()
+    const startMs = nowMs - 40 * 86_400_000
+    const ledger = openLedger(directory, 'window-a', nowMs)
+    const record = taskRecord('retention-race', {
+      startMs,
+      status: 'finished',
+      usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100, tasks: 1 },
+    })
+    await ledger.record(record)
+    const pruning = ledger.prune()
+    const updating = ledger.record({
+      ...record,
+      usage: { ...record.usage, inputTokens: 300 },
+    })
+    await Promise.all([pruning, updating])
+    await ledger.flush()
+    for (const reader of [ledger, openLedger(directory, 'window-a', nowMs)]) {
+      expect(await lifetimeInput(reader, record.taskId, nowMs)).toBe(300)
+      const { rows } = await reader.read()
+      expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(300)
+    }
+  })
+
+  it.each(['finished', 'running'] as const)(
+    'A2-F02 refuses a stale takeover snapshot after a durable %s update',
+    async (status) => {
+      const directory = await ledgerDir()
+      const owner = openLedger(directory)
+      const record = taskRecord('stale-takeover', {
+        usage: { ...ZERO_TEAM_METER_USAGE, inputTokens: 100 },
+      })
+      await owner.record(record)
+      const recovery = openLedger(directory, 'window-b')
+      const original = await recovery.read()
+      const stale = TeamLedger.latestByTask(original.rows).get(record.taskId)
+      if (stale === undefined) throw new Error('Missing active snapshot')
+      await owner.record({ ...record, status, usage: { ...record.usage, inputTokens: 300 } })
+      await owner.flush()
+      expect(
+        await recovery.markInterrupted(stale, stale.usage, false, {
+          kind: 'userTakeover',
+          ownerId: 'window-a',
+        }),
+      ).toBe(false)
+      const { rows } = await recovery.read()
+      expect(TeamLedger.latestByTask(rows).get(record.taskId)?.status).toBe(status)
+      expect(sumTeamTotals(ledgerMeterRows(rows), { dayKey: undefined }).tokens).toBe(300)
+    },
+  )
+
+  it('A2-F02 checks takeover after an already queued local completion publishes', async () => {
+    const directory = await ledgerDir()
+    const ledger = openLedger(directory)
+    const record = taskRecord('local-takeover')
+    await ledger.record(record)
+    const original = await ledger.read()
+    const stale = TeamLedger.latestByTask(original.rows).get(record.taskId)
+    if (stale === undefined) throw new Error('Missing active snapshot')
+    const finishing = ledger.record({
+      ...record,
+      status: 'finished',
+      usage: { ...record.usage, inputTokens: 300 },
+    })
+    const recovering = ledger.markInterrupted(stale, stale.usage, false, undefined)
+    await finishing
+    expect(await recovering).toBe(false)
+    expect(await lifetimeInput(ledger, record.taskId, record.startMs)).toBe(300)
+  })
+
+  it('A2-F03 persists only approved fields from enriched records, including nested objects', async () => {
+    const directory = await ledgerDir()
+    const ledger = openLedger(directory)
+    const marker = 'private-content-outside-the-brief'
+    const record = taskRecord('enriched')
+    const enriched = {
+      ...record,
+      prompt: marker,
+      fileContent: marker,
+      usage: { ...record.usage, fileContent: marker },
+      settings: [{ name: 'effort', value: 'high', prompt: marker }],
+      links: { transcript: 'task/transcript', fileContent: marker },
+      lease: { ...record.lease, prompt: marker },
+    }
+    await ledger.record(enriched)
+    await ledger.flush()
+    const file = path.join(directory, 'window-a', `team-${teamDayKey(record.startMs)}.jsonl`)
+    const stored = await readFile(file, 'utf8')
+    expect(stored).not.toContain(marker)
+    const { rows } = await openLedger(directory).read()
+    expect(TeamLedger.latestByTask(rows).get(record.taskId)?.links.transcript).toBe(
+      'task/transcript',
+    )
+  })
+
   it.each([false, true])(
     'F02 serializes multi-day flushes and failed retries (failure=%s)',
     async (fail) => {

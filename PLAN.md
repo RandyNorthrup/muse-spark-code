@@ -16658,6 +16658,17 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**FIXM96A2 second-review repairs (2026-10-05).** Repair RVM96A2
+A2-F01–F04 in lane A: drain pending usage inside retention's publication
+queue; revalidate the current durable snapshot before takeover; persist only
+schema-approved fields; and identify provider/tariff in price questions,
+quoting Meta rates only for a matching verified Meta tariff. Other tariffs
+use the existing unknown-price, token-ceiling path and provider-key billing
+text. Each repair gets a failing regression and byte-exact red drill in
+`docs/certification/m96-a.md`. A2-U01's live entry-cap wiring is an explicit
+integration prerequisite, documented there and in §9; other lanes are not
+wired here. No new dependency, paid/live call or widened guard.
+
 **FIXM96A review repairs (2026-10-05).** Address RVM96C F01–F11 inside
 lane A: model/provider/tariff-scoped consent, serialized generation-aware
 ledger publication and bounded redacted retries, zero/partial ceilings,
