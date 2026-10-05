@@ -3562,7 +3562,8 @@ shows the dialog there.
   nothing itself, makes no network or model call and has no GitHub access.
 - **After a crash:** at its next start the extension offers once, "Muse
   Spark Code stopped unexpectedly last time — report it?". It cannot tell a
-  crash from a killed process or a power loss.
+  crash from a killed process or a power loss, and it cannot see a crash in
+  the moment after the extension starts, before its recorder has loaded.
 - **Other editors:** `muse-spark-code-acp report` prints the same kind of
   report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
 

@@ -895,12 +895,11 @@ for (const file of nodeMetafiles) {
   }
 }
 for (const input of validationReaders) {
-  const source = ts.createSourceFile(
-    input,
-    readFileSync(input, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-  )
+  const text = readFileSync(input, 'utf8')
+  // A file that never names the module has no alias to check; parsing every
+  // source input made this the slowest part of the check.
+  if (!text.includes('zod/mini')) continue
+  const source = ts.createSourceFile(input, text, ts.ScriptTarget.Latest)
   const aliases = new Set()
   for (const statement of source.statements) {
     if (
